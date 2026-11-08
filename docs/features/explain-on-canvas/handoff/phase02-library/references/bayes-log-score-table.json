@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Bayes combines the prior with the likelihood",
+    "caption": "For one token: $score=prior\\times likelihood$; normalize by $3/8+1/8=1/2$. In log space add log prior and log likelihood.",
+    "kind": "matrix",
+    "layout": "teaching",
+    "columns": [
+      "Prior",
+      "Token likelihood",
+      "Joint score",
+      "Posterior"
+    ],
+    "rows": [
+      {
+        "id": "spam",
+        "heading": "Spam",
+        "cells": [
+          "$1/2$",
+          "$3/4$",
+          "$3/8$",
+          "$3/4$"
+        ]
+      },
+      {
+        "id": "ham",
+        "heading": "Ham",
+        "cells": [
+          "$1/2$",
+          "$1/4$",
+          "$1/8$",
+          "$1/4$"
+        ]
+      }
+    ],
+    "emphasis": {
+      "columns": [
+        3
+      ]
+    }
+  }
+}

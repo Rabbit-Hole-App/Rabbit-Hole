@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "ROC compares sensitivity and false alarms",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "False-positive rate",
+      "min": 0,
+      "max": 1,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "True-positive rate",
+      "min": 0,
+      "max": 1
+    },
+    "series": [
+      {
+        "label": "Classifier ROC",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.1,
+            "y": 0.6
+          },
+          {
+            "x": 0.3,
+            "y": 0.85
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      },
+      {
+        "label": "Chance diagonal",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "label": "One decision threshold",
+        "x": 0.1,
+        "y": 0.6
+      }
+    ]
+  }
+}

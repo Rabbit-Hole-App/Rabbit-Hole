@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Relative nearest and farthest distances",
+    "caption": "Illustrative values; compare categories on the shared scale.",
+    "kind": "bar-chart",
+    "variant": "grouped",
+    "categories": [
+      "2 dimensions",
+      "10 dimensions",
+      "100 dimensions"
+    ],
+    "series": [
+      {
+        "label": "Nearest / farthest",
+        "values": [
+          0.2,
+          0.6,
+          0.9
+        ]
+      },
+      {
+        "label": "Farthest / farthest",
+        "values": [
+          1,
+          1,
+          1
+        ]
+      }
+    ]
+  }
+}

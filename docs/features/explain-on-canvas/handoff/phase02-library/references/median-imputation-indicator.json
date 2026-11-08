@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Median imputation plus a missingness indicator",
+    "caption": "Observed training ages are 20 and 40, so the fitted median is 30. Reuse that fitted value when transforming new rows.",
+    "kind": "matrix",
+    "layout": "teaching",
+    "columns": [
+      "Raw age",
+      "Filled age",
+      "Was missing"
+    ],
+    "rows": [
+      {
+        "id": "r1",
+        "heading": "Sample 1",
+        "cells": [
+          "20",
+          "20",
+          "0"
+        ]
+      },
+      {
+        "id": "r2",
+        "heading": "Sample 2",
+        "cells": [
+          "NA",
+          "30",
+          "1"
+        ]
+      },
+      {
+        "id": "r3",
+        "heading": "Sample 3",
+        "cells": [
+          "40",
+          "40",
+          "0"
+        ]
+      }
+    ],
+    "states": [
+      {
+        "row": "r2",
+        "column": 0,
+        "state": "missing"
+      },
+      {
+        "row": "r2",
+        "column": 1,
+        "state": "changed"
+      }
+    ]
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Compare trials under a fixed budget",
+    "caption": "Illustrative trial outcomes. Pruning stops a weak trial early; all scores use the same held-out protocol.",
+    "kind": "flow",
+    "nodes": [
+      {
+        "id": "configs",
+        "label": "Candidate configurations",
+        "role": "fork"
+      },
+      {
+        "id": "a",
+        "label": "A: complete 20 epochs",
+        "role": "process"
+      },
+      {
+        "id": "b",
+        "label": "B: prune after 5 epochs",
+        "role": "process"
+      },
+      {
+        "id": "c",
+        "label": "C: complete 20 epochs",
+        "role": "process"
+      },
+      {
+        "id": "rank",
+        "label": "Compare eligible trials",
+        "role": "merge"
+      },
+      {
+        "id": "best",
+        "label": "Select by validation score",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "configs",
+        "to": "a"
+      },
+      {
+        "from": "configs",
+        "to": "b"
+      },
+      {
+        "from": "configs",
+        "to": "c"
+      },
+      {
+        "from": "a",
+        "to": "rank",
+        "label": "Final score"
+      },
+      {
+        "from": "b",
+        "to": "rank",
+        "label": "Stopped status"
+      },
+      {
+        "from": "c",
+        "to": "rank",
+        "label": "Final score"
+      },
+      {
+        "from": "rank",
+        "to": "best"
+      }
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Two softmax probability vectors",
+    "caption": "Illustrative values; compare categories on the shared scale.",
+    "kind": "bar-chart",
+    "variant": "grouped",
+    "categories": [
+      "Cat",
+      "Dog",
+      "Bird"
+    ],
+    "series": [
+      {
+        "label": "Input A",
+        "values": [
+          0.7,
+          0.2,
+          0.1
+        ]
+      },
+      {
+        "label": "Input B",
+        "values": [
+          0.15,
+          0.6,
+          0.25
+        ]
+      }
+    ]
+  }
+}

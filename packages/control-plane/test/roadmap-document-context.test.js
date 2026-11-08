@@ -178,7 +178,8 @@ test('CORE.05: an allowance of exactly the quoted bound admits the card; one mic
   probe.deps.onAccepted = async () => true;
   await probe.json('POST', `/api/learn/roadmap/${p.id}/proposals/${p.view.proposal.id}/accept`, acceptBody(p.view, KEY('accept')));
   const bound = snapshotOf(probe).boundMicros;
-  assert.ok(bound > 0 && bound < 500000, `a real-body bound, not the old four-call envelope: ${bound}`);
+  // Phase 02 diagram library (2026-11-08): the larger diagram schema in the tool raised this plan-model bound from 304,195 to 685,300 micro-USD (owner to review).
+  assert.ok(bound > 0 && bound < 800000, `a real-body bound: ${bound}`);
   for (const [allowance, status] of [[bound - 1, 429], [bound, 202]]) {
     const h = await loop(t, { plans: [claimed(1)], script: [CARD_1], md: MD, allowanceMicros: allowance });
     const s = await start(h);

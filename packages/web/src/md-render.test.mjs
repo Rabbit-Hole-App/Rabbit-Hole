@@ -18,7 +18,7 @@ const viteUrl = { name: 'vite-url', setup(build) {
   build.onLoad({ filter: /.*/, namespace: 'vite-url' }, () => ({ contents: 'export default ""' }));
 } };
 await esbuild.build({
-  stdin: { contents: "export * from './Md.jsx'; export { ChatMessages, AnswerBoundary } from './ChatMessages.jsx'; export { atEnd } from './chat-scroll.js'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export * from './Md.jsx'; export { ChatMessages, AnswerBoundary, JumpToLatest } from './ChatMessages.jsx'; export { atEnd } from './chat-scroll.js'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', plugins: [viteUrl], loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
@@ -115,27 +115,28 @@ test('Copy on a code block says Copied or Copy failed at the button', () => {
   assert.match(src, /<span role="status">\{copied \|\| 'Copy'\}<\/span>/);
 });
 
-test('Jump to latest: shown when scrolled up while a reply streams or a new message lands, never when at the bottom', () => {
+// Owner 2026-11-08: Jump to latest shows exactly while the list is scrolled away from the bottom (more than about one line), as its own
+// row between the list and the composer, and never at the bottom. The scroll itself is chat-scroll.test.mjs.
+test('Jump to latest: shown whenever scrolled away from the bottom, never at the bottom, in its own row after the list', () => {
+  const pill = follow => B.renderToStaticMarkup(B.createElement(B.JumpToLatest, { follow }));
+  assert.match(pill({ atBottom: false, jump() {} }), /^<div class="flex shrink-0 justify-center pt-2"><button type="button" data-jump-latest="true"[^>]*>.*Jump to latest<\/button><\/div>$/);
+  assert.equal(pill({ atBottom: true, jump() {} }), '');
+  assert.equal(pill(null), '', 'no scroll box followed');
+  assert.equal(B.atEnd({ scrollHeight: 1000, scrollTop: 580, clientHeight: 400 }), true, 'within one line is at the bottom');
+  assert.equal(B.atEnd({ scrollHeight: 1000, scrollTop: 560, clientHeight: 400 }), false, 'two lines up is scrolled away');
   const msgs = [{ role: 'user', content: 'Q' }, { role: 'assistant', content: 'Partial answer' }];
-  const list = (follow, busy) => B.renderToStaticMarkup(B.createElement(B.ChatMessages, { msgs, busy, follow, setMsgs() {}, setFilePeek() {}, setRunPeek() {} }));
-  assert.match(list({ atBottom: false, jump() {} }, true), /<button type="button" data-jump-latest="true"[^>]*>.*Jump to latest<\/button>/);
-  assert.doesNotMatch(list({ atBottom: true, jump() {} }, true), /Jump to latest/);
-  assert.doesNotMatch(list({ atBottom: false, jump() {} }, false), /Jump to latest/, 'scrolled up reading an old, finished chat');
-  assert.equal(B.atEnd({ scrollHeight: 1000, scrollTop: 560, clientHeight: 400 }), true, 'within a few pixels is at the bottom');
-  assert.equal(B.atEnd({ scrollHeight: 1000, scrollTop: 300, clientHeight: 400 }), false);
+  assert.doesNotMatch(B.renderToStaticMarkup(B.createElement(B.ChatMessages, { msgs, busy: true, setMsgs() {}, setFilePeek() {}, setRunPeek() {} })), /Jump to latest/, 'not inside the list, over its messages');
   // ask.jsx no longer always scrolls to the bottom on every message change: the hook follows only a reader at the bottom.
   const ask = read('ask.jsx');
   assert.doesNotMatch(ask, /boxRef\.current\.scrollTop = boxRef\.current\.scrollHeight/);
   assert.match(ask, /const follow = useFollowLatest\(boxRef, \[msgs\]\);/);
-  assert.match(ask, /<ChatMessages [^\n]*follow=\{follow\}/);
+  assert.match(ask, /<\/div>\n {6}\{!\(contentPanel \|\| hideConversation \|\| composerOnly\) && <JumpToLatest follow=\{follow\} \/>\}\n.*\n {6}<div ref=\{composerBox\}/, 'between the list and the composer, only where the list shows');
 });
 
-test('a Learn chat answer is a document (sized headings) and Jump to latest sits after the messages, stuck to the bottom of the scroll box', () => {
+test('a Learn chat answer is a document (sized headings)', () => {
   const msgs = [{ role: 'user', content: 'Why?' }, { role: 'assistant', messageId: '9', status: 'done', content: '## Why\n\nBecause.' }];
-  const html = B.renderToStaticMarkup(B.createElement(B.ChatMessages, { msgs, learnChat: true, busy: true, follow: { atBottom: false, jump() {} }, setMsgs() {}, setFilePeek() {}, setRunPeek() {} }));
+  const html = B.renderToStaticMarkup(B.createElement(B.ChatMessages, { msgs, learnChat: true, busy: true, setMsgs() {}, setFilePeek() {}, setRunPeek() {} }));
   assert.match(html, /<h2 class="[^"]*\btext-lg\b/);
-  assert.ok(html.indexOf('data-jump-latest') > html.indexOf('data-answer-body'), 'after the messages');
-  assert.match(html, /<div class="pointer-events-none sticky bottom-2 z-10 flex h-0 justify-center"><button type="button" data-jump-latest/);
 });
 
 // Chat crash 2026-10-14: main.jsx swaps the whole page for its crash screen on any uncaught render error. A Learn answer whose

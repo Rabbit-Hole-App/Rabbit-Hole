@@ -1,0 +1,113 @@
+# Phase 02 written Explanation library — Claude handoff
+
+Task: `96d13bbb-6cd1-45be-b27a-95820d3495b0` · branch: `chatgpt/explain-phase02-library` · implementation base: `748e561eda37a269e277d913cdc1f9099fe9bf94`.
+
+## Result
+
+Four new diagram kinds and nine additive extensions are implemented in the **written `/explain`** path. The model receives relevant, valid JSON examples; Rabbit Hole renders the resulting semantic JSON using the existing SVG component. These are reusable layouts and reference data, not fixed lesson cards returned in place of generation. The `/interact` fixtures and `/animation` renderer are separate and unchanged.
+
+There are **130 registered references**, with every one of the 21 Phase 02 lessons mapped to concrete IDs. They cover all 21 currently supported kinds. Reference datasets are explicitly illustrative; generated cards must respect their own source values. The author remains free to produce a new example within the schema.
+
+## Implemented scope
+
+| Kind | Built capability | Example |
+| --- | --- | --- |
+| **New: heatmap** | Signed numeric scale, exact cells, missing values, highlights | [Correlation](references/signed-feature-correlation.svg) |
+| **New: sample-set** | Sample identity, repeats, weights, omissions and out-of-bag groups | [Bootstrap](references/bootstrap-replacement-oob.svg) |
+| **New: histogram** | Numeric bin edges, count/proportion series, markers, unequal-bin density | [Unequal bins](references/unequal-bin-density.svg) |
+| **New: box-plot** | Quartiles, median, observed whiskers, fences and labelled outliers | [IQR](references/iqr-fences-and-outliers.svg) |
+| Tree | Binary/hierarchy/dendrogram, edge labels, metadata, pruning and a checked root-to-descendant path | [BST insertion](references/tree-bst-insertion.svg) · [Dendrogram](references/ml-clustering-dendrogram.svg) |
+| Coordinate plot | Data-coordinate geometry/annotations, uncertainty, step/stem/log scales | [SVM](references/svm-margin-support-slack.svg) |
+| Bar chart | Grouped and signed stacked series | [Votes](references/ensemble-votes.svg) |
+| Timeline | Numeric lanes, intervals/events, cutoffs, TTL and availability | [As-of join](references/as-of-join-ttl-window.svg) |
+| Matrix | Stable rows, selected/missing/changed cells, formula labels | [Imputation](references/median-imputation-indicator.svg) |
+| Flow | Explicit concurrent fork/merge, existing routing | [Preprocessing](references/ml-parallel-preprocessing.svg) |
+| Relationship | Connected graph with each node drawn once, directed and reciprocal links | [Feedback](references/ml-feedback-graph.svg) |
+| Comparison | Two/three actual child diagrams, shared-domain validation, narrow-width stacking | [Fit quality](references/ml-fit-quality-comparison.svg) |
+| Transformation | Before/after diagrams with preserved/mapped sample identity | [Scaling](references/ml-feature-scaling-transformation.svg) |
+
+See [all reference JSON/SVG pairs and per-lesson mapping](references/README.md). Open [the self-contained gallery](references/index.html) to inspect formula styling as well as geometry. Individual SVGs are raw renderer output; KaTeX foreignObjects require the host stylesheet that the gallery and app provide.
+
+## Where the implementation lives
+
+| Responsibility | Source |
+| --- | --- |
+| Strict public schema, version-1 parser, recursive child validation | `packages/web/src/tutor-diagrams/spec.js` |
+| Domain schemas, numeric checks and readable text | `packages/web/src/tutor-diagrams/ml-{statistical,plot,topology,data,composition}-spec.js` |
+| Layout dispatch / existing SVG component | `packages/web/src/tutor-diagrams/layouts.js`, `TutorDiagram.js` |
+| Domain geometry | `packages/web/src/tutor-diagrams/ml-*-layouts.js` |
+| Exact approved palette | `packages/web/src/tutor-diagrams/teaching-theme.js` |
+| Actual author examples and all lesson mappings | `packages/web/src/tutor-diagrams/reference-library.js`, `ml-*-references.js` |
+| Bounded selection and author instructions | `packages/control-plane/src/explanation-references.js` |
+| Real author / repair context integration | `packages/control-plane/src/learn-artifact.js` |
+| Server requirement recognition and traced tree validation | `packages/control-plane/src/explanation-visuals.js`, `learn-primitives.js` |
+| Reproducible actual-renderer SVGs and gallery | `packages/web/scripts/export-explanation-references.mjs` |
+| Extension instructions / constraints | `packages/web/src/tutor-diagrams/README.md` |
+
+The selector adds **at most two** complete JSON examples and at most 14,000 characters of example context. This is a reference-context bound, not the card's visual count. It uses learner words before source context, filters explicit required kinds, and emits no unrelated examples when no topic matches. Ordinary hierarchies cannot fall through to the first binary-operation examples. Repairs retain the same references. Other commands receive none. It makes no extra model call.
+
+The JSON Schema is nonrecursive and serializable; its size is recorded in the execution receipt below. Runtime checks enforce additional invariants that JSON Schema cannot express. The schema still uses `version: 1` and retains the existing 16,384-character whole-diagram limit. Old specs preserve their existing render treatment; unknown new kinds need the coordinated new reader.
+
+## Integration with your active release
+
+1. Fetch `chatgpt/explain-phase02-library` from `rabbit-hole`. Integrate its delta from base `748e561eda37a269e277d913cdc1f9099fe9bf94` onto the active release. Do not reset the release branch to this older base.
+2. Preserve your binary-tree rule at `69b3e71d2`, the negative controls for ordinary hierarchies, and items 45–48 / the three-visual release. Shared backend files must be reconciled, not replaced wholesale. This branch intentionally keeps its base's visual count, author/review budgets and routing unchanged.
+3. An operation on a data structure should show the structure itself. For inorder/BST insertion, the binary structure is the primary visual; steps can be a second useful visual. A three-visual allowance is a maximum, not a target. Keep kind-selection failures distinct from renderer/layout failures.
+4. The new tree `highlightPath` is a root-to-descendant route, not a general visitation sequence. Inorder examples mark visit order on real nodes; insertion highlights its actual search path. Do not invent traversal fields or send arbitrary SVG.
+5. Deploy the matching control plane and web reader to your existing isolated dev clone using the repository's established procedure. No production release was performed for this branch.
+
+## Focused local checks
+
+From the repository root:
+
+```sh
+node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-references.test.js packages/control-plane/test/explanation-diagram-kinds.test.js packages/control-plane/test/explanation-visuals.test.js packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/learn-artifact.test.js
+npm run build --workspace=packages/web
+node packages/web/scripts/export-explanation-references.mjs
+```
+
+The pre-existing `math.test.mjs` needs `linkedom`. In the Codex host it was available in an isolated test-dependency directory rather than the shared worktree dependencies, so the focused invocation used a Node import hook to resolve that package. No production dependency or package manifest was changed for this environment issue.
+
+Checks include all references through parse → saved JSON → parse → actual renderer at 320/408/720 px, compatibility with legacy fixtures, numerical coordinate mappings, invalid data, bounded composition, model-request references and repair retention. Scripted provider tests are not live model evidence.
+
+## Live dev acceptance — still to perform
+
+Run these as **normal learner prompts through written `/explain`**, retaining the actual model-produced card and request context. Use source data where supplied, or label toy data as illustrative. Do not seed a reference card as the purported generated result.
+
+| Prompt | What to inspect |
+| --- | --- |
+| How is a binary tree traversed in order? | Actual binary tree; correct visit order. A flow alone fails. |
+| Show me inserting 7 into a BST. | Actual tree and new child slot, comparisons and search path agree. |
+| Explain a family tree. / Show a folder hierarchy. | Ordinary hierarchy, not binary by default. |
+| How can a confusion matrix tell me what my classifier gets wrong? | Labelled actual/predicted axes; counts and interpretation agree. |
+| Why does a bootstrap sample repeat some rows and leave others out? | Stable IDs, multiplicities and exact out-of-bag complement. |
+| Why can a histogram with wider bins be misleading? | Bin widths, counts and density/area are consistent. |
+| What does a box plot call an outlier? | Quartiles, fences and observed whiskers are distinguished. |
+| How does an SVM separate the classes? | Data, separator, margins and support/slack labels agree. |
+| How do the trees in a forest vote? | Votes and majority computed from the card's own example. |
+| Which feature value was available when this prediction was made? | Event/creation/label time and TTL/cutoff are distinguished. |
+| How do we fill missing values without forgetting they were missing? | Stable rows, correct fitted imputation and missing indicator. |
+| What happens when a pipeline processes numeric and categorical columns? | Concurrent fork, separate transformations, explicit merge. |
+| Why can user feedback change the data a model learns from? | Real directed loop; no duplicated nodes standing in for links. |
+| What is the difference between underfitting and overfitting? | Comparable actual plots sharing the observations and scales. |
+| Why does feature scaling change nearest-neighbour distances? | Same sample identities, stated transformation, correct coordinates/distances. |
+
+First confirm that the configured provider accepts the expanded tool schema and that selected references are actually present. Then record kind choice, layout/labels, calculations, narrow-card fit, formula appearance, and saved/reopened generated JSON. Keep accepted jobs separate from rejected candidates. Repeat the two historical binary-operation misses and the ordinary-hierarchy controls, rather than claiming reliability from one successful request.
+
+## Sources and evidence
+
+- All 21 English lessons: [Phase 02 at the audited source commit](https://github.com/rohitg00/ai-engineering-from-scratch/tree/e7db050e64bde3be17a9381476f748da26d85692/phases/02-ml-fundamentals). The source commit and paths are stored in `references/manifest.json`.
+- Approved palette reference: [tree-splits-and-impurity.svg](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/012d4ae3dfd9b20ef14156bea89c2632b844cc46/docs/features/explain-on-canvas/handoff/examples/decision-trees-random-forests/tree-splits-and-impurity.svg).
+- [Saved plan and implementation checklist](../../../../superpowers/plans/2026-11-08-explain-phase02-library.md).
+- [Main Claude note](../../../explain-program-support.md#note-for-claude-code).
+
+### Execution receipt
+
+- Implementation pushed and branch head verified: `e1627df972cc4c581d4f360cbe992a1dde318038`. Remote tree `ac45762efa9a8a1900e0c8cfaf723f1f1f6b13fe` equals the tested local implementation tree. This receipt update changes documentation only.
+
+- Final integrated check: **373 tests passed, zero failed or skipped**. The serialized provider JSON Schema is **86,419 bytes**. All 130 references passed parse/save/read/render checks at 320, 408 and 720 px. Independent review findings were fixed and covered by failing-before/passing-after regressions.
+- Web build passed. The existing bundle-size warning remains; no broad CI was run.
+- Generated all 130 reference SVG/JSON pairs from the actual renderer. Inspected 16 representative static SVG rasters covering the four new kinds and nine extensions. CSS variables were resolved only in disposable raster-inspection copies; repository SVGs retain the real output. This converter does not render KaTeX foreignObjects; formula/browser appearance is not claimed from those images.
+- Local Chromium capture was attempted and failed at launch with `socket() failed: Operation not permitted`. No browser capture or generated-card persistence claim follows from the static inspection.
+- The designated Windows credential file is not present in this Linux host. No provider call, dev deployment or production promotion was attempted with substitute credentials.
+- `ponytail:` Live provider schema acceptance, stochastic kind selection, full browser/formula acceptance and saved generated-card reopen remain pending in Claude's authorized dev environment.

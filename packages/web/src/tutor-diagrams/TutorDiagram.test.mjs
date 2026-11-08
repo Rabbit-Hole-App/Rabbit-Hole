@@ -1,3 +1,4 @@
+import { diagramReferences } from './reference-library.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createElement } from 'react';
@@ -7,6 +8,7 @@ import TutorDiagram, { renderTutorDiagram } from './TutorDiagram.js';
 import { tutorDiagramJsonSchema } from './spec.js';
 
 const fixtures = JSON.parse(readFileSync(new URL('./examples.json', import.meta.url), 'utf8'));
+for (const kind of ['heatmap', 'sample-set', 'histogram', 'box-plot']) fixtures.push(diagramReferences.find(r => r.spec.diagram.kind === kind).spec);
 
 test('every fixture renders deterministically, with a readable SVG and the shared surface', () => {
   const shapes = tutorDiagramJsonSchema.properties.diagram;

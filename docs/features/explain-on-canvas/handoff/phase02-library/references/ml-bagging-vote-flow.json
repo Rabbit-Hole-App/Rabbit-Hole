@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Bagging combines independently trained models",
+    "caption": "Each route uses its own bootstrap draw. The final prediction aggregates all model votes.",
+    "kind": "flow",
+    "nodes": [
+      {
+        "id": "boot",
+        "label": "Bootstrap draws",
+        "role": "fork"
+      },
+      {
+        "id": "a",
+        "label": "Tree 1 predicts A",
+        "role": "process"
+      },
+      {
+        "id": "b",
+        "label": "Tree 2 predicts B",
+        "role": "process"
+      },
+      {
+        "id": "c",
+        "label": "Tree 3 predicts A",
+        "role": "process"
+      },
+      {
+        "id": "vote",
+        "label": "Majority vote",
+        "role": "merge"
+      },
+      {
+        "id": "out",
+        "label": "Predict A",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "boot",
+        "to": "a",
+        "label": "Draw 1"
+      },
+      {
+        "from": "boot",
+        "to": "b",
+        "label": "Draw 2"
+      },
+      {
+        "from": "boot",
+        "to": "c",
+        "label": "Draw 3"
+      },
+      {
+        "from": "a",
+        "to": "vote"
+      },
+      {
+        "from": "b",
+        "to": "vote"
+      },
+      {
+        "from": "c",
+        "to": "vote"
+      },
+      {
+        "from": "vote",
+        "to": "out"
+      }
+    ]
+  }
+}

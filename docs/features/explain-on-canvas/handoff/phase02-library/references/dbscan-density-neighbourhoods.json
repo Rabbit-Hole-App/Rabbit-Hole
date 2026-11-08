@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "DBSCAN core neighbourhood and noise",
+    "caption": "Epsilon = 1.5; min_samples = 4 counts the query point itself.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Feature 1",
+      "min": 0,
+      "max": 10,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Feature 2",
+      "min": 0,
+      "max": 8
+    },
+    "series": [
+      {
+        "label": "Nearby samples",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 3,
+            "y": 3
+          },
+          {
+            "x": 3,
+            "y": 4
+          },
+          {
+            "x": 4,
+            "y": 3
+          },
+          {
+            "x": 4,
+            "y": 4
+          }
+        ]
+      },
+      {
+        "label": "Isolated sample",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 8,
+            "y": 6
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "circle",
+        "label": "Core: four samples including itself",
+        "center": {
+          "x": 3,
+          "y": 3
+        },
+        "radius": 1.5
+      },
+      {
+        "kind": "circle",
+        "label": "Noise: one sample including itself",
+        "center": {
+          "x": 8,
+          "y": 6
+        },
+        "radius": 1.5
+      }
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A prediction can precede its label by days",
+    "caption": "At day 5 this prediction has no observed label. Supervised error can be scored only once the label arrives at day 9.",
+    "kind": "timeline",
+    "layout": "scaled-lanes",
+    "domain": {
+      "min": 0,
+      "max": 12,
+      "unit": "day",
+      "label": "Time"
+    },
+    "lanes": [
+      {
+        "id": "case",
+        "label": "One prediction",
+        "intervals": [
+          {
+            "id": "delay",
+            "label": "Waiting for the label",
+            "start": 2,
+            "end": 9,
+            "role": "gap"
+          }
+        ],
+        "events": [
+          {
+            "id": "prediction",
+            "label": "Prediction",
+            "time": 2
+          },
+          {
+            "id": "labelReady",
+            "label": "Label available",
+            "time": 9
+          }
+        ]
+      }
+    ],
+    "cutoffs": [
+      {
+        "id": "evaluation",
+        "label": "Evaluation cutoff",
+        "time": 5
+      }
+    ]
+  }
+}

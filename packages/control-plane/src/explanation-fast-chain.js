@@ -61,6 +61,25 @@ const BOUNDS = new Set(['minItems', 'maxItems', 'minimum', 'maximum', 'exclusive
 // names: o is a properties map (its keys are field names, never keywords).
 export const withoutBounds = (o, names = false) => (Array.isArray(o) ? o.map(s => withoutBounds(s)) : o && typeof o === 'object'
   ? Object.fromEntries(Object.entries(o).filter(([k]) => names || !BOUNDS.has(k)).map(([k, v]) => [k, withoutBounds(v, !names && k === 'properties')])) : o);
+// Phase 02 diagram library (2026-11-08): the 21-kind schema is refused again with the same HTTP 400, bounds dropped or not. Bisected with real calls that day:
+// the refusal follows the schema's structure, not its characters or string constraints (accepted at 362 properties, refused at 368 even with every pattern
+// and length removed), and the child diagrams inside comparison panels and visual transformations are two thirds of it. So the Gemini step also gets
+// comparison and transformation in their list forms only, and the four new kinds only when the learner's request names one (its requiredVisuals): 303
+// properties, accepted. Fireworks and Cerebras keep the whole schema; the validator accepts every kind from any step.
+const NEW_KINDS = new Set(['heatmap', 'sample-set', 'histogram', 'box-plot']);
+const childDiagram = s => Array.isArray(s?.anyOf) && s.anyOf.some(b => b?.properties?.diagram);
+const requiredKinds = body => { const first = [].concat(body.messages?.[0]?.content ?? []).map(p => (typeof p === 'string' ? p : p?.text)).filter(Boolean).at(-1);
+  try { return new Set((JSON.parse(first).requiredVisuals ?? []).map(v => v.diagramKind).filter(Boolean)); } catch { return new Set(); } };
+export const forGemini = (o, keep = new Set()) => {
+  if (Array.isArray(o)) return o.filter(b => !NEW_KINDS.has(b?.properties?.kind?.const) || keep.has(b.properties.kind.const)).map(s => forGemini(s, keep));
+  if (!o || typeof o !== 'object') return o;
+  if (['comparison', 'transformation'].includes(o.properties?.kind?.const)) {
+    const { variant, panels, sharedAxes, ...properties } = o.properties;
+    for (const side of ['before', 'after']) if (childDiagram(properties[side])) properties[side] = properties[side].anyOf.find(b => !b.properties?.diagram);
+    return { ...o, properties };
+  }
+  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
+};
 
 // Sampling (owner item 47, 2026-11-08): the author call is greedy, temperature 0, so the same request gives the same card. A fixed seed is sent only where the
 // provider documents it: Fireworks ("Random seed for deterministic sampling", https://docs.fireworks.ai/api-reference/post-chatcompletions) and Cerebras ("make a
@@ -81,7 +100,7 @@ export function stepRequest(step, effort, body, stream = false) {
   const sampling = isRepair(body) ? { temperature: REPAIR_TEMPERATURE } : { temperature: AUTHOR_TEMPERATURE, ...(SEEDED.has(step.provider) ? { seed: AUTHOR_SEED } : {}) };
   return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort, ...sampling,
     messages: [{ role: 'system', content: `${system}\n\n${tool.description}\n${ADDENDUM}` }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
-    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? withoutBounds(schema) : schema } } };
+    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? forGemini(withoutBounds(schema), requiredKinds(body)) : schema } } };
 }
 
 // OpenAI-shaped reply -> the Anthropic shape generateArtifact and spend settlement read. An unreadable answer is an empty input: the validator names what

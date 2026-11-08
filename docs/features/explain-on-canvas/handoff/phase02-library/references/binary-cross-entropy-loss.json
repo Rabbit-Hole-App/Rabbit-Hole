@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Cross-entropy depends on the true label",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Predicted positive probability",
+      "min": 0.01,
+      "max": 0.99,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Loss",
+      "min": 0,
+      "max": 5
+    },
+    "series": [
+      {
+        "label": "True class 1",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0.01,
+            "y": 4.605
+          },
+          {
+            "x": 0.1,
+            "y": 2.303
+          },
+          {
+            "x": 0.25,
+            "y": 1.386
+          },
+          {
+            "x": 0.5,
+            "y": 0.693
+          },
+          {
+            "x": 0.75,
+            "y": 0.288
+          },
+          {
+            "x": 0.9,
+            "y": 0.105
+          },
+          {
+            "x": 0.99,
+            "y": 0.01
+          }
+        ]
+      },
+      {
+        "label": "True class 0",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0.01,
+            "y": 0.01
+          },
+          {
+            "x": 0.1,
+            "y": 0.105
+          },
+          {
+            "x": 0.25,
+            "y": 0.288
+          },
+          {
+            "x": 0.5,
+            "y": 0.693
+          },
+          {
+            "x": 0.75,
+            "y": 1.386
+          },
+          {
+            "x": 0.9,
+            "y": 2.303
+          },
+          {
+            "x": 0.99,
+            "y": 4.605
+          }
+        ]
+      }
+    ],
+    "annotations": []
+  }
+}

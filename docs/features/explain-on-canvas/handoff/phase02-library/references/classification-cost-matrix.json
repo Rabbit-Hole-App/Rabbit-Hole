@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Cost of each decision",
+    "caption": "A missed positive costs 8 units; a false alarm costs 1.",
+    "kind": "heatmap",
+    "rowLabel": "Actual",
+    "columnLabel": "Predicted",
+    "columns": [
+      "Negative",
+      "Positive"
+    ],
+    "rows": [
+      {
+        "label": "Negative",
+        "cells": [
+          0,
+          1
+        ]
+      },
+      {
+        "label": "Positive",
+        "cells": [
+          8,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 8
+    },
+    "highlights": [
+      {
+        "row": 1,
+        "column": 0
+      }
+    ]
+  }
+}

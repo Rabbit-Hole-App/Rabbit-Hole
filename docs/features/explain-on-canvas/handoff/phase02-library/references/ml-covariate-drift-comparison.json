@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Covariate drift: inputs shift",
+    "caption": "Input values shift while the same illustrative conditional rule y = 2x remains in force.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Reference window",
+        "diagram": {
+          "title": "Earlier input values",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Input x",
+            "min": 0,
+            "max": 5,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Target y",
+            "min": 0,
+            "max": 10,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Observed samples",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 2
+                },
+                {
+                  "x": 1.5,
+                  "y": 3
+                },
+                {
+                  "x": 2,
+                  "y": 4
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Current window",
+        "diagram": {
+          "title": "Later input values",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Input x",
+            "min": 0,
+            "max": 5,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Target y",
+            "min": 0,
+            "max": 10,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Observed samples",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 2.5,
+                  "y": 5
+                },
+                {
+                  "x": 3,
+                  "y": 6
+                },
+                {
+                  "x": 3.5,
+                  "y": 7
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "sharedAxes": [
+      "x",
+      "y"
+    ]
+  }
+}

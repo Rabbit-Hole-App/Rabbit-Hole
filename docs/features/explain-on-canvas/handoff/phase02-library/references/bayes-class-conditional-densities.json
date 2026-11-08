@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Class-conditional densities at an observation",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Observed feature",
+      "min": -3,
+      "max": 5,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Density",
+      "min": 0,
+      "max": 0.5
+    },
+    "series": [
+      {
+        "label": "Class A: mean 0",
+        "kind": "line",
+        "points": [
+          {
+            "x": -3,
+            "y": 0.004
+          },
+          {
+            "x": -2,
+            "y": 0.054
+          },
+          {
+            "x": -1,
+            "y": 0.242
+          },
+          {
+            "x": 0,
+            "y": 0.399
+          },
+          {
+            "x": 1,
+            "y": 0.242
+          },
+          {
+            "x": 2,
+            "y": 0.054
+          },
+          {
+            "x": 3,
+            "y": 0.004
+          },
+          {
+            "x": 4,
+            "y": 0.0001
+          },
+          {
+            "x": 5,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "label": "Class B: mean 2",
+        "kind": "line",
+        "points": [
+          {
+            "x": -3,
+            "y": 0
+          },
+          {
+            "x": -2,
+            "y": 0.0001
+          },
+          {
+            "x": -1,
+            "y": 0.004
+          },
+          {
+            "x": 0,
+            "y": 0.054
+          },
+          {
+            "x": 1,
+            "y": 0.242
+          },
+          {
+            "x": 2,
+            "y": 0.399
+          },
+          {
+            "x": 3,
+            "y": 0.242
+          },
+          {
+            "x": 4,
+            "y": 0.054
+          },
+          {
+            "x": 5,
+            "y": 0.004
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "label": "Observed feature = 2",
+        "axis": "x",
+        "value": 2
+      }
+    ]
+  }
+}
