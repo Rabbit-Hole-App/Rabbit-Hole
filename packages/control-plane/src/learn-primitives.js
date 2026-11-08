@@ -388,6 +388,9 @@ function markdownText(md) {
   return out.join(' ');
 }
 
+// E2: one Markdown field's canonical display text, the single mapping that term anchors, selections and highlights share (explanation-interactions.js DISPLAY_TEXT_VERSION).
+export const explanationFieldText = md => markdownText(md).replace(/\s+/g, ' ').trim();
+
 // CORE.09: the counted display text of an Explanation block: title, body, then every section label and text (collapsed ones too),
 // flattened, whitespace collapsed, trimmed, counted in Unicode code points. Pure: the Worker and the web may both import it.
 export const explanationText = block => [block?.title ?? '', markdownText(block?.body), ...(block?.more || []).flatMap(s => [s?.label ?? '', markdownText(s?.text)])].join(' ').replace(/\s+/g, ' ').trim();

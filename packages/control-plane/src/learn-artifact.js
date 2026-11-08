@@ -18,6 +18,7 @@ import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationPr
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
+import { INTERACTION_GUIDANCE, INTERACTION_PROPERTIES, bindInteractions, interactionsEnabled, interactionsProblem } from './explanation-interactions.js';
 import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, requiredVisualProblem, requirementText } from './explanation-visuals.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
@@ -31,6 +32,9 @@ import { VERIFY_SYSTEM, VERIFY_TOOL, falseItems, verifyMessage } from './agents/
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
 const toolName = id => `make_${id}`;
+// E2 (explanation-interactions.js): while EXPLANATION_INTERACTIONS is on, the written Explanation tool also takes the three questions and the anchored terms. They are validated
+// apart from the card (the card's own schema stays the one that was), then bound to the final text with server-assigned ids and revision.
+const interactiveSchema = schema => ({ ...schema, required: [...schema.required, 'questions'], properties: { ...schema.properties, ...INTERACTION_PROPERTIES } });
 const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 // A long text field's limit, said in words in the tool's description: a schema maxLength alone was overrun twice, repair
 // included (inline lane R, 2026-10-13: an explanation body over 2,000 characters, nothing added, $0.12).
@@ -93,8 +97,8 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   if (ready.length === 1 && ready[0] === 'explanation') { try { bound = profile ?? explanationProfileFor(env); } catch (error) { return { result: 'unsupported', message: error.message }; } }
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${explanationTarget(input.depth)}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
-    input_schema: PRIMITIVES[id].schema,
+    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${explanationTarget(input.depth)}${interactionsEnabled(env) ? ` ${INTERACTION_GUIDANCE}` : ''}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
+    input_schema: id === 'explanation' && interactionsEnabled(env) ? interactiveSchema(PRIMITIVES[id].schema) : PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Standard sends nothing.
   const depthNote = depthInstruction(input.depth, 'card');
@@ -143,12 +147,15 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
     try {
       if (result.stop_reason === 'max_tokens') throw new Error('The artifact was cut off before it was complete');
       if (!id) throw new Error('The clarifying question was empty');
-      let block, extraction, diagramsDropped = 0;
+      let block, extraction, diagramsDropped = 0, questions, terms;
       if (input.imageSource) {
         const checked = checkImageExtraction(call.input, content => ({ result: artifactBlock(id, content) }), input.imageSource);
         if (checked.error) throw new Error(checked.error);
         if (checked.result.kind === 'clarify') return { result: 'clarification', question: checked.result.question };
         ({ extraction, ...block } = checked.result);
+      } else if (id === 'explanation' && interactionsEnabled(env)) {
+        const { questions: q, terms: t, ...card } = call.input ?? {};
+        questions = q; terms = t; block = artifactBlock(id, card);
       } else block = artifactBlock(id, call.input);
       if (title && typeof block.title === 'string') block = { ...block, title };
       // CORE.09: the final title first, then the Depth's display-text budget and supported Mermaid, on every path that makes an explanation.
@@ -164,8 +171,11 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
             ({ block, dropped: diagramsDropped } = trimmed);
           }
         }
-        const problem = [explanationProblem(block, input.depth), requiredVisualProblem(block, wanted)].filter(Boolean).join(' '); if (problem) throw new Error(problem);
+        // E2: the questions and term anchors are checked against the FINAL text (accepted title applied, diagrams settled), in the same message as every other problem.
+        const interactive = interactionsEnabled(env);
+        const problem = [explanationProblem(block, input.depth), requiredVisualProblem(block, wanted), interactive ? interactionsProblem(block, { questions, terms }) : null].filter(Boolean).join(' '); if (problem) throw new Error(problem);
         if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
+        if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };
       }
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
