@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rabbit Hole · Card icon template</title>
+  <style>
+    :root {
+      color-scheme: light;
+      /* Shared color values from the resizable card shell. */
+      --paper:#f5f4ed; --card:#fffefa; --card-border:#dedfd8;
+      --panel:#f6f8f4; --panel-border:#e3e7e0; --ink:#202723; --muted:#5d675f;
+      --blue:#426db2; --explanation-ink:#375d92; --blue-soft:#eaf1fb;
+      --orange:#b86232; --orange-dark:#934723; --orange-soft:#f8ece3;
+      --control-bg:#ffffff; --control-hover-bg:#f6f8f4; --control-hover-border:#d2d9d2;
+      --control-selected-border:#e2ad8f; --control-active-bg:#f5e0d2;
+      --disabled-opacity:.45; --card-radius:18px; --control-radius:8px; --grip-radius:7px;
+      --icon-control-size:35px; --grip-size:26px; --focus-width:2px;
+      font:16px/1.45 Inter,"Liberation Sans",Arial,sans-serif;
+      color:var(--ink); background:var(--paper);
+    }
+    * { box-sizing:border-box; }
+    body,h1,h2,h3,p,dl,dd { margin:0; }
+    main { max-width:1256px; margin:0 auto; padding:27px 26px 48px; }
+    h1 { margin:6px 0 5px; font-size:clamp(1.8rem,4vw,2.45rem); line-height:1.14; letter-spacing:-.026em; }
+    h2 { font-size:1.45rem; letter-spacing:-.02em; }
+    h3 { font-size:1rem; }
+    .eyebrow { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:.9375rem; font-weight:700; }
+    .eyebrow::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--orange); }
+    .lede,.section-copy { color:var(--muted); max-width:85ch; }
+    .section-copy { margin:4px 0 12px; }
+    a { color:var(--explanation-ink); text-underline-offset:3px; }
+    nav { display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:11px; font-size:.875rem; }
+    section { margin-top:25px; scroll-margin-top:16px; }
+    .panel { padding:15px; background:var(--card); border:1px solid var(--card-border); border-radius:var(--card-radius); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .glyph { display:block; flex:none; }
+    .icon-button {
+      --surface:var(--control-bg); --outline:var(--panel-border); --glyph-color:var(--muted);
+      display:inline-flex; align-items:center; justify-content:center; flex:none;
+      gap:6px; width:var(--icon-control-size); min-height:var(--icon-control-size);
+      padding:0; border:1px solid var(--outline); border-radius:var(--control-radius);
+      background:var(--surface); color:var(--glyph-color); vertical-align:middle;
+      font:650 .8125rem/1.45 Inter,"Liberation Sans",Arial,sans-serif;
+    }
+    button.icon-button { cursor:pointer; }
+    .icon-button.with-label { width:auto; padding:0 10px; }
+    .icon-button.round { border-radius:999px; }
+    .icon-button.grip { --surface:var(--card); --outline:transparent; width:var(--grip-size); min-height:var(--grip-size); border-radius:var(--grip-radius); cursor:nwse-resize; }
+    .icon-button:is([data-state="hover"],:hover:enabled) { --surface:var(--control-hover-bg); --outline:var(--control-hover-border); }
+    .icon-button:is([data-state="selected"],[aria-pressed="true"]) { --surface:var(--orange-soft); --outline:var(--control-selected-border); --glyph-color:var(--orange-dark); }
+    .icon-button:is([data-state="pressed"],[data-state="selected-hover"],:active:enabled),
+    .icon-button[aria-pressed="true"]:hover:enabled { --surface:var(--control-active-bg); --outline:var(--control-selected-border); --glyph-color:var(--orange-dark); }
+    .icon-button.grip:is([data-state="hover"],:hover:enabled,:active:enabled) { --surface:var(--orange-soft); --outline:var(--control-selected-border); --glyph-color:var(--orange-dark); }
+    .icon-button:is([data-state="focus"],:focus-visible) { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
+    .icon-button.grip:is([data-state="focus"],:focus-visible) { outline-offset:-2px; }
+    .icon-button:is([data-state="disabled"],:disabled) { opacity:var(--disabled-opacity); cursor:not-allowed; }
+    .icon-button.feedback { width:28px; min-height:28px; }
+    .icon-button.feedback[aria-pressed="true"] .glyph { fill:currentColor; }
+    .state-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(104px,1fr)); gap:8px; margin-bottom:12px; }
+    .state-sample { display:grid; justify-items:center; align-content:start; gap:8px; padding:10px 6px; min-width:0; color:var(--muted); font-size:.8125rem; text-align:center; background:var(--panel); border:1px solid var(--panel-border); border-radius:9px; }
+    .state-sample .state-preview { display:grid; place-items:center; min-height:42px; }
+    .actions { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-top:9px; }
+    .demo-status { margin-top:8px; min-height:1.25em; color:var(--muted); font-size:.875rem; }
+    .kind-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(147px,1fr)); gap:7px; }
+    .kind { display:flex; align-items:flex-start; gap:8px; min-width:0; min-height:61px; padding:8px 9px; border:1px solid var(--panel-border); border-radius:9px; background:var(--panel); color:var(--muted); }
+    .kind .glyph { margin-top:2px; }
+    .kind strong { display:block; color:var(--ink); font-size:.8125rem; overflow-wrap:anywhere; }
+    .kind span { display:block; font-size:.75rem; overflow-wrap:anywhere; }
+    .header-examples { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:11px; }
+    .header-mark { display:flex; align-items:center; gap:7px; padding:1px 11px; min-height:26px; border-radius:999px; font-size:.8125rem; font-weight:700; }
+    .header-mark.explain { color:var(--explanation-ink); background:var(--blue-soft); }
+    .header-mark.interactive { color:var(--orange-dark); background:var(--orange-soft); }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; text-align:left; font-size:.875rem; }
+    th,td { padding:8px 9px; border-bottom:1px solid var(--panel-border); vertical-align:middle; }
+    thead th { background:var(--panel); }
+    tbody tr:last-child > * { border-bottom:0; }
+    .glyph-cell { width:45px; color:var(--muted); }
+    .swatch { display:inline-block; width:12px; height:12px; border:1px solid var(--card-border); border-radius:3px; background:var(--paint); vertical-align:-1px; margin-inline-end:4px; }
+    code { white-space:nowrap; }
+    .technical { color:var(--muted); font-size:.875rem; margin:9px 0; }
+    .footer-links { margin-top:10px; color:var(--muted); font-size:.875rem; }
+    @media (max-width:690px) { main { padding:18px 12px 36px; } .grid { grid-template-columns:1fr; } .panel { padding:10px; } }
+  </style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden"><defs>
+  <symbol id="icon-Lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></symbol>
+  <symbol id="icon-Dumbbell" viewBox="0 0 24 24"><path d="M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z"></path><path d="m2.5 21.5 1.4-1.4"></path><path d="m20.1 3.9 1.4-1.4"></path><path d="M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z"></path><path d="m9.6 14.4 4.8-4.8"></path></symbol>
+  <symbol id="icon-ListChecks" viewBox="0 0 24 24"><path d="M13 5h8"></path><path d="M13 12h8"></path><path d="M13 19h8"></path><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path></symbol>
+  <symbol id="icon-GalleryVerticalEnd" viewBox="0 0 24 24"><path d="M7 2h10"></path><path d="M5 6h14"></path><rect width="18" height="12" x="3" y="10" rx="2"></rect></symbol>
+  <symbol id="icon-Table2" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"></path></symbol>
+  <symbol id="icon-Braces" viewBox="0 0 24 24"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"></path><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"></path></symbol>
+  <symbol id="icon-Code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"></path><path d="m8 6-6 6 6 6"></path></symbol>
+  <symbol id="icon-FileCode" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 12.5 8 15l2 2.5"></path><path d="m14 12.5 2 2.5-2 2.5"></path></symbol>
+  <symbol id="icon-SquareFunction" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><path d="M9 17c2 0 2.8-1 2.8-2.8V10c0-2 1-3.3 3.2-3"></path><path d="M9 11.2h5.7"></path></symbol>
+  <symbol id="icon-ChartLine" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="m19 9-5 5-4-4-3 3"></path></symbol>
+  <symbol id="icon-Spline" viewBox="0 0 24 24"><circle cx="19" cy="5" r="2"></circle><circle cx="5" cy="19" r="2"></circle><path d="M5 17A12 12 0 0 1 17 5"></path></symbol>
+  <symbol id="icon-Pi" viewBox="0 0 24 24"><line x1="9" x2="9" y1="4" y2="20"></line><path d="M4 7c0-1.7 1.3-3 3-3h13"></path><path d="M18 20c-1.7 0-3-1.3-3-3V4"></path></symbol>
+  <symbol id="icon-Workflow" viewBox="0 0 24 24"><rect width="8" height="8" x="3" y="3" rx="2"></rect><path d="M7 11v4a2 2 0 0 0 2 2h4"></path><rect width="8" height="8" x="13" y="13" rx="2"></rect></symbol>
+  <symbol id="icon-Waypoints" viewBox="0 0 24 24"><path d="m10.586 5.414-5.172 5.172"></path><path d="m18.586 13.414-5.172 5.172"></path><path d="M6 12h12"></path><circle cx="12" cy="20" r="2"></circle><circle cx="12" cy="4" r="2"></circle><circle cx="20" cy="12" r="2"></circle><circle cx="4" cy="12" r="2"></circle></symbol>
+  <symbol id="icon-Route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"></circle><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"></path><circle cx="18" cy="5" r="3"></circle></symbol>
+  <symbol id="icon-Blocks" viewBox="0 0 24 24"><path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"></path><rect x="14" y="2" width="8" height="8" rx="1"></rect></symbol>
+  <symbol id="icon-Network" viewBox="0 0 24 24"><rect x="16" y="16" width="6" height="6" rx="1"></rect><rect x="2" y="16" width="6" height="6" rx="1"></rect><rect x="9" y="2" width="6" height="6" rx="1"></rect><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"></path><path d="M12 12V8"></path></symbol>
+  <symbol id="icon-GitBranch" viewBox="0 0 24 24"><path d="M15 6a9 9 0 0 0-9 9V3"></path><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle></symbol>
+  <symbol id="icon-Clapperboard" viewBox="0 0 24 24"><path d="m12.296 3.464 3.02 3.956"></path><path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3z"></path><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="m6.18 5.276 3.1 3.899"></path></symbol>
+  <symbol id="icon-Focus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path></symbol>
+  <symbol id="icon-PenTool" viewBox="0 0 24 24"><path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"></path><path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"></path><path d="m2.3 2.3 7.286 7.286"></path><circle cx="11" cy="11" r="2"></circle></symbol>
+  <symbol id="icon-Projector" viewBox="0 0 24 24"><path d="M5 7 3 5"></path><path d="M9 6V3"></path><path d="m13 7 2-2"></path><circle cx="9" cy="13" r="3"></circle><path d="M11.83 12H20a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h2.17"></path><path d="M16 16h2"></path></symbol>
+  <symbol id="icon-Rotate3d" viewBox="0 0 24 24"><path d="m15.194 13.707 3.814 1.86-1.86 3.814"></path><path d="M16.47214 7.52786 A 5 10 0 1 0 13 21.79796"></path><path d="M21.79796 11 A 10 5 0 1 0 19 15.57071"></path></symbol>
+  <symbol id="icon-Box" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></symbol>
+  <symbol id="icon-Boxes" viewBox="0 0 24 24"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"></path><path d="m7 16.5-4.74-2.85"></path><path d="m7 16.5 5-3"></path><path d="M7 16.5v5.17"></path><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"></path><path d="m17 16.5-5-3"></path><path d="m17 16.5 4.74-2.85"></path><path d="M17 16.5v5.17"></path><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"></path><path d="M12 8 7.26 5.15"></path><path d="m12 8 4.74-2.85"></path><path d="M12 13.5V8"></path></symbol>
+  <symbol id="icon-Cuboid" viewBox="0 0 24 24"><path d="M10 22v-8"></path><path d="M2.336 8.89 10 14l11.715-7.029"></path><path d="M22 14a2 2 0 0 1-.971 1.715l-10 6a2 2 0 0 1-2.138-.05l-6-4A2 2 0 0 1 2 16v-6a2 2 0 0 1 .971-1.715l10-6a2 2 0 0 1 2.138.05l6 4A2 2 0 0 1 22 8z"></path></symbol>
+  <symbol id="icon-Image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></symbol>
+  <symbol id="icon-Film" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M7 3v18"></path><path d="M3 7.5h4"></path><path d="M3 12h18"></path><path d="M3 16.5h4"></path><path d="M17 3v18"></path><path d="M17 7.5h4"></path><path d="M17 16.5h4"></path></symbol>
+  <symbol id="icon-AudioLines" viewBox="0 0 24 24"><path d="M2 10v3"></path><path d="M6 6v11"></path><path d="M10 3v18"></path><path d="M14 8v7"></path><path d="M18 5v13"></path><path d="M22 10v3"></path></symbol>
+  <symbol id="icon-FileText" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></symbol>
+  <symbol id="icon-Presentation" viewBox="0 0 24 24"><path d="M2 3h20"></path><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"></path><path d="m7 21 5-5 5 5"></path></symbol>
+  <symbol id="icon-Quote" viewBox="0 0 24 24"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path></symbol>
+  <symbol id="icon-BookOpenText" viewBox="0 0 24 24"><path d="M12 5v16"></path><path d="M16 13h2"></path><path d="M16 9h2"></path><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"></path><path d="M6 13h2"></path><path d="M6 9h2"></path></symbol>
+  <symbol id="icon-Globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></symbol>
+  <symbol id="icon-BookText" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"></path><path d="M8 11h8"></path><path d="M8 7h6"></path></symbol>
+  <symbol id="icon-Link2" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" x2="16" y1="12" y2="12"></line></symbol>
+  <symbol id="icon-Minus" viewBox="0 0 24 24"><path d="M5 12h14"></path></symbol>
+  <symbol id="icon-Heading" viewBox="0 0 24 24"><path d="M6 12h12"></path><path d="M6 20V4"></path><path d="M18 20V4"></path></symbol>
+  <symbol id="icon-FileSpreadsheet" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M8 13h2"></path><path d="M14 13h2"></path><path d="M8 17h2"></path><path d="M14 17h2"></path></symbol>
+  <symbol id="icon-Shapes" viewBox="0 0 24 24"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z"></path><rect x="3" y="14" width="7" height="7" rx="1"></rect><circle cx="17.5" cy="17.5" r="3.5"></circle></symbol>
+  <symbol id="icon-ScanText" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M7 8h8"></path><path d="M7 12h10"></path><path d="M7 16h6"></path></symbol>
+  <symbol id="icon-BookOpen" viewBox="0 0 24 24"><path d="M12 5v16"></path><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"></path></symbol>
+  <symbol id="icon-Maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></symbol>
+  <symbol id="icon-Minimize" viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></symbol>
+  <symbol id="icon-UnfoldVertical" viewBox="0 0 24 24"><path d="M12 22v-6"></path><path d="M12 8V2"></path><path d="M4 12H2"></path><path d="M10 12H8"></path><path d="M16 12h-2"></path><path d="M22 12h-2"></path><path d="m15 19-3 3-3-3"></path><path d="m15 5-3-3-3 3"></path></symbol>
+  <symbol id="icon-ScrollText" viewBox="0 0 24 24"><path d="M15 12h-5"></path><path d="M15 8h-5"></path><path d="M19 17V5a2 2 0 0 0-2-2H4"></path><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"></path></symbol>
+  <symbol id="icon-MoreHorizontal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></symbol>
+  <symbol id="icon-X" viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></symbol>
+  <symbol id="icon-Download" viewBox="0 0 24 24"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></symbol>
+  <symbol id="icon-Paperclip" viewBox="0 0 24 24"><path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"></path></symbol>
+  <symbol id="icon-Copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></symbol>
+  <symbol id="icon-StickyNote" viewBox="0 0 24 24"><path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path><path d="M15 3v5a1 1 0 0 0 1 1h5"></path></symbol>
+  <symbol id="icon-Highlighter" viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"></path><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path></symbol>
+  <symbol id="icon-MessageSquarePlus" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path><path d="M12 8v6"></path><path d="M9 11h6"></path></symbol>
+  <symbol id="icon-Check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></symbol>
+  <symbol id="icon-Wand" viewBox="0 0 24 24"><path d="M15 4V2"></path><path d="M15 16v-2"></path><path d="M8 9h2"></path><path d="M20 9h2"></path><path d="M17.8 11.8 19 13"></path><path d="M15 9h.01"></path><path d="M17.8 6.2 19 5"></path><path d="m3 21 9-9"></path><path d="M12.2 6.2 11 5"></path></symbol>
+  <symbol id="icon-ArrowUp" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></symbol>
+  <symbol id="icon-Square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"></rect></symbol>
+  <symbol id="icon-Loader2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></symbol>
+  <symbol id="icon-Play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></symbol>
+  <symbol id="icon-Pause" viewBox="0 0 24 24"><rect x="14" y="3" width="5" height="18" rx="1"></rect><rect x="5" y="3" width="5" height="18" rx="1"></rect></symbol>
+  <symbol id="icon-ChevronRight" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></symbol>
+  <symbol id="icon-ChevronDown" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></symbol>
+  <symbol id="icon-ThumbsUp" viewBox="0 0 24 24"><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"></path><path d="M7 10v12"></path></symbol>
+  <symbol id="icon-ThumbsDown" viewBox="0 0 24 24"><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"></path><path d="M17 14V2"></path></symbol>
+  <symbol id="icon-CanvasResize" viewBox="0 0 11 11"><path d="M10 4 4 10 M10 8 8 10"/></symbol>
+  <symbol id="icon-ShellResize" viewBox="0 0 14 14"><path d="M3 12 12 3M8 12 12 8"/></symbol>
+  <symbol id="icon-ApprovedAskHere" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l1.7-3.2A7.5 7.5 0 1 1 20 11.5Z"/><path d="M9 11.5h7m-7 3h4"/></symbol>
+  <symbol id="icon-ApprovedAskNew" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 8v8m0-3h5a7 7 0 0 0 7-5"/></symbol>
+  <symbol id="icon-ApprovedFollowUp" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="icon-ApprovedSend" viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></symbol>
+</defs></svg>
+<main>
+  <header>
+    <p class="eyebrow">Rabbit Hole · Card design reference</p>
+    <h1>Card icon template</h1>
+    <p class="lede">Existing Rabbit Hole card glyphs with the resizable shell’s colors, geometry and button states. The glyph list separates runtime icons from the approved Explanation design examples.</p>
+    <nav aria-label="Icon template sections"><a href="#states">States</a><a href="#kinds">Card types</a><a href="#actions">Card actions</a><a href="#dimensions">Dimensions</a></nav>
+  </header>
+  <section id="states" aria-labelledby="states-title">
+    <h2 id="states-title">Icon button states</h2>
+    <p class="section-copy">A momentary action uses Pressed while held. A toggle uses Selected for the current choice. The shape is the existing glyph, with its paint inherited from the button.</p>
+    <div class="panel">
+      <div class="state-strip"><div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="default"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Default / unselected</span></div>
+<div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="hover"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Hover</span></div>
+<div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="pressed"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Pressed</span></div>
+<div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="selected"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Selected</span></div>
+<div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="selected-hover"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Selected hover or press</span></div>
+<div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="focus"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Keyboard focus</span></div>
+<div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="disabled"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Disabled</span></div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">State</th><th scope="col">Surface</th><th scope="col">Border</th><th scope="col">Icon and label</th><th scope="col">Opacity / cue</th></tr></thead>
+        <tbody><tr><th scope="row">Default / unselected</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%</td></tr>
+<tr><th scope="row">Hover</th><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code></td><td><span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%</td></tr>
+<tr><th scope="row">Pressed</th><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>100%; while held</td></tr>
+<tr><th scope="row">Selected</th><td><span class="swatch" style="--paint:var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>100%; current toggle</td></tr>
+<tr><th scope="row">Selected hover or press</th><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--paint:var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>100%</td></tr>
+<tr><th scope="row">Keyboard focus</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%; adds <span class="swatch" style="--paint:var(--blue)" aria-hidden="true"></span><code>#426DB2</code> 2 px outline, +2 px offset</td></tr>
+<tr><th scope="row">Disabled</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>45% composite opacity</td></tr></tbody>
+      </table></div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <article class="panel">
+        <h3>Try a persistent selection</h3>
+        <p class="technical">Card feedback uses an outline at rest and fills the existing glyph with currentColor when selected.</p>
+        <div class="actions" id="feedback-demo" role="group" aria-label="Card feedback preview"><button type="button" class="icon-button round feedback" aria-label="Understood" title="Understood" aria-pressed="false" data-feedback="Understood"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ThumbsUp"></use></svg></button><button type="button" class="icon-button round feedback" aria-label="Still unclear" title="Still unclear" aria-pressed="false" data-feedback="Still unclear"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ThumbsDown"></use></svg></button></div>
+        <p class="demo-status" id="feedback-status" aria-live="polite">Unselected</p>
+      </article>
+      <article class="panel">
+        <h3>Try a transport action</h3>
+        <p class="technical">Play and Pause have a 14 px glyph and a text label. Replay uses the Play glyph.</p>
+        <div class="actions" id="transport-demo"><button id="transport-toggle" type="button" class="icon-button with-label" data-playing="false"><svg class="glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Play"></use></svg><span>Play</span></button><span class="icon-button with-label"><svg class="glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Play"></use></svg>Replay</span></div>
+        <p class="demo-status" id="transport-status" aria-live="polite">Play</p>
+      </article>
+    </div>
+  </section>
+  <section id="kinds" aria-labelledby="kinds-title">
+    <h2 id="kinds-title">Card-type glyphs</h2>
+    <p class="section-copy">The static header glyph is 16 px in the standard header or 18 px in the large header, stroke width 1.75 in a 24-unit viewBox. Use secondary ink <code>#5D675F</code> at full opacity for the standalone type marker. Where the design places a glyph inside a colored pill, it inherits the pill ink.</p>
+    <div class="header-examples"><span class="header-mark explain"><svg class="glyph" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Lightbulb"></use></svg>Explanation</span><span class="header-mark interactive"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Clapperboard"></use></svg>Interactive</span></div>
+    <div class="kind-grid"><div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Lightbulb"></use></svg><div><strong>Lightbulb</strong><span>explanation</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Dumbbell"></use></svg><div><strong>Dumbbell</strong><span>challenge · explainBack</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ListChecks"></use></svg><div><strong>ListChecks</strong><span>quiz</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-GalleryVerticalEnd"></use></svg><div><strong>GalleryVerticalEnd</strong><span>flashcards</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Table2"></use></svg><div><strong>Table2</strong><span>table · file: table</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Braces"></use></svg><div><strong>Braces</strong><span>snippet</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Code"></use></svg><div><strong>Code</strong><span>code</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-FileCode"></use></svg><div><strong>FileCode</strong><span>repo-code</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-SquareFunction"></use></svg><div><strong>SquareFunction</strong><span>graph</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ChartLine"></use></svg><div><strong>ChartLine</strong><span>plot</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Spline"></use></svg><div><strong>Spline</strong><span>vector</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Pi"></use></svg><div><strong>Pi</strong><span>mathAnimation</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Workflow"></use></svg><div><strong>Workflow</strong><span>flow</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Waypoints"></use></svg><div><strong>Waypoints</strong><span>mermaid</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Route"></use></svg><div><strong>Route</strong><span>walkthrough</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Blocks"></use></svg><div><strong>Blocks</strong><span>pipeline</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Network"></use></svg><div><strong>Network</strong><span>knowledge</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-GitBranch"></use></svg><div><strong>GitBranch</strong><span>repo-graph</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Clapperboard"></use></svg><div><strong>Clapperboard</strong><span>animation · animationAxis · animationResidual · animationSigmoid</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Focus"></use></svg><div><strong>Focus</strong><span>referenceAttention</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-PenTool"></use></svg><div><strong>PenTool</strong><span>whiteboard</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Projector"></use></svg><div><strong>Projector</strong><span>whiteboardVideo</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Rotate3d"></use></svg><div><strong>Rotate3d</strong><span>animation3d</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Box"></use></svg><div><strong>Box</strong><span>model3d · file: model</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Boxes"></use></svg><div><strong>Boxes</strong><span>scene</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Cuboid"></use></svg><div><strong>Cuboid</strong><span>cad</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Image"></use></svg><div><strong>Image</strong><span>image · imageGenerate · file: image</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Film"></use></svg><div><strong>Film</strong><span>video · videoGenerate · file: video</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-AudioLines"></use></svg><div><strong>AudioLines</strong><span>audio · file: audio</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-FileText"></use></svg><div><strong>FileText</strong><span>paper · pdf · file: text · file: markdown · file: document</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Presentation"></use></svg><div><strong>Presentation</strong><span>slide · file: presentation</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Quote"></use></svg><div><strong>Quote</strong><span>excerpt</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-BookOpenText"></use></svg><div><strong>BookOpenText</strong><span>wiki</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Globe"></use></svg><div><strong>Globe</strong><span>webpage</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-BookText"></use></svg><div><strong>BookText</strong><span>notebook</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Link2"></use></svg><div><strong>Link2</strong><span>canvas-ref</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Minus"></use></svg><div><strong>Minus</strong><span>divider</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Heading"></use></svg><div><strong>Heading</strong><span>heading</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-FileSpreadsheet"></use></svg><div><strong>FileSpreadsheet</strong><span>file: workbook</span></div></div>
+<div class="kind"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Shapes"></use></svg><div><strong>Shapes</strong><span>fallback</span></div></div></div>
+  </section>
+  <section id="actions" aria-labelledby="actions-title">
+    <h2 id="actions-title">Card action glyphs</h2>
+    <p class="section-copy">Preserve each glyph’s viewBox, size and stroke. Reset, generated action labels such as Draw again, and registered Previous / Next use text controls.</p>
+    <div class="panel table-wrap"><table>
+      <thead><tr><th scope="col">Glyph</th><th scope="col">Use</th><th scope="col">Source glyph</th><th scope="col">Size and stroke</th><th scope="col">Source</th></tr></thead>
+      <tbody><tr><td class="glyph-cell"><svg class="glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-FileText"></use></svg></td><th scope="row">Source file</th><td><code>FileText</code></td><td>14 px header / 12 px compact · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SourceRefChip.jsx#L86-L108">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ScanText"></use></svg></td><th scope="row">Open source in header</th><td><code>ScanText</code></td><td>16 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SourceRefChip.jsx#L90-L93">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-BookOpen"></use></svg></td><th scope="row">View passage in compact source row</th><td><code>BookOpen</code></td><td>12 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SourceRefChip.jsx#L105-L112">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></td><th scope="row">Focus card</th><td><code>Maximize</code></td><td>16 px · stroke 1.8 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SelectionActions.jsx#L49-L54">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Minimize"></use></svg></td><th scope="row">Back to canvas</th><td><code>Minimize</code></td><td>16 px · stroke 1.8 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/FocusFrame.jsx#L23-L25">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-UnfoldVertical"></use></svg></td><th scope="row">Show full content</th><td><code>UnfoldVertical</code></td><td>16 px · stroke 1.5 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/canvas-actions.js#L171-L174">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ScrollText"></use></svg></td><th scope="row">Switch to scrollable content</th><td><code>ScrollText</code></td><td>16 px · stroke 1.5 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/canvas-actions.js#L171-L174">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-MoreHorizontal"></use></svg></td><th scope="row">More notebook actions</th><td><code>MoreHorizontal</code></td><td>14 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/NotebookCard.jsx#L144">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-X"></use></svg></td><th scope="row">Close block composer</th><td><code>X</code></td><td>13 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/AdaptiveCanvas.jsx#L552">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Download"></use></svg></td><th scope="row">Download attachment or original</th><td><code>Download</code></td><td>12 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/AdaptiveCanvas.jsx#L695-L708">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Paperclip"></use></svg></td><th scope="row">File attachment marker</th><td><code>Paperclip</code></td><td>16 px header / 18 px large · stroke 1.75 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/docs/features/explain-on-canvas/card-header-template.md#per-card-type">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Copy"></use></svg></td><th scope="row">Copy prompt</th><td><code>Copy</code></td><td>12 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/CardPrompt.jsx#L59-L74">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Link2"></use></svg></td><th scope="row">Add a link</th><td><code>Link2</code></td><td>16 px · stroke 1.5 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/canvas-actions.js#L132-L134">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-StickyNote"></use></svg></td><th scope="row">Add a sticky note</th><td><code>StickyNote</code></td><td>16 px · stroke 1.5 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/canvas-actions-types.js#L289">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Highlighter"></use></svg></td><th scope="row">Highlight selected text</th><td><code>Highlighter</code></td><td>15 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/FileDocMarkdown.jsx#L298-L302">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-MessageSquarePlus"></use></svg></td><th scope="row">Add to chat</th><td><code>MessageSquarePlus</code></td><td>13 px / 1.8; 15 px / 2 in text selection · stroke 1.8 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SelectionActions.jsx#L55-L57">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Check"></use></svg></td><th scope="row">Added to chat</th><td><code>Check</code></td><td>13 px · stroke 1.8 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SelectionActions.jsx#L55-L57">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Wand"></use></svg></td><th scope="row">Quick Edit</th><td><code>Wand</code></td><td>13 px · stroke 1.8 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SelectionActions.jsx#L55-L57">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ArrowUp"></use></svg></td><th scope="row">Send</th><td><code>ArrowUp</code></td><td>13 px compact / 16 px stacked / 17 px dock · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/ChatComposer.jsx#L76-L84">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Square"></use></svg></td><th scope="row">Stop response</th><td><code>Square</code></td><td>10 px compact / 12 px stacked / 13 px dock; fill currentColor · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/ChatComposer.jsx#L76-L84">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Loader2"></use></svg></td><th scope="row">Sending</th><td><code>Loader2</code></td><td>13 px compact / 16 px stacked or dock · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/ChatComposer.jsx#L81-L84">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Play"></use></svg></td><th scope="row">Play or Replay</th><td><code>Play</code></td><td>14 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/explain-program/ProgramScene.jsx#L341-L349">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Pause"></use></svg></td><th scope="row">Pause</th><td><code>Pause</code></td><td>14 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/explain-program/ProgramScene.jsx#L341-L349">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ChevronRight"></use></svg></td><th scope="row">Disclosure</th><td><code>ChevronRight</code></td><td>13 px; rotate +90° when open · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SourcesDisclosure.jsx#L29-L33">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ChevronDown"></use></svg></td><th scope="row">Program Notes disclosure</th><td><code>ChevronDown</code></td><td>16 px; rotate −90° when closed · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/explain-program/ProgramNotes.jsx#L17-L23">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ThumbsUp"></use></svg></td><th scope="row">Understood</th><td><code>ThumbsUp</code></td><td>13 px; fill currentColor when selected · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/CardFeedback.jsx#L25-L36">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ThumbsDown"></use></svg></td><th scope="row">Still unclear</th><td><code>ThumbsDown</code></td><td>13 px; fill currentColor when selected · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/CardFeedback.jsx#L25-L36">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-CanvasResize"></use></svg></td><th scope="row">Resize · Canvas</th><td><code>CanvasResize</code></td><td>11 px · stroke 1.5 · viewBox <code>0 0 11 11</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/AdaptiveCanvas.jsx#L475-L478">Runtime</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ShellResize"></use></svg></td><th scope="row">Resize · new card shell</th><td><code>ShellResize</code></td><td>14 px · stroke 1.4 · viewBox <code>0 0 14 14</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html">Shell reference</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ApprovedAskHere"></use></svg></td><th scope="row">Ask here</th><td><code>ApprovedAskHere</code></td><td>17 px · stroke 1.7 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html#L442-L449">Approved UI</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ApprovedAskNew"></use></svg></td><th scope="row">Ask in a new card</th><td><code>ApprovedAskNew</code></td><td>17 px · stroke 1.7 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html#L442-L449">Approved UI</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ApprovedFollowUp"></use></svg></td><th scope="row">Ask a follow-up</th><td><code>ApprovedFollowUp</code></td><td>14 px · stroke 1.7 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html#L464-L476">Approved UI</a></td></tr>
+<tr><td class="glyph-cell"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ApprovedSend"></use></svg></td><th scope="row">Send follow-up</th><td><code>ApprovedSend</code></td><td>16 px · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html#L464-L476">Approved UI</a></td></tr></tbody>
+    </table></div>
+  </section>
+  <section id="dimensions" aria-labelledby="dimensions-title">
+    <h2 id="dimensions-title">Exact implementation values</h2>
+    <div class="panel table-wrap" style="margin-top:8px"><table>
+      <thead><tr><th scope="col">Part</th><th scope="col">Values for this template</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Icon-only control</th><td>35 × 35 px box, 8 px radius, 1 px border, centered glyph. Use the per-icon size in the catalogue.</td></tr>
+        <tr><th scope="row">Icon with label</th><td>35 px minimum height, 8 px radius, 1 px border, 6 px gap, 10 px horizontal padding. Label 13 px, weight 650, line-height 1.45. Text and icon share currentColor.</td></tr>
+        <tr><th scope="row">Type pill</th><td>26 px minimum height, 999 px radius, 1 px vertical and 11 px horizontal padding, 7 px gap when a glyph is present. Text 13 px, weight 700. Explanation uses <code>#EAF1FB</code> / <code>#375D92</code>. Interactive uses <code>#F8ECE3</code> / <code>#934723</code>.</td></tr>
+        <tr><th scope="row">Reference resize grip</th><td>26 × 26 px box, 7 px radius, 1 px transparent border at rest. Use card <code>#FFFEFA</code> with ink <code>#5D675F</code> at rest. Hover and drag use <code>#F8ECE3</code>, border <code>#E2AD8F</code> and ink <code>#934723</code>. Glyph 14 × 14 px, stroke 1.4.</td></tr>
+        <tr><th scope="row">Keyboard focus</th><td>2 px solid <code>#426DB2</code>, outline offset +2 px. Resize grip offset −2 px.</td></tr>
+        <tr><th scope="row">Special button boxes</th><td>Feedback uses a 28 × 28 px circle and a 13 px glyph. Composer Send and Stop use the existing compact 24 px, stacked 32 px, and docked 36 px circles; their glyph sizes are listed above.</td></tr>
+        <tr><th scope="row">SVG paint</th><td>Stroke inherits currentColor, fill is none by default, caps and joins are round. Selected feedback glyphs fill currentColor. Enabled surfaces and glyphs are opaque; disabled controls use 45% opacity.</td></tr>
+        <tr><th scope="row">Accessible names</th><td>Give icon-only buttons an aria-label. Put aria-hidden on the icon when its button already supplies the name. Use aria-pressed for toggles and aria-expanded for disclosures.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="footer-links"><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html">Resizable card shell</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/card-icons.js#L6-L24">Card-type registry</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/CardHeader.jsx#L20-L27">Header sizes</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html">Approved Explanation UI</a></p>
+  </section>
+</main>
+<script>
+  const feedback = document.getElementById('feedback-demo');
+  const feedbackStatus = document.getElementById('feedback-status');
+  feedback.addEventListener('click', event => {
+    const button = event.target.closest('[data-feedback]');
+    if (!button) return;
+    const selected = button.getAttribute('aria-pressed') !== 'true';
+    for (const choice of feedback.querySelectorAll('[data-feedback]')) {
+      choice.setAttribute('aria-pressed', String(selected && choice === button));
+    }
+    feedbackStatus.textContent = selected ? `${button.dataset.feedback} selected` : 'Unselected';
+  });
+  const transport = document.getElementById('transport-toggle');
+  const transportStatus = document.getElementById('transport-status');
+  transport.addEventListener('click', () => {
+    const playing = transport.dataset.playing !== 'true';
+    transport.dataset.playing = String(playing);
+    transport.querySelector('use').setAttribute('href', playing ? '#icon-Pause' : '#icon-Play');
+    transport.querySelector('span').textContent = playing ? 'Pause' : 'Play';
+    transportStatus.textContent = playing ? 'Pause' : 'Play';
+  });
+</script>
+<!-- Lucide React 1.41.0 icon notices
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+—-
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-->
+</body>
+</html>
