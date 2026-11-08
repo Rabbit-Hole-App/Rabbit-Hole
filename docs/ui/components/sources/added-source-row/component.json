@@ -1,0 +1,41 @@
+{
+  "id": "sources/added-source-row",
+  "title": "Added source rows",
+  "category": "sources",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/templates/added-source-row.html",
+  "source_file": "added-source-row.html",
+  "status": "Reusable template / browser review pending",
+  "styles": [
+    "standards",
+    "review-corrections",
+    "source-picker",
+    "start-rabbit-hole"
+  ],
+  "scripts": [
+    "source-widgets"
+  ],
+  "implementation": [
+    "packages/web/src/StartDialog.jsx",
+    "packages/web/src/ui.jsx"
+  ],
+  "notes": "Owner-requested source-entry template. Reuses shared buttons, fields, icons, pale scrollbars and resize states. Static review specimen; no upload, connection or canvas creation.",
+  "issues": [],
+  "templates": [],
+  "includes": [
+    "added-source-row"
+  ],
+  "keywords": [
+    "start",
+    "source",
+    "files",
+    "link",
+    "repository",
+    "upload",
+    "remove",
+    "tabs",
+    "nowrap"
+  ],
+  "path": "components/sources/added-source-row",
+  "paletteRole": "shared",
+  "catalogVisible": true
+}

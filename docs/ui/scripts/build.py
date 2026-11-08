@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build the catalog from component metadata/fragments using Python's standard library."""
 from pathlib import Path
+from ui_fragments import read_markup
 import argparse, html, json, re, urllib.parse
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -10,7 +11,7 @@ def escape(s): return html.escape(str(s),quote=True)
 def load_records():
  return sorted((json.loads(p.read_text()) for p in ROOT.glob('components/*/*/component.json')),key=lambda c:c['id'])
 def render(record):
- folder=ROOT/record['path']; fragment=(folder/'markup.html').read_text()
+ folder=ROOT/record['path']; fragment=read_markup(folder)
  # Preview-local fragments stay local. Links to source-only sections retain their original context.
  ids=set(re.findall(r'\bid=["\']([^"\']+)',fragment))
  def link(m):
@@ -54,7 +55,7 @@ Palette role: **{record.get('paletteRole','shared')}**. [Current blue/red balanc
 
 Edit `markup.html` and `component.json` here. Shared styles: {', '.join('`styles/'+s+'.css`' for s in record['styles']) or 'none'}. Behavior: {', '.join('`scripts/'+s+'.js`' for s in record['scripts']) or 'static/native HTML only'}. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
-Template dependencies: {', '.join('`templates/'+t+'.html`' for t in record['templates']) or 'none'}.
+Template dependencies: {', '.join('`templates/'+t+'.html`' for t in [*record['templates'],*record.get('includes',[])]) or 'none'}.
 
 ## App mapping candidates
 
@@ -76,10 +77,11 @@ def main():
  rows=[]
  for r in records:
   if not r.get('catalogVisible',True):continue
-  markup=(ROOT/r['path']/'markup.html').read_text()
+  markup=read_markup(ROOT/r['path'])
   visible=html.unescape(re.sub(r'<[^>]+>',' ',markup))
   labels=' '.join(re.findall(r'(?:aria-label|title)=["\']([^"\']+)',markup))
   hay=' '.join([r['id'],r['title'],r['status'],r['source_file'],r['notes'],visible,labels,*r['keywords'],*r['implementation'],*r['issues']]).lower()
+  hay=' '.join(hay.split())
   rows.append(f'<article class="entry" data-search="{escape(hay)}" data-category="{escape(r["category"])}"><h2><a href="{escape(r["path"])}/preview.html">{escape(r["title"])}</a></h2><p class="id">{escape(r["id"])}</p><p>{escape(r["status"])}</p><p>{escape(r["notes"])}</p><a href="{escape(r["path"])}/README.md">Mapping and files</a></article>')
  cats=sorted({r['category'] for r in records if r.get('catalogVisible',True)})
  index='''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rabbit Hole UI assets</title><link rel="stylesheet" href="styles/catalog.css"></head><body><main><header><p class="eyebrow">Rabbit Hole · UI reference assets</p><h1>Find a component</h1><p>Search names, commands, source files, app paths, states and review IDs. References are separate from app integration.</p><nav><a href="README.md">Read me</a><a href="INVENTORY.md">All source files</a><a href="MAPPING.md">App mapping</a><a href="REVIEW.md">Inconsistencies and gaps</a><a href="VERIFICATION.md">Verification</a></nav><label for="search">Search</label><input id="search" type="search" placeholder="Try composer, slider, source, UI-01"><label for="category">Category</label><select id="category"><option value="">All categories</option>'''+''.join('<option>'+escape(c)+'</option>' for c in cats)+'''</select><p id="count" role="status"></p></header><section id="entries">'''+''.join(rows)+'''</section><p id="empty" hidden>No matching components. Try a broader term.</p></main><script src="scripts/catalog.js"></script></body></html>'''

@@ -80,3 +80,9 @@ The 21 command pills are design inventory, not proof 21 commands are registered 
 Task: **Organize and review Rabbit Hole UI assets** · `a0a9e129-167c-44b6-b4e2-d2e8c53a5463`.
 
 Baseline: `chatgpt/tutor` at `aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56`, plus supplied Library behavior fixtures and the original palette attachment. Only documentation/reference assets are changed. No runtime package, feature flag, model call or deployment is part of this task. Browser rendering remains unverified.
+
+## Start a rabbit hole templates
+
+[Start dialog mapping and maintenance](START-DIALOG.md) documents the four reusable source-entry templates and their app landmarks. The [complete standalone HTML](clean/12-start-rabbit-hole.html) is generated from these same templates. Individual tabs, upload and source-row previews are also searchable under **Source documents** in the component library.
+
+Template includes use `<!-- ui:include template-name -->`. The catalog, clean exporter and searchable library all use `scripts/ui_fragments.py` to resolve them. Edit the template once, then regenerate all previews; do not edit the exported HTML independently.

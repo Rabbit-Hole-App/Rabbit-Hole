@@ -1,0 +1,15 @@
+<section class="rh-start-dialog" role="dialog" aria-modal="true" aria-labelledby="title" aria-describedby="description" id="dialog">
+ <header class="start-header"><h1 id="title">Start a rabbit hole</h1><p id="description">Add files, links, or a repository. You can combine them.</p><button class="icon-button quiet start-close" aria-label="Close" title="Close"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button></header>
+ <div class="start-body">
+  <!-- ui:include source-picker-tabs -->
+  <div role="tabpanel" aria-labelledby="files-tab" id="files-panel"><!-- ui:include file-upload-drop-zone --></div>
+  <form class="source-entry" role="tabpanel" aria-labelledby="link-tab" id="link-panel" hidden><label for="link-input">Link</label><div class="source-input-row"><input class="control" id="link-input" type="url" placeholder="https://example.com/article" required><button class="button" type="submit">Add link</button></div><p class="error" id="link-error" role="alert" hidden></p></form>
+  <form class="source-entry" role="tabpanel" aria-labelledby="repo-tab" id="repo-panel" hidden><label for="repo-input">Repository URL</label><div class="source-input-row"><input class="control" id="repo-input" type="url" placeholder="https://github.com/owner/repository" required><button class="button" type="submit" id="repo-add">Add repository</button></div><p class="error" id="repo-error" role="alert" hidden></p></form>
+  <p class="empty" id="empty">Add a source to start, or use a blank canvas.</p><ul class="source-list" id="sources" aria-label="Added sources"></ul><span class="sr-only" id="source-status" role="status"></span>
+ </div>
+ <footer class="start-footer"><button class="button" id="blank">Start with a blank canvas</button><button class="button primary" id="start" aria-describedby="empty" disabled>Start rabbit hole</button></footer>
+ <button class="resize-handle" id="resize" aria-label="Resize dialog. Use arrow keys to resize." title="Resize · arrow keys supported"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+</section>
+<section class="preview-result" id="result" tabindex="-1" hidden><h1 id="result-title">Preview</h1><p id="result-copy"></p><button class="button primary" id="back">Back to dialog</button></section>
+
+<!-- ui:include added-source-row -->

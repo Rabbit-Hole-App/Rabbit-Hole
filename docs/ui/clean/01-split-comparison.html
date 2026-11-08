@@ -174,7 +174,7 @@
     .design-spec th { background: var(--panel); }
     .design-spec code { white-space: nowrap; }
     .swatch { display: inline-block; width: 13px; height: 13px; margin-inline-end: 5px; vertical-align: -1px; border: 1px solid var(--card-border); border-radius: 3px; background: var(--swatch); }
-  
+
 /* Owner review: one current card system across individual components and flows. */
 :root{--ui-scroll:#d5d9cf;--ui-scroll-hover:#bdc6b5;--ui-min-width:440px;--ui-max-width:960px;--ui-min-height:320px;--ui-max-height:760px;--scroll-thumb:#d5d9cf;--scroll-thumb-hover:#bdc6b5;--surface:#fffefa;--ink:#202723;--ink-2:#5d675f;--secondary:#5d675f;--line:#dedfd8;--inset:#f6f8f4;--accent:#426db2}
 html{color-scheme:light}body{background:#f5f4ed;color:#202723}
@@ -221,11 +221,11 @@ button.ui-draw:active,button.ui-draw.is-pressed{background:#eac6ad!important;bor
 .rh-composer{min-width:360px!important;max-width:960px!important}.rh-composer .rh-draft{scrollbar-color:#d5d9cf transparent!important}
 
 /* Shared Cards grip: one geometry, glyph and state table everywhere. */
-:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle{position:absolute!important;right:2px!important;bottom:2px!important;display:grid!important;place-items:center;width:26px!important;height:26px!important;min-height:26px!important;padding:0!important;border:1px solid transparent!important;border-radius:7px!important;background:#fffefa!important;color:#5d675f!important;cursor:nwse-resize;touch-action:none;z-index:4}
-:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle svg{width:14px!important;height:14px!important;fill:none;stroke:currentColor;stroke-width:1.4}
-:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle:hover{color:#375d92!important;background:#eaf1fb!important;border-color:#adc4e5!important}
-:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle:active,:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel).is-resizing .resize-handle{color:#375d92!important;background:#d0e0f4!important;border-color:#adc4e5!important}
-:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel) .resize-handle:focus-visible{outline:2px solid #426db2!important;outline-offset:-2px!important}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle{position:absolute!important;right:2px!important;bottom:2px!important;display:grid!important;place-items:center;width:26px!important;height:26px!important;min-height:26px!important;padding:0!important;border:1px solid transparent!important;border-radius:7px!important;background:#fffefa!important;color:#5d675f!important;cursor:nwse-resize;touch-action:none;z-index:4}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle svg{width:14px!important;height:14px!important;fill:none;stroke:currentColor;stroke-width:1.4}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle:hover{color:#375d92!important;background:#eaf1fb!important;border-color:#adc4e5!important}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle:active,:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog).is-resizing .resize-handle{color:#375d92!important;background:#d0e0f4!important;border-color:#adc4e5!important}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle:focus-visible{outline:2px solid #426db2!important;outline-offset:-2px!important}
 .rh-composer .rh-form{padding-bottom:30px}.rh-composer[data-embedded] .rh-form{padding-bottom:14px}
 .chat-proposal>.sample-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto}.chat-proposal>.sample-row button{flex:none;white-space:nowrap}.chat-proposal>.sample-row .icon{width:18px;height:18px;flex:none}
 .ui-followup-example{width:600px;max-width:100%;margin-top:0}.ui-connector-example{height:30px}.ui-connector-example:before{width:0}.ui-connector-example:after{width:1px;height:30px;background:#a9b89b;position:absolute;z-index:-1}.ui-connector-example{position:relative;isolation:isolate}.ui-connector-example span{width:22px;height:22px;font-size:15px;line-height:1}

@@ -15,6 +15,7 @@
     "packages/web/src/Sidebar.jsx",
     "packages/web/src/SlashCommandsSheet.jsx",
     "packages/web/src/SlotCard.jsx",
+    "packages/web/src/StartDialog.jsx",
     "packages/web/src/TableOfContents.jsx",
     "packages/web/src/agent/slash.js",
     "packages/web/src/comments/CommentInbox.jsx",
@@ -24,5 +25,8 @@
     "packages/web/src/home/CardSize.jsx",
     "packages/web/src/index.css",
     "packages/web/src/ui.jsx"
-  ]
+  ],
+  "additional_verification": {
+    "packages/web/src/StartDialog.jsx": "Verified by git ls-tree at 632945f8ee2fa9ecdacaa24f74f21f4a030a5804"
+  }
 }

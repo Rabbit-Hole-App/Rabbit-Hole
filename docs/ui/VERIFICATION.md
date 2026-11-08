@@ -13,6 +13,7 @@ Run from the repository root:
 ```sh
 python docs/ui/scripts/build.py
 python docs/ui/scripts/export_clean.py
+python docs/ui/scripts/export_library.py
 python docs/ui/scripts/check.py
 ```
 
@@ -25,3 +26,9 @@ Four warnings concern `accept`, `cancel`, `cancelnext` and `nextcard` in the his
 ## Still unverified
 
 Browser rendering, computed styles, visual balance, long-label overflow, native focus behavior, actual pointer/keyboard resize, playback timing and application integration. The repository's browser-verification rule reserves browser automation for its approved workflow; no browser run is claimed. Source-level and parser checks are not substitutes for visual acceptance.
+
+## Start dialog addition — 2026-11-08
+
+The rebuild contains 66 component entries, 41 JavaScript files and 15 standalone previews. Structural checks pass with zero errors. The shared source widget script checks for its optional demo roots; its absent-root warnings are expected in the isolated tabs, upload, row and complete-dialog specimens. The four historical lifecycle warnings above remain. These are parser checks only, not visual or browser interaction evidence.
+
+The one-repository constraint remains in local draft behavior, but its persistent helper sentence is removed as requested. Start and the blank-canvas action keep their established placement. Button labels cannot break and buttons cannot shrink; inputs receive the remaining width. Browser confirmation of computed layout remains pending.

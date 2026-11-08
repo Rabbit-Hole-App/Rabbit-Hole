@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bundle the component catalog and interactive specimens into one portable HTML."""
 from pathlib import Path
+from ui_fragments import read_markup
 import json,re,html,base64
 ROOT=Path(__file__).resolve().parents[1]
 records=json.loads((ROOT/'registry.json').read_text())['components']
@@ -31,7 +32,7 @@ for c in records:
   except ValueError:return m.group(0)
   return 'href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/'+relative+'"'
  doc=re.sub(r'href="([^"]+)"',link,doc)
- items.append({**c,'document':doc,'search':(' '.join([c['id'],c['title'],c['source_file'],c['notes'],*c['implementation'],*c['issues'],*c.get('keywords',[])])+' '+re.sub('<[^>]+>',' ',(folder/'markup.html').read_text())).lower()})
+ items.append({**c,'document':doc,'search':(' '.join([c['id'],c['title'],c['source_file'],c['notes'],*c['implementation'],*c['issues'],*c.get('keywords',[])])+' '+re.sub('<[^>]+>',' ',read_markup(folder))).lower()})
 css='''
 *{box-sizing:border-box}body{margin:0;background:#f5f4ed;color:#282a27;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header,main{max-width:1440px;margin:auto;padding:30px 28px}header{padding-bottom:18px}h1{font-size:32px;line-height:1.15;margin:8px 0 12px;font-weight:650}p{margin:8px 0;color:#646660}.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#6b7168}.palette{display:flex;gap:18px;flex-wrap:wrap;margin:18px 0}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.tools{position:sticky;top:0;z-index:3;background:#f5f4edf5;border-block:1px solid #d8d9d0;padding:14px 28px;backdrop-filter:blur(12px)}.tool-inner{max-width:1384px;margin:auto}input{font:inherit;width:100%;padding:12px 14px;border:1px solid #bfc5bb;background:#fffef9;border-radius:8px}nav{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}button{font:inherit;border:1px solid #cdd1c6;border-radius:8px;background:#fffef9;color:#3d433c;padding:7px 12px;cursor:pointer}button:hover{background:#e9ece4}button[aria-pressed=true]{background:#e1eaf2;border-color:#779bb6;color:#285d80}button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid #3674a0;outline-offset:3px}.section-title{font-size:23px;margin:24px 0 14px;text-transform:capitalize}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.entry{min-width:0;background:#fffef9;border:1px solid #d6d9cf;border-radius:12px;overflow:hidden}.entry-head{padding:16px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #e1e2da}.entry h3{font-size:17px;margin:0}.ident{font-size:12px;color:#74796e;margin:3px 0 0;overflow-wrap:anywhere}iframe{display:block;width:100%;height:650px;border:0;background:#f5f4ed}details{padding:12px 18px;border-top:1px solid #e1e2da;font-size:13px}summary{cursor:pointer;color:#346584}details p{overflow-wrap:anywhere}a{color:#285d80}code{overflow-wrap:anywhere}#count{font-size:13px;margin:10px 0 0}footer{max-width:1440px;margin:auto;padding:24px 28px;color:#777b71;font-size:13px}[hidden]{display:none!important}@media(max-width:950px){.grid{grid-template-columns:1fr}}@media(max-width:600px){header,main{padding:22px 12px}.tools{padding:12px}h1{font-size:27px}.entry-head{align-items:flex-start}.entry-head button{font-size:12px}}
 '''

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Export self-contained, single-card HTML for owner feedback; no catalog chrome."""
 from pathlib import Path
+from ui_fragments import read_markup
 import html,json,re
 ROOT=Path(__file__).resolve().parents[1]
 EXPORTS=[
@@ -14,12 +15,16 @@ EXPORTS=[
  ('08-markdown-header','sources/document-headers'),
  ('09-pdf-header','sources/document-headers'),
  ('10-green-toggle','controls/toggle'),
- ('11-chat-panel','tutor/chat-panel')]
+ ('11-chat-panel','tutor/chat-panel'),
+ ('12-start-rabbit-hole','sources/start-rabbit-hole'),
+ ('13-source-picker-tabs','sources/source-picker-tabs'),
+ ('14-file-upload-drop-zone','sources/file-upload-drop-zone'),
+ ('15-added-source-row','sources/added-source-row')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:
   folder=ROOT/'components'/ident;c=json.loads((folder/'component.json').read_text())
-  markup=(folder/'markup.html').read_text()
+  markup=read_markup(folder)
   templates='\n'.join((ROOT/'templates'/(t+'.html')).read_text() for t in c['templates'])
   styles='\n'.join((ROOT/'styles'/(s+'.css')).read_text() for s in c['styles'])+'\n'+(ROOT/'foundations/palette.css').read_text()
   scripts='\n'.join((ROOT/'scripts'/(s+'.js')).read_text() for s in c['scripts'])
@@ -62,6 +67,7 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
 <!-- {notice.replace('--','—')} -->
 </body></html>
 '''
+  output='\n'.join(line.rstrip() for line in output.splitlines())+'\n'
   (out/(filename+'.html')).write_text(output)
  print(f'Exported {len(EXPORTS)} standalone files to {out}')
 if __name__=='__main__':main()

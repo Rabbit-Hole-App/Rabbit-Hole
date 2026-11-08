@@ -1763,6 +1763,47 @@
       "catalogVisible": false
     },
     {
+      "id": "sources/added-source-row",
+      "title": "Added source rows",
+      "category": "sources",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/templates/added-source-row.html",
+      "source_file": "added-source-row.html",
+      "status": "Reusable template / browser review pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "source-picker",
+        "start-rabbit-hole"
+      ],
+      "scripts": [
+        "source-widgets"
+      ],
+      "implementation": [
+        "packages/web/src/StartDialog.jsx",
+        "packages/web/src/ui.jsx"
+      ],
+      "notes": "Owner-requested source-entry template. Reuses shared buttons, fields, icons, pale scrollbars and resize states. Static review specimen; no upload, connection or canvas creation.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "added-source-row"
+      ],
+      "keywords": [
+        "start",
+        "source",
+        "files",
+        "link",
+        "repository",
+        "upload",
+        "remove",
+        "tabs",
+        "nowrap"
+      ],
+      "path": "components/sources/added-source-row",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
       "id": "sources/document-headers",
       "title": "Dropped document cards",
       "category": "sources",
@@ -1796,6 +1837,47 @@
       ],
       "path": "components/sources/document-headers",
       "paletteRole": "shared"
+    },
+    {
+      "id": "sources/file-upload-drop-zone",
+      "title": "File upload drop zone",
+      "category": "sources",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/templates/file-upload-drop-zone.html",
+      "source_file": "file-upload-drop-zone.html",
+      "status": "Reusable template / browser review pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "source-picker",
+        "start-rabbit-hole"
+      ],
+      "scripts": [
+        "source-widgets"
+      ],
+      "implementation": [
+        "packages/web/src/StartDialog.jsx",
+        "packages/web/src/ui.jsx"
+      ],
+      "notes": "Owner-requested source-entry template. Reuses shared buttons, fields, icons, pale scrollbars and resize states. Static review specimen; no upload, connection or canvas creation.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "file-upload-drop-zone"
+      ],
+      "keywords": [
+        "start",
+        "source",
+        "files",
+        "link",
+        "repository",
+        "upload",
+        "remove",
+        "tabs",
+        "nowrap"
+      ],
+      "path": "components/sources/file-upload-drop-zone",
+      "paletteRole": "shared",
+      "catalogVisible": true
     },
     {
       "id": "sources/selected-text-actions",
@@ -1832,6 +1914,93 @@
       ],
       "path": "components/sources/selected-text-actions",
       "paletteRole": "shared"
+    },
+    {
+      "id": "sources/source-picker-tabs",
+      "title": "Source picker tabs",
+      "category": "sources",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/templates/source-picker-tabs.html",
+      "source_file": "source-picker-tabs.html",
+      "status": "Reusable template / browser review pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "source-picker",
+        "start-rabbit-hole"
+      ],
+      "scripts": [
+        "source-widgets"
+      ],
+      "implementation": [
+        "packages/web/src/StartDialog.jsx",
+        "packages/web/src/ui.jsx"
+      ],
+      "notes": "Owner-requested source-entry template. Reuses shared buttons, fields, icons, pale scrollbars and resize states. Static review specimen; no upload, connection or canvas creation.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "source-picker-tabs"
+      ],
+      "keywords": [
+        "start",
+        "source",
+        "files",
+        "link",
+        "repository",
+        "upload",
+        "remove",
+        "tabs",
+        "nowrap"
+      ],
+      "path": "components/sources/source-picker-tabs",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "sources/start-rabbit-hole",
+      "title": "Start a rabbit hole",
+      "category": "sources",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/templates/start-rabbit-hole.html",
+      "source_file": "start-rabbit-hole.html",
+      "status": "Reusable template / browser review pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "source-picker",
+        "start-rabbit-hole"
+      ],
+      "scripts": [
+        "source-widgets",
+        "resize",
+        "start-rabbit-hole"
+      ],
+      "implementation": [
+        "packages/web/src/StartDialog.jsx",
+        "packages/web/src/ui.jsx"
+      ],
+      "notes": "Owner-requested source-entry template. Reuses shared buttons, fields, icons, pale scrollbars and resize states. Static review specimen; no upload, connection or canvas creation.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "start-rabbit-hole",
+        "source-picker-tabs",
+        "file-upload-drop-zone",
+        "added-source-row"
+      ],
+      "keywords": [
+        "start",
+        "source",
+        "files",
+        "link",
+        "repository",
+        "upload",
+        "remove",
+        "tabs",
+        "nowrap"
+      ],
+      "path": "components/sources/start-rabbit-hole",
+      "paletteRole": "shared",
+      "catalogVisible": true
     },
     {
       "id": "tutor/chat-panel",

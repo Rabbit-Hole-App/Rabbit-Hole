@@ -1,14 +1,28 @@
 {
-  "standalone_previews": 11,
+  "standalone_previews": 15,
   "result": "PASS",
-  "components": 62,
-  "javascript_files": 39,
+  "components": 66,
+  "javascript_files": 41,
   "errors": [],
   "warnings": [
     "patterns/card-lifecycle: script ID accept is dynamic or absent",
     "patterns/card-lifecycle: script ID cancel is dynamic or absent",
     "patterns/card-lifecycle: script ID cancelnext is dynamic or absent",
-    "patterns/card-lifecycle: script ID nextcard is dynamic or absent"
+    "patterns/card-lifecycle: script ID nextcard is dynamic or absent",
+    "sources/added-source-row: script ID upload-demo-status is dynamic or absent",
+    "sources/file-upload-drop-zone: script ID added-source-row is dynamic or absent",
+    "sources/file-upload-drop-zone: script ID restore-source-examples is dynamic or absent",
+    "sources/file-upload-drop-zone: script ID row-demo-status is dynamic or absent",
+    "sources/file-upload-drop-zone: script ID source-row-demo is dynamic or absent",
+    "sources/source-picker-tabs: script ID added-source-row is dynamic or absent",
+    "sources/source-picker-tabs: script ID restore-source-examples is dynamic or absent",
+    "sources/source-picker-tabs: script ID row-demo-status is dynamic or absent",
+    "sources/source-picker-tabs: script ID source-row-demo is dynamic or absent",
+    "sources/source-picker-tabs: script ID upload-demo-status is dynamic or absent",
+    "sources/start-rabbit-hole: script ID restore-source-examples is dynamic or absent",
+    "sources/start-rabbit-hole: script ID row-demo-status is dynamic or absent",
+    "sources/start-rabbit-hole: script ID source-row-demo is dynamic or absent",
+    "sources/start-rabbit-hole: script ID upload-demo-status is dynamic or absent"
   ],
   "browser": "Not run; visual and interaction acceptance pending."
 }

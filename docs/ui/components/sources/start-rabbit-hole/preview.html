@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Start a rabbit hole · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/standards.css">
+<link rel="stylesheet" href="../../../styles/review-corrections.css">
+<link rel="stylesheet" href="../../../styles/source-picker.css">
+<link rel="stylesheet" href="../../../styles/start-rabbit-hole.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/templates/start-rabbit-hole.html">Source</a><p>Reusable template / browser review pending — Owner-requested source-entry template. Reuses shared buttons, fields, icons, pale scrollbars and resize states. Static review specimen; no upload, connection or canvas creation.</p></div>
+<div class="catalog-preview"><section class="rh-start-dialog" role="dialog" aria-modal="true" aria-labelledby="title" aria-describedby="description" id="dialog">
+ <header class="start-header"><h1 id="title">Start a rabbit hole</h1><p id="description">Add files, links, or a repository. You can combine them.</p><button class="icon-button quiet start-close" aria-label="Close" title="Close"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button></header>
+ <div class="start-body">
+  <div class="source-tabs" role="tablist" aria-label="Source type" data-source-tabs>
+ <button id="files-tab" class="button source-tab" type="button" role="tab" aria-selected="true" aria-controls="files-panel" tabindex="0" data-tab="files"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Upload"></use></svg>Files</button>
+ <button id="link-tab" class="button source-tab" type="button" role="tab" aria-selected="false" aria-controls="link-panel" tabindex="-1" data-tab="link"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Link2"></use></svg>Link</button>
+ <button id="repo-tab" class="button source-tab" type="button" role="tab" aria-selected="false" aria-controls="repo-panel" tabindex="-1" data-tab="repo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/icons.svg#icon-GitBranch"></use></svg>Repository</button>
+</div>
+
+  <div role="tabpanel" aria-labelledby="files-tab" id="files-panel"><div class="source-upload" data-source-upload>
+ <button class="dropzone" id="dropzone" type="button" aria-label="Browse files, or drop files here"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Upload"></use></svg><span>Drop files here</span><span class="button secondary browse-label">Browse files</span></button>
+ <input id="file-input" type="file" multiple hidden>
+</div>
+</div>
+  <form class="source-entry" role="tabpanel" aria-labelledby="link-tab" id="link-panel" hidden><label for="link-input">Link</label><div class="source-input-row"><input class="control" id="link-input" type="url" placeholder="https://example.com/article" required><button class="button" type="submit">Add link</button></div><p class="error" id="link-error" role="alert" hidden></p></form>
+  <form class="source-entry" role="tabpanel" aria-labelledby="repo-tab" id="repo-panel" hidden><label for="repo-input">Repository URL</label><div class="source-input-row"><input class="control" id="repo-input" type="url" placeholder="https://github.com/owner/repository" required><button class="button" type="submit" id="repo-add">Add repository</button></div><p class="error" id="repo-error" role="alert" hidden></p></form>
+  <p class="empty" id="empty">Add a source to start, or use a blank canvas.</p><ul class="source-list" id="sources" aria-label="Added sources"></ul><span class="sr-only" id="source-status" role="status"></span>
+ </div>
+ <footer class="start-footer"><button class="button" id="blank">Start with a blank canvas</button><button class="button primary" id="start" aria-describedby="empty" disabled>Start rabbit hole</button></footer>
+ <button class="resize-handle" id="resize" aria-label="Resize dialog. Use arrow keys to resize." title="Resize · arrow keys supported"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+</section>
+<section class="preview-result" id="result" tabindex="-1" hidden><h1 id="result-title">Preview</h1><p id="result-copy"></p><button class="button primary" id="back">Back to dialog</button></section>
+
+<template id="added-source-row">
+ <li class="source-row"><span data-source-icon></span><div class="source-info"><div class="source-name" data-source-name></div><div class="source-kind" data-source-detail></div></div><button class="icon-button quiet" type="button" data-remove-source aria-label="Remove source" title="Remove source"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button></li>
+</template>
+
+
+</div>
+
+<script src="../../../scripts/source-widgets.js"></script>
+<script src="../../../scripts/resize.js"></script>
+<script src="../../../scripts/start-rabbit-hole.js"></script>
+</body></html>

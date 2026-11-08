@@ -1,0 +1,46 @@
+{
+  "id": "sources/start-rabbit-hole",
+  "title": "Start a rabbit hole",
+  "category": "sources",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/templates/start-rabbit-hole.html",
+  "source_file": "start-rabbit-hole.html",
+  "status": "Reusable template / browser review pending",
+  "styles": [
+    "standards",
+    "review-corrections",
+    "source-picker",
+    "start-rabbit-hole"
+  ],
+  "scripts": [
+    "source-widgets",
+    "resize",
+    "start-rabbit-hole"
+  ],
+  "implementation": [
+    "packages/web/src/StartDialog.jsx",
+    "packages/web/src/ui.jsx"
+  ],
+  "notes": "Owner-requested source-entry template. Reuses shared buttons, fields, icons, pale scrollbars and resize states. Static review specimen; no upload, connection or canvas creation.",
+  "issues": [],
+  "templates": [],
+  "includes": [
+    "start-rabbit-hole",
+    "source-picker-tabs",
+    "file-upload-drop-zone",
+    "added-source-row"
+  ],
+  "keywords": [
+    "start",
+    "source",
+    "files",
+    "link",
+    "repository",
+    "upload",
+    "remove",
+    "tabs",
+    "nowrap"
+  ],
+  "path": "components/sources/start-rabbit-hole",
+  "paletteRole": "shared",
+  "catalogVisible": true
+}

@@ -1,6 +1,6 @@
 # Component to app mapping
 
-62 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
+66 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
 
 | ID | Preview | Status | App landmarks |
 | --- | --- | --- | --- |
@@ -57,8 +57,12 @@
 | `patterns/roadmap-flow` | [Roadmap Flow](components/patterns/roadmap-flow/preview.html) | flow reference / current shell | `packages/web/src/RoadmapSurfaces.jsx`, `packages/web/src/TableOfContents.jsx` |
 | `patterns/source-navigation` | [Source Navigation](components/patterns/source-navigation/preview.html) | flow reference / current shell | `packages/web/src/FileDocMarkdown.jsx`, `packages/web/src/LearningBlocks.jsx` |
 | `patterns/standard-toss-drop-card` | [Standard Toss Drop Card](components/patterns/standard-toss-drop-card/preview.html) | flow reference / current shell |  |
+| `sources/added-source-row` | [Added source rows](components/sources/added-source-row/preview.html) | Reusable template / browser review pending | `packages/web/src/StartDialog.jsx`, `packages/web/src/ui.jsx` |
 | `sources/document-headers` | [Dropped document cards](components/sources/document-headers/preview.html) | static specimen | `packages/web/src/FileDocCard.jsx`, `packages/web/src/AdaptiveCanvas.jsx`, `packages/web/src/FileDocMarkdown.jsx` |
+| `sources/file-upload-drop-zone` | [File upload drop zone](components/sources/file-upload-drop-zone/preview.html) | Reusable template / browser review pending | `packages/web/src/StartDialog.jsx`, `packages/web/src/ui.jsx` |
 | `sources/selected-text-actions` | [Source selected-text actions](components/sources/selected-text-actions/preview.html) | static specimen | `packages/web/src/FileDocCard.jsx`, `packages/web/src/AdaptiveCanvas.jsx`, `packages/web/src/FileDocMarkdown.jsx` |
+| `sources/source-picker-tabs` | [Source picker tabs](components/sources/source-picker-tabs/preview.html) | Reusable template / browser review pending | `packages/web/src/StartDialog.jsx`, `packages/web/src/ui.jsx` |
+| `sources/start-rabbit-hole` | [Start a rabbit hole](components/sources/start-rabbit-hole/preview.html) | Reusable template / browser review pending | `packages/web/src/StartDialog.jsx`, `packages/web/src/ui.jsx` |
 | `tutor/chat-panel` | [Chat panel](components/tutor/chat-panel/preview.html) | reference | `packages/web/src/ChatComposer.jsx` |
 | `tutor/composer` | [Chat composer](components/tutor/composer/preview.html) | reference | `packages/web/src/ChatComposer.jsx` |
 | `tutor/empty-error-retry` | [Empty, error and recovery](components/tutor/empty-error-retry/preview.html) | reference | `packages/web/src/SlotCard.jsx` |

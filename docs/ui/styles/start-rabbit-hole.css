@@ -1,0 +1,11 @@
+/* Composition only: controls from standards.css; grip and scrollbars from
+   review-corrections.css; subcomponents from source-picker.css. */
+.rh-start-dialog{--card-width:700px;--card-height:520px;position:relative;display:flex;flex-direction:column;width:var(--card-width);min-width:min(440px,100%);max-width:min(960px,100%);max-height:min(760px,var(--card-height),calc(100dvh - 64px));background:var(--card);border:1px solid var(--card-border);border-radius:var(--card-radius);box-shadow:var(--overlay-shadow);overflow:hidden}
+.start-header{position:relative;flex:none;padding:24px 64px 18px 24px}.start-header h1{font-size:26.4px;font-weight:700;line-height:1.2;letter-spacing:-.025em}.start-header p{margin-top:8px;font-size:15px;line-height:1.5;color:var(--muted)}
+.start-close{position:absolute;right:16px;top:18px}
+.start-body{padding:0 24px 20px;overflow:auto;min-height:0;overscroll-behavior:contain;scrollbar-gutter:stable}
+.start-body .empty{margin-top:16px;color:var(--muted);font-size:14px;line-height:1.5}
+.start-footer{flex:none;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 32px 24px 24px;border-top:1px solid var(--header-line)}#start{margin-left:auto}
+.preview-result{max-width:480px;padding:24px;border:1px solid var(--card-border);border-radius:var(--card-radius);background:var(--card);font-size:15px;line-height:1.5}.preview-result p{margin-bottom:16px}.preview-result h1{font-size:26.4px;margin-bottom:12px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:520px){.rh-start-dialog{max-height:min(760px,var(--card-height),calc(100dvh - 32px))}.start-header{padding-left:18px}.start-body{padding-left:18px;padding-right:18px}.start-footer{padding-left:18px}}

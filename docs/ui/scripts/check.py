@@ -26,6 +26,7 @@ def main():
   folder=ROOT/c['path'];require(c['paletteRole'] in ['shared','experiment','balanced-card','historical'],f'{c["id"]}: palette role')
   for f in ['component.json','markup.html','preview.html','README.md']:require((folder/f).is_file(),f'{c["id"]}: missing {f}')
   for p in c['implementation']:require(p in paths,f'{c["id"]}: missing app path {p}')
+  for template in c.get('includes',[]):require((ROOT/'templates'/(template+'.html')).is_file(),f'{c["id"]}: missing included template {template}')
   for typ,extension in [('styles','css'),('scripts','js'),('templates','html')]:
    for f in c[typ]:require((ROOT/typ/(f+'.'+extension)).is_file(),f'{c["id"]}: missing {typ}/{f}')
   text=(folder/'preview.html').read_text();page=Page(text)
@@ -53,9 +54,9 @@ def main():
   except Exception as e:errors.append(p.name+': '+str(e))
  require({'cards/split-comparison','cards/decision-tracer','tutor/composer','patterns/explanation-actions','patterns/source-navigation','patterns/standard-toss-drop-card','patterns/original-component-kit'}<=set(ids),'Missing critical reference entry')
  for p in ROOT.rglob('*.html'):
-  require('href="../../../icons/' not in p.read_text() or p.name in ['preview.html','markup.html'],'Unexpected sprite-relative path owner '+str(p))
+  require('href="../../../icons/' not in p.read_text() or p.name in ['preview.html','markup.html'] or p.parent==ROOT/'templates','Unexpected sprite-relative path owner '+str(p))
  clean_files=sorted((ROOT/'clean').glob('*.html'))
- require(len(clean_files)==11,'Expected 11 separate clean previews')
+ require(len(clean_files)==15,'Expected 15 separate clean previews')
  for p in clean_files:
   content=p.read_text(); page=Page(content)
   require(len(page.ids)==len(set(page.ids)),f'{p.name}: duplicate IDs')
