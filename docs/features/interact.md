@@ -5,7 +5,8 @@ Built from [slash-command-template.md](slash-command-template.md), template vers
 | Field | Value |
 | --- | --- |
 | Repository / delivery branch | `Rabbit-Hole-App/Rabbit-Hole` / `chatgpt/tutor` |
-| Document review | 2026-11-08; documentation-only restructure |
+| Document review | 2026-11-08; documentation restructure plus owner-requested MVP sprint ladder, parallel lanes and pre-manual local gates |
+| Sprint amendment base | `6129c9362796132d4ac4966ca532b6012ee07393`; existing SDK clarification and all detailed tasks retained |
 | Target branch inspected | `1f4f6953850c0ed2011a4f2ffc0cd156119e7f33` |
 | Earlier source-map audit | `34a63b7d2322d0bb70a086612f4bfb749776496a`; detailed historical audit uses `80eb86183de67e2baabaa4b8edb58b4d932e40bc` |
 | Source document | `interact.md`, version 11; full roadmap/checklist retained with stable requirement IDs |
@@ -29,6 +30,8 @@ Built from [slash-command-template.md](slash-command-template.md), template vers
 
 <a id="start"></a>
 ## 1. Start here and preflight
+
+**Sprint execution:** follow the [MVP delivery ladder and parallel agent allocation](#sprint-mvps), then the [local checks required before owner manual testing](#sprint-checks). Deliver each dependency-ready increment through the existing MVP main-release path; the full checklist remains intact.
 
 Read sections 2–5 before changing behavior; section 6 identifies code to reuse; section 7 identifies examples and UI sources. Pick the next dependency-ready checklist group in section 9, implement its full requirements, then use sections 10–11 to verify and update status. Do not implement from roadmap headings alone. Do not shorten tasks when handing them to another Claude session.
 
@@ -347,6 +350,39 @@ Before release, support from the gate balances gravity on the held ball; disting
 <a id="roadmap"></a>
 ## 8. Roadmap — WHAT
 
+<a id="sprint-mvps"></a>
+### INT-10 — Sprint delivery ladder and parallel agents
+
+**Owner direction, 2026-11-08:** this is an MVP sprint. Deliver small usable increments to `main` as soon as their focused checks and applicable release requirements pass. Do not wait for the complete benchmark matrix, every later feature, or cosmetic polish. This ladder orders the full existing requirements; it does not remove tasks or redefine a partial implementation as the completed workflow.
+
+**Agent count:** use **5 development agents for `/interact` alone**: coordinator/integrator; design/backend; build/runtime; Canvas/UI; independent fixture/integration QA. For `/interact` and `/explain` together use **7 total**, sharing the coordinator and QA while adding one Explain backend and one Explain UI worker. These are coding/review lanes, not the six production LLM roles or additional model calls. Start independent work once the relevant shared contract is committed; reduce concurrency when dependencies leave no useful task.
+
+| Lane | Owned work | Parallel boundary |
+| --- | --- | --- |
+| Coordinator/integrator, shared | Contract decisions, shared-file ownership, candidate integration, focused checks, preview/main-release preparation and evidence/checkoff | Single release writer. Freeze one small candidate while workers proceed on the next isolated rung. |
+| Interact design/backend | INT-01, INT-07A, INT-02, server side INT-03: schema/catalogue, roles/accounting, design/review/revise and approval binding | Commit interfaces first; do not concurrently edit the runtime lane's job orchestration without an agreed owner. |
+| Interact build/runtime | INT-04/05/07B: approved-plan build, deterministic composition/checks, capture/review/repair and shared runner/persistence | Can build against signed-plan fixtures while the design lane completes real orchestration. Existing SDK tuple is a shared prerequisite. |
+| Interact Canvas/UI | INT-06 plus Chat/Canvas side INT-03 and early description-fit helper INT-06-C17 | Work against versioned plan fixtures. Integrator serializes shared `LearningBlocks.jsx`/`AdaptiveCanvas.jsx` integration with Explain UI. No new player/widget family. |
+| QA, shared | Independent numerical/behavior fixtures, approval/race/access tests, combined-candidate regression checks and manual test card | Create next-rung fixtures in parallel. Do not validate only the final component or only individual lane branches. |
+
+| MVP | Usable increment / main delivery | Required scope before owner manual test | Work that does not block this rung |
+| --- | --- | --- | --- |
+| I0 — compatible foundation | Small schema/catalogue/SDK and role-adapter changes integrated to main behind the versioned new-flow switch | INT-01, INT-07A and early description-fit contract; local I-B0. Preserve legacy sdk-1 jobs/cards. No claim of a new learner flow yet. | Full UI, broad benchmark, optional providers. |
+| I1 — first complete vertical slice | Prompt → reviewed complete plan in Chat → Generate → saved runnable card for Overview Static and Standard Over time using native controls | Necessary INT-02/03/04/05/06/07B work, with narrower fixture matrix; local I-B1. Include title/description/Story/Scene/Mode/Controls, approval fencing, capture/review and truthful failure. Owner tests the actual app, reload and timed control behavior. | Deep adjustable experiments, broad topic corpus, alternate models and cosmetic variants. Missing features stay explicitly unsupported in this rung, never falsely offered. |
+| I2 — complete reference card behavior | Deep Experiment, supporting visuals before the live scene, dynamic timeline/domain bindings, Replay versus Reset and persistent inputs | Remaining control/composition/reference obligations plus local I-B2. Owner changes launch speed, scrubs signed time, inspects state/readouts and reloads the same card. | Provider tournament, unrelated control families, visual flourish beyond the approved reference. |
+| I3 — acceptance and reference regeneration | All reference/depth rows plus a different subject through the same runner/app; edits/Current–Proposed/Apply–Discard, failures, share/fork/access and exact SDK compatibility | Local I-B3, targeted approved-runner/manual evidence and authorized real all-Opus acceptance. Preserve initial live smoke per earlier rung where authorized. | Full mixed-model confirmation matrix. A missing paid cap blocks paid evidence only, not compatible fixture-verified main commits with activation held off. |
+| I4 — measured optimization | INT-08 one-role substitutions and promising mixed profiles after a working all-Opus baseline | Frozen facts/thresholds, explicit paid cap and complete failure-aware measurements | No automatic production promotion; retain the accepted working profile until an explicit configuration change. |
+
+- [ ] **INT-10-R01** Deliver I0–I3 as small MVP increments to main, with exact scope/requirement subsets, focused receipts and activation state for each; full-feature parent boxes stay open until all their clauses pass.
+  - [ ] **INT-10-R02** Before the owner's first manual test of I1, pass local backend/contract/integration tests and the required build/focused smoke; present a usable actual app flow rather than a standalone demo.
+  - [ ] **INT-10-R03** Run the five useful Interact lanes, or seven combined lanes, with one integration/release owner and no competing shared-file edits or duplicate expensive runs.
+  - [ ] **INT-10-R04** Continue independent next-rung work during preview/manual/release waits, while deferring optional polish and mixed-model benchmarks until the usable pipeline has shipped.
+
+**Stop-polishing rule:** once the rung's functional contract, factual/behavioral checks, access/accounting/persistence, affected tests and required build/smoke pass, prepare its main delivery immediately. Fix broken controls, invalid physics/facts, clipping that prevents understanding, unsafe bindings and failed required checks. Defer aesthetic experiments, speculative abstractions, new widget families and broad benchmark runs. MVP does not mean letting a failed/unreviewed candidate become ready.
+
+**Main/release cadence:** use the owner's existing MVP fast path for these explicitly MVP-labelled increments. Complete the concrete candidate, successful build, affected checks, focused smoke, isolated preview, recovery branch and required release preflight before the final main-release action. Current `CLAUDE.md` requires an exact-SHA owner release allowance/launcher for production; identify that existing action in the handoff and do not have an agent set it. Do not wait for broad CI/gates that the MVP policy explicitly bypasses, and never label bypassed checks passed. Main push triggers production release; record main inclusion, preview and production activation separately. This documentation edit performs no runtime release.
+
+
 These are the full intended outcomes. All remain open pending implementation and acceptance evidence. The matching HOW groups retain all granular steps in section 9; section 11 governs checkoff.
 
 | Outcome | Full implementation checklist | Acceptance focus |
@@ -447,6 +483,47 @@ These are the full intended outcomes. All remain open pending implementation and
 
 <a id="checklist"></a>
 ## 9. Implementation checklist — HOW
+
+<a id="sprint-checks"></a>
+### INT-10 checklist — Required local gate before owner manual testing
+
+**Dependencies:** only the current rung's changed contracts and previous integrated rungs. INT-09's complete acceptance remains required for final workflow completion, but does not hold a safe I0/I1 main increment until I4 benchmarking. Run local offline fixtures before asking the owner to manually test. Proposed test files below must be implemented; a missing file or a green zero-test run is a failure to provide this evidence.
+
+- [ ] **INT-10-C01 — I-B0: schema/model foundation.** Create and run the following tests through the real pure validators/adapters. Assert all three Depths and presentation modes, supported/unsupported controls, finite timeline expressions at domain boundaries, description fitting contract, invalid reference IDs, requested/served model metadata, unavailable credentials, budget admission, unknown outcomes and legacy default routing. Fixture mode must make zero paid calls. Read the actual candidate's SDK support and check sealed server/review/player tuples agree.
+
+  ```bash
+  node --test packages/web/src/interact-plan.test.mjs packages/web/src/interact-control-catalogue.test.mjs
+  node --test packages/control-plane/test/interact-models.test.js packages/control-plane/test/interact-model-adapters.test.js packages/control-plane/test/explain-policy.test.js packages/control-plane/test/learn-models.test.js
+  ```
+
+- [ ] **INT-10-C02 — I-B1: first-manual-test backend gate.** Run design/review/revise, approval and build/check/runner fixtures below against the integrated I1 commit. Use the actual job/proposal handlers and deterministic role/provider replies, not a helper that returns an already-approved final card. Prove that the complete final plan exists before Chat actionability; blocked review cannot publish it; builder calls are zero before approval; edit invalidates prior approval; repeated/concurrent Generate yields one build/settlement; Cancel fences late results; source/user/job access is checked; required capture/review occurs before ready; exhausted/invalid output never becomes ready; save/reload resumes the same IDs without another role call. Include both Static and Over time with title/description and no controls inside the scene.
+
+  ```bash
+  node --test packages/control-plane/test/interact-design.test.js packages/control-plane/test/interact-approval.test.js packages/control-plane/test/explain-brief.test.js packages/control-plane/test/explain-job.test.js
+  node --test packages/control-plane/test/interact-build.test.js packages/control-plane/test/interact-checks.test.js packages/control-plane/test/interact-runner.test.js packages/control-plane/test/interact-acceptance.test.js
+  node --test packages/web/src/interact-composition.test.mjs packages/web/src/interact-plan-review.test.mjs
+  ```
+
+  Build the initial `interact-acceptance.test.js` fixture in I1 and extend it later; do not postpone all route/persistence testing to the end of INT-09. Run affected existing render/review/repair suites identified in INT-05-C11 and record their exact names. This local gate precedes the first owner manual test even when a browser capture must run elsewhere.
+
+- [ ] **INT-10-C03 — I-B2: experiment/control gate.** Extend I-B1 with the exact Deep reference defaults and boundaries: launch speed 3.0/5.0 m/s and default 5.0, step 0.1; coherent signed display time, positive finite elapsed endpoint over the whole admitted domain, apex/start/end state checks, input change while paused/playing, Replay retaining inputs and Reset restoring defaults/state/time. Assert supporting visuals precede the main scene, main scene is adjacent to external transport, and composition contains no explanatory footer/Notes. Verify every declared control has the approved native binding and observable effect/invariant. Run affected contract/build/check/composition/runner suites and the real pure runtime samples, not just schema snapshots.
+
+- [ ] **INT-10-C04 — I-B3: durable/access/compatibility gate.** Expand actual-route acceptance for lost save/ack, restart/resume, late role/render results, failed or unknown provider outcomes, exactly-once settlement, same-card Current/Proposed isolation, Apply/Discard, source revocation, second user/job access denial and authorized share/fork/reload. Assert legacy sdk-1 cards still run and sdk-2 capture/player parity where enabled. Run the affected existing lifecycle/access/spend tests as well as the new runner/acceptance suites. Do not infer these properties from final UI mounting.
+
+- [ ] **INT-10-C05 — build, smoke and runnable fixture.** For each UI-bearing rung, run the affected web Node suites and `npm run build --workspace=web`, then complete the existing MVP preview tooling's focused smoke. Once INT-07B CLI exists, run the following offline app-equivalent pipeline and resume using the hash actually emitted by that run. It must preserve the same plan/stage logic as the app and report no paid calls; this is fixture evidence, not live generation.
+
+  ```bash
+  node scripts/interact/run.mjs --fixture toss-drop-standard --depth standard --until plan --run-dir .tmp/interact-plan
+  # Substitute the hash printed by the preceding run; never hardcode a stale approval.
+  node scripts/interact/run.mjs --resume .tmp/interact-plan --until card --approve-plan-hash <printed-hash>
+  ```
+
+- [ ] **INT-10-C06 — manual test handoff.** Only after local required checks pass, give the owner the MVP label, exact SHA/isolated preview URL and flags, commands with executed counts/pass/fail/skips, fixture versus real-provider status, three to five manual steps/expected results, open limitations and recovery reference. I1 steps: submit Standard prompt; inspect full reviewed plan; edit then Generate once; play/scrub the saved card; reload and try Static. I2 steps add parameter change, dynamic endpoint, support ordering and Replay/Reset. Include the concrete existing main-release action if still needed. Required test failure or unavailable preview is a blocker, not a request for the owner to debug the backend.
+
+- [ ] **INT-10-C07 — immediate incremental main delivery.** Integrator reviews the exact combined candidate and changed dependency checks, performs/prepares the existing authorized MVP main release, verifies inclusion and activation state and updates only supported INT boxes. Preserve off-by-default rollout for incomplete/unaccepted new-flow behavior. Continue the next runnable lane while waiting for the existing final owner release action; do not hold a usable I1/I2 for provider optimization, optional polish or unrelated broad CI.
+
+Local Node tests establish contracts/backend behavior, not visual acceptance. Reuse valid receipts for unchanged paths; run new or affected checks after each change and the focused integrated gate before each handoff. Browser execution remains on the approved runner or the owner's manual session under repository instructions. No additional production LLM calls are implied by the development agent count.
+
 
 Implement with the existing JavaScript/ESM, Zod, React/Vite, Cloudflare job/storage infrastructure, Node tests and approved browser-check environment. This is one application and one shared stage implementation, used by the durable job and script. Each group names dependencies, files, interfaces, granular tasks, tests and expected evidence. CP and WEB prefixes are defined in section 6.
 
@@ -690,7 +767,7 @@ Case records use `{id,split,prompt,depth,context,evidence,requiredMode,fixtureId
 
 [Roadmap outcome](#int-09) · [Checklist index](#checklist) · [Checkoff rules](#commit-review)
 
-**Dependencies:** all preceding implementation work. **New files:** `packages/web/e2e/interact-workflow.spec.js`, `packages/control-plane/test/interact-acceptance.test.js`, and fixtures in `benchmarks/interact/fixtures/`. Reuse the existing Playwright config (`packages/web/playwright.config.js`, test directory `e2e`) and app setup patterns. Browser execution belongs to the approved CI/designated runner under current `CLAUDE.md`; the port/config must be read from that candidate, not copied as an operating assumption.
+**Dependencies:** relevant INT-01–07 implementation for each MVP; the full fixture matrix grows through I1–I3. INT-08 model-comparison completion does not block incremental main delivery. Real regeneration remains a separate paid-acceptance obligation. **New files:** `packages/web/e2e/interact-workflow.spec.js`, `packages/control-plane/test/interact-acceptance.test.js`, and fixtures in `benchmarks/interact/fixtures/`. Reuse the existing Playwright config (`packages/web/playwright.config.js`, test directory `e2e`) and app setup patterns. Browser execution belongs to the approved CI/designated runner under current `CLAUDE.md`; the port/config must be read from that candidate, not copied as an operating assumption.
 
 - [ ] **INT-09-C01** Build deterministic fixtures for all three cases using the shared contracts/runtime. Confirm the approved HTML references' layout without treating historical scores as acceptance of new generated cards.
 - [ ] **INT-09-C02** Implement browser scenarios `plan before approval`, `edit invalidates approval`, `one Generate one card`, `cancel drops late result`, `reload preserves plan`, `support before live scene`, `controls outside scene`, `static height fits`, `dynamic endpoint follows launch speed`, `Replay retains inputs`, `Reset restores defaults`, `same-card Current/Proposed isolation`, and `failed candidate never becomes ready`.
@@ -769,3 +846,9 @@ Next review starts from: <through_sha>
 ```
 
 No implementation commit sequence has been reviewed to completion by this restructuring task. The first receipt is a **documentation** review, not a seeded implementation pass. At handoff/resume, read the latest receipt, inspect actual branch status and take the next dependency-ready open task. Do not restart the whole plan, infer completion from the age of a document, or reuse a historical production receipt for this new flow.
+
+### Sprint documentation amendment — 2026-11-08
+
+Owner requested local backend checks before first manual testing, a ladder of small MVPs delivered to main promptly, no overpolishing, and explicit parallel agent counts. Added INT-10 roadmap/checklist and the two navigation links without removing or compacting existing INT-01–09 tasks. Retained the SDK clarification from branch `6129c9362796132d4ac4966ca532b6012ee07393`. Full-workflow acceptance remains open; partial MVP release does not close unmet requirements. This amendment ran documentation integrity checks only, with no runtime tests, paid calls or deployment.
+
+**Documentation validation result:** passed local integrity checks: 52 roadmap and 152 HOW tasks, unique IDs, all 13 required navigation/sprint anchors, 74 relative links, and no missing existing-reference targets. All runtime boxes remain unchecked. All pre-existing checkbox lines are preserved verbatim; only sprint additions, navigation/metadata and staged acceptance dependency guidance were added. New proposed test/module paths are distinguished from existing files. This result is documentation evidence only.

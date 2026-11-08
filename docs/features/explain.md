@@ -1,0 +1,676 @@
+# /explain — workflow and implementation specification
+
+Built from [slash-command-template.md](slash-command-template.md), version 1. This specification extracts the written Explanation work from the Tutor roadmap and implementation checklist. The detailed shared Tutor lifecycle continues to be owned by those two source documents.
+
+| Field | Value |
+| --- | --- |
+| Repository / branch | `Rabbit-Hole-App/Rabbit-Hole` / `chatgpt/tutor` |
+| Review date | 2026-11-08 |
+| Main source inspected | `34a63b7d2322d0bb70a086612f4bfb749776496a` |
+| Handoff source baseline | `b85e4a614a958f2ac294e55484e71344b8bcd360` |
+| Publication base rechecked | `6129c9362796132d4ac4966ca532b6012ee07393`; only the intervening Interact SDK documentation changed; template and Tutor source blobs are unchanged |
+| Product source | [Tutor roadmap v1.4](explain-on-canvas/handoff/tutor-roadmap-v1.4.md), Git blob `942ca2330bf1b80429f2dec73d06051d8c37fcdc` |
+| Implementation source | [Tutor checklist v1.2](explain-on-canvas/handoff/tutor-implementation-checklist.md), Git blob `cae2d23e391f0c00b1c469bc3eb3c52c33942b75` |
+| Deliverable | Standalone written `/explain` and the same Explanation content/renderer used by accepted Tutor steps |
+| Evidence for this document | Source and reference review. Runtime tests, browser acceptance and paid generation remain candidate-specific evidence. |
+
+## Navigation
+
+1. [Start here and preflight](#start)
+2. [Product contract and decisions](#product)
+3. [End-to-end workflow](#workflow)
+4. [Card UI and controls](#ui)
+5. [Data contracts, prompts and LLM roles](#contracts)
+6. [Implementation map and branch differences](#code-map)
+7. [References and canonical examples](#references)
+8. [Roadmap — WHAT](#roadmap)
+9. [Implementation checklist — HOW](#checklist)
+10. [Validation, delivery and missing decisions](#validation)
+11. [Commit review and checkbox maintenance](#commit-review)
+
+<a id="start"></a>
+## 1. Start here and preflight
+
+**Sprint execution:** follow the [MVP delivery ladder and parallel agent allocation](#sprint-mvps), then the [local checks required before owner manual testing](#sprint-checks). Deliver each dependency-ready increment through the existing MVP main-release path; the full checklist remains intact.
+
+Read sections 2–7, then select the next dependency-ready HOW group. Check the open conflicts in section 10 before changing the writer or output contract. Read repository `AGENTS.md`, authoritative `CLAUDE.md` and `UI.md` from the chosen implementation base. Reuse the existing Canvas, Chat, source and note components. Current main UI instructions are available at [UI.md](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/34a63b7d2322d0bb70a086612f4bfb749776496a/UI.md).
+
+This document follows the written command's existing entry, author and rendering paths. The playable `/interactive` engine has its own [interact.md](interact.md). Here, title, teaching prose, visual captions, optional sections and follow-up controls belong to the approved Explanation reading experience.
+
+Pin the working SHA and inspect relevant differences from both source revisions once. The handoff branch has older `learn-primitives.js`, `learn-artifact.js` and `LearningBlocks.jsx` blobs than main. `explanation-lead.js` and `explain-celeris-dev.js` exist on inspected main and are absent on the handoff baseline. An existing `TutorDiagram.js` renderer is present in both trees. Source identity and test evidence must be recorded separately.
+
+Retain CORE, UI, BE and R identifiers when coordinating with the Tutor owner. EXP IDs below identify written-command requirements and cross-reference that existing work. Task UUIDs and To Do / Doing / Done remain in the coordinator's external ledger. This document supplies requirements and evidence mappings.
+
+Scope covers written generation, teaching/depth, content validation, shared renderer, source navigation, approved card actions, persistence and the Explanation side of Tutor integration. Shared lesson initiation, complete ToC planning, general routing and later tool engines remain owned by Tutor core. R8a research, R10 adaptation and R11 preparation are explicit later dependencies with their existing limits and authorization. R12 remains on hold according to the source roadmap.
+
+<a id="product"></a>
+## 2. Product contract and decisions
+
+A learner asks a question, optionally supplies source material and chooses a Depth. Rabbit Hole delivers a readable Explanation card that answers the question, with useful prose, comparisons or visual evidence. An accepted Tutor step uses the same teaching and rendering rules with its own immutable title, scope and source bindings.
+
+| Contract | Required behavior | Source |
+| --- | --- | --- |
+| Public identity | `/explain`, label Explanation, internal command ID `explanation`, `make_explanation` output and `type:'explanation'` card | Roadmap §9.2 and current command registry |
+| Direct input | Learner question plus effective Depth and optional authorized source context | Roadmap §3.9, CORE.09 |
+| Tutor input | Full supported pinned document, accepted outcome, scope, step title/description/goal/claims, language, Depth and instruction/revisions | Roadmap §5.2, CORE.03/05 |
+| Teaching objective | Overview gives central idea/mechanism. Standard explains how and why so the learner can transfer it. Deep develops reasoning, assumptions, limitations and useful consequences. | Roadmap §3.9 |
+| Main answer | Body answers the question on its own. Optional sections add an example, prediction or further reasoning. | CORE.09 |
+| Content budgets | Overview ≤600, Standard ≤1,000, Deep ≤1,500 normalized display-text Unicode code points, inclusive | CORE.09, BE.06a |
+| Accepted title | Tutor accepted title wins over model title before counting and remains bound across generation, save and reload | CORE.03/05/09 |
+| Presentation | Pinned title and one reading flow, with diagrams/tables and supplementary content inside the same card | Roadmap §3.9 and approved UI 07 |
+| Ordinary Tutor author | One content-author dispatch, `repairs:0`, retained deterministic/source/safety/payment checks, truthful terminal failure and settlement | Roadmap §5.3, CORE.04/06 |
+| Direct author lifecycle | Existing direct artifact authorization, validation and bounded repair behavior | CORE.01/04/09 |
+| Context and anchor | Whole bounded source can support a narrow teaching scope. The highlighted source locator is independently revision-bound. | Roadmap §5.1–5.2 |
+| Editing | Pending edits require acceptance of the new revision. Delivered-card edits use the existing explicit authorized path. | Roadmap §3.8, R5 |
+| Compatibility | Saved Explanation blocks, separate Table cards and existing author callers remain readable and retain their entry-specific contracts | CORE.09 |
+
+Latest explicit owner decisions govern product behavior. The specific approved Explanation card and CORE.09 govern its presentation. The shared source-label table currently conflicts with that presentation, as recorded in GAP-04. Current implementation establishes reuse and gaps. New authoring uses the existing structured TutorDiagram format; saved Mermaid stays readable. Section 11 records this explicit correction to the older source instructions. GAP-01 covers required-visual failure.
+
+**Reusable Explanation generation · core Tutor MVP.** `make_explanation` supports a direct learner question plus Depth, with source material when available. The Tutor's existing authorized artifact path can create that card without creating a Markdown roadmap. Roadmap steps use the same Explanation teaching guidance, content budgets and renderer. The roadmap adapter supplies its accepted title, goal, claims and source identity.
+
+| Depth | Teaching objective |
+| --- | --- |
+| Overview | Explain the central idea and essential mechanism in everyday language. A concrete example can make the idea easier to follow. |
+| Standard | Explain how and why the mechanism works, with enough reasoning to apply it to another case. |
+| Deep | Develop the reasoning and relevant assumptions, limitations or connections. Work through a calculation or consequence when it helps. |
+
+The main body answers the question on its own. Optional sections can add a worked example, prediction or further reasoning. Choose headings and structure to suit the subject. Use a table for comparisons across shared attributes and a supported TutorDiagram for branching decisions, relationships or a process. Either format is available at every Depth. Explain what the learner should notice in a visual.
+
+The planner supplies one coherent learning idea per step, scoped to the selected Depth budget. An `explanation` step can contain prose, a table or a supported TutorDiagram within one card. Its accepted title remains the title at every Depth. The writer controls the explanation's structure using shared Explanation guidance. The checklist's CORE.09 assigns the prompt and validation changes to the existing planner and artifact request builders.
+
+<a id="workflow"></a>
+## 3. End-to-end workflow
+
+### Direct written question
+
+1. The shared slash picker, typed command or eligible Tutor action resolves to the written `explanation` command. Preserve question, effective Depth, language and authorized context.
+2. The existing artifact request builder offers `make_explanation`, attaches shared teaching guidance and the selected output budget, and resolves the actual configured model and admission policy.
+3. Generate through the existing direct lifecycle. Validate the complete artifact and display-text budget before success. Use the direct path's existing bounded repair/error handling.
+4. Insert and save the Explanation through the existing Canvas artifact path. Render its body and supplementary content with the shared reading UI, source references and authorized card actions.
+5. Persist content, source/asset references and user interactions through existing board APIs. Follow-up, note and edit actions retain their own existing permission and generation boundaries.
+
+### Accepted Tutor step
+
+1. Core Tutor reads the source, plans a finite scope and publishes only the accepted roadmap to the ToC. Its draft, instruction, settings and acceptance remain in Chat.
+2. One proposed step has one Chat entry and one persisted Canvas slot near its source passage. Title, description, exact source excerpt, format and version agree across both views.
+3. Accept / eligible Tab / Next card resolve to the same guarded transition. Freeze title, Depth, language, source revision, plan/proposal versions and actual author request. Admit the same quoted provider/model request once.
+4. Send the full supported source and accepted brief through `generateRoadmapCard` to the ordinary writer with `repairs:0`. Resolve the accepted title before validation and counting.
+5. Apply schema/renderability, current source access/revision, existing safety and accounting checks. Retain the original slot and Chat state on failure or unresolved outcome.
+6. Save the real card ID, source relationship and final geometry through the board path. Acknowledge only after saved delivery. Reconcile lost responses against the same result and card.
+7. Update that step's Chat entry and accepted ToC. Existing next-offer policy may prepare one metadata offer. Acceptance of the second offer must produce a second distinct saved card using its own frozen inputs.
+
+The two entry points share Explanation teaching, validation and rendering. Their existing lifecycle and author-attempt policies are specified independently. New Chat scene-plan approval and additional design/reviewer roles belong to the Interactive workflow.
+
+### Source, scope and ordinary author contract
+
+#### Source concepts
+
+| Concept | Meaning | What controls it |
+|---|---|---|
+| Teaching scope | The topic/sections the learner wants this roadmap or step to explain. | Accepted plan and explicit learner revisions. |
+| Authoring context | Authorized source material and accepted brief available to the content-authoring call. | Pinned source revision, supported context budget and task context. |
+| Source anchor | The paragraph, code range, figure or page to highlight and navigate to. | Source reference metadata. |
+
+An anchor is not the entire knowledge available to the writer. A selected-passage teaching scope may still use definitions elsewhere in the same authorized document. A viewport crop is not a backend extraction boundary. The resolved source anchor guides the slot's initial nearby canvas placement; the resulting world coordinates are then stored independently so internal source scrolling cannot move the slot or change teaching scope.
+
+#### Ordinary bounded Markdown contract
+
+For a readable Markdown document within the supported whole-source limit, planning and each ordinary card's authoring request receive the same full pinned document. The current baseline limit is 40,000 characters; implementation must also respect the actual model request/token budget. Reuse the authenticated source reader; never trust a browser-provided full document as proof of access.
+
+Language follows the learner's explicit request, then the language of their question, then the source language for source-only entry. Ask one focused clarification if mixed-language ambiguity materially changes the intended explanation.
+
+The author also receives the accepted outcome, selected teaching scope, current step title/description/goal, planned points to cover, Depth, language and learner instruction. Relevant delivered-step coverage can prevent repetition. These are separate fields; do not concatenate only a title and goal and assume the model remembers earlier planning calls. With R8a, include the relevant fetched web passages and their citation IDs as a bounded, separate input for the approved version. Preserve the full supported Markdown context.
+
+The generator explains the current step, not every section merely because the full source is available. It may paraphrase, connect definitions and use clearly identified illustrative examples. It must not fabricate source quotations, external citations or claims that code was executed. When the source is incomplete or contradictory, use the uncertainty behavior in section 10.
+
+#### One authoring call, with truthful publication checks
+
+For fresh generation on this ordinary Markdown explanation/table path, acceptance permits one content-authoring call. Accepting a valid prepared result or linking an existing card starts zero new author calls; R11's prepared-result billing remains separate. Do not add an LLM citation judge, escalation, repair-author loop or automatic content regeneration between that call and publication. The planner and existing safety classifier are separate operations; “one authoring call” does not falsely claim that the whole Tutor uses only one model request.
+
+Keep authorization, source-version binding, output schema/renderability, existing safety policy, payment and persistence checks. An invalid output or genuine unavailable/safety/access condition still needs a truthful failure path. This contract is not a promise that every provider call succeeds or every model assertion is infallible.
+
+Ordinary paraphrasing, an illustrative question or a source anchor that covers less text than the full document must not be rejected by the removed exact-quotation gate. Grounding-review metadata for this path says **not run under the ordinary Markdown policy**. Do not relabel an unperformed review as passed or restore it later through proposal editing, linked content or speculative preparation.
+
+Other capabilities keep their applicable rules: quiz-key/assessment validity, fetched-source provenance, calculator execution evidence, code/rendering validity and rich-media safety. This narrow change does not disable existing standalone command validators or safety across Rabbit Hole.
+
+<a id="ui"></a>
+## 4. Card UI and controls
+
+Use `LearningBlocks.jsx::ExplanationBody`, `Kicker`, `Md`, `SourceRefChip`, the existing Canvas frame, `card-layout.css`, Focus support and the approved [Explanation card](explain-on-canvas/handoff/ui/07-explanation-card-approved.html). The header stays outside the reading scroller. One continuous reading flow contains prose, visual insets, examples and supplementary `more` sections. Preserve Full/Focus behavior, source access, feedback and topic anchors.
+
+| Action / element | Required behavior | Existing reuse |
+| --- | --- | --- |
+| Title and source | Accepted title pinned. Source filename and ScanText source jump reveal on hover or keyboard focus. | Kicker, SourceRefChip, saved source refs |
+| Table | Render Markdown header/body cells in the same reading flow with width-contained horizontal overflow | Md |
+| Diagram | Bold title above the diagram, padded inset and caption below. Use the existing structured diagram grammar from section 5. | TutorDiagram and existing legacy Mermaid path |
+| Term | One- or two-word orange `#C15F3C` pill opens a short definition with Dig Rabbit Hole | Approved UI 07 and existing Canvas/Chat handlers |
+| Suggestions | Three questions. Ask here / Ask in a new card reveal on hover/focus, send immediately and clear suggestions. New card links to its parent. | Existing Chat and artifact actions, contract to settle in GAP-02 |
+| Follow-up | Separate bottom + opens Ask a follow-up below the card. Round send inside field, dismiss on outside click. | Existing composer and card state |
+| Text selection | Ask in chat, Highlight, Create note in that order. Capture exact text/card before focus moves. Ask in chat prepares a draft for the learner. | selection-toolbar.jsx and FileDocMarkdown selection/attachment seam |
+| Highlight | Persist the selected range on its Explanation card and restore it after reload | Existing annotation/board persistence |
+| Selection note | Editable linked Sticky note beside parent, with captured quote above its body | insertSticky, placeNote, existing note editor |
+| Add note | Context menu opens linked blank Sticky note with parent card context | canvas-actions-types.js and same note action |
+| Connectors | Curved Bézier links for new cards/notes, gentle bow at aligned ports, attached through movement/resize/reload | linkRoute, learn-connectors.js::routePath |
+| Sources | Local pinned source navigation remains access/revision scoped. Later R8a cited-web sources use the existing card action area/popover contract. | SourceRefChip and R8a source controls |
+
+The approved source jump in UI 07 and CORE.09 says **View passage**. Use that label for this extracted card contract and track reconciliation with **View section** in the shared action table under GAP-04. Confirm exact references before changing shared labels for other surfaces.
+
+<a id="contracts"></a>
+## 5. Data contracts, prompts and LLM roles
+
+### Existing contracts to reuse
+
+The author produces content, while the authenticated server supplies identity, source and billing bindings. Never accept model-created board, source, result, entitlement or owner IDs as authority. Treat uploaded material and quoted passages as data, not instructions overriding the author system prompt.
+
+| Contract / owner | Actual interface and invariants | Validation and persistence |
+| --- | --- | --- |
+| Direct request — `learn-artifact.js` | `artifactFetch(req,env,generate=generateArtifact,{images,identity,sourceRef})`; internal command `explanation`, learner args, Depth, language and authorized context | Direct raw args ≤1,000 and context ≤8,000 characters at inspected main; authorized context documents are separate. These route limits do not replace the Tutor whole-document contract. Preserve access checks. |
+| Actual author request — `learn-artifact.js` | `prepareArtifactAuthorRequest(env,input,{only,systemSuffix})`; `generateArtifact(env,input,{callModel,only,systemSuffix,repairs,title})` | Already implemented. Quote and dispatch use the actual same first request. Do not create a second abbreviated estimator prompt. |
+| Accepted Tutor input — `roadmap-generate.js` | `authorInput`, `quoteRoadmapCard`, `generateRoadmapCard`; trusted accepted title, proposal/version, source revision, language, Depth, instructions, goal, claims, scope and complete supported document | Require `loadAccepted` and metered `withProviderCall`; verify accepted request fingerprint and bound before dispatch. Include actual provider/model/body in the fingerprint. Retain result/card/step identities through save and acknowledgment. |
+| Generated Explanation — `learn-primitives.js::PRIMITIVES.explanation` | Required `title:string`, `body:string`; optional `more:Array<{label:string,text:string}>`; compatible block `type:'explanation'` | Current raw limits: title 120, body 3,000, label 40, text 1,500, ≤3 sections. These structural limits are separate from inclusive Depth caps. The source's body 2,000 / text 800 are older values, not instructions to shrink current limits. |
+| Visible text — `explanationText`, `explanationChars`, `explanationProblem` | Final title + body + all section labels/text, including closed sections; Unicode code points after flattening and whitespace normalization | Existing pure Worker-compatible implementation counts table cells, literal displayed code and TutorDiagram title/caption/labels. Do not import a React renderer into the Worker. Future metadata counting is GAP-03. |
+| Diagram — `tutor-diagrams/spec.js` | Version 1 closed `rh-diagram` JSON fence; `parseTutorDiagram`, `tutorDiagramVisibleText` | Current new-generation format is structured TutorDiagram rendered as SVG. Saved Mermaid remains readable. Do not allow author-supplied raw SVG/HTML/scripts or arbitrary runtime code. Exact kind constraints remain in the shared parser. |
+| Illustration — `IllustrationFigure.jsx`, `explanation-lead.js` | Existing optional illustration includes persisted `fileRef`, supported cache/source reference, alt, caption, callouts and aspect; pending attachment binds a proposal | Reuse authorized file resolution and existing image jobs. Insert after the opening paragraph via `splitLead`/`IllustratedBody`; loading/unavailable state is explicit. Preserve source and file access rules through reload/share/fork. |
+| Canvas delivery | Existing block ID, world position/width, sourceRef, step/result IDs; saved board is the delivery authority | Never acknowledge a generated card before its board save. Reconcile failed/lost acknowledgments against the same result; do not regenerate or duplicate a card. |
+
+The diagram library currently supports `flow`, `comparison`, `timeline`, `sequence`, `matrix`, `layers`, `cycle`, `figure`, `tree`, `relationship`, `transformation`, `argument`, `number-line`, `coordinate-plot`, `bar-chart`, `t-account` and `waterfall`. Choose by the teaching relationship, not by a requirement to add a visual at every Depth. Reuse its schema, layout and theme. Representative current bounds are serialized JSON 16,384, title 90 / caption 140, flow 2–12 nodes/1–20 edges, sequence 2–4 actors/1–8 messages, matrix 2–5 columns/2–6 rows, plot 1–3 series with up to 24 points, and bar chart 2–8 bars. Read the kind's exact constraints before authoring; this table is navigation, not a duplicate schema.
+
+### Contracts still needed for the approved UI
+
+The latest HTML has fixture `data-definition` and `data-answer` values. They are demonstration content, not a production response schema or evidence of live generation. The current primitive does not yet supply terms, definitions or suggestions. Implement the contracts below through existing author/storage seams before making the controls appear functional.
+
+| Contract task | Required fields/behavior to settle | Compatibility and acceptance |
+| --- | --- | --- |
+| GAP-02: term and question metadata | Typed term label/definition plus an unambiguous occurrence anchor into a named body/section revision; stable suggestion identity and question text; generation owner and limits; binding to the saved card/content revision | Optional additions must not break old `{title,body,more}` cards. Produce metadata within the existing author budget, without adding an unapproved second author/reviewer chain. Reject unknown/invalid anchors rather than wrapping an arbitrary matching word. |
+| GAP-02: interaction ownership | Ask here uses the selected card/thread; Ask in a new card creates a linked child; Dig Rabbit Hole uses the existing exploration route; bottom composer binds the originating card | Decide and persist the actual existing thread/card identifiers through authorized APIs. Fixture replies must never ship as generated answers. Duplicate send and late response stay attached to the originating context. |
+| GAP-03: display-text accounting | Decide whether hidden definitions, suggested questions, attached image captions and callouts consume the teaching cap or a separately bounded UI allowance | The 600/1,000/1,500 contract already covers TutorDiagram captions/labels and all `more` text. Do not silently weaken it or treat hidden optional text as free. Record the decision in prompt, validator and tests together. |
+| GAP-05: highlights and selection quotes | Bind selected rendered text, saved card ID and content revision; preserve enough range/quote context to resolve the intended occurrence across Markdown and term pills | Reuse existing annotation storage where compatible. Explicitly handle edits that invalidate a range; do not silently move a highlight to another equal phrase. Selection notes retain their captured quote even if the parent later changes. |
+
+These are missing engineering contracts, not permission to invent extra product UI. Record the chosen additive schema and migration/read behavior in this section before closing EXP-03. If a choice changes a user-visible contract, retain it as an unresolved product decision in section 10.
+
+### Prompt and role inventory
+
+| Role | Existing prompt / source | Inputs → output | Work and limits |
+| --- | --- | --- | --- |
+| Tutor planner/reviser | `agents/roadmap-plan.js::PLAN_RULES`, shared `PLAN_SYSTEM` / `REVISE_SYSTEM` | Source, outcome, instructions and Depth → existing `submit_roadmap` step title/goal/claims/format | Shared Tutor role; not required to run a standalone question. Plan one coherent idea within the chosen cap. Preserve accepted/delivered revision rules. |
+| Written content author | `agents/learn-artifact.js::ARTIFACT_SYSTEM`, `learn-primitives.js::EXPLANATION_GUIDANCE`, request builder | Question or accepted brief, source and resolved settings → `make_explanation` | Main body answers independently; optional sections deepen. Use current structured diagrams and Markdown tables when useful. Preserve artifact-wide factual integrity and structured tool output. |
+| Tutor adapter | `agents/roadmap-card.js::roadmapCardSuffix`, `roadmap-generate.js::authorInput` | Accepted server record → bound author input and suffix | Deterministic adapter, not another LLM. Supplies immutable title/goal/claims, language, context, one-author policy and cap. |
+| Validation and rendering | `learn-primitives.js`, `tutor-diagrams/spec.js`, `Md.jsx`, `TutorDiagram.js` | Generated block → validated saved content and rendered UI | Deterministic functions. Ordinary Tutor has no extra content Reviewer → Reviser loop. Existing safety classifier remains separately governed by CORE.06. |
+| Optional illustration | Existing `/image` prompt, quote, Generate and image job path | Learner-approved image plan → saved asset attached to target Explanation | Separate media operation and settlement; the one written author does not generate the image. |
+| Benchmark evaluator, if commissioned | Existing capture/benchmark tools plus a frozen rubric to be documented | Saved generated output, facts and rendered evidence → scored evaluation | Evaluation-only work. Its provider calls, cost and results must be separately recorded; never count a model's own verdict as independent factual proof. |
+
+### Models and execution bounds
+
+At inspected main, `LEARN_TASKS.artifact` uses provider `plan`, `ASK_MODELS.auto` resolving to repository `MODEL='claude-opus-5'`, `picker:false`, `maxTokens:4000`, `toolChoice:'any'`. Resolve through `ask.js::planModel`; an explicit OpenAI `LEARN_PLAN_MODEL` applies only when `planUsesOpenAI(env)` permits that transport. Keep existing Anthropic/subscription and provider credential handling. This is a source configuration fact, not proof of provider availability or a newly approved model pin. Do not substitute the Interactive spec's Opus label or agent profile.
+
+Direct generation permits at most one existing automatic repair (`ARTIFACT_REPAIRS`); ordinary accepted Tutor cards supply `repairs:0`. Preserve applicable safety classification, admission, allowance, entitlement and settlement at each existing entry. Unknown provider outcomes stay reconciling; cancellation or a timeout is not evidence of zero usage. Keep credentials server-side and never place provider keys or private diagnostic bodies in cards.
+
+`explain-celeris-dev.js::celerisExplainRoute` already supports a written-command-only experiment behind `EXPLAIN_CELERIS_DEV=true`, `SMALL_ENV` dev/test and configured credentials. Default candidate is `celeris-1`; `EXPLAIN_DEV_MODEL` / `EXPLAIN_DEV_PARAMS` select test candidates, with `anthropic` measuring the actual plan transport. It normalizes `{title,body,diagram}` into `make_explanation` and retains ordinary validation. Record requested/served model, attempts, tokens, parser/repair feedback and failures. Its 650–750-character experiment aim is not product policy and conflicts with Overview's 600 cap; correct that experimental input before comparing all Depths.
+
+Main already exposes `recraftv4_1_flash` through the image provider registry with separate credentials and 1:1/1K/no-reference capability. Existing image defaults remain Gemini nano-banana. Recraft is an available choice, not a universal `/explain` default. Reuse signed image quotes/jobs and their budget policy; no paid run is authorized by this document.
+
+<a id="code-map"></a>
+## 6. Implementation map and branch differences
+
+Paths below are repository-relative and verified on main `34a63b7d2322d0bb70a086612f4bfb749776496a`. Open that revision when a file is absent on the handoff branch. Source inspection proves an implementation seam exists, not that the approved UI or deployed feature has passed acceptance.
+
+| Existing path / symbol | Current behavior and planned reuse | HOW groups |
+| --- | --- | --- |
+| `packages/web/src/agent/slash.js` | Public `/explain` → internal `explanation`; playable `/interactive` → internal `explain`. Preserve draft/job identity. | EXP-01/02 |
+| `packages/web/src/learn-slash.js::runLearnCommand` | Written `generateCommand` → artifact route; durable `startExplain` is the playable engine. | EXP-02/04 |
+| `packages/control-plane/src/learn-artifact.js` | Artifact authorization, shared actual request builder, direct bounded repair and trusted output bindings. | EXP-03/04/08 |
+| `packages/control-plane/src/learn-primitives.js` | Primitive schema, teaching guidance, pure visible-text validation, diagram validation/drop fallback. | EXP-03/04/06 |
+| `packages/control-plane/src/chat-depth.js` | Explicit objectives and inclusive caps; Standard default. | EXP-03/04 |
+| `packages/control-plane/src/agents/learn-artifact.js`, `agents/roadmap-plan.js`, `agents/roadmap-card.js` | Artifact-wide prompt, planner/reviser rules and accepted-step suffix. | EXP-04 |
+| `packages/control-plane/src/roadmap/roadmap-generate.js`, `roadmap-run.js` | Frozen accepted author input, real quote/fingerprint, one metered call and workflow result. | EXP-04/08 |
+| `packages/control-plane/src/learn-models.js`, `ask.js`, `explain-celeris-dev.js` | Existing task model resolution and isolated dev experiment transport. | EXP-01/06/09 |
+| `packages/web/src/LearningBlocks.jsx::ExplanationBody` | Header/body scroller exist. Current separate supplementary rail/expansion must become approved one reading flow. | EXP-04/05 |
+| `packages/web/src/Md.jsx`, `tutor-diagrams/TutorDiagram.js`, `tutor-diagrams/spec.js` | Rich Markdown, existing SVG library, safe legacy Mermaid reader and pure shared schema/text extraction. | EXP-03/04/06 |
+| `packages/web/src/IllustrationFigure.jsx`, `explanation-lead.js`, `illustration-target.js`, `generate-image.js` | Existing persisted illustration rendering, insertion after opening paragraph, target binding and image-job attachment. | EXP-06 |
+| `packages/web/src/AdaptiveCanvas.jsx`, `SourceRefChip.jsx`, `card-layout.css` | Existing frame, source resolution, note creation, placement, connections, resizing and Focus. | EXP-04/05/08 |
+| `packages/web/src/selection-toolbar.jsx`, `FileDocMarkdown.jsx`, `inline-ai-apply.js` | Selection controls, captured quote to Chat, existing linked-note placement. Extend for Explanation without changing other surfaces. | EXP-05 |
+| `packages/web/src/canvas-actions-types.js`, `learn-connectors.js` | Existing action permission registry and curve routing. Add note is missing for Explanation; add illustration already exists on main. | EXP-05/06 |
+
+**Branch differences:** `learn-primitives.js`, `chat-depth.js`, `learn-artifact.js`, `LearningBlocks.jsx`, `Md.jsx` and `roadmap-generate.js` differ between the two inspected revisions. `IllustrationFigure.jsx`, `explanation-lead.js`, `explain-celeris-dev.js` and several newer tests are missing on the handoff baseline. The TutorDiagram renderer is shared. Choose the integration base explicitly; a documentation push does not import newer runtime changes. Preserve unrelated branch work.
+
+**Existing tests, not executed for this documentation change:** control-plane `test/explanation-validation.test.js`, `explanation-diagram-kinds.test.js`, `learn-artifact.test.js`, `roadmap-generate.test.js`, `roadmap-document-context.test.js`, `roadmap-workflow.test.js`, `explain-celeris-dev.test.js`, `explain-celeris-benchmark-mode.test.js`, `explain-celeris-capture.test.js`; web `src/explanation-card.test.mjs`, `explanation-diagram.test.mjs`, `explanation-illustration.test.mjs`, `explanation-presentation.test.mjs`, `illustration-attach.test.mjs`, `tutor-diagrams/spec.test.mjs`, `tutor-diagrams/TutorDiagram.test.mjs` and kind/layout tests.
+
+`explanation-card.test.mjs` still explicitly expects a fixed supplementary rail and **View section**. Its passing result would not prove the latest approved UI. Update those affected assertions while retaining saved Mermaid fixtures and escaped-source failure coverage. `explanation-validation.test.js` already covers current TutorDiagram caps and rejects new Mermaid; it also explicitly tests invalid-diagram dropping, which needs the required-visual decision below.
+
+No separate new agent runner or model client is proposed. Add small contract/test modules only where the existing seams cannot own the work; record their actual exports here before checkoff.
+
+<a id="references"></a>
+## 7. References and canonical examples
+
+| ID | Reference and version | Purpose / authority |
+| --- | --- | --- |
+| REF-01 | [Tutor roadmap v1.4](explain-on-canvas/handoff/tutor-roadmap-v1.4.md), blob `942ca2330bf1b80429f2dec73d06051d8c37fcdc` | §3.9 written card/teaching; §5 accepted context/author policy; §9.2 command split; later R8a/R10/R11. Shared Tutor lifecycle authority. |
+| REF-02 | [Tutor implementation checklist](explain-on-canvas/handoff/tutor-implementation-checklist.md), blob `cae2d23e391f0c00b1c469bc3eb3c52c33942b75` | CORE.09's complete20 tasks, BE.05–14 acceptance, CORE.03–06 and UI.04/06/07 dependencies. Historical evidence is revision-specific. |
+| REF-03 | [07 — Approved Explanation card](explain-on-canvas/handoff/ui/07-explanation-card-approved.html), blob `5e7d5d17a136ffe90a23565d5dd5703ca6f62bb9` | Canonical delivered UI: SVG decision tree and illustrated autumn leaves, terms, suggestions, follow-up. |
+| REF-04 | [Latest original HTML](https://chatgpt.com/library?file_id=libfile_9393697fb2ac8191b0140bd4546bf195&account_id=personal), `explain-card-before-after.html`, version 3, modified 2026-11-07T17:25:58Z | Retrieved and read after the owner's request to check the latest UI. Full content matches REF-03 after removing trailing whitespace; no second snapshot or reconstruction is needed. Replies/image are fixtures. |
+| REF-05 | [06 — Explanation depth](explain-on-canvas/handoff/ui/06-explanation-depth.html), blob `9f3ba558ea54beff5038dd5e6499f4dc444caedc` | All three Depth examples and exact embedded `fixture-deep-body`/`fixture-deep-more`. Historical Mermaid fixtures remain saved-card renderer tests, not the new-author grammar. |
+| REF-06 | [05 — Markdown source links](explain-on-canvas/handoff/ui/05-markdown-source-links.html), blob `a418b9f4561731e12cd1bbe9c82417172c26b032` | Source highlighting and reverse navigation, not a replacement delivered-card layout. |
+| REF-07 | [02 — Canvas card skeleton](explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html), blob `4bcc87faf6f8e5c6f6fa533a63050135e13262a6` | Tutor pending slot/acceptance and pacing surfaces. |
+| REF-08 | [Generated card shell](explain-on-canvas/handoff/ui/templates/generated-card-shell.html), blob `d86d968034959c19aff0c149f372650ee591a2ff` | Starter frame for other generated cards; REF-03 governs this Explanation card. |
+| REF-09 | [slash-command-template.md](slash-command-template.md), blob `c91e37052a5cca7e687a050464cbb4552677307d` | Document organization, evidence and maintenance only. |
+
+File 04 is historical. The source roadmap's final §4.6 paragraph pointing to04 for the delivered frame is superseded here by its own approved-reference table and verified latest REF-03/04. The source label for this card is **View passage**, as in the latest UI; reconcile old **View section** assertions on this surface without casually changing all shared source controls.
+
+### Canonical reproduction records
+
+| Case | Input / context / setting | Expected result and checks |
+| --- | --- | --- |
+| EX-01 direct written showcase | Exact supplied prompt: `/explain Why does coffee cool faster at first? Include a small table comparing early and late cooling.` No source required; effective Depth comes from settings. | Actual written card. Main body explains the greater initial temperature difference under comparable cooling conditions; table compares early/late against common attributes. No invented fixed rate or unsupported exact time. Use example fills the composer only. Repeat at all three Depths with appropriate factual rubric. |
+| EX-02 decision-tree Depth fixture | Source fixture `en.md`; title “Why trees, and what a tree actually does”; Overview/Standard/Deep from REF-05. Original standalone user prompt is not recorded in the HTML. | Preserve accepted title across depths, distinct teaching objectives and caps. Deep table: split A groups 3/1 and1/3, weighted Gini 0.375; split B groups 2/2 and2/2, Gini 0.5 for the equal-size example. A is purer. These are fixture facts, not newly generated results. |
+| EX-03 approved SVG card | REF-03 decision-tree card, 25-year-old applicant earning $60,000, exact displayed rules/labels/path from HTML | Render the actual supported library diagram with correct rule/path alignment, title above inset and caption below. Terms decision tree/leaf and three fixture questions exercise the approved interactions. No model-generated arbitrary SVG. |
+| EX-04 illustrated card | REF-03 title “Why do leaves change color in fall?”, source `autumn-leaves.md`; original generation prompt/seed not recorded | Existing illustration appears after opening paragraph with caption. Explain chlorophyll fading, existing yellow/orange pigments and some trees producing red/purple pigments. Do not claim every tree produces the same colors. Fixture image is a visual reference, not an approved provider result. |
+| EX-05 saved rich-content compatibility | Exact REF-05 `fixture-deep-body` Mermaid and `fixture-deep-more` table, then swap body/section positions | Real Md table markup, safe saved Mermaid rendering/fallback, one reading flow and pinned header; old cards remain readable despite the new-author grammar. |
+| EX-06 boundaries and invalidation | Each cap exactly/one code point over; Unicode, closed sections, diagram captions, source revocation/edit, repeated quote, duplicate send, lost save/ack | Enforced budgets and trusted identities, no malformed visual publication, no extra author/debit, accurate terminal or reconciling state. No fabricated successful delivery. |
+
+Separate reference reconstruction from original-prompt generation. Where a reference lacks its original prompt or source document, label that absence; use a declared reconstruction fixture rather than claiming faithful prompt-only regeneration. Do not give expected answers or evaluator feedback to a benchmark author. Cover every depth and both direct/Tutor entries before claiming shared-contract acceptance.
+
+<a id="roadmap"></a>
+## 8. Roadmap — WHAT
+
+<a id="sprint-mvps"></a>
+### EXP-10 — Sprint delivery ladder and parallel agents
+
+**Owner direction, 2026-11-08:** this is an MVP sprint. Deliver small usable increments to `main` as soon as their focused checks and applicable release requirements pass. Do not wait for the whole roadmap, a model tournament, all later Tutor integrations, or cosmetic polish. The detailed requirements remain intact; this ladder orders their delivery and does not silently delete deferred work.
+
+**Agent count:** use **4 agents for `/explain` alone**: (1) coordinator/integrator, (2) backend/contracts, (3) Canvas/UI, (4) independent fixture/integration QA. For both commands concurrently use **7 total**, sharing the coordinator and QA: one `/explain` backend agent, one `/explain` UI agent, one `/interact` design/backend agent, one `/interact` build/runtime agent, one `/interact` UI agent, plus coordinator and QA. These are development workers, not LLM roles or extra production calls. Use fewer while a dependency prevents useful parallel work; do not add agents to polish.
+
+| Lane | Ownership | Parallel boundary |
+| --- | --- | --- |
+| Coordinator/integrator, shared | Candidate, shared-file ownership, conflict resolution, required checks, MVP preview/main release handoff and spec receipts | One integration/release writer. Freeze a small candidate while other lanes start the next isolated increment. |
+| Explain backend | Request/schema/caps, metadata contracts and direct/Tutor bindings | Commit contract first; UI can work against fixtures of that contract. Coordinate `learn-primitives.js`, `chat-depth.js`, `learn-artifact.js` with other feature owners. |
+| Explain UI | Approved07 reading flow, term/suggestion/note actions and source/illustration presentation | Own scoped Explanation code; serialize shared `LearningBlocks.jsx`/`AdaptiveCanvas.jsx` integration with the Interact UI lane. Reuse existing controls. |
+| QA, shared | Independent expected facts/boundaries, failure/race/persistence fixtures, integration receipt and manual test card | Prepare next-MVP fixtures during implementation; test the integrated candidate, not only each lane's branch. |
+
+| MVP | Learner-visible increment / main delivery | Required scope before manual test | Defer without blocking this increment |
+| --- | --- | --- | --- |
+| E0 — contracts/reuse | Small compatible foundation commit to main; incomplete additions remain off by default | Confirm current seams, safe schema/identity compatibility and affected local checks. No learner-facing acceptance claim for a foundation-only commit. | New UI, paid benchmark and later Tutor stages. |
+| E1 — first usable written card | `/explain` question → actual shared author route → saved/reloaded card; approved pinned header and one reading flow, prose plus table/valid SVG when useful | EXP-02, current teaching/cap/title/renderer subset of EXP-03/04/06; local gate E-B1 below. Owner first tests all Depths and source/no-source output in the existing app on the exact preview. Keep unfinished actions hidden rather than showing dead controls. | Terms/suggestions/notes that need the new metadata contract; optional image jobs; model comparison. Do not mark full approved UI complete. |
+| E2 — approved interaction layer | Orange definitions, three questions, bottom follow-up, selection/highlight and linked notes backed by real APIs | EXP-03 metadata/ranges and EXP-04-C16–20 / EXP-05; local gate E-B2. Owner tests routing, quote preservation, duplicate prevention, keyboard actions and reload. | Extra animations, visual variants, elaborate empty states beyond the approved usable behavior. |
+| E3 — Tutor/visual completion | Same written card through accepted Tutor steps, two-card continuity and current optional illustration attachment | EXP-06 and affected EXP-08; local gate E-B3. Owner tests accepted title/Depth/source, two saved cards, source jumps, image attachment and failure states. Reuse already working Tutor/image code. | R8a/R10/R11 and a full provider benchmark. If Tutor or illustration pieces are already verified, deliver their small delta earlier rather than waiting artificially. |
+| E4 — separately scheduled extensions | R8a/R10/R11 and commissioned model comparison in independently reviewable slices | Their own dependencies, budgets and evidence; never implied complete by E1–E3 | Any uncommissioned research or provider work. |
+
+- [ ] **EXP-10-R01** Deliver E0–E3 as separate small MVP candidates, each mapped to exact existing requirement subsets and a main commit; keep unfinished full-feature parent boxes open.
+  - [ ] **EXP-10-R02** The owner receives E1 for first manual testing only after the local backend/contract gate and required build/smoke succeed.
+  - [ ] **EXP-10-R03** Run independent lanes with one integration owner; progress E2/E3 while the earlier frozen candidate is under manual review or release handling.
+  - [ ] **EXP-10-R04** Ship functional increments without blocking on optional model comparison, later Tutor integrations or speculative polish; retain those tasks open.
+
+**Stop-polishing rule:** after the increment's behavior, factual contract, access, accounting, persistence, affected tests and required build/smoke pass, prepare its main delivery immediately. Fix functional failures, broken layout, unreadable/clipped content and unsupported controls; defer refactors, new abstractions, alternate designs, cosmetic tuning and broader benchmark matrices. Do not use “MVP” to skip a known required-test failure or conceal an incomplete feature.
+
+**Main/release cadence:** push each completed increment through the repository's existing owner-authorized MVP fast path. Current `CLAUDE.md` requires the exact-SHA owner release allowance/launcher for production; that existing final action must be identified in the ready-to-release handoff, not invented anew or set by an agent. Prepare the concrete candidate, passing checks, successful build, focused smoke, isolated preview, recovery branch and required release preflight first. Do not wait for broad CI/gate results where the owner's MVP policy supersedes them; record those checks as bypassed, never passed. A push to main starts production release, so distinguish main commit, preview and production activation. No runtime release is performed by this documentation edit.
+
+
+All boxes start open for this extracted spec. Existing source/code evidence is retained; checkoff requires the exact integrated candidate and applicable receipts. Roadmap parents depend on their child outcomes and mapped HOW evidence.
+
+### EXP-01 — One authoritative, current Explanation specification
+
+- [ ] **EXP-01-R01** Claude can identify the written command, approved UI, actual implementation base and next unfinished work without reconstructing the conversation.
+  - [ ] **EXP-01-R02** The latest HTML, source documents, current code differences and every imported requirement have a stable reference and explicit authority.
+  - [ ] **EXP-01-R03** Historical completion claims, current source inspection, fixture results and deployed acceptance are distinguishable; unresolved decisions remain visible.
+
+### EXP-02 — A standalone written explanation
+
+- [ ] **EXP-02-R01** A learner can use `/explain` directly with a question, chosen Depth and optional context, receiving the same teaching quality and card as a Tutor step without creating a roadmap.
+  - [ ] **EXP-02-R02** Slash picker, Ctrl+K and View → Slash Commands present Explanation and Interactive distinctly, preserving internal/saved identifiers.
+  - [ ] **EXP-02-R03** The written showcase uses the coffee-cooling example and the actual card; Use example fills the composer without sending or charging.
+
+### EXP-03 — A complete, bounded card content contract
+
+- [ ] **EXP-03-R01** Author, validator, storage and renderer agree on title/body/sections, diagram format, optional interaction metadata and version ownership.
+  - [ ] **EXP-03-R02** All three Depths deliver their explicit teaching objective within inclusive display-text limits; collapsed content and visual text cannot bypass counting.
+  - [ ] **EXP-03-R03** Terms, definitions, suggestions and highlights have typed, revision-bound contracts; older cards remain readable and private data stays authorized.
+  - [ ] **EXP-03-R04** Required versus optional visual failure and new visible-text budget treatment have explicit recorded decisions.
+
+### EXP-04 — Shared teaching and the approved delivered card
+
+- [ ] **EXP-04-R01** Direct and Tutor generation use shared Explanation guidance and validation, while their existing call/repair and payment lifecycles remain distinct.
+  - [ ] **EXP-04-R02** Tutor's title, language, Depth, instructions and whole supported source stay bound to the accepted version through quotation, generation, save and reload.
+  - [ ] **EXP-04-R03** The main body answers independently; useful tables/diagrams and optional examples add understanding at every Depth without forcing a visual.
+  - [ ] **EXP-04-R04** The card follows REF-03: pinned header and one reading flow, inset visuals, source reveal, terms, suggestions and follow-up; existing Full/Focus and older cards work.
+  - [ ] **EXP-04-R05** Selection, notes and linked-card navigation use the existing editable Canvas components and keep saved parent/child identities.
+
+### EXP-05 — Reliable card interactions
+
+- [ ] **EXP-05-R01** Every approved affordance operates against the correct saved card/thread, with keyboard access and durable state where specified.
+  - [ ] **EXP-05-R02** Suggested questions send to the chosen destination, clear once and link new cards; bottom follow-up and term exploration use existing Chat/navigation.
+  - [ ] **EXP-05-R03** Ask in chat preserves the exact quote as a draft; Highlight survives reload; Create note and Add note produce one editable linked Sticky note per action.
+  - [ ] **EXP-05-R04** Bézier links follow their saved ports through drag, resize and reload; read-only users cannot invoke edit-only actions.
+
+### EXP-06 — Supported visuals and honest generation behavior
+
+- [ ] **EXP-06-R01** New diagrams use the existing SVG component library and valid typed specifications; saved Mermaid and tables remain readable.
+  - [ ] **EXP-06-R02** Invalid or absent required visual output follows a declared policy; no card claims to show a diagram that was silently dropped.
+  - [ ] **EXP-06-R03** Optional illustrations reuse the existing quoted image workflow and target binding, with appropriate alt text, caption, loading/failure and authorized reload behavior.
+
+### EXP-07 — Explicit later Tutor integrations
+
+- [ ] **EXP-07-R01** When each shared stage is authorized and ready, Explanation integrates R8a research, R10 adaptation and R11 prepared content through their existing contracts.
+  - [ ] **EXP-07-R02** Research uses existing evidence first, binds used sources to the accepted/card revision and preserves source privacy and platform-funded limits.
+  - [ ] **EXP-07-R03** Adaptation changes eligible future work from explicit feedback without silently changing accepted or delivered cards or inferring mastery from clicks.
+  - [ ] **EXP-07-R04** Prepared text/table content stays private until acceptance, reuses matching input versions and settles once without another author call.
+  - [ ] **EXP-07-R05** The written core and direct command remain independently deliverable while R12 is held.
+
+### EXP-08 — Proven accepted-step delivery
+
+- [ ] **EXP-08-R01** The actual pipeline delivers and restores two distinct accepted Explanation cards with correct source anchors, request/cost bounds and durable Chat state.
+  - [ ] **EXP-08-R02** Acceptance races, stale inputs, cancellation, entitlement and failed/unknown outcomes never generate or debit twice.
+  - [ ] **EXP-08-R03** Deterministic author and renderer tests cover all depths, boundaries, rich content and compatibility; browser evidence separately proves physical layout and interactions.
+  - [ ] **EXP-08-R04** The declared environment and exact candidate have a reviewable acceptance receipt; no docs-only change is reported as runtime delivery.
+
+### EXP-09 — Evidence-based model comparison when commissioned
+
+- [ ] **EXP-09-R01** An authorized written-Explanation benchmark can compare factuality, usable-card speed and cost using the actual existing transports and renderer.
+  - [ ] **EXP-09-R02** A frozen multi-depth corpus, correctness rubric, required-visual rules, thresholds and paid cap are recorded before runs; no winner is inferred from a demo or a successful subset.
+  - [ ] **EXP-09-R03** Requested/served model, repair time, failures, end-to-end card time and known/unknown cost are retained, with no automatic production promotion.
+
+<a id="checklist"></a>
+## 9. Implementation checklist — HOW
+
+<a id="sprint-checks"></a>
+### EXP-10 checklist — Required local gate before owner manual testing
+
+**Dependencies:** only the specific MVP's changed paths/contracts and prior shipped increments, not all EXP-01–09. **Execution:** local offline Node/provider fixtures first, affected web build and focused feature smoke; then isolated-preview handoff. The owner must not be the first person to discover backend schema, source/identity, duplicate-charge or save/reload failures. Backend checks do not claim browser/visual acceptance.
+
+- [ ] **EXP-10-C01 — E-B1: first-card backend gate.** From repository root run the following existing suites against the actual integrated E1 candidate. Assert direct request dispatch and all Depths, accepted-title-before-counting on the shared path, exact/one-over budgets, valid/invalid diagrams, no-source input, ordinary authorization and bounded repair/failure behavior. Extend the real artifact fixture for save/read identity if its existing coverage is insufficient; do not substitute a prebuilt success block for the generator.
+
+  ```bash
+  node --test packages/control-plane/test/learn-artifact.test.js packages/control-plane/test/chat-depth.test.js packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/explanation-diagram-kinds.test.js
+  node --test packages/control-plane/test/roadmap-generate.test.js packages/control-plane/test/roadmap-document-context.test.js
+  ```
+
+- [ ] **EXP-10-C02 — E-B2: interaction contract gate.** Add `packages/control-plane/test/explanation-interactions.test.js` **only if no existing artifact/action fixture covers the new metadata contract**; this is a proposed test, not a current passing file. Exercise the actual serialized term/suggestion payload, malformed/ambiguous anchors, stale content revision, unauthorized card/thread, duplicate/late action, saved/reloaded metadata and no extra author call to create metadata. Where an action belongs entirely to existing web/board APIs, extend their real existing fixtures instead of inventing a new backend endpoint. Run E-B1's affected suites and the exact added/extended tests. Require deterministic saved highlight/note/child-card identity evidence before the owner tries those controls.
+
+- [ ] **EXP-10-C03 — E-B3: accepted-Tutor backend gate.** Run the real workflow fixtures below. Verify one accepted version → one author/settlement, full supported source and accepted instructions, two distinct saved cards, save before ack, lost-response reconciliation, stale/revoked source, two-user access denial and late events. Carry forward current illustration-job admission/target-binding checks and run the existing image job tests that import changed server symbols, recording exact filenames. Do not make a paid image call to satisfy an offline gate.
+
+  ```bash
+  node --test packages/control-plane/test/roadmap-generate.test.js packages/control-plane/test/roadmap-document-context.test.js packages/control-plane/test/roadmap-workflow.test.js
+  ```
+
+- [ ] **EXP-10-C04 — targeted UI/build gate.** Before handing off each UI increment, run the affected Node renderer/action suites from section 10 and `npm run build --workspace=web`. Keep exact approved-source fixtures and changed interaction assertions. Use local fixture handlers for the actual entry/save flow where available; no local browser automation is required or implied. Prepare the isolated preview using the existing MVP tooling and complete its focused smoke. If a dependency/infra error prevents a required check, report blocked rather than inviting the owner to debug it manually.
+
+- [ ] **EXP-10-C05 — one handoff per frozen MVP.** Provide MVP label, exact candidate SHA/preview URL and activation state; commands with executed counts/pass/fail/skips; deterministic versus real-provider evidence; three to five manual steps with expected outcomes; known limitations/deferred IDs; recovery/rollback reference and the concrete next main-release action if still required. First E1 script: send EX-01, repeat at three Depths, inspect prose/table/SVG if selected, reload, then try authorized source context. E2/E3 scripts focus only on their changed interactions/integration plus a first-card smoke. Do not say ready if required local tests failed or selected zero cases.
+
+- [ ] **EXP-10-C06 — main delivery and next rung.** Integrator reviews the exact combined diff and required receipts, performs/prepares the authorized small main release immediately, verifies the resulting main SHA/deployment state and updates the affected EXP boxes. Keep the next runnable lane working while awaiting only the existing final owner release action. Do not hold E1 for E4 benchmarking or ask for an additional blanket design review after the approved requirements are implemented.
+
+These sprint gates select a minimum for the affected increment, not permission to skip other affected tests required by repository policy. Never re-run broad unrelated suites after every small correction simply to appear thorough. Reuse unaffected evidence with a documented delta; rerun the failed/changed path and its affected integration checks.
+
+
+**Dependency order:** EXP-01 audit → EXP-02 identity checks and EXP-03 contracts → EXP-04 teaching/rendering plus EXP-05 interaction wiring and EXP-06 visuals → EXP-08 integrated acceptance. Build the affected boundary/fixture checks alongside each change. EXP-07 waits for its separately owned shared stages; EXP-09 requires its own benchmark scope/budget and never blocks unpaid fixtures. Do not start a second Tutor planner, job ledger, sticky-note editor or diagram library.
+
+### EXP-01 checklist — Preflight and source reconciliation
+
+**Dependencies:** source documents and repository instructions. **Existing files:** REF-01–09 and section 6 paths. **Output:** candidate/source-delta receipt and mapped open requirements.
+
+- [ ] **EXP-01-C01** Pin the actual working commit and compare relevant files with both inspected SHAs. Resolve the integration base with the existing branch owner; preserve unrelated changes. Identify already-implemented seams before writing code and record missing files on an older checkout.
+- [ ] **EXP-01-C02** Open REF-03 and REF-05 and read the approved behaviors in section 4. Use REF-03's SVG/image cards as the frame; use REF-05 only for Depth and source fixtures. Confirm the latest original HTML remains the same approved version before replacing a reference.
+- [ ] **EXP-01-C03** Reconcile the new-author format with current `rh-diagram` behavior and preserve saved Mermaid compatibility. Apply the explicit corrections recorded in section 11 to imported CORE.09 tasks; do not revive older raw limits, rail layout, or the obsolete frame reference.
+- [ ] **EXP-01-C04** Record next dependency-ready IDs, available fixture/test runners, unavailable external evidence and any product decisions still needed. An absent model budget blocks paid runs only. Keep coordinator task statuses in the existing external ledger.
+
+### EXP-02 checklist — Direct entry and discoverability
+
+**Dependencies:** EXP-01. **Existing files:** `agent/slash.js`, `learn-slash.js`, `learn-artifact.js`, existing picker/showcase callers. **Interface:** `explanation` command → `make_explanation` artifact.
+
+- [ ] **EXP-02-C01** Trace typed `/explain`, shared picker and Ctrl+K to `runLearnCommand` and the artifact route. Verify a direct question works with empty optional context at Overview, Standard and Deep. Do not require a roadmap or use the playable `startExplain` route.
+- [ ] **EXP-02-C02** Preserve public/internal identity distinction and existing saved drafts/jobs/proposals. Add focused registry/dispatch assertions for Explanation versus Interactive; check their visible labels and groups in View → Slash Commands as well.
+- [ ] **EXP-02-C03** Use EX-01 in the written showcase with the actual renderer. Wire Use example to fill `/explain` and the exact question into the existing composer, retaining learner edits/settings and requiring Send. Assert zero provider call or debit from merely opening/using the example.
+- [ ] **EXP-02-C04** Verify normal authorization, effective Depth resolution, direct repair limit and save/failure lifecycle remain intact. Keep this direct split independent of the held R12.09 Tutor Interactive adapter.
+
+### EXP-03 checklist — Schema, budgets and interaction bindings
+
+**Dependencies:** EXP-01; settle GAP-02/03/05 before closing their tasks. **Existing files:** primitive/request builder, pure diagram schema, Explanation renderer, existing board/annotation APIs. **New files:** none mandated; document any small extracted helper and callers before adding it.
+
+- [ ] **EXP-03-C01** Read current primitive and accepted-record types. Preserve compatible fields and structural limits from section 5. Document the additive term/definition/suggestion contract, stable occurrence IDs, content revision and author/server-owned fields. Update real request schema, validation, persistence and reader together. Do not rely on untyped fixture DOM attributes.
+- [ ] **EXP-03-C02** Record the agreed cap treatment for definitions, suggestions, image captions and callouts. Keep current TutorDiagram title/caption/label counting and all closed sections. Build independent exact-boundary fixtures at 600/1,000/1,500 and one Unicode code point over; include display-code literals, normalized whitespace, table cells and both body/section diagram positions.
+- [ ] **EXP-03-C03** Produce eligible metadata inside the existing author call budget and accepted version. Resolve exact occurrences within body/section content; ambiguous or invalid anchors must not wrap unrelated prose. Limit/validate questions and definitions using the recorded schema, including empty/absent metadata and old saved cards.
+- [ ] **EXP-03-C04** Define card/thread ownership for Ask here, new-card questions, bottom composer and Dig Rabbit Hole through existing APIs. Persist only allowed state and bind late replies/duplicate actions to their original card/context. Confirm share/fork/read projections do not expose private Chat or unaccepted metadata.
+- [ ] **EXP-03-C05** Implement the chosen rendered-text-to-source anchor strategy using saved card ID/content revision, captured exact quote and range context. Cover Markdown syntax, repeated words and selections spanning term pills. Specify invalidation on content edits and preserve captured note quotes without reanchoring them to unrelated text.
+- [ ] **EXP-03-C06** Capture actual direct and Tutor author bodies and compare selected objectives/caps, schema and accepted title ordering. Ensure quotation and dispatch use the same updated request/fingerprint. Retain old-card read compatibility while applying new validation to newly authored/reused new-contract output.
+
+### EXP-04 checklist — Complete imported CORE.09 obligations
+
+**Dependencies:** CORE.03/05 accepted inputs, UI.04 same-slot delivery and EXP-03 where new metadata is needed. **Existing files/interfaces:** section 6 and each task below. The following 20 tasks retain the full original obligations in order. Historical evidence strings are source provenance, not new passing receipts. Explicit current-code corrections accompany the import in section 11 and apply wherever older author syntax/raw limits are mentioned.
+
+#### CORE.09 — source task set
+
+**Historical source task inspection:** main at `e447525a83c6e9809f2f1cdaa27071c31a3a0b3f`.
+
+**Required for the core Tutor MVP.** Product behavior is in [roadmap section 3.9](explain-on-canvas/handoff/tutor-roadmap-v1.4.md#39-step-9--accept-generate-save-and-fill-the-same-slot). UI and Tools own this with State. Depends on CORE.03/05's accepted-input snapshot and UI.04's same-slot delivery. CORE.07 and BE.06a verify it before owner production review. Open [07 — Approved Explanation card](explain-on-canvas/handoff/ui/07-explanation-card-approved.html) first for the owner-approved delivered layout. Use [06 — Explanation depth](explain-on-canvas/handoff/ui/06-explanation-depth.html) for Depth and Markdown fixtures. The [Generated card shell](explain-on-canvas/handoff/ui/templates/generated-card-shell.html) is the starter frame for other generated cards. Use [05](explain-on-canvas/handoff/ui/05-markdown-source-links.html) for source highlighting and reverse navigation. Example copy, tabs and counters are review aids. The shared teaching guidance, planner and writer changes below are required for this core MVP. Use the selected or accepted Depth for the request.
+
+**Shared Explanation teaching and prompt contract**
+
+- [ ] **EXP-04-C01** Preserve the existing direct Tutor/`/explain` artifact path accepting a learner question and effective Depth, with optional source context, normal entry-point authorization and charging. Reuse `artifactFetch/generateArtifact` and existing default resolution. **Historical source evidence:** `learn-artifact.test.js`, `chat-depth.test.js` and `explain-depth.test.js`.
+- [ ] **EXP-04-C02** Apply the new shared Explanation teaching/budget/renderer contract to this path and roadmap generation. Roadmap cards additionally receive the immutable accepted brief/settings from CORE.03/05. Direct-path existence does not establish the new shared prompt, caps or title binding.
+- [ ] **EXP-04-C03** Add the planner guidance to `packages/control-plane/src/agents/roadmap-plan.js::PLAN_RULES`, shared by `PLAN_SYSTEM` and `REVISE_SYSTEM`. Plan one coherent learning idea per step within the selected Explanation budget. An `explanation` step may use prose, a Markdown table or a supported TutorDiagram within one card. Return the existing title, goal and essential claims through `submit_roadmap`. Keep the existing format enum and preserve accepted titles and delivered-step revision rules. **Historical source evidence.** `ea22b2e1f` and exact-main plan/prompt tests verify the shared PLAN/REVISE request guidance and accepted-step schema.
+- [ ] **EXP-04-C04** Put shared teaching guidance with the Explanation primitive in `learn-primitives.js` and attach its request-specific Depth and budget through `learn-artifact.js::generateArtifact`. The tool description for `make_explanation` is an appropriate existing seam. `agents/learn-artifact.js::ARTIFACT_SYSTEM` supplies artifact-wide rules such as structured output, one tool call and factual integrity. Apply the Explanation teaching rules when `make_explanation` is offered. **Historical source evidence.** `learn-primitives.js`, `learn-artifact.js` and current author tests verify shared teaching guidance when the Explanation tool is offered.
+- [ ] **EXP-04-C05** Make the three Explanation Depth objectives explicit. **Overview** gives the central idea and essential mechanism in everyday language. **Standard** explains how and why, with enough reasoning to apply the idea to another case. **Deep** develops the reasoning and relevant assumptions, limitations or connections. Use worked calculations and consequences when they help. Supply the selected cap together with the objective. Reconcile `chat-depth.js::depthInstruction` and `agents/roadmap-card.js::roadmapCardSuffix` for Explanation requests so direct and roadmap paths receive the same teaching target, including an explicit Standard target. **Historical source evidence.** Exact-main direct and roadmap Explanation request captures include the selected objective and cap, including Standard.
+- [ ] **EXP-04-C06** Include the following shared author instructions for `make_explanation`. Treat them as a request contract, with selected Depth and budget resolved by the server. **Historical source evidence.** Exact-main shared Explanation request captures include the following instructions. Server validation and visual acceptance remain separate.
+
+> For `make_explanation`, the main body and optional section text support Markdown paragraphs, headings, lists, pipe tables and closed `rh-diagram` JSON fences rendered by the existing SVG library. Saved Mermaid remains readable through the legacy renderer.
+>
+> Choose the form that makes the idea easiest to understand. Use a table to compare items across shared attributes. Use a supported TutorDiagram to explain branching decisions, relationships or a process. Include enough prose to explain what the learner should notice.
+>
+> Treat tables and diagrams as optional at every Depth. Choose the structure to suit the question.
+>
+> The main body must answer the learner's question on its own. Optional sections can add a worked example, prediction or further reasoning.
+>
+> Apply the requested Depth guidance and total character budget. Include the title, section labels, table cells, diagram labels and collapsed content in that budget.
+
+**Backend and author request**
+
+- [ ] **EXP-04-C07** Start at `packages/control-plane/src/roadmap/roadmap-run.js::generateOne` and `roadmap-generate.js::generateRoadmapCard`. The adapter calls `learn-artifact.js::generateArtifact` with one accepted format and `repairs: 0`. Read the canonical step title, Depth and language from CORE.03/05's server-owned accepted input. Resolve any authorized pre-acceptance edit through that same accepted version. In the roadmap Explanation adapter, set the final `block.title` from that accepted title before counting or returning the block to `generateOne`. Keep the proposal, generating slot, saved card and reloaded card bound to that title. Depth changes content only. Retain the normal block/card ID, step ID, source reference and result identity. **Historical source evidence.** Exact-main workflow/Explanation author tests show the accepted title is applied before counting and persists through delivery/reload. The source formerly left the cap algorithm open; current main has the shared implementation, whose candidate-specific acceptance remains required below.
+- [ ] **EXP-04-C08** Preserve the existing Explanation primitive and compatible block shape `{type,title,body,more?:[{label,text}]}`: current raw bounds 120 title, 3,000 body, 40 section label, 1,500 section text, at most three sections. Body and section text are Markdown strings; main explanation belongs in body. Keep the separate table primitive and older saved cards readable. **Historical source evidence:** then-current `learn-primitives.js` and artifact contract tests.
+- [ ] **EXP-04-C09** Reuse/complete the shared teaching guidance and inclusive 600/1,000/1,500 caps for newly generated Explanation output through both entry points, as specified below. Existing raw field bounds do not enforce the new display-text budgets.
+- [ ] **EXP-04-C10** Use `packages/control-plane/src/agents/roadmap-card.js::roadmapCardSuffix` for accepted title, goal, claims, language and source grounding. Reuse the shared Explanation guidance above for teaching style and rich Markdown. Give the author the selected cap and accepted title length. Author a table with leading and trailing pipes, a header/separator and consistent columns. Author a diagram as a closed `rh-diagram` JSON fence using the existing version-1 kind schema in `tutor-diagrams/spec.js`. For a branching decision use the supported flow/tree structure with valid node identities, labels and edges; retain the shared kind-specific bounds and topology validation. Exclude author-supplied HTML, raw SVG, directives, executable handlers and external assets. File 06's original Mermaid remains an exact saved-card compatibility fixture, not new-author syntax. Reuse CORE.05's first-request builder for quotation and dispatch and retain the full pinned source and accepted learner brief. **Historical source evidence.** Exact-main quote and author-input tests exercise the suffix and then-allowed table/Mermaid prompt guidance; new-author assertions must now match section 5. The separate render/validation coverage remains open.
+- [ ] **EXP-04-C11** Enforce the inclusive display-text cap on the server for new Explanation output from both direct and roadmap requests. Resolve the final title first. Roadmap output uses the accepted title, and direct output uses its generated question-appropriate title. Validate before returning a successful artifact or recording/publishing it. **Overview ≤ 600, Standard ≤ 1,000, Deep ≤ 1,500.** Reuse one pure, Worker-compatible counter/validator. Count the title, authored Markdown prose/headings/list text, header and body table cells, TutorDiagram title, caption, node/edge labels and other visible kind text, and every `more` label and body even while closed. Flatten in reading order, collapse whitespace runs to one space, trim, and count Unicode code points with `Array.from(text).length`. Exclude recognized markup delimiters, table separator rows, diagram IDs, JSON structure and non-visible layout fields and fixed app chrome. Count other rendered code/text as literal content. Match the card's `Md` syntax and keep unsupported syntax from escaping the limit. Keep renderer imports out of the Worker.
+- [ ] **EXP-04-C12** Treat over-cap output or a generated diagram outside the supported schema as a validation failure. In the ordinary roadmap path, map it to `terminal_validation_failure` with a stable internal reason and use CORE.04's single settlement and original failed slot/Chat path. Direct artifact callers use their existing validation/error lifecycle. Retain applicable safety and source checks on valid content. Apply caps to newly authored output, including output reused after the new contract is enabled. Older saved cards remain readable. A table or required diagram must survive validation as complete content. Resolve the existing optional diagram-drop behavior through GAP-01 and EXP-06-C03 without adding author attempts.
+
+**Canvas UI and rendering**
+
+- [ ] **EXP-04-C13** In `packages/web/src/LearningBlocks.jsx::ExplanationBody`, reuse the existing canvas frame and layout. Put `Kicker` and the accepted title in a shrink-resistant header outside the reading scroller. Reveal the authorized `SourceRefChip` and ScanText **View passage** action on card hover or keyboard focus. Match [07 — Approved Explanation card](explain-on-canvas/handoff/ui/07-explanation-card-approved.html) and preserve the existing source access, drag, focus and feedback behavior. Inspect `AdaptiveCanvas.jsx`, `SourceRefChip.jsx` and `card-layout.css` together. Keep Full/Focus modes, legacy blocks and topic anchors working.
+- [ ] **EXP-04-C14** Put `block.body`, rendered visuals and any supplementary `block.more` text in one `[data-scroll]` reading flow with `min-height: 0` and vertical overflow in Scrollable mode. Use the lighter scrollbar thumb shown in file 07. Keep the title outside that region. Render SVG diagrams in an inset with a bold title above the SVG and a caption below the inset. Preserve the same card ID, placement and source relationship.
+- [ ] **EXP-04-C15** Use `packages/web/src/Md.jsx` for existing Markdown body and supplementary text in the reading region. It already turns pipe rows into a horizontally scrollable table. Opt into its existing Mermaid fence rendering in the Explanation reading region, using the `fences` option or a scoped flag if needed to preserve unrelated fence behavior. The current renderer path is `Md → Code → MermaidDiagram`. Enable this for Explanation cards from direct questions and roadmap steps using the shared Explanation renderer. Reuse the lazy import, current app light/dark theme and strict security. Keep diagram overflow within card width. If Mermaid fails to load or render, keep the prose and offer escaped source via the existing code/source view. Preserve working source navigation and all other Markdown callers. In file 06 the static diagram depicts the embedded `fixture-deep-body` Mermaid source and the table depicts `fixture-deep-more` Markdown. Use those source strings in the saved-card implementation tests. Also exercise new `rh-diagram` content through `Md → TutorDiagram`; keep both compatibility paths while using the current author grammar.
+- [ ] **EXP-04-C16** Implement the approved term pills, source reveal and follow-up controls from file 07 using existing Canvas and Chat paths. Use one- or two-word Claude-orange terms with **Dig Rabbit Hole**, hover top/left/right ports and a separate bottom **+** with outside-click dismissal and the round send inside its field. Show three suggestions. **Ask here** and **Ask in a new card** reveal on hover/focus, clear the suggestions on send and start the reply in the correct thread. Link a new card to its parent.
+
+- [ ] **EXP-04-C17** Add the selected-text toolbar to rendered `ExplanationBody` content with exactly **Ask in chat**, **Highlight**, and **Create note**. Replace any inline **Explain** action when reusing the selection toolbar on this surface. Reuse `selection-toolbar.jsx` for the controls and positioning, and the selection capture and existing Chat attachment seam used by `FileDocMarkdown.jsx`. Capture the exact visible selection and the saved Explanation card ID before focus moves. **Ask in chat** prepares the existing composer for the learner to send. **Highlight** persists a learner highlight on the selected range of the Explanation card.
+- [ ] **EXP-04-C18** Route **Create note** from a selection and **Add note** from the Explanation card's right-click menu through the same linked note action. Register the card menu action through `canvas-actions-types.js` with the existing edit permission. Reuse the Canvas toolbar's `AdaptiveCanvas.jsx::insertSticky` construction and normal `kind: 'sticky'` editing and board persistence. Use `inline-ai-apply.js::placeNote` and existing collision/connection logic to place the note beside its parent and link the saved note and card IDs. Focus the existing note editor. A selection note displays its exact captured quote above the editable body. The right-click note starts with a blank editor and a card-level link.
+- [ ] **EXP-04-C19** Verify the exact selection action labels, the Chat draft with selected text, and the persisted highlight. Check a text range spanning an inline term pill. Exercise both note entry points in the real Canvas actions and assert one existing sticky note per action, the correct linked parent, and the presence of a quote only for **Create note**. Save and reload the board, then verify the note can still be edited and the link resolves. Check the context menu's keyboard route and edit permissions.
+- [ ] **EXP-04-C20** For the branch and linked-note actions, use the existing Canvas connector with `route: 'curved'` through `AdaptiveCanvas.jsx::linkRoute` and `learn-connectors.js::routePath`. Apply this rule to the linked-card state in file 07. Use a continuous Bézier curve between the ports, with a small bow for aligned anchors. Check aligned and offset cards, drag and resize, and reload. Assert that both ends follow their saved targets and the curved shape persists.
+
+**Receipt:** BE.06a results for direct questions and roadmap steps, shared planner/writer prompt captures, resolved title/Depth, all three cap boundaries, valid and invalid author outputs, saved/reloaded card identity, and Node render coverage of the shared reading region. Record actual pinned-title scroll, keyboard/hover, follow-up routing and visual rendering during the owner's manual check of the matching deployed main build.
+
+### EXP-05 checklist — Live controls, selection and notes
+
+**Dependencies:** EXP-03 metadata/anchor contract; EXP-04-C13–20. **Existing files:** `LearningBlocks.jsx`, `AdaptiveCanvas.jsx`, `selection-toolbar.jsx`, `FileDocMarkdown.jsx`, `canvas-actions-types.js`, `inline-ai-apply.js`, `learn-connectors.js`. **Output:** the actual approved UI backed by existing Chat/board operations.
+
+- [ ] **EXP-05-C01** Render optional metadata only when valid. Empty terms/suggestions/source/sections must not leave blank controls or spacer rows. Keep the header outside one reading flow; put body, visual and supplementary text inside it. Preserve card resize, Scrollable/Full/Focus, downward growth and previously saved content.
+- [ ] **EXP-05-C02** Wire orange one-/two-word term pills to short definitions and the existing Dig Rabbit Hole path; show only the relevant definition. Implement focus/keyboard activation, dismissal and return focus using existing UI conventions. Keep definition text selectable and prevent pointer handlers from accidentally dragging the card.
+- [ ] **EXP-05-C03** Wire all three questions and both hover/focus actions. Ask here and Ask in a new card send the selected question immediately, remove the current suggestions once, and route through the existing authorized generation/Chat action. Save the correct parent/child relationship for the new card; disable duplicate submission while that action is pending.
+- [ ] **EXP-05-C04** Keep the bottom+ separate from top/left/right connector ports. It opens the below-card Ask a follow-up field with round send inside; outside click dismisses it. Preserve unsent draft according to existing composer policy and ensure a late result goes to the originating card/thread after navigation. Do not import `/interact` playback or no-footer rules.
+- [ ] **EXP-05-C05** Capture a selection before focus changes. Ask in chat prepares a draft and waits for learner Send; it does not behave like the immediate suggested-question buttons. Persist Highlight through the chosen annotation contract. Test a range crossing a term pill and repeated matching text in two sections.
+- [ ] **EXP-05-C06** Register Add note with existing edit permission. Route it and Create note to existing sticky construction/editor/save and `placeNote`; capture quote only for the selection route. Verify one note and one parent link, editable after reload, and correct keyboard/context menu behavior for owner and read-only viewer.
+- [ ] **EXP-05-C07** Reuse `route:'curved'`, `linkRoute` and `routePath` for child cards/notes, including a gentle bow when anchors align. Check stored endpoint IDs/geometry under drag, resize and reload; use separate browser evidence for appearance.
+- [ ] **EXP-05-C08** Update old renderer assertions that require a rail outside the scroller or View section on this card. Preserve rich-body/section fixtures, no-source and legacy cases. Add interaction and saved-state assertions; record real visual/keyboard/scroll acceptance separately from DOM fixtures.
+
+### EXP-06 checklist — Diagrams, illustrations and fallback
+
+**Dependencies:** EXP-03 budget contract, EXP-04 rendering; GAP-01 required-visual policy. **Existing files:** `learn-primitives.js`, `tutor-diagrams/spec.js`, `Md.jsx`, `TutorDiagram.js`, `IllustrationFigure.jsx`, `explanation-lead.js`, `illustration-target.js`, `generate-image.js`, image provider registry. **Output:** supported visuals in the existing card and truthful failure handling.
+
+- [ ] **EXP-06-C01** Reuse the library's existing kind schemas/layouts rather than accepting raw generated SVG. Match the visual relationship to an existing kind, validate the complete closed specification and retain the exact author title/caption/labels for counting. Unsupported kinds or executable content never reach the host renderer as trusted code.
+- [ ] **EXP-06-C02** Keep new `rh-diagram` output and saved Mermaid compatibility as separate test paths. Exercise valid diagrams, malformed/unclosed JSON fences, missing endpoints, invalid topology, long labels and mixed body/section content. Reuse theme and constrained width; keep the prose and safe existing failure/source view for saved content that cannot render.
+- [ ] **EXP-06-C03** Resolve GAP-01 before closing acceptance: explicitly required diagrams must not become silent prose-only success. Record how the accepted requirement is bound and how optional visual fallback is reported. Preserve the ordinary Tutor one-call/no-repair rule and direct bounded repair. Update current `dropInvalidDiagrams` tests to the chosen requirement-aware behavior; do not solve missing output by adding hidden paid attempts.
+- [ ] **EXP-06-C04** Reproduce REF-03's diagram title/inset/caption and the illustration after its first paragraph using current components. Preserve alt text and supported callouts/aspect. Omitted illustrations leave no empty panel. A failed/unavailable asset leaves honest UI and readable prose.
+- [ ] **EXP-06-C05** Reuse `explanation.add-illustration`, the prepared `/image` composer, signed plan quote/Generate, persisted target proposal and image job settlement. After completion attach the authorized saved asset to the intended Explanation. Cover changed/deleted target, stale proposal, duplicate completion, reload while pending and failed job without corrupting the text card or inserting an unintended duplicate image card.
+- [ ] **EXP-06-C06** Verify file access/revocation and authorized share/fork/read through the existing image path. Retain current provider selection and capability limits. Record any real-image budget/run separately; an HTML fixture or provider registry entry is not generation acceptance.
+
+### EXP-07 checklist — Later shared Tutor stages
+
+**Dependencies:** accepted core, then the corresponding R8a/R10/R11 prerequisites in REF-01/02. **Ownership:** shared Tutor work stays there; these are Explanation integration obligations. Do not mark the whole stage complete from one card fixture.
+
+- [ ] **EXP-07-C01** For R8a, use an accepted written Explanation step as the first supported pilot. Check existing pinned evidence before searching; the supported-source case must make zero Exa calls. Resolve material gaps before the offer becomes actionable, bind fetched passages/citation IDs to the accepted source/plan/proposal version and retain the whole supported Markdown input.
+- [ ] **EXP-07-C02** Preserve R8a's platform-funded research, privacy/query filtering, bounded search/read/time/spend and existing clarification when essential evidence remains absent. Do not borrow an image or Interactive allowance. Use REF-01 §10.2.1 for the complete configured policy and REF-02 R8a.03 for implementation. This doc does not authorize a live research spend.
+- [ ] **EXP-07-C03** Save only actually used cited sources on the card version. Use final-URL deduplication, title and Copy link, and the existing configurable five-link Sources popover. Test authorized reload, source versions and no unrelated search result leakage. Keep local View passage navigation distinct from external citations.
+- [ ] **EXP-07-C04** For R10, keep the initial mode Explanations only with R9 disabled, using explicit instructions, relevant private feedback/self-report and delivered context. Change eligible future/unaccepted steps only. Viewing, Tab/accepting or cancellation is neutral about mastery; Already understood is self-report. Material goal/scope/Depth/mode/order/stopping-point changes require roadmap revision and reacceptance.
+- [ ] **EXP-07-C05** Preserve accepted in-flight work, delivered cards and settled cost during adaptation. Go deeper uses existing exploration navigation and a return point. Standalone/Quick Edit content joins a roadmap only by explicit linking; linking an existing card is zero generation and zero new author charge.
+- [ ] **EXP-07-C06** For R11, wait for core plus R5/R6 version/metadata readiness. Initial eligible preparation is lightweight text/table in Explanations only: while N is offered, prepare bounded private N+1 under platform accounting. Keep the full-source one-author policy and never expose prepared content before acceptance.
+- [ ] **EXP-07-C07** Reuse a prepared result only when source, plan/proposal, Depth, instructions and evidence fingerprints match. Acceptance charges the learner once and makes zero new provider calls. Invalidate stale preparation; reconcile unknown provider outcomes before any new dispatch. Keep expensive media/paid plans acceptance-first and record speculative platform spend separately from learner settlement.
+- [ ] **EXP-07-C08** Prove core written generation works while these later flags/stages are off and R12 remains held. Preserve the wider source requirements without turning this doc into a second general routing, planning or media-engine implementation.
+
+### EXP-08 checklist — Complete imported integration acceptance
+
+**Dependencies:** affected EXP-02–06 changes and shared core lifecycle. **Existing tests:** section 6 plus the exact tests named below. These 14 checkbox obligations preserve BE.05–14, including BE.05a and BE.06a's nested direct/renderer checks. Execute relevant existing integration fixtures instead of rebuilding shared core. Record historical evidence separately; ordinary new diagrams follow section 5 and saved Mermaid remains a compatibility case.
+
+- [ ] **EXP-08-C01** **BE.05 — First proposal and one guarded acceptance (CORE.03–05, UI.04–05).** Assert the pending payload supplies the same proposal/version, title, description, format, exact source excerpt, message/slot identity and placement to Chat/canvas projections. Send the same production accept payload via independent simulated Chat and canvas callers; a pure controller test maps eligible Tab to that payload and excludes composer/settings/editing/IME/repeat contexts without using a browser. Test repeated same-key acceptance, distinct keys racing on the same proposal, two sessions, stale version and Cancel/Edit races. Only the canonical winner can create one authorization/result and one billable author dispatch; do not rely on disabled CSS controls or only same-key replay.
+
+- [ ] **EXP-08-C02** **BE.05a — Tool readiness and recovery at the card offer (CORE.03–05, UI.04, R6).** Extend the real first/manual/automatic offer path tests with a supported ready format and a suggested format whose readiness or input changes after roadmap approval. Assert the accepted goal and scope remain the inputs. Check the same eligibility guard for all offer paths. An eligible alternative keeps one step and receives its own current review. A missing detail or blocked requirement routes to Chat recovery with the step undelivered. Repeat at acceptance with a stale or no-longer-eligible offer. Assert zero author dispatch, reservation or debit for an unready offer and one approved tool/settings/source binding for a ready one. Check the approved binding reaches the writer and that saving and acknowledgment precede a successor. **Historical source evidence.** Exact-main readiness tests pass eight backend cases. The real disabled-Table probe authorized Explanation on the same step with zero author calls, while Chat still labeled the offer Table. Render the resolved offer format in `roadmap-transcript.js` and include source revision/availability in the excerpt freshness guard. Acceptance-time source disappearance must also reach Chat as recovery.
+
+- [ ] **EXP-08-C03** **BE.06 — Actual author request and both output formats (CORE.03–07).** Run the real generation and validation pipeline for an explanation and a table. Capture each serialized author request and assert whole pinned Markdown including the distant marker, accepted outcome/step/claims, original and accepted edits, format, language, Depth and proposal version. Each accepted card uses exactly one ordinary content-author call, no ordinary citation-review/escalation/content-repair or automatic author retry; the grounding record is `not_run`, not `passed`. Preserve applicable schema, access and safety checks. Test malformed output, incorrect tool/format and returned model mismatch against the candidate's actual policy. Do not insert a ready-made card in place of running the generator.
+
+- [ ] **EXP-08-C04** **BE.06a — Tutor Explanation authoring, saved output and renderer (CORE.09).** Extend `packages/control-plane/test/roadmap-generate.test.js` and the integrated flow in `roadmap-document-context.test.js` or the actual workflow route fixture. Send the accepted record through the real request, tool schema, adapter and save/reload path with a deterministic provider reply. For each Depth, prove the same canonical title wins over a distinct model title, later setting changes leave the accepted Depth intact, and one call's quoted and dispatched body carries the matching cap. Assert pass exactly at 600/1,000/1,500 and terminal failure one code point over each. Include Unicode, normalized whitespace, a table header/row, TutorDiagram title/caption/node/edge labels and collapsed `more` content. Cover absent/empty `more`, malformed/unsupported new diagrams and rejected new Mermaid, invalid artifact shape and over-cap failure with no ready/saved card, one applicable settlement and no redispatch. Assert successful output still carries the same card/result/source identity and survives reload. Keep the separate Table and standalone Explanation tests passing.
+  - [ ] **EXP-08-C05** **Shared prompt and direct-question checks.** Extend `packages/control-plane/test/learn-artifact.test.js`, `learn-prompts.test.js` and `roadmap-plan.test.js`, updating their expected prompt fingerprints when changed. For each Depth, exercise the real direct artifact request builder with a question, empty optional source context and a deterministic `make_explanation` reply. Assert the question, explicit Depth objective, cap and shared rich-Markdown guidance in the actual author request. Match the teaching guidance against a roadmap request with the same Depth and verify that its accepted source/goal/title is present. Check planner draft and revise request instructions for coherent step scope and embedded table/supported-diagram eligibility. Exercise the shared cap validator at and one code point over each limit through both generation paths. Check valid tables and supported TutorDiagram specifications in body and optional sections, with saved Mermaid as a separate compatibility case, prose-only output at every Depth, and existing non-Explanation artifact behavior. Verify each path uses its own authorization, charging and failure lifecycle.
+  - [ ] **EXP-08-C06** **Node renderer checks.** Use the existing web Node JSX/render harness and `card-layout.test.mjs`. Render the embedded file 06 fixtures and swap their locations so tables and Mermaid are checked in both `body` and inline `more` text. Assert the real table markup, Mermaid render selection and safe code fallback on a stubbed renderer error. Check the pinned header and single reading region, a direct-question card without a source reference, a legacy card with no sections, and existing source reference hooks. Cover keyboard/focus reveal, the outside-click dismissal, and both suggestion destinations. Run the affected suites and build with no browser. Use the owner's later deployed-main check for rendered SVG, physical scrolling, size and focus.
+
+- [ ] **EXP-08-C07** **BE.07 — Real reservation, debit and settlement (CORE.04–06).** Assert request-budget/aggregate allowance checks precede dispatch, one hold/authorization/action identity per accepted card and a bound covering the actual serialized request. Planning/proposal review/navigation/next metadata do not spend the learner's card allowance. Duplicate acceptance/polling/restore adds no debit. Insufficient credits/oversized request returns a truthful non-started state with zero author calls; known failed generation releases/refunds as applicable once; unknown outcomes remain reconciling without a second author call. Read holds, usage actions, result/billing rows and totals; do not assert a hardcoded price divorced from configured request bounds.
+
+- [ ] **EXP-08-C08** **BE.08 — Same identity, board save, acknowledgment and reload (CORE.07, UI.04/06).** Follow the actual deliver/result entitlement and normal board-save API/service, then acknowledgment in order. Read the board back through its authorized path and restore the roadmap/message state from fresh local client/controller instances. Assert exact server-minted result/card ID, source relationship, persisted slot top-left/width and accepted edited title across pending→accepted→generating→generated→saved→acknowledged. Inject failed save and lost save/ack responses: no premature ack, ready message or successor; reconcile the same existing card/result without another generation/debit or duplicate board block. Distinguish a generated output from a board-saved/acknowledged delivery. Node evidence proves stored geometry/state, not a frame's physical continuity on screen.
+
+- [ ] **EXP-08-C09** **BE.09 — Durable Chat lifecycle and late events (UI.01/04/08).** Create/read/update real persisted Tutor metadata using the thread/message endpoints and their authorization checks. Assert one logical Chat entry per card advances through pending/accepting/generating/checking-if-applicable/saving/ready or failure; duplicate outbox/poll events do not append copies or regress a ready entry. A delayed result after switching threads is saved to its original thread. Restore activity, edit target and card/source IDs from storage; do not test only a transient `RoadmapChat` strip or a client-only array. Preserve older history and unsent drafts. Validate metadata round-trip and isolation, not just a feedback side-table migration.
+
+- [ ] **EXP-08-C10** **BE.10 — Automatic next offer and actual second card (CORE.07, UI.08, R6).** Enable the candidate's real automatic delivery/event handlers and Auto-suggest policy. Acknowledging the first saved card causes exactly one checked next metadata proposal; before its acceptance, author calls remain one and no second card hold/debit exists. Double delivery/outbox events converge on that same offer. Next card uses the ready proposal's existing accept route once, directly, without Propose then another Accept. Generate, save, acknowledge and restore a **second distinct card** with its own accepted context, source anchor and message, preserving the first card and original highlight. Assert two author dispatches total, two distinct settled results/card IDs and two learner card-action identities, with no extras. A cancelled second offer is not proof that a second card can be generated.
+
+- [ ] **EXP-08-C11** **BE.11 — Manual pacing, cancellation, end and finite completion (UI.08, R6).** Test Ask, Auto-suggest off, explicit pause/Cancel and End. Explicit drop/Explain/Accept roadmap/eligible card acceptance work without changing those settings; unsolicited successors do not. Propose next step creates metadata only, then Next card directly accepts the ready subsequent offer. Cancel before acceptance removes only that pending offer and pauses automatic progression, with zero new author/debit; delivered cards remain. Accepted work survives a losing Cancel/end race. Final delivery/accepted ceiling yields completion with no extra offer. The projected bottom pill targets the current eligible proposal and is absent/disabled when stale/busy/no offer/end/final; its physical bottom placement/scroll visibility is checked manually later against [02](explain-on-canvas/handoff/ui/02-canvas-card-skeleton.html).
+
+- [ ] **EXP-08-C12** **BE.12 — Terminal failures, refusals and uncertain outcomes (CORE.04/06, UI.04/08).** Inject provider 4xx/5xx/timeout, validly classified safety refusal, classifier unknown and save/ack faults locally. Assert truthful stage/error plus original slot/message/result identity, applicable single settlement/refund and zero ordinary automatic author redispatch. Retry/Replace/Omit/recovery-strip actions are not advertised or newly purchasable for this ordinary flow. A safety refusal stops automatic successors; an ordinary failed/skipped step can continue only after settled state and the actual prerequisite/automatic policy decision. Reconcile uncertain outcomes before any further dispatch. Update superseded ordinary-flow recovery tests; preserve legitimate unrelated/platform retry policies.
+
+- [ ] **EXP-08-C13** **BE.13 — Source anchors, placement data and invalidation (CORE.02, UI.06–07).** Test exact source revision/range/quotation and source↔card IDs for both delivered cards, repeated/ambiguous quotations, Markdown raw/rendered offset distinctions, multiple card targets, replacement/deletion and revoked access. Reject guessed/dead/unauthorized targets while preserving delivered card/history. Pure placement tests may use supplied world rectangles to test collision avoidance, left/right/above/below choices and saved geometry, including occupied bounds/pill reserves; do not call that a browser measurement. Scroll/pan state must not mutate frozen source scope/context or reassign existing slot geometry. No source-text rewrite may destroy the first card's anchor when the second is offered.
+
+  Exercise prose spans, code lines, rendered diagrams, images and heading-scoped sections through verified revision and block/range fixtures. Assert resolved references and target IDs in both directions, including repeated media names and changed revisions. Check the rendered tooltip and accessible labels. The owner observes hover, scrolling and the temporary blue outline later using approved file 07 for the delivered card and file 05 for source navigation.
+
+- [ ] **EXP-08-C14** **BE.14 — Access, entitlement and private projections (CORE.05, UI.01–08).** Use missing identity, second user/board/thread, forged proposal/result/card IDs and source revocation. Assert route-appropriate 401/403/404/409 or actual documented denial without author/hold/charge or access to private payloads; assert exact error contract on the candidate instead of treating every response as a generic failure. Unaccepted/unentitled bodies, private roadmap metadata, drafts and evidence do not leak via status/share/fork/export/thumbnail projections. Authorized restore/navigation works after flag/state changes according to current entitlement policy. Preserve unrelated source material/manual ToC data.
+
+### EXP-09 checklist — Optional written-card benchmark
+
+**Dependencies:** commissioned benchmark scope and paid cap, EXP-03 content rules and usable renderer. **Existing files:** `explain-celeris-dev.js` and its three tests from section 6. **No production profile change is implied.**
+
+- [ ] **EXP-09-C01** First find and read any existing written-card benchmark receipts; preserve their exact run/corpus/candidate identity and limitations. The Tutor source pair does not define a full benchmark, and this documentation review did not establish a winner. Do not reuse Interactive brief scores as written Explanation evidence.
+- [ ] **EXP-09-C02** Freeze direct and accepted-Tutor cases at every Depth, including EX-01–06, prose-only, table, required/optional diagram, image-attachment compatibility, unfamiliar held-out topics and known seeded factual/diagram defects. Record original versus reconstructed prompts. Establish correctness and usable-output thresholds before examining candidate results.
+- [ ] **EXP-09-C03** Reuse actual plan transport for the baseline and the isolated dev adapter for candidates. Log requested/served model, full request/schema version, context size, output cap, repair policy and cache state. Correct the experimental 650–750-character aim for all-depth comparison; all candidates must satisfy the same product caps and required output.
+- [ ] **EXP-09-C04** Measure Send/Accept-to-usable-saved-card latency, first output and individual generation/repair/save/render stages. Separate cache hits/misses; retain every failed, timed-out, refused, invalid or missing card in the denominator. Record tokens, known cost, unknown usage and evaluator cost, with repetitions/sample counts rather than a best-run number.
+- [ ] **EXP-09-C05** Evaluate factual claims against the frozen expected facts/source, teaching objective, diagram semantics and actual rendered card. Check whether each reviewer detects seeded errors. Use independent evaluation and human review for disputed facts; blind provider labels where practical. A text-only score does not establish diagram/layout quality.
+- [ ] **EXP-09-C06** Compare candidates only after factual and required-output acceptance. Document speed/quality tradeoffs and limitations; report no winner if quality fails. Any production selection/fallback change needs its own reviewed configuration change and delivery receipt. Do not introduce multiple author/reviewer agents merely to fill the template.
+
+<a id="validation"></a>
+## 10. Validation, delivery and missing decisions
+
+### Evidence classes and execution
+
+| Evidence | Required artifact | Scope / limitations |
+| --- | --- | --- |
+| Documentation review | Source provenance,34 imported checkbox mappings, full-detail corrections, reference/anchor/ID checks and latest UI equivalence | Proves organization/traceability. No runtime implementation, visual acceptance or provider result. |
+| Pure contract and author fixtures | Actual direct/Tutor request and deterministic tool replies; all 3 caps and one-over, Unicode, rich-content/invalidity/identity cases | Proves selected pipeline behavior against fixtures; no live provider factuality or latency claim. |
+| Renderer/action fixtures | Existing Node JSX harness, real Md/Explanation components, source hooks, keyboard event wiring, persistence, notes and destinations | Stubbed Mermaid/DOM do not prove real SVG layout, physical scrolling, focus behavior or rendered dimensions. |
+| Integrated Tutor fixtures | Real accepted record → metered adapter → board save/read → acknowledgment/restore, two cards, races/failures/access | Required for changed shared boundaries. Generated output alone does not prove saved delivery. |
+| Browser/manual acceptance | Exact deployed candidate and REF-03 comparison: pinned header, one reading flow, SVG/image layout, terms, hover/focus, suggestions, selection, notes, connectors and reload | Follow current repository browser-runner restrictions. Claude's local browser prohibition still applies unless the owner explicitly overrides it. |
+| Authorized live generation | Real newly generated cards, request/served model/cost trace, exact source/depth, captured rendered result | Requires concrete paid authorization/cap. Existing HTML image and fixture replies do not count. |
+| Delivery | Exact dev/main/production SHA, flags/configuration and relevant flow receipt from approved release process | Documentation-branch push is not activation or production acceptance. |
+
+**Focused command selection at the inspected revision.** Run from repository root after installing the repository's pinned dependencies. These commands are selected from actual Node test files/package scripts; they were **not run for this documentation-only change**. Select the affected set rather than triggering all browser tests or broad CI after every edit.
+
+```bash
+node --test packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/explanation-diagram-kinds.test.js packages/control-plane/test/learn-artifact.test.js
+node --test packages/control-plane/test/roadmap-generate.test.js packages/control-plane/test/roadmap-document-context.test.js packages/control-plane/test/roadmap-workflow.test.js
+node --test packages/web/src/explanation-card.test.mjs packages/web/src/explanation-diagram.test.mjs packages/web/src/explanation-illustration.test.mjs packages/web/src/explanation-presentation.test.mjs packages/web/src/illustration-attach.test.mjs
+node --test packages/web/src/tutor-diagrams/spec.test.mjs packages/web/src/tutor-diagrams/TutorDiagram.test.mjs
+npm run build --workspace=web
+```
+
+When touching dev benchmarking, also select the existing control-plane `explain-celeris-dev.test.js`, `explain-celeris-benchmark-mode.test.js` and `explain-celeris-capture.test.js`. When changing selection/notes/source or accounting, select their actual affected integration suites after tracing callers. Confirm each file is present on the chosen candidate and record counts, failures and skips. A zero-test exit is not acceptance. `npm test --workspace=web` invokes Playwright; it is not the Node-only renderer command.
+
+Use one source/code audit at a pinned baseline, then review relevant deltas. Reuse unchanged exact-candidate evidence with a reason; rerun when a changed dependency invalidates it. Do not equate an existing test with a passing new requirement, especially the old rail/source-label assertions and unconditional diagram-drop tests.
+
+### Missing decisions and specification gaps
+
+| ID | Gap / current fact | Required resolution and next owner action |
+| --- | --- | --- |
+| GAP-01 | Current generator drops invalid diagrams after allowed repair, including immediately on ordinary Tutor `repairs:0`; this may satisfy the prose schema despite an explicit request for a diagram. | Record required-versus-optional visual semantics and requirement binding. Recommended: fail a required missing/invalid visual truthfully; optional fallback is allowed only when the remaining answer is coherent and does not refer to a missing figure. Preserve call/settlement limits. EXP-03-R04, EXP-06-C03. |
+| GAP-02 | Latest UI requires term definitions and three suggestions, but current author shape/storage contract has no fields/anchors/thread binding for them. | Complete additive typed metadata and action ownership in section 5, including generation within the existing call budget, limits, saved-card compatibility and late/duplicate behavior. EXP-03-C01/03/04. |
+| GAP-03 | Current cap covers diagram captions and closed sections but not attached-image metadata; source pair does not settle hidden definitions/suggestions/image text. | Explicitly decide cap inclusion or separate bounded UI allowance, then update prompt, pure counter, request quote and fixtures together. EXP-03-C02. |
+| GAP-04 — reconciled | Shared source table/test says View section; latest approved card and CORE.09 say View passage. File 04 is also referred to by one stale frame paragraph. | Use View passage for this card and REF-03 for its frame. Keep unrelated shared labels unchanged unless separately specified. EXP-01-C02/03 and EXP-05-C08. |
+| GAP-05 | Generated-content highlight persistence is required but exact revision/range invalidation across edits and inline term pills is unspecified. | Reuse proven annotation mechanisms where compatible; document concrete revision/quote/range mapping and stale-range behavior. EXP-03-C05, EXP-05-C05. |
+| GAP-06 — later / conditional | Tutor pair lacks a complete written-card factuality/speed benchmark corpus, threshold and paid cap. Existing dev route does not establish those decisions. | Read existing benchmark receipts first, then freeze missing scope before commissioned runs. EXP-09. This does not block documentation or unpaid implementation fixtures. |
+
+**Format reconciliation:** preserve main's current structured `rh-diagram` authoring and existing SVG library as the implementation baseline; keep saved Mermaid reading and the exact older fixtures. The source pair's instruction to generate new Mermaid is superseded in this extracted checklist by that explicit current-code reconciliation. A later owner decision to restore new Mermaid would require a deliberate schema/prompt/validator change, not a silent reader toggle. The latest UI specifies the rendered SVG result and does not require an LLM to emit raw SVG.
+
+**Existing work versus missing work:** shared Depth objectives/caps, accepted-title binding, actual-request quotation, structured SVG diagrams and illustration attachment already have implementation on inspected main. Continuous reading flow, terms/suggestions/follow-up and Explanation note/selection actions still need candidate-specific implementation/verification. This distinction prevents Claude from rebuilding existing functions because an old box remained open.
+
+**Current limits carried from Tutor:** full-document source safety screening remains explicitly deferred under CORE.06; existing highlighted passage, original learner input and generated-output screening remains applicable. Do not describe deferred screening as performed. Sources outside the supported whole-document budget use the shared source-scope/recovery policy; do not silently truncate the document and claim the ordinary full-source contract was met. No runtime migration, paid model run or deployment is authorized merely by this document.
+
+### Delivery receipt
+
+Supply the implementation SHA, changed requirement IDs, exact author-request/validator results, board restore and two-card evidence, approved UI captures/manual receipt, actual model runs/cost if authorized, and remaining failures. Separate implemented, fixture-verified, browser-verified, live-generation-verified, dev-accepted and production-activated. Preserve existing flags/read compatibility and follow current release instructions. A rollback must preserve already saved content and source/asset access without creating duplicate generation or settlement.
+
+<a id="commit-review"></a>
+## 11. Commit review and checkbox maintenance
+
+An `[x]` means the complete requirement has evidence at a named candidate, not that code exists or a plan was written. Partial work stays unchecked with remaining clauses recorded. Parent roadmap boxes close only after their child outcomes and related HOW checks pass. Reopen the same IDs if a later change invalidates acceptance; append new IDs rather than renumbering existing work.
+
+For each review:
+
+1. Read the latest review receipt and pin previous `through_sha` and candidate. Enumerate every intervening commit, including merges; record unrelated commits as no relevant change.
+2. Inspect actual changed code/callers, tests and integrated diff against EXP and original CORE/UI/BE/R obligations. Reconcile relevant branch differences without restarting the whole audit.
+3. Run affected focused checks or read exact-candidate approved-runner receipts. Record selected/executed/passed/failed/skipped/not-covered and counts. Explain any reused evidence against the actual diff.
+4. Update task and roadmap checkboxes in a follow-up documentation commit with the tested implementation SHA and evidence links. Keep unresolved product contracts visible. Do not claim a document knows its own future commit SHA.
+5. Update the existing external coordinator ledger with task UUID/status/phase/blocker. Keep this spec a requirements/evidence map rather than a second task ledger.
+
+Create a real receipt at `docs/features/explain/reviews/<date>-<short-reviewed-sha>.md` when implementation review occurs; do not create empty folders now. Use this structure:
+
+```markdown
+# Explain review — <candidate SHA>
+Baseline SHA: <previous through_sha>
+Through SHA: <candidate>
+Reviewer/date: <identity / UTC>
+Scope: <EXP IDs; original CORE/UI/BE/R IDs>
+
+| Commit | Paths / relevant delta | Requirement IDs or no relevant change | Finding |
+| --- | --- | --- | --- |
+
+| Requirement | Code/evidence | Exact check/environment/run | Result/count/skips | Checkbox decision |
+| --- | --- | --- | --- | --- |
+
+Evidence reused and why: ...
+Unverified/failed behavior: ...
+Roadmap parent decisions: ...
+Next review starts at: <through_sha>
+```
+
+### Documentation review receipt — this extraction
+
+Scope: documentation only, from REF-01/02 using REF-09 and the current code audit. Latest original UI REF-04 was read in full and compared with REF-03; its content matches after trimming the trailing newline. No runtime test, browser acceptance, paid generation or deployment was performed.
+
+| Source obligations | Destination / preservation |
+| --- | --- |
+| CORE.09 all 20 checkbox tasks | EXP-04-C01–C20 in original order, including full teaching guidance, raw shape, title/cap, selection/note and connector details; explicit corrections below replace stale implementation instructions. |
+| BE.05/05a/06/06a and06a's two nested checks, then BE.07–14 | EXP-08-C01–C14, full race, author, boundary, accounting, persistence, second-card, failure and access obligations. |
+| Roadmap §3.9 teaching/UI; §5.1–5.3 context/author policy | Sections2–5 and EXP-04, with approved UI details retained. |
+| Roadmap §9.2; standalone split/showcase tasks in R12.09 | EXP-02, independent of the held Tutor Interactive adapter. |
+| CORE.03–06, UI.04/06/07 | Shared dependencies and actual request/title/source/lifecycle invariants in sections3/5 and EXP-08; not a duplicate full Tutor-core build. |
+| R8a.03 / R10.01–04 / R11.01–05 | EXP-07 integration tasks with explicit ownership, prerequisites, privacy, acceptance and accounting. Their complete shared implementation stays in REF-01/02. |
+
+The original CORE.09 historical checked tasks were C01,C03,C04,C05,C06,C07,C08,C10; all other imported tasks were open. This extraction leaves all 34 acceptance boxes open for exact-candidate review, while retaining historical evidence descriptions. Existing implementation is identified in section 6; an open box is not an instruction to rebuild it.
+
+| Explicit correction / removal | Reason and affected obligations |
+| --- | --- |
+| New-author Mermaid instructions become existing structured `rh-diagram` instructions; saved Mermaid fixtures/reader remain | Main prompt/parser already use typed diagrams and reject new Mermaid. Applies to EXP-04-C03/06/10/11/12 and new-author cases in EXP-08-C04/05. EXP-04-C15 and EXP-08-C06 retain legacy reader coverage and add current diagrams. |
+| Historical raw body 2,000 / section 800 become current 3,000 / 1,500 | Preserve current schema compatibility while separately enforcing 600/1,000/1,500 display caps. EXP-04-C08. |
+| Proposed counter/request-builder work becomes reuse/verify/update | `explanationChars` and `prepareArtifactAuthorRequest` already exist. Do not create competing functions. EXP-03/04; original acceptance obligations remain. |
+| Approved07 replaces historical 04 frame; View passage resolves this card's source label | Latest original HTML matches 07. Old test expectations need deliberate update, not product reversal. |
+| Historical “cap algorithm remains open” and exact-main passing phrases are provenance only | Source spans multiple older commits. This review reads source but does not run candidate tests. |
+| Illustration is existing main integration, not assumed future Recraft-only work | Current image quote/job/attachment path and provider registry exist. Preserve separate paid lifecycle and current defaults. |
+| No copied Interactive six-role pipeline, playback controls,2–4-line description/no-footer rule, or budget | Template does not transfer another command's product decisions. Written Explanation has its own approved reading UI and author policy. |
+
+Preservation means all substantive obligations and edge cases remain, with named corrections instead of contradictory executable instructions. Unchanged shared Tutor lifecycle details remain authoritative in their source documents. Final document validation checks the 11 navigation anchors and two sprint anchors, unique EXP checkbox IDs, roadmap/HOW group coverage, all 34 imported IDs, local reference paths/anchors and current code/test paths against the pinned repository trees. Record the actual validation result and delivery commit with this review; do not turn it into feature checkmarks.
+
+**Documentation validation result:** passed local integrity checks: 38 roadmap and 82 HOW tasks, unique IDs, all 13 required navigation/sprint anchors, 33 relative links, and no missing existing-reference targets. All runtime boxes remain unchecked. All 34 imported CORE.09 / BE checkbox obligations are present with explicit current-code corrections and without task compaction. New proposed test/module paths are distinguished from existing files. This result is documentation evidence only.
