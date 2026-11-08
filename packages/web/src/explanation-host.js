@@ -5,7 +5,7 @@
 //   ask({ id, revision, question, destination, actionId }, { onAdmitted })
 //        -> Promise<boolean>   destination 'here' (the Chat's conversation about this card) or 'card' (the written /explain into a linked child);
 //        onAdmitted fires once, when the Chat or command dispatcher has taken the turn; the promise answers false when it was refused
-//   note({ id, quote })                              one linked Sticky note beside the card (quote only for Create note) -> note id, or null
+//   note({ id, quote })                              one Sticky note beside the card, no connector (quote only for Create note: it opens the note's text, in italics) -> note id, or null
 import { createContext } from 'react';
 
 export const ExplanationHost = createContext(null);

@@ -1,5 +1,5 @@
 import { createElement as h } from 'react';
-import { box, connector, diamond, label, lineHeight, longestWordWidth, SURFACE, textWidth, wrap } from './primitives.js';
+import { box, connector, diamond, label, lineHeight, longestWordWidth, SURFACE, textWidth, widestFormula, wrap } from './primitives.js';
 
 const PAD = 14;
 const NODE_GAP = 18;
@@ -93,8 +93,10 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
   const outer = skips.length ? 16 + skips.length * 9 : 0;
   const metrics = rows.map(row => row.map(node => {
     const word = longestWordWidth(node.label);
-    const required = Math.ceil(word + (node.role === 'decision' ? 32 : 20));
-    return { word, min: required <= NODE_MAX ? Math.max(NODE_MIN, required) : NODE_MIN };
+    const pad = node.role === 'decision' ? 32 : 20;
+    const required = Math.ceil(word + pad);
+    // A long word wraps by characters; a formula cannot, so its node grows past NODE_MAX to hold it (the diagram then scrolls).
+    return { word, min: required <= NODE_MAX ? Math.max(NODE_MIN, required) : Math.max(NODE_MIN, Math.ceil(widestFormula(node.label) + pad)) };
   }));
   const rowMinimums = metrics.map(row => row.reduce((sum, node) => sum + node.min, 0) + (row.length - 1) * NODE_GAP);
   const width = Math.max(requestedWidth, 2 * PAD + Math.max(...rowMinimums) + outer);
@@ -117,7 +119,7 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
   let y = PAD;
   rows.forEach((row, rank) => {
     const share = (inner - rowMinimums[rank]) / row.length;
-    const widths = metrics[rank].map(({ min }) => Math.min(NODE_MAX, min + share));
+    const widths = metrics[rank].map(({ min }) => Math.min(Math.max(NODE_MAX, min), min + share));
     const extra = (inner - widths.reduce((sum, w) => sum + w, 0) - (row.length - 1) * NODE_GAP) / row.length;
     let x = PAD + extra / 2;
     const rowNodes = row.map((node, index) => {

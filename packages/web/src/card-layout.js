@@ -53,6 +53,19 @@ export function contentMinimum(element) {
  return Math.ceil(min);
 }
 
+// A new generated Explanation (owner 2026-11-08: "show it in full length without users having to resize"): it opens in the existing Full content
+// layout, so its type's height cap (BLOCK_TYPES autoMax, which a fitContent card scrolls under) never applies, and the layout persists with the board.
+// No slot: the card is new, so it takes its full height in the column flow and the cards below it sit below it, never under it.
+// shortcut: switching it to Scrollable later keeps its full-length box as the slot (switchCardLayout); give the slot the type's box if that blank ever shows.
+export const fullLength = (block, width) => (supportsCardLayout(block) && !block.cardLayout ? { ...block, cardLayout: { mode: 'full', fullWidth: fitWidth(block.w || width) } } : block);
+// That card's camera (AdaptiveCanvas revealAfter's `fit`): framed whole once it is measured, and again only when it grows (a picture arriving)
+// while the learner has not moved the camera since. want { moves, h }: the learner's camera count it was armed at and the height last framed.
+export function freshFitStep(want, box, moves) {
+ if (!want || moves !== want.moves) return 'drop';
+ if (!box) return 'wait';
+ return want.h != null && box.h <= want.h ? 'wait' : 'fit';
+}
+
 // Capture the current outer box before an accepted rewrite, including default auto-sized cards.
 // This is part of the edit transaction, so Undo restores both content and its previous sizing policy.
 export function preserveCardEditLayout(block, box) {
