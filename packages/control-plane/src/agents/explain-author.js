@@ -187,7 +187,7 @@ export function programContext(limits, capabilities, { stateful = false, repair 
   return {
     capabilities,
     ...(stateful ? { stateful: STATEFUL_CONTRACT } : {}),
-    limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, maxOutputBytes: limits.maxOutputBytes, inputs: limits.inputs, duration: limits.duration,
+    limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, heatCells: limits.heatCells, maxOutputBytes: limits.maxOutputBytes, inputs: limits.inputs, duration: limits.duration,
       evaluationMs: RUNTIME_LIMITS.interruptMs, evaluation: `each run is stopped after ${RUNTIME_LIMITS.interruptMs} ms of your own work: loading your source, evaluate and serialization, in a slow interpreter that can be several times slower on its first run. Keep it small: compute each curve once, a few hundred points in total at most, no long loops.` },
     frame: { returns: '{frame: {width, height, objects, readouts}, quantities: {name: number}}', width: 'default 960, at most 4096', height: 'default 540, at most 4096', readouts: '[{id, value}] for the ids declared in manifest.readouts' },
     objectKinds: {
@@ -195,6 +195,7 @@ export function programContext(limits, capabilities, { stateful = false, repair 
       circle: '{kind:"circle", id, x, y, w (diameter), text?, role?, opacity?, rotation?}', box: '{kind:"box", id, x, y, w, h, text?, role?, opacity?, rotation?}',
       text: '{kind:"text", id, x, y, text or runs:[{kind:"text",text}|{kind:"math",tex}], align?:"start"|"middle", role?, opacity?}',
       polyline: '{kind:"polyline", id, points:[[x,y],...], clip?:{x,y,w,h}, role?, opacity?}',
+      ...(!repair ? { heat_grid: '{kind:"heat_grid", id, x, y, cell (1–80 px), rows, cols, values:[finite numbers in row-major order], domain:[min,max], role?, opacity?}. Label the axes and color range with their units.' } : {}),
     },
     ids: 'unique, 1 to 64 characters of letters, digits and _ . : -',
     roles: ['neutral', 'input', 'output', 'prediction', 'observed', 'learner', 'tutor', 'code', 'warning', 'success'],
@@ -202,6 +203,7 @@ export function programContext(limits, capabilities, { stateful = false, repair 
       'sdk.clamp(v, lo, hi)', 'sdk.lerp(a, b, t)', 'sdk.linear([d0, d1], [r0, r1]) -> (v) => number', 'sdk.sample(f, from, to, count) -> [[x, y]...] (count + 1 points)', 'sdk.format(v, decimals = 2) -> string',
       'sdk.box(id, x, y, w, h, opts?)', 'sdk.circle(id, x, y, diameter, opts?)', 'sdk.text(id, x, y, text, opts?)', 'sdk.math(id, x, y, tex, opts?)',
       'sdk.line(id, x1, y1, x2, y2, opts?)', 'sdk.arrow(id, x1, y1, x2, y2, opts?)', 'sdk.polyline(id, points, opts?)', 'sdk.frame(objects, opts?) -> {objects, ...opts}',
+      'sdk.heatGrid(id,{x,y,cell,rows,cols,values,domain:[min,max]}) -> object. Declare heat_grid. Share the domain.',
     ], visual: repair
       ? 'sdk.plot, sdk.graph, sdk.grid, sdk.geometry, sdk.timeline and sdk.readout return arrays of frame objects. Preserve the existing helper signatures and spread their results into frame.objects.'
       : {

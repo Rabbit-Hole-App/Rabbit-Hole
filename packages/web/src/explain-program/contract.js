@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ROLES } from '../scene-vocab.js';
 import { IMAGE_FIXTURE_IDS } from './sdk-image.js';
-import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION } from './stamps.js';
+import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION } from './stamps.js';
 
 // The frozen artifact and frame contract of the generic /explain sandbox (plan section 5.2, Task 2).
 // Subject-independent on purpose: nothing here names a topic. Every object is strict, every value bounded; the host
@@ -24,6 +24,7 @@ export const PROGRAM_VERSIONS = Object.freeze({
 export const CONTRACT_LIMITS = Object.freeze({
   sourceBytes: 16 * 1024, manifestBytes: 4 * 1024, maxOutputBytes: 256 * 1024, depth: 32,
   objects: 60, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
+  heatCells: 256,
   duration: 120, coordinate: 100000, size: 2000, text: 200, runs: 16,
   stateBytes: 32 * 1024, actions: 8, targets: 8, // schema 2 only; LIMITS.stateBytes is this value
   // schema 2 only: a viewport's width x height, the per-capture size the review reserves (explain-render.js reserveRound: the largest
@@ -33,9 +34,11 @@ export const CONTRACT_LIMITS = Object.freeze({
 
 export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capability', 'runtime_limit', 'runtime_error', 'invalid_output', 'version_unavailable']);
 // Capabilities a manifest may require. An unknown one is unsupported_capability, never silently ignored.
-export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY]);
+export const HEAT_GRID_CAPABILITY = 'heat_grid';
+export const requiresHeatGrid = manifest => Array.isArray(manifest?.capabilities) && manifest.capabilities.includes(HEAT_GRID_CAPABILITY);
+export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, HEAT_GRID_CAPABILITY]);
 // Frame object kinds: the closed set the trusted renderer draws. Equations are text objects with math runs (hardened path).
-export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image']);
+export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image', 'heat_grid']);
 
 const finite = limit => z.number().min(-limit).max(limit); // z.number() already refuses NaN and Infinity
 const coordinate = finite(CONTRACT_LIMITS.coordinate);
@@ -206,6 +209,13 @@ const frameObject = z.discriminatedUnion('kind', [
     // Everything outside this rectangle is not drawn: a plotted series cannot cover the rest of the picture.
     clip: z.object({ x: coordinate, y: coordinate, w: size, h: size }).strict().optional(), ...style,
   }).strict(),
+  z.object({
+    kind: z.literal('heat_grid'), id, x: coordinate, y: coordinate, cell: z.number().min(1).max(80),
+    rows: z.number().int().min(1).max(64), cols: z.number().int().min(1).max(64),
+    values: z.array(finite(1e12)).min(1).max(CONTRACT_LIMITS.heatCells),
+    domain: z.tuple([finite(1e12), finite(1e12)]).refine(([min, max]) => min < max, 'the heat domain must increase'),
+    ...style,
+  }).strict(),
 ]);
 
 export const Frame = z.object({
@@ -214,7 +224,7 @@ export const Frame = z.object({
   readouts: z.array(z.object({ id: name, value: finite(1e12) }).strict()).max(CONTRACT_LIMITS.readouts).default([]),
 }).strict().superRefine((frame, context) => {
   const seen = new Set();
-  let points = 0, images = 0;
+  let points = 0, images = 0, heatCells = 0;
   frame.objects.forEach((object, index) => {
     if (seen.has(object.id)) context.addIssue({ code: 'custom', message: `duplicate object id "${object.id}"`, path: ['objects', index, 'id'] });
     seen.add(object.id);
@@ -230,11 +240,19 @@ export const Frame = z.object({
         context.addIssue({ code: 'custom', message: 'image viewport must match the source crop aspect ratio', path: ['objects', index] });
       }
     }
+    if (object.kind === 'heat_grid') {
+      heatCells += object.values.length;
+      if (object.values.length !== object.rows * object.cols) context.addIssue({ code: 'custom', message: 'give one heat value per cell', path: ['objects', index, 'values'] });
+      if (object.x < 0 || object.y < 0 || object.x + object.cols * object.cell > frame.width || object.y + object.rows * object.cell > frame.height) {
+        context.addIssue({ code: 'custom', message: 'the heat grid must fit inside the frame', path: ['objects', index] });
+      }
+    }
     if (object.kind === 'text' && !object.text && !object.runs) context.addIssue({ code: 'custom', message: 'a text object needs text or runs', path: ['objects', index] });
     if ('text' in object && object.text && object.runs) context.addIssue({ code: 'custom', message: 'give text or runs, not both', path: ['objects', index] });
   });
   if (points > CONTRACT_LIMITS.pointsTotal) context.addIssue({ code: 'custom', message: `${points} polyline points in total (at most ${CONTRACT_LIMITS.pointsTotal})`, path: ['objects'] });
   if (images > 4) context.addIssue({ code: 'custom', message: 'at most four image views per frame', path: ['objects'] });
+  if (heatCells > CONTRACT_LIMITS.heatCells) context.addIssue({ code: 'custom', message: `at most ${CONTRACT_LIMITS.heatCells} heat cells in total`, path: ['objects'] });
 });
 
 export const Quantities = z.record(name, finite(1e12)).refine(record => Object.keys(record).length <= CONTRACT_LIMITS.quantities, 'too many quantities');
@@ -300,13 +318,18 @@ export const parseBundle = (raw, schemaVersion = SCHEMA_VERSION) => {
 export const parseArtifact = raw => {
   const schemaVersion = stateful(raw?.schemaVersion) ? STATEFUL_SCHEMA_VERSION : SCHEMA_VERSION;
   const manifest = parseManifest(raw?.manifest, schemaVersion);
-  if (manifest.ok && manifest.value.capabilities.includes(MEDIUM_CAPABILITY) && ![MEDIUM_SDK_VERSION, CYCLIC_SDK_VERSION].includes(raw.sdkVersion)) {
+  if (!manifest.ok) return manifest;
+  if (manifest.value.capabilities.includes(MEDIUM_CAPABILITY) && ![MEDIUM_SDK_VERSION, CYCLIC_SDK_VERSION].includes(raw.sdkVersion)) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'the Medium capability requires its SDK version' };
   }
-  if (manifest.ok && manifest.value.capabilities.includes(CYCLIC_CAPABILITY) && raw.sdkVersion !== CYCLIC_SDK_VERSION) {
+  if (manifest.value.capabilities.includes(CYCLIC_CAPABILITY) && raw.sdkVersion !== CYCLIC_SDK_VERSION) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'cyclic networks require their SDK version' };
   }
-  return manifest.ok ? parseWith(stateful(schemaVersion) ? StatefulArtifact : ProgramArtifact, raw, 'invalid_program') : manifest;
+  const parsed = parseWith(stateful(schemaVersion) ? StatefulArtifact : ProgramArtifact, raw, 'invalid_program');
+  if (parsed.ok && requiresHeatGrid(manifest.value) && parsed.value.sdkVersion !== HEAT_GRID_SDK_VERSION) {
+    return { ok: false, error: new RuntimeError('unsupported_capability'), issue: `heat_grid requires ${HEAT_GRID_SDK_VERSION}` };
+  }
+  return parsed;
 };
 export const parseEvaluateRequest = raw => parseWith(EvaluateRequest, raw, 'invalid_program');
 export const parseStatefulEvaluateRequest = raw => parseWith(StatefulEvaluateRequest, raw, 'invalid_program');
@@ -344,13 +367,16 @@ function parseOutput(schema, raw) {
 export const parseFrame = raw => parseOutput(Frame, raw);
 // With a schema 2 manifest, every frame must also have exactly the declared viewport and draw every declared target under its own id
 // (stable ids: a learner can always select what the card offers). The Frame's object and point limits apply to every result as before.
-export function parseGuestResult(raw, manifest = null) {
+export function parseGuestResult(raw, manifest = null, sdkVersion = null) {
   const result = parseOutput(GuestResult, raw);
   if (!result.ok) return result;
   const { width, height, objects } = result.value.frame;
   const invalid = issue => ({ ok: false, error: new RuntimeError('invalid_output'), issue });
   if (objects.some(object => object.kind === 'image') && !manifest?.capabilities?.includes(MEDIUM_CAPABILITY)) {
     return invalid('frame: image views require the Medium capability');
+  }
+  if (objects.some(object => object.kind === 'heat_grid') && (sdkVersion !== HEAT_GRID_SDK_VERSION || !requiresHeatGrid(manifest))) {
+    return invalid('heat_grid requires a declared capability and a heat-grid SDK');
   }
   const viewport = manifest?.viewport;
   if (!viewport) return result;

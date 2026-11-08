@@ -53,6 +53,16 @@ export const CYCLIC_PROGRAM_STAMPS = Object.freeze({
   fingerprints: Object.freeze({ ...MEDIUM_PROGRAM_STAMPS.fingerprints, sdk: '31d2a648fd3b26ab9369dd24cd51da972f7801622289a3abdfbaff78d357b083' }),
 });
 export const STATEFUL_CYCLIC_PROGRAM_STAMPS = Object.freeze({ ...CYCLIC_PROGRAM_STAMPS, schemaVersion: 2 });
+// The heat-grid frame kind is an opt-in extension. Existing cards retain their original SDK bytes and renderer tuple.
+export const HEAT_GRID_SDK_VERSION = 'sdk-3';
+const HEAT_GRID_RENDERER_VERSION = 'renderer-2';
+export const HEAT_GRID_PROGRAM_STAMPS = Object.freeze({
+  ...VISUAL_PROGRAM_STAMPS,
+  sdkVersion: HEAT_GRID_SDK_VERSION,
+  rendererVersion: HEAT_GRID_RENDERER_VERSION,
+  fingerprints: Object.freeze({ ...PROGRAM_STAMPS.fingerprints, sdk: 'db982cd2a515393b51723573cd7d1f89a5f61cafab0fd7b5aab158eb92ffa902', renderer: HEAT_GRID_RENDERER_VERSION }),
+});
+export const STATEFUL_HEAT_GRID_PROGRAM_STAMPS = Object.freeze({ ...HEAT_GRID_PROGRAM_STAMPS, schemaVersion: 2 });
 
 // Every version tuple host.js will run, whole: an artifact runs only if all of these fields equal one entry exactly. No "same major",
 // no field ignored. A new engine, SDK, renderer or policy is a new entry, added beside the old one while artifacts sealed with it remain.
@@ -62,4 +72,5 @@ export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([
   tuple(1, VISUAL_PROGRAM_STAMPS), tuple(2, STATEFUL_VISUAL_PROGRAM_STAMPS),
   tuple(1, MEDIUM_PROGRAM_STAMPS), tuple(2, STATEFUL_MEDIUM_PROGRAM_STAMPS),
   tuple(1, CYCLIC_PROGRAM_STAMPS), tuple(2, STATEFUL_CYCLIC_PROGRAM_STAMPS),
+  tuple(1, HEAT_GRID_PROGRAM_STAMPS), tuple(2, STATEFUL_HEAT_GRID_PROGRAM_STAMPS),
 ]);
