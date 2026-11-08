@@ -48,7 +48,7 @@ test('fields that would make the host load or run something are refused', () => 
   for (const extra of refused) assert.equal(parseFrame(box(extra)).ok, false, Object.keys(extra).join());
   const proto = JSON.parse('{"__proto__":{"polluted":true}}');
   assert.equal(parseFrame({ objects: [{ kind: 'box', id: 'b', x: 0, y: 0, w: 10, h: 10, ...proto }, JSON.parse('{"__proto__":1}')] }).ok, false);
-  assert.equal(parseFrame({ objects: [{ kind: 'image', id: 'i', src: 'https://example.com/a.png', x: 0, y: 0, w: 5, h: 5 }] }).ok, false, 'image src must be resolved by the host');
+  assert.equal(parseFrame({ objects: [{ kind: 'image', id: 'i', src: 'https://example.com/a.png', x: 0, y: 0, w: 5, h: 5 }] }).ok, false, 'there is no image kind');
   assert.equal(parseFrame({ objects: [], onload: 'x' }).ok, false, 'nor a handler on the frame itself');
   assert.equal(parseGuestResult({ frame: { objects: [] }, quantities: {}, html: '<b>' }).ok, false);
   assert.equal(parseGuestResult({ frame: { objects: [] }, quantities: { v: () => 1 } }).ok, false, 'a function in output');

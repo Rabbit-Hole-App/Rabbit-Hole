@@ -390,7 +390,6 @@ const SAMPLE = {
   equation: { text: 'x = 1', w: 80, h: 30 },
   code: { text: 'x = 1' },
   image: { src: '/favicon.svg', w: 40, h: 40 },
-  raster: { rows: 1, cols: 1, pixels: [255, 0, 0, 128], w: 40, h: 40 },
   grid: { rows: 2, cols: 2, values: [1, 2, 3, 4], matrixKind: 'input' },
   strip: { values: [1, 2] },
   bars: { values: [1, 2] },

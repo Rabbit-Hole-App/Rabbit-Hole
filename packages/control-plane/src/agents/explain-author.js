@@ -3,7 +3,6 @@
 // D's (explain-review.js), a separate call that never sees the author's reasoning.
 import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
 import { CONTRACT_LIMITS, STATEFUL_CONTRACT } from '../../../web/src/explain-program/contract.js';
-import { RASTER_CAPABILITY, CYCLIC_CAPABILITY, MEDIUM_CAPABILITY } from '../../../web/src/explain-program/stamps.js';
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
 
@@ -171,7 +170,7 @@ A program is one ES module that EXPORTS evaluate, exactly: export function evalu
 - Do all calculation in the program, from the learner's request and the context. Write the formulas the explanation needs; the host has no subject formulas. Report calculated values as quantities (name: number) and show the ones the learner should read as frame text, from the same variables that draw the picture, so the drawing and the numbers cannot disagree.
 - Declare every control the learner is meant to move in manifest.inputs with a sensible domain, and any playback in manifest.duration (seconds). Input ids and readout ids share one namespace and must all differ. State assumptions and idealisations in manifest.assumptions. Keep one idea per card.
 - Each run is stopped after ${RUNTIME_LIMITS.interruptMs} ms of your own work: loading your source, evaluate and serialization, in a slow interpreter that can be several times slower on its first run. Keep it small: compute each curve once, a few hundred points in total at most, no long loops.
-- Draw only within program.frame (width and height); keep every object inside it for every admitted input and time, and keep text clear of moving parts. Use program.sdk for geometry and number formatting. When the picture is a trace of time spans (calls, tasks or intervals on one clock), a sampled contour or vector field, text with selectable evidence spans, an expandable rooted tree, or regions of the bundled sample image, call the matching program.sdk.medium helper (sdk.trace, sdk.field, sdk.evidence, sdk.expandableGraph, sdk.imageRegions, sdk.imageViews) and declare medium_visuals in manifest.capabilities; do not draw those by hand with line, polyline, box, arrow or text.
+- Draw only within program.frame (width and height); keep every object inside it for every admitted input and time, and keep text clear of moving parts. Use program.sdk for geometry and number formatting.
 - Keep source under program.limits.sourceBytes and the manifest under program.limits.manifestBytes. Do not write hashes, versions, permissions or limits; the host sets them.
 - Quote nothing from the examples; they show composition only.`;
 
@@ -187,7 +186,7 @@ export function programContext(limits, capabilities, { stateful = false, repair 
   return {
     capabilities,
     ...(stateful ? { stateful: STATEFUL_CONTRACT } : {}),
-    limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, heatCells: limits.heatCells, maxOutputBytes: limits.maxOutputBytes, inputs: limits.inputs, duration: limits.duration,
+    limits: { sourceBytes: limits.sourceBytes, manifestBytes: limits.manifestBytes, objects: limits.objects, pointsPerObject: limits.pointsPerObject, pointsTotal: limits.pointsTotal, maxOutputBytes: limits.maxOutputBytes, inputs: limits.inputs, duration: limits.duration,
       evaluationMs: RUNTIME_LIMITS.interruptMs, evaluation: `each run is stopped after ${RUNTIME_LIMITS.interruptMs} ms of your own work: loading your source, evaluate and serialization, in a slow interpreter that can be several times slower on its first run. Keep it small: compute each curve once, a few hundred points in total at most, no long loops.` },
     frame: { returns: '{frame: {width, height, objects, readouts}, quantities: {name: number}}', width: 'default 960, at most 4096', height: 'default 540, at most 4096', readouts: '[{id, value}] for the ids declared in manifest.readouts' },
     objectKinds: {
@@ -195,7 +194,6 @@ export function programContext(limits, capabilities, { stateful = false, repair 
       circle: '{kind:"circle", id, x, y, w (diameter), text?, role?, opacity?, rotation?}', box: '{kind:"box", id, x, y, w, h, text?, role?, opacity?, rotation?}',
       text: '{kind:"text", id, x, y, text or runs:[{kind:"text",text}|{kind:"math",tex}], align?:"start"|"middle", role?, opacity?}',
       polyline: '{kind:"polyline", id, points:[[x,y],...], clip?:{x,y,w,h}, role?, opacity?}',
-      ...(!repair ? { heat_grid: '{kind:"heat_grid", id, x, y, cell (1–80 px), rows, cols, values:[finite numbers in row-major order], domain:[min,max], role?, opacity?}. Label the axes and color range with their units.' } : {}),
     },
     ids: 'unique, 1 to 64 characters of letters, digits and _ . : -',
     roles: ['neutral', 'input', 'output', 'prediction', 'observed', 'learner', 'tutor', 'code', 'warning', 'success'],
@@ -203,7 +201,6 @@ export function programContext(limits, capabilities, { stateful = false, repair 
       'sdk.clamp(v, lo, hi)', 'sdk.lerp(a, b, t)', 'sdk.linear([d0, d1], [r0, r1]) -> (v) => number', 'sdk.sample(f, from, to, count) -> [[x, y]...] (count + 1 points)', 'sdk.format(v, decimals = 2) -> string',
       'sdk.box(id, x, y, w, h, opts?)', 'sdk.circle(id, x, y, diameter, opts?)', 'sdk.text(id, x, y, text, opts?)', 'sdk.math(id, x, y, tex, opts?)',
       'sdk.line(id, x1, y1, x2, y2, opts?)', 'sdk.arrow(id, x1, y1, x2, y2, opts?)', 'sdk.polyline(id, points, opts?)', 'sdk.frame(objects, opts?) -> {objects, ...opts}',
-      ...(repair ? [] : ['sdk.heatGrid(id,{x,y,cell,rows,cols,values,domain:[min,max]}) -> object. Declare heat_grid. Share the domain.']), // authoring only, like the other helper docs
     ], visual: repair
       ? 'sdk.plot, sdk.graph, sdk.grid, sdk.geometry, sdk.timeline and sdk.readout return arrays of frame objects. Preserve the existing helper signatures and spread their results into frame.objects.'
       : {
@@ -214,22 +211,6 @@ export function programContext(limits, capabilities, { stateful = false, repair 
         geometry: 'sdk.geometry(id, {x,y,w,h,xDomain:[min,max],yDomain:[min,max],points?:[{id,at:[x,y],label?,role?}],segments?,vectors?,paths?}). Segments and vectors are {id,from:[x,y],to:[x,y],label?,role?}; paths are {id,points:[[x,y],...],role?}. Use equal pixels per unit for distances and angles.',
         timeline: 'sdk.timeline(id, {x,y,w,h,domain:[min,max],lanes:[{id,label,events:[{id,at,label,role?}]}],cursor?,unit?}) for ordered events with a cursor in domain units',
         readout: 'sdk.readout(id, {x,y,w,h,label,value,unit?,decimals?,role?}) for a formatted number inside the scene. Keep manifest readouts for values shown below the scene.',
-      }, ...(!repair && capabilities?.includes(MEDIUM_CAPABILITY) ? { medium: {
-        usage: 'Declare medium_visuals in manifest.capabilities when using one of these helpers. Use existing controls or state and spread the returned objects into frame.objects.',
-        trace: 'sdk.trace(id,{x,y,w,h,domain:[min,max],unit?,lanes:[{id,label,spans:[{id,label,start,end,role?,detail?,parent?,dependsOn?:[id]}]}],cursor?,selected?}) for up to 12 time spans. Use original trace records when supplied; identify simulated traces.',
-        field: 'sdk.field(id,{x,y,w,h,kind:"contour"|"vector",xDomain,yDomain,xLabel,yLabel,xUnit,yUnit,valueLabel,valueUnit,sample:(x,y)=>number|[u,v],samples?,levels?,maxMagnitude?}). Contours need levels; vectors need a fixed maxMagnitude. Use empty units for dimensionless axes.',
-        evidence: 'sdk.evidence(id,{x,y,w,h,text,spans:[{id,start,end,citation?}],selected?}) uses half-open UTF-16 offsets into the exact text. Use plain citation labels from supplied evidence.',
-        expandableGraph: 'sdk.expandableGraph(id,{x,y,w,h,nodes:[{id,label,role?}],edges:[{from,to,label?}],expanded?:[id],active?:[id]}) for 2–10 nodes in a rooted tree. Select which branch to open with an input.',
-        image: 'For a demonstration on the bundled sample only, use sdk.imageRegions(id,{asset:"vlm-patch-source",x,y,w,h,regions:[{id,x,y,w,h}],selected?}) or sdk.imageViews(id,{asset:"vlm-patch-source",views:[{id,x,y,w,h,mode:"overview"|"detail"}],regions,selected?}). Region coordinates are normalized to the source image. This sample cannot represent a learner attachment.',
-      } } : {}), ...(!repair && capabilities?.includes(CYCLIC_CAPABILITY) ? { cyclicGraph: { // authoring only, like the Medium and heat-grid docs: with all three stacked a maximal program no longer fits the repair request's size budget
-        usage: 'Declare cyclic_networks in manifest.capabilities. sdk.cyclicGraph returns existing frame objects; spread them into frame.objects. Node target IDs are <graphId>.node.<nodeId>; keep selected node ID in schema 2 state. The normal card Reset clears state.',
-        signature: 'sdk.cyclicGraph(id,{x,y,w,h,nodes:[{id,label,x,y,role?}],edges:[{from,to,label,via?:[[x,y],...],labelAt?:[x,y]}],selected?:nodeId|null})',
-        layout: 'For 2–8 nodes and 1–12 directed edges. Cycles, reciprocal links and self-loops are supported. Node centers, via waypoints and labelAt are local to the graph rectangle. Supply well-separated positions and short edge labels explaining the relationship. Use via and labelAt when default routes collide. This is a bounded teaching diagram, not a force-directed graph explorer.',
-      } } : {}), ...(!repair && capabilities?.includes(RASTER_CAPABILITY) ? { raster: { // authoring only, like the Medium, cyclic and heat-grid docs (the repair request carries the program and the problems)
-        usage: 'Declare raster_visuals in manifest.capabilities. These helpers return ONE raster object, not an array. Numeric pixels only: no URLs or markup. Synthetic pixels illustrate a mechanism; never present them as real model output. Learner-uploaded image decoding is not available in this sandbox.',
-        pixels: 'sdk.raster(id,{x,y,w,h,rows,cols,pixels}) uses flat row-major RGBA bytes (four integers 0–255 per pixel), with rows and cols each 1–64 and at most 4096 pixels. Recompute pixels from inputs/state to show bounded transformations.',
-        mask: 'sdk.mask(id,{x,y,w,h,rows,cols,values,color?,opacity?}) uses one coverage value 0–1 per pixel; color is #RRGGBB (default #E5AA46), opacity 0–1 (default 1). Returns a transparent RGBA raster. Draw it after its source with exactly the same display bounds and pixel grid so the mask stays aligned; zero coverage preserves holes and background.',
-        limits: 'At most 8192 raster pixels across the frame, and all existing output/size/runtime limits still apply. Scale is nearest-neighbor. Avoid expensive image processing or large inline arrays; use small synthetic images or supplied bounded pixel data.',
-      } } : {}) },
+      } },
   };
 }

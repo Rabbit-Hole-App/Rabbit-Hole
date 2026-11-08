@@ -140,11 +140,3 @@ test('evidence bindings come only from the records provided; examples add no fac
 test('the facts the reviewer reads are the text the spec carries', () => {
   assert.deepEqual(specFacts(SPEC), ['Where rain comes from', 'Sun warms the sea', 'Vapour rises and cools', 'Droplets form clouds', 'Rain falls']);
 });
-
-// The Medium helpers' documentation reaches the author whenever medium_visuals is in the capability list, but a model drew a matching request by hand until the RULES named the helpers.
-test('the program rules tell the author to use the Medium helpers for what they draw, and to declare medium_visuals', async () => {
-  const { EXPLAIN_PROGRAM_RULES } = await import('../src/agents/explain-author.js');
-  for (const helper of ['sdk.trace', 'sdk.field', 'sdk.evidence', 'sdk.expandableGraph', 'sdk.imageRegions', 'sdk.imageViews']) assert.ok(EXPLAIN_PROGRAM_RULES.includes(helper), helper);
-  assert.match(EXPLAIN_PROGRAM_RULES, /declare medium_visuals in manifest\.capabilities; do not draw those by hand with line, polyline, box, arrow or text/);
-  assert.match(EXPLAIN_PROGRAM_RULES, /Use program\.sdk for geometry and number formatting\./, 'the earlier sentence is kept');
-});
