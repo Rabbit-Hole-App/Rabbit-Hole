@@ -99,10 +99,6 @@
     "WHITEBOARD_RENDERER_URL": "https://rabbit-hole-whiteboard-renderer.fly.dev",
     // Tutor R4 roadmap (docs/features/explain-on-canvas, owner production GO): ON. Only the string "true" enables the routes; set to "false" (or delete) to answer every /api/learn/roadmap route 404
     // and stop new unsolicited work. Accepted work still finishes and is settled. Needs learn-migrations/0039 on LEARN_DB and the worker with settings wiring (candidate 64) first. Dev and parallel stay unset.
-    // /interact scene-plan flow (docs/features/interact.md, INT-07B-C03; owner 2026-11-08: new features ship switched on): ON. Only the string "true" starts new jobs on the flow; "false" (or delete) sends new requests back to the legacy path, jobs already started keep their snapshot.
-    "INTERACT_SCENE_PLAN_ENABLED": "true",
-    // Written /explain E2 (explanation-interactions.js; owner 2026-11-08): ON. Only "true" adds the three questions and term pills to new Explanation cards; "false" (or delete) stops new ones, saved cards keep theirs.
-    "EXPLANATION_INTERACTIONS": "true",
     "ROADMAP_ENABLED": "true",
     // Tutor R6 automatic next-step suggestion (owner production GO, candidate 76): ON, only together with ROADMAP_ENABLED. Only the string "true" lets a delivered card, a mode change or an Auto-suggest change wake a pending next-step proposal;
     // set to "false" (or delete) to stop the automatic offer at once (the manual Propose next step stays). The Auto-suggest preference-change trigger also needs learn-migrations/0040 on LEARN_DB (without it the preference saves plainly and only the delivery and mode triggers fire). Dev and parallel stay unset.
