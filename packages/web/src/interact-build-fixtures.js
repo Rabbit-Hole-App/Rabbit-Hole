@@ -154,3 +154,18 @@ export function standardOracle() {
     ['belowPeakBefore', m(-0.1).belowPeak], ['belowPeakAfter', m(0.1).belowPeak]]) expect.push({ case: 'start', panel: 'threeMoments', name, expected, tol: 1e-6 });
   return { id: 'toss-drop-standard', expect };
 }
+
+// Expected values for the Deep checks, by capture case id, computed from the equations of section 7 and the plan fixture's own case names:
+// start, cp-<id>, end, and a number control's bound-/probe- cases at its minimum and maximum. u is the trial launch speed of that case; the
+// reference throw is fixed at 3.0 m/s. Return time 2u/g and peak height u^2/(2g) do not depend on the elapsed time, so one row serves every instant.
+// The apex-relative comparison: each ball 0.10 s from its own top is g * 0.1^2 / 2 = 0.049 m below it, whatever the launch speed.
+export function deepOracle() {
+  const speeds = { start: 5, 'cp-launch': 5, 'cp-trialTop': 5, 'cp-trialReturn': 5, 'cp-referenceReturn': 3, end: 5, 'bound-speed-min': 3, 'bound-speed-max': 5, 'probe-speed-min': 3, 'probe-speed-max': 5 };
+  const expect = [];
+  for (const [caseId, u] of Object.entries(speeds)) {
+    const t = tossDrop({ u }), ref = tossDrop({ u: 3 }), offset = G * 0.1 ** 2 / 2;
+    for (const [name, expected] of [['flightTime', t.end], ['trialTime', t.end], ['peakHeight', t.peak], ['trialPeak', t.peak]]) expect.push({ case: caseId, panel: 'main', name, expected, tol: 1e-6 });
+    for (const [name, expected] of [['referenceOffset', offset], ['trialOffset', offset], ['referencePeak', ref.peak], ['trialPeak', t.peak]]) expect.push({ case: caseId, panel: 'comparePeaks', name, expected, tol: 1e-6 });
+  }
+  return { id: 'toss-drop-deep', expect };
+}

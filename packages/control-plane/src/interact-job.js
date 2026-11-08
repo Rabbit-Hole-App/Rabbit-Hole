@@ -13,7 +13,7 @@ import { capabilityGap } from './explain-author.js';
 import * as explainRender from './explain-render.js';
 import { buildScene } from './interact-build.js';
 import { CHECK_LIMITS, buildPlanCaptureCases, captureAndCheck, repairRound, reviewCandidate } from './interact-checks.js';
-import { standardTossDropOracle } from './interact-oracle.js';
+import { interactOracle } from './interact-oracle.js';
 import { learnMedia } from './learn-storage.js';
 
 const fail = (message, status, code) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
@@ -22,7 +22,7 @@ const fail = (message, status, code) => Object.assign(new Error(message), { stat
 export const planJob = (job, ctx, extra = {}) => {
   const d = job.design;
   if (!d?.finalHash || job.approval?.scenePlanHash !== d.finalHash) throw Object.assign(fail('This job has no approved scene plan; nothing was built.', 409, 'not_approved'), { stopReason: 'not_approved', category: 'internal' });
-  return { id: job.id, plan: d.plan, planHash: d.finalHash, capabilities: ctx.capabilities, evidence: job.evidence || [], oracle: standardTossDropOracle(d.plan), ...extra };
+  return { id: job.id, plan: d.plan, planHash: d.finalHash, capabilities: ctx.capabilities, evidence: job.evidence || [], oracle: interactOracle(d.plan), ...extra };
 };
 
 // ponytail: a card with a declarative (spec) panel cannot be delivered yet. The card UI resolves a supporting panel's artifact as a program, and a spec main has

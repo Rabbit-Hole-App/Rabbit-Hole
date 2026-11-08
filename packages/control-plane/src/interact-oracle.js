@@ -5,7 +5,7 @@
 // adjustable input): for any other plan this returns null and the checks say so (coverage.oracle.note); a plan is never matched by guessing.
 // Only the names the checks already REQUIRE the program to report are expected (observation quantities that are not fixed values, and the scene's readouts),
 // at the instants of the plan's own checkpoints, its start and its endpoint. Absolute tolerance 1e-6, as the fixture oracle (interact-build-fixtures.js).
-// shortcut: one canonical case. The benchmark corpus (INT-08) and the Deep oracle are later items; add a case here with its equations, not a lookup of answers.
+// shortcut: two canonical cases (Standard and Deep). The benchmark corpus (INT-08) is a later item; add a case here with its equations, not a lookup of answers.
 import { evalScalar } from '../../web/src/interact-plan.js';
 
 const G = 9.8, U = 3, TOL = 1e-6;
@@ -29,3 +29,38 @@ export function standardTossDropOracle(plan) {
   }
   return expect.length ? { id: 'toss-drop-standard', expect } : null;
 }
+
+// ---- Deep / Experiment (section 7): launch speed u in 3.0..5.0 m/s (default 5.0, step 0.1), the reference throw fixed at 3.0 m/s ----------------------
+// Return time 2u/g, apex time u/g, peak height u^2/(2g). The main scene reports flightTime/trialTime = 2u/g and peakHeight/trialPeak = u^2/(2g) at every
+// instant; the apex-relative support comparison shows each ball g * 0.1^2 / 2 = 0.049 m below its own top 0.10 s from it (the 0.20 s window), at any u.
+// Like the Standard oracle it exists only for a plan that IS the canonical Deep (a timed program, one adjustable launchSpeed number input 3.0..5.0,
+// the fixed reference speed and gravity, an endpoint of 2u/g over the whole range and no displayed offset), never by guessing, and covers only the names
+// the plan requires. Case ids and their input states are the ones buildPlanCaptureCases makes: start, cp-<id>, end, bound-/probe-<control>-min|max.
+const REFERENCE_U = 3, WINDOW = 0.1;
+
+export function deepTossDropOracle(plan) {
+  if (plan?.depth !== 'deep' || plan.mode.kind !== 'experiment' || plan.scene.runtime.renderer !== 'program' || !plan.mode.timeline) return null;
+  const fixed = plan.mode.fixedValues, speed = plan.controls.find(c => c.type === 'number' && c.binding.kind === 'input' && c.binding.id === 'launchSpeed');
+  if (!speed || speed.min !== 3 || speed.max !== 5 || fixed.gravity !== G || fixed.referenceLaunchSpeed !== REFERENCE_U || plan.mode.adjustableIds.join() !== 'launchSpeed') return null;
+  const domains = { launchSpeed: [speed.min, speed.max] }, at = (expr, u) => evalScalar(expr, { launchSpeed: u }, domains);
+  try {
+    for (const u of [3, 3.7, 5]) if (Math.abs(at(plan.mode.timeline.end, u) - 2 * u / G) > 1e-9 || Math.abs(at(plan.mode.timeline.displayOffset, u)) > 1e-12) return null; // 2u/g, Time since launch
+  } catch { return null; }
+  const main = u => ({ flightTime: 2 * u / G, trialTime: 2 * u / G, peakHeight: u * u / (2 * G), trialPeak: u * u / (2 * G), launchSpeed: u });
+  const offset = G * WINDOW ** 2 / 2, compare = u => ({ referenceOffset: offset, trialOffset: offset, referencePeak: REFERENCE_U ** 2 / (2 * G), trialPeak: u * u / (2 * G) });
+  const required = new Set([...plan.scene.observations.flatMap(o => o.quantityIds).filter(q => !(q in fixed)), ...plan.scene.readoutIds]);
+  const inputsOf = { start: speed.default, end: speed.default, [`bound-${speed.id}-min`]: speed.min, [`bound-${speed.id}-max`]: speed.max, [`probe-${speed.id}-min`]: speed.min, [`probe-${speed.id}-max`]: speed.max };
+  for (const cp of plan.scene.checkpoints) inputsOf[`cp-${cp.id}`] = cp.inputOverrides.launchSpeed ?? speed.default;
+  const expect = [];
+  for (const [id, u] of Object.entries(inputsOf)) {
+    for (const [name, expected] of Object.entries(main(u))) if (required.has(name)) expect.push({ case: id, panel: 'main', name, expected, tol: TOL });
+    for (const s of plan.supportingVisuals) {
+      const bound = s.parameterBindings.some(b => b.fromInputId === 'launchSpeed');
+      if (bound) for (const [name, expected] of Object.entries(compare(u))) if (s.readoutIds.includes(name)) expect.push({ case: id, panel: s.id, name, expected, tol: TOL });
+    }
+  }
+  return expect.length ? { id: 'toss-drop-deep', expect } : null;
+}
+
+// The trusted expected values for this plan, or null when no oracle exists for it (the checks then say so).
+export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan);

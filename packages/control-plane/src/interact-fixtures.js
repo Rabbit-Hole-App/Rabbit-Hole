@@ -6,7 +6,7 @@
 import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
 import { canonicalJson, parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { createSnapshotResolver } from '../../web/src/interact-composition.js';
-import { fixtureDraft, standardOracle } from '../../web/src/interact-build-fixtures.js';
+import { deepOracle, fixtureDraft, standardOracle } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
 import { InteractModelError, schemaProblems } from './interact-model-adapters.js';
 import { resolveInteractProfile } from './interact-models.js';
@@ -108,6 +108,6 @@ export async function fixtureRun(fixtureId, depth = 'standard') {
   if (!FIXTURE_IDS.includes(fixtureId)) throw new Error(`unknown fixture "${fixtureId}"; available: ${FIXTURE_IDS.join(', ')}`);
   const { capabilities } = await interactFixtures();
   const adapter = scriptedAdapter(fixtureScript(depth === 'deep' ? 'deep' : 'standard'));
-  return { capabilities, designRoles: fixtureDesignRoles(fixtureId), captureCard: fixtureCaptureCard(), oracle: depth === 'standard' ? standardOracle() : null, adapters: { anthropic: adapter }, adapter, fixture: true, env: {} };
+  return { capabilities, designRoles: fixtureDesignRoles(fixtureId), captureCard: fixtureCaptureCard(), oracle: depth === 'standard' ? standardOracle() : depth === 'deep' ? deepOracle() : null, adapters: { anthropic: adapter }, adapter, fixture: true, env: {} };
 }
 

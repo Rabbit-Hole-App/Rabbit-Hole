@@ -216,6 +216,22 @@ test('the run-directory store writes atomically, refuses a stale revision and re
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('the script builds the Deep fixture card too: the printed hash, zero paid calls, and the Deep oracle compared at both launch speeds', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'interact-cli-deep-'));
+  const cli = (...args) => spawnSync(process.execPath, [join(ROOT, 'scripts/interact/run.mjs'), ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ANTHROPIC_API_KEY: '', CELERIS_API_KEY: '' } });
+  try {
+    const plan = cli('--fixture', 'toss-drop-standard', '--depth', 'deep', '--until', 'plan', '--run-dir', join(dir, 'p'));
+    assert.equal(plan.status, 0, plan.stderr); assert.match(plan.stdout, /zero paid calls/);
+    const hash = plan.stdout.match(/planHash=([0-9a-f]{64})/)[1];
+    const card = cli('--resume', join(dir, 'p'), '--until', 'card', '--approve-plan-hash', hash);
+    assert.equal(card.status, 0, card.stderr + card.stdout); assert.match(card.stdout, /card_ready: 2 scripted role calls, 0 paid calls/);
+    const compared = Number(card.stdout.match(/(\d+) oracle comparisons/)?.[1]);
+    assert.ok(compared >= 20, `the Deep oracle compared ${compared} values`);
+    const composition = JSON.parse(readFileSync(join(dir, 'p/composition.json'), 'utf8'));
+    assert.deepEqual([composition.main.mode, composition.main.timeline.label, composition.supporting.map(x => x.id)], ['experiment', 'Time since launch', ['comparePeaks']]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('the script runs the same stages: plan only, then the printed hash builds a fixture card with zero paid calls; a wrong hash and a reused directory exit 2', () => {
   const dir = mkdtempSync(join(tmpdir(), 'interact-cli-')), run = dir2 => join(dir, dir2);
   const cli = (...args) => spawnSync(process.execPath, [join(ROOT, 'scripts/interact/run.mjs'), ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ANTHROPIC_API_KEY: '', CELERIS_API_KEY: '' } });
