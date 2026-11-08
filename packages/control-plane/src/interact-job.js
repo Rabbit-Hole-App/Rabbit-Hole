@@ -69,7 +69,11 @@ export async function reviewStage(job, ctx) {
     const png = await bytes(c.key);
     if (!png) throw Object.assign(fail('The rendered pictures are no longer stored. Retry rendering.', 503, 'missing_pixels'), { category: 'renderer' });
     const supports = {};
-    for (const [id, s] of Object.entries(c.supports)) supports[id] = { ...s, png: await bytes(s.key) };
+    for (const [id, s] of Object.entries(c.supports)) {
+      const got = await bytes(s.key);
+      if (!got) throw Object.assign(fail('The rendered pictures are no longer stored. Retry rendering.', 503, 'missing_pixels'), { category: 'renderer' }); // a support panel that is not shown is not reviewed, so it is not accepted
+      supports[id] = { ...s, png: got };
+    }
     loaded.push({ ...c, png, supports });
   }
   const j = planJob(job, ctx, { artifacts, composition });

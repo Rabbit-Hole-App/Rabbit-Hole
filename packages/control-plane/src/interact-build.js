@@ -16,7 +16,7 @@ import { INTERACT_BUILD_SYSTEM, INTERACT_BUILD_TOOL_NAME, interactBuildSchema, p
 import { SPEC_LIMITS, authorComposition, capabilityGap, validateStage } from './explain-author.js';
 import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, buildProgramArtifact, checkProgramDraft } from './explain-program.js';
 import { modelEvidence } from './explain-evidence.js';
-import { callInteractRole } from './interact-models.js';
+import { InteractModelError, callInteractRole } from './interact-models.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const bytes = value => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value)).length;
@@ -24,6 +24,37 @@ const bytes = value => new TextEncoder().encode(typeof value === 'string' ? valu
 export class InteractBuildError extends Error {
   constructor(code, message, extra = {}) { super(message); this.name = 'InteractBuildError'; this.code = code; Object.assign(this, extra); }
 }
+
+// A reply the schema refused is not thrown away on the first slip: real Opus runs lost the whole design to one over-long entry, one nested key or one malformed object, while the same call
+// usually succeeds. The role gets ONE correction call that names the exact problems and must return the whole corrected reply (the same rule as authorDesign, interact-design.js). The
+// correction is an ordinary call: admitted, counted and bounded by INTERACT_LIMITS.calls (build_author 2, build_review 5, build_repair 4). Only a refusal of the reply's own content is corrected;
+// a transport, budget or capability failure is not, and a correction that cannot be sent (no call left, no allowance) leaves the first refusal as the error.
+//   check(output) -> problems: for a reply the schema accepted but its consumer cannot use (a review that skips a capture). The second answer is returned as it is, used or not.
+//   onDone(done): called with every call that returned, so a caller that records calls records the paid ones.
+const CORRECTABLE = new Set(['schema_mismatch', 'not_object', 'no_result', 'conflicting_results']);
+export const correctable = error => error instanceof InteractModelError && error.sent !== false && CORRECTABLE.has(error.code);
+export const refusalProblems = error => (error.problems?.length ? error.problems : [error.message]).slice(0, 12).map(problem => String(problem).slice(0, 300));
+const withCorrection = (input, instruction, problems) => (typeof input === 'string' ? `${input}\n\n${instruction}\n${problems.map(problem => `- ${problem}`).join('\n')}` : { ...input, correction: { instruction, problems } });
+export async function callWithCorrection(ctx, role, args, { instruction, check, onDone } = {}) {
+  const ask = async extra => { const done = await callInteractRole(ctx, role, extra ?? args); onDone?.(done); return done; };
+  let first;
+  try {
+    const done = await ask(), problems = check?.(done.output) ?? [];
+    if (!problems.length) return done;
+    first = { done, problems };
+  } catch (error) {
+    if (!correctable(error)) throw error;
+    first = { error, problems: refusalProblems(error) };
+  }
+  try { return await ask({ ...args, input: withCorrection(args.input, instruction, first.problems.slice(0, 12)) }); }
+  catch (second) {
+    // No call left (the runner's call_ceiling, the job's budget stop): the first refusal stands. Anything else (the job moved on, the deadline, the allowance, a failed call) is its own error.
+    if (second?.code !== 'call_ceiling' && second?.stopReason !== 'budget') throw second;
+    if (first.error) throw first.error;
+    return first.done;
+  }
+}
+export const AUTHOR_CORRECTION = 'Your previous reply was refused by the validator. Return the WHOLE corrected reply (the same build of the same approved plan) and change only what these problems name. Respect every limit in the instructions.';
 
 // The plan a build may use: valid for the capabilities it was designed against AND the exact approved identity. A plan that is not the
 // approved one (an edit, another revision, a model's copy) is refused before any call. -> { plan, hash }
@@ -132,7 +163,7 @@ export const callRecord = (role, done) => ({ role, requested: done.requested, se
 export async function buildScene(job, ctx) {
   const { plan, hash } = await approvedPlanOf(job);
   const before = canonicalJson(plan);
-  const done = await callInteractRole(ctx, 'build_author', { system: INTERACT_BUILD_SYSTEM, schema: buildSchema(plan), input: buildInput(job, plan, hash), name: INTERACT_BUILD_TOOL_NAME, description: 'Build the approved scene plan.' });
+  const done = await callWithCorrection(ctx, 'build_author', { system: INTERACT_BUILD_SYSTEM, schema: buildSchema(plan), input: buildInput(job, plan, hash), name: INTERACT_BUILD_TOOL_NAME, description: 'Build the approved scene plan.' }, { instruction: AUTHOR_CORRECTION });
   const call = callRecord('build_author', done), reply = done.output;
   if (reply.kind === 'capability_gap') {
     if (!Array.isArray(reply.gap?.needs) || !reply.gap.needs.length) throw new InteractBuildError('invalid_turn', 'The builder reported a gap without saying what is needed.', { call });

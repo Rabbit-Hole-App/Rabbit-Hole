@@ -51,7 +51,7 @@ test('opus-baseline is the default all-Opus profile with the section 5 limits pe
   const profile = resolveInteractProfile('opus-baseline');
   assert.deepEqual([profile.id, profile.version], ['opus-baseline', 1]);
   assert.ok(Object.isFrozen(profile) && Object.isFrozen(profile.roles) && Object.isFrozen(profile.roles.design_author.settings));
-  const expected = { design_author: [12000, 60000, 4], design_review: [10000, 60000, 4], design_revise: [14000, 60000, 4], build_author: [16000, 80000, 4], build_review: [6000, 80000, 6], build_repair: [16000, 80000, 2] };
+  const expected = { design_author: [12000, 60000, 4], design_review: [10000, 60000, 4], design_revise: [14000, 60000, 4], build_author: [16000, 80000, 4], build_review: [10000, 80000, 6], build_repair: [16000, 80000, 2] };
   assert.deepEqual(Object.keys(profile.roles), INTERACT_ROLE_IDS);
   for (const [role, [out, input, images]] of Object.entries(expected)) {
     const c = profile.roles[role];
@@ -193,10 +193,10 @@ test('callInteractRole runs a design and a build role on the all-Opus profile an
 test('role bounds and phase reservations come from the profile, with design in preparation and build in generation', () => {
   const profile = resolveInteractProfile('opus-baseline'), bound = role => roleBoundMicros(profile.roles[role]);
   // (input bytes + images x 4,784) x $5 (the 5-minute cache write) + max output x $20, per MTok.
-  assert.deepEqual(INTERACT_ROLE_IDS.map(bound), [635680, 595680, 675680, 815680, 663520, 767840]);
+  assert.deepEqual(INTERACT_ROLE_IDS.map(bound), [635680, 595680, 675680, 815680, 743520, 767840]);
   const r = interactReservation(profile);
-  assert.deepEqual([r.preparationMicros, r.generationMicros, r.unknownRoles], [2 * 635680 + 3 * 595680 + 2 * 675680, 815680 + 4 * 663520 + 3 * 767840, []]);
-  assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [2, 3, 2, 1, 4, 3]); // the second author call is the one correction of a refused plan
+  assert.deepEqual([r.preparationMicros, r.generationMicros, r.unknownRoles], [2 * 635680 + 3 * 595680 + 2 * 675680, 2 * 815680 + 5 * 743520 + 4 * 767840, []]);
+  assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [2, 3, 2, 2, 5, 4]); // the second author call is the one correction of a refused plan; the build roles get one correction each (build_author 1+1, build_review 1+3+1, build_repair 3+1)
   assert.deepEqual(INTERACT_LIMITS.deadlines, { callMs: 120000, preparationMs: 600000, jobMs: 600000 });
   for (const role of ['design_author', 'design_review', 'design_revise']) assert.equal(interactPhase(role), 'preparation', role);
   for (const role of ['build_author', 'build_review', 'build_repair']) assert.equal(interactPhase(role), 'generation', role);
@@ -210,7 +210,7 @@ test('an unknown price is unknown, never zero', async () => {
   assert.equal(roleBoundMicros(cfg), null);
   const r = interactReservation(profile);
   assert.deepEqual([r.preparationMicros, r.unknownRoles], [null, ['design_review']], 'the phase is unknown, not a smaller number');
-  assert.equal(r.generationMicros, 5773280, 'a phase of fully priced roles still has its number');
+  assert.equal(r.generationMicros, 8420320, 'a phase of fully priced roles still has its number');
   assert.equal(interactCostMicros(cfg, { quantities: { input: 100, output: 100 } }), null);
   assert.equal(interactCostMicros(profile.roles.design_author, { quantities: null }), null, 'absent usage is unknown');
   // Through a call: the adapter answered, the price is unknown.
@@ -225,7 +225,7 @@ test('admission denies a call before it is sent, and a denied call is not a sent
   const seen = [], { ctx, calls, settles } = context({ admit: async a => { seen.push(a); throw Object.assign(new InteractModelError('spend_refused', 'Allowance reached.'), {}); } });
   await assert.rejects(() => ask(ctx, 'build_review'), { code: 'spend_refused', sent: false });
   assert.equal(calls.length, 0);
-  assert.deepEqual([seen[0].role, seen[0].phase, seen[0].boundMicros, seen[0].images], ['build_review', 'generation', 663520, 0]);
+  assert.deepEqual([seen[0].role, seen[0].phase, seen[0].boundMicros, seen[0].images], ['build_review', 'generation', 743520, 0]);
   assert.deepEqual([settles[0].status, settles[0].sent, settles[0].costMicros], ['refused', false, 0]);
 });
 

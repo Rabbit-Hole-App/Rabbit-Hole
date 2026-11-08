@@ -21,15 +21,19 @@ const refuse = (code, message, extra) => new InteractModelError(code, message, {
 // Per logical role: the LEARN_TASKS id (design roles are new; build roles reuse the existing explain_* ids), the usage phase (design in
 // preparation, build in generation), the spend-ledger kind, the per-plan-attempt call ceiling and the per-call input and image ceilings.
 // maxOutputTokens: the design roles' come from their LEARN_TASKS entry, the build roles' are the new-flow values (the legacy explain_*
-// limits of 10,000/3,000/6,000 stay for legacy jobs). Section 5: 12,000 / 6,000 / 14,000 / 16,000 / 6,000 / 16,000.
-const NEW_FLOW_BUILD_TOKENS = { build_author: 16000, build_review: 6000, build_repair: 16000 };
+// limits of 10,000/3,000/6,000 stay for legacy jobs). Section 5: 12,000 / 6,000 / 14,000 / 16,000 / 6,000 / 16,000; build_review is raised to 10,000 below.
+// calls: a refused answer (schema_mismatch and friends) gets ONE correction call that names the problems, like the design Author: build_author 1 + 1; build_repair three rounds + 1;
+// build_review 1 + three re-reviews after repairs + 1 (interact-build.js callWithCorrection). A correction is counted and bounded like any call.
+// build_review 10,000: a review writes a verdict and up to several findings (about 150 to 250 tokens each, a message is no longer cut before it is read) for each of up to 6 captures,
+// and the design reviewer already needed more than 6,000 for one plan. A reply cut off at the cap is a lost review (stopReason truncated), so the cap is generous.
+const NEW_FLOW_BUILD_TOKENS = { build_author: 16000, build_review: 10000, build_repair: 16000 };
 export const INTERACT_ROLES = deepFreeze({
   design_author: { task: 'interact_design_author', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_author.maxTokens },
   design_review: { task: 'interact_design_review', phase: 'preparation', kind: 'evaluation', calls: 3, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_review.maxTokens },
   design_revise: { task: 'interact_design_revise', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_revise.maxTokens },
-  build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 1, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },
-  build_review: { task: 'explain_review', phase: 'generation', kind: 'evaluation', calls: 4, maxInputBytes: 80000, maxImages: 6, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_review },
-  build_repair: { task: 'explain_repair', phase: 'generation', kind: 'repair', calls: 3, maxInputBytes: 80000, maxImages: 2, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_repair },
+  build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },
+  build_review: { task: 'explain_review', phase: 'generation', kind: 'evaluation', calls: 5, maxInputBytes: 80000, maxImages: 6, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_review },
+  build_repair: { task: 'explain_repair', phase: 'generation', kind: 'repair', calls: 4, maxInputBytes: 80000, maxImages: 2, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_repair },
 });
 export const INTERACT_ROLE_IDS = Object.freeze(Object.keys(INTERACT_ROLES));
 export const INTERACT_LIMITS = deepFreeze({ calls: Object.fromEntries(INTERACT_ROLE_IDS.map(r => [r, INTERACT_ROLES[r].calls])), refinements: 5, correctionRounds: 3,

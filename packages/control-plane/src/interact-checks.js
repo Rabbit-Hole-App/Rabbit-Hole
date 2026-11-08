@@ -11,13 +11,13 @@
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
 import { resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
-import { REVIEW_LIMITS, ReviewError, reviewCaptures } from './explain-review.js';
+import { REVIEW_LIMITS, ReviewError, reviewCaptures, reviewProblems } from './explain-review.js';
 import { REVIEW_EVENTS, RenderError } from './explain-render.js';
 import { programFacts } from './explain-program.js';
 import { specFacts } from './explain-author.js';
 import { INTERACT_LIMITS, InteractModelError, callInteractRole } from './interact-models.js';
 import { INTERACT_REPAIR_SYSTEM, INTERACT_REPAIR_TOOL_NAME, interactRepairTool } from './agents/explain-repair.js';
-import { approvedPlanOf, buildInput, callRecord, schemaOptions, validateBuildOutput } from './interact-build.js';
+import { approvedPlanOf, buildInput, callRecord, callWithCorrection, correctable, refusalProblems, schemaOptions, validateBuildOutput } from './interact-build.js';
 import { REPAIR_FORWARD } from './explain-program-stage.js';
 
 // correctionRounds: shared across validation, render and review failures (INT-05-C08). renderRetries: recapture attempts after a render
@@ -33,6 +33,9 @@ export function lenientFindingText(schema) {
   return out;
 }
 
+// The reviewer's trace block: 6 captures (cases and support panels) x (12 texts of 80 characters + 12 quantities + inputs) is about 10,500 bytes at the worst; the legacy single-scene 6,144 would call a
+// normal card incomplete. The build_review input ceiling (80,000 bytes) has the room.
+const TRACE_BYTES = 12288;
 export const CHECK_LIMITS = Object.freeze({ correctionRounds: INTERACT_LIMITS.correctionRounds, reviewCalls: INTERACT_LIMITS.calls.build_review, renderRetries: 2, maxCases: 6, maxProbes: 8, tolerance: 1e-6, timeTolerance: 1e-9 });
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -253,7 +256,7 @@ function reviewTraces(captures, cases, plan) {
   const keep = new Set([...plan.scene.readoutIds, ...plan.scene.observations.flatMap(o => o.quantityIds)]);
   const pick = (q = {}) => Object.fromEntries(Object.entries(q).sort(([a], [b]) => (keep.has(b) - keep.has(a)) || a.localeCompare(b)).slice(0, 12).map(([k, v]) => [k, round6(v)]));
   return captures.map(c => ({ capture: c.caseId, label: cases.find(x => x.id === c.caseId)?.label, time: round6(c.trace.time), inputs: c.trace.inputs, quantities: pick(c.trace.quantities),
-    ...(c.trace.texts?.length ? { texts: c.trace.texts.slice(0, 16) } : {}),
+    ...(c.trace.texts?.length ? { texts: c.trace.texts.slice(0, 12).map(text => String(text).slice(0, 80)) } : {}), // the real page reports up to 24 texts of 160 characters; the pixels show the rest
     ...(c.supports && Object.keys(c.supports).length ? { supports: Object.fromEntries(Object.entries(c.supports).map(([id, s]) => [id, pick(s.trace?.quantities)])) } : {}) }));
 }
 
@@ -326,11 +329,12 @@ export async function reviewCandidate(job, ctx, { cases, captures, coverage, det
   // Partial capture: each supporting panel's real snapshot (its first captured state) is one more image, and the trusted layout is given as text.
   const panels = !partial ? [] : plan.supportingVisuals.flatMap(s => { const at = shown.find(c => c.supports?.[s.id]?.png); const got = at?.supports[s.id]; return got ? [{ id: s.id, title: s.title, got, time: 0, inputs: cases.find(k => k.id === at.caseId).supports.find(x => x.id === s.id).inputs, compositionHash: at.compositionHash }] : []; });
   // The independent reviewer sees only captures of THIS composition: reviewCaptures refuses any other compiledHash.
-  const calls = [];
+  const calls = [], shownIds = [...shown.map(c => ({ id: c.caseId })), ...panels.map(p => ({ id: `panel-${p.id}` }))];
+  // A report the schema refuses (an invented category) or that skips a capture is asked for once more, naming the problem, instead of voiding the review (callWithCorrection).
   const callRole = async (_role, { system, tool, content }) => {
-    const done = await callInteractRole(ctx, 'build_review', { system, schema: lenientFindingText(tool.input_schema), input: content.filter(b => b.type === 'text').map(b => b.text).join('\n\n'),
-      images: content.filter(b => b.type === 'image').map(b => ({ media_type: b.source.media_type, data: b.source.data })), name: tool.name, description: tool.description });
-    calls.push(callRecord('build_review', done));
+    const done = await callWithCorrection(ctx, 'build_review', { system, schema: lenientFindingText(tool.input_schema), input: content.filter(b => b.type === 'text').map(b => b.text).join('\n\n'),
+      images: content.filter(b => b.type === 'image').map(b => ({ media_type: b.source.media_type, data: b.source.data })), name: tool.name, description: tool.description },
+    { instruction: 'Your previous report was refused by the validator. Report again: one entry for EVERY capture shown, both verdicts, and only the allowed values.', check: output => reviewProblems(output, shownIds), onDone: d => calls.push(callRecord('build_review', d)) });
     return { input: done.output, identity: done.requested, usage: done.usage };
   };
   const main = artifacts.main.kind === 'program' ? artifacts.main.program : null;
@@ -344,7 +348,7 @@ ${compositionLayoutText(plan, composition)}` : ''), compiledHash: composition.en
         ...panels.map(p => ({ id: `panel-${p.id}`, compiledHash: p.compositionHash, theme: 'light', time: p.time, inputs: p.inputs, step: `supporting panel "${p.title}", a read-only snapshot`, png: p.got.png }))],
       ...(main ? { program: { manifest: main.manifest, source: main.source, traces: [...reviewTraces(shown, cases, plan), ...panels.map(p => ({ capture: `panel-${p.id}`, label: p.title, time: 0, inputs: p.inputs, quantities: Object.fromEntries(Object.entries(p.got.trace?.quantities ?? {}).slice(0, 12).map(([k, v]) => [k, round6(v)])) }))],
         coverage: { sampled: [...cases.map(c => c.id), ...panels.map(p => `panel-${p.id}`)], omitted: coverage.omitted.map(o => o.id) } } } : {}),
-    }, { callRole, extraSystem: partial ? INTERACT_REVIEW_RULES_PARTIAL : INTERACT_REVIEW_RULES, limits: { ...REVIEW_LIMITS, maxImages: reviewRole?.maxImages ?? REVIEW_LIMITS.maxImages } });
+    }, { callRole, extraSystem: partial ? INTERACT_REVIEW_RULES_PARTIAL : INTERACT_REVIEW_RULES, limits: { ...REVIEW_LIMITS, maxImages: reviewRole?.maxImages ?? REVIEW_LIMITS.maxImages, traceBytes: TRACE_BYTES } });
   } catch (error) {
     const kind = classifyFailure(error);
     if (kind.kind === 'incomplete') return { status: 'incomplete', reason: error.message, kind, captures: summary, coverage, calls };
@@ -374,7 +378,15 @@ export async function repairRound(job, ctx) {
       findings: [...(failure.findings || [])].sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings).map(f => ({ category: f.category, severity: f.severity, target: f.target, message: clip(f.message) })) },
     currentArtifacts: draftView(job.draft), roundsLeft: CHECK_LIMITS.correctionRounds - round,
   };
-  const done = await callInteractRole(ctx, 'build_repair', { system: INTERACT_REPAIR_SYSTEM, schema: interactRepairTool(schemaOptions(plan)).input_schema, input, images, name: INTERACT_REPAIR_TOOL_NAME, description: 'Correct the failed card.' });
+  let done;
+  try { done = await callWithCorrection(ctx, 'build_repair', { system: INTERACT_REPAIR_SYSTEM, schema: interactRepairTool(schemaOptions(plan)).input_schema, input, images, name: INTERACT_REPAIR_TOOL_NAME, description: 'Correct the failed card.' },
+    { instruction: 'Your previous repair reply was refused by the validator. Return the WHOLE corrected reply (operation and every panel) and change only what these problems name. Respect every limit in the instructions.' }); }
+  catch (error) {
+    if (!correctable(error)) throw error;
+    // Refused even after the correction: this round is spent, but the job is not lost. The failure the repair has to answer is kept, with the refusal added, and the candidate stays what it was.
+    const refusal = `the previous repair reply was refused by the validator, even after one correction (${refusalProblems(error).slice(0, 3).join('; ')}); return the whole corrected artifacts`;
+    return { status: 'repaired_invalid', draft: job.draft, failure: { stage: failure.stage ?? 'validate', problems: [refusal, ...(failure.problems || [])], findings: failure.findings || [] }, round: round + 1 };
+  }
   const call = callRecord('build_repair', done), out = done.output;
   if (out.operation !== 'artifacts' || !plain(out.main) || !Array.isArray(out.supporting)) return { status: 'no_progress', reason: clip(out.reason ?? 'the repair returned no artifacts'), call, round: round + 1 };
   const draft = { main: out.main, supporting: out.supporting };
@@ -384,7 +396,9 @@ export async function repairRound(job, ctx) {
   if (result.problems) return { status: 'repaired_invalid', draft, failure: { stage: 'validate', problems: result.problems, findings: [], details: result.details }, call, round: round + 1 };
   return { status: 'repaired', draft, artifacts: result.artifacts, composition: result.composition, call, round: round + 1 };
 }
-const normalize = draft => ({ main: draft.main, supporting: [...draft.supporting].sort((a, b) => String(a.id).localeCompare(String(b.id))) });
+// A reply that left out a part (the schema only requires kind) is a draft with a hole; the repair step reads the hole as nothing and the validator names it.
+const panelsOf = draft => (Array.isArray(draft?.supporting) ? draft.supporting : []);
+const normalize = draft => ({ main: draft?.main, supporting: [...panelsOf(draft)].sort((a, b) => String(a?.id).localeCompare(String(b?.id))) });
 // What the repair role reads of the current candidate: manifests and sources (untrusted text) or specs, never hashes it could copy.
-const draftView = draft => ({ main: viewOf(draft.main), supporting: draft.supporting.map(s => ({ id: s.id, artifact: viewOf(s.artifact) })) });
+const draftView = draft => ({ main: viewOf(draft?.main), supporting: panelsOf(draft).map(s => ({ id: s?.id, artifact: viewOf(s?.artifact) })) });
 const viewOf = a => (a?.kind === 'program' ? { kind: 'program', manifest: a.program.manifest, source: a.program.source } : a);
