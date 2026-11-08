@@ -136,6 +136,13 @@ async function download(req, env, id) {
     through = { row };
   }
   let access = await authorizeFileSource(req, env, id, through);
+  // Rule 1 of canvas-file-imports.md 4.1: the source's owner reads it whatever scope the page names, e.g. the picture made
+  // for their new card before the board save that references it lands. The bare owner read already admits exactly them;
+  // any other refusal keeps its first answer (a signed-out link viewer still gets 404, not a 401 that would say it exists).
+  if (access instanceof Response && access.status === 404 && (through.row || through.token)) {
+    const own = await authorizeFileSource(req, env, id);
+    if (!(own instanceof Response)) access = own;
+  }
   if (access instanceof Response) return access;
   // Saved CAD Python is owner-only (CAD decision 9): a share, member, board or fork reference reaches its geometry
   // derivatives, never the source itself. Same 404 as any refusal.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loadAsset } from './learn-board-assets.js';
-import { loadSource } from './file-source-client.js';
+import { readOriginal } from './media-storage.js';
 import { parseIllustrationFence } from './explanation-lead.js';
 
 // A reusable figure: an illustration in its own container with its caption below (the written Explanation puts one after its opening paragraph).
@@ -19,16 +19,30 @@ function useIllustrationUrl({ src, cacheKey, fileRef }) {
     setMissing(false);
     if (src) { setUrl(src); return undefined; }
     setUrl('');
-    if (!cacheKey && !fileRef?.source?.id) return undefined;
-    (fileRef?.source?.id ? loadSource({ fileRef }) : loadAsset(cacheKey)).then(value => {
+    if (fileRef?.source?.id) return followSource(fileRef, { setUrl, setMissing });
+    if (!cacheKey) return undefined;
+    loadAsset(cacheKey).then(value => {
       if (!live) return;
-      if (value == null) { setMissing(true); return; } // not in this browser and not readable from the board's server copy
+      if (value == null) { setMissing(true); return; } // not in this browser
       if (typeof value === 'string') setUrl(value);
       else { made = URL.createObjectURL(value); setUrl(made); }
     });
     return () => { live = false; if (made) URL.revokeObjectURL(made); };
   }, [src, cacheKey, fileRef?.source?.id, fileRef?.source?.rev]);
   return { url, missing };
+}
+
+// A stored picture through media-storage readOriginal: a new card's picture can be read before the board save that references it lands (404 until then), so the read
+// is retried with bounded backoff and after each board save instead of failing for good; missing only once those run out. -> cancel().
+export function followSource(fileRef, { setUrl, setMissing }, options) {
+  let made = '';
+  const cancel = readOriginal({ fileRef }, ({ status, blob }) => {
+    if (status === 'missing') { setMissing(true); return; }
+    if (status !== 'ready') return;
+    if (made) URL.revokeObjectURL(made);
+    made = URL.createObjectURL(blob); setMissing(false); setUrl(made);
+  }, options);
+  return () => { cancel(); if (made) URL.revokeObjectURL(made); };
 }
 
 export default function IllustrationFigure({ illustration, className = '' }) {
@@ -38,11 +52,11 @@ export default function IllustrationFigure({ illustration, className = '' }) {
   const state = missing ? 'failed' : url && done.url === url ? (done.ok ? 'ready' : 'failed') : 'loading'; // loading | ready | failed
   const callouts = state === 'ready' ? validCallouts(illustration?.callouts) : [];
   const ratio = Number.isFinite(illustration?.aspect) && illustration.aspect > 0.3 && illustration.aspect < 3 ? illustration.aspect : 1;
+  if (state === 'failed') return null; // a learner never sees a failed picture (owner 2026-11-08): no frame, no gap, no message
   return (
     <figure data-illustration data-illustration-state={state} className={`m-0 mt-[13px] mb-[11px] ${className}`}>
       <div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden rounded-[9px] bg-[var(--viz-surface,#fbfbfa)]">
-        {state !== 'ready' && <div aria-hidden="true" className={`absolute inset-0 ${state === 'loading' ? 'animate-pulse bg-hover' : ''}`} />}
-        {state === 'failed' && <div role="status" className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-ink-2">The illustration is unavailable.</div>}
+        {state !== 'ready' && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-hover" />}
         {url && <img src={url} alt={illustration?.alt || ''} draggable={false} ref={el => { if (el && el.complete && el.naturalWidth > 0 && !(done.url === url && done.ok)) setDone({ url, ok: true }); }} onLoad={() => setDone({ url, ok: true })} onError={() => setDone({ url, ok: false })} className={`absolute inset-0 block h-full w-full object-contain transition-opacity ${state === 'ready' ? 'opacity-100' : 'opacity-0'}`} />}
         {callouts.length > 0 && (
           <div data-illustration-callouts className="pointer-events-none absolute inset-0">
