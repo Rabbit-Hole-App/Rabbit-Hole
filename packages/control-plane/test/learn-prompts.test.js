@@ -20,11 +20,11 @@ import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE, PAPER_SHOWN_NOTE } from '../src/agen
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: 'af83a270b721abfc',
-  chat: '2e23a7f06ff5e5c4', // canvas seam and app asks; 2026-10-28: shared MATH_FORMAT sentence; 2026-10-14: earlier answers are history, not evidence; a title is a weak hint; any subject, request first (topic-restriction brief)
-  chatSnapshot: '61d5410bbb7e17a8', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '0ca275342a219e28',
-  repository: '09f83dc74b31a487',
-  artifact: '9000332e59c5dd59', // 2026-10-28: MATH_FORMAT; 2026-10-21 L10: when to make an interactive scene (make_animation)
+  chat: '8dec2ba4f43830de', // 2026-11-08: MATH_FORMAT's \frac no longer a form feed; canvas seam and app asks; 2026-10-28: shared MATH_FORMAT sentence; 2026-10-14: earlier answers are history, not evidence; a title is a weak hint; any subject, request first (topic-restriction brief)
+  chatSnapshot: '515097516f004b1d', // 2026-11-08: MATH_FORMAT's \frac no longer a form feed; an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: '1db4e50cd1560652', // 2026-11-08: MATH_FORMAT's \frac no longer a form feed
+  repository: '2a6021c86afbfc83', // 2026-11-08: MATH_FORMAT's \frac no longer a form feed
+  artifact: '6565245025558912', // 2026-11-08: MATH_FORMAT's \frac no longer a form feed; 2026-10-28: MATH_FORMAT; 2026-10-21 L10: when to make an interactive scene (make_animation)
   sceneVerify: '95072982913f0bc1', // 2026-10-21 L10 (owner): the verifier pass over a generated scene (learn-scene-author.test.js sends it)
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
   boardReview: 'bce6f95a93d18528',

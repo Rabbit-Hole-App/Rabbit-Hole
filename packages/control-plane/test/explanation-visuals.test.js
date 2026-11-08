@@ -280,7 +280,9 @@ test('the guidance carries the parties-send-things sequence rule, the structure-
   assert.ok(at('For an operation on a binary tree or BST (traversal, insertion, search, deletion) the first visual is the tree itself, showing the operation in its node labels (the visit order, as 1st, 2nd, or the new key marked as 7 (new)) or as two tree visuals, before and after; a flow with a highlightPath for the steps may follow it but never replaces it; a tree has no highlight field.') > at('For binary trees use kind "tree" with layout "binary".'));
   at('Three visuals are a maximum, not a target.');
   at('a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram;');
-  assert.ok(at('sequence for messages between actors (actors') > at('Kinds: flow'), 'the kind catalogue keeps its own wording');
+  // Owner 2026-11-08: the catalogue's sequence entry says the same as the choice rule (wording only; the order of kinds is unchanged).
+  assert.ok(at('sequence for two or more named parties that send things to each other (client and server, sender and receiver, a protocol, request and response; actors [{id,label}] 2-4, messages [{from,to,label}] between different actors)') > at('Kinds: flow'), 'the catalogue says the same as the choice rule');
+  assert.equal(g.includes('messages between actors'), false, 'the old catalogue wording is gone');
   // Supported means only: a tree takes no highlight field (only flow has highlightPath).
   const tree = (tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf).find(s => s.properties.kind.const === 'tree');
   assert.deepEqual([Object.keys(tree.properties), Object.keys(tree.properties.nodes.items.properties)], [['title', 'caption', 'kind', 'layout', 'nodes'], ['id', 'label', 'parent', 'side']]);

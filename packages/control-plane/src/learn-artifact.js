@@ -49,7 +49,7 @@ const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
-import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
+import { ARTIFACT_SYSTEM, artifactSystem } from './agents/learn-artifact.js';
 // Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
 // authoring contract (appended to its tool description) and its gates, which run the existing scene validators on the block
 // the shared adapter built. A gate's first problem goes to the model as the one repair; a scene that still fails is no card.
@@ -120,7 +120,8 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
   const maxTokens = Math.max(bound ? bound.roles.author.maxOutputTokens : LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
-  const system = (input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '');
+  const base = artifactSystem(bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools'); // A3: no tool paragraph where no tool is offered
+  const system = (input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '');
   return { request, ready, messages, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
