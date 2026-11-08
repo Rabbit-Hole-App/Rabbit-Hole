@@ -116,7 +116,7 @@ export function descriptionNumbers(plan) {
 //   oracle: trusted expected values { expect: [{case, panel, name, expected, tol|decimals}] } from a reviewed fixture or the benchmark corpus; absent,
 //     the numerical comparison is not claimed (coverage.oracle says so) and the structural and behavioural checks still run. A generated claim
 //     is data: it never defines an assertion.
-export function checkSceneAgainstPlan({ plan, composition, captures, cases, probes = [], oracle = null }) {
+export function checkSceneAgainstPlan({ plan, composition, captures, cases, probes = [], oracle = null, allowPartialCard = false }) {
   const problems = [], bad = (code, path, message, at) => problems.push({ code, path, message, ...(at ? { case: at } : {}) });
   const coverage = { cases: [], oracle: { checked: 0, skipped: [] }, effects: { tested: [], untested: [] }, proseOnly: [] };
   const byCase = new Map(captures.map(c => [c.caseId, c]));
@@ -128,7 +128,8 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     const cap = byCase.get(c.id);
     if (!cap) { bad('capture_missing', c.id, `no capture of the complete card for "${c.label}"`, c.id); continue; }
     const where = `case ${c.id}`;
-    if (cap.completeCard !== true) bad('capture_not_complete', where, `the capture for "${c.label}" is not the complete card`, c.id);
+    // Strict by default; completeCard:false is accepted only when the caller says the render service cannot compose the card yet (see the ponytail above INTERACT_REVIEW_RULES).
+    if (cap.completeCard !== true && !(allowPartialCard && cap.completeCard === false)) bad('capture_not_complete', where, `the capture for "${c.label}" is not the complete card`, c.id);
     if (cap.compositionHash !== composition.envelopeHash) { bad('stale_capture', where, `the capture for "${c.label}" is of a different composition than the one being checked`, c.id); continue; }
     const t = cap.trace;
     if (!t || t.error) { bad('program_error', where, `the program failed at "${c.label}"${t?.error?.code ? ` (${t.error.code})` : ''}`, c.id); continue; }
@@ -192,12 +193,36 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
 }
 
 // ---- the review ----------------------------------------------------------------------------------------------------------------
+// ponytail: complete-card capture is NOT built (INT-05-C05 stays open). The render service draws one program frame at a time (explain-render.js renderStates)
+// and cannot compose Title, description, supporting panels, main scene, transport and controls into one image. While ctx.completeCardUnavailable === true
+// the capture seam returns each panel's real pixels with completeCard:false, checkRound accepts that and nothing else, and the reviewer gets the trusted
+// layout as text (compositionLayoutText) plus INTERACT_REVIEW_RULES_PARTIAL, which says what it did not see. With the flag unset, completeCard must be true.
 export const INTERACT_REVIEW_RULES = `This is the COMPLETE learner card built from an approved scene plan, not a bare scene: each capture shows the Title, the description, any supporting panel, the main scene, its playback and time readout and its controls, at the state named. The approved plan is in the request. Judge what the pixels and the execution traces show; do not approve from the plan's narrative.
 - For every required observation and every approved checkpoint, find the capture that shows it and say whether it does; a checkpoint's expected text is the claim to verify, and the traces give the exact numbers.
 - Check the order Title, description, supporting panels, scene, transport, controls; that the scene sits directly above its transport; and that NO explanatory text, caption, note or takeaway appears below any scene or below the controls. Fail a card that has one.
 - Check the displayed time against the plan's timeline (its origin and range), that signs, units and directions match the plan's quantities, and that the drawing and its readouts agree with the traced quantities.
 - Check the description against the Story for meaning and any scientific qualification, and flag a number in the description that the plan does not support.
 - A required observation or control effect you cannot judge from what you were shown is a finding, not a pass.`;
+
+export const INTERACT_REVIEW_RULES_PARTIAL = `This is NOT the composed card. The render service cannot yet draw the whole card in one image, so each capture is ONE panel (the main scene at the state named, or a supporting panel's read-only snapshot) and the card's order and text are given as trusted text. You did not see the Title, the description, the transport or the controls as pixels: do not claim you did, and judge their order from the layout text only.
+- For every required observation and every approved checkpoint, find the capture that shows it and say whether it does; a checkpoint's expected text is the claim to verify, and the traces give the exact numbers.
+- Check that each panel's drawing and readouts agree with its traced quantities, that signs, units and directions match the plan's quantities, and that no scene draws the Story or the description as text.
+- Check the displayed time range in the layout text against the plan's timeline, and the description against the Story for meaning and any scientific qualification; flag a number in the description that the plan does not support.
+- A required observation or control effect you cannot judge from what you were shown is a finding, not a pass.`;
+
+// The trusted composed layout as text, for the reviewer of a partial capture: what the learner sees top to bottom, from the composition (never from a model).
+export function compositionLayoutText(plan, composition) {
+  const t = composition.main.timeline, span = t && resolveTimeline(composition, composition.main.inputDefaults);
+  const rows = composition.order.map(row => {
+    if (row === 'title') return `Title: ${composition.title}`;
+    if (row === 'description') return `Description (once, above every scene): ${composition.cardDescription}`;
+    if (row === 'supporting') return `Supporting panels, read-only, no controls: ${composition.supporting.map(s => `"${s.title}"`).join(', ')}`;
+    if (row === 'main') return 'Main scene (the live animation)';
+    if (row === 'transport') return `Playback directly under the scene: Play/Pause/Replay and a scrubber labelled "${t.label}", reading ${round6(span.displayStart)} to ${round6(span.displayEnd)} s (${t.playbackRate} physics s per wall s)`;
+    return `Controls: ${composition.main.controls.filter(c => c.row === 'controls').map(c => c.label).join(', ')}`;
+  });
+  return `Trusted card layout, top to bottom (nothing follows the last row):\n${rows.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
+}
 
 const quantityList = (plan) => plan.scene.quantities.map(q => ({ id: q.id, label: q.label, unit: q.unit, meaning: q.meaning, reference: q.reference, ...(q.relation ? { relation: q.relation } : {}) }));
 export function reviewRequest(plan, composition) {
@@ -241,14 +266,26 @@ const toImage = png => ({ media_type: 'image/png', data: base64(png) });
 //   ctx.captureCard({ jobId, composition, artifacts, cases }) -> [capture]   the seam to the trusted render entry that draws the complete card.
 //   status: 'ready' (captured, checked and independently reviewed) | 'failed' (failure: { stage, problems, findings }) | 'render_unavailable' |
 //   'incomplete' (required coverage does not fit; or the review cannot be sent whole) | 'cancelled'. Never 'ready' on anything partial.
+//   ctx.completeCardUnavailable === true: the documented flag for a render service that cannot compose the card (see the ponytail above INTERACT_REVIEW_RULES).
+// checkRound is captureAndCheck (capture, then the deterministic checks) followed by reviewCandidate (the independent review); a durable job runs the two as its
+// rendering and reviewing stages, with its own persistence between them.
 export async function checkRound(job, ctx) {
+  const a = await captureAndCheck(job, ctx);
+  return a.status === 'captured' ? reviewCandidate(job, ctx, a) : a;
+}
+
+// -> { status:'captured', cases, probes, captures, coverage, det, summary, pngs } | the early statuses of checkRound ('failed' with the deterministic problems, 'incomplete',
+// 'render_unavailable', 'cancelled').
+export async function captureAndCheck(job, ctx) {
   const { plan } = await approvedPlanOf(job);
   const { artifacts, composition } = job;
   if (cancelled(ctx)) return { status: 'cancelled' };
   // The candidate is what its composition says it is: a stale or swapped panel never reaches capture.
   const intact = await verifyComposition(composition, artifacts);
   if (intact.length) return { status: 'failed', failure: { stage: 'validate', problems: intact.map(p => `${p.path}: ${p.message}`), findings: [] } };
-  const reviewRole = ctx.profile?.roles?.build_review, limit = Math.min(CHECK_LIMITS.maxCases, reviewRole?.maxImages ?? CHECK_LIMITS.maxCases);
+  const reviewRole = ctx.profile?.roles?.build_review, whole = Math.min(CHECK_LIMITS.maxCases, reviewRole?.maxImages ?? CHECK_LIMITS.maxCases);
+  // A partial capture shows each supporting panel as one more image of the same review, so the main cases leave room for them.
+  const limit = whole - (ctx.completeCardUnavailable === true ? plan.supportingVisuals.length : 0);
   const { cases, probes, coverage } = buildPlanCaptureCases(plan, composition, artifacts, { limit });
   if (coverage.problems.length) return { status: 'failed', failure: { stage: 'validate', problems: coverage.problems.map(p => `${p.path}: ${p.message}`), findings: [] } };
   if (coverage.incomplete) return { status: 'incomplete', reason: `the approved plan needs ${coverage.required} captures to be checked and one review takes ${limit}; revise the design with fewer checkpoints (nothing was dropped silently)`, coverage };
@@ -263,12 +300,21 @@ export async function checkRound(job, ctx) {
     throw error;
   }
   if (cancelled(ctx)) return { status: 'cancelled' };
-  const det = checkSceneAgainstPlan({ plan, composition, artifacts, captures, cases, probes, oracle: job.oracle ?? null });
-  const shown = captures.filter(c => cases.some(k => k.id === c.caseId)); // probes are trace-only: the reviewer is shown the planned cases
+  const det = checkSceneAgainstPlan({ plan, composition, artifacts, captures, cases, probes, oracle: job.oracle ?? null, allowPartialCard: ctx.completeCardUnavailable === true });
   const summary = captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 ?? null, compositionHash: c.compositionHash, synthetic: c.synthetic === true }));
   const pngs = captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 ?? null, bytes: c.png })); // the caller stores pixels by hash; the state keeps hashes only
   if (det.problems.length) return { status: 'failed', failure: { stage: 'check', problems: det.problems.map(p => `[${p.code}] ${p.message}`), findings: [], details: det.problems }, captures: summary, pngs, check: det.coverage, coverage };
+  return { status: 'captured', cases, probes, captures, coverage, det, summary, pngs };
+}
 
+// reviewCandidate(job, ctx, captured) -> { status:'ready' | 'failed' | 'incomplete', ... } the independent review of captures that passed the deterministic checks.
+export async function reviewCandidate(job, ctx, { cases, captures, coverage, det, summary, pngs }) {
+  const { plan } = await approvedPlanOf(job);
+  const { artifacts, composition } = job;
+  const reviewRole = ctx.profile?.roles?.build_review, partial = ctx.completeCardUnavailable === true;
+  const shown = captures.filter(c => cases.some(k => k.id === c.caseId)); // probes are trace-only: the reviewer is shown the planned cases
+  // Partial capture: each supporting panel's real snapshot (its first captured state) is one more image, and the trusted layout is given as text.
+  const panels = !partial ? [] : plan.supportingVisuals.flatMap(s => { const at = shown.find(c => c.supports?.[s.id]?.png); const got = at?.supports[s.id]; return got ? [{ id: s.id, title: s.title, got, time: 0, inputs: cases.find(k => k.id === at.caseId).supports.find(x => x.id === s.id).inputs, compositionHash: at.compositionHash }] : []; });
   // The independent reviewer sees only captures of THIS composition: reviewCaptures refuses any other compiledHash.
   const calls = [];
   const callRole = async (_role, { system, tool, content }) => {
@@ -281,10 +327,14 @@ export async function checkRound(job, ctx) {
   let review;
   try {
     review = await reviewCaptures({
-      request: reviewRequest(plan, composition), compiledHash: composition.envelopeHash, facts: factsOf(plan, artifacts), evidence: job.evidence || [],
-      captures: shown.map(c => { const k = cases.find(x => x.id === c.caseId); return { id: c.caseId, compiledHash: c.compositionHash, theme: 'light', time: k.time, inputs: k.inputs, events: k.events, step: k.label, png: c.png, ...(c.data ? { data: c.data } : {}) }; }),
-      ...(main ? { program: { manifest: main.manifest, source: main.source, traces: reviewTraces(shown, cases, plan), coverage: { sampled: cases.map(c => c.id), omitted: coverage.omitted.map(o => o.id) } } } : {}),
-    }, { callRole, extraSystem: INTERACT_REVIEW_RULES, limits: { ...REVIEW_LIMITS, maxImages: reviewRole?.maxImages ?? REVIEW_LIMITS.maxImages } });
+      request: reviewRequest(plan, composition) + (partial ? `
+
+${compositionLayoutText(plan, composition)}` : ''), compiledHash: composition.envelopeHash, facts: factsOf(plan, artifacts), evidence: job.evidence || [],
+      captures: [...shown.map(c => { const k = cases.find(x => x.id === c.caseId); return { id: c.caseId, compiledHash: c.compositionHash, theme: 'light', time: k.time, inputs: k.inputs, events: k.events, step: k.label, png: c.png, ...(c.data ? { data: c.data } : {}) }; }),
+        ...panels.map(p => ({ id: `panel-${p.id}`, compiledHash: p.compositionHash, theme: 'light', time: p.time, inputs: p.inputs, step: `supporting panel "${p.title}", a read-only snapshot`, png: p.got.png }))],
+      ...(main ? { program: { manifest: main.manifest, source: main.source, traces: [...reviewTraces(shown, cases, plan), ...panels.map(p => ({ capture: `panel-${p.id}`, label: p.title, time: 0, inputs: p.inputs, quantities: Object.fromEntries(Object.entries(p.got.trace?.quantities ?? {}).slice(0, 12).map(([k, v]) => [k, round6(v)])) }))],
+        coverage: { sampled: [...cases.map(c => c.id), ...panels.map(p => `panel-${p.id}`)], omitted: coverage.omitted.map(o => o.id) } } } : {}),
+    }, { callRole, extraSystem: partial ? INTERACT_REVIEW_RULES_PARTIAL : INTERACT_REVIEW_RULES, limits: { ...REVIEW_LIMITS, maxImages: reviewRole?.maxImages ?? REVIEW_LIMITS.maxImages } });
   } catch (error) {
     const kind = classifyFailure(error);
     if (kind.kind === 'incomplete') return { status: 'incomplete', reason: error.message, kind, captures: summary, coverage, calls };

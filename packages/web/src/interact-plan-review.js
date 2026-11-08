@@ -1,6 +1,6 @@
 import { ScenePlanSchema, evalScalar } from './interact-plan.js';
 import { isReviewProposal, plainPrompt } from './generation-review.js';
-import { interactIdentity, planOfProposal } from './interact-stage.js';
+import { interactIdentity } from './interact-stage.js';
 
 // The Chat side of INT-03 (docs/features/interact.md): a validated ScenePlan becomes the view model the existing generation review card
 // draws as plan detail. Pure: no React, no model call, no network. The learner sees the exact Title and the concise card description
@@ -9,6 +9,8 @@ import { interactIdentity, planOfProposal } from './interact-stage.js';
 
 export const MODE_LABELS = Object.freeze({ static: 'Static', time: 'Over time', experiment: 'Experiment' });
 const SHA256 = /^[0-9a-f]{64}$/;
+// The server names a model profile by a short hash (interact-models.js interactProfileHash: 16 hex characters), a plan by the full SHA-256.
+const PROFILE_HASH = /^[0-9a-f]{16,64}$/;
 
 const decimals = number => (String(number).split('.')[1] ?? '').length;
 const shown = (number, places) => number.toFixed(places);
@@ -81,13 +83,14 @@ const shownDescription = p => (isReviewProposal(p) ? plainPrompt(p.prompt, p.ref
 // ready is false (Generate stays off, the reason is said) unless the signed identity is complete, the plan is whole and valid, and the
 // title and description the card shows ARE the plan's: Generate approves exactly what is drawn. The server stays the authority on the
 // hash (approve() re-checks it); this is the fail-closed half the browser can do without the signing key.
-export function reviewModel(proposal, plan = planOfProposal(proposal)) {
+// plan: the plan the job route served for this proposal (interact-stage.js planOfProposal), or null while it is not available.
+export function reviewModel(proposal, plan = null) {
   const identity = interactIdentity(proposal);
   if (!identity) return null;
   const description = shownDescription(proposal);
   const refuse = reason => ({ newFlow: true, ready: false, reason, identity, title: proposal.title, cardDescription: description, detail: null });
   if (!plan) return refuse('The scene plan is not available yet.');
-  if (!SHA256.test(identity.hash ?? '') || !SHA256.test(identity.profileHash ?? '')) return refuse('This plan has no approval identity, so it cannot be generated.');
+  if (!SHA256.test(identity.hash ?? '') || !PROFILE_HASH.test(identity.profileHash ?? '')) return refuse('This plan has no approval identity, so it cannot be generated.');
   const parsed = ScenePlanSchema.safeParse(plan);
   if (!parsed.success) return refuse('The scene plan is not complete, so it cannot be generated.');
   const value = parsed.data;

@@ -87,7 +87,7 @@ test('no explanatory text can follow a scene or its controls: any other section 
 test('the composition has nowhere to keep text for under the scene: only the description is introductory copy', () => {
   for (const name of Object.keys(plans)) {
     const composition = comp(name);
-    assert.deepEqual(Object.keys(composition).sort(), ['cardDescription', 'controls', 'main', 'mode', 'onInputChange', 'planHash', 'supports', 'timeline', 'title', 'version']);
+    assert.deepEqual(Object.keys(composition).sort(), ['cardDescription', 'controls', 'depth', 'envelopeHash', 'main', 'mode', 'onInputChange', 'order', 'planHash', 'supporting', 'supports', 'timeline', 'title', 'version']);
     assert.equal(composition.cardDescription, plans[name].cardDescription);
     assert.notEqual(composition.cardDescription, plans[name].story, 'the full Story is not the card body');
     assert.equal(composition.version, COMPOSITION_VERSION);
@@ -101,9 +101,9 @@ test('the adapter reads a block\'s composition, treats a card without one as leg
   assert.equal(compositionOf({ type: 'animation', program: { bundleHash: 'x' } }), null, 'a legacy card has no composition and renders as before');
   assert.equal(compositionOf(null), null);
   assert.equal(compositionOf({ interact: { version: 1, composition: raw } }).title, plans.standard.title);
-  for (const bad of [{ ...raw, schemaVersion: 2 }, { ...raw, mode: 'steps' }, { ...raw, main: { kind: 'html' } }, { ...raw, cardDescription: '' },
+  for (const bad of [{ ...raw, version: 2 }, { ...raw, main: { ...raw.main, mode: 'steps' } }, { ...raw, main: { ...raw.main, runtime: { renderer: 'html' } } }, { ...raw, cardDescription: '' },
     { ...raw, supporting: [...raw.supporting, ...raw.supporting, ...raw.supporting] }, { ...raw, supporting: [...raw.supporting, ...raw.supporting] },
-    { ...raw, timeline: { ...raw.timeline, playbackRate: 0 } }]) {
+    { ...raw, main: { ...raw.main, timeline: { ...raw.main.timeline, playbackRate: 0 } } }, { ...raw, main: { ...raw.main, onInputChange: 'whenever' } }]) {
     assert.ok(compositionOf({ interact: { composition: bad } }).problems.length >= 1, JSON.stringify(Object.keys(bad)));
   }
 });
@@ -209,10 +209,11 @@ test('the experiments\' purpose sentences are suppressed on an /interact card an
 
 // ---- time and focus ----------------------------------------------------------------------------------------------------------
 
-test('the end-of-timeline helper is called with the composition and inputs and still reads manifest.duration until the build lane lands', () => {
+test('the end-of-timeline helper reads the composition the card holds: its endpoint, never longer than the admitted manifest.duration', () => {
   const manifest = parseManifest(fixture.manifest).value;
-  assert.equal(programDuration(manifest, comp('standard'), { launchSpeed: 3 }), manifest.duration ?? 0);
-  assert.equal(programDuration(manifest), manifest.duration ?? 0);
+  assert.equal(programDuration(manifest, comp('standard'), {}), Math.min(6 / 9.8, manifest.duration ?? Infinity), 'the Standard endpoint is 6/9.8 s from the composition');
+  assert.equal(programDuration(manifest, comp('overview'), {}), manifest.duration ?? 0, 'an untimed composition leaves the manifest as it is');
+  assert.equal(programDuration(manifest), manifest.duration ?? 0, 'no composition: the legacy behaviour');
 });
 
 test('Focus counts the description and supporting panels live: the drawing gets the pane minus every row the card draws', () => {

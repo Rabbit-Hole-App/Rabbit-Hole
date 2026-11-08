@@ -258,7 +258,9 @@ export async function renderStates(env, compiled, manifest, deps = {}) {
       const captures = [];
       for (const entry of checked.entries) {
         await page.setViewport({ width: entry.width + 48, height: entry.height + 400, deviceScaleFactor: entry.dpr });
-        const request = { time: entry.time, inputs: entry.inputs, theme: entry.theme, width: entry.width, height: entry.height, ...(entry.events ? { seed: entry.seed, events: entry.events } : {}) };
+        const request = { time: entry.time, inputs: entry.inputs, theme: entry.theme, width: entry.width, height: entry.height, ...(entry.events ? { seed: entry.seed, events: entry.events } : {}),
+          // /interact: the card's composition, so the program is asked for the time the card would ask (its timeline, markers and origin), and its trace reports readouts and drawn text.
+          ...(entry.composition ? { composition: entry.composition } : {}) };
         const done = await within(limits.captureMs, compiled.program
           ? page.evaluate(request => window.__renderProgram(request), { ...request, program: compiled.program })
           : page.evaluate(request => window.__renderScene(request), { ...request, scene: compiled.scene, ...(deps.interact ? { interact: true } : {}) }), 'capture_timeout');

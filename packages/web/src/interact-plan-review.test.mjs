@@ -11,8 +11,8 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { interactFixtures } from './interact-plan-fixtures.js';
 import { planHash } from './interact-plan.js';
-import { MODE_LABELS, planDetail, reviewModel } from './interact-plan-review.js';
-import { INTERACT_REVIEW_HEADING, INTERACT_STAGES, interactDiagnostics, interactIdentity, interactStageText, isInteractJob } from './interact-stage.js';
+import { MODE_LABELS, planDetail, reviewModel as reviewWith } from './interact-plan-review.js';
+import { INTERACT_REVIEW_HEADING, INTERACT_STAGES, interactDiagnostics, interactIdentity, interactStageText, isInteractJob, planOfProposal } from './interact-stage.js';
 import { EXPLAIN_REVIEW_HEADING, jobReviewCopy } from './generation-proposal-chat.js';
 import { explainStage } from './explain-client.js';
 import { NEW_FLOW_PRESENTATIONS, fieldsFor, settingsProblems } from './generation-confirmation-schema.js';
@@ -29,10 +29,19 @@ rmSync(dir, { recursive: true, force: true });
 const { plans } = await interactFixtures();
 const profileHash = 'b'.repeat(64);
 // The signed proposal of the new flow (control-plane generation-proposal.js shape): identity rides in input.
-const proposalOf = async (plan, over = {}) => ({
-  proposal_id: 'gp-0123456789abcdef', version: 1, command: 'explain', title: plan.title, description: plan.cardDescription, settings: { presentation: plan.mode.kind },
-  usage: {}, input: { job: 'job-1', scene_plan_version: 1, scene_plan_hash: await planHash(plan), profile_hash: profileHash, scene_plan: plan }, ...over,
-});
+const planByHash = new Map();
+const proposalOf = async (plan, over = {}) => {
+  const hash = await planHash(plan);
+  planByHash.set(hash, plan);
+  return { proposal_id: 'gp-0123456789abcdef', version: 1, command: 'explain', title: plan.title, description: plan.cardDescription, settings: { presentation: plan.mode.kind },
+    usage: {}, input: { job: 'job-1', board: 'board-1', scene_plan_version: 1, scene_plan_hash: hash, profile_hash: profileHash, runtime_binding_hash: 'd'.repeat(64), approval_hash: 'e'.repeat(64), plan_revision: 1 }, ...over };
+};
+// The signed proposal names its plan by hash; the authenticated job route serves it (explain-job.js scenePlanView: { version, hash, revision, plan }). plan: what that route
+// returned (default: the plan the proposal was made from; null: nothing served yet).
+const reviewModel = (proposal, plan) => {
+  const served = plan === undefined ? planByHash.get(proposal.input?.scene_plan_hash) : plan;
+  return reviewWith(proposal, served ? planOfProposal(proposal, { version: 1, hash: proposal.input?.scene_plan_hash, revision: proposal.input?.plan_revision, plan: served }) : null);
+};
 const strings = (value, out = []) => { if (typeof value === 'string') out.push(value); else if (value && typeof value === 'object') Object.values(value).forEach(v => strings(v, out)); return out; };
 const find = (node, pred) => {
   if (!node || typeof node !== 'object') return null;
@@ -81,7 +90,7 @@ test('Generate is off, with the reason, unless the identity is complete, the pla
   const plan = plans.standard, good = await proposalOf(plan);
   assert.equal(reviewModel(good).ready, true);
   const refused = (proposal, plan2) => { const m = reviewModel(proposal, plan2); assert.equal(m.ready, false); assert.ok(m.reason); assert.equal(m.detail, null); return m.reason; };
-  refused({ ...good, input: { ...good.input, scene_plan: undefined } });
+  refused(good, null);
   refused({ ...good, input: { ...good.input, scene_plan_hash: 'nope' } });
   refused({ ...good, input: { ...good.input, profile_hash: undefined } });
   refused(good, { ...plan, story: '' });
@@ -100,15 +109,15 @@ test('a reviewed proposal that keeps its description as an escaped prompt still 
 });
 
 test('public stage words, the real stage kept for diagnostics, the older flow unchanged', () => {
-  assert.deepEqual(INTERACT_STAGES, { designing: 'Designing scene', design_review: 'Reviewing scene design', design_revise: 'Updating scene plan', design_check: 'Checking scene plan', awaiting_approval: 'Ready to review' });
+  assert.deepEqual(INTERACT_STAGES, { design_authoring: 'Designing scene', design_reviewing: 'Reviewing scene design', design_revising: 'Updating scene plan', design_verifying: 'Checking scene plan', awaiting_approval: 'Ready to review' });
   for (const [stage, words] of Object.entries(INTERACT_STAGES).filter(([stage]) => stage !== 'awaiting_approval')) {
     assert.equal(explainStage({ stage }), words);
     assert.deepEqual(interactDiagnostics({ stage }), { stage, shown: words }, 'the server state stays visible');
   }
-  assert.equal(explainStage({ stage: 'awaiting_approval', flow: 'interact' }), 'Ready to review');
+  assert.equal(explainStage({ stage: 'awaiting_approval', flow: { version: 1 } }), 'Ready to review');
   assert.equal(explainStage({ stage: 'awaiting_approval' }), 'Review the explanation plan in Chat', 'the older flow keeps its words');
-  assert.equal(explainStage({ stage: 'authoring', flow: 'interact' }), 'Writing the explanation', 'build stages keep the existing words');
-  assert.equal(explainStage({ stage: 'failed', flow: 'interact', failure: { message: 'It stopped.' } }), 'It stopped.');
+  assert.equal(explainStage({ stage: 'authoring', flow: { version: 1 } }), 'Writing the explanation', 'build stages keep the existing words');
+  assert.equal(explainStage({ stage: 'failed', flow: { version: 1 }, failure: { message: 'It stopped.' } }), 'It stopped.');
   assert.equal(interactStageText({ stage: 'queued' }), null);
   assert.equal(isInteractJob({ stage: 'queued' }), false);
   assert.equal(interactDiagnostics({ stage: 'queued' }), null);

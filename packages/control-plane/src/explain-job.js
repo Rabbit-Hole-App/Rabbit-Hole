@@ -12,8 +12,10 @@
 // Edit of a delivered card) records its flow, model profile id/hash and prompt versions at creation and keeps them for life. It replaces
 // preparing with queued -> design_authoring -> design_reviewing -> design_revising -> design_verifying (a follow-up review loops back to
 // design_reviewing only when interact-design.js says so) -> awaiting_approval, publishes the validated plan as the signed proposal, and
-// approves only the exact current final plan. After Generate, authoring is the builder seam: ctx.buildScene (interact-build.js, another lane).
-// Legacy jobs never enter any of this.
+// approves only the exact current final plan. After Generate the same durable stages carry the new build (interact-job.js): authoring = the build_author call and
+// the trusted validation, validating = the stored candidate is still the composition's, rendering = every planned state captured through the existing render
+// service and checked against the plan, reviewing = the independent rendered review, repairing = one build_repair call; the correction rounds (three) are shared.
+// The accepted result keeps the main and supporting artifacts and the compiled CardComposition (kind 'interact'). Legacy jobs never enter any of this.
 //
 // Money: every model call is admitted on its own by spendTransport (the existing ledger), under one stable usage action per
 // job phase (preparation, generation) so the learner sees one action; review calls are kind evaluation. Before generation
@@ -39,6 +41,9 @@ import { needsPreparation, prepareStage } from './explain-brief.js';
 import { INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
 import { DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, approvalHashOf, designCapabilities, designPipeline, designPromptContracts, freshDesign, isBlocking, modeToPresentation, runtimeProblems } from './interact-design.js';
 import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } from '../../web/src/interact-plan.js';
+import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
+import { verifyComposition } from '../../web/src/interact-composition.js';
+import { captureCardFor, interactBuildPipeline } from './interact-job.js';
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { capabilityGap } from './explain-author.js';
 import { authorStage, selectExamples, specFacts, validateProgramStage, validateStage } from './explain-author.js';
@@ -156,11 +161,15 @@ export async function reviewStage(job, ctx) {
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
   return { accepted: out.accepted, findings, repairable: job.artifact ? programRepairable({ findings }) : allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
 }
-// The builder seam of the new flow: the approved plan goes to ctx.buildScene (interact-build.js, another lane). Until that lane wires it, the default
-// refuses clearly; it is reached only by a job that was created under the new-flow switch, so a legacy job never meets it.
-export const buildUnavailable = () => { throw Object.assign(fail('The new-flow build is not available yet.', 503, 'build_unavailable'), { stopReason: 'build_unavailable', category: 'internal' }); };
-export const explainPipeline = Object.freeze({ ...designPipeline, buildScene: (job, ctx) => ctx.buildScene(job, ctx), prepare: prepareStage, author: authorStage, validate: (job, ctx) => (job.program ? validateProgramStage(job, ctx) : validateStage(job, ctx)), render: renderStage(), review: reviewStage,
-  repair: (job, ctx) => (job.artifact || job.program ? programRepairStage(job, ctx) : repairStage(job, ctx)) });
+// The stages of a new-flow job after Generate run interact-job.js (ctx.build is set only for those); everything else is the legacy pipeline. deps.buildScene is a
+// test seam that returns the legacy shape (a program or a spec) and keeps the legacy stages after it.
+const legacyRender = renderStage();
+export const explainPipeline = Object.freeze({ ...designPipeline, buildScene: (job, ctx) => (ctx.build ? interactBuildPipeline.buildScene(job, ctx) : ctx.buildScene(job, ctx)), prepare: prepareStage, author: authorStage,
+  validate: (job, ctx) => (ctx.build ? interactBuildPipeline.validate(job, ctx) : job.program ? validateProgramStage(job, ctx) : validateStage(job, ctx)),
+  render: (job, ctx) => (ctx.build ? interactBuildPipeline.render(job, ctx) : legacyRender(job, ctx)),
+  review: (job, ctx) => (ctx.build ? interactBuildPipeline.review(job, ctx) : reviewStage(job, ctx)),
+  repair: (job, ctx) => (ctx.build ? interactBuildPipeline.repair(job, ctx) : job.artifact || job.program ? programRepairStage(job, ctx) : repairStage(job, ctx)) });
+const BUILD_STAGES = ['authoring', 'validating', 'rendering', 'reviewing', 'repairing'];
 
 // Learner-facing view: credits, never dollars; no prompt, findings, spec or private diagnostics.
 const credits = micros => Math.ceil((micros || 0) / 10000);
@@ -180,9 +189,9 @@ export function publicExplainJob(job) {
 }
 // The validated final plan and its provenance, on the authenticated job route only (never in a list or a public view): what Chat reviews and
 // what Generate consumes. null until the design is closed.
-const scenePlanView = job => {
+export const scenePlanView = job => {
   const d = job.design, last = d.reviews.at(-1);
-  return d.finalHash ? { version: 1, hash: d.finalHash, revision: d.rev, plan: d.plan, open: d.open, carried: d.carried,
+  return d.finalHash ? { version: 1, hash: d.finalHash, revision: d.rev, plan: d.plan, open: d.open, carried: d.carried, fit: d.fit ? { styleVersion: d.fit.styleVersion } : null,
     review: last ? { verdict: last.verdict, scores: last.scores, reviews: d.reviews.length, revisions: d.revisions.length } : null } : null;
 };
 // What the signed proposal shows and carries for a new-flow job, computed from the validated plan alone; approve compares the presented proposal with this.
@@ -209,7 +218,7 @@ export function recoveryOf(job) {
   if (job.inFlight) return ['reconcile'];
   const actions = [];
   // Not after a stop about the candidate itself (corrections spent, no progress, unrepairable): rendering it again fails the same way.
-  if (job.failure?.stage === 'rendering' && (job.compiled || job.artifact) && !CANDIDATE_STOPS.has(job.stopReason)) actions.push('retry_render');
+  if (job.failure?.stage === 'rendering' && (job.compiled || job.artifact || job.build?.envelopeHash) && !CANDIDATE_STOPS.has(job.stopReason)) actions.push('retry_render');
   // Paused for the provider: the refused call was never counted, so resuming is always within the ceiling.
   else if (job.failure?.category === 'provider_unavailable' || job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
   return [...actions, 'edit_request'];
@@ -267,6 +276,8 @@ export async function explainRoute(path, req, env, deps = {}) {
     await learnMedia(env).put(key, JSON.stringify({ mediaType: image.source.media_type, data: image.source.data }), { httpMetadata: { contentType: 'application/json' } });
     body.reference = { key, role: 'layout_reference', mediaType: image.source.media_type };
   }
+  const panel = url.searchParams.get('panel');
+  if (panel !== null && !(results && /^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(panel))) return json({ error: 'Not found' }, 404);
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   const who = { org: user.org, email: user.email, userId: user.userId || user.user_id || null };
   // R2: Depth is the learner's selection when they pressed Generate (the client's snapshot), validated here; omitted, their saved Depth for
@@ -312,13 +323,17 @@ export async function explainRoute(path, req, env, deps = {}) {
       // Owner-only diagnostics for live verification runs on a dev clone (EXPLAIN_DIAGNOSTICS, never set in a committed config).
       detail: req.method === 'GET' && url.searchParams.get('detail') === '1' && env.EXPLAIN_DIAGNOSTICS === 'true',
       // ?version=<programHash>: the complete stored source and manifest of one candidate (owner diagnostics only, with detail=1).
-      version: /^[0-9a-f]{16}$/.test(url.searchParams.get('version') || '') ? url.searchParams.get('version') : null }) });
+      version: /^[0-9a-f]{16}$/.test(url.searchParams.get('version') || '') ? url.searchParams.get('version') : null,
+      // ?panel=<id>: one supporting panel's artifact of an /interact card (the card's own main program when absent).
+      panel }) });
 }
 
 export class ExplainJobs {
-  // deps (new flow only): descriptionFit(plan) -> the trusted description-fit receipt (INT-06-C17; interact-design.js fixtureDescriptionFit stands in for tests),
-  // buildScene(job, ctx) -> the builder (interact-build.js).
-  constructor(state, env, pipeline = explainPipeline, deps = {}) { this.state = state; this.env = env; this.pipeline = pipeline; this.deps = deps; this.active = new Set(); }
+  // deps (new flow only): descriptionFit(plan) -> the description-fit receipt (INT-06-C17; interact-design.js fixtureDescriptionFit stands in for tests; absent, the server
+  // setting INTERACT_DESCRIPTION_FIT=estimate selects the pure estimate and anything else fails closed); buildScene(job, ctx) -> a legacy-shaped builder (a test seam;
+  // absent, the real build of interact-job.js runs).
+  // deps.render: renderStates' own deps for the new flow's captures (launch, browser, store); deps.captureCard replaces the capture seam (tests).
+  constructor(state, env, pipeline = explainPipeline, deps = {}) { this.state = state; this.env = env; this.pipeline = pipeline; this.deps = deps; this.active = new Set(); this.building = new Map(); }
   async locked(fn) {
     // An exception escaping blockConcurrencyWhile resets the object; expected refusals leave the gate first.
     const out = await this.state.blockConcurrencyWhile(async () => { try { return { value: await fn() }; } catch (error) { return { error }; } });
@@ -339,14 +354,14 @@ export class ExplainJobs {
     }
   }
 
-  async action({ action, id, payload = {}, board, user, origin, detail = false, version = null }) {
+  async action({ action, id, payload = {}, board, user, origin, detail = false, version = null, panel = null }) {
     if (action === 'list') {
       const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()].filter(j => j.owner.email === user.email);
       return json({ jobs: jobs.sort((a, b) => a.createdAt - b.createdAt).map(publicExplainJob) });
     }
     if (action === 'create') return this.create(payload, board, user, origin);
     if (action === 'lineage') return json({ refs: await this.lineage(payload, board, user) });
-    if (action === 'result') return this.programResult(id, board, user);
+    if (action === 'result') return this.programResult(id, board, user, panel);
     const job = id && await this.get(id);
     if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
     if (action === 'get') {
@@ -364,10 +379,20 @@ export class ExplainJobs {
   }
 
   // The saved program for a card on this canvas, for its owner only; a program is never served by hash alone or by another canvas.
-  async programResult(resultId, board, user) {
+  async programResult(resultId, board, user, panel = null) {
     const saved = await this.state.storage.get(`result:${resultId}`);
-    if (saved?.kind !== 'program' || saved.owner?.email !== user.email || saved.boardId !== board.id) throw fail('Not available', 404);
-    if (!await artifactIntact(saved.artifact)) throw fail('This explanation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
+    if (!['program', 'interact'].includes(saved?.kind) || saved.owner?.email !== user.email || saved.boardId !== board.id) throw fail('Not available', 404);
+    const unavailable = () => fail('This explanation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
+    if (saved.kind === 'interact') {
+      // The whole envelope is checked on every read: the composition names each artifact by hash, so no panel can be swapped on its own.
+      const envelope = { main: { kind: 'program', program: saved.artifact }, supporting: saved.supporting.map(s => ({ id: s.id, artifact: { kind: 'program', program: s.artifact } })) };
+      if ((await verifyComposition(saved.composition, envelope)).length) throw unavailable();
+      const support = panel && panel !== 'main' ? saved.supporting.find(s => s.id === panel) : null;
+      if (panel && panel !== 'main' && !support) throw fail('Not available', 404);
+      return json({ artifact: support ? support.artifact : saved.artifact, panel: support ? support.id : 'main', identity: saved.identity, execution: programExecution(this.env), composition: saved.composition, sources: learnerSources(saved.provenance) });
+    }
+    if (panel && panel !== 'main') throw fail('Not available', 404);
+    if (!await artifactIntact(saved.artifact)) throw unavailable();
     // Task 9.4: the sources it was made from, as the card's source list, on this owner-only answer only (a share link's read keeps none).
     return json({ artifact: saved.artifact, identity: saved.identity, execution: programExecution(this.env), sources: learnerSources(saved.provenance) });
   }
@@ -436,6 +461,8 @@ export class ExplainJobs {
     if (block.explain.revision !== payload.baseRevision) throw fail('This explanation changed. Reload before editing.', 409, 'edit_stale');
     const saved = await this.state.storage.get(`result:${block.explain.resultId}`);
     if (!saved || saved.identity.cardId !== payload.cardId || saved.identity.revision !== payload.baseRevision) throw unsupported();
+    // ponytail: Ctrl+K Edit of a composed /interact card is not wired (INT-07B-C05); it would rebuild the main program alone and drop the composition.
+    if (saved.kind === 'interact') throw unsupported();
     // A program card's base is its stored artifact, read from this canvas's own result record and checked against its hashes.
     if (saved.kind === 'program') {
       if (!programEnabled(this.env) || saved.boardId !== board.id || !await artifactIntact(saved.artifact)) throw unsupported();
@@ -453,7 +480,7 @@ export class ExplainJobs {
   }
   async prune(jobs) {
     const old = jobs.filter(j => TERMINAL.has(j.stage)).sort((a, b) => b.updatedAt - a.updatedAt).slice(JOBS_KEPT - 1);
-    for (const j of old) { await this.state.storage.delete?.(jobKey(j.id)); await this.state.storage.delete?.(`request:${j.requestId}`); if (!j.artifact) await this.state.storage.delete?.(`result:${j.resultId}`); for (const h of j.history || []) if (h.version?.stored) await this.state.storage.delete?.(h.version.key); if (j.design) for (const [key] of await this.state.storage.list({ prefix: `design:${j.id}:` })) await this.state.storage.delete?.(key); } // a program's source lives only here, so pruning a job keeps its result
+    for (const j of old) { await this.state.storage.delete?.(jobKey(j.id)); await this.state.storage.delete?.(`request:${j.requestId}`); if (!j.artifact && !(j.flow && j.result)) await this.state.storage.delete?.(`result:${j.resultId}`); for (const h of j.history || []) if (h.version?.stored) await this.state.storage.delete?.(h.version.key); if (j.design) for (const [key] of await this.state.storage.list({ prefix: `design:${j.id}:` })) await this.state.storage.delete?.(key); if (j.build) for (const [key] of await this.state.storage.list({ prefix: `build:${j.id}:` })) await this.state.storage.delete?.(key); } // a program's source lives only here, so pruning a job keeps its result (an accepted /interact card's artifacts too: the flow test)
   }
 
   // The learner's available allowance must cover generation's full worst case before any of it starts.
@@ -509,7 +536,7 @@ export class ExplainJobs {
         }
       }
       // A brief that was never approved is prepared again: a Retry never skips the learner's review.
-      const stage = paused || (job.prepare && !job.approval ? 'preparing' : job.spec || job.program ? 'validating' : 'authoring');
+      const stage = paused || (this.buildFlow(job) ? (BUILD_STAGES.includes(job.failure?.stage) ? job.failure.stage : 'authoring') : job.prepare && !job.approval ? 'preparing' : job.spec || job.program ? 'validating' : 'authoring');
       if (stage !== 'preparing' && !DESIGN_STAGES.includes(stage)) await this.admitGeneration(job);
       Object.assign(job, { stage, failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     } else throw fail(job.stage === 'failed' ? 'This explanation reached its limit. Edit the request to start a new one.' : 'Only a failed explanation can be retried.', 409);
@@ -628,6 +655,8 @@ export class ExplainJobs {
   // The saved result the browser places: the compiled scene and its identity. Saved content renders without a model call.
   async block(job) {
     const saved = await this.state.storage.get(`result:${job.resultId}`);
+    // A composed /interact card keeps the bounded CardComposition (hashes and declarations, never source) beside the program reference; the full Story stays in the design record.
+    if (saved?.kind === 'interact') return { type: 'animation', id: job.cardId, title: saved.composition.title, program: programReference(saved.artifact, job.resultId), interact: { version: 1, planHash: saved.planHash, composition: saved.composition }, explain: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}) };
     // A program card keeps a reference on the canvas, never its source: the player reads the artifact through the result route.
     if (saved?.kind === 'program') return { type: 'animation', id: job.cardId, title: saved.artifact.manifest.title, program: programReference(saved.artifact, job.resultId), explain: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}) };
     return saved && { type: 'animation', id: job.cardId, scene: saved.compiled?.scene ?? saved.compiled, explain: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}) };
@@ -735,6 +764,114 @@ export class ExplainJobs {
     return out;
   }
 
+  // ---- the new flow's build (interact-job.js) ----
+  // A new-flow job after Generate runs the real build unless a test injected the legacy-shaped seam.
+  buildFlow(job) { return !!job.flow && !!job.approval && !this.deps.buildScene; }
+  // The candidate and its captures live under their own keys (a program's source alone can be 16 KB, and a storage value is at most 128 KB), never on the job record.
+  async loadBuild(job) {
+    const [draft, artifacts, composition, captures] = await Promise.all(['draft', 'artifacts', 'composition', 'captures'].map(name => this.state.storage.get(`build:${job.id}:${name}`)));
+    return { draft, artifacts, composition, captures };
+  }
+  // The role context of interact-build.js / interact-checks.js under this job's pinned profile. Every call is fenced as interactCall fences one: admit stores the intent
+  // (job still this stage and attempt, not stopped, nothing in flight, the role's ceiling and the deadline allow it) before anything is sent; settle closes the record.
+  async buildRoleCtx(job) {
+    const profile = resolveInteractProfile(job.flow.profile.id);
+    if (await interactProfileHash(profile) !== job.flow.profile.hash) throw Object.assign(fail('The model settings changed since this request started. Start a new request.', 409, 'profile_changed'), { stopReason: 'profile_changed' });
+    return { env: this.env, profile,
+      adapters: { anthropic: { name: 'anthropic', call: args => interactAdapters({ env: this.env, callModel: this.interactTransport(job, args.config.role) }).anthropic.call(args) } },
+      // ponytail: the render service cannot compose the card, so every capture is per-panel (completeCard:false) and the reviewer is told so; see interact-checks.js.
+      completeCardUnavailable: true, captureCard: this.deps.captureCard ?? captureCardFor(this.env, { jobId: job.id, ...(this.deps.render || {}) }),
+      admit: info => this.admitBuildCall(job, info), settle: info => this.settleBuildCall(job, info) };
+  }
+  async admitBuildCall(job, { role, boundMicros, images }) {
+    const key = await this.locked(async () => {
+      const current = await this.get(job.id);
+      if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
+      const used = current.build.counts[role] ?? 0;
+      if (used + 1 > INTERACT_LIMITS.calls[role]) throw Object.assign(fail(`This scene build reached its ${role.replace('build_', '')} limit.`, 429), { stopReason: 'budget' });
+      if (Date.now() >= current.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${current.stage}.`, 409), { stopReason: 'deadline' });
+      current.build.counts[role] = used + 1; current.reservedMicros += boundMicros ?? 0;
+      const callKey = `${current.id}-${role}-${current.calls.length + 1}`;
+      current.inFlight = { key: callKey, role, at: Date.now() };
+      current.calls.push({ key: callKey, role, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros: boundMicros ?? 0, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
+      await this.save(current);
+      return callKey;
+    });
+    if (!key) throw Object.assign(fail('This explanation changed while it was working.', 409), { abandoned: true });
+    this.active.add(job.id); this.building.set(job.id, key);
+  }
+  async settleBuildCall(job, s) {
+    const key = this.building.get(job.id);
+    if (!key) return; // refused before it was admitted: nothing was recorded
+    this.building.delete(job.id); this.active.delete(job.id);
+    await this.locked(async () => {
+      const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
+      const refused = s.status === 'refused';
+      if (refused) { current.build.counts[s.role]--; current.reservedMicros -= call.boundMicros; }
+      const usage = s.usage?.raw ?? null;
+      Object.assign(call, { requested: s.requested?.model ?? null, served: s.served?.model ?? null, status: refused ? 'refused' : s.status === 'unknown' ? 'unknown' : s.status === 'settled' ? 'settled' : 'failed',
+        costMicros: refused ? 0 : s.costMicros ?? null, inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: s.error?.code || null });
+      if (current.inFlight?.key === key) current.inFlight = null;
+      countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images: call.images });
+      await this.save(current);
+    });
+  }
+  // What each build stage's result does to the job (the bodies are interact-job.js). A failure the checks or the review found is remembered as job.build.failure and goes to
+  // repairOrStop (three rounds shared across validation, render and review); a candidate is replaced only by a repair that passed the same trusted validation.
+  async applyBuild(job, stage, out) {
+    const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
+    const keep = (name, value) => this.state.storage.put(`build:${job.id}:${name}`, value);
+    const drop = names => Promise.all(names.map(name => this.state.storage.delete?.(`build:${job.id}:${name}`)));
+    const b = job.build;
+    const failWith = async (failure, over = out) => { b.failure = failure; job.findings.push({ round: job.round, stage, ...(failure.problems?.length ? { problems: failure.problems } : { accepted: false, findings: failure.findings }) }); return this.repairOrStop(job, over); };
+    if (out.incomplete) return this.stopWith(job, 'incomplete', 'spec', `This scene plan needs more checks than one review can cover (${String(out.incomplete).slice(0, 300)}). Edit the request to use fewer checkpoints.`);
+    if (stage === 'authoring') {
+      if (out.draft) await keep('draft', out.draft);
+      if (out.problems) return failWith({ stage: 'validate', problems: out.problems, findings: [] });
+      await keep('artifacts', out.artifacts); await keep('composition', out.composition); await drop(['captures']);
+      b.envelopeHash = out.composition.envelopeHash; b.failure = null;
+      next('validating');
+    } else if (stage === 'validating') {
+      if (out.problems?.length) return failWith({ stage: 'validate', problems: out.problems, findings: [] });
+      next('rendering');
+    } else if (stage === 'rendering') {
+      if (out.problems?.length) return failWith(out.failure ?? { stage: 'check', problems: out.problems, findings: [] });
+      await keep('captures', out.captured); b.check = out.check; b.failure = null;
+      job.renders += out.renders.length; countStage(job.timing, { captures: out.captured.length });
+      await this.recordRenders(job, out.renders);
+      next('reviewing');
+    } else if (stage === 'reviewing') {
+      if (out.accepted === true) { job.findings.push({ round: job.round, stage, accepted: true, findings: [] }); return this.acceptInteract(job); }
+      return failWith(out.failure, out);
+    } else if (stage === 'repairing') {
+      job.candidates = [...(job.candidates || []), { round: job.round, operation: out.operation || null, progress: out.progress !== false, specHash: null, ...(out.repaired || out.invalid ? { envelope: out.composition?.envelopeHash ?? null } : {}) }];
+      if (out.rejected) return this.stopWith(job, 'rounds', 'spec', 'The explanation did not pass its checks within three corrections. Edit the request and try again.');
+      if (out.progress === false) return this.stopWith(job, 'no_progress', 'spec', 'The explanation could not be repaired. Edit the request and try again.');
+      await keep('draft', out.draft); await drop(['captures']);
+      if (out.invalid) { await drop(['artifacts', 'composition']); b.envelopeHash = null; return failWith(out.failure, { repairable: true, category: 'spec' }); }
+      await keep('artifacts', out.artifacts); await keep('composition', out.composition);
+      b.envelopeHash = out.composition.envelopeHash; b.failure = null;
+      next('validating');
+    }
+    await this.save(job);
+  }
+  // The accepted /interact card: the main program, every supporting program and the compiled CardComposition (its envelope hash names each artifact), stored together behind this
+  // canvas's ownership. The result says honestly that the checks looked at each panel and not at one image of the whole card (interact-checks.js, the ponytail above INTERACT_REVIEW_RULES).
+  async acceptInteract(job) {
+    const b = await this.loadBuild(job), author = job.calls.filter(c => c.role === 'build_author' && c.status === 'settled').at(-1);
+    const main = b.artifacts.main.program, supporting = b.artifacts.supporting.map(s => ({ id: s.id, artifact: s.artifact.program }));
+    const hashOf = async value => (await sha256Hex(JSON.stringify(value ?? null))).slice(0, 16);
+    job.result = { jobId: job.id, resultId: job.resultId, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: (await sha256Hex(job.prompt)).slice(0, 16),
+      revision: job.revision, baseRevision: job.baseRevision, kind: 'program', bundleHash: main.bundleHash, sourceHash: main.sourceHash, manifestHash: main.manifestHash,
+      versions: { schema: main.schemaVersion, runtime: main.runtimeVersion, sdk: main.sdkVersion, renderer: main.rendererVersion }, policyVersion: job.policyVersion,
+      interact: { version: 1, planHash: b.composition.planHash, envelopeHash: b.composition.envelopeHash, rounds: job.round, completeCard: false, descriptionFit: job.design.fit?.styleVersion ?? null } };
+    await this.state.storage.put(`result:${job.resultId}`, { kind: 'interact', artifact: main, supporting, composition: b.composition, planHash: b.composition.planHash, identity: job.result, owner: { org: job.owner.org, email: job.owner.email }, boardId: job.boardId, cardId: job.cardId,
+      authoredBy: author ? { requested: author.requested, served: author.served } : null, provenance: { ...provenanceOf(job), request: job.result.promptRef, context: await hashOf(job.context), edited: null } });
+    endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
+    Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
+    await this.save(job); await this.finishUsage(job, 'completed');
+  }
+
   async alarm() {
     await this.state.storage.setAlarm(Date.now() + 30000); // re-armed first: a terminated isolate still gets a recovery turn
     let active = false;
@@ -769,7 +906,10 @@ export class ExplainJobs {
     if (Date.now() > job.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${job.stage}.`, 409), { stopReason: 'deadline' });
     if (job.stage === 'queued') return this.move(job, job.flow ? 'design_authoring' : job.prepare && !job.approval ? 'preparing' : 'authoring');
     const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: EXPLAIN_LIMITS,
-      ...(job.flow ? { interact: (role, args) => this.interactCall(job, role, args), capabilities: await designCapabilities(this.env, job), descriptionFit: this.deps.descriptionFit, buildScene: this.deps.buildScene || buildUnavailable } : {}) };
+      ...(job.flow ? { interact: (role, args) => this.interactCall(job, role, args), capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene,
+        // The description fit is a measurement; only the pure estimate exists in a Worker (no DOM), so it runs only when the server setting says so, labelled estimate in the stored receipt.
+        descriptionFit: this.deps.descriptionFit ?? (this.env.INTERACT_DESCRIPTION_FIT === 'estimate' ? estimateDescriptionFit : undefined) } : {}) };
+    if (this.buildFlow(job)) Object.assign(ctx, { build: await this.loadBuild(job), role: await this.buildRoleCtx(job) });
     const stage = job.stage, attempt = job.attempt;
     const run = { preparing: 'prepare', design_authoring: 'designAuthor', design_reviewing: 'designReview', design_revising: 'designRevise', design_verifying: 'designVerify', authoring: job.flow ? 'buildScene' : 'author', validating: 'validate', rendering: 'render', reviewing: 'review', repairing: 'repair' }[stage];
     const out = await this.pipeline[run](structuredClone(job), ctx);
@@ -795,6 +935,7 @@ export class ExplainJobs {
     // with what is missing: no repair, no simpler substitute card.
     if (out.gap) { await this.stopWith(job, 'capability_gap', 'capability', out.gap.message); job.failure.gap = out.gap; return this.save(job); }
     if (DESIGN_STAGES.includes(stage)) return this.applyDesign(job, stage, out);
+    if (this.buildFlow(job) && BUILD_STAGES.includes(stage)) return this.applyBuild(job, stage, out);
     // The build seam returns what the legacy author returns (a program or a spec) until interact-runner.js owns the new flow's later stages.
     if (job.flow && stage === 'authoring' && !out.program && !out.spec) return this.stopWith(job, 'build_unsupported', 'internal', 'The scene builder returned nothing this job can continue with.');
     if (stage === 'preparing') {
@@ -940,14 +1081,16 @@ export class ExplainJobs {
     job.proposal = { id: p.proposal_id, version: p.version };
     job.settings = want.settings;
     markTiming(job.timing, 'generate');
-    Object.assign(job, { approval: { scenePlanHash: d.finalHash, profileHash: job.flow.profile.hash, planRevision: d.rev, runtimeHash: d.runtimeHash, approvalHash: d.approvalHash, at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
+    Object.assign(job, { approval: { scenePlanHash: d.finalHash, profileHash: job.flow.profile.hash, planRevision: d.rev, runtimeHash: d.runtimeHash, approvalHash: d.approvalHash, at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs,
+      // The build's own small record: its role call counts (ceilings of INTERACT_LIMITS.calls), the last failure to repair, the checks' coverage. The candidate itself is under build:<job>:*.
+      build: { counts: { build_author: 0, build_review: 0, build_repair: 0 }, failure: null, check: null, envelopeHash: null } });
     beginStage(job.timing, 'authoring');
     await this.save(job); await this.wake();
     return json({ job: publicExplainJob(job) }, 202);
   }
 
   async repairOrStop(job, out) {
-    await this.recordDefects(job, out.findings);
+    if (!job.flow) await this.recordDefects(job, out.findings); // shared-library defects are the legacy specs' backlog; a composed card's findings are its own program's
     // A program has no unrepairable finding of its own to blame once the corrections are spent: the budget is the reason it stops.
     const program = job.artifact || job.program;
     if (program && job.round >= EXPLAIN_LIMITS.correctionRounds) return this.stopWith(job, 'rounds', out.category || 'spec', 'The explanation did not pass its checks within three corrections. Edit the request and try again.');

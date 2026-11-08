@@ -75,6 +75,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const still = useReducedMotion();
   const latest = useRef(block);
   latest.current = block;
+  const compositionRef = useRef(composition); // the scheduler's request builder reads the card's composition as it is now (null for every legacy card)
+  compositionRef.current = composition;
   const host = useRef(null);
   const scheduler = useRef(null);
   const counter = useRef(0);
@@ -138,7 +140,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     // message: without it a transient failure flashed the message for a few frames and the drawing came back.
     const stop = error => { setPlaying(false); setFailure(error); };
     const created = createFrameScheduler({
-      evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current, job.state)),
+      evaluate: job => target.evaluate(evaluateRequestFor(manifest, { ...latest.current, inputs: job.inputs }, job.time, ++counter.current, job.state, compositionRef.current)),
       show: (reply, job) => {
         const out = normalizeFrame(reply.frame, manifest);
         if (out.ok) { if (!preview) rememberProgram(latest.current, manifest, { inputs: job.inputs, time: job.time, readouts: out.readouts, revision: job.revision ?? null }); setView({ ...out, time: job.time }); setFailure(null); } else stop(out.error);
@@ -149,7 +151,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     return () => { created.dispose(); if (scheduler.current === created) scheduler.current = null; };
   }, [manifest, hostReady]);
   useEffect(() => {
-    if (manifest && programState.ready) scheduler.current?.want({ key: frameKey(frameInputs, epoch, programState.envelope), time: clampTime(manifest, time), inputs: frameInputs, state: programState.envelope?.state ?? null, revision: programState.envelope?.revision ?? null });
+    if (manifest && programState.ready) scheduler.current?.want({ key: frameKey(frameInputs, epoch, programState.envelope), time: clampTime(manifest, time, composition, inputs), inputs: frameInputs, state: programState.envelope?.state ?? null, revision: programState.envelope?.revision ?? null });
   }, [manifest, hostReady, inputsKey, epoch, time, programState.ready, programState.envelope]);
   // The card's size comes from the artifact's first frame only (LearningBlocks sizeFor), so playback never resizes it.
   useEffect(() => { setBox(null); }, [artifact]);
@@ -165,7 +167,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // Play advances real simulation time (the readouts are never rescaled); the loop is the scene card's.
   useEffect(() => {
     if (!playing || !duration) return undefined;
-    const rate = playbackRate(manifest), origin = performance.now() - time * 1000 / rate;
+    const rate = playbackRate(manifest, composition, inputs), origin = performance.now() - time * 1000 / rate;
     const tick = now => {
       const next = (now - origin) / 1000 * rate;
       if (next >= duration) { setTime(duration); setPlaying(false); return; }
@@ -178,7 +180,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // The paused moment is saved quietly (a view change, never an undo step), as the scene card does.
   useEffect(() => {
     if (playing || !manifest) return;
-    const saved = savedTime(manifest, time);
+    const saved = savedTime(manifest, time, composition, inputs);
     if (saved !== (latest.current.time ?? 0)) (onChangeQuiet || onChange)({ ...latest.current, time: saved });
   }, [playing, time, manifest]);
   useEffect(() => { if (!preview) programPlayback(latest.current, playing); }, [playing, preview]); // Task 9.3: the described moment is playing or paused
@@ -334,7 +336,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // A schema 2 Reset saves only once its initial state has been checked (persist above); a failed one keeps the last good state.
   const reset = () => { dragging.current = null; setPlaying(false); seek(0); if (programState.stateful) { setPendingInputs(null); programState.reset(programInputs(manifest, {})); } else onChange(resetProgram(latest.current)); };
   const rows = manifest.inputs;
-  const changed = programChanged(manifest, latest.current) || programTime(manifest, latest.current) > 0 || programState.changed;
+  const changed = programChanged(manifest, latest.current) || programTime(manifest, latest.current, composition) > 0 || programState.changed;
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
   // the requested moment, which the picture settles on within one evaluation (data-program-settling until then).
   const shownTime = playing ? view.time : time;
@@ -342,7 +344,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
   const legible = box ?? legibleFrame(view.scene);
   return (
-    <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
+    <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
       {composed
         ? <InteractIntro composition={composition} block={block} mainInputs={inputs} />
@@ -359,9 +361,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           <button type="button" data-animation-play onClick={play} className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
             {playing ? <Pause size={14} /> : <Play size={14} />}{playing ? 'Pause' : atEnd ? 'Replay' : 'Play'}
           </button>
-          <input type="range" aria-label={manifest.timeline?.label ?? 'Explanation time'} min={0} max={duration} step={scrubStep(manifest)} value={time}
-            onChange={event => { setPlaying(false); seek(clampTime(manifest, snapToMarker(manifest, Number(event.target.value)))); }} className="h-8 min-w-0 flex-1 accent-accent" />
-          <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2">{timeLabel(manifest, shownTime)}</span>
+          <input type="range" aria-label={manifest.timeline?.label ?? 'Explanation time'} min={0} max={duration} step={scrubStep(manifest, composition)} value={time}
+            onChange={event => { setPlaying(false); seek(clampTime(manifest, snapToMarker(manifest, Number(event.target.value), composition, inputs), composition, inputs)); }} className="h-8 min-w-0 flex-1 accent-accent" />
+          <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2">{timeLabel(manifest, shownTime, composition, inputs)}</span>
         </div>
       )}
       {(rows.length > 0 || actions.length > 0 || targets.length > 0) && (

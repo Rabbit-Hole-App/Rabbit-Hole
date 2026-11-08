@@ -238,17 +238,18 @@ test('Generate that cannot be paid for is refused before the proposal is consume
   assert.equal(s.built.length, 0);
 });
 
-test('a build that is not wired yet fails clearly instead of running anything, and legacy builder roles are never called', async t => {
+test('with no injected builder the real build runs: a reply that is not a scene fails the job clearly, and no legacy builder role is called', async t => {
   const s = designStack(t);
-  s.deps.buildScene = undefined;                           // the default seam: interact-build.js is another lane
+  s.deps.buildScene = undefined;                           // the default: interact-job.js builds with the build_author role
   const { body } = await s.create(), id = body.job.id;
   await s.design(id);
   assert.equal((await s.approve(id)).status, 202);
   await s.actor.alarm();
   const job = s.state.data.get(`job:${id}`);
-  assert.deepEqual([job.stage, job.stopReason], ['failed', 'build_unavailable']);
-  assert.match(job.failure.message, /new-flow build is not available yet/);
-  assert.equal(s.model.builder.length, 0);
+  assert.deepEqual([job.stage, job.stopReason], ['failed', 'error']);
+  assert.deepEqual(s.model.builder.map(c => c.tool), ['build_scene'], 'exactly one build call, by the new build role');
+  assert.equal(job.counts.author, 0, 'the legacy author role was never called');
+  assert.deepEqual(job.build.counts, { build_author: 1, build_review: 0, build_repair: 0 });
 });
 
 test('Edit is limited to five refinements, counted apart from repair rounds and from other counters', async t => {

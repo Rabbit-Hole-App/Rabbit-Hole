@@ -1,6 +1,6 @@
 // The chat transcript (moved out of ask.jsx's AskPanel): one ChatMessage per message, and the cards a message can be.
 import { Component, useEffect, useMemo, useRef, useState } from 'react';
-import { SKELETON_DROPPED_EVENT } from './explain-client.js';
+import { SKELETON_DROPPED_EVENT, explainClient } from './explain-client.js';
 import { ArrowDown, Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
 import CommandPill from './CommandPill.jsx';
 import { sentCommand } from './command-token.js';
@@ -29,6 +29,20 @@ import PlanSummary, { planSummary } from './animation3d/PlanSummary.jsx';
 import AnimationChoices from './animation3d/AnimationChoices.jsx';
 import InteractPlanDetail from './InteractPlanDetail.jsx';
 import { reviewModel } from './interact-plan-review.js';
+import { interactIdentity, planOfProposal } from './interact-stage.js';
+
+// The plan a "Review scene plan" card shows. The signed proposal names it by hash; the authenticated job route returns it (scenePlan), and planOfProposal accepts only the
+// one at this proposal's own hash and revision. null for any other proposal, and until the plan has been read.
+function useScenePlan(p) {
+  const identity = interactIdentity(p), [scenePlan, setScenePlan] = useState(null);
+  useEffect(() => {
+    if (!identity || !p.input?.board || !p.input?.job) return undefined;
+    let live = true;
+    explainClient(api, p.input.board).get(p.input.job).then(data => { if (live) setScenePlan(data.scenePlan ?? null); }, () => { if (live) setScenePlan(null); });
+    return () => { live = false; };
+  }, [p.proposal_id, p.version, identity?.hash]); // eslint-disable-line react-hooks/exhaustive-deps
+  return planOfProposal(p, scenePlan);
+}
 
 // An /animation plan with its scene (owner, 2026-10-31): the short summary in place of the plan lines, and Edit reads Edit plan.
 // A plan made before the server sent its scene keeps the full lists.
@@ -194,7 +208,8 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   };
   const animationStatus = useAnimationProposal(p, made, ops);
   // A new /interact proposal (interact-plan-review.js): its plan detail rides the card's summary slot, and Generate waits for a whole, valid plan.
-  const scenePlan = useMemo(() => reviewModel(p), [p]);
+  const servedPlan = useScenePlan(p);
+  const scenePlan = useMemo(() => reviewModel(p, servedPlan), [p, servedPlan]);
   const scenePlanProps = scenePlan ? { plan: scenePlan, ...(scenePlan.detail ? { summary: <InteractPlanDetail detail={scenePlan.detail} /> } : {}) } : {};
   // The status the card draws (bug 2): the job's, never the press's. A superseded version of the proposal draws none.
   const own = madeFromVersion(card || output, p);

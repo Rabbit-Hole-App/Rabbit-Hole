@@ -406,7 +406,7 @@ test('a call interrupted by a restart is recorded unknown and never resent; Retr
   await s.actor.alarm(); await s.actor.alarm();               // the author is done; the reviewer is next
   const release = s.model.hold('review');
   const running = s.actor.alarm();
-  for (let i = 0; i < 200 && !s.state.data.get(`job:${id}`).inFlight; i++) await new Promise(r => setTimeout(r, 10));
+  for (let i = 0; i < 400 && !(s.state.data.get(`job:${id}`).inFlight && s.model.log.length >= 2); i++) await new Promise(r => setTimeout(r, 10)); // in flight AND sent (the poll alone raced the request under load)
   const restarted = s.object();
   await restarted.alarm();                                      // an in-flight call this object is not running was interrupted
   let job = s.state.data.get(`job:${id}`);
