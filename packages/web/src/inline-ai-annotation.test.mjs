@@ -105,6 +105,7 @@ const READERS = {
   'web/src/LinksPanel.jsx': 'canvas references (links between canvases), not board links',
   'web/src/canvas-search-panel.js': 'the Search Links filter id',
   'web/src/explain-back-view.js': 'the recorded connection of a submitted input (EvidenceRef.connection), not board links',
+  'web/src/explain-program/sdk-field.js': 'contour segment links between sampled grid points inside the field helper, not board links',
   'web/src/explain-back-service.js': 'focuses the source named by the recorded connection of a cited input (EvidenceRef.connection), not board links',
   'web/src/comments/MemberBoardPage.jsx': 'canvas references, not board links',
   'web/src/tutor-diagrams/spec.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
