@@ -148,6 +148,21 @@ Bars and distribution plots already have bounded alternatives using boxes, lines
 
 **`/interact` is strictly 2D.** Do not build a 3D viewport, camera/orbit controls, meshes, point-cloud viewer or volume renderer into this command. True 3D is out of scope, not a deferred `/interact` gap or acceptance blocker. Historical inventory rows mentioning 3D are retained for traceability only and excluded from `/interact` remaining-work counts. A 2D projection, cross-section or schematic that teaches a 3D concept is allowed when clearly presented as a 2D illustration. This decision does not authorize changes to the separate 3D system.
 
+## Individual AI topic audit · completed 2026-11-08
+
+[Read the full topic-by-topic audit](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/33e9edf880739d4f98fd2b5fd10fce19954472cf/docs/features/explain-on-canvas/handoff/ai-topic-implementation-audit.md) · [Machine-readable assessments](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/33e9edf880739d4f98fd2b5fd10fce19954472cf/docs/features/explain-on-canvas/handoff/ai-topic-implementation-audit.json).
+
+- [x] Assessed **all 508 numbered AI topics across 19 phases and 42 named subphases** in the current `All_Curricula.md` snapshot (source commit `42ef2931`, blob `db82da06978dfcefd77f7ba6058a7f404dd8219e`). This is distinct from the older 542-lesson pinned inventory; its historical component/design counts remain unchanged.
+- [x] Each topic records its exact title/subphase, a concrete bounded 2D teaching scene, learner action/computation, inspected source evidence and the precise richer request that remains unsupported.
+- [x] Compared against pushed implementation `f6fb7bc1`, with the separate `f1b3ffbb` heat-grid branch explicitly marked as not integrated.
+- [x] Verified exact source coverage: zero omitted, extra or duplicate topic IDs; zero title/subphase mismatches. Independent review found no material issues.
+- [x] Pushed audit branch `chatgpt/ai-topic-audit`, commit `33e9edf880739d4f98fd2b5fd10fce19954472cf`.
+- [ ] Future acceptance: author and generate the proposed compositions, then check their calculations and interaction behavior. This audit did not build or execute those 508 scenes.
+
+Results describe teaching slices, **not full-topic completion**: 10 rows refer to eight distinct existing examples (one on the separate heat-grid branch); 497 propose compositions using current primitives; one deliberately requests an unsupported live prompt/model interface and names its preset-response fallback. Richer gaps overlap even on composable rows: arbitrary text entry, learner-image binding, genuine model/result connections, external execution, larger pixel outputs and authentic versioned evidence. Deferred work and true 3D remain outside recommendations. Do not interpret the single blocked core-scene row as only one missing AI capability.
+
+Documentation-only work: no app code, broad CI, paid calls or deployments. Task `bd4b135b-62c5-4ae2-831e-3f534295cad1`.
+
 ## AI implementation status
 
 This tracks the implementation batches for the pinned 542-lesson AI curriculum. The coverage tables above retain the audited SDK baseline across both AI inventories.
