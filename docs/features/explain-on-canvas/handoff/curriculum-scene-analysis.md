@@ -144,6 +144,10 @@ The organizers cap the price at $P=2$. Eight people now want a lantern, while se
 
 Bars and distribution plots already have bounded alternatives using boxes, lines and numeric values. Exposing the shared bar renderer could reduce authoring effort. The separate 137 data-dependent designs need suitable artifacts with units, sampling details and provenance.
 
+## /interact scope · owner decision 2026-11-08
+
+**`/interact` is strictly 2D.** Do not build a 3D viewport, camera/orbit controls, meshes, point-cloud viewer or volume renderer into this command. True 3D is out of scope, not a deferred `/interact` gap or acceptance blocker. Historical inventory rows mentioning 3D are retained for traceability only and excluded from `/interact` remaining-work counts. A 2D projection, cross-section or schematic that teaches a 3D concept is allowed when clearly presented as a 2D illustration. This decision does not authorize changes to the separate 3D system.
+
 ## AI implementation status
 
 This tracks the implementation batches for the pinned 542-lesson AI curriculum. The coverage tables above retain the audited SDK baseline across both AI inventories.
@@ -188,7 +192,7 @@ Executable example: `fixture-cyclic-network` in `packages/web/src/explain-progra
 | Audio playback and alignment | 9 | Later media work; needs audio, waveform/transcript timestamps and synchronized controls. |
 | **Remaining in tracked batch** | **22** | **4 capabilities** |
 
-Separate integration work: bind authorized learner images to the implemented image helpers. The 137 data-dependent designs in the broader inventory still require real source artifacts; building a renderer does not supply those artifacts. True 3D belongs to the separate 3D path.
+Separate integration work: bind authorized learner images to the implemented image helpers. The 137 data-dependent designs in the broader inventory still require real source artifacts; building a renderer does not supply those artifacts. True 3D is explicitly outside `/interact` scope; do not track it as pending work for this command.
 
 For each subsequent build, update this ledger in the same workstream with the branch/commit, fixture, actual checks performed, remaining limitations and deployment status. Preserve the original inventory counts unless a design-by-design reassessment supports changing them.
 
@@ -208,7 +212,7 @@ The 12-capability batch is a bounded implementation plan, not an exhaustive inve
 | Pixel-accurate instance/semantic segmentation overlay on a photograph | Image regions are normalized rectangles. No mask raster or filled arbitrary polygon object is exposed by the generated frame contract. | Bounding boxes, schematic outlines or small toy cell grids; these are not equivalent to a real segmentation mask. |
 | Apply a convolution, blur, perturbation or feature-map transformation to a real image and update the displayed pixels | No guest pixel-buffer/image-output API. Images resolve only through the trusted asset registry. | Arithmetic on a small numeric pixel patch and plots of supplied values. |
 | Explain a learner's own photograph with aligned overlays and synchronized crops | Implemented image helpers accept only the bundled vlm-patch-source asset. Permission-aware attachment binding is not implemented. | The bundled sample demonstrates rectangle/crop behavior. |
-| Orbit a NeRF reconstruction, point cloud, 3D loss surface or latent-space volume inside this 2D card | No 3D scene, camera, mesh or volume primitive in this frame contract. This needs the separate 3D path and its own verification. | 2D projections, cross-sections and schematic ray diagrams. |
+| Orbit a NeRF reconstruction, point cloud, 3D loss surface or latent-space volume inside this 2D card | Out of scope by owner decision: `/interact` is strictly 2D. Not a component to add or an acceptance blocker. | 2D projections, cross-sections and schematic ray diagrams. |
 | Compute authentic trained-model feature visualizations or inference outputs inside the card | The sandbox is a bounded JavaScript evaluator, not a model runtime; model weights/data and execution must come from another path. | Small synthetic mechanisms or externally supplied results, labeled accurately. This is an execution/data dependency, not automatically another visual component. |
 
 Code evidence: sdk-image.js (trusted asset registry, rectangular regions, crops); contract.js (closed object kinds, 60 objects, 8 selectable targets, 4 inputs); sdk-field.js (contour/vector outputs); limits.js (bounded interpreter). Audited feature candidate: 801776b077c17eedf9815b555c43e67c6d64f4c3. The separate heat-grid branch supplies numeric grids, not arbitrary RGB/RGBA images or image masks.
@@ -225,7 +229,7 @@ The two additional rendering gaps above now have **bounded implementations**, pu
 - Both reuse the shared Frame and existing card controls. Explicit capability `raster_visuals` selects SDK 6 / renderer 4. Older SDK source bytes and tuples remain supported.
 - Bounds: at most 64 × 64 pixels per raster, 8192 raster pixels per frame, with existing output/runtime limits. Whole-raster selection only; no per-pixel hit testing. These limits support small teaching images, not arbitrary full-resolution segmentation overlays.
 - Evidence: 61 focused integration/helper/compatibility tests passed; the shared-scene checks passed; dev web build passed. Static output of the shared renderer was inspected for mask transparency/alignment and blur. Live browser, real model generation and dev deployment remain unverified because this environment lacks the required access.
-- Still open: permission-aware learner-image binding, decoding/resampling real images into supplied pixels, actual model inference, high-resolution image work and the separate 3D path.
+- Still open: permission-aware learner-image binding, decoding/resampling real images into supplied pixels, actual model inference and high-resolution image work. True 3D is excluded from `/interact`, not pending integration.
 
 **Counts:** original batch stays **8/12 built**, with its **4 remaining**. Adding these two newly discovered bounded capabilities gives **10/14 built**, plus the linked-comparison composition example. This expanded count is not a claim that every possible AI illustration is supported or that these branches are deployed.
 
