@@ -1395,6 +1395,363 @@
       "paletteRole": "shared"
     },
     {
+      "id": "navigation/folders",
+      "title": "Folder tiles and menus",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/FOLDERS.md",
+      "source_file": "folders.html",
+      "status": "Draft for owner review; browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "folders"
+      ],
+      "scripts": [
+        "folders"
+      ],
+      "implementation": [
+        "packages/web/src/LibraryFolders.jsx",
+        "packages/web/src/library-folders.js"
+      ],
+      "notes": "Shared tile/menu/dialog primitives; Rename, Colour, Delete and New folder. Local state only; six existing app colour IDs. See FOLDERS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "folders",
+        "folder-overlays"
+      ],
+      "keywords": [
+        "folders",
+        "colour",
+        "rename",
+        "delete",
+        "move"
+      ],
+      "path": "components/navigation/folders",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/home",
+      "title": "Home",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/HOME.md",
+      "source_file": "home.html",
+      "status": "Draft for owner review; browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "source-picker",
+        "start-rabbit-hole",
+        "home",
+        "folders"
+      ],
+      "scripts": [
+        "home-mount",
+        "sidebar",
+        "sidebar-panels",
+        "source-widgets",
+        "resize",
+        "home-start",
+        "folders",
+        "home"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/CardMenu.jsx",
+        "packages/web/src/home/card-menu-items.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/StartDialog.jsx"
+      ],
+      "notes": "Shared Home composition: deduplicated Continue/Recent; remembered card size; loading/error/empty; hover/focus Open and menu; local folder assignment. Cover and Share templates still missing. See HOME.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "home",
+        "home-main",
+        "home-overlays",
+        "home-fixtures",
+        "sidebar",
+        "canvas-card",
+        "start-rabbit-hole",
+        "folder-overlays"
+      ],
+      "keywords": [
+        "home",
+        "continue",
+        "recent",
+        "size",
+        "stars",
+        "start",
+        "description",
+        "card menu"
+      ],
+      "path": "components/navigation/home",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/home-empty",
+      "title": "Home \u00b7 Empty",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/HOME.md",
+      "source_file": "home.html",
+      "status": "Draft for owner review; browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "source-picker",
+        "start-rabbit-hole",
+        "home",
+        "folders"
+      ],
+      "scripts": [
+        "home-mount",
+        "sidebar",
+        "sidebar-panels",
+        "source-widgets",
+        "resize",
+        "home-start",
+        "folders",
+        "home"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/CardMenu.jsx",
+        "packages/web/src/home/card-menu-items.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/StartDialog.jsx"
+      ],
+      "notes": "Shared Home composition: deduplicated Continue/Recent; remembered card size; loading/error/empty; hover/focus Open and menu; local folder assignment. Cover and Share templates still missing. See HOME.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "home",
+        "home-main",
+        "home-overlays",
+        "home-fixtures",
+        "sidebar",
+        "canvas-card",
+        "start-rabbit-hole",
+        "folder-overlays"
+      ],
+      "keywords": [
+        "home",
+        "continue",
+        "recent",
+        "size",
+        "stars",
+        "start",
+        "description",
+        "card menu"
+      ],
+      "path": "components/navigation/home-empty",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/home-error",
+      "title": "Home \u00b7 Load failure and retry",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/HOME.md",
+      "source_file": "home.html",
+      "status": "Draft for owner review; browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "source-picker",
+        "start-rabbit-hole",
+        "home",
+        "folders"
+      ],
+      "scripts": [
+        "home-mount",
+        "sidebar",
+        "sidebar-panels",
+        "source-widgets",
+        "resize",
+        "home-start",
+        "folders",
+        "home"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/CardMenu.jsx",
+        "packages/web/src/home/card-menu-items.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/StartDialog.jsx"
+      ],
+      "notes": "Shared Home composition: deduplicated Continue/Recent; remembered card size; loading/error/empty; hover/focus Open and menu; local folder assignment. Cover and Share templates still missing. See HOME.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "home",
+        "home-main",
+        "home-overlays",
+        "home-fixtures",
+        "sidebar",
+        "canvas-card",
+        "start-rabbit-hole",
+        "folder-overlays"
+      ],
+      "keywords": [
+        "home",
+        "continue",
+        "recent",
+        "size",
+        "stars",
+        "start",
+        "description",
+        "card menu"
+      ],
+      "path": "components/navigation/home-error",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/home-loading",
+      "title": "Home \u00b7 Loading",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/HOME.md",
+      "source_file": "home.html",
+      "status": "Draft for owner review; browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "source-picker",
+        "start-rabbit-hole",
+        "home",
+        "folders"
+      ],
+      "scripts": [
+        "home-mount",
+        "sidebar",
+        "sidebar-panels",
+        "source-widgets",
+        "resize",
+        "home-start",
+        "folders",
+        "home"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/CardMenu.jsx",
+        "packages/web/src/home/card-menu-items.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/StartDialog.jsx"
+      ],
+      "notes": "Shared Home composition: deduplicated Continue/Recent; remembered card size; loading/error/empty; hover/focus Open and menu; local folder assignment. Cover and Share templates still missing. See HOME.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "home",
+        "home-main",
+        "home-overlays",
+        "home-fixtures",
+        "sidebar",
+        "canvas-card",
+        "start-rabbit-hole",
+        "folder-overlays"
+      ],
+      "keywords": [
+        "home",
+        "continue",
+        "recent",
+        "size",
+        "stars",
+        "start",
+        "description",
+        "card menu"
+      ],
+      "path": "components/navigation/home-loading",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/home-no-topic",
+      "title": "Home \u00b7 No last topic",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/HOME.md",
+      "source_file": "home.html",
+      "status": "Draft for owner review; browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "source-picker",
+        "start-rabbit-hole",
+        "home",
+        "folders"
+      ],
+      "scripts": [
+        "home-mount",
+        "sidebar",
+        "sidebar-panels",
+        "source-widgets",
+        "resize",
+        "home-start",
+        "folders",
+        "home"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/CardMenu.jsx",
+        "packages/web/src/home/card-menu-items.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/StartDialog.jsx"
+      ],
+      "notes": "Shared Home composition: deduplicated Continue/Recent; remembered card size; loading/error/empty; hover/focus Open and menu; local folder assignment. Cover and Share templates still missing. See HOME.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "home",
+        "home-main",
+        "home-overlays",
+        "home-fixtures",
+        "sidebar",
+        "canvas-card",
+        "start-rabbit-hole",
+        "folder-overlays"
+      ],
+      "keywords": [
+        "home",
+        "continue",
+        "recent",
+        "size",
+        "stars",
+        "start",
+        "description",
+        "card menu"
+      ],
+      "path": "components/navigation/home-no-topic",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
       "id": "navigation/navigation",
       "title": "Navigation rows and empty states",
       "category": "navigation",

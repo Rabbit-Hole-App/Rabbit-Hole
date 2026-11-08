@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Folder tiles and menus · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/standards.css">
+<link rel="stylesheet" href="../../../styles/review-corrections.css">
+<link rel="stylesheet" href="../../../styles/folders.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/FOLDERS.md">Source</a><p>Draft for owner review; browser verification pending — Shared tile/menu/dialog primitives; Rename, Colour, Delete and New folder. Local state only; six existing app colour IDs. See FOLDERS.md.</p></div>
+<div class="catalog-preview"><section class="folder-review" aria-labelledby="folders-heading"><header class="folder-review-header"><h1 id="folders-heading">Folders <span id="folder-total"></span></h1><button class="button secondary" id="folder-create" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/home.svg#home-folder-plus"></use></svg>New folder</button></header><div class="folder-grid" id="folder-grid"></div><p class="empty-state" id="folders-empty" hidden>No folders yet.</p></section>
+<div class="menu folder-menu" role="menu" aria-label="Folder options" id="folder-menu" hidden>
+<button type="button" role="menuitem" class="menu-item" id="folder-rename"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/home.svg#home-pen-line"></use></svg><span>Rename</span></button>
+<button type="button" role="menuitem" class="menu-item" id="folder-colour" aria-expanded="false" aria-controls="folder-swatches"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/home.svg#home-palette"></use></svg><span class="menu-label">Colour</span><span class="folder-dot" id="folder-current-colour" aria-hidden="true"></span><svg class="icon menu-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/home.svg#home-chevron-right"></use></svg></button>
+<div id="folder-swatches" class="folder-swatches" role="radiogroup" aria-label="Folder colour" hidden></div><hr class="menu-divider" role="separator">
+<button type="button" role="menuitem" class="menu-item danger" id="folder-delete"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/home.svg#home-trash-2"></use></svg><span>Delete folder</span></button></div>
+<dialog class="dialog folder-dialog" id="folder-edit-dialog" aria-labelledby="folder-edit-title"><h2 id="folder-edit-title">Rename folder</h2><form id="folder-edit-form"><label class="field" for="folder-name">Name<input class="control" id="folder-name" maxlength="60" required></label><div class="panel-actions"><button class="button secondary" id="folder-edit-cancel" type="button">Cancel</button><button class="button primary" id="folder-edit-save" type="submit">Save</button></div></form></dialog>
+<dialog class="dialog folder-dialog" id="folder-delete-dialog" aria-labelledby="folder-delete-title" aria-describedby="folder-delete-description"><h2 id="folder-delete-title">Delete folder?</h2><p id="folder-delete-description">Canvases return to Library. Nothing inside is deleted.</p><div class="panel-actions"><button class="button danger" type="button" id="folder-delete-confirm">Delete folder</button><button class="button secondary" type="button" id="folder-delete-cancel" autofocus>Cancel</button></div></dialog>
+<div id="folder-status" class="sr-only" role="status"></div>
+
+
+</div>
+
+<script src="../../../scripts/folders.js"></script>
+</body></html>

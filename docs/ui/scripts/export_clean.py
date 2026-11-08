@@ -40,7 +40,13 @@ EXPORTS=[
  ('33-settings-usage-exhausted', 'navigation/settings-usage-exhausted'),
  ('34-settings-usage-unavailable', 'navigation/settings-usage-unavailable'),
  ('35-settings-preference-failure', 'navigation/settings-preference-failure'),
- ('36-canvas-card', 'cards/canvas-summary')]
+ ('36-canvas-card', 'cards/canvas-summary'),
+ ('37-home','navigation/home'),
+ ('38-home-loading','navigation/home-loading'),
+ ('39-home-error','navigation/home-error'),
+ ('40-home-empty','navigation/home-empty'),
+ ('41-home-no-topic','navigation/home-no-topic'),
+ ('42-folders','navigation/folders')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:
@@ -75,12 +81,15 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
 #resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 @media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
 '''
-  if ident.startswith(('navigation/sidebar','navigation/settings')) or ident=='cards/canvas-summary':
+  if ident.startswith(('navigation/sidebar','navigation/settings','navigation/home')) or ident in ['cards/canvas-summary','navigation/home']:
    extra+='\nmain.clean-stage{max-width:none;margin:0;padding:0;}\n'
   if ident=='controls/toggle':
    # A single switch with its label, without availability and usage documentation.
    scripts+='\nconst sampleNode=document.querySelector(".sample"); if(sampleNode){const mount=sampleNode.querySelector("[data-mount]");sampleNode.replaceChildren(mount);}\n'
   notice=(ROOT/'icons/NOTICE.txt').read_text()
+  for sprite in sorted(sprites):
+   extra_notice=ROOT/'icons'/(sprite+'-NOTICE.txt')
+   if extra_notice.exists():notice+='\n'+extra_notice.read_text()
   output=f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(c['title'])}</title><style>{styles}\n{extra}</style></head>
 <body data-ui-palette="{c.get('paletteRole','shared')}">

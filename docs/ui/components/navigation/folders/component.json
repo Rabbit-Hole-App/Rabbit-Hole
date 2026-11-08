@@ -1,0 +1,37 @@
+{
+  "id": "navigation/folders",
+  "title": "Folder tiles and menus",
+  "category": "navigation",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/FOLDERS.md",
+  "source_file": "folders.html",
+  "status": "Draft for owner review; browser verification pending",
+  "styles": [
+    "standards",
+    "review-corrections",
+    "folders"
+  ],
+  "scripts": [
+    "folders"
+  ],
+  "implementation": [
+    "packages/web/src/LibraryFolders.jsx",
+    "packages/web/src/library-folders.js"
+  ],
+  "notes": "Shared tile/menu/dialog primitives; Rename, Colour, Delete and New folder. Local state only; six existing app colour IDs. See FOLDERS.md.",
+  "issues": [],
+  "templates": [],
+  "includes": [
+    "folders",
+    "folder-overlays"
+  ],
+  "keywords": [
+    "folders",
+    "colour",
+    "rename",
+    "delete",
+    "move"
+  ],
+  "path": "components/navigation/folders",
+  "paletteRole": "shared",
+  "catalogVisible": true
+}

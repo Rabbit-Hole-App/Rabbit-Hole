@@ -12,7 +12,7 @@ Read [RABBIT-HOLE-NEW-UI.md](RABBIT-HOLE-NEW-UI.md) first. This is the Home, Lib
 - Preserve four grid-size presets: Small 220 px (optional compact), Medium small 300 px (proposed default), Medium large 460 px, Large full row. Constrain the preset to its available viewport width; text must remain readable. These are grid cards, not draggable/resizable teaching cards, so they have no resize grip.
 - Stack the thumbnail above content below 640 px card width. Reflow metadata below 352 px. Wider cards place the thumbnail on the right. The footer aligns with the thumbnail bottom when content fits, and flows below longer content when necessary. Do not reserve large blank content areas in stacked layouts.
 - Private is a read-only neutral pill, not a dropdown. Omit the ambiguous blue ownership badge in this personal-card reference.
-- Title, Continue and Enter on the focused card open it. The card body itself does not. Star and creator links act independently. Continue stays visible.
+- Title, the context-specific footer action and Enter on the focused card open it. Home Continue learning uses **Continue →**; Recent uses the existing secondary **Open →**, visible on hover/focus and always on touch. The card body itself does not. Star and creator links act independently. Continue stays visible.
 
 ## Component map
 

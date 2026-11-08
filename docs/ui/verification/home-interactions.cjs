@@ -1,0 +1,33 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const {parseHTML}=require(process.env.RH_UI_TEST_DOM||'linkedom');
+const root=require('node:path').resolve(__dirname,'..')+'/';
+function boot(file,storage=new Map()){
+ const {document,window}=parseHTML(fs.readFileSync(root+'clean/'+file,'utf8'));document.__active=document.body;const queue=[];
+ Object.defineProperty(document,'activeElement',{get:()=>document.__active});
+ window.HTMLElement.prototype.focus=function(){this.ownerDocument.__active=this};
+ window.HTMLElement.prototype.showModal=function(){this.open=true};window.HTMLElement.prototype.close=function(){this.open=false;this.dispatchEvent(new window.Event('close'))};
+ window.HTMLElement.prototype.getBoundingClientRect=function(){return {left:400,right:440,top:100,bottom:140}};
+ window.HTMLElement.prototype.setCustomValidity=function(v){this.validationMessage=v};window.HTMLElement.prototype.reportValidity=function(){return !this.validationMessage};
+ window.localStorage={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v)};
+ const context=vm.createContext({window,document,CustomEvent:window.CustomEvent,innerWidth:1400,innerHeight:900,matchMedia:()=>({matches:false}),setTimeout:fn=>queue.push(fn),clearTimeout(){},console});
+ const isFolder=file==='42-folders.html';
+ for(const n of isFolder?['folders']:['home-mount','folders','home'])vm.runInContext(fs.readFileSync(root+'scripts/'+n+'.js','utf8'),context);
+ return {document,window,queue,storage,$:id=>document.getElementById(id),key(el,key){const e=new window.Event('keydown',{bubbles:true,cancelable:true});e.key=key;el.dispatchEvent(e)},click(el){el.click()}};
+}
+const x=boot('37-home.html');
+assert.equal(x.$('home-continue-grid').querySelectorAll('.canvas-summary').length,1);
+assert.equal(x.$('home-recent-grid').querySelectorAll('.canvas-summary').length,1);
+assert.notEqual(x.$('home-continue-grid').querySelector('.canvas-summary').dataset.homeCard,x.$('home-recent-grid').querySelector('.canvas-summary').dataset.homeCard);
+assert(x.document.querySelector('.home-last-topic').textContent.includes('Gini'));
+assert.equal(x.document.querySelector('.home-open').textContent.trim(),'Open');
+x.$('home-size').value='1';x.$('home-size').oninput();assert.equal(x.$('home-size-value').textContent,'Medium small');assert.equal(boot('37-home.html',x.storage).$('home-size').value,'1');
+assert.equal(boot('41-home-no-topic.html').document.querySelector('.home-last-topic'),null);
+assert(!boot('38-home-loading.html').$('home-loading').hidden);
+assert(!boot('40-home-empty.html').$('home-empty').hidden);
+const e=boot('39-home-error.html');assert(!e.$('home-error').hidden);e.click(e.$('home-retry'));assert(!e.$('home-loading').hidden);e.queue.shift()();assert(e.$('home-loading').hidden);assert(e.document.activeElement.classList.contains('canvas-title-link'));
+const more=x.document.querySelector('.home-more');x.key(more,'ArrowDown');assert(!x.$('home-card-menu').hidden);assert.equal(x.document.activeElement.dataset.cardAction,'open');x.key(x.document.activeElement,'ArrowDown');assert.equal(x.document.activeElement.dataset.cardAction,'pin');x.key(x.document.activeElement,'End');assert.equal(x.document.activeElement.dataset.cardAction,'trash');x.key(x.document.activeElement,'Escape');assert(x.$('home-card-menu').hidden);assert.equal(x.document.activeElement,more);
+x.click(more);const move=x.document.querySelector('[data-card-action=folder]');x.key(move,'ArrowRight');assert(!x.$('home-folder-targets').hidden);assert(x.$('home-folder-targets').querySelector('use[href$="home-folder-plus"]'));assert.equal(x.document.activeElement.getAttribute('role'),'menuitemradio');x.key(x.document.activeElement,'ArrowLeft');assert(x.$('home-folder-targets').hidden);assert.equal(x.document.activeElement,move);
+x.click(move);x.click(x.$('home-folder-targets').querySelector('button'));assert(x.$('home-card-menu').hidden);assert.equal(x.window.RHFolderUI.folders[0].count,1);
+const f=boot('42-folders.html');assert(f.$('folder-create').querySelector('use[href$="home-folder-plus"]'));const fm=f.document.querySelector('.folder-more');f.key(fm,'ArrowDown');assert.equal(f.document.activeElement,f.$('folder-rename'));f.key(f.$('folder-colour'),'ArrowRight');assert(!f.$('folder-swatches').hidden);const before=f.document.activeElement;f.key(before,'ArrowRight');assert.notEqual(f.document.activeElement,before);f.key(f.document.activeElement,'Escape');assert.equal(f.document.activeElement,f.$('folder-colour'));f.key(f.document.activeElement,'Escape');assert(f.$('folder-menu').hidden);assert.equal(f.document.activeElement,fm);
+f.click(fm);f.click(f.$('folder-rename'));assert(f.$('folder-edit-dialog').open);f.$('folder-name').value='Algorithms';f.$('folder-edit-form').onsubmit({preventDefault(){}});assert.equal(f.window.RHFolderUI.folders[0].name,'Algorithms');
+console.log('PASS: deduplication, last-topic omission, persisted size, loading/error/retry/empty, Open action, menu keyboard order and focus return, folder assignment, folder colour keyboard and rename. DOM fixtures only; no browser layout or native Tab-order evidence.');
