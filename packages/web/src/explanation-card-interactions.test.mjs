@@ -386,3 +386,77 @@ test('selection that ends outside the reading flow, or is collapsed, offers noth
   await selection(inside, 0, outside, 0, 'x');
   assert.equal($('[data-explanation-selection-toolbar]'), null);
 });
+
+// ---- wiring that cannot run under node (AdaptiveCanvas, ask.jsx and LearnSlash.jsx need a browser), pinned by source text as ctrlk-handoff.test.mjs does ----
+import { readFileSync } from 'node:fs';
+const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+
+test('wiring: the canvas provides the host; admission is reported by the Chat stream and by the command dispatcher, never by the promise', () => {
+  const canvas = read('AdaptiveCanvas.jsx'), ask = read('ask.jsx'), slash = read('LearnSlash.jsx'), page = read('learn-slash.js'), dive = read('Dive.jsx');
+  assert.match(canvas, /<ExplanationHost\.Provider value=\{explanationHost\}>/);
+  assert.match(canvas, /dig: \(\{ id, term, revision \}\) => divePortals\.open\(id, term, 'explain_term', \{ label: term, revision \}\)/, 'the existing Rabbit Hole route, titled with the exact term');
+  assert.match(canvas, /return taken !== false && admitted;/, 'the promise of a Chat reply settles only when the answer is in; admission is the callback');
+  assert.match(canvas, /chatWorkspace\.ask\(\{ line: `\/explain \$\{question\}`, about: \{ selection \}, onAdmitted: told \}\)/, 'Ask in a new card is the written /explain');
+  assert.match(canvas, /const canDig = !!\(divePortals\?\.open && !visiting\), canAsk = !!chatWorkspace\?\.ask && !visiting, canNote = !readOnly && !localCopy;/, 'a capability that is absent leaves no function, so the card omits the control');
+  assert.match(ask, /if \(r\.ok\) onAdmitted\?\.\(\);\n\s+const reader = r\.body\.getReader\(\);/, 'the stream opened');
+  assert.match(ask, /chat\.registerSender\(\(\{ regenerate, prompt, command: asked, about, line, onAdmitted \} = \{\}\) => \{/);
+  assert.match(ask, /\.handoff\(line, \{ about: about \?\? null, target: about\?\.selection \?\? null, onAdmitted \}\)/);
+  assert.match(slash, /if \(handoff\?\.onAdmitted && !ui\.prompt && ui\.notice\?\.tone !== 'error'\) handoff\.onAdmitted\(\);/);
+  assert.match(page, /target\?\.parentLink && target\.id \? \{ parent: \{ id: target\.id, \.\.\.target\.parentLink \} \}/);
+  assert.match(dive, /open: \(id, title, via = 'learner_dblclick', term = null\) =>/);
+});
+
+test('wiring: Add note, Create note and child cards make one note or link each, with curved bowed connectors that follow their saved ports', () => {
+  const canvas = read('AdaptiveCanvas.jsx');
+  assert.match(canvas, /const addCardNote = \(id, \{ quote = null, revision = null \} = \{\}\) => \{/);
+  assert.match(canvas, /const spot = placeNote\(target, size, \[\.\.\.inlineCanvas\.obstacles\(\[id\]\), \.\.\.placementChrome\(\)\], inlineCanvas\.visibleWorld\(\)\);/, 'beside the parent, clear of everything, nothing moves');
+  assert.match(canvas, /kind: 'sticky', x: spot\.x, y: spot\.y, text: '', color, opacity, \.\.\.armedText\('sticky'\), fresh: true, parentCard: /, 'the same sticky insertSticky builds, opened for typing');
+  assert.match(canvas, /route: 'curved', bow: true, head: true, kind: 'annotation' \}\]\);\n\s+setSelection\(\[noteId\]\);/);
+  assert.match(canvas, /addCardNote: id => addCardNote\(id\),/, 'the context menu row');
+  assert.match(canvas, /route: 'curved', bow: true, head: true \}\]\)\);/, 'the child card link');
+  assert.match(canvas, /const linkId = parent\.actionId \? `explain-child-\$\{parent\.actionId\}` : crypto\.randomUUID\(\);/, 'one link per action');
+  assert.match(canvas, /link\.route \|\| 'curved', !!link\.bow\)/, 'the saved link decides the bow; the ports are re-read each render, so drag, resize and reload follow');
+  assert.match(canvas, /entry\.kind === 'sticky' && entry\.parentCard\);\n\s+if \(note\) \{ const at = boxesOf\(\[id\]\)\[0\]; return at \? sidePoint\(at, side\) : null; \}/, 'a note is a link end');
+  assert.match(canvas, /\{sticky && item\.quote\?\.text && <blockquote data-note-quote /, 'the quote above the editable body');
+});
+
+// ---- the approved card 07 shape: prose with terms around a real TutorDiagram ----
+const FLOW = { version: 1, diagram: { kind: 'flow', title: 'Does it stick?', nodes: [{ id: 'a', label: 'Warm the cup', role: 'process' }, { id: 'b', label: 'Cooler than the room?', role: 'decision' }, { id: 'c', label: 'Heat flows in', role: 'outcome' }, { id: 'd', label: 'Heat flows out', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c', label: 'Yes' }, { from: 'b', to: 'd', label: 'No' }] } };
+
+test('a body with a real diagram still aligns: terms before and after the drawing are pills, the drawing is never decorated, a selection starting inside it is refused', async () => {
+  const fence = '`'.repeat(3);
+  const body = `A decision tree asks questions.\n\n${fence}rh-diagram\n${JSON.stringify(FLOW)}\n${fence}\n\nThe last leaf decides.`;
+  const block = { ...base, body, more: [] };
+  const revision = await contentRevision(block), text = fieldText(block, 'body');
+  const term = (id, label, occurrence) => { const start = cpStart(text, label, occurrence); return { id, label, definition: `${label} means something.`, anchor: { field: 'body', quote: label, occurrence, start, end: start + label.length } }; };
+  const card = { ...block, interactions: { version: 1, displayTextVersion: 1, contentRevision: revision, questions: [{ id: 'q-1', text: 'A?' }, { id: 'q-2', text: 'B?' }, { id: 'q-3', text: 'C?' }], terms: [term('t-1', 'decision tree', 0), term('t-2', 'leaf', 0)] } };
+  await mount(card, { host: { ask: async () => true }, chat: { addToChat() {} } });
+  assert.ok($('[data-tutor-diagram]'), 'the drawing is on the card');
+  assert.deepEqual($$('[data-term-id]').map(p => p.textContent), ['decision tree', 'leaf'], 'pills before and after the diagram');
+  assert.equal($('[data-tutor-diagram] [data-term-id]'), null, 'nothing inside the drawing is decorated');
+  const label = $('[data-tutor-diagram] text');
+  assert.ok(label, 'the drawing has text to select');
+  const trailing = textNodes($$('[data-explanation-field="body"] p').at(-1));
+  await selection(label.firstChild, 0, trailing.at(-1), 3, 'x');
+  const bar = $('[data-explanation-selection-toolbar]');
+  assert.ok(bar, 'the selection still offers Ask in chat and Create note');
+  assert.equal(bar.querySelector('[aria-label="Highlight"]').disabled, true, 'but no highlight can start inside a drawing');
+});
+
+test('real Markdown renders align with the canonical text: bold, a list, a table, inline and fenced code, a heading, repeated words', async () => {
+  const fence = '`'.repeat(3);
+  const body = `## Cooling\n\nThe **hot** cup loses heat *fast*, and \`k\` is the rate.\n\n- early: a large gap\n- late: a small gap\n\n| Phase | Gap |\n|---|---|\n| early | large |\n| late | small |\n\n${fence}python\nrate = k * gap\n${fence}\n\nThe gap shrinks, so the rate falls with the gap.`;
+  const block = { ...base, body, more: [] };
+  const revision = await contentRevision(block), text = fieldText(block, 'body');
+  const term = (id, label, occurrence) => { const start = cpStart(text, label, occurrence); return { id, label, definition: `${label}.`, anchor: { field: 'body', quote: label, occurrence, start, end: start + label.length } }; };
+  const card = { ...block, interactions: { version: 1, displayTextVersion: 1, contentRevision: revision, questions: [{ id: 'q-1', text: 'A?' }, { id: 'q-2', text: 'B?' }, { id: 'q-3', text: 'C?' }],
+    terms: [term('t-1', 'hot', 0), term('t-2', 'gap', 3), term('t-3', 'large', 1), term('t-4', 'rate', 2)] } };
+  await mount(card, { host: { ask: async () => true } });
+  const pills = Object.fromEntries($$('[data-term-id]').map(p => [p.getAttribute('data-term-id'), p]));
+  assert.deepEqual(Object.entries(pills).map(([id, p]) => id + ':' + p.textContent).sort(), ['t-1:hot', 't-2:gap', 't-3:large', 't-4:rate']);
+  assert.equal(pills['t-1'].parentElement.tagName, 'STRONG', 'a pill inside bold text stays inside the bold element');
+  // Whole-word occurrences in reading order: "gap" is in the two list items, the code line, "The gap shrinks" (#3) and "with the gap"; "large" is in the list item (#0) and the table cell (#1).
+  assert.match(pills['t-2'].parentElement.textContent, /^The gap shrinks, so the rate falls with the gap\.$/);
+  assert.equal(pills['t-3'].parentElement.tagName, 'TD', 'the table cell, not the list item');
+  assert.match(pills['t-4'].parentElement.textContent, /^The gap shrinks/, 'rate #2: after "the rate." and the code line');
+});

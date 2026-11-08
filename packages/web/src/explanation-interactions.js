@@ -45,35 +45,54 @@ const lowerBound = (list, value) => { let lo = 0, hi = list.length; while (lo < 
 // ---- DOM text of one rendered field ----
 // Elements whose text is chrome, not content: the code block's language label and Copy button, anything a caller marks.
 const SKIP = '[data-code-lang],[data-code-copy],[data-explanation-skip],[data-explanation-ui],script,style,title,desc';
+// A TutorDiagram is an island: its words are in the canonical text (tutorDiagramVisibleText) as one run, but in the drawing's own order, so it is matched by
+// the multiset of its characters and never decorated or selected into.
+const ISLAND = '[data-tutor-diagram]';
 const TEXT = 3, ELEMENT = 1;
-function walkText(node, out) {
+function walkItems(node, out) {
   for (const child of Array.from(node.childNodes || [])) {
-    if (child.nodeType === TEXT) out.push(child);
-    else if (child.nodeType === ELEMENT && !child.matches?.(SKIP)) walkText(child, out);
+    if (child.nodeType === TEXT) out.push({ text: child });
+    else if (child.nodeType === ELEMENT && child.matches?.(ISLAND)) out.push({ island: child });
+    else if (child.nodeType === ELEMENT && !child.matches?.(SKIP)) walkItems(child, out);
   }
   return out;
 }
+const nonSpace = text => Array.from(String(text ?? '')).filter(ch => !isSpace(ch));
+const islandChars = node => walkItems(node, []).flatMap(item => (item.text ? nonSpace(item.text.data) : item.island ? islandChars(item.island) : []));
+const inIsland = node => !!(node?.nodeType === ELEMENT ? node : node?.parentNode)?.closest?.(ISLAND);
 
-// The aligned field: `root`'s rendered text against the canonical text. null when they disagree (typeset math, a diagram's labels, anything rendered
-// that the canonical mapping does not contain): the caller then decorates nothing in that field and offers no highlight over it.
+// The aligned field: `root`'s rendered text against the canonical text. null when they disagree (typeset math, anything rendered that the canonical
+// mapping does not contain): the caller then decorates nothing in that field and offers no highlight over it.
+// domToCan[i]: the squeezed canonical index of the i-th rendered character (they differ only after a diagram island).
 export function alignField(root, canonical) {
-  const nodes = walkText(root, []), chars = [], where = [], first = new Map();
-  for (const node of nodes) {
+  const can = squeeze(canonical), nodes = [], chars = [], where = [], domToCan = [], first = new Map();
+  let at = 0;
+  for (const item of walkItems(root, [])) {
+    if (item.island) {
+      const inside = islandChars(item.island), run = can.chars.slice(at, at + inside.length);
+      if (run.length !== inside.length || [...run].sort().join('') !== [...inside].sort().join('')) return null;
+      at += inside.length;
+      continue;
+    }
+    const node = item.text;
+    nodes.push(node);
     first.set(node, chars.length);
     let offset = 0;
     for (const ch of String(node.data ?? '')) {
-      if (!isSpace(ch)) { chars.push(ch); where.push({ node, from: offset, to: offset + ch.length }); }
+      if (!isSpace(ch)) {
+        if (can.chars[at] !== ch) return null;
+        chars.push(ch); where.push({ node, from: offset, to: offset + ch.length }); domToCan.push(at); at += 1;
+      }
       offset += ch.length;
     }
   }
-  const can = squeeze(canonical);
-  if (chars.length !== can.chars.length || chars.some((ch, index) => ch !== can.chars[index])) return null;
-  return { root, nodes, chars, where, first, can };
+  if (at !== can.chars.length) return null;
+  return { root, nodes, chars, where, first, can, domToCan };
 }
 
-// Canonical [start, end) -> the squeezed index range [lo, hi) of the non-whitespace characters it covers (empty -> null).
+// Canonical [start, end) -> the range [lo, hi) of rendered characters it covers (empty -> null).
 export function squeezedRange(aligned, start, end) {
-  const lo = lowerBound(aligned.can.at, start), hi = lowerBound(aligned.can.at, end);
+  const lo = lowerBound(aligned.domToCan, lowerBound(aligned.can.at, start)), hi = lowerBound(aligned.domToCan, lowerBound(aligned.can.at, end));
   return hi > lo ? [lo, hi] : null;
 }
 // Document order by hand (linkedom, the Node test DOM, answers compareDocumentPosition wrongly across siblings): paths of child indices from the document.
@@ -108,13 +127,14 @@ export function anchorsFromRange(range, fields, revision) {
   const out = [];
   for (const { field, root, aligned, canonical } of fields) {
     if (!aligned) continue;
+    if (inIsland(range.startContainer) || inIsland(range.endContainer)) continue; // a selection that starts or ends inside a drawing is refused
     const startAt = boundaryVs(root, range.startContainer, range.startOffset), endAt = boundaryVs(root, range.endContainer, range.endOffset);
     if (startAt === 1 || endAt === -1) continue; // the range begins after this field or ends before it
     const startIn = startAt === 0, endIn = endAt === 0;
     const from = startIn ? charsBefore(aligned, range.startContainer, range.startOffset) : 0;
     const to = endIn ? charsBefore(aligned, range.endContainer, range.endOffset) : aligned.chars.length;
     if (to <= from) continue;
-    const start = aligned.can.at[from], end = aligned.can.at[to - 1] + 1, all = cps(canonical);
+    const start = aligned.can.at[aligned.domToCan[from]], end = aligned.can.at[aligned.domToCan[to - 1]] + 1, all = cps(canonical);
     out.push({ field, start, end, quote: all.slice(start, end).join(''), prefix: all.slice(Math.max(0, start - CONTEXT), start).join(''), suffix: all.slice(end, end + CONTEXT).join(''), contentRevision: revision });
   }
   return out;

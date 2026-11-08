@@ -68,7 +68,8 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     onClick: event => { const pill = pillOf(event); if (pill) { const id = pill.getAttribute('data-term-id'); setOpenTerm(current => (current?.id === id ? null : { id, via: event.detail === 0 ? 'key' : 'pointer' })); } },
     onKeyDown: event => {
       const pill = pillOf(event);
-      if (pill && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); const id = pill.getAttribute('data-term-id'); setOpenTerm(current => (current?.id === id ? null : { id, via: 'key' })); }
+      // Enter on a pill opens its definition, never the card (the canvas opens the selected card on Enter).
+      if (pill && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); const id = pill.getAttribute('data-term-id'); setOpenTerm(current => (current?.id === id ? null : { id, via: 'key' })); }
     },
     onScroll: () => { setOpenTerm(null); },
   };
