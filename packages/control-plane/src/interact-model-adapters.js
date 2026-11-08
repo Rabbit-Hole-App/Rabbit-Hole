@@ -41,7 +41,8 @@ export function schemaProblems(schema, value, path = '$', root = schema) {
     return schemaProblems(target, value, path, root);
   }
   const out = [], types = [].concat(schema.type ?? []);
-  if (types.length && !types.some(t => typeOk(t, value))) return [`${path}: expected ${types.join(' or ')}`];
+  // What was there instead, short: a wrong-type reply (dev run i1-18: "$.mode: expected object" twice) is otherwise undiagnosable.
+  if (types.length && !types.some(t => typeOk(t, value))) return [`${path}: expected ${types.join(' or ')} (got ${value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value}${typeof value === 'string' ? ` "${value.slice(0, 60)}"` : ''})`];
   if (schema.enum && !schema.enum.some(e => canonical(e) === canonical(value))) out.push(`${path}: not one of the allowed values`);
   if ('const' in schema && canonical(schema.const) !== canonical(value)) out.push(`${path}: not the required constant`);
   if (typeof value === 'string') {
