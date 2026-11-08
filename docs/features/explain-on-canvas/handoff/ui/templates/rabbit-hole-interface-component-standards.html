@@ -96,6 +96,12 @@
     .pill { display:inline-flex; align-items:center; gap:5px; min-height:26px; padding:1px 11px; border:1px solid transparent; border-radius:var(--pill-radius); font:700 13px/1.45 var(--font-family); white-space:nowrap; }
     .pill.explain,.pill.info { background:var(--blue-soft); color:var(--explanation-ink); }
     .pill.interactive { background:var(--orange-soft); color:var(--orange-dark); }
+    .pill.document,.pill.command { background:var(--blue-soft); color:var(--explanation-ink); border-color:var(--control-selected-border); }
+    .pill.command.interactive { background:var(--orange-soft); color:var(--orange-dark); border-color:transparent; }
+    .pill.command.search { background:var(--panel-border); color:var(--ink); border-color:var(--control-hover-border); }
+    .command-group { display:flex; flex-wrap:wrap; gap:8px 12px; padding:0; margin:0 0 10px; list-style:none; }
+    .command-group li { display:inline-flex; flex-wrap:wrap; align-items:center; gap:5px; }
+    .command-group code { color:var(--muted); font-size:12px; }
     .pill.warning { background:var(--warning-soft); color:var(--warning-ink); }
     .pill.success { background:var(--green-soft); color:var(--why-ink); }
     .pill.error { background:var(--danger-soft); color:var(--danger-ink); }
@@ -298,10 +304,10 @@
     }
     .rh-composer .card-body:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -3px; }
     .rh-composer .resize-handle {
-      position: absolute; right: 2px; bottom: 2px;
+      flex: none;
       display: grid; place-items: center;
       width: 26px; height: 26px; padding: 0;
-      border: 1px solid transparent; border-radius: var(--grip-radius);
+      border: 1px solid var(--composer-control-line); border-radius: var(--grip-radius);
       background: var(--card); color: var(--muted);
       cursor: nwse-resize; touch-action: none;
     }
@@ -310,7 +316,7 @@
     .rh-composer .resize-handle:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -2px; }
     .rh-composer.teaching-card.is-resizing { user-select: none; }
     @container (max-width: 370px) {
-      .rh-composer .card-header, .rh-composer .card-body { padding-inline: var(--card-inset-compact); }
+      .rh-composer .card-header, .rh-composer .card-body, .rh-composer .rh-footer { padding-inline: var(--card-inset-compact); }
       .rh-composer .card-title { font-size: var(--title-size-compact); }
     }
     .rh-composer {
@@ -336,11 +342,18 @@
       font: 1rem/1.45 Inter,"Liberation Sans",Arial,sans-serif;
       color: var(--composer-ink);
     }
-    .rh-composer .rh-form { display:grid; gap:10px; }
+    .rh-composer .rh-form { display:flex; flex:0 1 auto; flex-direction:column; min-height:0; }
+    .rh-composer .card-body { display:grid; align-content:start; gap:10px; padding-bottom:12px; }
+    .rh-composer .rh-footer {
+      display:flex; flex:none; align-items:flex-end; gap:8px;
+      padding:8px var(--card-inset);
+      border-top:1px solid var(--header-line);
+    }
+    .rh-composer .rh-actions { flex:1; min-width:0; }
     .rh-composer .rh-context,.rh-composer .rh-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
     .rh-composer .rh-input-label { display:block; margin-bottom:4px; font-size:13px; font-weight:650; }
     .rh-composer .rh-field { min-width:0; min-height:35px; padding:6px 9px; border:1px solid var(--composer-control-line); border-radius:8px; color:var(--composer-ink); background:var(--composer-white); font:400 15px/1.45 Inter,"Liberation Sans",Arial,sans-serif; }
-    .rh-composer textarea.rh-field { display:block; width:100%; min-height:75px; resize:none; }
+    .rh-composer textarea.rh-field { display:block; width:100%; min-height:75px; overflow:hidden; overflow-wrap:anywhere; resize:none; }
     .rh-composer .rh-field::placeholder { color:var(--composer-muted); opacity:1; }
     .rh-composer .rh-field:hover:enabled { border-color:var(--composer-hover-line); }
     .rh-composer .rh-depth { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:650; }
@@ -513,6 +526,8 @@
     <span class="pill explain">Explanation</span>
     <span class="pill interactive">Interactive</span>
     <span class="pill success">Roadmap accepted</span>
+    <span class="pill document">Markdown</span>
+    <span class="pill document">PDF</span>
     <span class="pill neutral">Proposed card</span>
     <span class="pill neutral"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Lock"/></svg>Private</span>
   </div>
@@ -520,6 +535,42 @@
     <button class="button secondary" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-MessageSquarePlus"/></svg>Add to chat <kbd class="kbd">Ctrl+L</kbd></button>
     <button class="button secondary" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Wand"/></svg>Quick Edit <kbd class="kbd">Ctrl+K</kbd></button>
   </div>
+</article>
+
+<article class="specimen" id="f-slash-pills">
+  <h3>Slash-command pills</h3>
+  <p class="muted">Use the text-only pill for the selected command. The slash spelling alongside each pill shows what the learner types. Blue identifies Tutor and Create actions, Claude red identifies Interactive, and filled neutral pills identify Search.</p>
+  <h4>Tutor</h4>
+  <ul class="command-group" aria-label="Tutor command pills">
+    <li><code>/explain</code> <span class="pill command">Explanation</span></li>
+    <li><code>/interactive</code> <span class="pill command interactive">Interactive</span></li>
+    <li><code>/practice</code> <span class="pill command">Practice</span></li>
+    <li><code>/quiz</code> <span class="pill command">Quiz</span></li>
+    <li><code>/flashcards</code> <span class="pill command">Flashcards</span></li>
+    <li><code>/goal</code> <span class="pill command">Learning goal</span></li>
+  </ul>
+  <h4>Create</h4>
+  <ul class="command-group" aria-label="Create command pills">
+    <li><code>/code</code> <span class="pill command">Code example</span></li>
+    <li><code>/graph</code> <span class="pill command">Graph</span></li>
+    <li><code>/diagram</code> <span class="pill command">Diagram</span></li>
+    <li><code>/notebook</code> <span class="pill command">Notebook</span></li>
+    <li><code>/image</code> <span class="pill command">Image generation</span></li>
+    <li><code>/motion</code> <span class="pill command">Animated explainer</span></li>
+    <li><code>/cad</code> <span class="pill command">CAD model</span></li>
+    <li><code>/animation</code> <span class="pill command">3D animation</span></li>
+    <li><code>/whiteboard</code> <span class="pill command">Whiteboard</span></li>
+    <li><code>/3d</code> <span class="pill command">3D scene</span></li>
+    <li><code>/browser</code> <span class="pill command">Browser</span></li>
+  </ul>
+  <h4>Search</h4>
+  <ul class="command-group" aria-label="Search command pills">
+    <li><code>/photos</code> <span class="pill command search">Photo search</span></li>
+    <li><code>/youtube</code> <span class="pill command search">YouTube search</span></li>
+    <li><code>/arxiv</code> <span class="pill command search">arXiv search</span></li>
+    <li><code>/wikipedia</code> <span class="pill command search">Wikipedia search</span></li>
+  </ul>
+  <p class="muted">Command availability follows the <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/agent/slash.js">command registry</a> and its feature flags. <code>/generate-image</code> and <code>/photo</code> reuse the pills for <code>/image</code> and <code>/photos</code>.</p>
 </article>
 
 <article class="specimen" id="f-toolbar">
@@ -564,8 +615,8 @@
 <div class="rh-composer-example" style="min-width:0">
 <article class="teaching-card rh-composer" id="rh-composer" aria-labelledby="rh-composer-title">
   <header class="card-header"><h3 class="card-title" id="rh-composer-title">Chat composer</h3></header>
-  <div class="card-body" role="region" aria-label="Chat composer content" tabindex="0">
-    <form class="rh-form" id="rh-composer-form">
+  <form class="rh-form" id="rh-composer-form">
+    <div class="card-body" role="region" aria-label="Chat composer content" tabindex="0">
       <div>
         <label class="rh-input-label" for="rh-message">Message</label>
         <textarea class="rh-field" id="rh-message" rows="2" placeholder="Ask a question"></textarea>
@@ -574,21 +625,23 @@
         <span class="pill">This canvas</span>
         <span class="pill"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-FileText"/></svg>lesson.md</span>
       </div>
+      <p class="rh-depth-help" id="rh-depth-help">A balanced explanation.</p>
+      <p class="rh-status" id="rh-composer-status" role="status">Type a message to enable Send.</p>
+    </div>
+    <div class="rh-footer">
       <div class="rh-actions" role="group" aria-label="Composer controls">
         <button type="button" class="button secondary" data-rh-demo="Attach control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Plus"/></svg>Attach</button>
         <label class="rh-depth">Depth <select class="rh-field" id="rh-depth" aria-describedby="rh-depth-help"><option>Overview</option><option selected>Standard</option><option>Deep</option></select></label>
         <button type="button" class="icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Mic"/></svg></button>
         <button type="submit" class="button primary rh-send" id="rh-send" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg><span>Send</span></button>
       </div>
-      <p class="rh-depth-help" id="rh-depth-help">A balanced explanation.</p>
-      <p class="rh-status" id="rh-composer-status" role="status">Type a message to enable Send.</p>
-    </form>
-  </div>
-  <button type="button" class="resize-handle" aria-describedby="rh-resize-guide" aria-label="Resize chat composer" title="Resize card">
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-  </button>
+      <button type="button" class="resize-handle" aria-describedby="rh-resize-guide" aria-label="Resize chat composer" title="Resize card">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </form>
 </article>
-<p class="rh-grip-guide" id="rh-resize-guide">Use the card grip or arrow keys to resize. Shift makes larger steps.</p>
+<p class="rh-grip-guide" id="rh-resize-guide">Drag the bottom-right grip or use its arrow keys to resize. Hold Shift for larger steps.</p>
 </div>
 <!-- END SHARED COMPOSER -->
 
@@ -836,7 +889,7 @@
 <tr><th scope="row">Destructive · Move to Trash</th><td><span class="swatch" style="--paint:var(--danger-soft)" aria-hidden="true"></span><code>#F9EBEA</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-active)" aria-hidden="true"></span><code>#F4D9D6</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr></tbody></table></div></details><details open><summary>Dimensions and behavior</summary><div class="table-scroll"><table><thead><tr><th scope="col">Component</th><th scope="col">Exact values</th></tr></thead><tbody><tr><th scope="row">Typography</th><td>Inter → Liberation Sans → Arial → sans-serif. Base 16 px / 1.45. Button, pill and field labels 13 px. Button and field label weight 650; pill weight 700. Field text 15 px / 400. Explanatory details 14 px. Status text 12 px. Shortcut 10 px / 600 monospace.</td></tr>
 <tr><th scope="row">Buttons and icon controls</th><td>35 px minimum height, 8 px radius, 1 px border, 10 px horizontal padding and 6 px icon gap. Icon-only targets are 35 × 35 px, with 16 px Lucide glyphs, stroke 2. Compact rows use 28 px targets and 14 px glyphs. Existing per-glyph sizes are listed in the icon template.</td></tr>
 <tr><th scope="row">Focus, hover and disabled</th><td>Focus outline #426DB2, 2 px, +2 px offset. Hover and press use the role table above. Transitions 120 ms. Disabled uses 45% composite opacity and the disabled cursor, with a stable surface.</td></tr>
-<tr><th scope="row">Pills, tags and shortcut hints</th><td>Pill minimum 26 px high, 999 px radius, padding 1 × 11 px, 5 px gap, icon 13 px. Text-only Explanation #EAF1FB / #375D92 and Interactive #F8ECE3 / #934723. Positive #E5F2EA / #205C45. Neutral #F6F8F4 / #5D675F with #E3E7E0 border. Shortcut min 17 px, radius 4 px, 1 px currentColor border and 4 px horizontal padding.</td></tr>
+<tr><th scope="row">Pills, tags and shortcut hints</th><td>Pill minimum 26 px high, 999 px radius, padding 1 × 11 px, 5 px gap, icon 13 px. Text-only Explanation #EAF1FB / #375D92 and Interactive #F8ECE3 / #934723. Markdown, PDF, and blue slash-command pills use #EAF1FB / #375D92 with a 1 px #ADC4E5 border. Search commands use #E3E7E0 / #202723 with a 1 px #D2D9D2 border. Positive #E5F2EA / #205C45. Neutral #F6F8F4 / #5D675F with #E3E7E0 border. Shortcut min 17 px, radius 4 px, 1 px currentColor border and 4 px horizontal padding.</td></tr>
 <tr><th scope="row">Text fields and dropdowns</th><td>35 px minimum height, 8 px radius, 1 px #E3E7E0 border, 6 × 9 px padding. White surface, #202723 text, #5D675F placeholder at 100% opacity. Invalid border #9D3D39 and linked validation text. Dropdowns retain the native caret and current value.</td></tr>
 <tr><th scope="row">Sliders</th><td>26 px control row, 4 px track, inactive #E3E7E0, active #426DB2. 14 px circular thumb with #375D92 fill and 1 px border. Show the current value and retain native arrow-key steps.</td></tr>
 <tr><th scope="row">Switches and checks</th><td>Switch 36 × 20 px, pill radius, 1 px border, 14 px white knob with 2 px inset and 16 px travel. Off #E3E7E0 with #D2D9D2 border. On #375D92. Checkbox 16 × 16 px with 4 px radius, 1 px #D2D9D2 border, and 8 px label gap. Checked uses #375D92 and an 8 × 5 px white mark with 2 px stroke. Mixed uses an 8 × 2 px white mark. Radio uses the native #375D92 accent.</td></tr>
@@ -1108,7 +1161,23 @@ function installResize(card, handle) {
       send.querySelector('span').textContent = streaming ? 'Stop' : 'Send';
       send.querySelector('use').setAttribute('href',streaming ? '#i-Square' : '#i-ArrowUp');
     }
-    message.addEventListener('input',updateSend);
+    function fitMessage() {
+      message.style.height = 'auto';
+      const borderHeight = message.offsetHeight - message.clientHeight;
+      message.style.height = `${message.scrollHeight + borderHeight}px`;
+    }
+
+    let messageWidth = message.clientWidth;
+    new ResizeObserver(() => {
+      if (messageWidth === message.clientWidth) return;
+      messageWidth = message.clientWidth;
+      fitMessage();
+    }).observe(message);
+
+    message.addEventListener('input',() => {
+      fitMessage();
+      updateSend();
+    });
     depth.addEventListener('change',() => { help.textContent = depthHelp[depth.value]; });
     form.addEventListener('submit',event => {
       event.preventDefault();
@@ -1121,6 +1190,7 @@ function installResize(card, handle) {
       button.addEventListener('click',() => { status.textContent = button.dataset.rhDemo; });
     }
     installResize(composer,composer.querySelector('.resize-handle'));
+    fitMessage();
     updateSend();
   })();
 </script>

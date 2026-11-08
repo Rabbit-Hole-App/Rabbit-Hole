@@ -37,8 +37,8 @@
     .source-card { container-type:inline-size; }
     .source-header { padding:17px 24px 11px; }
     .source-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-    .pill { display:inline-flex; align-items:center; min-height:26px; padding:1px 11px; border-radius:999px; font-size:13px; font-weight:700; }
-    .pill.source { color:var(--muted); background:var(--panel); }
+    .pill { display:inline-flex; align-items:center; min-height:26px; padding:1px 11px; border:1px solid transparent; border-radius:999px; font-size:13px; font-weight:700; line-height:1.45; }
+    .pill.source { color:var(--action-blue); background:var(--blue-soft); border-color:var(--blue-line); }
     .pill.explain { color:var(--action-blue); background:var(--blue-soft); }
     .pill.interactive { color:var(--orange-dark); background:var(--orange-soft); }
     .card-title { color:var(--ink); font-size:var(--title-size); line-height:var(--title-leading); letter-spacing:var(--title-tracking); font-weight:700; overflow-wrap:anywhere; }
@@ -124,10 +124,10 @@
     }
     .rh-composer .card-body:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -3px; }
     .rh-composer .resize-handle {
-      position: absolute; right: 2px; bottom: 2px;
+      flex: none;
       display: grid; place-items: center;
       width: 26px; height: 26px; padding: 0;
-      border: 1px solid transparent; border-radius: var(--grip-radius);
+      border: 1px solid var(--composer-control-line); border-radius: var(--grip-radius);
       background: var(--card); color: var(--muted);
       cursor: nwse-resize; touch-action: none;
     }
@@ -136,7 +136,7 @@
     .rh-composer .resize-handle:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -2px; }
     .rh-composer.teaching-card.is-resizing { user-select: none; }
     @container (max-width: 370px) {
-      .rh-composer .card-header, .rh-composer .card-body { padding-inline: var(--card-inset-compact); }
+      .rh-composer .card-header, .rh-composer .card-body, .rh-composer .rh-footer { padding-inline: var(--card-inset-compact); }
       .rh-composer .card-title { font-size: var(--title-size-compact); }
     }
     .rh-composer {
@@ -162,11 +162,18 @@
       font: 1rem/1.45 Inter,"Liberation Sans",Arial,sans-serif;
       color: var(--composer-ink);
     }
-    .rh-composer .rh-form { display:grid; gap:10px; }
+    .rh-composer .rh-form { display:flex; flex:0 1 auto; flex-direction:column; min-height:0; }
+    .rh-composer .card-body { display:grid; align-content:start; gap:10px; padding-bottom:12px; }
+    .rh-composer .rh-footer {
+      display:flex; flex:none; align-items:flex-end; gap:8px;
+      padding:8px var(--card-inset);
+      border-top:1px solid var(--header-line);
+    }
+    .rh-composer .rh-actions { flex:1; min-width:0; }
     .rh-composer .rh-context,.rh-composer .rh-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
     .rh-composer .rh-input-label { display:block; margin-bottom:4px; font-size:13px; font-weight:650; }
     .rh-composer .rh-field { min-width:0; min-height:35px; padding:6px 9px; border:1px solid var(--composer-control-line); border-radius:8px; color:var(--composer-ink); background:var(--composer-white); font:400 15px/1.45 Inter,"Liberation Sans",Arial,sans-serif; }
-    .rh-composer textarea.rh-field { display:block; width:100%; min-height:75px; resize:none; }
+    .rh-composer textarea.rh-field { display:block; width:100%; min-height:75px; overflow:hidden; overflow-wrap:anywhere; resize:none; }
     .rh-composer .rh-field::placeholder { color:var(--composer-muted); opacity:1; }
     .rh-composer .rh-field:hover:enabled { border-color:var(--composer-hover-line); }
     .rh-composer .rh-depth { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:650; }
@@ -232,8 +239,8 @@
 <div class="rh-composer-example" style="min-width:0">
 <article class="teaching-card rh-composer" id="rh-composer" aria-labelledby="rh-composer-title">
   <header class="card-header"><h3 class="card-title" id="rh-composer-title">Chat composer</h3></header>
-  <div class="card-body" role="region" aria-label="Chat composer content" tabindex="0">
-    <form class="rh-form" id="rh-composer-form">
+  <form class="rh-form" id="rh-composer-form">
+    <div class="card-body" role="region" aria-label="Chat composer content" tabindex="0">
       <div>
         <label class="rh-input-label" for="rh-message">Message</label>
         <textarea class="rh-field" id="rh-message" rows="2" placeholder="Ask a question"></textarea>
@@ -242,21 +249,23 @@
         <span class="pill">This canvas</span>
         <span class="pill"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-FileText"/></svg>lesson.md</span>
       </div>
+      <p class="rh-depth-help" id="rh-depth-help">A balanced explanation.</p>
+      <p class="rh-status" id="rh-composer-status" role="status">Type a message to enable Send.</p>
+    </div>
+    <div class="rh-footer">
       <div class="rh-actions" role="group" aria-label="Composer controls">
         <button type="button" class="button secondary" data-rh-demo="Attach control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Plus"/></svg>Attach</button>
         <label class="rh-depth">Depth <select class="rh-field" id="rh-depth" aria-describedby="rh-depth-help"><option>Overview</option><option selected>Standard</option><option>Deep</option></select></label>
         <button type="button" class="icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Mic"/></svg></button>
         <button type="submit" class="button primary rh-send" id="rh-send" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg><span>Send</span></button>
       </div>
-      <p class="rh-depth-help" id="rh-depth-help">A balanced explanation.</p>
-      <p class="rh-status" id="rh-composer-status" role="status">Type a message to enable Send.</p>
-    </form>
-  </div>
-  <button type="button" class="resize-handle" aria-describedby="rh-resize-guide" aria-label="Resize chat composer" title="Resize card">
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-  </button>
+      <button type="button" class="resize-handle" aria-describedby="rh-resize-guide" aria-label="Resize chat composer" title="Resize card">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </form>
 </article>
-<p class="rh-grip-guide" id="rh-resize-guide">Use the card grip or arrow keys to resize. Shift makes larger steps.</p>
+<p class="rh-grip-guide" id="rh-resize-guide">Drag the bottom-right grip or use its arrow keys to resize. Hold Shift for larger steps.</p>
 </div>
 <!-- END SHARED COMPOSER -->
   </section>
@@ -269,9 +278,10 @@
         <tr><th scope="row">Claude red · Interactive</th><td><code>#934723</code> ink and <code>#F8ECE3</code> surface for Interactive identity and scene data accents. Shared controls use blue. The mode pills are text-only.</td></tr>
         <tr><th scope="row">Semantic color</th><td>Green <code>#267657</code> for completion and positive status. Destructive and error roles use <code>#9D3D39</code> with <code>#F9EBEA</code> where a tint is needed.</td></tr>
         <tr><th scope="row">Source header</th><td>Same title role as Explanation and Interactive. Inter → Liberation Sans → Arial → sans-serif, 26.4 px / 700 / 1.17, tracking −0.023 em, ink <code>#202723</code>. At card content width ≤370 px, use 21.6 px title and 15 px horizontal inset. Standard inset 24 px, top 17 px, bottom 11 px. Type pill is 26 px minimum, 13 px / 700, radius 999 px and padding 1 × 11 px. Use the rename when set, otherwise the filename. When a rename differs from the filename, the optional filename line is 14 px / 650 / 1.35 in <code>#5D675F</code>, 4 px below the title. Put technical file details in file info.</td></tr>
+        <tr><th scope="row">Markdown and PDF pills</th><td>Text only, 26 px minimum height, 999 px radius, 1 × 11 px padding, 13 px / 700 / 1.45. Opaque <code>#EAF1FB</code> fill, <code>#375D92</code> text and 1 px <code>#ADC4E5</code> border.</td></tr>
         <tr><th scope="row">Selected text actions</th><td>Use the existing Highlighter, Lightbulb and MessageSquarePlus glyphs at 15 px, stroke 2. Targets 35 × 35 px, 8 px radius, gap 3 px. Popover surface #FFFEFA with 1 px #DEDFD8 border, 10 px radius and 4 px inset. Selected text uses #D0E0F4 with #202723 ink.</td></tr>
-        <tr><th scope="row">Composer shell</th><td>Uses the teaching card shell, including the 26.4 px title, 24 px inset, 18 px card radius, one scrolling body and content height cap. The grip is 26 × 26 px, 7 px radius, with the same 14 px glyph and resize behavior as the cards.</td></tr>
-        <tr><th scope="row">Prompt and tools</th><td>Input text 15 px / 400 / 1.45, control labels 13 px / 650 / 1.45. Standard 35 px controls, 8 px radius, 1 px outline. Send and Stop are the same rectangular blue primary action. Message content stays within the shared card scroll area.</td></tr>
+        <tr><th scope="row">Composer shell</th><td>Uses the teaching card shell, including the 26.4 px title, 24 px inset, 18 px card radius, one scrolling body and content height cap. The footer keeps tools and the resize grip visible while the body scrolls. The outlined grip is 26 × 26 px with a 7 px radius and the same 14 px glyph and resize behavior as the cards.</td></tr>
+        <tr><th scope="row">Prompt and tools</th><td>Input text 15 px / 400 / 1.45, control labels 13 px / 650 / 1.45. Standard 35 px controls, 8 px radius, 1 px outline. Send and Stop are the same rectangular blue primary action. The message grows with wrapped text and line breaks. Longer drafts scroll within the capped card body.</td></tr>
       </tbody>
     </table></div>
     <p class="sources"><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/FileDocCard.jsx#L137-L150">Markdown header source</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/AdaptiveCanvas.jsx#L629-L659">PDF header source</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/FileDocMarkdown.jsx#L298-L302">Selection actions</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/ChatComposer.jsx#L37-L95">Current composer primitives</a>. The composer above is the same shared specimen as the Interface Component Standards.</p>
@@ -403,7 +413,23 @@ function installResize(card, handle) {
       send.querySelector('span').textContent = streaming ? 'Stop' : 'Send';
       send.querySelector('use').setAttribute('href',streaming ? '#i-Square' : '#i-ArrowUp');
     }
-    message.addEventListener('input',updateSend);
+    function fitMessage() {
+      message.style.height = 'auto';
+      const borderHeight = message.offsetHeight - message.clientHeight;
+      message.style.height = `${message.scrollHeight + borderHeight}px`;
+    }
+
+    let messageWidth = message.clientWidth;
+    new ResizeObserver(() => {
+      if (messageWidth === message.clientWidth) return;
+      messageWidth = message.clientWidth;
+      fitMessage();
+    }).observe(message);
+
+    message.addEventListener('input',() => {
+      fitMessage();
+      updateSend();
+    });
     depth.addEventListener('change',() => { help.textContent = depthHelp[depth.value]; });
     form.addEventListener('submit',event => {
       event.preventDefault();
@@ -416,6 +442,7 @@ function installResize(card, handle) {
       button.addEventListener('click',() => { status.textContent = button.dataset.rhDemo; });
     }
     installResize(composer,composer.querySelector('.resize-handle'));
+    fitMessage();
     updateSend();
   })();
 </script>
