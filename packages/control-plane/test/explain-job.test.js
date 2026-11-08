@@ -154,7 +154,7 @@ test('a call interrupted by a restart is reconciled as unknown, never resent, an
   const { body } = await generated(s);
   const release = s.model.hold();
   const lost = s.actor.alarm(); // the original object's call never answers before the "restart"
-  await new Promise(r => setTimeout(r, 20));
+  for (let i = 0; i < 200 && s.model.calls.length < 1; i++) await new Promise(r => setTimeout(r, 10)); // the request is logged before the "restart" (a fixed 20 ms wait raced under load)
   const restarted = s.object();
   await restarted.alarm();
   const job = s.state.data.get(`job:${body.job.id}`);
