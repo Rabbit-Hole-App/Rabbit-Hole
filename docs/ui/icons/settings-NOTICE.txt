@@ -1,0 +1,1 @@
+Lucide icons, ISC license. circle-user, graduation-cap and shield copied from https://github.com/lucide-icons/lucide/tree/main/icons. These are the glyphs imported by RabbitHoleSettings.jsx. See NOTICE.txt for the shared icon license.

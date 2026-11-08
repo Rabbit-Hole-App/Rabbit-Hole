@@ -1374,6 +1374,831 @@
       "paletteRole": "shared"
     },
     {
+      "id": "navigation/settings",
+      "title": "Settings",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "profile",
+        "ready",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/settings-appearance",
+      "title": "Settings: Appearance & input",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "appearance",
+        "ready",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-appearance",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/settings-avatar-failure",
+      "title": "Settings: avatar failure and retry",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "profile",
+        "avatar-failure",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-avatar-failure",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/settings-handle-taken",
+      "title": "Settings: taken handle",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "profile",
+        "handle-taken",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-handle-taken",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/settings-learning",
+      "title": "Settings: Learning & voice",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "learning",
+        "ready",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-learning",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/settings-loading",
+      "title": "Settings: loading",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "profile",
+        "loading",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-loading",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/settings-preference-failure",
+      "title": "Settings: preference failure and retry",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "appearance",
+        "preference-failure",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-preference-failure",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/settings-privacy",
+      "title": "Settings: Privacy & security",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "privacy",
+        "ready",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-privacy",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/settings-profile-unavailable",
+      "title": "Settings: profile unavailable",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "profile",
+        "profile-unavailable",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-profile-unavailable",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/settings-purchase",
+      "title": "Settings: Buy credits",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "usage",
+        "ready",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-purchase",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/settings-save-failure",
+      "title": "Settings: save failure and retry",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "profile",
+        "save-failure",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-save-failure",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/settings-usage",
+      "title": "Settings: AI usage",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "usage",
+        "ready",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-usage",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/settings-usage-empty",
+      "title": "Settings: no AI activity",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "usage",
+        "usage-empty",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-usage-empty",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/settings-usage-exhausted",
+      "title": "Settings: exhausted credits",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "usage",
+        "usage-exhausted",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-usage-exhausted",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
+      "id": "navigation/settings-usage-unavailable",
+      "title": "Settings: usage unavailable",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+      "source_file": "settings.html",
+      "status": "UI reference with async states / browser verification pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "settings"
+      ],
+      "scripts": [
+        "settings-api",
+        "settings"
+      ],
+      "implementation": [
+        "packages/web/src/RabbitHoleSettings.jsx",
+        "packages/web/src/settings-model.js",
+        "packages/web/src/UsageGauge.jsx",
+        "packages/web/src/BuyCreditsDialog.jsx",
+        "packages/web/src/session-display.js",
+        "packages/control-plane/src/profile.js"
+      ],
+      "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "settings",
+        "settings-profile",
+        "settings-appearance",
+        "settings-learning",
+        "settings-usage",
+        "settings-privacy",
+        "settings-purchase"
+      ],
+      "keywords": [
+        "settings",
+        "usage",
+        "usage-unavailable",
+        "profile",
+        "handle",
+        "avatar",
+        "loading",
+        "retry",
+        "failure",
+        "usage",
+        "credits",
+        "privacy",
+        "keyboard"
+      ],
+      "path": "components/navigation/settings-usage-unavailable",
+      "paletteRole": "shared",
+      "catalogVisible": false
+    },
+    {
       "id": "navigation/sidebar",
       "title": "Sidebar and panels",
       "category": "navigation",

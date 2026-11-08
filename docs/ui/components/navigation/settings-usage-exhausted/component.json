@@ -1,0 +1,55 @@
+{
+  "id": "navigation/settings-usage-exhausted",
+  "title": "Settings: exhausted credits",
+  "category": "navigation",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/SETTINGS.md",
+  "source_file": "settings.html",
+  "status": "UI reference with async states / browser verification pending",
+  "styles": [
+    "standards",
+    "review-corrections",
+    "settings"
+  ],
+  "scripts": [
+    "settings-api",
+    "settings"
+  ],
+  "implementation": [
+    "packages/web/src/RabbitHoleSettings.jsx",
+    "packages/web/src/settings-model.js",
+    "packages/web/src/UsageGauge.jsx",
+    "packages/web/src/BuyCreditsDialog.jsx",
+    "packages/web/src/session-display.js",
+    "packages/control-plane/src/profile.js"
+  ],
+  "notes": "Shared primitives and palette; five current Settings panes. Includes failure/retry states and authoritative handle-save API adapter. Offline previews use fixtures; real runtime integration and browser verification remain pending. See SETTINGS.md.",
+  "issues": [],
+  "templates": [],
+  "includes": [
+    "settings",
+    "settings-profile",
+    "settings-appearance",
+    "settings-learning",
+    "settings-usage",
+    "settings-privacy",
+    "settings-purchase"
+  ],
+  "keywords": [
+    "settings",
+    "usage",
+    "usage-exhausted",
+    "profile",
+    "handle",
+    "avatar",
+    "loading",
+    "retry",
+    "failure",
+    "usage",
+    "credits",
+    "privacy",
+    "keyboard"
+  ],
+  "path": "components/navigation/settings-usage-exhausted",
+  "paletteRole": "shared",
+  "catalogVisible": false
+}

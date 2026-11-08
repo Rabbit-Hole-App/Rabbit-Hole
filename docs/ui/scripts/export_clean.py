@@ -24,7 +24,22 @@ EXPORTS=[
  ('17-sidebar-search','navigation/sidebar-search'),
  ('18-sidebar-trash','navigation/sidebar-trash'),
  ('19-sidebar-notifications','navigation/sidebar-notifications'),
- ('20-sidebar-feedback','navigation/sidebar-feedback')]
+ ('20-sidebar-feedback','navigation/sidebar-feedback'),
+ ('21-settings', 'navigation/settings'),
+ ('22-settings-appearance', 'navigation/settings-appearance'),
+ ('23-settings-learning', 'navigation/settings-learning'),
+ ('24-settings-usage', 'navigation/settings-usage'),
+ ('25-settings-privacy', 'navigation/settings-privacy'),
+ ('26-settings-purchase', 'navigation/settings-purchase'),
+ ('27-settings-loading', 'navigation/settings-loading'),
+ ('28-settings-profile-unavailable', 'navigation/settings-profile-unavailable'),
+ ('29-settings-save-failure', 'navigation/settings-save-failure'),
+ ('30-settings-handle-taken', 'navigation/settings-handle-taken'),
+ ('31-settings-avatar-failure', 'navigation/settings-avatar-failure'),
+ ('32-settings-usage-empty', 'navigation/settings-usage-empty'),
+ ('33-settings-usage-exhausted', 'navigation/settings-usage-exhausted'),
+ ('34-settings-usage-unavailable', 'navigation/settings-usage-unavailable'),
+ ('35-settings-preference-failure', 'navigation/settings-preference-failure')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:
@@ -59,7 +74,7 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
 #resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 @media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
 '''
-  if ident.startswith('navigation/sidebar'):
+  if ident.startswith(('navigation/sidebar','navigation/settings')):
    extra+='\nmain.clean-stage{max-width:none;margin:0;padding:0;}\n'
   if ident=='controls/toggle':
    # A single switch with its label, without availability and usage documentation.

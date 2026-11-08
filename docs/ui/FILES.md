@@ -378,3 +378,12 @@
 - Shared composition styling: `styles/sidebar.css`; behavior: `scripts/sidebar.js`, `scripts/sidebar-panels.js`; glyphs: `icons/sidebar.svg`.
 - Searchable records: `components/navigation/sidebar`, `sidebar-search`, `sidebar-trash`, `sidebar-notifications`, `sidebar-feedback`.
 - Generated clean references: `clean/16-sidebar.html` through `clean/20-sidebar-feedback.html`.
+
+## Settings additions
+
+- Handoff: `SETTINGS.md`; indexed in `RABBIT-HOLE-NEW-UI.md`.
+- Templates: `templates/settings.html` and `settings-{profile,appearance,learning,usage,privacy,purchase}.html`.
+- Styles: `styles/settings.css`; behavior: `scripts/settings.js`; transport/fixtures: `scripts/settings-api.js`.
+- Icons: `icons/settings.svg`, `icons/settings-NOTICE.txt`.
+- Component records: `components/navigation/settings*`; clean exports: `21-settings.html` through `35-settings-preference-failure.html`.
+- Verification: `verification/settings-state.test.mjs`, `verification/settings-verification.md`.

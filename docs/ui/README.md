@@ -92,3 +92,7 @@ Template includes use `<!-- ui:include template-name -->`. The catalog, clean ex
 ## Sidebar reference
 
 Read [SIDEBAR.md](SIDEBAR.md) for the sidebar and Search, Trash, Notifications and Feedback panels. [Open the clean HTML](clean/16-sidebar.html). Editable templates live in `templates/sidebar*.html`; searchable records live in `components/navigation/sidebar*`.
+
+## Settings reference
+
+[SETTINGS.md](SETTINGS.md) maps the five panels on main, shared components, async/retry states and server adapter. [Open Settings](clean/21-settings.html). State previews are linked in the handoff. Dark tokens are deferred.

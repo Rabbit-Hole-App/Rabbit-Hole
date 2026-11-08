@@ -1,7 +1,9 @@
 {
   "baseline": "aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56",
   "paths": [
+    "packages/control-plane/src/profile.js",
     "packages/web/src/AdaptiveCanvas.jsx",
+    "packages/web/src/BuyCreditsDialog.jsx",
     "packages/web/src/CanvasMenubar.jsx",
     "packages/web/src/CardFeedback.jsx",
     "packages/web/src/ChatComposer.jsx",
@@ -12,6 +14,7 @@
     "packages/web/src/LearningBlocks.jsx",
     "packages/web/src/LibraryViews.jsx",
     "packages/web/src/NextStepPill.jsx",
+    "packages/web/src/RabbitHoleSettings.jsx",
     "packages/web/src/RoadmapSurfaces.jsx",
     "packages/web/src/Search.jsx",
     "packages/web/src/Sidebar.jsx",
@@ -19,6 +22,7 @@
     "packages/web/src/SlotCard.jsx",
     "packages/web/src/StartDialog.jsx",
     "packages/web/src/TableOfContents.jsx",
+    "packages/web/src/UsageGauge.jsx",
     "packages/web/src/agent/slash.js",
     "packages/web/src/comments/CommentInbox.jsx",
     "packages/web/src/comments/CommentsPanel.jsx",
@@ -26,6 +30,8 @@
     "packages/web/src/home/CardMenu.jsx",
     "packages/web/src/home/CardSize.jsx",
     "packages/web/src/index.css",
+    "packages/web/src/session-display.js",
+    "packages/web/src/settings-model.js",
     "packages/web/src/ui.jsx"
   ],
   "additional_verification": {
@@ -35,6 +41,14 @@
     "5fb21d4de736f0403c79cca3ebdae07138e95f03": [
       "packages/web/src/Search.jsx",
       "packages/web/src/FeedbackButton.jsx"
+    ],
+    "39d19f28cf33e3d5369f2f5e830213525c358562": [
+      "packages/web/src/RabbitHoleSettings.jsx",
+      "packages/web/src/settings-model.js",
+      "packages/web/src/UsageGauge.jsx",
+      "packages/web/src/BuyCreditsDialog.jsx",
+      "packages/web/src/session-display.js",
+      "packages/control-plane/src/profile.js"
     ]
   }
 }
