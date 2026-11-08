@@ -7,7 +7,7 @@ import { platformCallModel, platformJevAsk, makeClassify, safetyRequest, ROLES }
 import { operationOf } from '../src/learn-spend-ledger.js';
 import { reserveRoadmapQuota, releaseCallQuota } from '../src/roadmap/roadmap-quota.js';
 import { ROADMAP_LIMITS } from '../src/roadmap/roadmap-policy.js';
-import { offerInvitation, pendingInvitation, dismissInvitation, roadmapOnDropEnabled } from '../src/roadmap/roadmap-invitations.js';
+import { offerInvitation, pendingInvitation, dismissInvitation } from '../src/roadmap/roadmap-invitations.js';
 import { scheduledRoadmapKick } from '../src/roadmap/roadmap-wire.js';
 import { SAFETY_QUESTIONS } from '../src/agents/roadmap-check.js';
 import { spendTransport } from '../src/learn-spend.js';
@@ -291,19 +291,4 @@ test('an explicit drop is offered in Ask and with Auto-suggest off; an unsolicit
   w.sqlite.prepare(`INSERT INTO learn_roadmaps (id, org, owner_user_id, owner_email, board_id, app, state, revision, depth, source_key, source_rev, scope_json, scope_fingerprint, ceiling, policy_version, created_at, updated_at)
     VALUES ('rm_y', 'team', 'u-alice', 'u-alice@example.test', ?, 'learn', 'active', 1, 'standard', 'k', 'r', '{}', 'f', 10, 'p', 1, 1)`).run(w.access.boardId);
   assert.deepEqual((await offer(w, [`file:${ID_B}`], { idleKey: `drop-file-${ID_B}` })).body.suppressed, { reason: 'unfinished_roadmap' });
-});
-
-// ROADMAP_ON_DROP_ENABLED (global): 'false' makes a dropped source start nothing; unset or anything else is today's behavior.
-test('on-drop off: a drop report answers a quiet not-started with no row; unset and true offer; typed requests and idle reports are not the drop', async t => {
-  const w = await withFiles(t), count = () => rows(w.sqlite, 'SELECT * FROM learn_roadmap_invitations').length;
-  const drop = (extra = {}) => offer(w, [`file:${ID_A}`], { idleKey: `drop-file-${ID_A}`, ...extra });
-  assert.equal(roadmapOnDropEnabled({}), true); assert.equal(roadmapOnDropEnabled({ ROADMAP_ON_DROP_ENABLED: 'true' }), true); assert.equal(roadmapOnDropEnabled({ ROADMAP_ON_DROP_ENABLED: '0' }), true); assert.equal(roadmapOnDropEnabled({ ROADMAP_ON_DROP_ENABLED: 'false' }), false);
-  const off = await drop({ onDrop: roadmapOnDropEnabled({ ROADMAP_ON_DROP_ENABLED: 'false' }) });
-  assert.deepEqual([off.status, off.body], [200, { invitation: null, suppressed: { reason: 'on_drop_off' } }]);
-  assert.equal(count(), 0, 'nothing was written and no quota was reserved');
-  assert.equal((await drop({ onDrop: roadmapOnDropEnabled({}) })).body.invitation.state, 'offered', 'unset: today');
-  assert.equal(count(), 1);
-  // Only the drop is gated: the unsolicited idle report keeps its own rules, and an offered invitation is still read back after the flag is turned off.
-  assert.equal((await offer(w, [`file:${ID_B}`], { onDrop: false })).body.invitation.state, 'offered', 'an idle report is not a drop');
-  assert.equal((await pendingInvitation(w.LEARN_DB, w.access)).body.invitation.state, 'offered');
 });

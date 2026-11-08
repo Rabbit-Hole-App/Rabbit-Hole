@@ -347,11 +347,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
       {composed
-        ? <InteractIntro composition={composition} block={block} mainInputs={inputs} instructions={manifest.instructions} />
-        : <>
-          {manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
-          {manifest.instructions && <p data-card-instructions className="shrink-0 text-sm leading-snug text-ink-2">{manifest.instructions}</p>}
-        </>}
+        ? <InteractIntro composition={composition} block={block} mainInputs={inputs} />
+        : manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
       <div data-program-viewport {...(composed ? { 'data-interact-scene': '' } : {})} className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
         style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
         <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" {...(dragIds.length ? pointerDrag : {})}

@@ -231,13 +231,3 @@ test('Restore: a removed card comes back from the stored result, delivery return
   assert.deepEqual(rows(w.sqlite, 'SELECT card_removed, removed_at FROM learn_roadmap_steps WHERE id = ?', o.stepId)[0], { card_removed: 0, removed_at: null });
   assert.equal((await totals()).used, used, 'restoring charges nothing and refunds nothing');
 });
-
-test('ROADMAP_ON_DROP_ENABLED over the route: false stops a drop report only; ROADMAP_ENABLED off beats it; an active roadmap still reads', async t => {
-  const w = world(t), drop = env => call(env, 'POST', '/api/learn/roadmap/invitations', { boardId: BOARD, sourceKeys: ['file:fs_nothingnothingnothingno'], idleKey: 'drop-file-x' });
-  const reason = async env => (await (await drop(env)).json()).suppressed?.reason;
-  assert.equal(await reason(on(w.env)), 'unsupported_source', 'unset: the server decides as today');
-  assert.equal(await reason({ ...on(w.env), ROADMAP_ON_DROP_ENABLED: 'true' }), 'unsupported_source');
-  assert.equal(await reason({ ...on(w.env), ROADMAP_ON_DROP_ENABLED: 'false' }), 'on_drop_off');
-  assert.equal((await drop({ ...w.env, ROADMAP_ENABLED: 'false', ROADMAP_ON_DROP_ENABLED: 'true' })).status, 404, 'the roadmap flag beats the drop flag');
-  assert.equal((await call({ ...on(w.env), ROADMAP_ON_DROP_ENABLED: 'false' }, 'GET', `/api/learn/roadmap?boardId=${BOARD}`)).status, 200, 'views are not gated');
-});

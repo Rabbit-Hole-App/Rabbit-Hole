@@ -48,10 +48,3 @@ test('the timeline is refused when it cannot work: no duration, a marker after t
   assert.equal(bad({ timeline: { ...standard.timeline, playbackRate: 0 } }).success, false);
   assert.equal(bad({ cardDescription: '' }).success, false);
 });
-
-test('instructions are optional, 1 to 2 short sentences below the description, at most 300 characters', () => {
-  assert.equal(ProgramManifest.parse({ ...base }).instructions, undefined);
-  assert.equal(ProgramManifest.parse({ ...base, instructions: 'Press Play, then drag the scrubber to any moment.' }).instructions, 'Press Play, then drag the scrubber to any moment.');
-  assert.equal(ProgramManifest.safeParse({ ...base, instructions: 'x'.repeat(301) }).success, false);
-  assert.equal(ProgramManifest.safeParse({ ...base, instructions: '' }).success, false);
-});

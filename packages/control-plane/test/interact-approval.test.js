@@ -247,9 +247,9 @@ test('with no injected builder the real build runs: a reply that is not a scene 
   await s.actor.alarm();
   const job = s.state.data.get(`job:${id}`);
   assert.deepEqual([job.stage, job.stopReason], ['failed', 'error']);
-  assert.deepEqual(s.model.builder.map(c => c.tool), ['build_scene', 'build_scene'], 'the build call and its one correction, both by the new build role');
+  assert.deepEqual(s.model.builder.map(c => c.tool), ['build_scene'], 'exactly one build call, by the new build role');
   assert.equal(job.counts.author, 0, 'the legacy author role was never called');
-  assert.deepEqual(job.build.counts, { build_author: 2, build_review: 0, build_repair: 0 });
+  assert.deepEqual(job.build.counts, { build_author: 1, build_review: 0, build_repair: 0 });
 });
 
 test('Edit is limited to five refinements, counted apart from repair rounds and from other counters', async t => {

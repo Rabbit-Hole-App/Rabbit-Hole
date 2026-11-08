@@ -55,7 +55,7 @@ Call ${REPAIR_TOOL.name} exactly once.`;
 // One bounded correction of the BUILT artifacts of an approved plan: the whole corrected envelope or none. The plan is input only, never
 // output: a repair fixes the implementation and cannot change what the learner approved, which renderer, SDK tuple or capabilities a
 // panel uses, or which panels exist. The host re-seals, re-composes, re-captures and re-reviews every candidate.
-import { MANIFEST_LIMITS_TEXT, interactBuildSchema } from './explain-author.js';
+import { interactBuildSchema } from './explain-author.js';
 export const INTERACT_REPAIR_TOOL_NAME = 'repair_scene';
 export function interactRepairTool(options = {}) {
   const build = interactBuildSchema(options);
@@ -80,5 +80,4 @@ export const INTERACT_REPAIR_SYSTEM = `You correct the built artifacts of one ap
 - Every panel keeps EXACTLY its approved renderer, SDK tuple, helpers and capabilities (panels[].runtime) and its approved id. A repair that switches any of them is refused.
 - none: when the fix needs a capability, library or limit the runtime does not have, a change to the approved plan, or anything outside the input. Say why; the plan then goes back for a new design revision and approval.
 Each program stays one ES module that exports evaluate, uses only the global sdk helpers, stays within the limits and sets no hash, version, permission or limit.
-${MANIFEST_LIMITS_TEXT} Keep every frame at most 1120 x 860 pixels.
 Call ${INTERACT_REPAIR_TOOL_NAME} exactly once.`;

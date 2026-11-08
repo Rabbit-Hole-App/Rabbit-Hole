@@ -240,10 +240,8 @@ The source instructions and examples are reference material; the production prom
 | Design Reviewer | `interact_design_review` | Prompt, depth, plan, evidence, capabilities; optional prior findings → DesignReview | Same model, 6,000 tokens |
 | Design Reviser | `interact_design_revise` | Prompt, complete plan, review and evidence → DesignRevision | Same model, 14,000 tokens |
 | Scene Builder | Existing `explain_author` | Approved plan and runtime catalogue/limits → main artifact and support artifacts | Same model, 16,000 tokens for new-flow jobs |
-| Rendered Scene Reviewer | Existing `explain_review` | Approved plan, validated captures, numerical/interaction traces, composition evidence → existing review result | Same model, 10,000 tokens for new-flow jobs (a verdict and several findings for each of up to six captures); image-capable |
+| Rendered Scene Reviewer | Existing `explain_review` | Approved plan, validated captures, numerical/interaction traces, composition evidence → existing review result | Same model, 6,000 tokens for new-flow jobs; image-capable |
 | Scene Repairer | Existing `explain_repair` | Approved plan, current artifacts and exact failures/captures → corrected artifacts | Same model, 16,000 tokens for new-flow jobs |
-
-Build roles: a reply the schema refuses (a manifest text over its limit, an invented review category, a review that skips a capture) gets ONE correction call that names the exact problems, as the Design Author does; it is counted like any call, so the per-run ceilings are Builder 2, Reviewer 5 (one review, three re-reviews after repairs, one correction) and Repairer 4 (three rounds and one correction). A repair refused even after its correction spends its round and keeps the failure it had to answer; a refused build or review stops the job as before. Every manifest length, count and range limit is stated in the Builder and Repairer prompts, generated from the schema they are given.
 
 These token limits are proposed implementation defaults, not measured latency or quality claims. Keep legacy limits for legacy jobs. The all-Opus profile preserves the existing automatic-tool approach; no hidden fallback or assumed thinking/effort setting. A candidate profile declares effort/temperature/output limits only where supported, records them, and does not inherit them silently from another provider.
 

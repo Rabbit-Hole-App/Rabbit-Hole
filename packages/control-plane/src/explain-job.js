@@ -1081,7 +1081,7 @@ export class ExplainJobs {
     job.proposal = { id: p.proposal_id, version: p.version };
     job.settings = want.settings;
     markTiming(job.timing, 'generate');
-    Object.assign(job, { approval: { scenePlanHash: d.finalHash, profileHash: job.flow.profile.hash, planRevision: d.rev, runtimeHash: d.runtimeHash, approvalHash: d.approvalHash, at: Date.now() }, stage: 'authoring', deadline: Date.now() + INTERACT_LIMITS.deadlines.jobMs,
+    Object.assign(job, { approval: { scenePlanHash: d.finalHash, profileHash: job.flow.profile.hash, planRevision: d.rev, runtimeHash: d.runtimeHash, approvalHash: d.approvalHash, at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs,
       // The build's own small record: its role call counts (ceilings of INTERACT_LIMITS.calls), the last failure to repair, the checks' coverage. The candidate itself is under build:<job>:*.
       build: { counts: { build_author: 0, build_review: 0, build_repair: 0 }, failure: null, check: null, envelopeHash: null } });
     beginStage(job.timing, 'authoring');
