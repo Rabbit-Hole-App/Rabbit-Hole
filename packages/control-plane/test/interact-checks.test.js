@@ -67,11 +67,8 @@ test('required coverage that does not fit the image budget is incomplete, never 
   const { cases, coverage } = buildPlanCaptureCases(many, j.composition, j.artifacts);
   assert.equal(coverage.incomplete, true); assert.equal(cases.length, CHECK_LIMITS.maxCases); assert.ok(coverage.omitted.length >= 1);
   assert.match(coverage.omitted[0].reason, /required coverage/);
-  let captured = 0;
-  const ctx = ctxWith(fixtureScript('standard'), { captureCard: async () => { captured += 1; return []; } });
-  const status = await checkRound({ ...j, plan: many, planHash: await planHash(many) }, ctx).catch(error => error);
-  assert.equal(captured, 0, 'nothing is captured or reviewed for a plan the review cannot cover');
-  assert.ok(status.status === 'incomplete' || status.code === 'plan_invalid' || status.code === 'plan_not_approved', JSON.stringify(status.status ?? status.code));
+  // Since dev run i1-19 such a plan is refused at design time (interact-plan.js too_many_checkpoints), so it can never be approved, hashed or built.
+  await assert.rejects(planHash(many), /review captures .*at most 6/);
 });
 
 // ---- canonical numerical fixtures from the runtime traces (INT-04-C11, section 7) ----

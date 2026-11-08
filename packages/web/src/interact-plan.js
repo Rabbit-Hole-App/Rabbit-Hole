@@ -9,6 +9,8 @@ import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 export const SCENE_PLAN_VERSION = 1;
 
 // Engineering defaults from the spec (not measured claims); a valid request that needs more is a capability gap.
+// The build reviewer's images per round (control-plane interact-checks.js CHECK_LIMITS.maxCases reads this): start + checkpoints (+ end when timed).
+export const REVIEW_CAPTURES = 6;
 export const PLAN_LIMITS = Object.freeze({
   title: 120, story: 12000, cardDescription: 500, entry: 1200, label: 60,
   entities: 24, quantities: 16, observations: 12, checkpoints: 12, claims: 32, controls: 24, supports: 2,
@@ -302,6 +304,10 @@ export function planProblems(plan) {
     tl.markers.forEach((marker, i) => inside(marker.time, ['mode', 'timeline', 'markers', i, 'time']));
     main.checkpoints.forEach((cp, i) => { if (cp.time) inside(cp.time, ['scene', 'checkpoints', i, 'time']); });
   }
+  // The build reviewer sees at most REVIEW_CAPTURES images (interact-checks.js CHECK_LIMITS.maxCases): the start, every checkpoint and, when timed,
+  // the end. A plan needing more cannot be accepted after it is built (dev run i1-19: 7 needed, 6 allowed), so the design is refused here.
+  const needed = 1 + main.checkpoints.length + (tl ? 1 : 0);
+  if (needed > REVIEW_CAPTURES) bad(['scene', 'checkpoints'], 'too_many_checkpoints', `the scene needs ${needed} review captures (start, ${main.checkpoints.length} checkpoints${tl ? ', end' : ''}); at most ${REVIEW_CAPTURES}: keep at most ${REVIEW_CAPTURES - 1 - (tl ? 1 : 0)} checkpoints`);
   main.checkpoints.forEach((cp, i) => {
     if (!tl && cp.time) bad(['scene', 'checkpoints', i, 'time'], 'mode_mismatch', 'an untimed scene has null checkpoint times');
     if (tl && !cp.time) bad(['scene', 'checkpoints', i, 'time'], 'mode_mismatch', 'a timed scene gives every checkpoint a time');
