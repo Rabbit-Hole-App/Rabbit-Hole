@@ -28,6 +28,8 @@ Built from [slash-command-template.md](slash-command-template.md), version 1. Th
 10. [Validation, delivery and missing decisions](#validation)
 11. [Commit review and checkbox maintenance](#commit-review)
 
+[Benchmark result files and run index](#benchmark-results)
+
 <a id="start"></a>
 ## 1. Start here and preflight
 
@@ -626,6 +628,28 @@ These sprint gates select a minimum for the affected increment, not permission t
 - [ ] **EXP-11-C06** Run the permitted baseline/candidate/one-role/mixed-profile sequence under an explicit shared paid cap, first screening and then repeated paired confirmation/held-out cases. Capture usable-card timing and stage/repair latency, factual/visual/behavior failures and cost for every attempt. Preserve exact profile/prompt/schema/runtime hashes and artifacts for reproduction.
 - [ ] **EXP-11-C07** Produce the factuality-versus-speed comparison with sample counts, failures, median/p95, evaluator checks and cost. Recommend a specific measured profile only if it passes the correctness threshold; otherwise report no winner. Record explicit promotion/rollback configuration and leave unrun or failed comparisons open.
 
+<a id="benchmark-results"></a>
+### Benchmark result files — canonical logging location
+
+**Repository-relative output root: `benchmarks/explain/results/`.** These are required output paths to implement, not claims that a benchmark has already run. Every real, fixture or dry-run execution uses its own directory; mark the run type in its manifest and never mix those evidence classes in a comparison.
+
+Use `<run-id> = <UTC-YYYYMMDDTHHMMSSZ>-<short-code-sha>-<unique-suffix>`. The trusted runner accepts `--out` but its default is the canonical run directory below. Print the resolved absolute output path at startup and in the final handoff. A temporary directory is permitted for dry runs, but real results must be retained at the canonical location or an explicitly linked durable artifact location.
+
+| Exact path | Required contents |
+| --- | --- |
+| `benchmarks/explain/results/README.md` | Run index: run ID/date, fixture/dry/live classification, code SHA, corpus/profile versions, status, links to each report, known limitations and any explicit promotion decision. Append each run; never replace older comparisons. |
+| `benchmarks/explain/results/<run-id>/manifest.json` | Schema version, run ID/type/status, code SHA, corpus/expected-facts hashes, prompt/schema/runtime versions, resolved credential-free profiles, evaluator profile, trial order/concurrency/cache policy, authorized cap, start/end and environment. |
+| `benchmarks/explain/results/<run-id>/results.jsonl` | Machine-readable attempt outcomes: case/depth/entry path, profile/role mapping, trial/attempt IDs, requested/served models, status/failure stage, factual and required-output verdicts, error/omission counts, numerical/control checks, usable-card/stage/repair timings, usage/cost with unknown values explicit, and artifact/evaluation references. Retain failed and timed-out attempts. |
+| `benchmarks/explain/results/<run-id>/calls.jsonl` | Per-provider-call trace: run/case/attempt/role/call IDs, model identity, timestamps/duration, stop/error, cache/token usage, known/unknown cost and cancellation/reconciliation state. Include evaluator calls with a distinct role/category. Never log credentials. |
+| `benchmarks/explain/results/<run-id>/summary.csv` | Derived per-profile comparison: total/success/failure counts, factual pass rate, major errors, required-output/behavior pass rate, usable-output median/p95 and sample count, repair overhead, total known cost and unknown-cost count. Separate depth, entry path and cache strata where necessary for a fair comparison. |
+| `benchmarks/explain/results/<run-id>/report.md` | Human-readable factuality-versus-speed findings, complete/failed cases, representative linked cards, evaluator checks, uncertainty, limitations and eligible profile recommendation or explicit no-winner result. Link exact source rows/artifacts. |
+| `benchmarks/explain/results/<run-id>/attempts/<attempt-id>/` | Credential-free request/profile snapshot, generated outputs, stage/review/repair records, validation checks, independent `evaluation.json`, and rendered captures where applicable. Retain written block, diagrams, actual author request/response normalization, source bindings and saved/rendered card evidence. |
+
+Persist attempt/call identity before dispatch and checkpoint outcomes as they arrive, so an interrupted run retains evidence and remaining/unknown work is visible. Resume must reconcile existing IDs and usage instead of silently duplicating provider calls or scored attempts. Derive summary/report from recorded outcomes; do not hand-edit away failures. Corrections preserve original evidence and record their reason. Sanitize secrets and private source/user data before committing or sharing evidence; use synthetic/authorized benchmark cases and access-controlled artifact references for restricted or large captures. The manifest/index must resolve those artifacts; do not leave the only evidence on an untracked temporary machine.
+
+- [ ] **EXP-11-C08** Implement these canonical output paths and schemas in the existing benchmark entry, including run index, per-attempt results, per-call trace, retained artifacts and derived summary/report. Return the exact paths with every run result and link them from the command's review receipt.
+- [ ] **EXP-11-C09** Add offline logging tests covering successful/failed/timed-out attempts, mixed profiles, unknown usage, evaluator cost, interruption/resume, no duplicate scored attempt and report reconciliation against raw rows. Verify dry/fixture evidence cannot be presented as live generation and secrets are excluded. Produce a fixture report at these paths before the first authorized paid comparison.
+
 <a id="validation"></a>
 ## 10. Validation, delivery and missing decisions
 
@@ -744,3 +768,5 @@ Preservation means all substantive obligations and edge cases remain, with named
 Owner explicitly requested swappable Celeris, Cerebras, Gemini Flash and other models, including combinations, benchmarked for factuality and speed. Added EXP-11 outcomes/tasks and role-profile contracts without removing earlier requirements. Provider access/exact IDs remain runtime preflight facts; no model winner, paid execution or implementation pass is claimed. Foundation work includes profile swapping; final comparison remains on the command's last MVP rung. All earlier task IDs are retained.
 
 Model amendment validation: all 120 prior checkbox IDs retained; 130 total unique checkbox IDs after this amendment; no runtime checkbox marked complete. Existing navigation anchors preserved. Provider/model behavior requires implementation and the listed local/live evidence.
+
+Benchmark logging amendment (2026-11-08): specified canonical result/index/artifact paths and added EXP-11-C08–C09. Documentation validation retained all 130 prior checkbox IDs, with 132 unique IDs after this amendment. No benchmark results were fabricated or runtime tasks checked.

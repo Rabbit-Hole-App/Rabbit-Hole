@@ -28,6 +28,8 @@ Built from [slash-command-template.md](slash-command-template.md), template vers
 10. [Validation, benchmark and delivery](#validation)
 11. [Commit review and checkbox maintenance](#commit-review)
 
+[Benchmark result files and run index](#benchmark-results)
+
 <a id="start"></a>
 ## 1. Start here and preflight
 
@@ -802,7 +804,7 @@ Case records use `{id,split,prompt,depth,context,evidence,requiredMode,fixtureId
 - [ ] **INT-08-C20** Evaluate the draft, final plan and final artifact. Record which factual errors were introduced, fixed or persisted across stages, and whether the rendered evidence agrees with both text and controls. Blind model/profile identity during subjective review; retain rationales and adjudicate disputed factual claims against the frozen evidence/calculations.
 - [ ] **INT-08-C21** Use this selection rule: a candidate is eligible only with no blocker/major factual, behavioral or composition errors on the confirmation set and no reduction in required observations. It must match the all-Opus correctness result on paired cases or improve it. Rank eligible profiles by median and p95 usable-card/plan latency with uncertainty; report the cost tradeoff. If no profile satisfies correctness, report no winner and fix the pipeline. Do not declare a universal fastest model from one prompt.
 - [ ] **INT-08-C22** Paid benchmark runs require an explicit run cap; the user has not set a dollar amount in this document. Build fixtures, adapters and dry-run estimates first. A run checks the cap before every call and accounts for already-in-flight reservations; it stops cleanly at the cap and marks the matrix incomplete. Do not borrow budgets from written `/explain` benchmarks.
-- [ ] **INT-08-C23** Run `node --test scripts/interact/benchmark.test.mjs`. Then `node scripts/interact/benchmark.mjs --profile benchmarks/interact/profiles/opus-baseline.json --cases benchmarks/interact/cases.json --dry-run --out .tmp/interact-benchmark-plan`. Expected: exact run matrix, capability requirements and price/unknown-price bounds, with no provider calls. Real execution adds `--cap-usd <authorized-cap>` and omits `--dry-run`.
+- [ ] **INT-08-C23** Run `node --test scripts/interact/benchmark.test.mjs`. Then `node scripts/interact/benchmark.mjs --profile benchmarks/interact/profiles/opus-baseline.json --cases benchmarks/interact/cases.json --dry-run --out .tmp/interact-benchmark-plan`. Expected: exact run matrix, capability requirements and price/unknown-price bounds, with no provider calls. Real execution adds `--cap-usd <authorized-cap>`, omits `--dry-run` and sets `--out benchmarks/interact/results/<run-id>`; use the canonical files in [Benchmark result files](#benchmark-results).
 - [ ] **INT-08-C24** Save a machine-readable results table and a concise report with the actual profiles, complete/failed cases, example cards and a recommendation. Promotion of a benchmark profile to production is a separate explicit configuration change, not an automatic side effect of winning a local run.
 
 
@@ -841,6 +843,28 @@ Case records use `{id,split,prompt,depth,context,evidence,requiredMode,fixtureId
 - [ ] **INT-11-C05** Make the trusted benchmark entry accept a profile ID/config path and validated role overrides, with a dry-run that prints the resolved matrix, capability gaps, stage call ceilings and known/unknown spend bounds without provider calls. Freeze corpus, expected facts and scoring before real runs. Keep arbitrary provider URLs and credentials out of learner requests.
 - [ ] **INT-11-C06** Run the permitted baseline/candidate/one-role/mixed-profile sequence under an explicit shared paid cap, first screening and then repeated paired confirmation/held-out cases. Capture usable-card timing and stage/repair latency, factual/visual/behavior failures and cost for every attempt. Preserve exact profile/prompt/schema/runtime hashes and artifacts for reproduction.
 - [ ] **INT-11-C07** Produce the factuality-versus-speed comparison with sample counts, failures, median/p95, evaluator checks and cost. Recommend a specific measured profile only if it passes the correctness threshold; otherwise report no winner. Record explicit promotion/rollback configuration and leave unrun or failed comparisons open.
+
+<a id="benchmark-results"></a>
+### Benchmark result files — canonical logging location
+
+**Repository-relative output root: `benchmarks/interact/results/`.** These are required output paths to implement, not claims that a benchmark has already run. Every real, fixture or dry-run execution uses its own directory; mark the run type in its manifest and never mix those evidence classes in a comparison.
+
+Use `<run-id> = <UTC-YYYYMMDDTHHMMSSZ>-<short-code-sha>-<unique-suffix>`. The trusted runner accepts `--out` but its default is the canonical run directory below. Print the resolved absolute output path at startup and in the final handoff. A temporary directory is permitted for dry runs, but real results must be retained at the canonical location or an explicitly linked durable artifact location.
+
+| Exact path | Required contents |
+| --- | --- |
+| `benchmarks/interact/results/README.md` | Run index: run ID/date, fixture/dry/live classification, code SHA, corpus/profile versions, status, links to each report, known limitations and any explicit promotion decision. Append each run; never replace older comparisons. |
+| `benchmarks/interact/results/<run-id>/manifest.json` | Schema version, run ID/type/status, code SHA, corpus/expected-facts hashes, prompt/schema/runtime versions, resolved credential-free profiles, evaluator profile, trial order/concurrency/cache policy, authorized cap, start/end and environment. |
+| `benchmarks/interact/results/<run-id>/results.jsonl` | Machine-readable attempt outcomes: case/depth/entry path, profile/role mapping, trial/attempt IDs, requested/served models, status/failure stage, factual and required-output verdicts, error/omission counts, numerical/control checks, usable-card/stage/repair timings, usage/cost with unknown values explicit, and artifact/evaluation references. Retain failed and timed-out attempts. |
+| `benchmarks/interact/results/<run-id>/calls.jsonl` | Per-provider-call trace: run/case/attempt/role/call IDs, model identity, timestamps/duration, stop/error, cache/token usage, known/unknown cost and cancellation/reconciliation state. Include evaluator calls with a distinct role/category. Never log credentials. |
+| `benchmarks/interact/results/<run-id>/summary.csv` | Derived per-profile comparison: total/success/failure counts, factual pass rate, major errors, required-output/behavior pass rate, usable-output median/p95 and sample count, repair overhead, total known cost and unknown-cost count. Separate depth, entry path and cache strata where necessary for a fair comparison. |
+| `benchmarks/interact/results/<run-id>/report.md` | Human-readable factuality-versus-speed findings, complete/failed cases, representative linked cards, evaluator checks, uncertainty, limitations and eligible profile recommendation or explicit no-winner result. Link exact source rows/artifacts. |
+| `benchmarks/interact/results/<run-id>/attempts/<attempt-id>/` | Credential-free request/profile snapshot, generated outputs, stage/review/repair records, validation checks, independent `evaluation.json`, and rendered captures where applicable. Retain draft/review/revision/final scene plans, approval hash, composed main/support artifacts and sampled control states. |
+
+Persist attempt/call identity before dispatch and checkpoint outcomes as they arrive, so an interrupted run retains evidence and remaining/unknown work is visible. Resume must reconcile existing IDs and usage instead of silently duplicating provider calls or scored attempts. Derive summary/report from recorded outcomes; do not hand-edit away failures. Corrections preserve original evidence and record their reason. Sanitize secrets and private source/user data before committing or sharing evidence; use synthetic/authorized benchmark cases and access-controlled artifact references for restricted or large captures. The manifest/index must resolve those artifacts; do not leave the only evidence on an untracked temporary machine.
+
+- [ ] **INT-11-C08** Implement these canonical output paths and schemas in the existing benchmark entry, including run index, per-attempt results, per-call trace, retained artifacts and derived summary/report. Return the exact paths with every run result and link them from the command's review receipt.
+- [ ] **INT-11-C09** Add offline logging tests covering successful/failed/timed-out attempts, mixed profiles, unknown usage, evaluator cost, interruption/resume, no duplicate scored attempt and report reconciliation against raw rows. Verify dry/fixture evidence cannot be presented as live generation and secrets are excluded. Produce a fixture report at these paths before the first authorized paid comparison.
 
 <a id="validation"></a>
 ## 10. Validation, benchmark and delivery
@@ -916,3 +940,5 @@ Owner requested local backend checks before first manual testing, a ladder of sm
 Owner explicitly requested swappable Celeris, Cerebras, Gemini Flash and other models, including combinations, benchmarked for factuality and speed. Added INT-11 outcomes/tasks and role-profile contracts without removing earlier requirements. Provider access/exact IDs remain runtime preflight facts; no model winner, paid execution or implementation pass is claimed. Foundation work includes profile swapping; final comparison remains on the command's last MVP rung. All earlier task IDs are retained.
 
 Model amendment validation: all 204 prior checkbox IDs retained; 214 total unique checkbox IDs after this amendment; no runtime checkbox marked complete. Existing navigation anchors preserved. Provider/model behavior requires implementation and the listed local/live evidence.
+
+Benchmark logging amendment (2026-11-08): specified canonical result/index/artifact paths and added INT-11-C08–C09. Documentation validation retained all 214 prior checkbox IDs, with 216 unique IDs after this amendment. No benchmark results were fabricated or runtime tasks checked.
