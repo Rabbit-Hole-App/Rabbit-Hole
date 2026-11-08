@@ -2033,10 +2033,10 @@ function IllustratedBody({ block, onFile, interactive = false }) {
   const figure = <IllustrationFigure illustration={block.illustration} />;
   return (
     <>
-      {lead && <Md text={lead} onFile={onFile} fences explain />}
+      {lead && <Md text={lead} onFile={onFile} fences explain figures={block.figures} />}
       {/* E2: the picture's caption and callouts are not the body's words; the interaction layer reads the field without them. */}
       {interactive ? <div data-explanation-skip>{figure}</div> : figure}
-      {rest && <Md text={rest} onFile={onFile} fences explain />}
+      {rest && <Md text={rest} onFile={onFile} fences explain figures={block.figures} />}
     </>
   );
 }
@@ -2045,7 +2045,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
   const [open, setOpen] = useState({});
   // E2 (explain.md section 4): null unless the card carries the interactions envelope; then terms, suggestions, follow-up and the selection toolbar (ExplanationInteractions.jsx).
   const layer = useExplanationLayer(block, { onChange, onChangeQuiet, readOnly, enabled: !block.anchor });
-  const bodyNode = block.illustration && (block.illustration.src || block.illustration.cacheKey || block.illustration.fileRef?.source?.id) ? <IllustratedBody block={block} onFile={onFile} interactive={!!layer} /> : block.body && <Md text={block.body} onFile={onFile} fences explain />;
+  const bodyNode = block.illustration && (block.illustration.src || block.illustration.cacheKey || block.illustration.fileRef?.source?.id) ? <IllustratedBody block={block} onFile={onFile} interactive={!!layer} /> : block.body && <Md text={block.body} onFile={onFile} fences explain figures={block.figures} />;
   const id = useId(), more = block.more || [], sections = useRef({});
   const opened = more.some((_, index) => open[index]);
   useEffect(() => {
@@ -2080,7 +2080,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
               <MdInline text={section.label} />
               <ChevronRight size={13} aria-hidden="true" className={open[index] ? 'rotate-90 transition-transform' : 'transition-transform'} />
             </button>
-            {open[index] && <section ref={node => { sections.current[index] = node; }} id={`${id}-more-${index}`} aria-label={section.label} className="pb-2 text-sm text-ink-2">{wrapField(layer, `more[${index}].text`, section.text, <Md text={section.text} onFile={onFile} fences explain />)}</section>}
+            {open[index] && <section ref={node => { sections.current[index] = node; }} id={`${id}-more-${index}`} aria-label={section.label} className="pb-2 text-sm text-ink-2">{wrapField(layer, `more[${index}].text`, section.text, <Md text={section.text} onFile={onFile} fences explain figures={block.figures} />)}</section>}
           </div>
         ))}
         {layer && <Suggestions layer={layer} />}

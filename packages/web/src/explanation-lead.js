@@ -1,3 +1,13 @@
+// EXP-13 (explain.md section 2, card layout v2): the author places a picture with an rh-illustration fence holding {"version":1,"id","prompt","alt","caption"};
+// the card draws block.figures[id] there (IllustrationFigure.jsx FenceFigure). -> { id, alt, caption } or null when the fence is not one. The prompt is never returned: it is never shown.
+export const ILLUSTRATION_FENCE = /^rh-illustration$/i;
+export function parseIllustrationFence(source) {
+  let spec;
+  try { spec = JSON.parse(source); } catch { return null; }
+  if (spec?.version !== 1 || typeof spec.id !== 'string' || !spec.id.trim()) return null;
+  return { id: spec.id, alt: typeof spec.alt === 'string' ? spec.alt : '', caption: typeof spec.caption === 'string' ? spec.caption : '' };
+}
+
 // Where a written Explanation's illustration goes: right after the opening paragraph. -> { lead, rest } as Markdown strings; the card draws lead, the figure, then rest.
 // The opening paragraph is the first run of prose lines (after any heading) up to a blank line outside a code fence. A body that opens with a fence, a table or a list has no
 // opening paragraph, so the figure goes first (lead is '').

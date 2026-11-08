@@ -6,6 +6,8 @@ import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
 import MermaidDiagram from './MermaidDiagram.jsx';
 import { DIAGRAM_FENCE } from './diagram-fence.js';
+import { ILLUSTRATION_FENCE } from './explanation-lead.js';
+import { FenceFigure } from './IllustrationFigure.jsx';
 import TutorDiagram from './tutor-diagrams/TutorDiagram.js';
 import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 import { cn } from './ui.jsx';
@@ -150,7 +152,9 @@ const HEADING_SIZE = { 1: 'text-xl', 2: 'text-lg', 3: 'text-base' };
 // A closed fence: code, except where the caller asks for rich fences (a file card's Markdown): a math, latex or tex fence is display
 // math (the same MathText as $$...$$, whose KaTeX shows its own error for a bad formula) a mermaid fence is the legacy diagram and an rh-diagram fence is a TutorDiagram.
 const MATH_FENCE = /^(math|latex|tex)$/i;
-function fenceOf(fence, key, rich) {
+// figures: a written Explanation's pictures (block.figures, explain only): its rh-illustration fences are drawn as figures, never as their JSON.
+function fenceOf(fence, key, rich, figures = null) {
+  if (figures && ILLUSTRATION_FENCE.test(fence.lang)) return <FenceFigure key={key} source={fence.lines.join('\n')} figures={figures} />;
   if (rich && MATH_FENCE.test(fence.lang)) return <MathText key={key} expression={fence.lines.join('\n')} display />;
   // A written Explanation's diagram (rh-diagram, a TutorDiagram spec): invalid text stays readable as the code it is. The legacy Mermaid reader below stays for saved content.
   if (rich && DIAGRAM_FENCE.test(fence.lang)) return <div key={key} className="my-2"><TutorDiagram spec={fence.lines.join('\n')} fallback={<Code {...fence} />} /></div>;
@@ -160,7 +164,7 @@ function fenceOf(fence, key, rich) {
 
 // One block's lines (a blockquote's lines recurse). first: nothing is drawn above, so a heading gets no section rule.
 function lines(ls, ctx, first) {
-  const { math, onFile, onRun, has, sourcePath, doc, fences, explain } = ctx;
+  const { math, onFile, onRun, has, sourcePath, doc, fences, explain, figures } = ctx;
   const md = s => inline(s, math, onFile, sourcePath, has);
   const out = [];
   let fence = null; // collecting a ``` block
@@ -180,7 +184,7 @@ function lines(ls, ctx, first) {
   };
   ls.forEach((l, i) => {
     if (fence) {
-      if (/^\s*```/.test(l)) { out.push(fenceOf(fence, `f${i}`, fences)); fence = null; }
+      if (/^\s*```/.test(l)) { out.push(fenceOf(fence, `f${i}`, fences, explain ? figures || {} : null)); fence = null; }
       else fence.lines.push(l);
       return;
     }
@@ -214,7 +218,8 @@ function lines(ls, ctx, first) {
     }
   });
   // An unclosed fence (a reply still streaming) is a code block that is still growing.
-  if (fence) out.push(<Code key="f-end" {...fence} />);
+  // ponytail: an unclosed rh-illustration fence in an Explanation draws nothing (its JSON is never text); saved cards are validated whole.
+  if (fence && !(explain && ILLUSTRATION_FENCE.test(fence.lang))) out.push(<Code key="f-end" {...fence} />);
   flush('end');
   return out;
 }
@@ -239,7 +244,7 @@ export function MdInline({ text, onFile, sourcePath, mathOnly = false }) {
 
 // doc: the text is a document in its own pane (a Chat answer), so headings get sizes; everywhere else they stay body-sized.
 // fences: also draw math and mermaid fences as math and diagrams (a file card's Markdown); a chat answer keeps them as code.
-export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text), doc = false, fences = false, explain = false }) {
+export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text), doc = false, fences = false, explain = false, figures = null }) {
   const refs = useContext(CodeRefs);
   // Where the caller links files at all (an onFile), a repository context's own reader takes the click and its snapshot decides.
   const onFile = given && refs ? refs.open : given, has = given && refs ? refs.has : null;
@@ -252,7 +257,7 @@ export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(t
   const cited = onFile ? citedSources(text).filter(c => linkable(c, has)) : [];
   return (
     <div className="min-w-0 text-sm leading-normal">
-      {blocks.map((src, i) => <Block key={i} src={src} first={i === 0} onFile={onFile ? open.file : null} onRun={onRun ? open.run : null} has={has} sourcePath={sourcePath} doc={doc} fences={fences} explain={explain} />)}
+      {blocks.map((src, i) => <Block key={i} src={src} first={i === 0} onFile={onFile ? open.file : null} onRun={onRun ? open.run : null} has={has} sourcePath={sourcePath} doc={doc} fences={fences} explain={explain} figures={figures} />)}
       {cited.length > 0 && <details key="cited" data-cited-sources className="mt-2 text-xs"><summary className="cursor-pointer text-ink-2 hover:text-ink">Sources ({cited.length})</summary>
         <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source aria-label={referenceLabel(c)} title={referenceLabel(c)} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>}
     </div>

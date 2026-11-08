@@ -41,7 +41,8 @@ test('an rh-diagram fence in the body and in a More section is drawn as a TutorD
   }
   // ExplanationBody gives the body and every More section to the same Md with fences and explain on (the section is a collapsed region, not a different reader).
   const body = readFileSync(new URL('./LearningBlocks.jsx', import.meta.url), 'utf8');
-  assert.ok(body.includes('<Md text={block.body} onFile={onFile} fences explain />') && body.includes('<Md text={section.text} onFile={onFile} fences explain />'), 'body and sections');
+  // EXP-13: both also get the card's figures (block.figures) for its rh-illustration fences.
+  assert.ok(body.includes('<Md text={block.body} onFile={onFile} fences explain figures={block.figures} />') && body.includes('<Md text={section.text} onFile={onFile} fences explain figures={block.figures} />'), 'body and sections');
 });
 
 test('card widths: the diagram fits 688 px exactly and stays within a scroll region at 320 px, with a viewBox that matches its size', () => {
