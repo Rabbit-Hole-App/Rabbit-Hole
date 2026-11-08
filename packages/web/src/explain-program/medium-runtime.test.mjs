@@ -5,7 +5,7 @@ import { buildProgramArtifact } from '../../../control-plane/src/explain-program
 import { CONTRACT_LIMITS, parseFrame, parseGuestResult, resolveInputs, verifyHashes } from './contract.js';
 import { normalizeFrame } from './frame.js';
 import { MEDIUM_FIXTURES } from './medium-fixtures.js';
-import { programStateFor, resolveProgram } from './program-card.js';
+import { programStateFor, resetProgram, resolveProgram } from './program-card.js';
 import { loadEngine, runProgram } from './runtime.js';
 import { programSdkSource } from './sdk.js';
 import { MEDIUM_CAPABILITY, MEDIUM_PROGRAM_STAMPS, PROGRAM_STAMPS, VISUAL_PROGRAM_STAMPS } from './stamps.js';
@@ -71,6 +71,46 @@ for (const { id, manifest, source } of MEDIUM_FIXTURES) {
     }
   });
 }
+
+test('linked comparison selects from either view, restores the selection, and resets both views', async () => {
+  const block = { id: 'compare', type: 'animation', program: { fixtureId: 'fixture-medium-linked-comparison' } };
+  const resolve = saved => resolveProgram(saved, { fixtures: true, stamps: PROGRAM_STAMPS });
+  const resolved = await resolve(block);
+  assert.equal(resolved.ok, true, resolved.error?.detail);
+  const { artifact } = resolved;
+  const { manifest } = artifact;
+  const inputs = resolveInputs(manifest);
+  const initial = run(artifact, 'initialize', { inputs });
+  const select = (state, target) => run(artifact, 'reduce', { inputs, state, event: { type: 'select', target } });
+  const view = (state, reopened = artifact) => {
+    const reply = parseGuestResult(run(reopened, 'evaluate', { inputs, state }), reopened.manifest);
+    assert.equal(reply.ok, true, reply.issue);
+    const scene = normalizeFrame(reply.value.frame, reopened.manifest);
+    assert.equal(scene.ok, true, scene.issue);
+    const objects = scene.state.objects;
+    return {
+      highlighted: objects.filter(object => object.role === 'learner').map(object => object.id).sort(),
+      readout: objects.find(object => object.id === 'compare:reading').label,
+    };
+  };
+  const overview = { highlighted: [], readout: 'Select a sample' };
+  assert.deepEqual(view(initial), overview);
+  const fromPoint = select(initial, 'samples:point:b');
+  assert.deepEqual(view(fromPoint), { highlighted: ['compare:row:b', 'samples:point:b'], readout: 'Sample B: 24 °C' });
+  const fromRow = select(fromPoint, 'compare:row:c');
+  const selected = { highlighted: ['compare:row:c', 'samples:point:c'], readout: 'Sample C: 31 °C' };
+  assert.deepEqual(view(fromRow), selected);
+
+  const saved = { ...block, programState: { bundleHash: artifact.bundleHash, state: fromRow, revision: 2, seed: 1, inputs } };
+  const reopened = await resolve(saved);
+  assert.equal(reopened.ok, true, reopened.error?.detail);
+  const restored = programStateFor(saved, reopened.artifact);
+  assert.deepEqual(view(restored.state, reopened.artifact), selected);
+
+  const reset = resetProgram(saved);
+  assert.equal(programStateFor(reset, reopened.artifact), null);
+  assert.deepEqual(view(run(reopened.artifact, 'initialize', { inputs }), reopened.artifact), overview);
+});
 
 test('a guest image must name a trusted asset, fit its crop, and declare Medium', () => {
   const image = { kind: 'image', id: 'photo', asset: 'vlm-patch-source', x: 0, y: 0, w: 120, h: 120 };

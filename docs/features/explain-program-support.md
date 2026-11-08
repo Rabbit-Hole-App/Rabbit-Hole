@@ -69,6 +69,20 @@ permission-aware asset binding before they can appear in these views. The guest
 cannot supply an image URL. The dev fixtures are hand-authored card inputs for
 verification.
 
+### Linked selection and comparison
+
+Bounded linked comparisons compose the existing geometry, grid and readout helpers
+with schema 2 selection state. Keep one selected record ID in state. Map each
+plot-point target and its corresponding row target to that ID, then derive the
+highlighted point, highlighted row and displayed value from the same record.
+Every declared target remains present across selections.
+
+The dev fixture `fixture-medium-linked-comparison` demonstrates three records,
+selection from either view, a shared value readout and clearing the selection.
+It uses the existing saved-state handling. This is a reusable composition example;
+the broader inventory's seven linked-comparison designs still describe potential
+applications of that pattern.
+
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
 | Limit | Value |

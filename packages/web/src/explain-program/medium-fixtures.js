@@ -86,4 +86,61 @@ export function evaluate({ inputs }) {
 const imageViewsFixture = { ...imageViewsExample, id: 'fixture-medium-image-views',
   manifest: { ...imageViewsExample.manifest, capabilities: [MEDIUM_CAPABILITY] } };
 
-export const MEDIUM_FIXTURES = [mediumTraceFixture, fieldFixture, evidenceFixture, treeFixture, imageRegionsFixture, imageViewsFixture];
+const samples = [
+  { id: 'a', label: 'A', at: [1, 18] },
+  { id: 'b', label: 'B', at: [2, 24] },
+  { id: 'c', label: 'C', at: [3, 31] },
+];
+const linkedComparisonFixture = fixture('linked-comparison', 'Compare temperature samples',
+  'Select a point or a comparison row to highlight the same sample in both views and read its temperature.', {
+    viewport: { width: 690, height: 292 }, actions: [],
+    targets: samples.flatMap(({ id, label }) => [
+      { id: `samples:point:${id}`, label: `Plot sample ${label}` },
+      { id: `compare:row:${id}`, label: `Compare sample ${label}` },
+    ]),
+  }, `
+const samples = ${JSON.stringify(samples)};
+const pointId = id => 'samples:point:' + id;
+const rowId = id => 'compare:row:' + id;
+
+export function initialState() { return { selected: null }; }
+export function reduce({ state, event }) {
+  if (event.type !== 'select') return state;
+  const sample = samples.find(({ id }) => event.target === pointId(id) || event.target === rowId(id));
+  return sample ? { selected: sample.id } : state;
+}
+export function evaluate({ state }) {
+  const plot = { x:56,y:56,w:280,h:160,xDomain:[0,4],yDomain:[0,40] };
+  const xAt = sdk.linear(plot.xDomain, [plot.x, plot.x + plot.w]);
+  const yAt = sdk.linear(plot.yDomain, [plot.y + plot.h, plot.y]);
+  const selectedIndex = samples.findIndex(sample => sample.id === state.selected);
+  const selected = samples[selectedIndex];
+  const plotted = sdk.geometry('samples', { ...plot,
+    segments: [{id:'time',from:[0,0],to:[4,0]},{id:'temp',from:[0,0],to:[0,40]}],
+    points: samples.map(({ id, at }) => ({ id, at, role:id === state.selected ? 'learner' : 'output' })),
+  });
+  for (const { id, label } of samples) {
+    const point = plotted.find(object => object.id === pointId(id));
+    point.w = 28;
+    point.text = label;
+  }
+  const rows = sdk.grid('compare', { x:370,y:60,w:300,h:151,
+    rows:samples.map(({ label, at:[minutes, temperature] }) => [label + ' · ' + minutes + ' min · ' + temperature + ' °C']),
+    active:selected ? [[selectedIndex,0]] : [],
+  }).map((row, index) => ({ ...row, id:rowId(samples[index].id) }));
+  const readout = { x:370,y:225,w:300,h:42 };
+  const objects = [
+    sdk.text('temp-title',56,34,'Temperature (°C)'),
+    sdk.text('time-title',196,274,'Time (min)',{align:'middle'}),
+    ...[1,2,3].map(t => sdk.text('time:' + t,xAt(t),yAt(0)+20,String(t),{align:'middle'})),
+    ...[0,10,20,30,40].map(t => sdk.text('temp:' + t,xAt(0)-18,yAt(t)+5,String(t),{align:'middle'})),
+    ...plotted,
+    sdk.text('compare-title',370,34,'Compare samples'),
+    ...rows,
+    ...(selected ? sdk.readout('compare:reading', { ...readout,label:'Sample ' + selected.label,value:selected.at[1],unit:'°C',decimals:0 })
+      : [sdk.box('compare:reading',readout.x,readout.y,readout.w,readout.h,{text:'Select a sample'})]),
+  ];
+  return { frame:sdk.frame(objects,{width:690,height:292}), quantities:{} };
+}`);
+
+export const MEDIUM_FIXTURES = [mediumTraceFixture, fieldFixture, evidenceFixture, treeFixture, imageRegionsFixture, imageViewsFixture, linkedComparisonFixture];
