@@ -23,6 +23,8 @@ The twelve previews show example outcomes for five Explanation and seven Interac
 
 ## Visual references
 
+Use the SVGs for lesson layouts, scene data, and teaching states. Use the [interface standards](../../ui/templates/rabbit-hole-interface-component-standards.html), [card shell](../../ui/templates/rabbit-hole-resizable-card-shell.html), and [control kit](../../ui/templates/rabbit-hole-card-component-kit.html) for shared controls and card styling. Blue is the accent for actions, selection, and playback. Claude red identifies Interactive cards and can distinguish data within a scene.
+
 ### 1–4 · Tree splits and impurity
 
 ![First split, loan decision tracer, Gini and entropy, and tree split explorer](tree-splits-and-impurity.svg)

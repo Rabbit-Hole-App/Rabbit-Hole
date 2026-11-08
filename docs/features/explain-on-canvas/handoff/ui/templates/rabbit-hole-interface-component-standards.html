@@ -16,7 +16,7 @@
       --control-hover-bg:#f6f8f4; --control-hover-border:#d2d9d2;
       --control-selected-border:#adc4e5; --control-selected-hover:#dde9f8; --control-active-bg:#d0e0f4;
       --green:#267657; --green-soft:#e5f2ea; --why-ink:#205c45; --why-border:#b8dccc;
-      --primary-hover:#2b4b78; --primary-pressed:#203858; --confirm-hover:#1d6247; --confirm-pressed:#174f39;
+      --primary-hover:#2b4b78; --primary-pressed:#203858;
       --warning-ink:#805619; --warning-soft:#fff1d3; --warning-border:#e4c585;
       --danger-ink:#9d3d39; --danger-soft:#f9ebea; --danger-border:#e7b9b6; --danger-active:#f4d9d6;
       --link-hover:#2b4b78; --link-pressed:#203858;
@@ -106,7 +106,7 @@
     .field small,.field-help { color:var(--muted); font-size:12px; font-weight:400; }
     :is(input,textarea,select).field,.field :is(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),textarea,select),.control:not([type="range"]):not([type="checkbox"]):not([type="radio"]) {
       min-height:var(--control-height); min-width:0; padding:6px 9px; background:var(--control-bg);
-      color:var(--ink); border:1px solid var(--panel-border); border-radius:var(--control-radius); font-size:14px; font-weight:400;
+      color:var(--ink); border:1px solid var(--panel-border); border-radius:var(--control-radius); font-size:15px; font-weight:400;
     }
     input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
     [aria-invalid="true"] { border-color:var(--danger-ink) !important; }
@@ -140,14 +140,6 @@
     dialog.dialog::backdrop { background:var(--scrim); }
     .dialog h3,.dialog h4 { margin-bottom:5px; }
     .dialog p { margin-bottom:11px; color:var(--copy-ink); font-size:14px; }
-    .composer { display:grid; gap:7px; min-width:0; padding:9px; background:var(--control-bg); border:1px solid var(--card-border); border-radius:14px; }
-    .composer:focus-within,.composer[data-demo-state="focus"] { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
-    .composer textarea { display:block; width:100%; min-height:58px; padding:5px 6px; color:var(--ink); background:transparent; border:0; outline:none; resize:vertical; font-size:14px; }
-    .composer-tools,.composer-context { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-    .composer-tools .icon-button,.composer-tools .button { min-height:28px; }
-    .composer-tools .icon-button { width:28px; }
-    .composer-tools .icon { width:14px; height:14px; }
-    .composer-tools .send { margin-inline-start:auto; width:35px; min-height:35px; border-radius:50%; }
     .toc-list { list-style:none; padding:0; display:grid; gap:4px; }
     .toc-row { display:flex; align-items:center; gap:8px; min-height:34px; padding:6px 8px; border:1px solid transparent; border-radius:8px; font-size:13px; }
     .toc-row .icon { color:var(--muted); }
@@ -203,24 +195,10 @@
     .reference-panel summary { font-weight:700; }
     .reference-panel .table-scroll { margin-top:7px; }
     .source-links { color:var(--muted); margin-top:9px; font-size:13px; }
-    .button.confirm { --button-bg:var(--green); --button-line:var(--green); --button-ink:var(--control-bg); --hover-bg:var(--confirm-hover); --hover-line:var(--confirm-hover); --hover-ink:var(--control-bg); --press-bg:var(--confirm-pressed); --press-line:var(--confirm-pressed); --press-ink:var(--control-bg); }
     .toast .icon-button,.notification .icon-button { width:26px; min-height:26px; margin-inline-start:auto; background:transparent; border-color:transparent; }
     .toast .icon-button:hover,.notification .icon-button:hover { background:var(--control-hover-bg); border-color:var(--control-hover-border); }
     .toast .icon-button .icon,.notification .icon-button .icon { width:13px; height:13px; margin:0; }
-    .composer-select { display:flex; align-items:center; gap:4px; font-size:12px; }
-    .composer-select select.field { display:block; min-height:28px; padding:3px 5px; font-size:13px; }
-    .composer textarea.field { min-height:58px; border:0; padding:5px 6px; background:transparent; }
-    .composer textarea:focus-visible { outline:none; }
-    .composer-tools .composer-send,.composer-send { width:32px; min-height:32px; border-radius:50%; }
-    .composer-tools .composer-send { margin-inline-start:auto; }
-    .composer-send .icon { width:16px; height:16px; }
-    .composer-context .pill .icon-button { width:18px; min-height:18px; border-radius:5px; }
-    .composer-context .pill .icon-button .icon { width:12px; height:12px; }
-    .composer-context .source-selection { border-style:dashed; }
-    .proposal + .proposal,.composer + .sample-row,.empty-state,.notification:first-of-type,.toast:first-of-type { margin-top:8px; }
-    .proposal-pair { display:inline-flex; align-items:center; gap:1px; border:1px solid var(--panel-border); border-radius:999px; padding:1px; background:var(--card); }
-    .proposal-pair .button { min-height:var(--compact-height); border-radius:999px; }
-    .proposal-pair .button + .button { margin-inline-start:2px; }
+    .proposal + .proposal,.empty-state,.notification:first-of-type,.toast:first-of-type { margin-top:8px; }
     .toc-list { margin-top:7px; }
     .toc-completion { position:relative; flex:none; display:grid; place-items:center; width:24px; height:24px; cursor:pointer; }
     .toc-completion input { position:absolute; inset:0; width:24px; height:24px; opacity:0; }
@@ -244,7 +222,7 @@
     .toast,.notification { flex-wrap:wrap; }
     .toast > div,.notification > div { flex:1; min-width:130px; }
     .sample-row > a { display:inline-flex; align-items:center; gap:5px; }
-    .field .control:hover:enabled,.composer-select select:hover:enabled { border-color:var(--control-hover-border); }
+    .field .control:hover:enabled { border-color:var(--control-hover-border); }
     .field-error { color:var(--danger-ink); font-size:12px; font-weight:400; }
     input[type="range"]:hover:enabled::-webkit-slider-thumb { background:var(--primary-hover); }
     input[type="range"]:active:enabled::-webkit-slider-thumb { background:var(--primary-pressed); }
@@ -264,6 +242,127 @@
     .checkbox > input:indeterminate::before { content:""; position:absolute; left:3px; top:6px; width:8px; height:2px; background:var(--control-bg); }
     @media (max-width:740px) { main { padding:18px 12px 33px; } .specimens { grid-template-columns:1fr; } .specimen,.reference-panel { padding:10px; } }
   </style>
+<style data-rh-shared-composer>
+    .rh-composer {
+      --card-inset-default: 24px;
+      --card-inset-compact: 15px;
+      --card: #fffefa;
+      --card-border: #dedfd8;
+      --card-radius: 18px;
+      --card-shadow: #e6e5de;
+      --header-line: #ecece6;
+      --ink: #202723;
+      --title-size: 1.65rem;
+      --title-size-compact: 1.35rem;
+      --weight-bold: 700;
+      --title-leading: 1.17;
+      --title-tracking: -.023em;
+      --focus-width: 2px;
+      --blue: #426db2;
+      --muted: #5d675f;
+      --grip-radius: 7px;
+      --explanation-ink: #375d92;
+      --blue-soft: #eaf1fb;
+      --control-selected-border: #adc4e5;
+      --control-active-bg: #d0e0f4;
+    }
+    .rh-composer.teaching-card {
+      --card-width: 548px;
+      --card-height: 430px;
+      --card-inset: var(--card-inset-default);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      width: min(100%, var(--card-width));
+      max-height: var(--card-height);
+      min-width: 0;
+      min-height: 0;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: 0 2px var(--card-shadow);
+      overflow: hidden;
+      container-type: inline-size;
+    }
+    .rh-composer .card-header { flex: none; padding: 17px var(--card-inset) 11px; background: var(--card); border-bottom: 1px solid var(--header-line); }
+    .rh-composer .card-title { color: var(--ink); font-size: var(--title-size); font-weight: var(--weight-bold); line-height: var(--title-leading); letter-spacing: var(--title-tracking); overflow-wrap: anywhere; }
+    .rh-composer .card-body {
+      flex: 0 1 auto;
+      min-height: 0;
+      padding: 11px var(--card-inset) 24px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+    }
+    .rh-composer .card-body:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -3px; }
+    .rh-composer .resize-handle {
+      position: absolute; right: 2px; bottom: 2px;
+      display: grid; place-items: center;
+      width: 26px; height: 26px; padding: 0;
+      border: 1px solid transparent; border-radius: var(--grip-radius);
+      background: var(--card); color: var(--muted);
+      cursor: nwse-resize; touch-action: none;
+    }
+    .rh-composer .resize-handle:hover { color: var(--explanation-ink); background: var(--blue-soft); border-color: var(--control-selected-border); }
+    .rh-composer .resize-handle:active, .rh-composer.teaching-card.is-resizing .resize-handle { color: var(--explanation-ink); background: var(--control-active-bg); border-color: var(--control-selected-border); }
+    .rh-composer .resize-handle:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -2px; }
+    .rh-composer.teaching-card.is-resizing { user-select: none; }
+    @container (max-width: 370px) {
+      .rh-composer .card-header, .rh-composer .card-body { padding-inline: var(--card-inset-compact); }
+      .rh-composer .card-title { font-size: var(--title-size-compact); }
+    }
+    .rh-composer {
+      --composer-strong: #375d92;
+      --composer-strong-hover: #2b4b78;
+      --composer-strong-pressed: #203858;
+      --composer-selected: #eaf1fb;
+      --composer-selected-line: #adc4e5;
+      --composer-selected-hover: #dde9f8;
+      --composer-pressed: #d0e0f4;
+      --composer-focus: #426db2;
+      --composer-card: #fffefa;
+      --composer-white: #ffffff;
+      --composer-line: #dedfd8;
+      --composer-control-line: #e3e7e0;
+      --composer-hover-line: #d2d9d2;
+      --composer-hover: #f6f8f4;
+      --composer-ink: #202723;
+      --composer-muted: #5d675f;
+
+
+
+      font: 1rem/1.45 Inter,"Liberation Sans",Arial,sans-serif;
+      color: var(--composer-ink);
+    }
+    .rh-composer .rh-form { display:grid; gap:10px; }
+    .rh-composer .rh-context,.rh-composer .rh-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+    .rh-composer .rh-input-label { display:block; margin-bottom:4px; font-size:13px; font-weight:650; }
+    .rh-composer .rh-field { min-width:0; min-height:35px; padding:6px 9px; border:1px solid var(--composer-control-line); border-radius:8px; color:var(--composer-ink); background:var(--composer-white); font:400 15px/1.45 Inter,"Liberation Sans",Arial,sans-serif; }
+    .rh-composer textarea.rh-field { display:block; width:100%; min-height:75px; resize:none; }
+    .rh-composer .rh-field::placeholder { color:var(--composer-muted); opacity:1; }
+    .rh-composer .rh-field:hover:enabled { border-color:var(--composer-hover-line); }
+    .rh-composer .rh-depth { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:650; }
+    .rh-composer .rh-status { color:var(--composer-muted); font-size:12px; line-height:1.45; margin:0; }
+    .rh-composer .rh-depth-help { color:var(--composer-muted); font-size:14px; line-height:1.45; margin:0; }
+    .rh-composer .rh-context .pill { display:inline-flex; align-items:center; gap:5px; min-height:26px; border-radius:999px; padding:1px 11px; background:var(--composer-selected); border:1px solid var(--composer-selected-line); color:var(--composer-strong); font:700 13px/1.45 Inter,"Liberation Sans",Arial,sans-serif; }
+    .rh-composer .rh-context .icon { width:13px; height:13px; }
+    .rh-composer :is(.button,.icon-button) { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:35px; padding:0 10px; border:1px solid var(--composer-control-line); border-radius:8px; background:var(--composer-white); color:var(--composer-ink); font:650 13px/1.45 Inter,"Liberation Sans",Arial,sans-serif; cursor:pointer; transition:background-color 120ms,border-color 120ms,color 120ms; }
+    .rh-composer .icon-button { width:35px; padding:0; color:var(--composer-muted); }
+    .rh-composer .button.primary { background:var(--composer-strong); border-color:var(--composer-strong); color:var(--composer-white); }
+    .rh-composer :is(.button,.icon-button):hover:enabled { background:var(--composer-hover); border-color:var(--composer-hover-line); color:var(--composer-ink); }
+    .rh-composer :is(.button,.icon-button):active:enabled { background:var(--composer-pressed); border-color:var(--composer-selected-line); color:var(--composer-strong); }
+    .rh-composer .button.primary:hover:enabled { background:var(--composer-strong-hover); border-color:var(--composer-strong-hover); color:var(--composer-white); }
+    .rh-composer .button.primary:active:enabled { background:var(--composer-strong-pressed); border-color:var(--composer-strong-pressed); color:var(--composer-white); }
+    .rh-composer :is(.button,.icon-button,.rh-field):focus-visible { outline:2px solid var(--composer-focus); outline-offset:2px; }
+    .rh-composer :is(.button,.icon-button,.rh-field):disabled { opacity:.45; cursor:not-allowed; }
+    .rh-composer .rh-send { margin-inline-start:auto; }
+    .rh-composer .icon { display:block; width:16px; height:16px; flex:none; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .rh-composer .rh-send[data-streaming="true"] .icon { fill:currentColor; }
+    .rh-grip-guide { margin:5px 0 0; font-size:12px; color:var(--muted); }
+    @media (prefers-reduced-motion:reduce) { .rh-composer :is(.button,.icon-button) { transition:none; } }
+</style>
 </head>
 <body>
 <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden"><defs>
@@ -318,7 +417,7 @@
   <header class="page">
     <p class="eyebrow">Rabbit Hole · UI reference</p>
     <h1>Interface component standards</h1>
-    <p class="lede">Isolated UI specimens for the controls found in the review screenshots. Shared card surfaces frame blue actions and selection. Warm rust identifies Interactive content or a local experiment, green marks affirmation or completion, amber signals warnings, and red marks danger.</p>
+    <p class="lede">Isolated UI specimens for the controls found in the review screenshots. Shared card surfaces frame blue actions and selection. Warm rust identifies Interactive content or a local experiment, green marks positive status and completion, amber signals warnings, and red marks danger.</p>
     <nav class="page-nav" aria-label="Reference sections"><a href="#controls">Controls</a><a href="#tutor">Tutor</a><a href="#overlays">Overlays and feedback</a><a href="#spec">Exact values</a><a href="#inventory">Screenshot inventory</a></nav>
   </header>
   <section class="section" id="controls" aria-labelledby="controls-title">
@@ -343,14 +442,9 @@
 </article>
 
 <article class="specimen" id="f-approval">
-  <h3>Review actions</h3>
-  <p class="muted">Accept uses the affirmative action role. Edit is secondary and Cancel is quiet. Show the shortcut on Accept when the focused context supports it.</p>
-  <div class="sample-row compact" role="group" aria-label="Proposal actions">
-    <button class="button primary confirm" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Check"/></svg>Accept <kbd class="kbd">Tab</kbd></button>
-    <span class="muted" aria-hidden="true">|</span>
-    <button class="button quiet" type="button">Cancel</button>
-  </div>
-  <div class="sample-row" role="group" aria-label="Other proposal actions">
+  <h3>Related card actions</h3>
+  <p class="muted">Edit is secondary. Navigation uses quiet buttons and links.</p>
+  <div class="sample-row" role="group" aria-label="Related card actions">
     <button class="button secondary" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Pencil"/></svg>Edit card</button>
     <button class="button quiet" type="button">Go to card <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUpRight"/></svg></button>
     <a href="#f-links">Go to highlighted text</a>
@@ -465,31 +559,38 @@
   </section>
   <section class="section" id="tutor" aria-labelledby="tutor-title">
     <h2 id="tutor-title">Tutor components</h2>
-    <p class="section-copy">The composer, outline, approval strip and loading components use the same controls. Each specimen represents a single reusable component.</p>
-    <div class="specimens"><article class="specimen" aria-labelledby="t-composer-title">
-  <h3 id="t-composer-title">Chat composer</h3>
-  <p class="muted">Text first, context below it, then one tool row. The send action becomes Stop while a response is streaming.</p>
-  <div class="composer" aria-label="Empty composer example">
-    <textarea class="field" rows="2" aria-label="Ask about this canvas" placeholder="Ask about this canvas" data-demo-composer-input></textarea>
-    <div class="composer-context" aria-label="Attached context">
-      <span class="pill neutral source-selection"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Shapes"/></svg>This canvas</span>
-      <span class="pill neutral"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-FileText"/></svg>lesson.md<button type="button" class="icon-button quiet" aria-label="Remove lesson.md" title="Remove lesson.md" data-demo-remove-chip><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-X"/></svg></button></span>
-    </div>
-    <div class="composer-tools" role="group" aria-label="Composer actions">
-      <button type="button" class="icon-button quiet" aria-label="Attach a source" title="Attach a source"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Plus"/></svg></button>
-      <label class="composer-select"><span class="muted">Model</span> <select class="field" aria-label="Model"><option>Auto</option><option>Choose model</option></select></label>
-      <label class="composer-select"><span class="muted">Depth</span> <select class="field" aria-label="Depth"><option>Standard</option><option>Overview</option><option>Deep</option></select></label>
-      <button type="button" class="icon-button quiet" aria-label="Slash commands" title="Slash commands"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Slash"/></svg></button>
-      <button type="button" class="icon-button quiet" aria-label="Voice" title="Voice"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Mic"/></svg></button>
-      <button type="button" class="icon-button primary composer-send" aria-label="Send" title="Send" disabled data-demo-composer-send><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg></button>
-    </div>
+    <p class="section-copy">The composer, outline, approval strip and loading components use the same controls. The composer uses the teaching card shell and its resize grip.</p>
+    <div class="specimens"><!-- BEGIN SHARED COMPOSER -->
+<div class="rh-composer-example" style="min-width:0">
+<article class="teaching-card rh-composer" id="rh-composer" aria-labelledby="rh-composer-title">
+  <header class="card-header"><h3 class="card-title" id="rh-composer-title">Chat composer</h3></header>
+  <div class="card-body" role="region" aria-label="Chat composer content" tabindex="0">
+    <form class="rh-form" id="rh-composer-form">
+      <div>
+        <label class="rh-input-label" for="rh-message">Message</label>
+        <textarea class="rh-field" id="rh-message" rows="2" placeholder="Ask a question"></textarea>
+      </div>
+      <div class="rh-context" role="group" aria-label="Context">
+        <span class="pill">This canvas</span>
+        <span class="pill"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-FileText"/></svg>lesson.md</span>
+      </div>
+      <div class="rh-actions" role="group" aria-label="Composer controls">
+        <button type="button" class="button secondary" data-rh-demo="Attach control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Plus"/></svg>Attach</button>
+        <label class="rh-depth">Depth <select class="rh-field" id="rh-depth" aria-describedby="rh-depth-help"><option>Overview</option><option selected>Standard</option><option>Deep</option></select></label>
+        <button type="button" class="icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice control preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Mic"/></svg></button>
+        <button type="submit" class="button primary rh-send" id="rh-send" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg><span>Send</span></button>
+      </div>
+      <p class="rh-depth-help" id="rh-depth-help">A balanced explanation.</p>
+      <p class="rh-status" id="rh-composer-status" role="status">Type a message to enable Send.</p>
+    </form>
   </div>
-  <div class="sample-row" aria-label="Composer states">
-    <span class="muted">Ready</span><button type="button" class="icon-button primary composer-send" aria-label="Send ready message" title="Send"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg></button>
-    <span class="muted">Keyboard focus</span><button type="button" class="icon-button primary composer-send" aria-label="Send focused message" title="Send" data-demo-state="focus"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-ArrowUp"/></svg></button>
-    <span class="muted">Streaming</span><button type="button" class="icon-button primary composer-send" aria-label="Stop response" title="Stop response"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Square"/></svg></button>
-  </div>
+  <button type="button" class="resize-handle" aria-describedby="rh-resize-guide" aria-label="Resize chat composer" title="Resize card">
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+  </button>
 </article>
+<p class="rh-grip-guide" id="rh-resize-guide">Use the card grip or arrow keys to resize. Shift makes larger steps.</p>
+</div>
+<!-- END SHARED COMPOSER -->
 
 <article class="specimen" aria-labelledby="t-toc-title">
   <div class="sample-row">
@@ -514,18 +615,20 @@
     <h4>Why a tree chooses its first split</h4>
     <p class="muted">See how a tree uses a yes-or-no question to make two groups more distinct.</p>
     <div class="sample-row" role="group" aria-label="Canvas proposal actions">
-      <span class="proposal-pair" role="group" aria-label="Accept or cancel"><button type="button" class="button primary confirm">Accept <kbd class="kbd" aria-hidden="true">Tab</kbd></button><button type="button" class="button quiet">Cancel</button></span>
+      <button type="button" class="button primary" data-demo-proposal="accept">Accept <kbd class="kbd" aria-hidden="true">Tab</kbd></button>
+      <span class="muted" aria-hidden="true">|</span>
+      <button type="button" class="button quiet" data-demo-proposal="cancel">Cancel</button>
       <button type="button" class="button secondary"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-Pencil"/></svg>Edit card</button>
+      <output id="t-proposal-result" class="status-text" aria-live="polite" hidden></output>
     </div>
   </div>
-  <div class="sample-row" role="group" aria-label="Chat proposal actions"><button type="button" class="button primary confirm">Accept</button><button type="button" class="button secondary">Edit card</button><button type="button" class="button quiet">Cancel</button><button type="button" class="button secondary">Go to card</button><button type="button" class="button quiet">View passage</button></div>
-  <p class="muted">The Tab hint belongs to the active Canvas offer. Chat uses the same action labels with ordinary keyboard focus.</p>
+  <p class="muted">The Tab hint appears on eligible Canvas offers. Chat uses the same button shape and roles with ordinary keyboard focus.</p>
 </article>
 
 <article class="specimen" aria-labelledby="t-loading-title">
   <h3 id="t-loading-title">Skeleton and generation states</h3>
   <div class="proposal" aria-label="Pending card placeholder">
-    <div class="sample-row"><span class="pill explain">Explanation</span><span class="status-text">Proposed</span></div>
+    <div class="sample-row" role="status"><span class="pill explain">Explanation</span><span class="status-text">Preparing proposal</span></div>
     <div class="skeleton" aria-hidden="true"><span class="skeleton-line" style="width:58%"></span><span class="skeleton-line" style="width:93%"></span><span class="skeleton-line" style="width:74%"></span></div>
   </div>
   <div class="proposal" aria-label="Card generation status">
@@ -533,7 +636,6 @@
     <progress class="progress" aria-label="Card generation in progress"></progress>
     <p class="muted">Generating, checking and saving share the reserved card frame.</p>
   </div>
-  <div class="sample-row"><span class="status-text">Preparing proposal</span><button type="button" class="button primary confirm" disabled>Accept <kbd class="kbd" aria-hidden="true">Tab</kbd></button><button type="button" class="button quiet">Cancel</button></div>
 </article>
 
 <article class="specimen" aria-labelledby="t-empty-title">
@@ -707,9 +809,7 @@
 <tr><th scope="row">Selected border</th><td><code>--control-selected-border</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td>100%</td></tr>
 <tr><th scope="row">Selected hover surface</th><td><code>--control-selected-hover</code></td><td><span class="swatch" style="--paint:var(--control-selected-hover)" aria-hidden="true"></span><code>#DDE9F8</code></td><td>100%</td></tr>
 <tr><th scope="row">Pressed surface</th><td><code>--control-active-bg</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code></td><td>100%</td></tr>
-<tr><th scope="row">Accept / complete</th><td><code>--green</code></td><td><span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code></td><td>100%</td></tr>
-<tr><th scope="row">Accept hover</th><td><code>--confirm-hover</code></td><td><span class="swatch" style="--paint:var(--confirm-hover)" aria-hidden="true"></span><code>#1D6247</code></td><td>100%</td></tr>
-<tr><th scope="row">Accept pressed</th><td><code>--confirm-pressed</code></td><td><span class="swatch" style="--paint:var(--confirm-pressed)" aria-hidden="true"></span><code>#174F39</code></td><td>100%</td></tr>
+<tr><th scope="row">Success / complete</th><td><code>--green</code></td><td><span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code></td><td>100%</td></tr>
 <tr><th scope="row">Success surface</th><td><code>--green-soft</code></td><td><span class="swatch" style="--paint:var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td>100%</td></tr>
 <tr><th scope="row">Success ink</th><td><code>--why-ink</code></td><td><span class="swatch" style="--paint:var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td>100%</td></tr>
 <tr><th scope="row">Success border</th><td><code>--why-border</code></td><td><span class="swatch" style="--paint:var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td>100%</td></tr>
@@ -728,13 +828,12 @@
 <tr><th scope="row">Scrollbar thumb hover</th><td><code>--scroll-thumb-hover</code></td><td><span class="swatch" style="--paint:var(--scroll-thumb-hover)" aria-hidden="true"></span><code>#AAB6AB</code></td><td>100%</td></tr>
 <tr><th scope="row">Disabled composite</th><td><code>--disabled-opacity</code></td><td><code>0.45</code></td><td>45%</td></tr>
 <tr><th scope="row">Modal scrim</th><td><code>--scrim</code></td><td><code>rgba(32,39,35,.42)</code></td><td>42%</td></tr>
-<tr><th scope="row">Overlay shadow</th><td><code>--overlay-shadow</code></td><td><code>0 8px 28px rgba(32,39,35,.13)</code></td><td>13% ink</td></tr></tbody></table></div></details><details open><summary>Button states · surface / border / ink</summary><div class="table-scroll"><table><thead><tr><th scope="col">Role</th><th scope="col">Default</th><th scope="col">Hover</th><th scope="col">Pressed</th></tr></thead><tbody><tr><th scope="row">Primary · start, send, use example</th><td><span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#2B4B78</code> / <span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#2B4B78</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#203858</code> / <span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#203858</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr>
-<tr><th scope="row">Affirmative · Accept</th><td><span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code> / <span class="swatch" style="--paint:var(--green)" aria-hidden="true"></span><code>#267657</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--confirm-hover)" aria-hidden="true"></span><code>#1D6247</code> / <span class="swatch" style="--paint:var(--confirm-hover)" aria-hidden="true"></span><code>#1D6247</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--confirm-pressed)" aria-hidden="true"></span><code>#174F39</code> / <span class="swatch" style="--paint:var(--confirm-pressed)" aria-hidden="true"></span><code>#174F39</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr>
+<tr><th scope="row">Overlay shadow</th><td><code>--overlay-shadow</code></td><td><code>0 8px 28px rgba(32,39,35,.13)</code></td><td>13% ink</td></tr></tbody></table></div></details><details open><summary>Button states · surface / border / ink</summary><div class="table-scroll"><table><thead><tr><th scope="col">Role</th><th scope="col">Default</th><th scope="col">Hover</th><th scope="col">Pressed</th></tr></thead><tbody><tr><th scope="row">Primary · start, send, use example, accept</th><td><span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#2B4B78</code> / <span class="swatch" style="--paint:var(--primary-hover)" aria-hidden="true"></span><code>#2B4B78</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#203858</code> / <span class="swatch" style="--paint:var(--primary-pressed)" aria-hidden="true"></span><code>#203858</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr>
 <tr><th scope="row">Secondary · Edit, Save, Go to card</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code> / <span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / <span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td></tr>
 <tr><th scope="row">Quiet · Cancel, compact tool</th><td>Transparent / Transparent / <span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / Transparent / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td></tr>
 <tr><th scope="row">Icon-only control</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code> / <span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code> / <span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code> / <span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code> / <span class="swatch" style="--paint:var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td></tr>
 <tr><th scope="row">Selected filter or tool</th><td><span class="swatch" style="--paint:var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td><td><span class="swatch" style="--paint:var(--control-selected-hover)" aria-hidden="true"></span><code>#DDE9F8</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code> / <span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code> / <span class="swatch" style="--paint:var(--primary)" aria-hidden="true"></span><code>#375D92</code></td></tr>
-<tr><th scope="row">Destructive · Move to Trash</th><td><span class="swatch" style="--paint:var(--danger-soft)" aria-hidden="true"></span><code>#F9EBEA</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-active)" aria-hidden="true"></span><code>#F4D9D6</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr></tbody></table></div></details><details open><summary>Dimensions and behavior</summary><div class="table-scroll"><table><thead><tr><th scope="col">Component</th><th scope="col">Exact values</th></tr></thead><tbody><tr><th scope="row">Typography</th><td>Inter → Liberation Sans → Arial → sans-serif. Base 16 px / 1.45. Button, pill and field labels 13 px. Button and field label weight 650; pill weight 700. Field text 14 px / 400. Helper and status text 12 px. Shortcut 10 px / 600 monospace.</td></tr>
+<tr><th scope="row">Destructive · Move to Trash</th><td><span class="swatch" style="--paint:var(--danger-soft)" aria-hidden="true"></span><code>#F9EBEA</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-active)" aria-hidden="true"></span><code>#F4D9D6</code> / <span class="swatch" style="--paint:var(--danger-border)" aria-hidden="true"></span><code>#E7B9B6</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code></td><td><span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--danger-ink)" aria-hidden="true"></span><code>#9D3D39</code> / <span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td></tr></tbody></table></div></details><details open><summary>Dimensions and behavior</summary><div class="table-scroll"><table><thead><tr><th scope="col">Component</th><th scope="col">Exact values</th></tr></thead><tbody><tr><th scope="row">Typography</th><td>Inter → Liberation Sans → Arial → sans-serif. Base 16 px / 1.45. Button, pill and field labels 13 px. Button and field label weight 650; pill weight 700. Field text 15 px / 400. Explanatory details 14 px. Status text 12 px. Shortcut 10 px / 600 monospace.</td></tr>
 <tr><th scope="row">Buttons and icon controls</th><td>35 px minimum height, 8 px radius, 1 px border, 10 px horizontal padding and 6 px icon gap. Icon-only targets are 35 × 35 px, with 16 px Lucide glyphs, stroke 2. Compact rows use 28 px targets and 14 px glyphs. Existing per-glyph sizes are listed in the icon template.</td></tr>
 <tr><th scope="row">Focus, hover and disabled</th><td>Focus outline #426DB2, 2 px, +2 px offset. Hover and press use the role table above. Transitions 120 ms. Disabled uses 45% composite opacity and the disabled cursor, with a stable surface.</td></tr>
 <tr><th scope="row">Pills, tags and shortcut hints</th><td>Pill minimum 26 px high, 999 px radius, padding 1 × 11 px, 5 px gap, icon 13 px. Text-only Explanation #EAF1FB / #375D92 and Interactive #F8ECE3 / #934723. Positive #E5F2EA / #205C45. Neutral #F6F8F4 / #5D675F with #E3E7E0 border. Shortcut min 17 px, radius 4 px, 1 px currentColor border and 4 px horizontal padding.</td></tr>
@@ -744,9 +843,9 @@
 <tr><th scope="row">Input interaction states</th><td>Field hover border #D2D9D2. Range thumb hover #2B4B78 and pressed #203858. Unchecked checkbox hover #F6F8F4 / #5D675F border, pressed #D0E0F4 / #ADC4E5 border. Checked checkbox and switch on use #2B4B78 on hover and #203858 when pressed. Switch off hover border #5D675F and pressed surface #D2D9D2. All keep the common focus ring and 45% disabled opacity.</td></tr>
 <tr><th scope="row">Menus, dropdown panels and popovers</th><td>Menu radius 10 px, 4 px inset, 2 px row gap. Rows at least 34 px, padding 6 × 8 px, 8 px icon gap, 8 px radius. Popover padding 10 px. Surface #FFFEFA, 1 px #DEDFD8 border. Elevation 0 8px 28px with 13% #202723. Section dividers use #ECECE6.</td></tr>
 <tr><th scope="row">Tooltip</th><td>12 px / 1.35 text, 6 px radius, padding 5 × 8 px, 240 px maximum width, 6 px anchor gap. #202723 surface, #FFFEFA ink. Show after 400 ms on hover or keyboard focus, fade 120 ms, dismiss on leave, blur, press or Escape. Keep the icon button’s accessible label.</td></tr>
-<tr><th scope="row">Chat composer</th><td>14 px radius, 1 px #DEDFD8 outline, 9 px inset, 7 px row gap. Textarea 14 px, 58 px minimum, 5 × 6 px inset. Context chips before one 6 px-gap toolbar. Tool target 28 px with 14 px glyph. Stacked Send or Stop 32 px circle with a 16 px glyph. Chip remove target 18 px with 12 px glyph. Send and Stop use the blue primary role with #375D92 default, #2B4B78 hover and #203858 pressed. Empty draft disables Send. Streaming shows Stop.</td></tr>
+<tr><th scope="row">Chat composer</th><td>The composer uses the shared card header, 15 px input text, 35 px buttons with 8 px radius, and the same resize grip and height cap as the teaching cards.</td></tr>
 <tr><th scope="row">ToC and progress</th><td>ToC row at least 34 px with 6 × 8 px padding, 8 px gap and radius. Completion target 24 px with a 16 px ring, 1.5 px stroke and 11 px check. Active uses #EAF1FB surface, #ADC4E5 border and an independent ring, and #375D92 ink. Completed uses #267657. Roadmap and skills progress bars are 6 px high. Completed portions are green and indeterminate progress is blue. Skills use 3 px gaps and confirmed counts.</td></tr>
-<tr><th scope="row">Accept, Edit and Cancel</th><td>Canvas proposal uses a compact 28 px capsule with 1 px inset, 1 px gap and the Tab keycap on Accept. Chat uses standard 35 px controls without the keycap. Accept is green, Edit outlined, Cancel quiet. Tab acceptance stays within the eligible Canvas proposal context.</td></tr>
+<tr><th scope="row">Accept, Edit and Cancel</th><td>Use the standard 35 px minimum height, 8 px radius and 13 px text at weight 650. Accept uses the blue primary role (#375D92), Edit is outlined, and Cancel is quiet. Canvas shows the Tab keycap on eligible offers. Chat uses the same shape and roles with ordinary keyboard focus.</td></tr>
 <tr><th scope="row">Skeleton, shimmer and spinner</th><td>Preserve the reserved card frame and 18 px radius. Sample skeleton inset 11 px, line height 11 px, radius 5 px and 7 px gaps. Base #E8ECE5, sheen #F6F8F4, 2.4 s ease-in-out loop. Status text shimmer 1.6 s. Spinner 16 px with a 2 px track #E3E7E0 and blue #375D92 leading edge, 800 ms linear loop. Reduced motion uses static placeholders and status text.</td></tr>
 <tr><th scope="row">Scrollbar</th><td>Keep one scrolling region per pane and reserve the gutter. WebKit-style width 8 px; thin fallback where native. Transparent track, #C7CEC6 pill thumb, #AAB6AB hover.</td></tr>
 <tr><th scope="row">Links</th><td>Ink #375D92, hover #2B4B78, pressed #203858. Underline offset 3 px. Use the standard blue focus outline.</td></tr>
@@ -805,18 +904,6 @@
     if (tone !== 'error') setTimeout(() => toast.remove(),3000);
   }
 
-  function setComposerState(composer, streaming) {
-    const input = composer.querySelector('[data-demo-composer-input]');
-    const send = composer.querySelector('[data-demo-composer-send]');
-    composer.dataset.streaming = String(streaming);
-    const label = streaming ? 'Stop response' : 'Send';
-    send.setAttribute('aria-label',label);
-    send.title = label;
-    send.querySelector('use').setAttribute('href',streaming ? '#i-Square' : '#i-ArrowUp');
-    send.querySelector('svg').style.fill = streaming ? 'currentColor' : 'none';
-    send.disabled = !streaming && !input.value.trim();
-  }
-
   function updateRange(input) {
     const min = Number(input.min || 0);
     const max = Number(input.max || 100);
@@ -844,10 +931,6 @@
   document.addEventListener('input',event => {
     const input = event.target;
     if (input.matches('input[type="range"]')) updateRange(input);
-    if (input.matches('[data-demo-composer-input]')) {
-      const composer = input.closest('.composer');
-      setComposerState(composer,composer.dataset.streaming === 'true');
-    }
   });
   document.addEventListener('change',event => {
     if (event.target.matches('.toc-completion input')) updateOutline(event.target);
@@ -865,12 +948,10 @@
     if (target.dataset.closeDialog) document.getElementById(target.dataset.closeDialog).close();
     if (target.dataset.openToast) showToast(target.dataset.openToast,target.dataset.toastMessage);
     if (target.hasAttribute('data-dismiss-toast')) target.closest('.toast')?.remove();
-    if (target.hasAttribute('data-demo-remove-chip')) target.closest('.pill')?.remove();
-    if (target.hasAttribute('data-demo-composer-send')) {
-      const composer = target.closest('.composer');
-      const streaming = composer.dataset.streaming !== 'true';
-      setComposerState(composer,streaming);
-      showToast('info',streaming ? 'Streaming preview started.' : 'Streaming preview stopped.');
+    if (target.dataset.demoProposal) {
+      const result = document.getElementById('t-proposal-result');
+      result.textContent = target.dataset.demoProposal === 'accept' ? 'Proposal accepted' : 'Proposal canceled';
+      result.hidden = false;
     }
     if (target.hasAttribute('data-preview-filter')) target.setAttribute('aria-pressed',String(target.getAttribute('aria-pressed') !== 'true'));
     if (target.hasAttribute('data-clear-preview-filters')) {
@@ -948,5 +1029,100 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 -->
+<script data-rh-shared-composer>
+  (() => {
+function cardSize(width, height, availableWidth) {
+  const maxWidth = Math.max(0, availableWidth);
+  return {
+    width: Math.min(maxWidth, Math.max(300, width)),
+    height: Math.min(760, Math.max(245, height)),
+  };
+}
+
+function installResize(card, handle) {
+  let drag = null;
+
+  function setSize(width, height) {
+    const parent = card.parentElement;
+    const style = getComputedStyle(parent);
+    const padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+    const size = cardSize(width, height, parent.clientWidth - padding);
+    card.style.setProperty('--card-width', `${size.width}px`);
+    card.style.setProperty('--card-height', `${size.height}px`);
+  }
+
+  handle.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || drag) return;
+    const { width, height } = card.getBoundingClientRect();
+    drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, width, height };
+    handle.setPointerCapture(event.pointerId);
+    card.classList.add('is-resizing');
+    handle.focus({ preventScroll: true });
+    event.preventDefault();
+  });
+
+  handle.addEventListener('pointermove', event => {
+    if (drag?.pointerId !== event.pointerId) return;
+    setSize(drag.width + event.clientX - drag.x, drag.height + event.clientY - drag.y);
+  });
+
+  function finish(event) {
+    if (drag?.pointerId !== event.pointerId) return;
+    drag = null;
+    card.classList.remove('is-resizing');
+    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+  }
+
+  handle.addEventListener('pointerup', finish);
+  handle.addEventListener('pointercancel', finish);
+  handle.addEventListener('lostpointercapture', finish);
+
+  handle.addEventListener('keydown', event => {
+    const axes = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+    };
+    const axis = axes[event.key];
+    if (!axis) return;
+    const { width, height } = card.getBoundingClientRect();
+    const step = event.shiftKey ? 48 : 16;
+    setSize(width + step * axis[0], height + step * axis[1]);
+    event.preventDefault();
+  });
+}
+
+    const composer = document.getElementById('rh-composer');
+    const form = document.getElementById('rh-composer-form');
+    const message = document.getElementById('rh-message');
+    const send = document.getElementById('rh-send');
+    const depth = document.getElementById('rh-depth');
+    const help = document.getElementById('rh-depth-help');
+    const status = document.getElementById('rh-composer-status');
+    const depthHelp = { Overview:'The central idea in a short explanation.', Standard:'A balanced explanation.', Deep:'Reasoning, a worked example and edge cases.' };
+    let streaming = false;
+    function updateSend() {
+      send.disabled = !streaming && !message.value.trim();
+      send.dataset.streaming = String(streaming);
+      send.querySelector('span').textContent = streaming ? 'Stop' : 'Send';
+      send.querySelector('use').setAttribute('href',streaming ? '#i-Square' : '#i-ArrowUp');
+    }
+    message.addEventListener('input',updateSend);
+    depth.addEventListener('change',() => { help.textContent = depthHelp[depth.value]; });
+    form.addEventListener('submit',event => {
+      event.preventDefault();
+      if (send.disabled) return;
+      streaming = !streaming;
+      updateSend();
+      status.textContent = streaming ? 'Streaming preview.' : 'Preview stopped.';
+    });
+    for (const button of composer.querySelectorAll('[data-rh-demo]')) {
+      button.addEventListener('click',() => { status.textContent = button.dataset.rhDemo; });
+    }
+    installResize(composer,composer.querySelector('.resize-handle'));
+    updateSend();
+  })();
+</script>
 </body>
 </html>

@@ -11,9 +11,10 @@
       --paper:#f5f4ed; --card:#fffefa; --card-border:#dedfd8;
       --panel:#f6f8f4; --panel-border:#e3e7e0; --ink:#202723; --muted:#5d675f;
       --blue:#426db2; --explanation-ink:#375d92; --blue-soft:#eaf1fb;
-      --orange:#b86232; --orange-dark:#934723; --orange-soft:#f8ece3;
+      --orange-dark:#934723; --orange-soft:#f8ece3;
       --control-bg:#ffffff; --control-hover-bg:#f6f8f4; --control-hover-border:#d2d9d2;
       --control-selected-border:#adc4e5; --control-selected-hover-bg:#dde9f8; --control-active-bg:#d0e0f4;
+      --control-primary-hover:#2b4b78; --control-primary-active:#203858;
       --disabled-opacity:.45; --card-radius:18px; --control-radius:8px; --grip-radius:7px;
       --icon-control-size:35px; --grip-size:26px; --focus-width:2px;
       font:16px/1.45 Inter,"Liberation Sans",Arial,sans-serif;
@@ -45,7 +46,6 @@
     }
     button.icon-button { cursor:pointer; }
     .icon-button.with-label { width:auto; padding:0 10px; }
-    .icon-button.round { border-radius:999px; }
     .icon-button.grip { --surface:var(--card); --outline:transparent; width:var(--grip-size); min-height:var(--grip-size); border-radius:var(--grip-radius); cursor:nwse-resize; }
     .icon-button:is([data-state="hover"],:hover:enabled) { --surface:var(--control-hover-bg); --outline:var(--control-hover-border); }
     .icon-button:is(.transport,[data-state="selected"],[aria-pressed="true"]),
@@ -54,10 +54,12 @@
     .icon-button:is(.transport,[aria-pressed="true"]):hover:enabled { --surface:var(--control-selected-hover-bg); --outline:var(--control-selected-border); --glyph-color:var(--explanation-ink); }
     .icon-button:is([data-state="pressed"],:active:enabled),
     .icon-button:is(.transport,.grip,[aria-pressed="true"]):active:enabled { --surface:var(--control-active-bg); --outline:var(--control-selected-border); --glyph-color:var(--explanation-ink); }
+    .icon-button.primary { --surface:var(--explanation-ink); --outline:var(--explanation-ink); --glyph-color:var(--control-bg); }
+    .icon-button.primary:is([data-state="hover"],:hover:enabled) { --surface:var(--control-primary-hover); --outline:var(--control-primary-hover); --glyph-color:var(--control-bg); }
+    .icon-button.primary:is([data-state="pressed"],:active:enabled) { --surface:var(--control-primary-active); --outline:var(--control-primary-active); --glyph-color:var(--control-bg); }
     .icon-button:is([data-state="focus"],:focus-visible) { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
     .icon-button.grip:is([data-state="focus"],:focus-visible) { outline-offset:-2px; }
     .icon-button:is([data-state="disabled"],:disabled) { opacity:var(--disabled-opacity); cursor:not-allowed; }
-    .icon-button.feedback { width:28px; min-height:28px; }
     .icon-button.feedback[aria-pressed="true"] .glyph { fill:currentColor; }
     .state-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(104px,1fr)); gap:8px; margin-bottom:12px; }
     .state-sample { display:grid; justify-items:center; align-content:start; gap:8px; padding:10px 6px; min-width:0; color:var(--muted); font-size:.8125rem; text-align:center; background:var(--panel); border:1px solid var(--panel-border); border-radius:9px; }
@@ -164,12 +166,12 @@
   <header>
     <p class="eyebrow">Rabbit Hole · Card design reference</p>
     <h1>Card icon template</h1>
-    <p class="lede">Existing Rabbit Hole card glyphs with the resizable shell’s colors, geometry and button states. The glyph list separates runtime icons from the approved Explanation design examples.</p>
+    <p class="lede">Shared button geometry and states for Rabbit Hole cards, plus an inventory of existing runtime glyphs and approved Explanation references.</p>
     <nav aria-label="Icon template sections"><a href="#states">States</a><a href="#kinds">Card types</a><a href="#actions">Card actions</a><a href="#dimensions">Dimensions</a></nav>
   </header>
   <section id="states" aria-labelledby="states-title">
     <h2 id="states-title">Icon button states</h2>
-    <p class="section-copy">General controls use neutral colors at rest and on hover. Blue marks pressed or selected controls and highlights playback even at rest. The glyph inherits the button’s ink.</p>
+    <p class="section-copy">General controls use neutral colors at rest and on hover, then soft blue when pressed or selected. Playback uses soft blue at rest. A filled primary action uses white ink on solid blue. Glyphs inherit the button’s ink.</p>
     <div class="panel">
       <div class="state-strip"><div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="default"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Default / unselected</span></div>
 <div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="hover"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Hover</span></div>
@@ -178,13 +180,21 @@
 <div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="selected-hover"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Selected hover</span></div>
 <div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="focus"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Keyboard focus</span></div>
 <div class="state-sample"><div class="state-preview"><span class="icon-button" data-state="disabled"><svg class="glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-Maximize"></use></svg></span></div><span>Disabled</span></div></div>
+      <div class="state-strip" aria-label="Filled primary states">
+        <div class="state-sample"><div class="state-preview"><span class="icon-button with-label primary">Continue</span></div><span>Primary</span></div>
+        <div class="state-sample"><div class="state-preview"><span class="icon-button with-label primary" data-state="hover">Continue</span></div><span>Primary hover</span></div>
+        <div class="state-sample"><div class="state-preview"><span class="icon-button with-label primary" data-state="pressed">Continue</span></div><span>Primary pressed</span></div>
+      </div>
       <div class="table-wrap"><table>
         <thead><tr><th scope="col">State</th><th scope="col">Surface</th><th scope="col">Border</th><th scope="col">Icon and label</th><th scope="col">Opacity / cue</th></tr></thead>
         <tbody><tr><th scope="row">Default / unselected</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%</td></tr>
 <tr><th scope="row">Hover</th><td><span class="swatch" style="--paint:var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code></td><td><span class="swatch" style="--paint:var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%</td></tr>
 <tr><th scope="row">Pressed</th><td><span class="swatch" style="--paint:var(--control-active-bg)" aria-hidden="true"></span><code>#D0E0F4</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td>100%, while held</td></tr>
-<tr><th scope="row">Selected / playback at rest</th><td><span class="swatch" style="--paint:var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td>100%, current toggle or primary playback action</td></tr>
+<tr><th scope="row">Selected / playback at rest</th><td><span class="swatch" style="--paint:var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td>100%, current toggle or playback action</td></tr>
 <tr><th scope="row">Selected / playback hover</th><td><span class="swatch" style="--paint:var(--control-selected-hover-bg)" aria-hidden="true"></span><code>#DDE9F8</code></td><td><span class="swatch" style="--paint:var(--control-selected-border)" aria-hidden="true"></span><code>#ADC4E5</code></td><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary</th><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td><span class="swatch" style="--paint:var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary hover</th><td><span class="swatch" style="--paint:var(--control-primary-hover)" aria-hidden="true"></span><code>#2B4B78</code></td><td><span class="swatch" style="--paint:var(--control-primary-hover)" aria-hidden="true"></span><code>#2B4B78</code></td><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td>100%</td></tr>
+<tr><th scope="row">Primary pressed</th><td><span class="swatch" style="--paint:var(--control-primary-active)" aria-hidden="true"></span><code>#203858</code></td><td><span class="swatch" style="--paint:var(--control-primary-active)" aria-hidden="true"></span><code>#203858</code></td><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td>100%, while held</td></tr>
 <tr><th scope="row">Keyboard focus</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%; adds <span class="swatch" style="--paint:var(--blue)" aria-hidden="true"></span><code>#426DB2</code> 2 px outline, +2 px offset</td></tr>
 <tr><th scope="row">Disabled</th><td><span class="swatch" style="--paint:var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--paint:var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td><span class="swatch" style="--paint:var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>45% composite opacity</td></tr></tbody>
       </table></div>
@@ -192,8 +202,8 @@
     <div class="grid" style="margin-top:12px">
       <article class="panel">
         <h3>Try a persistent selection</h3>
-        <p class="technical">Either feedback choice uses the same blue selected state. The glyph is outlined at rest and fills with the button’s ink when selected.</p>
-        <div class="actions" id="feedback-demo" role="group" aria-label="Card feedback preview"><button type="button" class="icon-button round feedback" aria-label="Understood" title="Understood" aria-pressed="false" data-feedback="Understood"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ThumbsUp"></use></svg></button><button type="button" class="icon-button round feedback" aria-label="Still unclear" title="Still unclear" aria-pressed="false" data-feedback="Still unclear"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ThumbsDown"></use></svg></button></div>
+        <p class="technical">Both feedback choices use the shared 35 × 35 px button with 8 px corners and the original 13 px glyph. The outline fills with blue ink when selected.</p>
+        <div class="actions" id="feedback-demo" role="group" aria-label="Card feedback preview"><button type="button" class="icon-button feedback" aria-label="Understood" title="Understood" aria-pressed="false" data-feedback="Understood"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ThumbsUp"></use></svg></button><button type="button" class="icon-button feedback" aria-label="Still unclear" title="Still unclear" aria-pressed="false" data-feedback="Still unclear"><svg class="glyph" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-ThumbsDown"></use></svg></button></div>
         <p class="demo-status" id="feedback-status" aria-live="polite">Unselected</p>
       </article>
       <article class="panel">
@@ -251,7 +261,7 @@
   </section>
   <section id="actions" aria-labelledby="actions-title">
     <h2 id="actions-title">Card action glyphs</h2>
-    <p class="section-copy">Preserve each glyph’s viewBox, size and stroke. Reset, generated action labels such as Draw again, and registered Previous / Next use text controls.</p>
+    <p class="section-copy">This inventory records existing glyph geometry, including viewBox, size and stroke. Use the shared button dimensions in this template when applying a glyph to a new card. Reset, generated actions such as Draw again, and registered Previous / Next use text controls.</p>
     <div class="panel table-wrap"><table>
       <thead><tr><th scope="col">Glyph</th><th scope="col">Use</th><th scope="col">Source glyph</th><th scope="col">Size and stroke</th><th scope="col">Source</th></tr></thead>
       <tbody><tr><td class="glyph-cell"><svg class="glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-FileText"></use></svg></td><th scope="row">Source file</th><td><code>FileText</code></td><td>14 px header / 12 px compact · stroke 2 · viewBox <code>0 0 24 24</code></td><td><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/SourceRefChip.jsx#L86-L108">Runtime</a></td></tr>
@@ -299,12 +309,12 @@
         <tr><th scope="row">Type pill</th><td>Text only, 13 px and weight 700. Minimum height 26 px, radius 999 px, padding 1 px vertical and 11 px horizontal. Explanation uses <code>#EAF1FB</code> / <code>#375D92</code>. Interactive uses <code>#F8ECE3</code> / <code>#934723</code>.</td></tr>
         <tr><th scope="row">Reference resize grip</th><td>26 × 26 px box, 7 px radius, 1 px transparent border at rest. Use card <code>#FFFEFA</code> with ink <code>#5D675F</code> at rest. Hover uses <code>#EAF1FB</code> and press or drag uses <code>#D0E0F4</code>, both with border <code>#ADC4E5</code> and ink <code>#375D92</code>. Glyph 14 × 14 px, stroke 1.4.</td></tr>
         <tr><th scope="row">Keyboard focus</th><td>2 px solid <code>#426DB2</code>, outline offset +2 px. Resize grip offset −2 px.</td></tr>
-        <tr><th scope="row">Special button boxes</th><td>Feedback uses a 28 × 28 px circle and a 13 px glyph. Composer Send and Stop use the existing compact 24 px, stacked 32 px, and docked 36 px circles; their glyph sizes are listed above.</td></tr>
+        <tr><th scope="row">Feedback and playback</th><td>Feedback uses the shared 35 × 35 px icon button with a 13 px glyph. Playback uses the shared labelled button with a 14 px glyph.</td></tr>
         <tr><th scope="row">SVG paint</th><td>Stroke inherits currentColor. The default fill is none and caps and joins are round. Both feedback glyphs fill with blue ink <code>#375D92</code> when selected. Enabled surfaces and glyphs are opaque. Disabled controls use 45% opacity.</td></tr>
         <tr><th scope="row">Accessible names</th><td>Give icon-only buttons an aria-label. Put aria-hidden on the icon when its button already supplies the name. Use aria-pressed for toggles and aria-expanded for disclosures.</td></tr>
       </tbody>
     </table></div>
-    <p class="technical">The resizable card shell supplies the neutral and type colors. This icon template assigns blue to feedback selection, playback emphasis and general control states. The warm orange pair is reserved for Interactive identity and controls inside an experiment. The runtime sources supply the glyphs and sizes.</p>
+    <p class="technical">The resizable card shell supplies the neutral surfaces and type colors. Shared controls use the blue palette for selection, focus, playback and filled primary actions. Warm orange is reserved for the Interactive pill and scene data accents. Runtime links document existing glyphs and their dimensions.</p>
     <p class="footer-links"><a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-resizable-card-shell.html">Resizable card shell</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/card-icons.js#L6-L24">Card-type registry</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/19f933c286bdf118f3dc9a6e20c712509174e92d/packages/web/src/CardHeader.jsx#L20-L27">Header sizes</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3c62884697de2dda94956f7615d6b9149d367a25/docs/features/explain-on-canvas/handoff/ui/07-explanation-card-approved.html">Approved Explanation UI</a></p>
   </section>
 </main>
