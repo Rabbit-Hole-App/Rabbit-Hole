@@ -51,6 +51,11 @@ const clip = (text, max = 200) => String(text).replace(/\s+/g, ' ').trim().slice
 const LOOKS = /\b(?:looks? like|3d|anatomy)\b/i;
 // EXP-13 fix 6a: the learner's words say the process repeats, so a branchless flow the author drew is a cycle (learn-artifact.js re-routes it).
 export const repeats = text => /\b(?:cycles?|repeat(?:s|ed|ing)?|loops?|again|round|phases|recurring)\b/i.test(String(text ?? ''));
+// Item 47: the learner's words are about messages passed between actors, so a last-resort simplified diagram is a sequence (learn-primitives.js simplifiedDiagram).
+// shortcut: a word list like repeats; upgrade when real requests show a miss.
+export const messaging = text => /\b(?:send|sends|sent|sending|messages?|handshake|exchanges?|exchanged|repl(?:y|ies|ied)|responds?|talks? to)\b/i.test(String(text ?? ''));
+// The kind a last-resort simplified diagram takes for these words: cycle (repeat words, the same list as fix 6a), sequence (messages), else flow.
+export const fallbackKind = text => (repeats(text) ? 'cycle' : messaging(text) ? 'sequence' : 'flow');
 
 // -> { version, items: [{ id, kind: 'table'|'diagram'|'illustration', diagramKind?, purpose }] } (items may be empty; one item per asked diagram or picture), or { unsupported: 'one line for the learner' }.
 export function deriveVisualRequirements(text) {

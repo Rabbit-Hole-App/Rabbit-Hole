@@ -14,12 +14,12 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, dropInvalidDiagrams, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, correctDiagrams, dropInvalidDiagrams, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
 import { INTERACTION_GUIDANCE, INTERACTION_PROPERTIES, bindInteractions, interactionsEnabled, keptInteractions } from './explanation-interactions.js';
-import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, repeats, requiredMix, requiredVisualProblem, requirementText } from './explanation-visuals.js';
+import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, fallbackKind, repeats, requiredMix, requiredVisualProblem, requirementText } from './explanation-visuals.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
@@ -182,6 +182,9 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         const settled = settleExplanationBody(block.body, requiredMix(wanted));
         diagramsDropped = markdownVisuals(block.body).diagrams.length - markdownVisuals(settled).diagrams.length; // recorded with the result, as a dropped invalid diagram is
         block = { ...block, body: settled };
+        // Item 47: flow rules the server can fix (a one-branch decision, separate starts, a closed loop, an over-long label) are fixed here, before any repair.
+        const fixed = correctDiagrams(block.body), corrections = { ...fixed.corrections };
+        block = { ...block, body: fixed.md };
         // EXP-13 fix 6a: repeat words in the question turn a branchless flow into a cycle (no call), unless the learner named another diagram kind.
         if (repeats(input.args) && [undefined, 'cycle'].includes(requiredMix(wanted)?.diagramKind)) block = { ...block, body: chainsAsCycles(block.body) };
         if (attempt >= repairs) {
@@ -190,16 +193,18 @@ export async function generateArtifact(env, input, { callModel: injected = null,
           // its own labels (no model call); if none can be built the prose card is delivered without a visual. Recorded on the card as visualFallback
           // ('simplified' | 'dropped') for the benchmark; the learner sees no error.
           if (trimmed.dropped && !markdownVisuals(trimmed.block.body).diagrams.length && !markdownIllustrations(trimmed.block.body).length) {
-            const simple = dropInvalidDiagrams(block, { simplify: true });
+            // Item 47: its kind from the learner's words (cycle, sequence, else flow); a diagram kind the learner named wins, so the required check still holds.
+            const named = requiredMix(wanted)?.diagramKind;
+            const simple = dropInvalidDiagrams(block, { simplify: true, prefer: ['flow', 'cycle', 'sequence'].includes(named) ? named : fallbackKind(input.args) });
             // The simpler diagram must pass the card's own checks too (it may name nothing the prose names); if not, the prose card goes without it.
-            if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args)) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';
-          }
+            if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args)) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';          }
           // E1: only an OPTIONAL diagram may be dropped. With a required one, the drop stands only if the card still holds a valid diagram for each requirement
           // and no text points at the dropped figure; otherwise the card keeps its invalid diagram and fails the checks below, truthfully.
           if (trimmed.dropped && !requiredVisualProblem(trimmed.block, wanted)) {
             if (trimmed.dropped > trimmed.simplified) { const dangling = danglingFigureProblem(trimmed.block); if (dangling) throw new Error(dangling); }
             block = { ...trimmed.block, ...(fallback ? { visualFallback: fallback } : {}) }; diagramsDropped += trimmed.dropped - trimmed.simplified;
             if (trimmed.simplified) diagramsSimplified = trimmed.simplified;
+            for (const kind of trimmed.kinds) corrections[`simplified_${kind}`] = (corrections[`simplified_${kind}`] || 0) + 1;
           }
         }
         // E2 + fix 1b: the questions and term anchors are read against the FINAL text (accepted title applied, diagrams settled); what is not valid is dropped, never repaired.
@@ -209,6 +214,9 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
         block = { ...block, depth: validDepth(input.depth) || DEFAULT_DEPTH }; // E3: the budget this card was written to, so a later illustration caption is checked against it
         block = { ...block, proseLists: proseListCount(block.body) }; // owner 2026-11-08: lists are asked against, never checked; this counts them for measurement
+        // Item 47: one log line per server correction this card's diagrams got, and their count on the card, so a rising count shows after a prompt change.
+        for (const [kind, n] of Object.entries(corrections)) for (let i = 0; i < n; i++) console.log(JSON.stringify({ event: 'explanation_diagram_corrected', kind }));
+        if (Object.keys(corrections).length) block = { ...block, diagramCorrections: corrections };
         // EXP-13: the pictures, made before the card is returned and saved; one that cannot be made loses its fence, never the card. It shows no text, so the anchors checked above still hold.
         block = await illustrateExplanation(env, block, { ...(figures || {}), early });
         if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };

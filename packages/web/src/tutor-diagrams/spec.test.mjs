@@ -136,3 +136,12 @@ test('descriptions include titles, captions, all visible labels and directed rel
     for (const value of expected[index]) assert.ok(result.includes(value), result);
   }
 });
+
+// Item 47 (2026-11-08): a flow node may carry the server's title (a trimmed label's full text); the author's JSON schema never asks for it.
+test('a flow node title parses, within its limit, and is not in the author schema', () => {
+  const flow = title => ({ version: 1, diagram: { kind: 'flow', title: 'T', nodes: [{ id: 'a', label: 'Go', role: 'process', ...(title === undefined ? {} : { title }) }, { id: 'b', label: 'Stop', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] } });
+  assert.equal(parseTutorDiagram(flow('Go all the way')).diagram.nodes[0].title, 'Go all the way');
+  assert.throws(() => parseTutorDiagram(flow('x'.repeat(241))));
+  const shapes = tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf;
+  assert.deepEqual(Object.keys(shapes.find(s => s.properties.kind.const === 'flow').properties.nodes.items.properties), ['id', 'label', 'role']);
+});

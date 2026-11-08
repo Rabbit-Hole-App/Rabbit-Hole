@@ -36,7 +36,8 @@ const figureAnchors = {
 const diagramShape = z.discriminatedUnion('kind', [
   z.strictObject({
     ...titled, kind: z.literal('flow'),
-    nodes: z.array(z.strictObject({ id, label: text(60), role: z.enum(['process', 'decision', 'outcome']) })).min(2).max(12),
+    // title (item 47, 2026-11-08): the full label when the server trimmed an over-long one; drawn as the node's SVG <title> tooltip, not as text.
+    nodes: z.array(z.strictObject({ id, label: text(60), role: z.enum(['process', 'decision', 'outcome']), title: text(240).optional() })).min(2).max(12),
     edges: z.array(z.strictObject({ ...endpoint, label: text(30).optional() })).min(1).max(20),
     // E3 (explain.md EXP-12-C04): an ordered worked route through the flow, root to terminal; the renderer draws it in the theme's fixed path style. Node IDs only: no colour, CSS or SVG.
     highlightPath: z.array(id).min(2).max(12).optional(),
@@ -288,6 +289,9 @@ export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
 // Provider constraints describe the JSON shape. The local parse additionally
 // checks topology, labels and row widths that JSON Schema cannot express here.
 const { $schema, ...jsonSchema } = z.toJSONSchema(shape, { target: 'draft-7', io: 'input' });
+// A flow node's title is written by the server only (a trimmed label's full text), so the author is never asked for it.
+const flowNode = (jsonSchema.properties.diagram.oneOf ?? jsonSchema.properties.diagram.anyOf).find(s => s.properties.kind.const === 'flow').properties.nodes.items;
+delete flowNode.properties.title;
 export const tutorDiagramJsonSchema = jsonSchema;
 
 export function parseTutorDiagram(value) {

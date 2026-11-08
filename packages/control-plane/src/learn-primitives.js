@@ -384,33 +384,52 @@ export function withoutIllustrations(md, ids) {
 // delivered without a diagram that cannot be drawn. A Mermaid fence is still refused, not dropped. -> { block, dropped }; the block is the same
 // object when nothing was dropped.
 const parses = lines => { try { parseTutorDiagram(lines.join('\n')); return true; } catch { return false; } };
-// Owner 2026-11-08 (a card should not fail): an invalid diagram the one repair did not fix becomes, with no model call, a straight flow of its own labels in
-// the order written (n1 -> n2 -> ..., each a process, the last the outcome; title and caption kept when they fit). -> the spec, or null when the fence is
-// not JSON or fewer than two labels can be read.
+// Owner 2026-11-08 (a card should not fail): an invalid diagram the one repair did not fix becomes, with no model call, a simpler diagram of its own labels in
+// the order written; title and caption kept when they fit. Item 47 (owner 2026-11-08): its kind comes from the learner's words (prefer, chosen by the caller,
+// learn-artifact.js): 'cycle' for repeat words (2-7 steps), 'sequence' for messages between actors when the diagram names at least two actors and a message
+// between two of them, otherwise (or when that kind cannot be built) a straight flow (n1 -> n2 -> ..., each a process, the last the outcome).
+// -> the parsed spec, or null when the fence is not JSON or fewer than two labels can be read.
 const LABEL_LISTS = ['nodes', 'steps', 'events', 'layers', 'actors', 'messages', 'bars', 'changes', 'markers', 'callouts'];
 const fit = (s, max) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, ''); };
-export function simplifiedDiagram(lines) {
-  let d; try { d = JSON.parse(lines.join('\n'))?.diagram; } catch { return null; }
-  const list = LABEL_LISTS.map(k => d?.[k]).find(v => Array.isArray(v) && v.length >= 2) || [];
-  const labels = [...new Set(list.map(x => (typeof x === 'string' ? x : x?.label)).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60)))].slice(0, 12);
-  if (labels.length < 2) return null;
-  const title = fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0]} to ${labels.at(-1)}`, 90);
-  const caption = typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {};
-  const spec = { version: 1, diagram: { title, ...caption, kind: 'flow', nodes: labels.map((label, i) => ({ id: `n${i + 1}`, label, role: i === labels.length - 1 ? 'outcome' : 'process' })),
-    edges: labels.slice(1).map((_, i) => ({ from: `n${i + 1}`, to: `n${i + 2}` })) } };
-  try { return parseTutorDiagram(spec); } catch { return null; }
+const tryParse = spec => { try { return parseTutorDiagram(spec); } catch { return null; } };
+function simplifiedSequence(d, head) {
+  const actors = [], to = new Map();
+  for (const a of Array.isArray(d.actors) ? d.actors : []) {
+    const label = typeof a === 'string' ? a : a?.label;
+    if (typeof label !== 'string' || !label.trim() || actors.length >= 4) continue;
+    const id = `a${actors.length + 1}`; actors.push({ id, label: fit(label, 30) });
+    for (const key of [a?.id, label]) if (typeof key === 'string' && !to.has(key.trim().toLowerCase())) to.set(key.trim().toLowerCase(), id); // a repeated id keeps its first actor
+  }
+  const end = v => (typeof v === 'string' ? to.get(v.trim().toLowerCase()) : undefined);
+  const messages = (Array.isArray(d.messages) ? d.messages : []).map(m => ({ from: end(m?.from), to: end(m?.to), label: typeof m?.label === 'string' ? fit(m.label, 60) : '' }))
+    .filter(m => m.from && m.to && m.from !== m.to && m.label).slice(0, 8);
+  return actors.length >= 2 && messages.length ? tryParse({ version: 1, diagram: { ...head, kind: 'sequence', actors, messages } }) : null;
 }
-// simplify: an invalid closed diagram is replaced by simplifiedDiagram when it can be, else removed. -> { md, dropped (removed or replaced), simplified }
-function dropFrom(md, simplify = false) {
-  const out = []; let open = null, dropped = 0, simplified = 0;
+export function simplifiedDiagram(lines, prefer = 'flow') {
+  let d; try { d = JSON.parse(lines.join('\n'))?.diagram; } catch { return null; }
+  if (!d || typeof d !== 'object') return null;
+  const list = LABEL_LISTS.map(k => d[k]).find(v => Array.isArray(v) && v.length >= 2) || [];
+  const labels = [...new Set(list.map(x => (typeof x === 'string' ? x : x?.label)).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60)))].slice(0, 12);
+  if (labels.length < 2 && prefer !== 'sequence') return null;
+  const title = fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0]} to ${labels.at(-1)}`, 90);
+  const head = { title, ...(typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {}) };
+  const chosen = prefer === 'sequence' ? simplifiedSequence(d, head)
+    : prefer === 'cycle' && labels.length <= 7 ? tryParse({ version: 1, diagram: { ...head, kind: 'cycle', steps: labels.map(l => fit(l, 55)) } }) : null;
+  if (chosen || labels.length < 2) return chosen;
+  return tryParse({ version: 1, diagram: { ...head, kind: 'flow', nodes: labels.map((label, i) => ({ id: `n${i + 1}`, label, role: i === labels.length - 1 ? 'outcome' : 'process' })),
+    edges: labels.slice(1).map((_, i) => ({ from: `n${i + 1}`, to: `n${i + 2}` })) } });
+}
+// simplify: an invalid closed diagram is replaced by simplifiedDiagram when it can be, else removed. -> { md, dropped (removed or replaced), simplified, kinds (of the simplified) }
+function dropFrom(md, simplify = false, prefer = 'flow') {
+  const out = [], kinds = []; let open = null, dropped = 0;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       open.raw.push(line);
       if (/^\s*```/.test(line)) {
         if (open.lang === DIAGRAM && !parses(open.lines)) {
           dropped++;
-          const spec = simplify && simplifiedDiagram(open.lines);
-          if (spec) { simplified++; out.push(open.raw[0], JSON.stringify(spec), line); }
+          const spec = simplify && simplifiedDiagram(open.lines, prefer);
+          if (spec) { kinds.push(spec.diagram.kind); out.push(open.raw[0], JSON.stringify(spec), line); }
         } else out.push(...open.raw);
         open = null;
       } else open.lines.push(line);
@@ -421,14 +440,87 @@ function dropFrom(md, simplify = false) {
     out.push(line);
   }
   if (open) { if (open.lang === DIAGRAM) dropped++; else out.push(...open.raw); }
-  return dropped ? { md: out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), dropped, simplified } : { md, dropped: 0, simplified: 0 };
+  return dropped ? { md: out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), dropped, simplified: kinds.length, kinds } : { md, dropped: 0, simplified: 0, kinds };
 }
-export function dropInvalidDiagrams(block, { simplify = false } = {}) {
-  const body = dropFrom(block?.body, simplify);
-  const more = (block?.more || []).map(s => ({ s, d: dropFrom(s?.text, simplify) }));
-  const dropped = body.dropped + more.reduce((n, { d }) => n + d.dropped, 0), simplified = body.simplified + more.reduce((n, { d }) => n + d.simplified, 0);
-  if (!dropped) return { block, dropped: 0, simplified: 0 };
-  return { block: { ...block, body: body.md, ...(block.more ? { more: more.map(({ s, d }) => (d.dropped ? { ...s, text: d.md } : s)) } : {}) }, dropped, simplified };
+export function dropInvalidDiagrams(block, { simplify = false, prefer = 'flow' } = {}) {
+  const body = dropFrom(block?.body, simplify, prefer);
+  const more = (block?.more || []).map(s => ({ s, d: dropFrom(s?.text, simplify, prefer) }));
+  const dropped = body.dropped + more.reduce((n, { d }) => n + d.dropped, 0), kinds = [...body.kinds, ...more.flatMap(({ d }) => d.kinds)];
+  if (!dropped) return { block, dropped: 0, simplified: 0, kinds: [] };
+  return { block: { ...block, body: body.md, ...(block.more ? { more: more.map(({ s, d }) => (d.dropped ? { ...s, text: d.md } : s)) } : {}) }, dropped, simplified: kinds.length, kinds };
+}
+
+// ---- Item 47 (owner 2026-11-08): flow rules the server fixes itself, with no model call, before any repair ------------------------------------------------------
+// On an rh-diagram flow that does not parse, in order: (1) label_trimmed: a node label over its limit is cut at a word boundary and the full label kept as the
+// node's title (drawn as its tooltip); (2) one_branch_decision: a decision with one outgoing edge becomes a process; (3) flow_loop_to_cycle: a flow that is one
+// closed loop (every node one edge in and one out, no start) becomes a cycle of the same steps in order, when it has 2-7 steps; (4) joined_roots: a second start
+// whose edge end names another start by its label (an edge the author already wrote, with a label for an id) is attached as that edge's child; starts that are
+// still separate (2 or 3 of them, each beginning its own sub-flow) are joined under one synthetic start, a decision named by the diagram's title whose branches
+// are named by the starts. A node with no edge at all is never placed. Nothing else is invented. A fix is kept only when the whole diagram then parses; otherwise the author's diagram goes on, unchanged, to the one repair.
+// -> { spec, kinds: [correction kind, ...] } or null.
+const FLOW_LABEL = 60, NODE_TITLE = 240;
+function correctedFlow(raw) {
+  if (tryParse(raw)) return null;
+  const d = structuredClone(raw?.diagram);
+  if (d?.kind !== 'flow' || !Array.isArray(d.nodes) || !Array.isArray(d.edges) || !d.nodes.every(n => typeof n?.id === 'string' && typeof n.label === 'string')
+    || !d.edges.every(e => typeof e?.from === 'string' && typeof e.to === 'string')) return null;
+  const kinds = [];
+  let issues = []; try { parseTutorDiagram({ version: 1, diagram: d }); } catch (error) { issues = Array.isArray(error?.issues) ? error.issues : []; }
+  const long = new Set(issues.filter(i => i.path?.[1] === 'nodes' && i.path[3] === 'label' && /at most|too big|<=/i.test(i.message)).map(i => i.path[2])); // the limit check, or the source cap at twice it
+  for (const i of long) { const n = d.nodes[i]; n.title = fit(n.label, NODE_TITLE); n.label = fit(n.label, FLOW_LABEL); kinds.push('label_trimmed'); }
+  const ids = new Set(d.nodes.map(n => n.id)), out = id => d.edges.filter(e => e.from === id);
+  for (const n of d.nodes) if (n.role === 'decision' && out(n.id).length === 1) { n.role = 'process'; kinds.push('one_branch_decision'); }
+  const known = () => d.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+  const roots = () => d.nodes.filter(n => !known().some(e => e.to === n.id));
+  if (!roots().length && d.nodes.length >= 2 && d.nodes.length <= 7 && known().length === d.edges.length && d.nodes.every(n => out(n.id).length === 1)) {
+    const steps = []; const byId = new Map(d.nodes.map(n => [n.id, n]));
+    for (let id = d.nodes[0].id; id && !steps.includes(id); id = out(id)[0]?.to) steps.push(id);
+    if (steps.length === d.nodes.length && out(steps.at(-1))[0].to === steps[0]) {
+      const cycle = tryParse({ version: 1, diagram: { title: d.title, ...(d.caption ? { caption: d.caption } : {}), kind: 'cycle', steps: steps.map(id => fit(byId.get(id).label, 55)) } });
+      return cycle ? { spec: cycle, kinds: [...kinds, 'flow_loop_to_cycle'] } : null;
+    }
+  }
+  if (roots().length >= 2) {
+    const byLabel = new Map(roots().map(n => [n.label.trim().toLowerCase(), n.id]));
+    for (const e of d.edges) {
+      const id = !ids.has(e.to) && ids.has(e.from) && byLabel.get(e.to.trim().toLowerCase());
+      if (id && id !== e.from) { e.to = id; kinds.push('joined_roots'); }
+    }
+    // Only starts of their own sub-flows are joined: a node with no edge at all is one the author did not connect, and placing it is a repair's job.
+    const starts = roots();
+    if (starts.length >= 2 && starts.length <= 3 && d.nodes.length < 12 && starts.every(n => out(n.id).length)) {
+      const branches = starts.map(n => fit(n.label, 30));
+      let id = 'start'; for (let k = 2; ids.has(id); k++) id = `start${k}`;
+      if (new Set(branches.map(b => b.toLowerCase())).size === branches.length && branches.every(Boolean)) {
+        d.nodes.unshift({ id, label: fit(d.title || 'Start', FLOW_LABEL), role: 'decision' });
+        d.edges.unshift(...starts.map((n, i) => ({ from: id, to: n.id, label: branches[i] })));
+        if (Array.isArray(d.highlightPath) && starts.some(n => n.id === d.highlightPath[0])) d.highlightPath.unshift(id);
+        kinds.push('joined_roots');
+      }
+    }
+  }
+  const spec = kinds.length ? tryParse({ version: 1, diagram: d }) : null;
+  return spec ? { spec, kinds } : null;
+}
+// -> { md, corrections: { [kind]: count } }: every rh-diagram fence corrected where it can be (correctedFlow), the same string when none is.
+export function correctDiagrams(md) {
+  const out = [], corrections = {}; let open = null;
+  for (const line of String(md ?? '').split('\n')) {
+    if (open) {
+      if (/^\s*```/.test(line)) {
+        let raw = null; try { raw = JSON.parse(open.lines.join('\n')); } catch { /* not JSON: the repair's */ }
+        const fixed = raw && correctedFlow(raw);
+        if (fixed) for (const kind of fixed.kinds) corrections[kind] = (corrections[kind] || 0) + 1;
+        out.push(open.raw, ...(fixed ? [JSON.stringify(fixed.spec)] : open.lines), line); open = null;
+      } else open.lines.push(line);
+      continue;
+    }
+    const m = line.match(FENCE);
+    if (m && m[1].toLowerCase() === DIAGRAM) { open = { lines: [], raw: line }; continue; }
+    out.push(line);
+  }
+  if (open) out.push(open.raw, ...open.lines);
+  return Object.keys(corrections).length ? { md: out.join('\n'), corrections } : { md, corrections };
 }
 
 // EXP-13 fix 6a (owner 2026-11-08, a re-route, never a refusal): when the learner's words say the process repeats, every rh-diagram flow with no decision

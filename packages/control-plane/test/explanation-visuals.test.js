@@ -169,8 +169,9 @@ test('optional diagram degradation: a valid required diagram beside an invalid o
 });
 
 test('owner 2026-11-08, a card should not fail: the only diagram still invalid after the repair becomes a straight flow of its own labels, no model call', async () => {
-  // The heart's loop drawn as a flow has no start node, which a flow refuses ("A flow needs exactly one root").
-  const labels = ['Right atrium', 'Right ventricle', 'Lungs', 'Left atrium', 'Left ventricle', 'Body'];
+  // The heart's loop drawn as a flow has no start node, which a flow refuses ("A flow needs exactly one root"). With 8 steps it is over the cycle's 7, so
+  // the server cannot turn it into a cycle (item 47); a loop of up to 7 is, below.
+  const labels = ['Right atrium', 'Right ventricle', 'Lungs', 'Left atrium', 'Left ventricle', 'Aorta', 'Body', 'Veins'];
   const loop = { kind: 'flow', title: 'Blood through the heart', caption: 'Blood loops through the heart twice.', nodes: labels.map((label, i) => ({ id: `s${i}`, label, role: 'process' })),
     edges: labels.map((_, i) => ({ from: `s${i}`, to: `s${(i + 1) % labels.length}` })) };
   const card = { title: 'How the heart pumps', body: `The heart is two pumps side by side, moving blood from the body to the lungs and back.\n\n${diagram(loop)}\n\nEach beat squeezes the atria first, then the ventricles.` };
@@ -179,7 +180,8 @@ test('owner 2026-11-08, a card should not fail: the only diagram still invalid a
   const [drawn] = markdownVisuals(out.block.body).diagrams;
   assert.deepEqual([drawn.ok, drawn.kind], [true, 'flow']);
   const spec = JSON.parse(out.block.body.match(/```rh-diagram\n(.*)\n```/)[1]).diagram;
-  assert.deepEqual([spec.title, spec.caption, spec.nodes.map(n => n.label), spec.nodes.map(n => n.role).at(-1), spec.edges.length], [loop.title, loop.caption, labels, 'outcome', 5]);
+  assert.deepEqual([spec.title, spec.caption, spec.nodes.map(n => n.label), spec.nodes.map(n => n.role).at(-1), spec.edges.length], [loop.title, loop.caption, labels, 'outcome', 7]);
+  assert.deepEqual(out.block.diagramCorrections, { simplified_flow: 1 }, 'counted on the card (item 47)');
   assert.ok(out.block.body.startsWith('The heart is two pumps') && out.block.body.endsWith('then the ventricles.'), 'the prose around it is kept');
   // With a repair left, nothing is simplified: the validator's words go to the model first.
   assert.match(m.seen[1].messages.at(-1).content[0].content, /exactly one root/);
