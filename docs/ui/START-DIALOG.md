@@ -27,6 +27,7 @@ The new source-pattern layout lives in `styles/source-picker.css`. Dialog compos
 
 ## Interaction and copy contract
 
+- Initial modal focus goes to the title. Files starts selected with an underline, without an automatic button focus ring. Keyboard focus rings remain visible inside the tab bounds.
 - Tabs switch source panels; they do not claim to add a source. Arrow keys and Home/End move between tabs.
 - Browse files opens the file picker; files can also be dropped. Selection updates only the local draft.
 - Add link / Add repository stay next to their inputs, retain single-line labels and use lower-emphasis buttons.
