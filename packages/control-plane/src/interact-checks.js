@@ -23,6 +23,16 @@ import { REPAIR_FORWARD } from './explain-program-stage.js';
 // correctionRounds: shared across validation, render and review failures (INT-05-C08). renderRetries: recapture attempts after a render
 // outage, which spend no model call and no correction round (INT-05-C10). maxCases: the rendered reviewer's images per round (the profile's
 // build_review.maxImages, 6), so one round is one review call.
+// parseReview clamps a finding's message (400 characters) and object (64) itself. The strict adapter validator would instead refuse the WHOLE review for one long sentence
+// (a live run lost its review to a 400-plus character message), so those two length limits are dropped from the VALIDATION schema only; the clamp still applies afterwards.
+export function lenientFindingText(schema) {
+  if (Array.isArray(schema)) return schema.map(lenientFindingText);
+  if (!schema || typeof schema !== 'object') return schema;
+  const out = Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, lenientFindingText(value)]));
+  if (out.properties && typeof out.properties === 'object') for (const name of ['message', 'object']) if (out.properties[name]?.type === 'string' && out.properties[name].maxLength !== undefined) { const { maxLength: _drop, ...rest } = out.properties[name]; out.properties = { ...out.properties, [name]: rest }; }
+  return out;
+}
+
 export const CHECK_LIMITS = Object.freeze({ correctionRounds: INTERACT_LIMITS.correctionRounds, reviewCalls: INTERACT_LIMITS.calls.build_review, renderRetries: 2, maxCases: 6, maxProbes: 8, tolerance: 1e-6, timeTolerance: 1e-9 });
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -318,7 +328,7 @@ export async function reviewCandidate(job, ctx, { cases, captures, coverage, det
   // The independent reviewer sees only captures of THIS composition: reviewCaptures refuses any other compiledHash.
   const calls = [];
   const callRole = async (_role, { system, tool, content }) => {
-    const done = await callInteractRole(ctx, 'build_review', { system, schema: tool.input_schema, input: content.filter(b => b.type === 'text').map(b => b.text).join('\n\n'),
+    const done = await callInteractRole(ctx, 'build_review', { system, schema: lenientFindingText(tool.input_schema), input: content.filter(b => b.type === 'text').map(b => b.text).join('\n\n'),
       images: content.filter(b => b.type === 'image').map(b => ({ media_type: b.source.media_type, data: b.source.data })), name: tool.name, description: tool.description });
     calls.push(callRecord('build_review', done));
     return { input: done.output, identity: done.requested, usage: done.usage };

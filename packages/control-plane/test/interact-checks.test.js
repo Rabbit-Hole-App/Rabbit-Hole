@@ -11,7 +11,7 @@ import { RenderError } from '../src/explain-render.js';
 import { InteractModelError } from '../src/interact-models.js';
 import { interactRepairTool } from '../src/agents/explain-repair.js';
 import { validateBuildOutput } from '../src/interact-build.js';
-import { CHECK_LIMITS, INTERACT_REVIEW_RULES, buildPlanCaptureCases, checkRound, checkSceneAgainstPlan, classifyFailure, repairRound } from '../src/interact-checks.js';
+import { lenientFindingText, CHECK_LIMITS, INTERACT_REVIEW_RULES, buildPlanCaptureCases, checkRound, checkSceneAgainstPlan, classifyFailure, repairRound } from '../src/interact-checks.js';
 import { fixtureCaptureCard, fixtureContext, fixtureScript } from '../src/interact-fixtures.js';
 
 const { capabilities, plans } = await interactFixtures();
@@ -275,4 +275,14 @@ test('a scene that draws the Story or the card description as text is refused (t
   assert.deepEqual(check(c => c), []);
   assert.ok(check(c => { c[1].trace.texts.push(plans.standard.cardDescription); return c; }).includes('story_in_scene'));
   assert.ok(check(c => { c[2].supports.threeMoments.trace.texts.push(plans.standard.story.slice(0, 120)); return c; }).includes('story_in_scene'));
+});
+
+test('a finding message over 400 characters does not void the whole review: the validation schema drops that limit, the legacy clamp still applies', async () => {
+  const { REVIEW_TOOL } = await import('../src/explain-review.js');
+  const { schemaProblems } = await import('../src/interact-model-adapters.js');
+  const strict = REVIEW_TOOL.input_schema, lenient = lenientFindingText(strict);
+  const reply = { captures: [{ id: 'c1', semantic: 'pass', visual: 'pass', findings: [{ verdict: 'visual', category: 'spec', severity: 'minor', message: 'x'.repeat(900), repairable: false }] }] };
+  assert.ok(schemaProblems(strict, reply).length > 0, 'the strict schema refuses it');
+  assert.deepEqual(schemaProblems(lenient, reply), [], 'the validation schema accepts it');
+  assert.equal(JSON.stringify(strict).includes('"maxLength":400'), true, 'the original schema is not mutated');
 });
