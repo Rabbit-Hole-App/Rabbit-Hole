@@ -3,8 +3,8 @@
 // every correction is logged and counted on the card. Offline: the model is a double, nothing is sent or paid.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { correctDiagrams, diagramProblem, simplifiedDiagram } from '../src/learn-primitives.js';
-import { fallbackKind } from '../src/explanation-visuals.js';
+import { correctDiagrams, diagramProblem, flowsAsSequences, simplifiedDiagram } from '../src/learn-primitives.js';
+import { deriveVisualRequirements, fallbackKind } from '../src/explanation-visuals.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { AUTHOR_SEED, AUTHOR_TEMPERATURE, REPAIR_TEMPERATURE, stepRequest } from '../src/explanation-fast-chain.js';
 import { CHAIN_STEPS } from '../src/explanation-models.js';
@@ -91,6 +91,48 @@ test('the last-resort simplified diagram takes its kind from the learner\'s word
   try {
     const out = await generateArtifact({}, { command: 'explanation', args: 'Why does the water cycle repeat?' }, { callModel: async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c', name: 'make_explanation', input: card }] }) });
     assert.deepEqual([out.result, out.block.visualFallback, specOf(out.block.body).kind, out.block.diagramCorrections], ['artifact', 'simplified', 'cycle', { simplified_cycle: 1 }]);
+  } finally { console.log = log; }
+});
+
+// Owner 2026-11-08: a straight flow whose every step is a message between parties is drawn as a sequence; anything else stays a flow.
+const chainOf = (title, labels) => flow(labels.map((label, i) => [`n${i}`, label]), labels.slice(1).map((_, i) => [`n${i}`, `n${i + 1}`]), { title });
+const sequenced = (title, labels) => flowsAsSequences(`A.\n\n${fence(chainOf(title, labels))}\n\nB.`);
+test('flow_to_sequence: a handshake and a 3-party exchange drawn as straight flows become sequences, the trailing outcome kept as the caption', () => {
+  const tcp = sequenced('The TCP handshake', ['Client sends SYN', 'Server replies SYN-ACK', 'Client sends ACK', 'Connection Established']);
+  assert.equal(tcp.count, 1);
+  assert.deepEqual(specOf(tcp.md), { kind: 'sequence', title: 'The TCP handshake', caption: 'Connection Established', actors: [{ id: 'a1', label: 'Client' }, { id: 'a2', label: 'Server' }],
+    messages: [{ from: 'a1', to: 'a2', label: 'SYN' }, { from: 'a2', to: 'a1', label: 'SYN-ACK' }, { from: 'a1', to: 'a2', label: 'ACK' }] });
+  assert.equal(diagramProblem(tcp.md), null);
+  // Three parties: each message goes to the next step's subject; the last step receives what the one before sent, so it is not drawn twice.
+  const proxy = sequenced('A page through a proxy', ['Browser sends GET /page', 'Proxy forwards GET /page', 'Web Server returns page', 'Proxy forwards page', 'Browser receives page']);
+  assert.deepEqual([specOf(proxy.md).actors.map(a => a.label), specOf(proxy.md).messages.map(m => [m.from, m.to, m.label])],
+    [['Browser', 'Proxy', 'Web Server'], [['a1', 'a2', 'GET /page'], ['a2', 'a3', 'GET /page'], ['a3', 'a2', 'page'], ['a2', 'a1', 'page']]]);
+  assert.equal(specOf(proxy.md).caption, undefined);
+});
+
+test('flow_to_sequence never fires on a single-actor pipeline, a flow with a decision, a non-message step or an ambiguous receiver', () => {
+  const same = (title, labels) => { const out = sequenced(title, labels); assert.equal(out.count, 0, title); assert.equal(specOf(out.md).kind, 'flow', title); };
+  same('Compiling', ['Compiler lexes source', 'Compiler parses tokens', 'Compiler generates code']);
+  same('One party only', ['Client sends SYN', 'Client sends ACK']);
+  // DECISION (owner 2026-11-08): stays a FLOW. validates and stores are not message verbs and nothing goes back to the user; a sequence needs every step to be a message.
+  same('Submitting a form', ['User submits form', 'Server validates input', 'Server stores record']);
+  same('Outcome in the middle', ['Client sends SYN', 'Connection Established', 'Server replies SYN-ACK']);
+  // Three parties and the last message has no next subject: the receiver is ambiguous.
+  same('Ambiguous', ['Browser sends GET', 'Proxy forwards GET', 'Server returns page']);
+  const decided = `A.\n\n${fence(flow([['a', 'Client sends SYN'], ['b', 'Server up?', 'decision'], ['c', 'Server replies SYN-ACK'], ['d', 'Client sends RST']], [['a', 'b'], ['b', 'c', 'Yes'], ['b', 'd', 'No']]))}\n\nB.`;
+  assert.deepEqual(flowsAsSequences(decided), { md: decided, count: 0 });
+});
+
+test('flow_to_sequence is logged and counted on the card like the other corrections, and a learner who named a flow keeps it', async () => {
+  const card = { title: 'The TCP handshake', body: `The client and server agree to talk in three messages.\n\n${fence(chainOf('The TCP handshake', ['Client sends SYN', 'Server replies SYN-ACK', 'Client sends ACK']))}\n\nThen data can flow.` };
+  const run = args => generateArtifact({}, { command: 'explanation', args, visualRequirements: deriveVisualRequirements(args) }, { callModel: async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c1', name: 'make_explanation', input: card }] }) });
+  const lines = [], log = console.log; console.log = line => lines.push(String(line));
+  try {
+    const out = await run('How does the TCP handshake work?');
+    assert.deepEqual([out.result, specOf(out.block.body).kind, out.block.diagramCorrections], ['artifact', 'sequence', { flow_to_sequence: 1 }]);
+    assert.deepEqual(lines.filter(l => l.includes('explanation_diagram_corrected')).map(l => JSON.parse(l)), [{ event: 'explanation_diagram_corrected', kind: 'flow_to_sequence' }]);
+    const named = await run('Draw a flowchart of the TCP handshake');
+    assert.deepEqual([named.result, specOf(named.block.body).kind, named.block.diagramCorrections], ['artifact', 'flow', undefined]);
   } finally { console.log = log; }
 });
 

@@ -286,6 +286,13 @@ test('the guidance carries the parties-send-things sequence rule, the structure-
   assert.deepEqual([Object.keys(tree.properties), Object.keys(tree.properties.nodes.items.properties)], [['title', 'caption', 'kind', 'layout', 'nodes'], ['id', 'label', 'parent', 'side']]);
 });
 
+// Owner 2026-11-08: digital, abstract or procedural subjects get no picture, a separate line; the positive picture rule (51 of 54 in the study) is unchanged.
+test('the guidance keeps digital, abstract and procedural subjects to diagrams, beside the unchanged positive picture rule', () => {
+  const g = EXPLANATION_GUIDANCE;
+  assert.ok(g.includes('Digital, abstract or procedural subjects — email, DNS, network protocols, algorithms, software, data structures, mathematics — never get a picture. They get a diagram only.'));
+  assert.ok(g.includes('1) Type: objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them; a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram; processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams; never use a picture for a data structure, an algorithm or numbers.'));
+});
+
 const meshPicture = illustrationFence({ id: 'pic-1', prompt: 'A 3D mesh of a teapot drawn as small triangles', alt: 'A teapot mesh made of triangles', caption: 'A 3D mesh is many small triangles' });
 const meshDiagram = diagramFence({ version: 1, diagram: { kind: 'tree', title: 'Parts of a 3D mesh', nodes: [{ id: 'm', label: 'Mesh' }, { id: 'v', label: 'Vertices', parent: 'm' }, { id: 'f', label: 'Faces', parent: 'm' }] } });
 const meshCard = visuals => ({ title: 'What a 3D mesh looks like', body: `A 3D mesh is a surface built from many flat triangles that share corners.\n\n${visuals}\n\nMore triangles make the mesh look smoother.` });
