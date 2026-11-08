@@ -46,6 +46,11 @@ const negated = (text, index) => NEGATION.test(text.slice(Math.max(0, index - 40
 // E3: a request to trace a worked case through a flow needs the validated highlightPath, not only a caption (EXP-12-C04).
 const TRACE = /\b(trace|follow|walk(?:ing)? (?:me )?through|highlight(?:ing)?|mark the path|show the path)\b/i;
 const clip = (text, max = 200) => String(text).replace(/\s+/g, ' ').trim().slice(0, max);
+// EXP-13 fix 6b (owner 2026-11-08): a question about how something looks needs a picture even when it names none. "shape" is left out on purpose ("the
+// shape of the curve"). The item is implied: it must be on the card (a missing one is the one repair) but it does not fix the mix, so a diagram may join it.
+const LOOKS = /\b(?:looks? like|3d|anatomy)\b/i;
+// EXP-13 fix 6a: the learner's words say the process repeats, so a branchless flow the author drew is a cycle (learn-artifact.js re-routes it).
+export const repeats = text => /\b(?:cycles?|repeat(?:s|ed|ing)?|loops?|again|round|phases|recurring)\b/i.test(String(text ?? ''));
 
 // -> { version, items: [{ id, kind: 'table'|'diagram'|'illustration', diagramKind?, purpose }] } (items may be empty; one item per asked diagram or picture), or { unsupported: 'one line for the learner' }.
 export function deriveVisualRequirements(text) {
@@ -61,6 +66,8 @@ export function deriveVisualRequirements(text) {
   // The named kind and a trace go with the first diagram; a second asked diagram may be any kind.
   for (let n = 0; n < diagrams.count; n++) items.push({ kind: 'diagram', ...(kind && !n ? { diagramKind: kind } : {}), ...(kind === 'flow' && !n && TRACE.test(words) ? { trace: true } : {}), purpose: clip(words) });
   for (let n = 0; n < pictures.count; n++) items.push({ kind: 'illustration', purpose: clip(words) });
+  const looks = LOOKS.exec(words);
+  if (!diagrams.count && !pictures.count && looks && !negated(words, looks.index)) items.push({ kind: 'illustration', implied: true, purpose: clip(words) });
   return { version: VISUAL_REQUIREMENTS_VERSION, items: items.map((item, i) => ({ id: `vr-${i + 1}`, ...item })) };
 }
 // The text a requirement is read from: a direct question's own words, or a Tutor step's accepted learner instruction (the planner's own title and goal are not the learner's request).
@@ -68,7 +75,7 @@ export const requirementText = ({ args, original, revisions } = {}) => [args, or
 
 // EXP-13 fix 5c: the visual mix the learner's words fix, { diagram, illustration } counts, or null when they name no diagram or picture (the author then chooses 1-2).
 export const requiredMix = requirements => {
-  const items = requirements?.items ?? [], n = kind => items.filter(i => i.kind === kind).length;
+  const items = requirements?.items ?? [], n = kind => items.filter(i => i.kind === kind && !i.implied).length;
   const kind = items.find(i => i.kind === 'diagram' && i.diagramKind)?.diagramKind;
   return n('diagram') || n('illustration') ? { diagram: n('diagram'), illustration: n('illustration'), ...(kind ? { diagramKind: kind } : {}) } : null;
 };

@@ -210,7 +210,8 @@ function lines(ls, ctx, first) {
     } else if (heading || boldTitle) {
       const level = heading ? heading[1].length : 3, Heading = `h${level}`;
       // A long answer reads as one wall without a break before each section.
-      const rule = first && !out.length ? 'mt-1' : 'mt-4 border-t border-line pt-3';
+      // Explanation cards (explain) have no rule above a heading: a card is about 10 lines (owner 2026-11-08, item 43); Chat answers keep it.
+      const rule = first && !out.length ? 'mt-1' : explain ? 'mt-3' : 'mt-4 border-t border-line pt-3';
       out.push(<Heading key={i} className={cn(rule, 'mb-1 font-semibold text-ink', doc && (HEADING_SIZE[level] || 'text-sm'))}>{md(heading ? heading[2] : boldTitle[1])}</Heading>);
     } else if (l.startsWith('Sources: ')) {
       out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} has={has} />);
