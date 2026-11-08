@@ -14,7 +14,7 @@ import ProgramNotes from './ProgramNotes.jsx';
 import SourcesDisclosure from '../SourcesDisclosure.jsx';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
-  setProgramInput, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel,
+  setProgramInput, shownProgram,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -158,9 +158,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // Play advances real simulation time (the readouts are never rescaled); the loop is the scene card's.
   useEffect(() => {
     if (!playing || !duration) return undefined;
-    const rate = playbackRate(manifest), origin = performance.now() - time * 1000 / rate;
+    const origin = performance.now() - time * 1000;
     const tick = now => {
-      const next = (now - origin) / 1000 * rate;
+      const next = (now - origin) / 1000;
       if (next >= duration) { setTime(duration); setPlaying(false); return; }
       setTime(next);
       frame.current = requestAnimationFrame(tick);
@@ -171,7 +171,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // The paused moment is saved quietly (a view change, never an undo step), as the scene card does.
   useEffect(() => {
     if (playing || !manifest) return;
-    const saved = savedTime(manifest, time);
+    const saved = Number(clampTime(manifest, time).toFixed(2));
     if (saved !== (latest.current.time ?? 0)) (onChangeQuiet || onChange)({ ...latest.current, time: saved });
   }, [playing, time, manifest]);
   useEffect(() => { if (!preview) programPlayback(latest.current, playing); }, [playing, preview]); // Task 9.3: the described moment is playing or paused
@@ -330,7 +330,6 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
-      {manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
       <div data-program-viewport className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
         style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
         <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" {...(dragIds.length ? pointerDrag : {})}
@@ -343,9 +342,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           <button type="button" data-animation-play onClick={play} className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
             {playing ? <Pause size={14} /> : <Play size={14} />}{playing ? 'Pause' : atEnd ? 'Replay' : 'Play'}
           </button>
-          <input type="range" aria-label={manifest.timeline?.label ?? 'Explanation time'} min={0} max={duration} step={scrubStep(manifest)} value={time}
-            onChange={event => { setPlaying(false); seek(clampTime(manifest, snapToMarker(manifest, Number(event.target.value)))); }} className="h-8 min-w-0 flex-1 accent-accent" />
-          <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2">{timeLabel(manifest, shownTime)}</span>
+          <input type="range" aria-label="Explanation time" min={0} max={duration} step={0.05} value={time}
+            onChange={event => { setPlaying(false); seek(clampTime(manifest, Number(event.target.value))); }} className="h-8 min-w-0 flex-1 accent-accent" />
+          <span data-program-time className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{shownTime.toFixed(1)}s</span>
         </div>
       )}
       {(rows.length > 0 || actions.length > 0 || targets.length > 0) && (

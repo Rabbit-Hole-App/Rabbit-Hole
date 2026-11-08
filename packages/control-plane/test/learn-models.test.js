@@ -149,7 +149,7 @@ test('the task configuration states what the requests above carry, and the limit
 // the /explain roles (EXP-T12; their values: explain-policy.test.js).
 test('the journey roles are gone; the hook planner roles follow home_ask', () => {
   assert.deepEqual(Object.keys(LEARN_TASKS).filter(key => key.startsWith('journey_')), []);
-  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find', 'explain_brief', 'explain_author', 'explain_review', 'explain_repair', 'interact_design_author', 'interact_design_review', 'interact_design_revise', 'animation_brief', 'animation_author', 'animation_review', 'animation_repair', 'whiteboard_plan', 'whiteboard_author', 'roadmap_subject', 'roadmap_draft', 'roadmap_revise', 'roadmap_grounding_check', 'roadmap_grounding_escalation', 'roadmap_safety_adjudicate', 'roadmap_proposal', 'roadmap_index']);
+  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find', 'explain_brief', 'explain_author', 'explain_review', 'explain_repair', 'animation_brief', 'animation_author', 'animation_review', 'animation_repair', 'whiteboard_plan', 'whiteboard_author', 'roadmap_subject', 'roadmap_draft', 'roadmap_revise', 'roadmap_grounding_check', 'roadmap_grounding_escalation', 'roadmap_safety_adjudicate', 'roadmap_proposal', 'roadmap_index']);
 });
 
 // Tutor R4 roadmap roles: pinned exactly as v1.4 6.1 proposes (Sonnet 5.5 low for subject and the support check, Opus 5.5 for drafting, revising, the escalation and the adjudication).
@@ -233,12 +233,4 @@ test('cards, the whiteboard and a picked chat model log their task, source and p
   ]);
   const text = JSON.stringify(logged());
   for (const secret of ['secret-openai-key', 'Why is this 0.5?', 'multiple choice', 'softmax']) assert.equal(text.includes(secret), false, secret);
-});
-
-test('the /interact design roles are pinned like the explain roles; the legacy explain limits are unchanged (INT-07A-C02)', () => {
-  for (const [task, maxTokens] of [['interact_design_author', 12000], ['interact_design_review', 6000], ['interact_design_revise', 14000]]) {
-    assert.ok(Object.isFrozen(LEARN_TASKS[task]), task);
-    assert.deepEqual({ ...LEARN_TASKS[task] }, { provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens }, task);
-  }
-  assert.deepEqual(['explain_brief', 'explain_author', 'explain_review', 'explain_repair'].map(task => LEARN_TASKS[task].maxTokens), [4000, 10000, 3000, 6000]);
 });

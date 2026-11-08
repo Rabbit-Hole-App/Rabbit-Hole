@@ -83,17 +83,12 @@ export async function artifactIntact(artifact) {
 }
 
 // Text in the manifest the learner reads, as the reviewer's "facts" (the source itself goes in its own block).
-export const programFacts = manifest => [...new Set([manifest.summary, manifest.description, manifest.cardDescription, manifest.timeline?.label, ...(manifest.timeline?.markers || []).map(marker => marker.label), ...(manifest.assumptions || []), ...(manifest.inputs || []).flatMap(i => [i.label, ...(i.options || []).map(o => o.label)]), ...(manifest.readouts || []).map(r => r.label), ...(manifest.actions || []).map(a => a.label), ...(manifest.targets || []).map(t => t.label)].filter(Boolean).map(t => String(t).trim()))];
+export const programFacts = manifest => [...new Set([manifest.summary, manifest.description, ...(manifest.assumptions || []), ...(manifest.inputs || []).flatMap(i => [i.label, ...(i.options || []).map(o => o.label)]), ...(manifest.readouts || []).map(r => r.label), ...(manifest.actions || []).map(a => a.label), ...(manifest.targets || []).map(t => t.label)].filter(Boolean).map(t => String(t).trim()))];
 
 // The default state and the declared playback moments; programCaptureManifest (explain-render.js) samples them and the boundary
 // input states within the capture budget, and states what it sampled and omitted. Never claimed exhaustive.
 export const defaultInputs = manifest => resolveInputs(manifest, {});
-// A card whose timeline names markers (interact.md INT-01 mode.timeline) is captured at them: the moments the design says the learner must be able to see.
-export const programMoments = manifest => {
-  if (!manifest.duration) return [0];
-  const marked = [...new Set((manifest.timeline?.markers || []).map(marker => marker.time))].filter(time => time > 0 && time < manifest.duration).sort((a, b) => a - b).slice(0, 3);
-  return marked.length ? [0, ...marked, manifest.duration] : [0, Number((manifest.duration / 2).toFixed(3)), manifest.duration];
-};
+export const programMoments = manifest => (manifest.duration ? [0, Number((manifest.duration / 2).toFixed(3)), manifest.duration] : [0]);
 
 // The bundle the author sees back on an edit or a repair: source and manifest only (never hashes it could copy).
 export const draftOf = artifact => ({ source: artifact.source, manifest: artifact.manifest });

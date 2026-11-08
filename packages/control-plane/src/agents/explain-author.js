@@ -62,8 +62,6 @@ const PROGRAM_MANIFEST = {
       } },
     },
     duration: { type: 'number', exclusiveMinimum: 0, maximum: 120, description: 'Seconds of playback. Omit for a card that does not change over time.' },
-    cardDescription: { type: 'string', maxLength: 500 },
-    timeline: { type: 'object' },
     readouts: { type: 'array', maxItems: 8, description: 'Named numbers the frame reports (frame.readouts [{id, value}]) and the card labels.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: NAME, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 } } } },
     capabilities: { type: 'array', maxItems: 16, items: { type: 'string' }, description: 'Only names listed under program.capabilities in the input.' },
   },
@@ -174,7 +172,6 @@ A program is one ES module that EXPORTS evaluate, exactly: export function evalu
 - Declare every control the learner is meant to move in manifest.inputs with a sensible domain, and any playback in manifest.duration (seconds). Input ids and readout ids share one namespace and must all differ. State assumptions and idealisations in manifest.assumptions. Keep one idea per card.
 - Each run is stopped after ${RUNTIME_LIMITS.interruptMs} ms of your own work: loading your source, evaluate and serialization, in a slow interpreter that can be several times slower on its first run. Keep it small: compute each curve once, a few hundred points in total at most, no long loops.
 - Draw only within program.frame (width and height); keep every object inside it for every admitted input and time, and keep text clear of moving parts. Use program.sdk for geometry and number formatting. When the picture is a trace of time spans (calls, tasks or intervals on one clock), a sampled contour or vector field, text with selectable evidence spans, an expandable rooted tree, or regions of the bundled sample image, call the matching program.sdk.medium helper (sdk.trace, sdk.field, sdk.evidence, sdk.expandableGraph, sdk.imageRegions, sdk.imageViews) and declare medium_visuals in manifest.capabilities; do not draw those by hand with line, polyline, box, arrow or text.
-- When the card plays over time and the learner should read a moment as a time from some event, use the timeline field: displayOffset is added to elapsed time for display only, playbackRate is simulated seconds per wall second (pacing only, never the equations), markers [{id,label,time}] are named moments the scrubber lands on exactly. Do not draw a clock yourself; the program still receives elapsed time from 0 to duration. Put the card's teaching copy in manifest.cardDescription (2 to 4 short lines) and keep the frame to the picture, labels and numbers.
 - Keep source under program.limits.sourceBytes and the manifest under program.limits.manifestBytes. Do not write hashes, versions, permissions or limits; the host sets them.
 - Quote nothing from the examples; they show composition only.`;
 
