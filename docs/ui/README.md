@@ -2,6 +2,8 @@
 
 # Rabbit Hole UI assets
 
+**Claude Code: start with the [master UI handoff](CLAUDE-UI-HANDOFF.md).** It links to the screen-specific references and component reuse contracts.
+
 Start with the [searchable catalog](index.html), [complete source inventory](INVENTORY.md), [component-to-app mapping](MAPPING.md), and [review of inconsistencies and gaps](REVIEW.md).
 
 This folder organizes the supplied card and interface references into **62 component, card, and behavior entries (48 visible; 14 archived flows hidden)**. It is the reference workspace for future UI updates. The application has not been restyled or deployed by this change.
