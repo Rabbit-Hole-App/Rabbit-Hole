@@ -13,7 +13,7 @@ Built from [slash-command-template.md](slash-command-template.md), version 1. Th
 | Product source | [Tutor roadmap v1.4](explain-on-canvas/handoff/tutor-roadmap-v1.4.md), Git blob `942ca2330bf1b80429f2dec73d06051d8c37fcdc` |
 | Implementation source | [Tutor checklist v1.2](explain-on-canvas/handoff/tutor-implementation-checklist.md), Git blob `cae2d23e391f0c00b1c469bc3eb3c52c33942b75` |
 | Deliverable | Standalone written `/explain` and the same Explanation content/renderer used by accepted Tutor steps |
-| Implementation status | E0 (`3a26c8c03`) and E1 (`407a8d384`, branch `explain/e1`) built, offline fixtures only: [E0 receipt](explain/reviews/2026-11-08-3a26c8c03.md), [E1 receipt](explain/reviews/2026-11-08-407a8d384.md). No browser, real-model or deployed acceptance; live EX-01/EX-07 runs pending. Later rungs: see the latest receipt under `explain/reviews/`. |
+| Implementation status | E0 (`3a26c8c03`) and E1 (`407a8d384`, branch `explain/e1`) built, offline fixtures only: [E0 receipt](explain/reviews/2026-11-08-3a26c8c03.md), [E1 receipt](explain/reviews/2026-11-08-407a8d384.md). No browser, real-model or deployed acceptance; live EX-01/EX-07 runs pending. E2 backend (`b0c4ffd54`, `explain/e2`) and E3 (`ea758815b`, `explain/e3`): [receipt](explain/reviews/2026-11-08-ea758815b.md). Later rungs: see the latest receipt under `explain/reviews/`. |
 | Evidence for this document | Source and reference review. Runtime tests, browser acceptance and paid generation remain candidate-specific evidence. |
 
 ## Navigation
