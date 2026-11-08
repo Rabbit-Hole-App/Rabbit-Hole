@@ -74,3 +74,41 @@ Deploy the branch to your own dev clone first (the dev build admits fixture card
 - Backend generation: convolution, attention and the plain-words decision tree generated and accepted; gradient descent (twice) and the explicit-command decision tree run failed in the pipeline.
 - Numerical acceptance of the generated programs: passes (offline tests above).
 - **Visual, interaction and saved-state acceptance of the generated cards: pending** (not done here; Codex tests the committed outputs). Not evidence of generated-card quality beyond what is stated.
+
+## Phase 02 generation cases (2026-11-08)
+
+Reference fixtures: `chatgpt/phase-02-ml-examples` at `679cd64c`. Prompts verbatim from the handoff table "Phase 02 generation cases", sent as **plain words** from the composer of the dev clone `rabbit-hole-web-dev-tc-s7d2` (build of `fix/chat-route-usage` 611e1e55c, which adds the router usage context), so each went through the chat router and then the normal brief, author, review and repair pipeline. Nothing was seeded or copied from the reference fixtures; they are separate artifacts.
+
+| Case | Routing (recorded in browser) | Job | Outcome | Cost | Calls |
+|---|---|---|---|---|---|
+| Classifier Threshold Explorer | `capability:explain` via `jev`, flow `direct`, 0.89 / 0.90 | `ej_c1f8049d258747e2b726d4c1b47657ec` | **card, accepted at round 0**, no review findings (92 s) | $0.244 | brief, author, review |
+| Regression Fit Explorer | `capability:explain` via `jev`, flow `direct`, 0.81 | `ej_86503b55d3834ad1b1d38545cd1ce8f7` | **failed**, `unsupported_repair` after round 3 (266 s) | $0.717 | brief, author, repair, review, repair, review, repair |
+| K-means Stepper | not run | none | **blocked: generation budget** | $0 | none |
+
+Models: `claude-opus-5-5` for every call. SDK line of the accepted card: `sdk-2`.
+
+**Regression failure.** The first program was invalid (`manifest.actions` missing); after repair the reviewer rejected it twice on **major** visual findings: the off-scale squared-error labels over P5 and P6 overlap, the squares stack and overlap with large slope or intercept, and the "P4" square label sits on point 4 and runs into it. The last repair returned no program, so the job stopped with `unsupported_repair`. The last generated program is kept as the rejected candidate `fixture-generated-ai-regression-fit-rejected` (not an accepted result). Offline it is also not drawable at two input extremes: slope 1.5 with intercept 5, and slope 0 with intercept -2, produce 62 and 61 objects, over the 60-object frame limit, so the frame is refused.
+
+**K-means blocker.** The generation spend for this task was drawn from the earlier $3.10 pool. After the decision-tree run ($2.277 in total) the classifier cost $0.244 and the regression job $0.717, which brings the total to **$3.238, $0.138 over the $3.10 pool**; a running job cannot be capped, and the regression job needed three repairs. K-means was therefore not started. It needs a fresh budget decision (a typical accepted card here costs $0.21 to $0.26; a card needing repairs about $0.72).
+
+### Numerical acceptance (offline, from each card's own data)
+
+`ai-generated.test.mjs` (13 tests, all pass):
+
+- **Classifier (accepted card):** from the card's own ten scores (two positives): for every score, every score plus 0.001, and the cutoffs 0, 0.1, 0.5, 0.7 and 1, the four counts, recall and accuracy match; a score equal to the cutoff counts as positive; with no positive predictions precision is absent and the card's text says undefined. Lowering the cutoff across the second positive catches it and does not reduce false alarms. The card uses its own scores, so the reference numbers (0.70 to 0.50 adds two false alarms) do not apply.
+- **Regression (rejected candidate):** at four slope and intercept settings, each residual segment is at the x of its point and ends at the prediction for that x; the six squared residuals, their sum and MSE (sum divided by six) match; each bar value equals its squared residual; selecting a point reports its own error and selecting it again clears it.
+
+Visual, interaction and saved-state acceptance of both cards is **pending** (Codex tests the committed outputs).
+
+### Phase 02 artifacts and replay
+
+| Path | What |
+|---|---|
+| `packages/web/src/explain-program/testdata/generated-ai-classifier-threshold.json` | record + accepted artifact exactly as stored |
+| `…/generated-ai-regression-fit.json` | failure record + `rejectedCandidate` |
+| `ai-generated-fixtures.js` | `fixture-generated-ai-classifier-threshold` (accepted), `fixture-generated-ai-regression-fit-rejected` |
+
+```
+node --test packages/web/src/explain-program/ai-generated.test.mjs
+RABBIT_HOLE_DEV_TEST_BYPASS=<dev bypass> node packages/web/scripts/seed-dev-fixture.mjs fixture-generated-ai-classifier-threshold https://rabbit-hole-web-dev-<worktree>.tryrabbithole.workers.dev
+```

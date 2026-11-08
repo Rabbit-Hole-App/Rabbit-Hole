@@ -33,7 +33,7 @@ const objectText = (frame, id) => frame.objects.find(object => object.id === id)
 const dataBefore = (source, marker, names) => new Function(`${source.slice(0, source.indexOf(marker))}; return { ${names.join(', ')} };`)();
 
 test('the saved generated cards are exactly what the backend stored: the bundle hash is reproduced from the manifest and source', async () => {
-  for (const name of ['convolution', 'attention', 'tree-split-routed']) {
+  for (const name of ['convolution', 'attention', 'tree-split-routed', 'classifier-threshold']) {
     const record = load(name), rebuilt = await buildProgramArtifact({ manifest: record.artifact.manifest, source: record.artifact.source });
     assert.equal(rebuilt.bundleHash, record.artifact.bundleHash, name);
     assert.equal(rebuilt.sdkVersion, record.artifact.sdkVersion, name);
@@ -137,7 +137,7 @@ async function statefulRunner(candidate) {
     };
     let state = call('initialize');
     const evaluate = () => { const result = call('evaluate', { state }); assert.equal(normalizeFrame(result.frame, manifest).ok, true); return result; };
-    return { evaluate, press: action => { const event = { type: 'action', action }; assert.equal(parseEvent(event, manifest).ok, true); state = call('reduce', { state, event }); return evaluate(); } };
+    return { evaluate, select: target => { const event = { type: 'select', target }; assert.equal(parseEvent(event, manifest).ok, true); state = call('reduce', { state, event }); return evaluate(); }, press: action => { const event = { type: 'action', action }; assert.equal(parseEvent(event, manifest).ok, true); state = call('reduce', { state, event }); return evaluate(); } };
   };
 }
 
@@ -213,22 +213,71 @@ test('decision tree split, ACCEPTED card from plain words through the router (it
   assert.notEqual(N, 10, 'own 12-point data: the 10-point reference answers (Gini 9, entropy 15) do not apply');
 });
 
+// Phase 02 cases. Replay inputs (cutoffs, slope/intercept pairs, selections) are the arrays inside the tests; no model call.
+test('classifier threshold, ACCEPTED card from plain words (its own ten scores): the four counts, precision, recall and accuracy follow the cutoff; a score equal to the cutoff is positive; precision is undefined with no positive predictions', async () => {
+  const record = load('classifier-threshold');
+  assert.equal(record.job.outcome, 'card'); assert.ok(record.artifact);
+  assert.equal(record.routing.recordedInBrowser[0].body.via, 'jev'); assert.equal(record.routing.recordedInBrowser[0].body.capability, 'explain');
+  const { S } = dataBefore(record.artifact.source, 'export function', ['S']);
+  assert.equal(S.length, 10); assert.equal(S.filter(d => d.p).length, 2, 'two actual positives');
+  const evaluate = await evaluator(record);
+  const expected = cutoff => { let tp = 0, fp = 0, fn = 0, tn = 0; for (const d of S) { const pred = d.s >= cutoff; if (d.p && pred) tp++; else if (d.p) fn++; else if (pred) fp++; else tn++; } return { tp, fp, fn, tn }; };
+  const cutoffs = [0, 0.1, ...S.map(d => d.s), ...S.map(d => d.s + 0.001), 0.5, 0.7, 1];
+  for (const cutoff of cutoffs) {
+    const { frame, quantities: q } = evaluate({ cutoff }), e = expected(cutoff);
+    for (const key of ['tp', 'fp', 'fn', 'tn']) assert.equal(q[key], e[key], `${key} at ${cutoff}`);
+    near(q.recall, e.tp / (e.tp + e.fn)); near(q.accuracy, (e.tp + e.tn) / 10);
+    if (e.tp + e.fp > 0) near(q.precision, e.tp / (e.tp + e.fp)); else { assert.equal(q.precision, undefined, 'precision absent when nothing is predicted positive'); assert.match(objectText(frame, 'mp'), /undefined/); }
+  }
+  // Lowering the cutoff across the second positive: it is caught and false alarms do not decrease.
+  const positives = S.filter(d => d.p).map(d => d.s).sort((a, b) => b - a), hi = evaluate({ cutoff: positives[0] }).quantities, lo = evaluate({ cutoff: positives[1] }).quantities;
+  assert.equal(hi.tp, 1); assert.equal(lo.tp, 2); assert.ok(lo.fp >= hi.fp);
+  assert.equal(S.some(d => d.s === 0.7), false, 'own scores: the reference numbers (0.70 to 0.50 adds two false alarms) do not apply');
+});
+
+test('regression fit, rejected candidate (its own six points, stateful): each residual segment ends at the prediction for the same x, MSE is the mean of the six squared residuals, a selected point reports its own error', async () => {
+  const record = load('regression-fit'), candidate = record.rejectedCandidate;
+  assert.equal(record.job.outcome, 'failed'); assert.equal(record.artifact, null);
+  const { P } = dataBefore(candidate.source, 'export function initialState', ['P']);
+  assert.equal(P.length, 6);
+  const make = await statefulRunner(candidate);
+  const X0 = 60, Y0 = 40, S = 42, W = 420, px = v => X0 + v * S, py = v => Y0 + W - v * S, clampY = y => Math.min(Math.max(y, Y0), Y0 + W);
+  for (const [slope, intercept] of [[0.8, 1], [0.35, 3.3], [1.5, -2], [0, 5]]) {
+    const runner = make({ slope, intercept }), { frame, quantities: q } = runner.evaluate();
+    const squares = P.map(([x, y]) => (y - (slope * x + intercept)) ** 2), sse = squares.reduce((a, b) => a + b, 0);
+    near(q.sse, sse, 1e-9); near(q.mse, sse / 6, 1e-9);
+    P.forEach(([x, y], i) => {
+      const prediction = slope * x + intercept, segment = frame.objects.find(object => object.id === `err${i + 1}`);
+      if (Math.abs(clampY(py(y)) - clampY(py(prediction))) > 0.5) { assert.ok(segment, `segment ${i + 1}`); near(segment.from.x, px(x), 1e-9); near(segment.to.x, px(x), 1e-9); near(segment.from.y, clampY(py(y)), 1e-6); near(segment.to.y, clampY(py(prediction)), 1e-6); }
+      near(Number(objectText(frame, `bv${i + 1}`)), squares[i], 0.006);
+    });
+    const picked = runner.select('pt3'), expectedError = P[2][1] - (slope * P[2][0] + intercept);
+    near(picked.quantities.selected_error, expectedError, 1e-9);
+    assert.equal(runner.select('pt3').quantities.selected_error, 0, 'selecting the same point again clears the selection');
+  }
+});
+
+test('regression fit, rejected candidate: at two input extremes the frame has more than the 60 objects the contract allows, so the card cannot draw (a real defect of the rejected program, kept as found)', async () => {
+  const make = await statefulRunner(load('regression-fit').rejectedCandidate);
+  for (const [slope, intercept] of [[1.5, 5], [0, -2]]) assert.throws(() => make({ slope, intercept }).evaluate(), /Too big|60 items/, `slope ${slope}, intercept ${intercept}`);
+});
+
 test('every generated card and every rejected candidate loads through the dev fixture resolver', async () => {
   for (const fixture of AI_GENERATED_FIXTURES) {
     const resolved = await resolveProgram({ program: { fixtureId: fixture.id } }, { fixtures: true, stamps: PROGRAM_STAMPS });
     assert.equal(resolved.ok, true, `${fixture.id}: ${resolved.error?.message}`);
   }
-  assert.deepEqual(Object.keys(AI_REJECTED_RECORDS).sort(), ['gradient-run1', 'gradient-run2', 'tree-split']);
+  assert.deepEqual(Object.keys(AI_REJECTED_RECORDS).sort(), ['gradient-run1', 'gradient-run2', 'regression-fit', 'tree-split']);
   assert.ok(AI_GENERATED_FIXTURES.filter(fixture => fixture.generated.rejected).every(fixture => fixture.id.endsWith('-rejected')));
 });
 
 test('every record names its prompt, the routing decision, the model, the job and the cost', () => {
-  for (const name of ['convolution', 'attention', 'gradient-run1', 'gradient-run2', 'tree-split', 'tree-split-routed']) {
+  for (const name of ['convolution', 'attention', 'gradient-run1', 'gradient-run2', 'tree-split', 'tree-split-routed', 'classifier-threshold', 'regression-fit']) {
     const record = load(name);
     assert.ok(record.prompt.length > 40, name);
     assert.equal(record.routing.replayedExplicit.via, 'command', name);
     assert.equal(record.routing.replayedExplicit.capability, 'explain', name);
-    if (name === 'tree-split-routed') { assert.equal(record.routing.replayedPlainWords.via, 'jev'); assert.equal(record.routing.replayedPlainWords.capability, 'explain'); }
+    if (name === 'tree-split-routed' || name === 'classifier-threshold' || name === 'regression-fit') { assert.equal(record.routing.replayedPlainWords.via, 'jev'); assert.equal(record.routing.replayedPlainWords.capability, 'explain'); }
     else assert.equal(record.routing.replayedPlainWords.via, 'fallback', `${name}: plain words never reached the classifier on the dev clone`);
     assert.match(record.job.jobId, /^ej_[0-9a-f]{32}$/, name);
     assert.ok(record.job.calls.every(call => call.model === 'claude-opus-5-5' && call.costUsd > 0), name);

@@ -229,6 +229,8 @@ resolver, including save/reopen and Reset. The dev web build passed. The initial
 and changed shared-Frame scenes were inspected. Live browser and generated-card
 acceptance remain pending.
 
+Backend generation of the three Phase 02 prompts (plain words through the router, dev clone, `claude-opus-5-5`): the classifier threshold card was **accepted at round 0** ($0.244, job `ej_c1f8049d258747e2b726d4c1b47657ec`, fixture `fixture-generated-ai-classifier-threshold`); the regression fit **failed** with `unsupported_repair` after round 3 ($0.717, job `ej_86503b55d3834ad1b1d38545cd1ce8f7`, rejected candidate `fixture-generated-ai-regression-fit-rejected`, major overlap findings, and over the 60-object frame limit at two input extremes); K-means was **not run**, because the earlier $3.10 allowance was already exceeded by $0.138. Numerical checks on the generated programs pass offline; visual and browser acceptance is pending. Details: [results](./explain-on-canvas/handoff/ai-example-regeneration-results.md#phase-02-generation-cases-2026-11-08).
+
 See the [generation and dev acceptance handoff](./explain-on-canvas/handoff/ai-example-regeneration-handoff.md)
 for exact prompts and checks. These examples do not increase the reusable
 component capability count or retroactively change the frozen 508-topic audit.

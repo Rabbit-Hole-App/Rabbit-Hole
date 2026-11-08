@@ -9,6 +9,8 @@ import gradientRun1 from './testdata/generated-ai-gradient-run1.json' with { typ
 import gradientRun2 from './testdata/generated-ai-gradient-run2.json' with { type: 'json' };
 import treeSplit from './testdata/generated-ai-tree-split.json' with { type: 'json' };
 import treeSplitRouted from './testdata/generated-ai-tree-split-routed.json' with { type: 'json' };
+import classifierThreshold from './testdata/generated-ai-classifier-threshold.json' with { type: 'json' };
+import regressionFit from './testdata/generated-ai-regression-fit.json' with { type: 'json' };
 import { VISUAL_PROGRAM_STAMPS } from './stamps.js';
 
 // The stamps the backend sealed each card with, by SDK version: loading a generated card must reproduce its stored tuple.
@@ -27,8 +29,8 @@ const rejectedOf = (name, record) => {
     generated: { jobId: record.job.jobId, prompt: record.prompt, rejected: true, stopReason: record.job.stopReason } };
 };
 
-export const AI_GENERATED_RECORDS = { convolution, attention, 'tree-split': treeSplitRouted };
-export const AI_REJECTED_RECORDS = { 'gradient-run1': gradientRun1, 'gradient-run2': gradientRun2, 'tree-split': treeSplit };
+export const AI_GENERATED_RECORDS = { convolution, attention, 'tree-split': treeSplitRouted, 'classifier-threshold': classifierThreshold };
+export const AI_REJECTED_RECORDS = { 'gradient-run1': gradientRun1, 'gradient-run2': gradientRun2, 'tree-split': treeSplit, 'regression-fit': regressionFit };
 export const AI_GENERATED_FIXTURES = [
   ...Object.entries(AI_GENERATED_RECORDS).map(([name, record]) => fixtureOf(name, record)),
   ...Object.entries(AI_REJECTED_RECORDS).map(([name, record]) => rejectedOf(name, record)),
