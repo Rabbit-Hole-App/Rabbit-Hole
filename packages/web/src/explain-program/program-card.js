@@ -32,7 +32,8 @@ export async function resolveProgram(block, { client, fixtures = false, stamps =
     const { MEDIUM_FIXTURES } = await import('./medium-fixtures.js');
     const { cyclicNetworkFixture } = await import('./cyclic-fixture.js');
     const { RASTER_FIXTURES } = await import('./raster-fixtures.js');
-    const fixture = [...FIXTURES, ...STATEFUL_FIXTURES, ...ERROR_FIXTURES, ...MEDIUM_FIXTURES, cyclicNetworkFixture, ...RASTER_FIXTURES].find(item => item.id === ref.fixtureId);
+    const { AI_TEACHING_FIXTURES } = await import('./ai-teaching-fixtures.js');
+    const fixture = [...FIXTURES, ...STATEFUL_FIXTURES, ...ERROR_FIXTURES, ...MEDIUM_FIXTURES, cyclicNetworkFixture, ...RASTER_FIXTURES, ...AI_TEACHING_FIXTURES].find(item => item.id === ref.fixtureId);
     if (!fixture) return refuse('invalid_program', 'unknown fixture');
     const bundle = { manifest: fixture.manifest, source: fixture.source };
     const fixtureStamps = bundle.manifest.capabilities.includes(RASTER_CAPABILITY) ? RASTER_PROGRAM_STAMPS : bundle.manifest.capabilities.includes(CYCLIC_CAPABILITY) ? CYCLIC_PROGRAM_STAMPS : bundle.manifest.capabilities.includes(MEDIUM_CAPABILITY) ? MEDIUM_PROGRAM_STAMPS : stamps;

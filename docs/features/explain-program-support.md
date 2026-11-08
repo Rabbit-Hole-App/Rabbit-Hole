@@ -170,6 +170,32 @@ selection uses whole-object bounds, not per-pixel hit testing.
 Dev deployment and live browser interaction remain pending because
 this environment lacks the authorized dev credentials and working browser capture.
 
+### AI teaching examples
+
+Three hand-authored examples compose the existing 2D SDK in normal program cards.
+They are exported together by `ai-teaching-fixtures.js`, admitted only through the
+existing dev fixture gate. They are reusable source examples, not a new automatic
+lesson-routing system and not proof of LLM generation quality.
+
+| Fixture | Teaching mechanism | Source |
+| --- | --- | --- |
+| `fixture-ai-convolution` | Move a 3 × 3 kernel across a small synthetic image and inspect the calculated response. Uses the CNN cross-correlation convention. | `ai-convolution-fixture.js` |
+| `fixture-ai-attention` | Select a query and causal masking; compare scaled scores, normalized weights and their weighted value output. Numbers are synthetic. | `ai-attention-fixture.js` |
+| `fixture-ai-gradient` | Vary learning rate and update count for a known quadratic loss; compare convergence, overshoot and divergence. | `ai-gradient-fixture.js` |
+
+All source paths above are under `packages/web/src/explain-program/`. The examples
+reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
+and Reset behavior. No new SDK version, planner mapping or repair budget is added.
+Focused tests check the numerical mechanisms independently and exercise the real
+QuickJS and frame-normalization paths. The normal fixture resolver and saved input
+round trips have their own integration checks. Verification: all 14 focused AI
+tests pass; the dev web build passes. Shared-Frame SVG renders were inspected for
+all three scenes (offline rasterization does not render the gradient's KaTeX
+foreignObject formulas). This is static scene inspection, not browser acceptance.
+Live browser/dev acceptance and
+real model generation remain pending; the authorized deployment environment is
+not available here.
+
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
 | Limit | Value |
