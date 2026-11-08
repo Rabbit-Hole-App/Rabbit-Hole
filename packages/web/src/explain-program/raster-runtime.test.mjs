@@ -62,9 +62,9 @@ test('filters compute expected pixels and leave the original unchanged',async()=
  assert.equal(blur.find(o=>o.id==='filtered').pixels[p(x,y)],Math.round(sum/9));
 });
 
-test('author and repair know raster and mask signatures and data limitations',()=>{
- for(const repair of [false,true]){
-  const c=programContext(CONTRACT_LIMITS,CAPABILITIES,{repair});
-  assert.match(c.sdk.raster.pixels,/sdk.raster/);assert.match(c.sdk.raster.mask,/sdk.mask/);assert.match(c.sdk.raster.usage,/no URLs/);
- }
+// Integration decision (raster + cyclic + Medium + heat grid): the helper docs are for authoring; the repair request carries the program and the problems (a maximal program no longer fits it with all four).
+test('the author knows raster and mask signatures and data limitations; the repair request leaves the docs out',()=>{
+ const c=programContext(CONTRACT_LIMITS,CAPABILITIES,{repair:false});
+ assert.match(c.sdk.raster.pixels,/sdk.raster/);assert.match(c.sdk.raster.mask,/sdk.mask/);assert.match(c.sdk.raster.usage,/no URLs/);
+ assert.equal(programContext(CONTRACT_LIMITS,CAPABILITIES,{repair:true}).sdk.raster,undefined);
 });
