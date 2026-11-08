@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Artifact lineage makes a prediction reproducible",
+    "kind": "relationship",
+    "layout": "graph",
+    "nodes": [
+      {
+        "id": "data",
+        "label": "Dataset v1"
+      },
+      {
+        "id": "features",
+        "label": "Features v1"
+      },
+      {
+        "id": "model1",
+        "label": "Model v1"
+      },
+      {
+        "id": "config",
+        "label": "Training config v2"
+      },
+      {
+        "id": "model2",
+        "label": "Model v2"
+      },
+      {
+        "id": "serving",
+        "label": "Serving release"
+      }
+    ],
+    "edges": [
+      {
+        "from": "data",
+        "to": "features",
+        "label": "Transforms with code v1"
+      },
+      {
+        "from": "features",
+        "to": "model1",
+        "label": "Training input"
+      },
+      {
+        "from": "features",
+        "to": "model2",
+        "label": "Same training input"
+      },
+      {
+        "from": "config",
+        "to": "model2",
+        "label": "Changed hyperparameters"
+      },
+      {
+        "from": "model1",
+        "to": "serving",
+        "label": "Previous release"
+      },
+      {
+        "from": "model2",
+        "to": "serving",
+        "label": "Current release"
+      }
+    ]
+  }
+}

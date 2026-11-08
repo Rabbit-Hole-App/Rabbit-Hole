@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "One bootstrap draw",
+    "caption": "Six draws contain four unique examples; c and e were never drawn.",
+    "kind": "sample-set",
+    "samples": [
+      {
+        "id": "a",
+        "class": "Negative"
+      },
+      {
+        "id": "b",
+        "class": "Negative"
+      },
+      {
+        "id": "c",
+        "class": "Negative"
+      },
+      {
+        "id": "d",
+        "class": "Negative"
+      },
+      {
+        "id": "e",
+        "class": "Positive"
+      },
+      {
+        "id": "f",
+        "class": "Positive"
+      }
+    ],
+    "groups": [
+      {
+        "id": "boot",
+        "label": "Bootstrap sample",
+        "members": [
+          "a",
+          "b",
+          "b",
+          "d",
+          "f",
+          "f"
+        ],
+        "replacement": true,
+        "omitted": [
+          "c",
+          "e"
+        ]
+      },
+      {
+        "id": "oob",
+        "label": "Out-of-bag evaluation",
+        "members": [
+          "c",
+          "e"
+        ],
+        "outOfBagFor": "boot"
+      }
+    ]
+  }
+}

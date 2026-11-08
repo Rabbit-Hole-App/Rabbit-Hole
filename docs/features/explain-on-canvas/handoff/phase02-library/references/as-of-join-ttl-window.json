@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "As-of lookup with a four-hour TTL",
+    "caption": "Here $6 \\le t_{event} \\le 10$. Select the latest eligible record, assuming it was already available by time 10.",
+    "kind": "timeline",
+    "layout": "scaled-lanes",
+    "domain": {
+      "min": 0,
+      "max": 14,
+      "unit": "h",
+      "label": "Event time"
+    },
+    "lanes": [
+      {
+        "id": "allowed",
+        "label": "Allowed event times",
+        "intervals": [
+          {
+            "id": "ttl",
+            "label": "Eligible TTL window",
+            "start": 6,
+            "end": 10,
+            "role": "window"
+          }
+        ]
+      },
+      {
+        "id": "source",
+        "label": "Source records",
+        "events": [
+          {
+            "id": "stale",
+            "label": "Stale: excluded",
+            "time": 5
+          },
+          {
+            "id": "eligible",
+            "label": "Eligible: selected",
+            "time": 8
+          },
+          {
+            "id": "future",
+            "label": "Future: excluded",
+            "time": 11
+          }
+        ]
+      }
+    ],
+    "cutoffs": [
+      {
+        "id": "ttlStart",
+        "label": "TTL lower bound",
+        "time": 6
+      },
+      {
+        "id": "asOf",
+        "label": "Prediction cutoff",
+        "time": 10
+      }
+    ]
+  }
+}

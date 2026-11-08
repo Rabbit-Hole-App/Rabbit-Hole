@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Precision and recall change together",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Recall",
+      "min": 0,
+      "max": 1,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Precision",
+      "min": 0,
+      "max": 1
+    },
+    "series": [
+      {
+        "label": "Classifier",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0.1,
+            "y": 0.95
+          },
+          {
+            "x": 0.3,
+            "y": 0.85
+          },
+          {
+            "x": 0.5,
+            "y": 0.68
+          },
+          {
+            "x": 0.7,
+            "y": 0.48
+          },
+          {
+            "x": 1,
+            "y": 0.2
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "label": "Positive prevalence = 20%",
+        "axis": "y",
+        "value": 0.2
+      }
+    ]
+  }
+}

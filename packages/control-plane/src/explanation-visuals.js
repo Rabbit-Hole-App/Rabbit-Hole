@@ -9,17 +9,20 @@ export const VISUAL_REQUIREMENTS_VERSION = 1;
 
 // What the card's diagram library draws (tutor-diagrams/spec.js), by the words a learner uses for it. The first match wins, most specific first.
 const KINDS = [
-  [/\b(decision[- ]?trees?|flow ?charts?|flow ?diagrams?|decision diagrams?|process diagrams?|flow of)\b/i, 'flow'],
+  [/\b(?:binary(?: search)? trees?|bst|decision[- ]?trees?|dendrograms?)\b/i, 'tree'],
+  [/\bheat ?maps?\b/i, 'heatmap'], [/\bhistograms?\b/i, 'histogram'],
+  [/\bbox[- ]?plots?\b/i, 'box-plot'], [/\bsample[- ]set diagrams?\b/i, 'sample-set'],
+  [/\b(flow ?charts?|flow ?diagrams?|decision diagrams?|process diagrams?|flow of)\b/i, 'flow'],
   [/\bsequence diagrams?\b/i, 'sequence'], [/\btimeline\b/i, 'timeline'], [/\bcycle diagrams?\b/i, 'cycle'], [/\blayer(s|ed)? diagrams?\b/i, 'layers'],
   [/\b(tree|hierarchy) diagrams?\b/i, 'tree'], [/\bcomparison diagrams?\b/i, 'comparison'], [/\bmatrix diagrams?\b/i, 'matrix'],
   [/\b(bar charts?|bar graphs?)\b/i, 'bar-chart'], [/\bnumber ?line\b/i, 'number-line'], [/\bt-?account\b/i, 't-account'], [/\bwaterfall (charts?|diagrams?)\b/i, 'waterfall'],
   [/\b(coordinate|scatter|line) (plots?|charts?)\b/i, 'coordinate-plot'], [/\bfree[- ]body diagrams?\b/i, 'figure'],
 ];
 // Pictures that look like a request for a diagram but that the library does not draw: a clear outcome before any author call, never prose standing in.
-const UNSUPPORTED = /\b(venn diagram|pie chart|mind ?map|uml|class diagram|er diagram|entity[- ]relationship|gantt|state (?:diagram|machine)|heat ?map|sankey|histogram|org(?:anisation|anization)? chart)\b/i;
+const UNSUPPORTED = /\b(venn diagram|pie chart|mind ?map|uml|class diagram|er diagram|entity[- ]relationship|gantt|state (?:diagram|machine)|sankey|org(?:anisation|anization)? chart)\b/i;
 // A topic word alone ("how a decision tree works", "the timeline of the war", "a t-account") is not a request for a picture: only the picture words are.
 // EXP-13 fix 5b (owner 2026-11-08): plurals count too ("two diagrams", "diagrams"), and a picture word asks for an illustration ("two pictures", "a diagram and a picture").
-const DIAGRAM_WORD = /\b(diagrams?|flow ?charts?|bar charts?|bar graphs?|(?:coordinate|scatter|line) (?:plots?|charts?))\b/gi;
+const DIAGRAM_WORD = /\b(heat ?maps?|histograms?|box[- ]?plots?|sample[- ]set diagrams?|dendrograms?|diagrams?|flow ?charts?|bar charts?|bar graphs?|(?:coordinate|scatter|line) (?:plots?|charts?))\b/gi;
 const PICTURE_WORD = /\b(pictures?|illustrations?|drawings?|images? of)\b/gi;
 // How many of a kind a mention asks for: a number word just before it, else a plural is two (a card holds at most two visuals) and a singular one.
 // The kind's count is the larger of one mention's count and the number of mentions brought in by an article or a number ("a flowchart and a bar chart"),
@@ -64,7 +67,7 @@ export function deriveVisualRequirements(text) {
   if (diagrams.count + pictures.count > 2) return { unsupported: 'A card holds at most two visuals (diagrams and pictures together), so nothing was made or charged. Ask for one or two.' };
   const kind = diagrams.count ? KINDS.find(([re]) => re.test(words))?.[1] : null;
   // The named kind and a trace go with the first diagram; a second asked diagram may be any kind.
-  for (let n = 0; n < diagrams.count; n++) items.push({ kind: 'diagram', ...(kind && !n ? { diagramKind: kind } : {}), ...(kind === 'flow' && !n && TRACE.test(words) ? { trace: true } : {}), purpose: clip(words) });
+  for (let n = 0; n < diagrams.count; n++) items.push({ kind: 'diagram', ...(kind && !n ? { diagramKind: kind } : {}), ...(['flow', 'tree'].includes(kind) && !n && TRACE.test(words) ? { trace: true } : {}), purpose: clip(words) });
   for (let n = 0; n < pictures.count; n++) items.push({ kind: 'illustration', purpose: clip(words) });
   const looks = LOOKS.exec(words);
   if (!diagrams.count && !pictures.count && looks && !negated(words, looks.index)) items.push({ kind: 'illustration', implied: true, purpose: clip(words) });
@@ -98,10 +101,10 @@ export function requiredVisualProblem(block, requirements) {
         ? `required_visual_invalid: the learner asked for a ${kind} (${item.id}) and the card's ${kind} is not complete${broken[0].problem ? ` (${broken[0].problem})` : ''}; write it again as a complete ${kind === 'table' ? 'pipe table with leading and trailing pipes, a header row, a separator row and the same number of cells in every row' : kind === 'diagram' ? 'diagram spec that the diagram library accepts' : 'picture with p, a and c'}.`
         : `required_visual_missing: the learner asked for ${kind === 'illustration' ? 'an' : 'a'} ${kind} (${item.id}: "${item.purpose.slice(0, 120)}") and the card has ${n ? `only ${n}` : 'none'}; add it ${kind === 'table' ? 'in the card body' : 'to visuals, placed by its marker'}, shortening the prose to stay inside the budget.`);
       else if (kind === 'diagram' && item.diagramKind && mine.kind !== item.diagramKind) problems.push(`required_visual_invalid: the learner asked for a ${item.diagramKind} diagram (${item.id}) and the card's diagram is a ${mine.kind}; use the ${item.diagramKind} kind.`);
-      else if (kind === 'diagram' && item.trace && mine.kind === 'flow' && !mine.highlightPath) problems.push(`required_visual_invalid: the learner asked to trace a worked case through the flow (${item.id}); give the flow a highlightPath, the node ids of the route in order from the start node to an end node.`);
-      else if (kind === 'diagram' && mine.kind === 'flow' && /\byes\b/i.test(item.purpose) && /\bno\b/i.test(item.purpose)) {
+      else if (kind === 'diagram' && item.trace && ['flow', 'tree'].includes(mine.kind) && !mine.highlightPath) problems.push(`required_visual_invalid: the learner asked to trace a worked case through the ${mine.kind} (${item.id}); give it a highlightPath, the node ids of the route in order along its edges from the root or start node.`);
+      else if (kind === 'diagram' && ['flow', 'tree'].includes(mine.kind) && /\byes\b/i.test(item.purpose) && /\bno\b/i.test(item.purpose)) {
         const labels = (mine.edgeLabels || []).map(l => String(l).trim().toLowerCase());
-        if (!labels.includes('yes') || !labels.includes('no') || !mine.hasDecision || !mine.hasOutcome) problems.push(`required_visual_invalid: the learner described Yes and No branches (${item.id}); the flow needs a decision node, edges labelled Yes and No, and an outcome node.`);
+        if (!labels.includes('yes') || !labels.includes('no') || (mine.kind === 'flow' && (!mine.hasDecision || !mine.hasOutcome))) problems.push(`required_visual_invalid: the learner described Yes and No branches (${item.id}); the ${mine.kind} needs branches labelled Yes and No${mine.kind === 'flow' ? ', a decision node and an outcome node' : ' using child edgeLabel values'}.`);
       }
     }
   }

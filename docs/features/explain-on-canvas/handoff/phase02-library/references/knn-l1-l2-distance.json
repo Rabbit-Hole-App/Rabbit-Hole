@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Unit balls depend on the metric",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Feature 1",
+      "min": -2,
+      "max": 2,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Feature 2",
+      "min": -2,
+      "max": 2
+    },
+    "series": [
+      {
+        "label": "Query",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "circle",
+        "label": "L2 distance at most 1",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 1
+      },
+      {
+        "kind": "polygon",
+        "label": "L1 distance at most 1",
+        "points": [
+          {
+            "x": 0,
+            "y": 1
+          },
+          {
+            "x": 1,
+            "y": 0
+          },
+          {
+            "x": 0,
+            "y": -1
+          },
+          {
+            "x": -1,
+            "y": 0
+          }
+        ]
+      }
+    ]
+  }
+}

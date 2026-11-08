@@ -1,0 +1,75 @@
+import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
+import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
+
+const MAX_REFERENCES = 2;
+const MAX_CONTEXT = 14_000;
+const normalized = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+function matches(haystack, phrase) {
+  const forms = new Set([phrase, `${phrase}s`, `${phrase}es`]);
+  if (phrase.endsWith('y')) forms.add(`${phrase.slice(0, -1)}ies`);
+  if (phrase.endsWith('ies')) forms.add(`${phrase.slice(0, -3)}y`);
+  if (phrase.endsWith('s') && !phrase.endsWith('ss')) forms.add(phrase.slice(0, -1));
+  if (phrase.endsWith('es')) forms.add(phrase.slice(0, -2));
+  return [...forms].some(form => (` ${haystack} `).includes(` ${form} `));
+}
+
+function topicScore(query, reference) {
+  const keys = new Set(reference.keywords.map(normalized).filter(Boolean));
+  let score = 0;
+  for (const key of keys) {
+    if (matches(query, key)) score += Math.min(12, 2 + key.split(' ').length * 2);
+  }
+  // An ordinary question matching one of the documented acceptance prompts is
+  // stronger evidence than a generic keyword in the attached lesson.
+  if (reference.prompts.some(prompt => normalized(prompt) === query)) score += 50;
+  return score;
+}
+
+function contextText(context) {
+  if (typeof context === 'string') return context.slice(0, 6000);
+  if (context == null) return '';
+  try { return JSON.stringify(context).slice(0, 6000); } catch { return ''; }
+}
+
+export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [] } = {}) {
+  const query = normalized(String(prompt).slice(0, 4000));
+  const source = normalized(contextText(context));
+  const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
+  const candidates = diagramReferences.filter(ref => !required.size || required.has(ref.spec.diagram.kind));
+  const ranked = candidates.map((ref, index) => ({
+    ref, index, direct: topicScore(query, ref), source: topicScore(source, ref),
+  }));
+  const direct = ranked.filter(item => item.direct > 0);
+  // Context can resolve a broad "explain this" request, but cannot replace a
+  // concrete question with a different topic from a large attached document.
+  const refersToContext = !query || /\b(?:this|that|these|lesson|document|material|above|attached|it)\b/.test(query);
+  // A required kind does not imply a topical match. In particular, never use
+  // the first binary-operation example for an unfamiliar ordinary hierarchy.
+  const pool = direct.length ? direct : refersToContext ? ranked.filter(item => item.source > 0) : [];
+  pool.sort((a, b) => (b.direct - a.direct) || (b.source - a.source) || a.index - b.index);
+  const picked = [];
+  let chars = 600;
+  for (const { ref } of pool) {
+    const spec = parseTutorDiagram(ref.spec);
+    const compact = { id: ref.id, useWhen: ref.useWhen, spec };
+    const length = JSON.stringify(compact).length;
+    if (chars + length > MAX_CONTEXT) continue;
+    picked.push(compact);
+    chars += length;
+    if (picked.length === MAX_REFERENCES) break;
+  }
+  return picked;
+}
+
+export function diagramReferenceContext(references) {
+  if (!references.length) return '';
+  const heading = '\nApproved diagram references (illustrative examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Never copy example numbers as claims about the learner\'s data; retain source facts. For a conceptual question with no supplied data, a clearly labelled illustrative example may use these checked values. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
+  let out = heading;
+  for (const ref of references.slice(0, MAX_REFERENCES)) {
+    const line = JSON.stringify({ id: ref.id, useWhen: ref.useWhen, spec: ref.spec }) + '\n';
+    if (out.length + line.length <= MAX_CONTEXT) out += line;
+  }
+  return out === heading ? '' : out;
+}
+
+export const PHASE02_DIAGRAM_GUIDANCE = 'Additional teaching layouts: heatmap for numerical grids with an explicit scale; sample-set for identifiable samples, membership, replacement and weights; histogram for numeric bin distributions; box-plot for quartiles, whiskers, fences and outliers. Use coordinate-plot for regression, decision boundaries, distances, loss, uncertainty and distributions on axes; its supported annotations are data coordinates, never pixels. Use grouped or stacked bar-chart for votes, importance and category proportions. Use a scaled-lanes timeline for numeric time windows, cutoffs, availability and TTL, and a teaching matrix for highlighted data cells. Tree hierarchy, binary and dendrogram layouts are distinct: dendrogram heights are numerical merge distances; a family tree or folders are not automatically binary. An operation on a binary tree or BST must show the structure itself; an optional flow can explain additional steps but cannot replace it. Connected feedback and lineage use relationship layout graph. Concurrent preprocessing, ensembles and store branches use flow fork/merge roles, not decision diamonds. Use comparison visual panels for actual diagrams on coordinated axes, and transformation visual states when showing how the same records or points change. These compositions contain only bounded leaf diagrams; never nest comparisons or transformations. Follow the tool schema and the selected reference JSON for exact fields; no invented kind, SVG, CSS, colour or position fields.';

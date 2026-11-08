@@ -11,7 +11,7 @@ import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
 import { cycleSpec, diagramFence, illustrationFence } from './explanation-layout-fixture.js';
 
 const EX01 = 'Why does coffee cool faster at first? Include a small table comparing early and late cooling.';
-const EX07 = 'Show a decision-tree diagram for this toy rule: if age is under 30, check whether income is over $50,000; yes means Approve and no means Deny. Otherwise, Check credit score. Trace a 25-year-old earning $60,000.';
+const FLOW_REQUEST = 'Show a flowchart for this toy rule: if age is under 30, check whether income is over $50,000; yes means Approve and no means Deny. Otherwise, Check credit score. Trace a 25-year-old earning $60,000.';
 
 const TABLE = '| Phase | Gap to the room | Cooling rate |\n| --- | --- | --- |\n| Early | Large | Fast |\n| Late | Small | Slow |';
 const prose = 'A hot cup loses heat faster at first because the gap between the coffee and the room is largest then; the gap shrinks as it cools, so the rate falls.';
@@ -34,9 +34,9 @@ const generate = async (text, inputs, over = {}) => { const m = scripted(...inpu
   const out = await generateArtifact({}, { command: 'explanation', args: text, ...(requirements.items?.length ? { visualRequirements: requirements } : {}), ...over }, { callModel: m.callModel }); return { out, m }; };
 const quiet = async fn => { const log = console.log; console.log = () => {}; try { return await fn(); } finally { console.log = log; } };
 
-test('the exact EX-01 and EX-07 requests produce their required records, with variations, and not-a-request wording produces none', () => {
+test('EX-01 and the explicit flowchart variant produce their required records, with variations, and not-a-request wording produces none', () => {
   assert.deepEqual(deriveVisualRequirements(EX01).items.map(i => [i.id, i.kind]), [['vr-1', 'table']]);
-  const ex07 = deriveVisualRequirements(EX07);
+  const ex07 = deriveVisualRequirements(FLOW_REQUEST);
   assert.deepEqual(ex07.items.map(i => [i.kind, i.diagramKind]), [['diagram', 'flow']]);
   assert.equal(ex07.version, 1);
   for (const q of ['Compare bubble sort and merge sort in a table', 'Put the planets in a table form, please', 'Give me a truth table for XOR and explain it', 'Explain gradient descent and tabulate the learning rates']) assert.equal(deriveVisualRequirements(q).items[0]?.kind, 'table', q);
@@ -97,36 +97,36 @@ test('over-budget output fails exactly one code point over the 700 hard limit; t
   assert.match(over.out.error, /explanation_over_budget/);
 });
 
-test('EX-07: a valid flow with Yes/No branches and outcomes is delivered and saved; omitted, invalid, wrong-kind or Yes/No-less diagrams fail', async () => {
-  const ok = await generate(EX07, [withFlow]);
+test('EX-07 explicit flowchart variant: a valid flow with Yes/No branches and outcomes is delivered and saved; omitted, invalid, wrong-kind or Yes/No-less diagrams fail', async () => {
+  const ok = await generate(FLOW_REQUEST, [withFlow]);
   assert.equal(ok.out.result, 'artifact');
   assert.deepEqual(ok.out.block.visualRequirements.items.map(i => [i.kind, i.diagramKind, i.satisfied]), [['diagram', 'flow', true]]);
   assert.deepEqual(JSON.parse(JSON.stringify(ok.out.block)), ok.out.block, 'the saved block survives a save/read round trip unchanged');
   // An illustration is a visual but not a diagram: the card has its visual, the learner's diagram is still missing.
-  const missing = await quiet(() => generate(EX07, [{ title: 'T', body: `The 25-year-old is approved.\n\n${illustrationFence({ caption: 'The 25-year-old approved', alt: 'An approved applicant' })}\n\nThat is the result.` }]));
+  const missing = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `The 25-year-old is approved.\n\n${illustrationFence({ caption: 'The 25-year-old approved', alt: 'An approved applicant' })}\n\nThat is the result.` }]));
   assert.match(missing.out.error, /required_visual_missing:/); // the picture is not the asked mix, so the server drops it (owner review 2026-11-08)
-  const unclosed = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: flowSpec })}` }]));
+  const unclosed = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.\n\n\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: flowSpec })}` }]));
   assert.equal(unclosed.out.result, 'validation_error');
   assert.match(unclosed.out.error, /required_visual_invalid:/);
-  const badTopology = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n${diagram({ ...flowSpec, edges: [{ from: 'age', to: 'nowhere', label: 'Yes' }] })}` }]));
+  const badTopology = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.\n\n${diagram({ ...flowSpec, edges: [{ from: 'age', to: 'nowhere', label: 'Yes' }] })}` }]));
   assert.equal(badTopology.out.result, 'validation_error');
   assert.match(badTopology.out.error, /required_visual_invalid:/, 'an invalid required diagram is never silently dropped');
-  const wrongKind = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'timeline', title: 'Steps', events: [{ time: 'Now', label: 'Check age' }, { time: 'Then', label: 'Check income' }] })}` }]));
+  const wrongKind = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'timeline', title: 'Steps', events: [{ time: 'Now', label: 'Check age' }, { time: 'Then', label: 'Check income' }] })}` }]));
   assert.match(wrongKind.out.error, /asked for a flow diagram.*is a timeline/);
-  const noBranches = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'flow', title: 'Steps', nodes: [{ id: 'a', label: 'Start', role: 'process' }, { id: 'b', label: 'Approve', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }], highlightPath: ['a', 'b'] })}` }]));
+  const noBranches = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'flow', title: 'Steps', nodes: [{ id: 'a', label: 'Start', role: 'process' }, { id: 'b', label: 'Approve', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }], highlightPath: ['a', 'b'] })}` }]));
   assert.match(noBranches.out.error, /Yes and No branches/);
   // E3: the request says "Trace ...", so a caption alone is not enough: the flow needs its validated highlightPath.
   const { highlightPath: _route, ...unmarked } = flowSpec;
-  const noRoute = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.
+  const noRoute = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.
 
 ${diagram(unmarked)}
 
 So the rule approves.` }]));
   assert.equal(noRoute.out.result, 'validation_error');
   assert.match(noRoute.out.error, /^required_visual_invalid: .*highlightPath/);
-  assert.deepEqual(deriveVisualRequirements(EX07).items[0].trace, true);
+  assert.deepEqual(deriveVisualRequirements(FLOW_REQUEST).items[0].trace, true);
   assert.equal(deriveVisualRequirements('Show a flowchart of how a request is handled').items[0].trace, undefined, 'no trace wording, no route required');
-  const badRoute = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.
+  const badRoute = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.
 
 ${diagram({ ...flowSpec, highlightPath: ['age', 'ok'] })}
 
@@ -134,14 +134,41 @@ So the rule approves.` }]));
   assert.match(badRoute.out.error, /required_visual_invalid:/, 'a route that is not on existing edges is an invalid diagram');
   // Standard EX-07 with a Tutor-style zero repair is one call and the same refusal.
   const m = scripted({ title: 'T', body: 'Approved.' });
-  const zero = await quiet(() => generateArtifact({}, { command: 'explanation', args: EX07, visualRequirements: deriveVisualRequirements(EX07) }, { callModel: m.callModel, repairs: 0 }));
+  const zero = await quiet(() => generateArtifact({}, { command: 'explanation', args: FLOW_REQUEST, visualRequirements: deriveVisualRequirements(FLOW_REQUEST) }, { callModel: m.callModel, repairs: 0 }));
   assert.deepEqual([zero.result, m.seen.length], ['validation_error', 1]);
+});
+
+test('EX-07 decision-tree wording requires an actual tree with labelled branches and its traced route', async () => {
+  const request = FLOW_REQUEST.replace('flowchart', 'decision-tree diagram');
+  const spec = { kind: 'tree', layout: 'binary', title: flowSpec.title, caption: flowSpec.caption,
+    nodes: [
+      { id: 'age', label: 'Age under 30?' },
+      { id: 'inc', label: 'Income over $50k?', parent: 'age', side: 'left', edgeLabel: 'Yes' },
+      { id: 'cs', label: 'Check credit score', parent: 'age', side: 'right', edgeLabel: 'No' },
+      { id: 'ok', label: 'Approve', parent: 'inc', side: 'left', edgeLabel: 'Yes' },
+      { id: 'no', label: 'Deny', parent: 'inc', side: 'right', edgeLabel: 'No' },
+    ], highlightPath: ['age', 'inc', 'ok'] };
+  const card = value => ({ ...withFlow, body: withFlow.body.replace(diagram(flowSpec), diagram(value)) });
+  const requirement = deriveVisualRequirements(request);
+  assert.equal(requirement.items[0].diagramKind, 'tree');
+  assert.equal(requirement.items[0].trace, true);
+  const accepted = await generate(request, [card(spec)]);
+  assert.equal(accepted.out.result, 'artifact');
+  assert.equal(accepted.out.block.visualRequirements.items[0].satisfied, true);
+  assert.equal(markdownVisuals(accepted.out.block.body).diagrams[0].kind, 'tree');
+  assert.match(requiredVisualProblem(withFlow, requirement), /asked for a tree diagram.*is a flow/);
+  const { highlightPath: _, ...untraced } = spec;
+  assert.match(requiredVisualProblem(card(untraced), requirement), /highlightPath/);
+  const unlabelled = { ...spec, nodes: spec.nodes.map(({ edgeLabel, ...node }) => node) };
+  assert.match(requiredVisualProblem(card(unlabelled), requirement), /Yes and No branches/);
+  const broken = { ...spec, highlightPath: ['age', 'ok'] };
+  assert.match(requiredVisualProblem(card(broken), requirement), /required_visual_invalid/);
 });
 
 test('optional diagram degradation: a valid required diagram beside an invalid optional one delivers the required one and records the drop; a dangling pointer fails', async () => {
   const optionalBad = `\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: { kind: 'flow', title: 'Extra', nodes: [{ id: 'a', label: 'A', role: 'process' }], edges: [{ from: 'a', to: 'zz' }] } })}\n\`\`\``;
   const both = { title: 'T', body: `The 25-year-old is approved.\n\n${diagram(flowSpec)}\n\nA second view of the rule.\n\n${optionalBad}\n\nThat is the rule.` };
-  const r = await quiet(() => generate(EX07, [both, both]));
+  const r = await quiet(() => generate(FLOW_REQUEST, [both, both]));
   assert.equal(r.out.result, 'artifact');
   assert.equal(r.out.diagramsDropped, 1, 'the degradation is recorded in the result');
   assert.deepEqual(markdownVisuals(r.out.block.body).diagrams.map(d => d.ok), [true], 'only the required diagram is left');
@@ -163,7 +190,7 @@ test('optional diagram degradation: a valid required diagram beside an invalid o
   assert.equal(danglingFigureProblem({ body: 'Softmax is a function.' }), null);
   // The invalid REQUIRED diagram with a separate valid optional one is not "fixed" by dropping the required one.
   const reqBad = { title: 'T', body: `Approved.\n\n${optionalBad}\n\nThe rule checks age first.\n\n${diagram(flowSpec)}\n\nSo the rule approves.` };
-  const wrongOne = await quiet(() => generate(EX07, [reqBad, reqBad]));
+  const wrongOne = await quiet(() => generate(FLOW_REQUEST, [reqBad, reqBad]));
   assert.equal(wrongOne.out.result, 'artifact', 'a valid diagram remains for the one requirement, so the invalid extra is the optional one');
   assert.equal(wrongOne.out.diagramsDropped, 1);
 });
@@ -250,7 +277,7 @@ test('requiredVisualProblem is null without a requirement, and counts one table 
 
 test('a topic word alone is not a request for a picture: a decision tree, a timeline or a t-account question stays prose-only', () => {
   for (const q of ['Explain how a decision tree works', 'What is the timeline of the French Revolution?', 'How does a t-account record a sale?', 'Explain the number line']) assert.deepEqual(deriveVisualRequirements(q).items, [], q);
-  assert.equal(deriveVisualRequirements('Draw a decision tree diagram for loan approval').items[0].diagramKind, 'flow');
+  assert.equal(deriveVisualRequirements('Draw a decision tree diagram for loan approval').items[0].diagramKind, 'tree');
   assert.equal(deriveVisualRequirements('Show a timeline diagram of the French Revolution').items[0].diagramKind, 'timeline');
 });
 

@@ -169,7 +169,7 @@ test('exports a strict, serializable JSON Schema and keeps the original seven ki
 test('exports the optional binary layout and child sides in the provider tree schema', () => {
   const shapes = tutorDiagramJsonSchema.properties.diagram;
   const tree = (shapes.anyOf ?? shapes.oneOf).find(shape => shape.properties.kind.const === 'tree');
-  assert.equal(tree.properties.layout.const, 'binary');
+  assert.deepEqual(tree.properties.layout.enum, ['binary', 'hierarchy', 'dendrogram']);
   assert.ok(!tree.required.includes('layout'));
   const node = tree.properties.nodes.items;
   assert.deepEqual(node.properties.side.enum, ['left', 'right']);

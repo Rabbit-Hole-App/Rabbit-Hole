@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Expected error changes with model complexity",
+    "caption": "Illustrative values; compare categories on the shared scale.",
+    "kind": "bar-chart",
+    "variant": "stacked",
+    "categories": [
+      "Low complexity",
+      "Medium complexity",
+      "High complexity"
+    ],
+    "series": [
+      {
+        "label": "Squared bias",
+        "values": [
+          8,
+          3,
+          1
+        ]
+      },
+      {
+        "label": "Variance",
+        "values": [
+          1,
+          2,
+          7
+        ]
+      },
+      {
+        "label": "Noise",
+        "values": [
+          2,
+          2,
+          2
+        ]
+      }
+    ]
+  }
+}

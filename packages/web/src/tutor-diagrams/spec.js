@@ -1,3 +1,8 @@
+import * as statistical from './ml-statistical-spec.js';
+import * as plot from './ml-plot-spec.js';
+import * as topology from './ml-topology-spec.js';
+import * as data from './ml-data-spec.js';
+import * as composition from './ml-composition-spec.js';
 import { z } from 'zod';
 import { formatMinor, sumMinor, toMinor } from './balance-values.js';
 import { tokenizeMath } from '../math-tokens.js';
@@ -33,7 +38,7 @@ const figureAnchors = {
 };
 
 
-const diagramShape = z.discriminatedUnion('kind', [
+const baseDiagramShapes = [
   z.strictObject({
     ...titled, kind: z.literal('flow'),
     nodes: z.array(z.strictObject({ id, label: text(60), role: z.enum(['process', 'decision', 'outcome']) })).min(2).max(12),
@@ -113,8 +118,27 @@ const diagramShape = z.discriminatedUnion('kind', [
     ...titled, kind: z.literal('waterfall'), opening: numeric, unit, changes: z.array(entry).min(1).max(6),
   }),
 
-]);
+];
+const helpers = { z, titled, text, id, numeric, unit, axes, node, itemList };
+const domains = [statistical, plot, topology, data, composition];
+const shapeMap = new Map(baseDiagramShapes.map(schema => [schema.shape.kind.value, schema]));
+for (const domain of domains.slice(0, -1)) {
+  for (const schema of domain.createShapes(helpers)) shapeMap.set(schema.shape.kind.value, schema);
+}
+// Deliberately nonrecursive. A comparison/transform can contain these teaching
+// leaves, never another comparison/transform. No raw JSON escape hatch.
+const leafKinds = new Set(['tree', 'coordinate-plot', 'bar-chart', 'matrix', 'timeline', 'heatmap', 'sample-set', 'histogram', 'box-plot']);
+const leafDiagram = z.discriminatedUnion('kind', [...shapeMap].filter(([kind]) => leafKinds.has(kind)).map(([, schema]) => schema));
+for (const schema of composition.createShapes({ ...helpers, leafDiagram })) shapeMap.set(schema.shape.kind.value, schema);
+const diagramShape = z.discriminatedUnion('kind', [...shapeMap.values()]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
+
+function childDiagrams(diagram) {
+  if (diagram.kind === 'comparison' && diagram.variant === 'panels') return (diagram.panels ?? []).map((p, index) => ({ diagram: p.diagram, path: ['panels', index, 'diagram'] }));
+  if (diagram.kind === 'transformation' && diagram.variant === 'visual') return ['before', 'after'].filter(side => diagram[side]?.diagram).map(side => ({ diagram: diagram[side].diagram, path: [side, 'diagram'] }));
+  return [];
+}
+
 
 function checkFlow({ nodes, edges, highlightPath }, issue) {
   const outgoing = new Map(nodes.map(node => [node.id, []]));
@@ -265,8 +289,7 @@ function checkAmount(value, path, issue, nonnegative = false) {
   if (nonnegative && value < 0) issue(path, 'Debit and credit amounts must be nonnegative');
 }
 
-export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
-  const issue = (path, message) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message });
+function validateDiagram(diagram, issue) {
   switch (diagram.kind) {
     case 'flow': checkFlow(diagram, issue); break;
     case 'sequence': checkSequence(diagram, issue); break;
@@ -279,6 +302,9 @@ export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
     case 'tree': checkTree(diagram, issue); break;
     case 'relationship': checkRelationships(diagram, issue); break;
     case 'transformation':
+      // The composition validator reports a mixed representation. Do not read
+      // list fields on a visual state before it can return that useful error.
+      if (diagram.variant === 'visual' || !diagram.before.items || !diagram.after.items) break;
       diagram.links?.forEach(({ from, to }, index) => {
         if (from >= diagram.before.items.length || to >= diagram.after.items.length) {
           issue(['links', index], 'Mapping indices must refer to existing items');
@@ -298,6 +324,11 @@ export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
       diagram.changes.forEach(({ amount }, i) => checkAmount(amount, ['changes', i, 'amount'], issue));
       break;
   }
+  for (const domain of domains) domain.validate(diagram, issue);
+  for (const child of childDiagrams(diagram)) validateDiagram(child.diagram, (path, message) => issue([...child.path, ...path], message));
+}
+export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
+  validateDiagram(diagram, (path, message) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message }));
 });
 
 // Provider constraints describe the JSON shape. The local parse additionally
@@ -311,6 +342,7 @@ export function parseTutorDiagram(value) {
     try { value = JSON.parse(value); }
     catch { throw new Error('Invalid diagram JSON'); }
   }
+  if (JSON.stringify(value)?.length > MAX_JSON_LENGTH) throw new Error('Diagram JSON is too long');
   return tutorDiagramSchema.parse(value);
 }
 
@@ -323,6 +355,10 @@ const withUnit = (value, unit) => unit ? `${value} ${unit}` : String(value);
 const describeEntry = ({ label, amount }, unit) => `${label}: ${withUnit(formatMinor(toMinor(amount)), unit)}`;
 
 function describeContent(diagram) {
+  for (const domain of domains) {
+    const description = domain.describe(diagram);
+    if (description !== null && description !== undefined) return [...description, ...childDiagrams(diagram).flatMap(child => [child.diagram.title, ...describeContent(child.diagram), child.diagram.caption].filter(Boolean))];
+  }
   switch (diagram.kind) {
     case 'flow': return [...describeConnections(diagram.nodes, diagram.edges), ...(diagram.highlightPath ? [`Highlighted path: ${diagram.highlightPath.map(step => diagram.nodes.find(node => node.id === step).label).join(' → ')}`] : [])];
     case 'comparison': return diagram.columns.map(({ heading, items }) => `${heading}: ${items.join('; ')}`);
@@ -403,6 +439,10 @@ export function describeTutorDiagram({ diagram }) {
 // The words an author wrote that the renderer draws: title, caption and every label, heading, item, detail, source, unit and account name.
 // Ids, roles, anchors, directions and numbers are not words. The written-Explanation validator counts exactly these against the Depth cap.
 export function tutorDiagramVisibleText({ diagram: d }) {
+  for (const domain of domains) {
+    const content = domain.visibleText(d);
+    if (content !== null && content !== undefined) return [...content, ...childDiagrams(d).flatMap(child => tutorDiagramVisibleText({ diagram: child.diagram }))];
+  }
   const own = [d.title, d.caption];
   const labels = list => list.map(item => item.label);
   switch (d.kind) {

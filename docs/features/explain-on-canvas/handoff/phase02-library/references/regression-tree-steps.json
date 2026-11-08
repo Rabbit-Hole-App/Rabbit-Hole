@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Regression-tree leaves give constant predictions",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Feature",
+      "min": 0,
+      "max": 8,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Prediction",
+      "min": 0,
+      "max": 6
+    },
+    "series": [
+      {
+        "label": "Tree prediction",
+        "kind": "step",
+        "points": [
+          {
+            "x": 0,
+            "y": 2
+          },
+          {
+            "x": 3,
+            "y": 5
+          },
+          {
+            "x": 6,
+            "y": 3
+          },
+          {
+            "x": 8,
+            "y": 3
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "label": "First split",
+        "axis": "x",
+        "value": 3
+      },
+      {
+        "kind": "reference-line",
+        "label": "Second split",
+        "axis": "x",
+        "value": 6
+      }
+    ]
+  }
+}

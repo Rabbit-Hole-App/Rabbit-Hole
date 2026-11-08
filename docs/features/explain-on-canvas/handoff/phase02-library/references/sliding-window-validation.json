@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A fixed training window moves forward",
+    "caption": "The training duration stays at four months while both training and testing move forward.",
+    "kind": "timeline",
+    "layout": "scaled-lanes",
+    "domain": {
+      "min": 0,
+      "max": 10,
+      "unit": "month",
+      "label": "Time"
+    },
+    "lanes": [
+      {
+        "id": "fold1",
+        "label": "Fold 1",
+        "intervals": [
+          {
+            "id": "s1train",
+            "label": "Train: 4 months",
+            "start": 0,
+            "end": 4,
+            "role": "train"
+          },
+          {
+            "id": "s1test",
+            "label": "Test",
+            "start": 4,
+            "end": 6,
+            "role": "test"
+          }
+        ]
+      },
+      {
+        "id": "fold2",
+        "label": "Fold 2",
+        "intervals": [
+          {
+            "id": "s2train",
+            "label": "Train: 4 months",
+            "start": 2,
+            "end": 6,
+            "role": "train"
+          },
+          {
+            "id": "s2test",
+            "label": "Test",
+            "start": 6,
+            "end": 8,
+            "role": "test"
+          }
+        ]
+      },
+      {
+        "id": "fold3",
+        "label": "Fold 3",
+        "intervals": [
+          {
+            "id": "s3train",
+            "label": "Train: 4 months",
+            "start": 4,
+            "end": 8,
+            "role": "train"
+          },
+          {
+            "id": "s3test",
+            "label": "Test",
+            "start": 8,
+            "end": 10,
+            "role": "test"
+          }
+        ]
+      }
+    ]
+  }
+}
