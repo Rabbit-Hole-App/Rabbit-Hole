@@ -113,6 +113,22 @@ test('interactions anchor on a v2 card: the body aligns past the diagram and the
   assert.ok(alignField(bodyRoot(withFigure(undefined)).querySelector('[data-explanation-field="body"]'), canonical), 'and with a fence that draws nothing');
 });
 
+// Live /explain run 2026-11-08 (regen-out-explain-1): a body with $...$ maths drew no pills, because the KaTeX glyphs never matched the LaTeX in the canonical text.
+// Maths is an island matched by its source, so the prose around it aligns: a term before, between and after the maths (and in a table with maths) is wrapped.
+test('interactions anchor in a field that holds typeset maths', () => {
+  const body = 'A fluid\'s boiling point depends on pressure, so the refrigerant can be colder than food. Heat always flows hot $\\to$ cold, and $Q_{out}=Q_{in}+W$ holds.\n\n| Feature | Evaporator |\n|---|---|\n| Phase | Liquid $\\to$ vapour |\n\nA display line \\(x^2\\) and\n\n$$Q_{in} + W$$\n\nthe compressor closes it.';
+  const block = { type: 'explanation', title: 'Fridge', body }, document = bodyRoot(block), root = document.querySelector('[data-explanation-field="body"]');
+  assert.ok(root.querySelectorAll('.katex').length >= 4, 'KaTeX typeset the maths');
+  const canonical = fieldText(block, 'body'), aligned = alignField(root, canonical);
+  assert.ok(aligned, 'the field aligns past every maths run');
+  const start = label => Array.from(canonical.slice(0, canonical.indexOf(label))).length;
+  const marks = ['refrigerant', 'cold', 'holds', 'vapour', 'compressor'].map((label, i) => ({ start: start(label), end: start(label) + Array.from(label).length, kind: 'term', id: `t${i}` }));
+  decorate(aligned, marks, document);
+  assert.deepEqual([...root.querySelectorAll('[data-term-id]')].map(n => n.textContent), ['refrigerant', 'cold', 'holds', 'vapour', 'compressor']);
+  assert.equal(root.querySelector('.katex [data-term-id]'), null, 'nothing is wrapped inside the maths');
+  assert.equal(alignField(root, canonical.replace('Q_{out}', 'Q_{oops}')), null, 'a maths run that does not match its source still refuses the field');
+});
+
 // Needs the control-plane mapping (learn-primitives.js markdownText, owned by the server lane): an rh-illustration fence adds nothing to a field's display text.
 // Until then the card's own fieldText still carries the fence JSON, so on a live v2 card the body does not align and its pills are not drawn.
 test('the canonical field text of a v2 body is its prose only', { todo: 'control-plane explanationFieldText must drop rh-illustration fences (server lane)' }, () => {

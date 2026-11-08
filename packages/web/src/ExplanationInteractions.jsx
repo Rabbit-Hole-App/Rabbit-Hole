@@ -161,7 +161,7 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
 }
 
 // One Markdown field of the card, the unit terms and highlights are anchored to. Decorates after every render: unwrap, align with the canonical text,
-// wrap. A field that does not align (typeset math, a diagram's labels) is left plain. Keyed by the Markdown, so an edit remounts it rather than
+// wrap. A field that does not align (rendered text the canonical mapping does not hold) is left plain; maths and diagrams are islands. Keyed by the Markdown, so an edit remounts it rather than
 // letting React update a text node the decoration has split.
 export function InteractiveField({ layer, field, children }) {
   const ref = useRef(null), last = useRef(null);
