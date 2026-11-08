@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rabbit Hole · Card Component Kit</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper:#f5f4ed; --card:#fffefa; --panel:#f6f8f4; --ink:#202723; --muted:#5d675f;
+      --border:#e3e7e0; --card-border:#dedfd8; --blue:#426db2; --blue-soft:#eaf1fb;
+      --orange:#b86232; --orange-dark:#934723; --orange-soft:#f8ece3;
+      --green:#267657; --green-soft:#e5f2ea; --green-border:#b8dccc;
+      font:16px/1.45 Inter,"Liberation Sans",Arial,sans-serif; background:var(--paper); color:var(--ink);
+    }
+    * { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body { margin:0; }
+    main { width:min(100%,1256px); margin:auto; padding:27px 26px 52px; }
+    h1,h2,h3,p,dl,dd,figure { margin:0; }
+    h1 { margin:6px 0; font-size:clamp(2rem,4vw,2.8rem); line-height:1.1; letter-spacing:-.036em; }
+    h2 { font-size:clamp(1.45rem,3vw,1.8rem); letter-spacing:-.025em; }
+    .eyebrow { display:flex; align-items:center; gap:9px; color:var(--muted); font-size:.88rem; font-weight:700; }
+    .eyebrow::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--orange); }
+    .lede,.section-description { color:var(--muted); max-width:74ch; }
+    .page-nav { display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:16px; }
+    a { color:#375d92; text-underline-offset:3px; }
+    section { margin-top:31px; scroll-margin-top:18px; }
+    .section-description { margin:4px 0 13px; }
+    .grid { display:grid; gap:14px; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+    .card,.sample,.inventory { background:var(--card); border:1px solid var(--card-border); border-radius:18px; }
+    .card { padding:18px 24px 21px; box-shadow:0 2px #e6e5de; min-width:0; container-type:inline-size; }
+    .card-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+    .badge { display:inline-block; border-radius:999px; padding:4px 11px; font-size:.8125rem; font-weight:700; }
+    .badge.explain { color:#375d92; background:var(--blue-soft); }
+    .badge.interactive { color:var(--orange-dark); background:var(--orange-soft); }
+    .slot-tag { color:var(--muted); font-size:.8rem; }
+    .card h3 { font-size:clamp(1.32rem,2.3vw,1.7rem); letter-spacing:-.022em; line-height:1.2; }
+    .card-copy { display:grid; gap:5px; margin:9px 0 11px; color:#505b52; font-size:.9375rem; }
+    .why { border:1px solid var(--green-border); border-radius:9px; margin:0 0 10px; padding:7px 10px; background:var(--green-soft); color:#205c45; font-size:.875rem; }
+    .why strong { margin-inline-end:5px; }
+    .scene { min-width:0; overflow:hidden; }
+    .scene svg { display:block; width:100%; height:auto; font-family:inherit; }
+    .card-controls { display:grid; gap:8px; margin-top:10px; }
+    .card-timeline:not(:empty) { margin-top:9px; }
+    .example-stat { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .stat { display:grid; gap:3px; min-width:0; padding:12px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); }
+    .stat strong { color:var(--blue); font-size:1.35rem; }
+    .catalog { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .sample { min-width:0; padding:15px 15px 16px; border-radius:13px; container-type:inline-size; }
+    .sample h3 { font-size:1rem; }
+    .sample p { color:var(--muted); font-size:.85rem; margin:4px 0 10px; }
+    .sample[data-demo="timeline"] { grid-column:span 2; }
+    .control-row { min-width:0; display:grid; grid-template-columns:minmax(75px,auto) minmax(62px,1fr) max-content; gap:9px; align-items:center; }
+    .control-label { font-weight:650; color:var(--ink); font-size:.875rem; }
+    .value { color:var(--orange-dark); font-size:.875rem; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    button,input,select { font:inherit; }
+    button,select,input[type="number"] { min-height:37px; color:var(--ink); }
+    button { cursor:pointer; }
+    button:disabled { cursor:default; opacity:.48; }
+    :is(button,input,select,summary):focus-visible,.choice:has(input:focus-visible) .choice-text,.toggle:has(input:focus-visible) .toggle-track { outline:2px solid var(--blue); outline-offset:2px; }
+    input[type="range"] { width:100%; min-width:0; margin:0; accent-color:var(--orange); cursor:pointer; }
+    fieldset { border:0; min-inline-size:0; padding:0; margin:0; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+    .selector { display:flex; align-items:center; gap:8px 10px; flex-wrap:wrap; }
+    .choice-list { display:flex; flex:1; flex-wrap:wrap; gap:5px; }
+    .choice { position:relative; display:inline-flex; flex:1; }
+    .choice-text { display:grid; width:100%; min-height:35px; place-items:center; text-align:center; padding:5px 8px; cursor:pointer; color:var(--muted); font-size:.8125rem; font-weight:650; background:#fff; border:1px solid var(--border); border-radius:8px; white-space:nowrap; }
+    .choice input:checked + .choice-text { background:var(--orange-soft); color:var(--orange-dark); border-color:#e2ad8f; }
+    .button { display:inline-flex; justify-content:center; align-items:center; gap:5px; padding:6px 11px; border:1px solid #e2ad8f; border-radius:8px; color:var(--orange-dark); background:var(--orange-soft); font-size:.84rem; font-weight:650; white-space:nowrap; }
+    .button:hover { background:#f5e0d2; }
+    .button.secondary { background:#fff; border-color:var(--border); color:var(--muted); }
+    .button.secondary:hover { background:var(--panel); }
+    .action-row,.index-row { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
+    .action-row .status { margin-inline-start:2px; }
+    .status { font-size:.83rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .transport { display:grid; grid-template-columns:72px minmax(55px,1fr) 68px; gap:9px; align-items:center; padding:6px 8px; border:1px solid var(--border); border-radius:9px; background:var(--panel); }
+    .transport .value { text-align:right; }
+    .select-row,.toggle { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    select,input[type="number"] { border:1px solid var(--border); border-radius:8px; background:#fff; padding:6px 8px; font-size:.875rem; }
+    select { min-width:110px; max-width:100%; }
+    .toggle { position:relative; cursor:pointer; }
+    .toggle-track { display:flex; width:37px; height:22px; padding:2px; align-items:center; border:1px solid #ced8cc; background:#e2e8df; border-radius:11px; }
+    .toggle-track::after { content:""; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 2px #20272330; }
+    .toggle input:checked + .toggle-track { background:var(--green); border-color:var(--green); justify-content:flex-end; }
+    .stepper { display:flex; gap:4px; align-items:center; }
+    .stepper input { width:54px; text-align:center; }
+    .settings { border:1px solid var(--border); border-radius:9px; padding:7px 9px; background:var(--panel); }
+    .settings summary { cursor:pointer; font-size:.85rem; font-weight:650; }
+    .settings-body { padding-top:7px; }
+    .readout { display:flex; justify-content:space-between; align-items:baseline; gap:8px; color:var(--green); background:var(--green-soft); padding:8px 10px; border-radius:8px; font-size:.87rem; }
+    .readout strong { font-variant-numeric:tabular-nums; }
+    .inventory { padding:0 14px; border-radius:13px; }
+    .inventory .line { display:grid; grid-template-columns:minmax(135px,1fr) minmax(0,2.8fr); gap:10px; padding:10px 0; }
+    .inventory .line + .line { border-top:1px solid var(--border); }
+    .inventory dd { color:var(--muted); }
+    .inventory dt { font-weight:700; }
+    .availability { display:inline-block; color:#375d92; background:var(--blue-soft); border-radius:999px; padding:2px 7px; font-size:.72rem; font-weight:700; margin-bottom:4px; }
+    .availability.gated { background:#ecefe8; color:#4b584e; }
+    .availability.planned { background:var(--orange-soft); color:var(--orange-dark); }
+    @media (max-width:860px) { .grid,.catalog { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:690px) { .grid { grid-template-columns:1fr; } }
+    @media (max-width:500px) {
+      main { padding:19px 13px 35px; }
+      .card { padding:14px 13px 16px; }
+      .catalog { grid-template-columns:1fr; }
+      .sample[data-demo="timeline"] { grid-column:auto; }
+      .inventory .line { grid-template-columns:1fr; gap:2px; }
+    }
+    @container (max-width:235px) {
+      .control-row { grid-template-columns:1fr auto; }
+      .control-row input[type="range"] { grid-row:2; grid-column:1 / -1; }
+      .control-row output { grid-row:1; grid-column:2; }
+      .transport { grid-template-columns:68px minmax(55px,1fr); }
+      .transport .value { grid-column:2; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Rabbit Hole · HTML design reference</p>
+    <h1>Card component kit</h1>
+    <p class="lede">A shared Explanation and Interactive shell, with working native controls in the same visual style as the 12 card references.</p>
+    <nav class="page-nav" aria-label="Kit sections"><a href="#examples">Card examples</a><a href="#controls">Control templates</a><a href="#inventory">UI inventory</a></nav>
+  </header>
+  <section id="examples" aria-labelledby="examples-title">
+    <h2 id="examples-title">Card examples</h2>
+    <p class="section-description">The shell sets the pill, title, copy, scene and controls. Untimed scenes put the experiment controls directly under the visual.</p>
+    <div class="grid" id="example-cards"></div>
+  </section>
+  <section id="controls" aria-labelledby="controls-title">
+    <h2 id="controls-title">Control templates</h2>
+    <p class="section-description">Each template works on its own. A card typically needs zero to three primary controls.</p>
+    <div class="catalog" id="control-catalog"></div>
+  </section>
+  <section id="inventory" aria-labelledby="inventory-title">
+    <h2 id="inventory-title">UI inventory</h2>
+    <p class="section-description">Use the first three rows to build the 12 references. The remaining rows cover other lesson types and existing card actions.</p>
+    <dl class="inventory">
+      <div class="line"><dt>Shared card shell</dt><dd>Explanation or Interactive pill, title, teaching copy, optional figure and caption, optional source and Focus actions, spacing, responsive sizing, and loading or recovery states.</dd></div>
+      <div class="line"><dt>Teaching visuals</dt><dd>Class dots and legend, split comparison rows, formula rows, numeric table with a featured row, metric tiles, callout bands, paired bar rows, active decision paths, plots, vote tiles, and highlighted data grids.</dd></div>
+      <div class="line"><dt>Inputs for the 12</dt><dd>Labeled slider and value, compact exclusive selector, and a single action button. Show the result through a Why line, active path, current score, tally, or other state-linked readout.</dd></div>
+      <div class="line"><dt>Timed and richer scenes</dt><dd>Play, pause, replay, scrubber and current time. Reset is a secondary action. Ordered index, multi-select, switch, and selectable or draggable targets depend on the renderer.</dd></div>
+      <div class="line"><dt>Controls to register</dt><dd>Dropdown for many or long choices, precise number input or stepper, and collapsed secondary settings with a changed-state cue. The examples below the card shells show their appearance and behavior.</dd></div>
+      <div class="line"><dt>Explanation actions</dt><dd>Source passage, term definitions, suggested questions, same-card or linked-card follow-up, and selection highlights or notes. Use the app’s existing actions and persist their card and source context.</dd></div>
+    </dl>
+  </section>
+</main>
+
+<!-- Clone these components into the host card and bind them to the card's state. -->
+<template id="card-template">
+  <article class="card"><header class="card-header"><span class="badge" data-slot="pill"></span><span class="slot-tag" data-slot="mode"></span></header>
+  <h3 data-slot="title"></h3><div class="card-copy"><p data-slot="concept"></p><p data-slot="instruction" hidden></p></div>
+  <p class="why" data-slot="why" hidden><strong>Why</strong><span data-slot="reason"></span></p>
+  <figure class="scene" data-slot="scene"></figure><div class="card-timeline" data-slot="timeline"></div><div class="card-controls" data-slot="controls" hidden></div></article>
+</template>
+<template id="range-template"><div class="control-row"><label class="control-label"></label><input type="range"><output class="value"></output></div></template>
+<template id="choice-template"><fieldset class="selector"><legend class="sr-only"></legend><span class="control-label" aria-hidden="true"></span><div class="choice-list"></div></fieldset></template>
+<template id="option-template"><label class="choice"><input class="sr-only" type="radio"><span class="choice-text"></span></label></template>
+<template id="button-template"><button type="button" class="button"></button></template>
+<template id="timeline-template"><div class="transport"><button type="button" class="button" data-play></button><input type="range" aria-label="Timeline"><output class="value" aria-label="Current time"></output></div></template>
+<template id="select-template"><label class="select-row"><span class="control-label"></span><select></select></label></template>
+<template id="toggle-template"><label class="toggle"><span class="control-label"></span><input type="checkbox" class="sr-only" role="switch"><span class="toggle-track" aria-hidden="true"></span></label></template>
+<template id="stepper-template"><div class="select-row"><label class="control-label"></label><div class="stepper"><button type="button" class="button secondary" aria-label="Decrease">−</button><input type="number"><button type="button" class="button secondary" aria-label="Increase">+</button></div></div></template>
+<template id="index-template"><div class="index-row"><button type="button" class="button secondary" aria-label="Previous stage">Previous</button><output class="status" aria-live="polite"></output><button type="button" class="button secondary" aria-label="Next stage">Next</button></div></template>
+<template id="disclosure-template"><details class="settings"><summary>More settings <span class="status" hidden>· changed</span></summary><div class="settings-body"></div></details></template>
+<template id="readout-template"><output class="readout"><span></span><strong></strong></output></template>
+<template id="sample-template"><article class="sample"><span class="availability"></span><h3></h3><p></p><div data-mount></div></article></template>
+<script>
+function drawSplit(cutoff, criterion) {
+  const points = ['A', 'A', 'B', 'A', 'A', 'B', 'B', 'A', 'B', 'B'];
+  const left = points.filter((_, i) => i + 1 <= cutoff);
+  const right = points.slice(left.length);
+  const tally = group => group.filter(label => label === 'A').length;
+  const impurity = group => {
+    const p = tally(group) / group.length;
+    if (p === 0 || p === 1) return 0;
+    return criterion === 'entropy'
+      ? -p * Math.log2(p) - (1 - p) * Math.log2(1 - p)
+      : 1 - p ** 2 - (1 - p) ** 2;
+  };
+  const leftA = tally(left);
+  const rightA = tally(right);
+  const child = (left.length * impurity(left) + right.length * impurity(right)) / points.length;
+  const gain = impurity(points) - child;
+  const format = value => value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+  const measure = criterion === 'entropy' ? 'entropy' : 'Gini';
+  const splitX = 30 + (cutoff - 1) * (480 / 9);
+  const dots = points.map((label, i) => {
+    const x = 30 + i * (480 / 9);
+    return `<circle cx="${x}" cy="52" r="12" fill="${label === 'A' ? '#426db2' : '#b86232'}"/>
+      <text x="${x}" y="56" fill="white" text-anchor="middle" font-size="11" font-weight="700">${label}</text>
+      <text x="${x}" y="76" fill="#5d675f" text-anchor="middle" font-size="11">${i + 1}</text>`;
+  }).join('');
+  return {
+    why: `At ${cutoff.toFixed(1)}, the left group has ${leftA} A and ${left.length - leftA} B. The right group has ${rightA} A and ${right.length - rightA} B, giving ${measure} gain of ${format(gain)}.`,
+    svg: `<svg viewBox="0 0 540 140" role="img" aria-label="Labeled points, class counts and split gain" style="display:block;width:100%;height:auto">
+      <rect x="0.5" y="0.5" width="539" height="139" rx="10" fill="#f6f8f4" stroke="#e3e7e0"/>
+      <rect x="13" y="14" width="${splitX - 13}" height="73" rx="6" fill="#eaf1fb"/>
+      <rect x="${splitX}" y="14" width="${527 - splitX}" height="73" rx="6" fill="#f8ece3"/>
+      <path d="M ${splitX} 14 V 87" stroke="#267657" stroke-width="2" stroke-dasharray="4 3"/>
+      ${dots}
+      <text x="${splitX}" y="29" text-anchor="middle" fill="#267657" font-size="11" font-weight="700" paint-order="stroke" stroke="#f6f8f4" stroke-width="3">${cutoff.toFixed(1)}</text>
+      <text x="20" y="109" fill="#202723" font-size="13" font-weight="700">Left · ${leftA} A, ${left.length - leftA} B</text>
+      <text x="20" y="126" fill="#202723" font-size="13" font-weight="700">Right · ${rightA} A, ${right.length - rightA} B</text>
+      <text x="520" y="109" text-anchor="end" fill="#5d675f" font-size="13">Weighted ${measure} ${format(child)}</text>
+      <text x="520" y="126" text-anchor="end" fill="#267657" font-size="13" font-weight="700">Gain ${format(gain)}</text>
+    </svg>`,
+  };
+}
+
+function drawToss(height, time) {
+  const ballHeight = t => height - 0.5 * 9.81 * t ** 2;
+  const x = t => 48 + (t + 0.5) * 325;
+  const y = meters => 117 - meters * 32;
+  const trajectory = Array.from({ length: 33 }, (_, index) => {
+    const t = -0.5 + index / 32;
+    return `${x(t).toFixed(2)},${y(ballHeight(t)).toFixed(2)}`;
+  }).join(' ');
+  const currentHeight = ballHeight(time);
+  return {
+    svg: `<svg viewBox="0 0 540 140" role="img" aria-label="Height over time. Peak ${height.toFixed(2)} meters. Current height ${currentHeight.toFixed(2)} meters." style="display:block;width:100%;height:auto">
+      <rect x="0.5" y="0.5" width="539" height="139" rx="10" fill="#f6f8f4" stroke="#e3e7e0"/>
+      <path d="M 48 15 V 117 H 373" fill="none" stroke="#a9b5a9" stroke-width="1.25"/>
+      ${[0, 1, 2, 3].map(meters => `<path d="M 48 ${y(meters)} H 373" stroke="#e3e7e0"/><text x="40" y="${y(meters) + 4}" text-anchor="end" fill="#5d675f" font-size="11">${meters}</text>`).join('')}
+      <text x="21" y="15" fill="#5d675f" font-size="11">m</text>
+      <text x="370" y="132" text-anchor="end" fill="#5d675f" font-size="11">Time from peak (s)</text>
+      <path d="M ${x(0)} 15 V 117" stroke="#a9b5a9" stroke-dasharray="3 4"/>
+      <polyline points="${trajectory}" fill="none" stroke="#426db2" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="${x(time)}" cy="${y(currentHeight)}" r="6" fill="#b86232" stroke="#fffefa" stroke-width="2"/>
+      <path d="M 392 23 V 113" stroke="#e3e7e0"/>
+      <text x="409" y="45" fill="#5d675f" font-size="12">Peak height</text>
+      <text x="409" y="65" fill="#202723" font-size="17" font-weight="700">${height.toFixed(2)} m</text>
+      <text x="409" y="94" fill="#5d675f" font-size="12">Current height</text>
+      <text x="409" y="114" fill="#267657" font-size="17" font-weight="700">${currentHeight.toFixed(2)} m</text>
+    </svg>`,
+  };
+}
+
+  let nextId = 0;
+  const uid = () => `control-${++nextId}`;
+  const clone = name => document.getElementById(`${name}-template`).content.firstElementChild.cloneNode(true);
+  const query = (node, selector) => node.querySelector(selector);
+  const write = (node, selector, text) => { query(node, selector).textContent = text; };
+  const setValue = (node, value) => { node.textContent = value; };
+
+  function slider({ label, min, max, step, value, format = String }, onChange = () => {}) {
+    const node = clone('range');
+    const input = query(node, 'input');
+    const output = query(node, 'output');
+    Object.assign(input, { id: uid(), min, max, step, value });
+    query(node, 'label').htmlFor = input.id;
+    write(node, 'label', label);
+    output.setAttribute('for', input.id);
+    function sync(notify) {
+      const current = Number(input.value);
+      const text = format(current);
+      setValue(output, text);
+      input.setAttribute('aria-valuetext', text);
+      if (notify) onChange(current);
+    }
+    input.addEventListener('input', () => sync(true));
+    sync(false);
+    return node;
+  }
+
+  function choices({ label, options, selected, multiple = false }, onChange = () => {}) {
+    const node = clone('choice');
+    const group = uid();
+    const active = new Set(multiple ? selected : [selected]);
+    write(node, 'legend', label);
+    write(node, '.control-label', label);
+    for (const [value, title] of options) {
+      const option = clone('option');
+      const input = query(option, 'input');
+      Object.assign(input, { name: group, value, checked: active.has(value), type: multiple ? 'checkbox' : 'radio' });
+      write(option, '.choice-text', title);
+      query(node, '.choice-list').append(option);
+    }
+    node.addEventListener('change', event => {
+      if (multiple) onChange([...node.querySelectorAll('input:checked')].map(input => input.value));
+      else if (event.target.checked) onChange(event.target.value);
+    });
+    return node;
+  }
+
+  function action(label, onClick, secondary = false) {
+    const button = clone('button');
+    button.textContent = label;
+    button.classList.toggle('secondary', secondary);
+    button.addEventListener('click', onClick);
+    return button;
+  }
+
+  function currentTime(value, signed = true) {
+    const rounded = Math.round(value * 100) / 100;
+    const sign = rounded < 0 ? '−' : rounded > 0 && signed ? '+' : '';
+    return `${sign}${Math.abs(rounded).toFixed(2)} s`;
+  }
+
+  function transport({ min, max, initial, step, signed }, onChange = () => {}) {
+    const node = clone('timeline');
+    const play = query(node, '[data-play]');
+    const input = query(node, 'input');
+    const output = query(node, 'output');
+    let time = initial;
+    let active = false;
+    let pending = 0;
+    let last = null;
+    Object.assign(input, { id: uid(), min, max, step, value: initial });
+    output.setAttribute('for', input.id);
+    function update(next) {
+      time = Math.max(min, Math.min(max, next));
+      input.value = time;
+      const text = currentTime(time, signed);
+      setValue(output, text);
+      input.setAttribute('aria-valuetext', text);
+      play.textContent = active ? 'Pause' : time >= max ? 'Replay' : 'Play';
+      onChange(time);
+    }
+    function stop() {
+      active = false;
+      last = null;
+      cancelAnimationFrame(pending);
+    }
+    function tick(now) {
+      if (!active) return;
+      const elapsed = last === null ? 0 : (now - last) * 0.00035;
+      last = now;
+      if (time + elapsed >= max) {
+        stop();
+        update(max);
+        return;
+      }
+      update(time + elapsed);
+      pending = requestAnimationFrame(tick);
+    }
+    play.addEventListener('click', () => {
+      if (active) {
+        stop();
+        update(time);
+      } else {
+        active = true;
+        update(time >= max ? min : time);
+        pending = requestAnimationFrame(tick);
+      }
+    });
+    input.addEventListener('input', () => {
+      stop();
+      update(Number(input.value));
+    });
+    update(initial);
+    return node;
+  }
+
+  function dropdown(label, options, onChange = () => {}) {
+    const node = clone('select');
+    const select = query(node, 'select');
+    write(node, 'span', label);
+    for (const [value, title] of options) select.add(new Option(title, value));
+    select.addEventListener('change', () => onChange(select.value));
+    return node;
+  }
+
+  function toggle(label, checked, onChange = () => {}) {
+    const node = clone('toggle');
+    const input = query(node, 'input');
+    write(node, '.control-label', label);
+    input.checked = checked;
+    input.addEventListener('change', () => onChange(input.checked));
+    return node;
+  }
+
+  function stepper({ label, min, max, value }, onChange = () => {}) {
+    const node = clone('stepper');
+    const input = query(node, 'input');
+    const [minus, plus] = node.querySelectorAll('button');
+    Object.assign(input, { id: uid(), min, max, step: 1, value });
+    query(node, 'label').htmlFor = input.id;
+    write(node, 'label', label);
+    function sync(notify) {
+      const number = input.valueAsNumber;
+      const current = Math.max(min, Math.min(max, Number.isFinite(number) ? Math.round(number) : value));
+      input.value = current;
+      minus.disabled = current <= min;
+      plus.disabled = current >= max;
+      if (notify) onChange(current);
+    }
+    minus.addEventListener('click', () => { input.stepDown(); sync(true); });
+    plus.addEventListener('click', () => { input.stepUp(); sync(true); });
+    input.addEventListener('change', () => sync(true));
+    sync(false);
+    return node;
+  }
+
+  function orderedIndex(labels, onChange = () => {}) {
+    const node = clone('index');
+    const [previous, next] = node.querySelectorAll('button');
+    const output = query(node, 'output');
+    let index = 0;
+    function sync() {
+      setValue(output, labels[index]);
+      previous.disabled = index === 0;
+      next.disabled = index === labels.length - 1;
+      onChange(index);
+    }
+    previous.addEventListener('click', () => { index--; sync(); });
+    next.addEventListener('click', () => { index++; sync(); });
+    sync();
+    return node;
+  }
+
+  function disclosure() {
+    const node = clone('disclosure');
+    const changed = query(node, '.status');
+    query(node, '.settings-body').append(toggle('Show grid lines', false, on => { changed.hidden = !on; }));
+    return node;
+  }
+
+  function readout(label, value) {
+    const node = clone('readout');
+    write(node, 'span', label);
+    write(node, 'strong', value);
+    return node;
+  }
+
+  function card({ type, mode, title, concept, instruction = '' }) {
+    const node = clone('card');
+    const slot = key => query(node, `[data-slot="${key}"]`);
+    slot('pill').classList.add(type);
+    slot('pill').textContent = type === 'explain' ? 'Explanation' : 'Interactive';
+    slot('mode').textContent = mode;
+    slot('title').textContent = title;
+    slot('title').id = uid();
+    node.setAttribute('aria-labelledby', slot('title').id);
+    slot('concept').textContent = concept;
+    slot('instruction').textContent = instruction;
+    slot('instruction').hidden = !instruction;
+    query(document, '#example-cards').append(node);
+    return {
+      draw: svg => { slot('scene').innerHTML = svg; },
+      visual: element => slot('scene').append(element),
+      why: message => { slot('why').hidden = !message; slot('reason').textContent = message; },
+      timeline: element => slot('timeline').append(element),
+      controls: (...items) => { slot('controls').hidden = !items.length; slot('controls').append(...items); },
+    };
+  }
+
+  function createStats(items) {
+    const row = document.createElement('div');
+    row.className = 'example-stat';
+    for (const [label, value] of items) {
+      const stat = document.createElement('div');
+      const text = document.createElement('span');
+      const number = document.createElement('strong');
+      stat.className = 'stat';
+      text.textContent = label;
+      number.textContent = value;
+      stat.append(text, number);
+      row.append(stat);
+    }
+    return row;
+  }
+
+  function createActionExample(onChange = () => {}) {
+    const row = document.createElement('div');
+    row.className = 'action-row';
+    let index = 0;
+    const status = document.createElement('output');
+    status.className = 'status';
+    status.setAttribute('aria-live', 'polite');
+    const draw = action('Draw again', () => { index = (index + 1) % 3; sync(); });
+    const reset = action('Reset', () => { index = 0; sync(); }, true);
+    function sync() {
+      setValue(status, `Draw ${index + 1} of 3`);
+      reset.disabled = index === 0;
+      onChange(index);
+    }
+    row.append(draw, reset, status);
+    sync();
+    return row;
+  }
+
+  function sample(name, status, title, description, component) {
+    const node = clone('sample');
+    node.dataset.demo = name;
+    const tag = query(node, '.availability');
+    tag.classList.toggle('gated', status === 'Renderer dependent');
+    tag.classList.toggle('planned', status === 'Register first');
+    tag.textContent = status;
+    write(node, 'h3', title);
+    write(node, 'p', description);
+    query(node, '[data-mount]').append(component);
+    query(document, '#control-catalog').append(node);
+  }
+
+  const explanation = card({ type: 'explain', mode: 'Reading', title: 'Two ways to measure impurity',
+    concept: 'A mixed node is harder to label with one class. For six cats and four dogs, Gini and entropy measure that mixture on different scales.' });
+  explanation.visual(createStats([['Gini impurity', '0.48'], ['Entropy', '0.971 bits']]));
+
+  const split = card({ type: 'interactive', mode: 'Untimed', title: 'Tree Split Explorer',
+    concept: 'A good cutoff puts similar points on each side of the split.', instruction: 'Move the cutoff, then switch the measure to compare what each one rewards.' });
+  let cutoff = 5.5;
+  let criterion = 'gini';
+  function updateSplit() {
+    const { svg, why } = drawSplit(cutoff, criterion);
+    split.why(why);
+    split.draw(svg);
+  }
+  split.controls(slider({ label: 'Cutoff', min: 1.5, max: 9.5, step: 1, value: cutoff }, value => { cutoff = value; updateSplit(); }),
+    choices({ label: 'Measure', options: [['gini','Gini'],['entropy','Entropy']], selected: criterion }, value => { criterion = value; updateSplit(); }));
+  updateSplit();
+
+  const toss = card({ type: 'interactive', mode: 'Timed', title: 'A ball near its highest point',
+    concept: 'The ball is highest at time zero. Gravity makes it lower on either side of that instant.', instruction: 'Play or scrub the timeline, then change the peak height and compare the motion.' });
+  let height = 2.2;
+  let time = 0;
+  const renderToss = () => toss.draw(drawToss(height, time).svg);
+  toss.timeline(transport({ min: -.5, max: .5, initial: time, step: .01, signed: true }, value => { time = value; renderToss(); }));
+  toss.controls(slider({ label: 'Peak height', min: 1.6, max: 3, step: .1, value: height, format: value => `${value.toFixed(1)} m` }, value => { height = value; renderToss(); }));
+
+  const bootstrap = card({ type: 'interactive', mode: 'Untimed', title: 'Bootstrap sampling',
+    concept: 'Drawing with replacement lets a row appear more than once in the sample.', instruction: 'Draw again and check how many distinct rows you got.' });
+  const draws = ['B · D · D · A · H · B · D · F', 'A · C · E · B · E · H · G · C', 'F · B · B · D · F · C · G · E'];
+  const bootstrapVisual = document.createElement('div');
+  bootstrap.visual(bootstrapVisual);
+  bootstrap.controls(createActionExample(index => {
+    const unique = new Set(draws[index].split(' · ')).size;
+    bootstrapVisual.replaceChildren(readout('Rows drawn', draws[index]), createStats([['Distinct rows', `${unique} of 8`], ['Out of bag', String(8 - unique)]]));
+  }));
+
+  sample('slider', 'Core', 'Labeled slider', 'Use for a continuous or ordered numeric range. Keep the value and unit visible.', slider({ label:'Height', min:1.6, max:3, step:.1, value:2.2, format:value=>`${value.toFixed(1)} m` }));
+  sample('choice', 'Core', 'Segmented choice', 'Use for two or three short, mutually exclusive choices.', choices({ label:'Criterion', options:[['gini','Gini'],['entropy','Entropy']], selected:'gini' }));
+  sample('action', 'Core', 'Action and secondary Reset', 'An action changes state. Its outcome stays visible as a readout.', createActionExample());
+  sample('timeline', 'Timed scenes', 'Playback and timeline', 'One transport controls the scene. Play, pause, scrub, and replay at the end.', transport({ min:-.5, max:.5, initial:-.1, step:.01, signed:true }));
+  sample('readout', 'Core', 'Read-only result', 'Use for a score, tally, gain, or other derived value.', readout('Information gain', '0.18'));
+  sample('select', 'Register first', 'Dropdown', 'Use for longer labels or when too many segments would crowd the card.', dropdown('Feature', [['age','Applicant age'],['income','Annual income'],['credit','Credit score'],['history','Payment history']]));
+  sample('toggle', 'Renderer dependent', 'Switch', 'Use for an independent on/off setting.', toggle('Show class labels', true));
+  sample('stepper', 'Register first', 'Number stepper', 'Use when a learner needs precise numeric entry.', stepper({ label:'Maximum depth', min:1, max:5, value:2 }));
+  sample('ordered', 'Renderer dependent', 'Ordered index', 'Use Previous and Next when ordered states are part of the explanation.', orderedIndex(['1 · Assign', '2 · Update', '3 · Compare']));
+  sample('multi', 'Renderer dependent', 'Independent multi-select', 'Use when a learner can meaningfully combine options.', choices({ label:'Visible classes', options:[['a','Class A'],['b','Class B']], selected:['a','b'], multiple:true }));
+  sample('disclosure', 'Register first', 'Secondary settings', 'Group optional settings behind one disclosure, with a cue when a setting differs from its default.', disclosure());
+</script>
+</body>
+</html>
