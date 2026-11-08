@@ -1,0 +1,13 @@
+{
+  "caseId": "ex07-decision-tree",
+  "replies": {
+    "clean": {
+      "title": "A toy approval rule as a decision tree",
+      "body": "The rule asks about age first. Under 30, it asks whether income is over $50,000: yes means Approve, no means Deny. Anyone else goes to a credit score check. A 25-year-old earning $60,000 is under 30 and over the income line, so the result is Approve.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"kind\":\"flow\",\"title\":\"Toy approval rule\",\"caption\":\"Age under 30? Yes, then income over $50,000? Yes, so Approve.\",\"nodes\":[{\"id\":\"age\",\"label\":\"Age under 30?\",\"role\":\"decision\"},{\"id\":\"income\",\"label\":\"Income over $50,000?\",\"role\":\"decision\"},{\"id\":\"approve\",\"label\":\"Approve\",\"role\":\"outcome\"},{\"id\":\"deny\",\"label\":\"Deny\",\"role\":\"outcome\"},{\"id\":\"credit\",\"label\":\"Check credit score\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"age\",\"to\":\"income\",\"label\":\"Yes\"},{\"from\":\"age\",\"to\":\"credit\",\"label\":\"No\"},{\"from\":\"income\",\"to\":\"approve\",\"label\":\"Yes\"},{\"from\":\"income\",\"to\":\"deny\",\"label\":\"No\"}],\"highlightPath\":[\"age\",\"income\",\"approve\"]}}\n```"
+    },
+    "bad-diagram": {
+      "title": "A toy approval rule as a decision tree",
+      "body": "The rule asks about age first. Under 30, it asks whether income is over $50,000: yes means Approve, no means Deny. Anyone else goes to a credit score check. A 25-year-old earning $60,000 is under 30 and over the income line, so the result is Approve.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"kind\":\"flow\",\"title\":\"Toy approval rule\",\"caption\":\"Age under 30? Yes, then income over $50,000? Yes, so Approve.\",\"nodes\":[{\"id\":\"age\",\"label\":\"Age under 30?\",\"role\":\"decision\"},{\"id\":\"income\",\"label\":\"Income over $50,000?\",\"role\":\"decision\"},{\"id\":\"approve\",\"label\":\"Approve\",\"role\":\"outcome\"},{\"id\":\"deny\",\"label\":\"Deny\",\"role\":\"outcome\"},{\"id\":\"credit\",\"label\":\"Check credit score\",\"role\":\"outcome\"}],\"edges\":[{\"from\":\"age\",\"to\":\"income\",\"label\":\"Yes\"},{\"from\":\"age\",\"to\":\"credit\",\"label\":\"No\"},{\"from\":\"income\",\"to\":\"approve\",\"label\":\"Yes\"}],\"highlightPath\":[\"age\",\"income\",\"approve\"]}}\n```"
+    }
+  }
+}

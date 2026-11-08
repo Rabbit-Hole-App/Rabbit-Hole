@@ -1,0 +1,20 @@
+{
+  "note": "FIXTURE CONFIG. Model ids below are synthetic placeholders that exist only for the offline provider doubles; prices are synthetic. Nothing here names a real provider model, and no real profile is registered by this file.",
+  "defaultProfiles": ["plan-default", "fixture-fast", "fixture-mixed", "fixture-flaky"],
+  "profiles": {
+    "fixture-fast": { "version": 1, "extends": "plan-default", "roles": { "author": { "model": "fixture-model-fast", "pricingKey": "fixture-price-fast" }, "repair": { "model": "fixture-model-fast", "pricingKey": "fixture-price-fast" } } },
+    "fixture-mixed": { "version": 1, "extends": "plan-default", "roles": { "author": { "model": "fixture-model-draft", "pricingKey": "fixture-price-fast" }, "repair": { "model": "fixture-model-repair", "pricingKey": "fixture-price-slow" } } },
+    "fixture-flaky": { "version": 1, "extends": "plan-default", "roles": { "author": { "model": "fixture-model-flaky" }, "repair": { "model": "fixture-model-flaky" } } }
+  },
+  "pricing": {
+    "fixture-price-fast": { "inputPerMTok": 1, "outputPerMTok": 4, "synthetic": true },
+    "fixture-price-slow": { "inputPerMTok": 3, "outputPerMTok": 12, "synthetic": true }
+  },
+  "behaviors": {
+    "*": { "script": "clean", "latencyMs": 4200, "tokens": { "input": 1800, "output": 650 } },
+    "fixture-model-fast": { "script": "clean", "overrides": { "ex02p-gini-standard": "wrong-fact" }, "latencyMs": 900, "tokens": { "input": 1800, "output": 520 } },
+    "fixture-model-draft": { "script": "clean", "overrides": { "ex01-coffee-standard": "no-table" }, "latencyMs": 1500, "tokens": { "input": 1800, "output": 580 } },
+    "fixture-model-repair": { "script": "clean", "latencyMs": 2100, "tokens": { "input": 2400, "output": 600 } },
+    "fixture-model-flaky": { "script": "clean", "overrides": { "ex01-coffee-deep": "timeout", "heldout-tides-standard": "http500", "ex07-decision-tree": "refusal", "ex02p-gini-deep": "truncated>clean" }, "usage": "unknown", "latencyMs": 1200 }
+  }
+}

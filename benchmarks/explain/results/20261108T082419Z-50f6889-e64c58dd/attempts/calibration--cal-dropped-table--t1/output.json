@@ -1,0 +1,63 @@
+{
+  "status": "failed",
+  "failure": {
+    "stage": "validation",
+    "reason": "required_visual_missing: the learner asked for a table (vr-1: \"Why does coffee cool faster at first? Include a small table comparing early and late cooling.\") and the card has none; add it in the card body, shortening the prose to stay inside the budget."
+  },
+  "result": {
+    "result": "validation_error",
+    "repaired": false,
+    "profile": null
+  },
+  "block": null,
+  "normalizedCalls": [
+    {
+      "callId": "calibration--cal-dropped-table--t1.c1",
+      "role": "author",
+      "requested": {
+        "provider": "plan",
+        "model": "claude-opus-5"
+      },
+      "served": {
+        "provider": "plan",
+        "model": "claude-opus-5"
+      },
+      "stop": "end",
+      "error": null,
+      "usage": {
+        "input": 1800,
+        "output": 650,
+        "cache": null,
+        "reasoning": null
+      },
+      "output": {
+        "title": "Why hot coffee cools fastest at first",
+        "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room. Fresh coffee is far hotter than the air, so it loses heat quickly; as it cools the gap shrinks and the loss slows. Under comparable conditions (same cup, same room, same lid) that is why the first minutes matter most.\n\nThe heat leaves by conduction through the cup, by moving air around it, by evaporation from the surface and by radiation. Each of these depends on how much hotter the coffee is than its surroundings, so all of them fade together as the gap closes."
+      }
+    },
+    {
+      "callId": "calibration--cal-dropped-table--t1.c2",
+      "role": "repair",
+      "requested": {
+        "provider": "plan",
+        "model": "claude-opus-5"
+      },
+      "served": {
+        "provider": "plan",
+        "model": "claude-opus-5"
+      },
+      "stop": "end",
+      "error": null,
+      "usage": {
+        "input": 1800,
+        "output": 650,
+        "cache": null,
+        "reasoning": null
+      },
+      "output": {
+        "title": "Why hot coffee cools fastest at first",
+        "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room. Fresh coffee is far hotter than the air, so it loses heat quickly; as it cools the gap shrinks and the loss slows. Under comparable conditions (same cup, same room, same lid) that is why the first minutes matter most.\n\nThe heat leaves by conduction through the cup, by moving air around it, by evaporation from the surface and by radiation. Each of these depends on how much hotter the coffee is than its surroundings, so all of them fade together as the gap closes."
+      }
+    }
+  ]
+}

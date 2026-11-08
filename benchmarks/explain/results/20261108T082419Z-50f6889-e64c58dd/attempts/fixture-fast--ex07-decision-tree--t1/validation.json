@@ -1,0 +1,39 @@
+{
+  "visualRequirements": {
+    "version": 1,
+    "items": [
+      {
+        "id": "vr-1",
+        "kind": "diagram",
+        "diagramKind": "flow",
+        "trace": true,
+        "purpose": "Show a decision-tree diagram for this toy rule: if age is under 30, check whether income is over $50,000; yes means Approve and no means Deny. Otherwise, Check credit score. Trace a 25-year-old earnin"
+      }
+    ]
+  },
+  "refusedAttempts": [],
+  "finalChecks": [
+    {
+      "id": "fact_missing:approve-result",
+      "kind": "fact",
+      "severity": "major",
+      "pass": true,
+      "detail": "The 25-year-old earning $60,000 is approved."
+    },
+    {
+      "id": "fact_missing:credit-branch",
+      "kind": "fact",
+      "severity": "minor",
+      "pass": true,
+      "detail": "Applicants not under 30 go to a credit-score check."
+    },
+    {
+      "id": "visual:flow",
+      "pass": true,
+      "detail": "flow with the expected branches and trace",
+      "kind": "visual",
+      "severity": "major"
+    }
+  ],
+  "calibration": null
+}

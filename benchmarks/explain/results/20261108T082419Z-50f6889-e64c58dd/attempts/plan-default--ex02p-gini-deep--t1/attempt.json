@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "runId": "20261108T082419Z-50f6889-e64c58dd",
+  "attemptId": "plan-default--ex02p-gini-deep--t1",
+  "kind": "benchmark",
+  "caseId": "ex02p-gini-deep",
+  "baseCaseId": "ex02p-gini-deep",
+  "trial": 1,
+  "depth": "deep",
+  "entry": "direct",
+  "promptLabel": "reconstructed",
+  "profile": {
+    "id": "plan-default",
+    "version": 1,
+    "hash": "c3d3a6dfb985fe78",
+    "roles": {
+      "author": {
+        "role": "author",
+        "task": "artifact",
+        "provider": "plan",
+        "model": "claude-opus-5",
+        "adapter": "plan",
+        "credentialRef": "ANTHROPIC_API_KEY",
+        "maxOutputTokens": 4000,
+        "toolChoice": "any",
+        "settings": {}
+      },
+      "repair": {
+        "role": "repair",
+        "task": "artifact",
+        "provider": "plan",
+        "model": "claude-opus-5",
+        "adapter": "plan",
+        "credentialRef": "ANTHROPIC_API_KEY",
+        "maxOutputTokens": 4000,
+        "toolChoice": "any",
+        "settings": {}
+      }
+    }
+  },
+  "request": {
+    "requestHash": "7ac84231af4f0350",
+    "model": "claude-opus-5",
+    "repairModel": "claude-opus-5",
+    "max_tokens": 4000,
+    "tool_choice": {
+      "type": "any",
+      "disable_parallel_tool_use": true
+    },
+    "system": {
+      "sha": "ece7521f1c5f5c89",
+      "chars": 1936
+    },
+    "tools": {
+      "sha": "5e14e232bda743b9",
+      "names": [
+        "make_explanation",
+        "ask_clarifying_question"
+      ]
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "{\"command\":\"/explanation\",\"request\":\"Two ways to split eight training examples: split A gives two groups with class counts 3 and 1, and 1 and 3. Split B gives two groups with class counts 2 and 2, and 2 and 2. Using Gini impurity, which split would a tree-growing classifier choose, and why? Show the numbers.\",\"learnerText\":\"Two ways to split eight training examples: split A gives two groups with class counts 3 and 1, and 1 and 3. Split B gives two groups with class counts 2 and 2, and 2 and 2. Using Gini impurity, which split would a tree-growing classifier choose, and why? Show the numbers.\",\"selection\":null,\"context\":null,\"depth\":\"deep\"}"
+      }
+    ],
+    "note": "the system prompt and tool text are identified by hash and prompt/schema versions in the manifest, not repeated per attempt"
+  },
+  "visualRequirements": null,
+  "status": "done",
+  "createdAt": "2026-11-08T08:24:19.601Z",
+  "finishedAt": "2026-11-08T08:24:19.614Z",
+  "callIds": [
+    "plan-default--ex02p-gini-deep--t1.c1"
+  ]
+}

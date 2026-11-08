@@ -1,0 +1,35 @@
+{
+  "status": "failed",
+  "failure": {
+    "stage": "provider_error",
+    "reason": "Artifact generation unavailable (model HTTP 500). Try again."
+  },
+  "result": null,
+  "block": null,
+  "normalizedCalls": [
+    {
+      "callId": "fixture-flaky--heldout-tides-standard--t1.c1",
+      "role": "author",
+      "requested": {
+        "provider": "plan",
+        "model": "fixture-model-flaky"
+      },
+      "served": {
+        "provider": "plan",
+        "model": null
+      },
+      "stop": "error",
+      "error": {
+        "class": "http_error",
+        "message": "The provider returned 500; usage is unknown."
+      },
+      "usage": {
+        "input": null,
+        "output": null,
+        "cache": null,
+        "reasoning": null
+      },
+      "output": null
+    }
+  ]
+}

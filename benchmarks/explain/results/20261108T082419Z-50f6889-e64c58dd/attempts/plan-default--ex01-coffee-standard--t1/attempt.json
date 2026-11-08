@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "runId": "20261108T082419Z-50f6889-e64c58dd",
+  "attemptId": "plan-default--ex01-coffee-standard--t1",
+  "kind": "benchmark",
+  "caseId": "ex01-coffee-standard",
+  "baseCaseId": "ex01-coffee-standard",
+  "trial": 1,
+  "depth": "standard",
+  "entry": "direct",
+  "promptLabel": "original",
+  "profile": {
+    "id": "plan-default",
+    "version": 1,
+    "hash": "c3d3a6dfb985fe78",
+    "roles": {
+      "author": {
+        "role": "author",
+        "task": "artifact",
+        "provider": "plan",
+        "model": "claude-opus-5",
+        "adapter": "plan",
+        "credentialRef": "ANTHROPIC_API_KEY",
+        "maxOutputTokens": 4000,
+        "toolChoice": "any",
+        "settings": {}
+      },
+      "repair": {
+        "role": "repair",
+        "task": "artifact",
+        "provider": "plan",
+        "model": "claude-opus-5",
+        "adapter": "plan",
+        "credentialRef": "ANTHROPIC_API_KEY",
+        "maxOutputTokens": 4000,
+        "toolChoice": "any",
+        "settings": {}
+      }
+    }
+  },
+  "request": {
+    "requestHash": "c7bf552abbc82580",
+    "model": "claude-opus-5",
+    "repairModel": "claude-opus-5",
+    "max_tokens": 4000,
+    "tool_choice": {
+      "type": "any",
+      "disable_parallel_tool_use": true
+    },
+    "system": {
+      "sha": "9000332e59c5dd59",
+      "chars": 1628
+    },
+    "tools": {
+      "sha": "ad10fb24dda3fdbd",
+      "names": [
+        "make_explanation",
+        "ask_clarifying_question"
+      ]
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "{\"command\":\"/explanation\",\"request\":\"Why does coffee cool faster at first? Include a small table comparing early and late cooling.\",\"learnerText\":\"Why does coffee cool faster at first? Include a small table comparing early and late cooling.\",\"selection\":null,\"context\":null,\"requiredVisuals\":[{\"id\":\"vr-1\",\"kind\":\"table\",\"purpose\":\"Why does coffee cool faster at first? Include a small table comparing early and late cooling.\"}]}"
+      }
+    ],
+    "note": "the system prompt and tool text are identified by hash and prompt/schema versions in the manifest, not repeated per attempt"
+  },
+  "visualRequirements": {
+    "version": 1,
+    "items": [
+      {
+        "id": "vr-1",
+        "kind": "table",
+        "purpose": "Why does coffee cool faster at first? Include a small table comparing early and late cooling."
+      }
+    ]
+  },
+  "status": "done",
+  "createdAt": "2026-11-08T08:24:19.509Z",
+  "finishedAt": "2026-11-08T08:24:19.527Z",
+  "callIds": [
+    "plan-default--ex01-coffee-standard--t1.c1"
+  ]
+}

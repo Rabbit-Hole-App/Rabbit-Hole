@@ -1,0 +1,31 @@
+{
+  "visualRequirements": {
+    "version": 1,
+    "items": [
+      {
+        "id": "vr-1",
+        "kind": "table",
+        "purpose": "Why does coffee cool faster at first? Include a small table comparing early and late cooling."
+      }
+    ]
+  },
+  "refusedAttempts": [
+    {
+      "attempt": 0,
+      "error": "explanation_over_budget: the card has 977 characters, the overview budget is 600 including the title, section labels, table cells, diagram title, caption and labels, and collapsed sections; shorten it."
+    },
+    {
+      "attempt": 1,
+      "error": "explanation_over_budget: the card has 977 characters, the overview budget is 600 including the title, section labels, table cells, diagram title, caption and labels, and collapsed sections; shorten it."
+    }
+  ],
+  "finalChecks": [],
+  "calibration": {
+    "expectFlag": true,
+    "flagged": true,
+    "ok": true,
+    "matched": [
+      "explanation_over_budget"
+    ]
+  }
+}
