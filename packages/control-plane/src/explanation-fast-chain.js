@@ -52,15 +52,26 @@ const textOf = content => (typeof content === 'string' ? content : content.map(p
   throw final('input_unsupported', 'The explanation model reads text only, and this request has an image or a PDF, so nothing was sent or charged.');
 }).join('\n\n'));
 
+// Gemini compiles the response schema into a state machine and refuses one past its limits with HTTP 400 INVALID_ARGUMENT ("Request contains an invalid
+// argument.", every fallback call of 2026-11-08): "Array bounds such as minItems and maxItems duplicate the item schema for each counted" position, and
+// numeric bounds add states. Its advice, followed for the Gemini step only: drop array and numeric bounds and enforce them in application code
+// (https://aistudio.google.com/docs/structured-output, read 2026-11-08). Bisected the same day: the TutorDiagram schema is accepted once maxItems alone is
+// dropped; minimum/maximum go too, for headroom. Our validator still enforces every bound on the answer, and a violation goes to the step's one repair.
+const BOUNDS = new Set(['minItems', 'maxItems', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum']);
+// names: o is a properties map (its keys are field names, never keywords).
+export const withoutBounds = (o, names = false) => (Array.isArray(o) ? o.map(s => withoutBounds(s)) : o && typeof o === 'object'
+  ? Object.fromEntries(Object.entries(o).filter(([k]) => names || !BOUNDS.has(k)).map(([k, v]) => [k, withoutBounds(v, !names && k === 'properties')])) : o);
+
 export function stepRequest(step, effort, body, stream = false) {
   const tool = body.tools?.find(t => t.name === TOOL);
   if (!tool) throw final('tool_unsupported', `The fast explanation chain makes only ${TOOL}.`);
   // ponytail: ask_clarifying_question is not offered in json_schema mode; the author always writes the card.
   const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
   const options = stream && CHAIN_ENDPOINTS[step.provider]?.streamOptions;
+  const schema = exclusiveOneOfToAnyOf(tool.input_schema);
   return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort,
     messages: [{ role: 'system', content: `${system}\n\n${tool.description}\n${ADDENDUM}` }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
-    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: exclusiveOneOfToAnyOf(tool.input_schema) } } };
+    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? withoutBounds(schema) : schema } } };
 }
 
 // OpenAI-shaped reply -> the Anthropic shape generateArtifact and spend settlement read. An unreadable answer is an empty input: the validator names what

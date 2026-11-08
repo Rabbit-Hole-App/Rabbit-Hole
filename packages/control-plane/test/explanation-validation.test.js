@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { diagramProblem, explanationProblem, explanationProseChars, settleExplanationBody } from '../src/learn-primitives.js';
+import { diagramProblem, explanationProblem, explanationProseChars, markdownVisuals, settleExplanationBody } from '../src/learn-primitives.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
 import { EXPLANATION_BUDGET, EXPLANATION_CAPS } from '../src/chat-depth.js';
@@ -77,7 +77,7 @@ const BAD = {
   'not JSON': 'this is not json',
 };
 
-// EXP-13: a card needs a visual, so a dropped diagram can be delivered only when another valid visual remains (prose, good, prose, bad, prose).
+// EXP-13: a card needs a visual, so a bad diagram is dropped when another valid visual remains (prose, good, prose, bad, prose); as the only visual it is simplified or, failing that, dropped with the card marked (owner 2026-11-08).
 const GOOD = 'Go first.\n\n' + fence();
 test('a valid rh-diagram is delivered unchanged; every invalid spec is checked by the validator, repaired once on the direct path and then DROPPED when another visual remains (never the invalid spec)', async () => {
   assert.equal(diagramProblem(fence()), null);
@@ -94,9 +94,12 @@ test('a valid rh-diagram is delivered unchanged; every invalid spec is checked b
     // roadmap path: one call, repairs 0, the same delivery
     const r = await viaRoadmap('standard', { title: 'T', body });
     assert.deepEqual([r.out.outcome, r.out.block?.body, r.out.diagramsDropped, r.m.seen.length], ['ok', GOOD + '\n\nGo on.\n\nGo end.', 1, 1], 'roadmap ' + name);
-    // the only visual is bad: dropping it would leave no visual, so the card fails truthfully
+    // the only visual is bad (owner 2026-11-08, a card should not fail; replaces "the card fails truthfully"): it becomes a straight flow of its own labels
+    // when it has two or more, else the prose card is delivered without it
     const only = await viaRoadmap('standard', { title: 'T', body: 'Go first.\n\n' + fence(spec) + '\n\nGo on.' });
-    assert.equal(only.out.failure_class, 'terminal_validation_failure', 'only visual ' + name);
+    // ('over-long node label': its straight flow names nothing the prose names, so it fails the relevance check and is not used either)
+    const fallback = ['unknown kind', 'not JSON', 'over-long node label'].includes(name) ? 'dropped' : 'simplified';
+    assert.deepEqual([only.out.outcome, only.out.block?.visualFallback, markdownVisuals(only.out.block?.body).diagrams.map(v => v.ok)], ['ok', fallback, fallback === 'simplified' ? [true] : []], 'only visual ' + name);
   }
   const unclosed = await viaRoadmap('standard', { title: 'T', body: GOOD + '\n\nGo on.\n\n```rh-diagram\n' + JSON.stringify(SPEC) });
   assert.deepEqual([unclosed.out.outcome, unclosed.out.block?.body, unclosed.out.diagramsDropped], ['ok', GOOD + '\n\nGo on.', 1], 'an unclosed fence is dropped');

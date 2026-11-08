@@ -14,7 +14,7 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, dropInvalidDiagrams, markdownVisuals, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, dropInvalidDiagrams, markdownIllustrations, markdownVisuals, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -161,7 +161,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
     try {
       if (result.stop_reason === 'max_tokens') throw new Error('The artifact was cut off before it was complete');
       if (!id) throw new Error('The clarifying question was empty');
-      let block, extraction, diagramsDropped = 0, questions, terms;
+      let block, extraction, diagramsDropped = 0, diagramsSimplified = 0, questions, terms;
       if (input.imageSource) {
         const checked = checkImageExtraction(call.input, content => ({ result: artifactBlock(id, content) }), input.imageSource);
         if (checked.error) throw new Error(checked.error);
@@ -181,12 +181,21 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         diagramsDropped = markdownVisuals(block.body).diagrams.length - markdownVisuals(settled).diagrams.length; // recorded with the result, as a dropped invalid diagram is
         block = { ...block, body: settled };
         if (attempt >= repairs) {
-          const trimmed = dropInvalidDiagrams(block);
+          let trimmed = dropInvalidDiagrams(block), fallback = null;
+          // Owner 2026-11-08, a card should not fail: when dropping would leave the card no visual, each invalid diagram becomes a simpler valid one built from
+          // its own labels (no model call); if none can be built the prose card is delivered without a visual. Recorded on the card as visualFallback
+          // ('simplified' | 'dropped') for the benchmark; the learner sees no error.
+          if (trimmed.dropped && !markdownVisuals(trimmed.block.body).diagrams.length && !markdownIllustrations(trimmed.block.body).length) {
+            const simple = dropInvalidDiagrams(block, { simplify: true });
+            // The simpler diagram must pass the card's own checks too (it may name nothing the prose names); if not, the prose card goes without it.
+            if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args)) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';
+          }
           // E1: only an OPTIONAL diagram may be dropped. With a required one, the drop stands only if the card still holds a valid diagram for each requirement
           // and no text points at the dropped figure; otherwise the card keeps its invalid diagram and fails the checks below, truthfully.
           if (trimmed.dropped && !requiredVisualProblem(trimmed.block, wanted)) {
-            const dangling = danglingFigureProblem(trimmed.block); if (dangling) throw new Error(dangling);
-            block = trimmed.block; diagramsDropped += trimmed.dropped;
+            if (trimmed.dropped > trimmed.simplified) { const dangling = danglingFigureProblem(trimmed.block); if (dangling) throw new Error(dangling); }
+            block = { ...trimmed.block, ...(fallback ? { visualFallback: fallback } : {}) }; diagramsDropped += trimmed.dropped - trimmed.simplified;
+            if (trimmed.simplified) diagramsSimplified = trimmed.simplified;
           }
         }
         // E2 + fix 1b: the questions and term anchors are read against the FINAL text (accepted title applied, diagrams settled); what is not valid is dropped, never repaired.
@@ -202,7 +211,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
+      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(diagramsSimplified ? { diagramsSimplified } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
     } catch (error) {
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
