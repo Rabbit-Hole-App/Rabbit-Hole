@@ -174,7 +174,7 @@ this environment lacks the authorized dev credentials and working browser captur
 
 ### AI teaching examples
 
-Three hand-authored examples compose the existing 2D SDK in normal program cards.
+Four hand-authored examples compose the existing 2D SDK in normal program cards.
 They are exported together by `ai-teaching-fixtures.js`, admitted only through the
 existing dev fixture gate. They are reusable source examples, not a new automatic
 lesson-routing system and not proof of LLM generation quality.
@@ -184,19 +184,16 @@ lesson-routing system and not proof of LLM generation quality.
 | `fixture-ai-convolution` | Move a 3 × 3 kernel across a small synthetic image and inspect the calculated response. Uses the CNN cross-correlation convention. | `ai-convolution-fixture.js` |
 | `fixture-ai-attention` | Select a query and causal masking; compare scaled scores, normalized weights and their weighted value output. Numbers are synthetic. | `ai-attention-fixture.js` |
 | `fixture-ai-gradient` | Vary learning rate and update count for a known quadratic loss. A nine-slot step strip separates updates that cluster on the parabola and shows the sign of each visited weight. | `ai-gradient-fixture.js` |
+| `fixture-ai-point-in-time-join` | Move the label day across feature snapshots. Compare the eligible row with the newest row and see when the latter leaks future data. [Phase 02 Lesson 21](https://github.com/rohitg00/ai-engineering-from-scratch/blob/e7db050e64bde3be17a9381476f748da26d85692/phases/02-ml-fundamentals/21-feature-stores-and-training-serving-skew/docs/en.md#L184) | `ai-point-in-time-join-fixture.js` |
 
 All source paths above are under `packages/web/src/explain-program/`. The examples
 reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
 and Reset behavior. No new SDK version, planner mapping or repair budget is added.
 Focused tests check the numerical mechanisms independently and exercise the real
 QuickJS and frame-normalization paths. The normal fixture resolver and saved input
-round trips have their own integration checks. Verification: all 14 focused AI
-tests pass; the dev web build passes. Shared-Frame SVG renders were inspected for
-all three scenes (offline rasterization does not render the gradient's KaTeX
-foreignObject formulas). This is static scene inspection, not browser acceptance.
-Live browser/dev acceptance and
-real model generation remain pending; the authorized deployment environment is
-not available here.
+round trips have their own integration checks. The original three examples passed
+14 focused AI tests and the dev web build. Their shared-Frame SVG renders were
+inspected offline, with gradient KaTeX formulas omitted by the rasterizer.
 
 ### Phase 02 follow-up
 
@@ -221,7 +218,18 @@ inspect the plan and select **Generate**. Keep the new job IDs and outcomes sepa
 /interactive Let me change a line's slope and intercept and see how far six points are from its predictions. Show how each error contributes to the mean squared error.
 ```
 
-The updated reference and the saved K-means card still need browser acceptance. Start the Lesson 21 Point-in-Time Join Explorer after the three dev checks pass.
+The updated gradient reference and the saved K-means card still need browser acceptance.
+
+### Point-in-Time Join Explorer
+
+The dev-only Lesson 21 reference uses the existing SDK 2 timeline and one integer
+slider. It models one user and assumes each snapshot becomes available on its
+snapshot day. Offline checks cover all ten days, saved inputs and Reset.
+
+On a signed-in dev build containing `fixture-ai-point-in-time-join`, move **Label
+day** to day 2 to see no match, day 6 to see the same-day snapshot qualify, and
+day 9 to see both methods use the same row. Reopen at day 2 and after Reset to
+verify persistence. Browser acceptance and a real generated card are pending.
 
 ## Dev verification evidence (integrated branch, 2026-11-08)
 

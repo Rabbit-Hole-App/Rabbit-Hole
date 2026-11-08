@@ -66,6 +66,7 @@
     "packages/web/src/explain-program/ai-attention-fixture.js": ["packages/web/src/explain-program/ai-attention.test.mjs"],
     "packages/web/src/explain-program/ai-convolution-fixture.js": ["packages/web/src/explain-program/ai-convolution.test.mjs"],
     "packages/web/src/explain-program/ai-gradient-fixture.js": ["packages/web/src/explain-program/ai-gradient.test.mjs"],
+    "packages/web/src/explain-program/ai-point-in-time-join-fixture.js": ["packages/web/src/explain-program/ai-teaching-fixtures.test.mjs"],
     "packages/web/src/explain-program/ai-teaching-fixtures.js": ["packages/web/src/explain-program/ai-teaching-fixtures.test.mjs"],
     "packages/web/src/explain-program/cyclic-fixture.js": ["packages/web/src/explain-program/cyclic-runtime.test.mjs"],
     "packages/web/src/explain-program/medium-fixtures.js": ["packages/web/src/explain-program/medium-runtime.test.mjs"],
