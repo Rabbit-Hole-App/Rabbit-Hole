@@ -67,7 +67,7 @@ test('the frozen corpus covers EX-01 at every Depth, EX-07, prose-only at every 
 
 test('a corpus file edited after the freeze is refused, and CRLF checkouts hash the same', async () => {
   const files = await readCorpusFiles(corpusDir);
-  const crlf = Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.replace(/\n/g, '\r\n')]));
+  const crlf = Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.replace(/\r?\n/g, '\r\n')]));
   await loadCorpusFromFiles(crlf); // does not throw
   await assert.rejects(loadCorpusFromFiles({ ...files, 'rubrics/ex01-coffee-standard.json': files['rubrics/ex01-coffee-standard.json'].replace('"major"', '"minor"') }), e => e.code === 'corpus_changed');
   await assert.rejects(loadCorpusFromFiles({ ...files, 'cases/ex01-coffee-standard.json': files['cases/ex01-coffee-standard.json'].replace('coffee', 'tea') }), e => e.code === 'corpus_changed');

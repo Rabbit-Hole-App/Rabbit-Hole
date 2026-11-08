@@ -143,10 +143,11 @@ export function planRun({ matrix, corpus, trials = 1, config = {} }) {
   const profiles = matrix.map(({ profile, binding }) => {
     const ceilings = stageCeilings(profile), priced = EXPLANATION_ROLES.every(r => priceOf(config, profile.roles[r]));
     const attempts = bench.length * trials;
-    const prices = priced ? EXPLANATION_ROLES.map(r => priceOf(config, profile.roles[r])) : [], outPrice = priced ? Math.max(...prices.map(x => x.outputPerMTok)) : null;
+    const rates = priced ? EXPLANATION_ROLES.map(r => priceOf(config, profile.roles[r])) : [], outPrice = priced ? Math.max(...rates.map(x => x.outputPerMTok)) : null;
+    const outBound = priced ? String(Math.round(attempts * ceilings.outputTokenCeilingPerAttempt * outPrice * 100) / 1e8) : null; // operator tool, plain number
     return { id: profile.id, version: profile.version, hash: binding.hash, author: roleLabel(profile.roles.author), repair: roleLabel(profile.roles.repair), ceilings, attempts,
       maxProviderCalls: attempts * ceilings.maxProviderCallsPerAttempt, outputTokenCeiling: attempts * ceilings.outputTokenCeilingPerAttempt,
-      costBound: priced ? `partial: output at most ${(attempts * ceilings.outputTokenCeilingPerAttempt * outPrice / 1e6).toFixed(4)} USD at ${prices.some(x => x.synthetic) ? 'SYNTHETIC ' : ''}prices; input tokens unknown` : 'unknown: the profile has no pricing key, so no dollar bound exists', costKnown: priced };
+      costBound: priced ? `partial: output at most ${outBound} operator price units at ${rates.some(x => x.synthetic) ? 'SYNTHETIC ' : ''}prices; input tokens unknown` : 'unknown: the profile has no pricing key, so no price bound exists', costKnown: priced };
   });
   return { attemptCount: bench.length * matrix.length * trials, calibrationCount: cal.length, trials, cases: bench.length, profiles, gaps: capabilityGaps(matrix),
     spend: { providerCallsMax: profiles.reduce((n, p) => n + p.maxProviderCalls, 0), outputTokensMax: profiles.reduce((n, p) => n + p.outputTokenCeiling, 0), unknownCostProfiles: profiles.filter(p => !p.costKnown).map(p => p.id), authorizedCapUsd: null } };
