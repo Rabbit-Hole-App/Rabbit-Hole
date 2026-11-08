@@ -1,0 +1,262 @@
+// The fast chain of the written /explain (explanation-fast-chain.js, owner 2026-11-08): fireworks-* and cerebras-* profiles, the other gpt-oss provider
+// and then Gemini as fallbacks, EXPLANATION_FALLBACK=off for benchmarks. Offline: global fetch is a provider double, and the spend ledger is the real
+// one on node:sqlite (the credits-provider-failure.test.js wrapper). No provider is contacted, nothing is paid.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync } from 'node:fs';
+import { EXPLANATION_PROFILE_SETTING, EXPLANATION_REGISTRY, explanationProfileBinding, explanationProfileFor, resolveExplanationProfile } from '../src/explanation-models.js';
+import { CHAIN_ENDPOINTS, FALLBACK_SETTING, stepRequest } from '../src/explanation-fast-chain.js';
+import { generateArtifact } from '../src/learn-artifact.js';
+import { EXPLANATION_GUIDANCE, artifactBlock, explanationProblem } from '../src/learn-primitives.js';
+import { explanationTarget } from '../src/chat-depth.js';
+import { INTERACTION_GUIDANCE, INTERACTIONS_SETTING } from '../src/explanation-interactions.js';
+import { requestSpendBound } from '../src/learn-spend.js';
+import { noteUsageIdentity, toMicros, withUsage } from '../src/learn-usage.js';
+
+const URL_OF = { fireworks: CHAIN_ENDPOINTS.fireworks.url, cerebras: CHAIN_ENDPOINTS.cerebras.url, google: CHAIN_ENDPOINTS.google.url };
+const FW = 'accounts/fireworks/models/gpt-oss-120b';
+const KEYS = { FIREWORKS_API_KEY: 'fw-synthetic', CEREBRAS_API_KEY: 'csk-synthetic', GEMINI_API_KEY: 'gm-synthetic' };
+const card = { title: 'Why coffee cools', body: 'A hot cup loses heat faster because the gap to the room is larger.' };
+const long = { title: 'Why coffee cools', body: 'Heat leaves the cup. '.repeat(120).trim() };
+const ok = (content, { model = null, usage = { prompt_tokens: 1000, completion_tokens: 2000 }, finish = 'stop' } = {}) => ({ ok: true, content, model, usage, finish });
+const status = code => ({ status: code });
+const hang = { hang: true };
+// Replaces global fetch for one test: every call is recorded with its provider; answers are given in order (the last one repeats).
+function providers(t, ...answers) {
+  const sent = [], original = globalThis.fetch;
+  globalThis.fetch = (url, init) => {
+    const provider = Object.keys(URL_OF).find(k => URL_OF[k] === url) ?? url;
+    const body = JSON.parse(init.body);
+    sent.push({ provider, url, init, body });
+    const a = answers[Math.min(sent.length, answers.length) - 1];
+    if (a.hang) return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))));
+    if (!a.ok) return Promise.resolve(Response.json({ message: 'synthetic failure' }, { status: a.status }));
+    return Promise.resolve(Response.json({ model: a.model ?? body.model, choices: [{ finish_reason: a.finish, message: { role: 'assistant', content: typeof a.content === 'string' ? a.content : JSON.stringify(a.content) } }], usage: a.usage }));
+  };
+  t.after(() => { globalThis.fetch = original; });
+  return sent;
+}
+const quiet = t => { const { log, warn } = console; console.log = () => {}; console.warn = () => {}; t.after(() => { console.log = log; console.warn = warn; }); };
+const offline = (profile, extra = {}) => ({ SMALL_ENV: 'test', [EXPLANATION_PROFILE_SETTING]: profile, ...KEYS, ANTHROPIC_API_KEY: 'sk-ant-must-not-be-used', ...extra });
+const ask = (env, args = 'Why does coffee cool faster at first?', extra = {}) => generateArtifact(env, { command: 'explanation', args, ...extra });
+const steps = out => out.attempts.map(a => [a.provider, a.outcome]);
+
+const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
+function d1(t) {
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  for (const file of ['0016-usage-operations.sql', '0022-usage-accounting.sql', '0027-usage-grants.sql']) sqlite.exec(sql(file));
+  const turn = () => new Promise(resolve => setImmediate(resolve));
+  const LEARN_DB = {
+    prepare(text) {
+      let args = [];
+      return {
+        bind(...values) { args = values; return this; },
+        first: async () => { await turn(); return sqlite.prepare(text).get(...args) || null; },
+        all: async () => { await turn(); return { results: sqlite.prepare(text).all(...args) }; },
+        run: async () => { await turn(); return { meta: { changes: sqlite.prepare(text).run(...args).changes } }; },
+        now: () => ({ meta: { changes: sqlite.prepare(text).run(...args).changes } }),
+      };
+    },
+    async batch(statements) {
+      await turn(); sqlite.exec('BEGIN');
+      try { const out = statements.map(statement => statement.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; }
+    },
+  };
+  return { sqlite, LEARN_DB };
+}
+const metered = (LEARN_DB, profile) => {
+  const env = withUsage({ ...offline(profile), SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1000', AI_MONTHLY_ALLOWANCE_USD: '25' }, { feature: 'learn', now: Math.floor(Date.parse('2026-11-08T12:00:00Z') / 1000) });
+  noteUsageIdentity(env, { userId: 'u-fast', email: 'u-fast@example.test' });
+  return env;
+};
+const rows = (sqlite, table) => sqlite.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row => ({ ...row }));
+
+test('profiles: fireworks-* and cerebras-* chain the other gpt-oss provider then Gemini; plan-default stays the default', async () => {
+  assert.equal(EXPLANATION_REGISTRY.defaultProfile, 'plan-default');
+  assert.equal(explanationProfileFor({}).id, 'plan-default', 'production is unchanged until the setting names another profile');
+  const hashes = new Set();
+  for (const [primary, model, second] of [['fireworks', FW, 'cerebras'], ['cerebras', 'gpt-oss-120b', 'fireworks']]) for (const effort of ['low', 'medium', 'high']) {
+    const p = explanationProfileFor({ [EXPLANATION_PROFILE_SETTING]: `${primary}-${effort}`, ...KEYS });
+    const a = p.roles.author;
+    assert.deepEqual([a.adapter, a.provider, a.model, a.settings.reasoning_effort], ['fast-chain', primary, model, effort]);
+    assert.deepEqual(a.fallbacks.map(s => s.provider), [second, 'google']);
+    assert.deepEqual(a.fallbacks.map(s => s.credentialRef), [second === 'cerebras' ? 'CEREBRAS_API_KEY' : 'FIREWORKS_API_KEY', 'GEMINI_API_KEY']);
+    assert.deepEqual({ ...p.roles.repair, role: 'author' }, a, 'each step repairs on itself');
+    hashes.add((await explanationProfileBinding(p)).hash);
+  }
+  assert.equal(hashes.size, 6, 'each provider and effort is its own binding');
+  assert.throws(() => resolveExplanationProfile('fireworks-max'), e => e.code === 'unknown_profile');
+  const author = EXPLANATION_REGISTRY.profiles['fireworks-low'].roles.author;
+  const registry = (roles) => ({ ...EXPLANATION_REGISTRY, profiles: { ...EXPLANATION_REGISTRY.profiles, x: { version: 1, roles } } });
+  for (const extra of [{ settings: { reasoning_effort: 'none' } }, { endpoint: 'https://evil.example/v1' }, { fallbacks: [{ ...author.fallbacks[0], url: 'https://evil.example' }] }, { fallbacks: [{ provider: 'openai', model: 'gpt', credentialRef: 'OPENAI_API_KEY' }] }])
+    assert.throws(() => resolveExplanationProfile('x', registry({ author: { ...author, ...extra } })), e => e.code === 'invalid_profile', JSON.stringify(extra));
+  assert.throws(() => resolveExplanationProfile('x', registry({ author, repair: EXPLANATION_REGISTRY.profiles['plan-default'].roles.author })), e => e.code === 'invalid_profile', 'no other repair role');
+});
+
+test('credentials: a chain with no step credential is refused before anything is sent; a missing step credential is skipped', async t => {
+  quiet(t);
+  const sent = providers(t, ok(card));
+  const none = { FIREWORKS_API_KEY: '', CEREBRAS_API_KEY: '', GEMINI_API_KEY: '' };
+  assert.throws(() => explanationProfileFor({ [EXPLANATION_PROFILE_SETTING]: 'fireworks-low' }), e => e.code === 'credential_missing' && !/API_KEY/.test(e.message));
+  const refused = await ask(offline('fireworks-low', none));
+  assert.equal(refused.result, 'unsupported');
+  assert.match(refused.message, /not set up/);
+  assert.equal(sent.length, 0);
+  // FIREWORKS_API_KEY not set: the fireworks-* profile goes straight to Cerebras.
+  const out = await ask(offline('fireworks-low', { FIREWORKS_API_KEY: '' }));
+  assert.equal(out.result, 'artifact');
+  assert.deepEqual(steps(out), [['fireworks', 'skipped'], ['cerebras', 'artifact']]);
+  assert.deepEqual(sent.map(s => s.provider), ['cerebras']);
+  assert.deepEqual(out.block.authoredBy, { provider: 'cerebras', model: 'gpt-oss-120b' });
+});
+
+test('the request: provider endpoint and key, model, reasoning_effort, strict json_schema of the make_explanation input, and the same guidance, request, Depth and required visuals', async t => {
+  const sent = providers(t, ok(card));
+  const input = { depth: 'deep', visualRequirements: { items: [{ id: 'v1', kind: 'diagram', diagramKind: 'flow', purpose: 'show the cooling' }] } };
+  await generateArtifact(offline('fireworks-high'), { command: 'explanation', args: 'Draw a diagram of why coffee cools', ...input }, { repairs: 0 }).catch(() => null); // validity is not under test here
+  const [{ provider, init, body }] = sent;
+  assert.equal(provider, 'fireworks');
+  assert.equal(init.headers.Authorization, `Bearer ${KEYS.FIREWORKS_API_KEY}`);
+  assert.deepEqual([body.model, body.reasoning_effort, body.stream, body.max_tokens], [FW, 'high', false, 8000]);
+  assert.deepEqual([body.response_format.type, body.response_format.json_schema.strict, body.response_format.json_schema.name], ['json_schema', true, 'make_explanation']);
+  assert.deepEqual(body.response_format.json_schema.schema.required, ['title', 'body']);
+  const [system, user] = body.messages;
+  for (const text of [EXPLANATION_GUIDANCE, explanationTarget('deep')]) assert.ok(system.content.includes(text), 'the tool description is sent verbatim');
+  assert.ok(!system.content.includes(INTERACTION_GUIDANCE), 'interactions off: no interaction guidance');
+  const asked = JSON.parse(user.content);
+  assert.deepEqual([asked.learnerText, asked.depth, asked.requiredVisuals[0].id], ['Draw a diagram of why coffee cools', 'deep', 'v1']);
+  assert.ok(!('tools' in body) && !('tool_choice' in body), 'json_schema mode, no tool call');
+  // Interactions on: the guidance and the questions/terms fields ride in the same one call; a Cerebras profile sends to Cerebras with its key.
+  const on = providers(t, ok(card));
+  await generateArtifact(offline('cerebras-low', { [INTERACTIONS_SETTING]: 'true' }), { command: 'explanation', args: 'q' }, { repairs: 0 }).catch(() => null);
+  assert.deepEqual([on[0].provider, on[0].init.headers.Authorization, on[0].body.model, on[0].body.reasoning_effort], ['cerebras', `Bearer ${KEYS.CEREBRAS_API_KEY}`, 'gpt-oss-120b', 'low']);
+  assert.ok(on[0].body.messages[0].content.includes(INTERACTION_GUIDANCE));
+  assert.ok(on[0].body.response_format.json_schema.schema.required.includes('questions'));
+});
+
+test('an exclusive oneOf is sent as anyOf; a non-exclusive one is refused, not weakened; text documents are inlined, images and PDFs refused', () => {
+  const step = { provider: 'cerebras', model: 'gpt-oss-120b', credentialRef: 'CEREBRAS_API_KEY' };
+  const branch = kind => ({ type: 'object', additionalProperties: false, required: ['kind'], properties: { kind: { const: kind } } });
+  const body = schema => ({ max_tokens: 100, system: 's', messages: [{ role: 'user', content: 'q' }], tools: [{ name: 'make_explanation', description: 'd', input_schema: { type: 'object', properties: { v: schema } } }] });
+  const sentSchema = stepRequest(step, 'low', body({ oneOf: [branch('a'), branch('b')] })).response_format.json_schema.schema;
+  assert.deepEqual(sentSchema.properties.v, { anyOf: [branch('a'), branch('b')] });
+  assert.throws(() => stepRequest(step, 'low', body({ oneOf: [{ type: 'string' }, { type: 'number' }] })), e => e.code === 'schema_not_exclusive');
+  const withPart = part => ({ ...body({ type: 'string' }), messages: [{ role: 'user', content: [part, { type: 'text', text: 'q' }] }] });
+  assert.match(stepRequest(step, 'low', withPart({ type: 'document', title: 'notes.txt', source: { type: 'text', media_type: 'text/plain', data: 'Heat flows.' } })).messages[1].content, /<document title="notes.txt">\nHeat flows.\n<\/document>/);
+  for (const part of [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA' } }, { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'AA' } }])
+    assert.throws(() => stepRequest(step, 'low', withPart(part)), e => e.final && /text only/.test(e.message));
+});
+
+test('end to end on the real ledger: the card records who wrote it, and the call is reserved and settled at that provider\'s price', async t => {
+  quiet(t);
+  const { sqlite, LEARN_DB } = d1(t);
+  const sent = providers(t, ok(card, { model: 'accounts/fireworks/models/gpt-oss-120b' }));
+  const out = await ask(metered(LEARN_DB, 'fireworks-medium'));
+  assert.equal(out.result, 'artifact');
+  assert.deepEqual([out.block.title, out.block.body, out.repaired, out.profile.id], [card.title, card.body, false, 'fireworks-medium']);
+  assert.deepEqual(out.block.authoredBy, { provider: 'fireworks', model: FW }, 'saved on the card for the benchmark');
+  assert.deepEqual(steps(out), [['fireworks', 'artifact']]);
+  const [attempt] = rows(sqlite, 'usage_attempts');
+  // 1,000 input at $0.15/M + 2,000 output at $0.60/M = $0.00135, from the provider's own counts.
+  assert.deepEqual([attempt.provider, attempt.model, attempt.status, attempt.cost_micros], ['fireworks', FW, 'settled', 1350]);
+  assert.equal(attempt.reserved_micros, toMicros(requestSpendBound(sent[0].body, FW, 'fireworks')), 'the bound is the request actually sent');
+});
+
+test('the one repair runs on the same step with the validator\'s exact problem and the previous answer', async t => {
+  quiet(t);
+  const problem = explanationProblem(artifactBlock('explanation', long));
+  assert.ok(problem, 'the first answer is invalid');
+  const sent = providers(t, ok(long), ok(card));
+  const out = await ask(offline('cerebras-low'));
+  assert.deepEqual([out.result, out.repaired], ['artifact', true]);
+  assert.deepEqual(sent.map(s => s.provider), ['cerebras', 'cerebras']);
+  const repair = sent[1].body;
+  assert.deepEqual([repair.model, repair.reasoning_effort], ['gpt-oss-120b', 'low']);
+  assert.deepEqual(repair.messages.map(m => m.role), ['system', 'user', 'assistant', 'user']);
+  assert.deepEqual(JSON.parse(repair.messages[2].content), long, 'the previous answer goes back as it came');
+  assert.ok(repair.messages[3].content.startsWith(`Validation failed: ${problem}.`), 'the validator\'s exact words');
+});
+
+test('fallback transitions: 429, 5xx, an answer still invalid after its repair, each moves to the next step; the busy step is settled at zero', async t => {
+  quiet(t);
+  const { sqlite, LEARN_DB } = d1(t);
+  let sent = providers(t, status(429), ok(card));
+  let out = await ask(metered(LEARN_DB, 'fireworks-low'));
+  assert.deepEqual(steps(out), [['fireworks', 'provider_busy'], ['cerebras', 'artifact']]);
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'cerebras']);
+  assert.deepEqual(out.block.authoredBy, { provider: 'cerebras', model: 'gpt-oss-120b' });
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.status, a.cost_micros]), [['fireworks', 'failed', 0], ['cerebras', 'settled', 1850]], 'every step admitted and settled; Cerebras $0.35/$0.75');
+
+  sent = providers(t, status(503), ok(card));
+  out = await ask(offline('cerebras-medium'));
+  assert.deepEqual(steps(out), [['cerebras', 'provider_error'], ['fireworks', 'artifact']]);
+  assert.deepEqual(sent.map(s => s.provider), ['cerebras', 'fireworks']);
+
+  sent = providers(t, ok(long), ok(long), ok(card));
+  out = await ask(offline('fireworks-medium'));
+  assert.deepEqual(steps(out), [['fireworks', 'validation_error'], ['cerebras', 'artifact']]);
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'fireworks', 'cerebras'], 'the step\'s own repair first, then the next step');
+  assert.equal(out.repaired, false, 'the delivered step answered first time');
+});
+
+test('fallback transitions: a timeout moves on; both gpt-oss steps failing reach Gemini, which writes the card', async t => {
+  quiet(t);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sent = providers(t, hang, ok(card));
+  const pending = ask(offline('fireworks-low'));
+  while (sent.length < 1) await new Promise(resolve => setImmediate(resolve));
+  t.mock.timers.tick(CHAIN_ENDPOINTS.fireworks.deadlineMs);
+  const out = await pending;
+  assert.deepEqual(steps(out), [['fireworks', 'provider_timeout'], ['cerebras', 'artifact']]);
+  t.mock.timers.reset();
+
+  const third = providers(t, status(429), status(500), ok(card, { model: 'gemini-3.5-flash-lite' }));
+  const last = await ask(offline('cerebras-high'));
+  assert.deepEqual(steps(last), [['cerebras', 'provider_busy'], ['fireworks', 'provider_error'], ['google', 'artifact']]);
+  assert.deepEqual(third.map(s => [s.provider, s.init.headers.Authorization, s.body.model, s.body.reasoning_effort]), [
+    ['cerebras', `Bearer ${KEYS.CEREBRAS_API_KEY}`, 'gpt-oss-120b', 'high'], ['fireworks', `Bearer ${KEYS.FIREWORKS_API_KEY}`, FW, 'high'], ['google', `Bearer ${KEYS.GEMINI_API_KEY}`, 'gemini-3.5-flash-lite', 'high']]);
+  assert.deepEqual(last.block.authoredBy, { provider: 'google', model: 'gemini-3.5-flash-lite' });
+});
+
+test('every step failing is a failure with its reason and steps, never Opus; an image stops the chain before anything is sent', async t => {
+  quiet(t);
+  const sent = providers(t, status(429));
+  await assert.rejects(ask(offline('fireworks-low')), e => e.code === 'provider_busy' && e.retryable === true && /busy right now/.test(e.message)
+    && JSON.stringify(e.attempts.map(a => [a.provider, a.outcome])) === JSON.stringify([['fireworks', 'provider_busy'], ['cerebras', 'provider_busy'], ['google', 'provider_busy']]));
+  assert.deepEqual(sent.map(s => s.url), [URL_OF.fireworks, URL_OF.cerebras, URL_OF.google], 'an Anthropic key is set, and never used');
+  const invalid = providers(t, ok(long));
+  const out = await ask(offline('cerebras-low'));
+  assert.deepEqual([out.result, out.reason], ['validation_error', 'validation_error']);
+  assert.deepEqual(steps(out), [['cerebras', 'validation_error'], ['fireworks', 'validation_error'], ['google', 'validation_error']]);
+  assert.equal(invalid.length, 6, 'each step: its call and its one repair');
+  const none = providers(t, ok(card));
+  const pdf = { type: 'document', title: 'scan', source: { type: 'base64', media_type: 'application/pdf', data: 'AA' } };
+  await assert.rejects(ask(offline('fireworks-low'), 'q', { documents: [pdf] }), e => e.code === 'input_unsupported' && e.attempts.length === 1);
+  assert.equal(none.length, 0);
+});
+
+test('EXPLANATION_FALLBACK=off: only the profile\'s own provider, and its failure is reported as one with its reason', async t => {
+  quiet(t);
+  const off = profile => offline(profile, { [FALLBACK_SETTING]: 'off' });
+  let sent = providers(t, status(429), ok(card));
+  await assert.rejects(ask(off('fireworks-low')), e => e.code === 'provider_busy' && e.attempts.length === 1 && e.attempts[0].provider === 'fireworks');
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks']);
+  sent = providers(t, ok(long));
+  const out = await ask(off('cerebras-low'));
+  assert.deepEqual([out.result, out.reason, steps(out)], ['validation_error', 'validation_error', [['cerebras', 'validation_error']]]);
+  assert.deepEqual(sent.map(s => s.provider), ['cerebras', 'cerebras'], 'its call and its one repair, nothing else');
+  sent = providers(t, ok(card));
+  const good = await ask(off('cerebras-low'));
+  assert.deepEqual([good.result, good.block.authoredBy.provider, steps(good)], ['artifact', 'cerebras', [['cerebras', 'artifact']]]);
+  // Off with the profile's own credential missing: nothing runs, and that is the reason.
+  sent = providers(t, ok(card));
+  const skipped = await ask(offline('fireworks-low', { [FALLBACK_SETTING]: 'off', FIREWORKS_API_KEY: '' }));
+  assert.deepEqual([skipped.result, skipped.reason, steps(skipped)], ['unsupported', 'credential_missing', [['fireworks', 'skipped']]]);
+  assert.equal(sent.length, 0);
+  // On (the default): the same 429 is followed by the next step.
+  sent = providers(t, status(429), ok(card));
+  assert.equal((await ask(offline('fireworks-low'))).result, 'artifact');
+  assert.deepEqual(sent.map(s => s.provider), ['fireworks', 'cerebras']);
+});

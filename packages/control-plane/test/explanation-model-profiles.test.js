@@ -48,8 +48,8 @@ test('an unknown or unsupported profile is refused before any call, never replac
   assert.match(out.message, /No written \/explain model profile/);
   assert.equal(seen.length, 0);
   // The candidate inventory states what is and is not wired.
-  assert.deepEqual(EXPLANATION_ADAPTERS, ['plan']);
-  assert.deepEqual(Object.entries(EXPLANATION_CANDIDATES).map(([k, v]) => [k, v.status]), [['opus', 'supported'], ['celeris', 'dev_route_only'], ['cerebras', 'unsupported'], ['gemini-flash', 'unsupported']]);
+  assert.deepEqual(EXPLANATION_ADAPTERS, ['plan', 'fast-chain']);
+  assert.deepEqual(Object.entries(EXPLANATION_CANDIDATES).map(([k, v]) => [k, v.status]), [['opus', 'supported'], ['celeris', 'dev_route_only'], ['cerebras', 'supported'], ['gemini-flash', 'supported']]);
 });
 
 test('a one-role override changes only that role: the repair role may pin another plan model within the one repair ceiling', async () => {

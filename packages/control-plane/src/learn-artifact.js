@@ -56,6 +56,7 @@ const GATES = {
 };
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 import { celerisExplainRoute } from './explain-celeris-dev.js';
+import { generateWithFallbacks } from './explanation-fast-chain.js';
 export { ARTIFACT_SYSTEM };
 
 // A paid renderer this deployment has not provisioned is unavailable BEFORE it is proposed, so no proposal, hold or charge
@@ -113,12 +114,15 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   return { request, ready, messages, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
-export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null } = {}) {
+export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null } = {}) {
   // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   if (prepared.result) return prepared;
+  // A fast-chain profile runs each provider step through this same function with that step's transport injected (explanation-fast-chain.js).
+  if (!injected && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile }, generateArtifact);
+  const baseCall = injected || loggedModel('artifact', planModel);
   const { request, ready, messages, body, model } = prepared;
   const binding = prepared.profile ? await explanationProfileBinding(prepared.profile) : null; // what this card's model was chosen by, saved with the result
   const callModel = systemSuffix ? (e, b, m, org) => baseCall(e, { ...b, system: `${b.system}\n${systemSuffix}` }, m, org) : baseCall; // the verifier's call
@@ -296,5 +300,5 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     const done = celeris ? { ...out, devModel: celeris.served() } : out;
     return json(passage && done?.block ? { ...done, block: { ...done.block, sourceRef: passage } } : done);
   }
-  catch (error) { await giveBack(); return json({ error: error.message, ...(celeris ? { devModel: celeris.served() } : {}) }, 502); }
+  catch (error) { await giveBack(); return json({ error: error.message, ...(error.code ? { code: error.code } : {}), ...(error.attempts ? { attempts: error.attempts } : {}), ...(celeris ? { devModel: celeris.served() } : {}) }, 502); } // code/attempts: the fast chain's failure reason and steps
 }
