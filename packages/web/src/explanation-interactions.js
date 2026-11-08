@@ -49,8 +49,9 @@ const SKIP = '[data-code-lang],[data-code-copy],[data-explanation-skip],[data-ex
 // the multiset of its characters and never decorated or selected into.
 // Typeset maths (MathText.jsx, [data-chat-math]) is an island too: the canonical text holds its LaTeX source (learn-primitives mathText keeps what is between the
 // dollars) but the DOM holds KaTeX glyphs, so it is matched by the source KaTeX keeps in its annotation (a formula KaTeX refused shows its source as text).
+// A formula in a diagram label ([data-tutor-tex], tutor-diagrams/primitives.js) counts as the source written in the label, delimiters included.
 const MATH = '[data-chat-math]';
-const ISLAND = `[data-tutor-diagram],${MATH}`;
+const ISLAND = `[data-tutor-diagram],[data-tutor-tex],${MATH}`;
 const TEXT = 3, ELEMENT = 1;
 const texOf = node => node.querySelector?.('annotation[encoding="application/x-tex"]')?.textContent ?? node.textContent;
 function walkItems(node, out) {
@@ -62,7 +63,7 @@ function walkItems(node, out) {
   return out;
 }
 const nonSpace = text => Array.from(String(text ?? '')).filter(ch => !isSpace(ch));
-const islandChars = node => walkItems(node, []).flatMap(item => (item.text ? nonSpace(item.text.data) : item.island ? islandChars(item.island) : []));
+const islandChars = node => node.hasAttribute?.('data-tutor-tex') ? nonSpace(node.getAttribute('data-tutor-tex')) : walkItems(node, []).flatMap(item => (item.text ? nonSpace(item.text.data) : item.island ? islandChars(item.island) : []));
 const inIsland = node => !!(node?.nodeType === ELEMENT ? node : node?.parentNode)?.closest?.(ISLAND);
 
 // The aligned field: `root`'s rendered text against the canonical text. null when they disagree (anything rendered that the canonical
