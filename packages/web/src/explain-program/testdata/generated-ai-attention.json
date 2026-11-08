@@ -1,0 +1,1134 @@
+{
+ "schema": 1,
+ "case": "attention",
+ "attempt": 1,
+ "prompt": "Explain one scaled dot-product attention row for three synthetic tokens. Let me select the query and toggle causal masking. Show Q, K, V, scaled scores, normalized weights and weighted output.",
+ "path": "The dev clone's composer: \"/interactive <prompt>\", Send, then the brief's Generate. No fixture was seeded or copied; the author, review and repair ran on the real backend.",
+ "routing": {
+  "recordedInBrowser": null,
+  "replayedExplicit": {
+   "route": "capability:explain",
+   "via": "command",
+   "capability": "explain",
+   "flow": "direct",
+   "code": null,
+   "message": null,
+   "confidence": null,
+   "probability": null
+  },
+  "replayedPlainWords": {
+   "route": "answer",
+   "via": "fallback",
+   "capability": null,
+   "flow": null,
+   "code": "unavailable",
+   "message": "The request check did not finish. The turn is answered in text only.",
+   "confidence": null,
+   "probability": null
+  },
+  "note": "The explicit /interactive command resolves in the router with no model call. Plain words need the router classifier, which the dev clone does not have a key for, so the router answers in text only (via fallback); that is why the explicit command was used."
+ },
+ "environment": {
+  "clone": "rabbit-hole-web-dev-tc-s7d2",
+  "deployedCommit": "b19e8b18f3d8d181cc037f663566b8e87d486b83",
+  "startedAt": "2026-11-08T01:39:42.296Z"
+ },
+ "job": {
+  "jobId": "ej_8a536a2c5188420bb3d394cd1e2fca70",
+  "boardId": "4a0a87a0-e36a-4b04-b9d4-5ac48b212595",
+  "resultId": "er_4c679188f1d44817b7d0b39c311aa4a0",
+  "outcome": "card",
+  "stage": "ready",
+  "stopReason": "accepted",
+  "round": 0,
+  "failure": null,
+  "totalMs": 89901,
+  "calls": [
+   {
+    "role": "brief",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0186,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "author",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.1378,
+    "ms": null,
+    "status": "settled"
+   },
+   {
+    "role": "review",
+    "model": "claude-opus-5-5",
+    "costUsd": 0.0565,
+    "ms": null,
+    "status": "settled"
+   }
+  ],
+  "costUsd": 0.213
+ },
+ "brief": "Review explanation\n\nOne Attention Row: Scores, Softmax Weights and Output for Three Tokens\n\ninteractive\nExplain one scaled dot-product attention row for three synthetic tokens. Let me select the query and toggle causal masking. Show Q, K, V, scaled scores, normalized weights and weighted output.\n\nPresentation\nStatic\nSteps\nOver time\nExperiment\n\nYou will see three made-up tokens, each with its own small query, key and value vectors, shown as tables of numbers. Below them, one attention row is worked out for the chosen query token: its scaled score with each key, the softmax weights shown as numbers and bars, and the output vector, a weighted mix of the value vectors with the formula written beside it. When you choose a different query token, every score, weight and the output update together. This shows how the query's match with each key decides how much of each value goes into the result. Turning causal masking on hides the tokens that come later in the sequence, so their weights become zero and the remaining weights are re-normalized to add up to one. With it on, the first token can only attend to itself.\n\nASSUMPTIONS 3\nLIMITATIONS 3\nGenerate\nEdit\nCancel\nGo to card",
+ "reviewFindings": [
+  {
+   "round": 0,
+   "stage": "reviewing",
+   "accepted": true,
+   "findings": [
+    {
+     "version": 1,
+     "id": "rf1",
+     "verdict": "visual",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "light",
+      "object": "fs"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "The fractions in the score and softmax formulas (fs, fw) are drawn very small (numerator and denominator at subscript size). They can still be read, but larger math would help."
+    },
+    {
+     "version": 1,
+     "id": "rf2",
+     "verdict": "semantic",
+     "category": "spec",
+     "severity": "minor",
+     "target": {
+      "capture": "a3-light",
+      "object": "hl3"
+     },
+     "evidence": [],
+     "specRepairable": true,
+     "message": "For t3 with the mask on, no key is later than the query, so the card correctly matches mask off. The line 'keys after t3 are hidden' could also say that no keys are hidden for this query."
+    }
+   ]
+  }
+ ],
+ "artifact": {
+  "kind": "explain_program",
+  "schemaVersion": 1,
+  "runtimeVersion": "quickjs-release-sync@0.32.0",
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "runtimePolicyVersion": "policy-1",
+  "permissionProfileVersion": "perm-1",
+  "fingerprints": {
+   "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+   "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+   "renderer": "renderer-1"
+  },
+  "dependencies": [],
+  "manifest": {
+   "title": "One attention row: scores, softmax weights and output for three tokens",
+   "summary": "Three made-up tokens have small query, key and value vectors. For the query you choose, the card works out the scaled score with each key, the softmax weights as numbers and bars, and the output as a weighted mix of the values. Causal masking hides later tokens: their weights become zero and the others are re-normalized to add up to one.",
+   "assumptions": [
+    "Query, key and value numbers are small made-up values, not from a trained model.",
+    "A single attention head with key size d_k = 2, so scores are divided by the square root of 2.",
+    "Causal masking sets the scores of later tokens to minus infinity before the softmax, so their weights are exactly zero.",
+    "Only one row of the attention matrix is computed; projections, multiple heads and the output projection are left out."
+   ],
+   "description": "Top left: a table of three tokens t1 to t3 with their query, key and value vectors; the chosen query's row is highlighted. Right: for each key, the dot product with the query, the scaled score, and a bar with its softmax weight; masked keys show minus infinity and a weight of zero. Formulas for the score and softmax sit beside them. Bottom: the output formula, the weighted sum written out with the current weights, and the resulting output vector.",
+   "inputs": [
+    {
+     "type": "select",
+     "id": "query",
+     "label": "Query token",
+     "default": "2",
+     "options": [
+      {
+       "value": "1",
+       "label": "t1"
+      },
+      {
+       "value": "2",
+       "label": "t2"
+      },
+      {
+       "value": "3",
+       "label": "t3"
+      }
+     ]
+    },
+    {
+     "type": "select",
+     "id": "mask",
+     "label": "Causal masking",
+     "default": "off",
+     "options": [
+      {
+       "value": "off",
+       "label": "Off"
+      },
+      {
+       "value": "on",
+       "label": "On"
+      }
+     ]
+    }
+   ],
+   "readouts": [
+    {
+     "id": "w1",
+     "label": "Weight on t1",
+     "decimals": 2
+    },
+    {
+     "id": "w2",
+     "label": "Weight on t2",
+     "decimals": 2
+    },
+    {
+     "id": "w3",
+     "label": "Weight on t3",
+     "decimals": 2
+    },
+    {
+     "id": "o1",
+     "label": "Output, first number",
+     "decimals": 2
+    },
+    {
+     "id": "o2",
+     "label": "Output, second number",
+     "decimals": 2
+    }
+   ],
+   "capabilities": [
+    "select_inputs",
+    "math_text"
+   ]
+  },
+  "source": "const Q=[[2,0],[0,2],[1,1]];\nconst K=[[1,0],[1,1],[0,1]];\nconst V=[[1,0],[0,2],[3,1]];\nconst DK=2;\nfunction vec(a){return '['+a[0]+', '+a[1]+']';}\nexport function evaluate({ inputs }){\n  const i=parseInt(inputs.query,10)-1;\n  const masked=inputs.mask==='on';\n  const f=(v)=>sdk.format(v,2);\n  const s=[],dots=[],allowed=[];\n  for(let j=0;j<3;j++){\n    dots[j]=Q[i][0]*K[j][0]+Q[i][1]*K[j][1];\n    s[j]=dots[j]/Math.sqrt(DK);\n    allowed[j]=!(masked&&j>i);\n  }\n  let m=-Infinity;\n  for(let j=0;j<3;j++){if(allowed[j]&&s[j]>m)m=s[j];}\n  const e=[];let Z=0;\n  for(let j=0;j<3;j++){e[j]=allowed[j]?Math.exp(s[j]-m):0;Z+=e[j];}\n  const w=e.map(x=>x/Z);\n  const o=[0,0];\n  for(let j=0;j<3;j++){o[0]+=w[j]*V[j][0];o[1]+=w[j]*V[j][1];}\n  const objs=[];\n  objs.push(sdk.text('title',24,30,'One attention row for query token t'+(i+1)+' (causal mask '+(masked?'on':'off')+')'));\n  objs.push(sdk.text('tablecap',24,70,'Synthetic vectors, key size d_k = 2'));\n  const cols=[40,110,200,290];\n  const rowY=[105,140,175,210];\n  objs.push(sdk.box('qrow',28,rowY[i+1]-15,330,30,{role:'input',opacity:0.3}));\n  const hdr=['token','query q','key k','value v'];\n  for(let c=0;c<4;c++)objs.push(sdk.text('h'+c,cols[c],rowY[0],hdr[c]));\n  for(let j=0;j<3;j++){\n    const y=rowY[j+1];\n    const r=(j===i)?'input':'neutral';\n    objs.push(sdk.text('tok'+j,cols[0],y,'t'+(j+1),{role:r}));\n    objs.push(sdk.text('q'+j,cols[1],y,vec(Q[j]),{role:r}));\n    objs.push(sdk.text('k'+j,cols[2],y,vec(K[j])));\n    objs.push(sdk.text('v'+j,cols[3],y,vec(V[j])));\n  }\n  objs.push(sdk.text('hl1',24,255,'Highlighted row: the chosen query q_'+(i+1)+' = '+vec(Q[i])+'.'));\n  objs.push(sdk.text('hl2',24,285,'It is compared with every key k_j.'));\n  objs.push(sdk.text('hl3',24,315,masked?'Mask on: keys after t'+(i+1)+' are hidden.':'Mask off: every key is visible.',{role:masked?'warning':'neutral'}));\n  objs.push(sdk.math('fs',440,75,'s_j = \\\\frac{q_i \\\\cdot k_j}{\\\\sqrt{d_k}}'));\n  objs.push(sdk.text('colh1',440,115,'Scaled score for each key'));\n  objs.push(sdk.text('colh2',700,115,'Softmax weight'));\n  for(let j=0;j<3;j++){\n    const y=155+j*50;\n    let t;\n    if(allowed[j]) t='k_'+(j+1)+': q·k = '+dots[j]+', s = '+dots[j]+'/√2 = '+f(s[j]);\n    else t='k_'+(j+1)+': later token, masked, s = −∞';\n    objs.push(sdk.text('sc'+j,440,y,t,{role:allowed[j]?'neutral':'warning'}));\n    objs.push(sdk.box('bar'+j,700,y-10,Math.max(2,170*w[j]),20,{role:'output'}));\n    objs.push(sdk.text('wt'+j,885,y,'w = '+f(w[j]),{role:allowed[j]?'output':'warning'}));\n  }\n  objs.push(sdk.math('fw',440,320,'w_j = \\\\frac{e^{s_j}}{\\\\sum_{l} e^{s_l}}'));\n  objs.push(sdk.text('wsum',600,320,'sum over visible keys; weights add to '+f(w[0]+w[1]+w[2])));\n  objs.push(sdk.math('fo',24,400,'o_i = \\\\sum_j w_j\\\\, v_j'));\n  objs.push(sdk.text('terms',24,445,'o = '+f(w[0])+'·[1, 0] + '+f(w[1])+'·[0, 2] + '+f(w[2])+'·[3, 1]'));\n  objs.push(sdk.text('out',24,480,'o_'+(i+1)+' = ['+f(o[0])+', '+f(o[1])+']',{role:'output'}));\n  objs.push(sdk.text('note',24,520,'The better a key matches the query, the larger its weight and the more of its value enters o.'));\n  return { frame: sdk.frame(objs,{width:960,height:540,readouts:[{id:'w1',value:w[0]},{id:'w2',value:w[1]},{id:'w3',value:w[2]},{id:'o1',value:o[0]},{id:'o2',value:o[1]}]}), quantities:{s1:allowed[0]?s[0]:-1e9,s2:allowed[1]?s[1]:-1e9,s3:allowed[2]?s[2]:-1e9,w1:w[0],w2:w[1],w3:w[2],o1:o[0],o2:o[1]} };\n}\n",
+  "sourceHash": "c110598c85e352c72dea041db8e07cd69234295b58d4f77268440494773f89a8",
+  "manifestHash": "ed967f2dede131278062ebca8724218ed93706303dd12ca7ff54c323245d181c",
+  "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb"
+ },
+ "rejectedCandidate": null,
+ "stamps": {
+  "sdkVersion": "sdk-2",
+  "rendererVersion": "renderer-1",
+  "schemaVersion": 1,
+  "capabilities": [
+   "select_inputs",
+   "math_text"
+  ],
+  "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb"
+ },
+ "rawJobDetail": {
+  "job": {
+   "id": "ej_8a536a2c5188420bb3d394cd1e2fca70",
+   "version": 1,
+   "boardId": "4a0a87a0-e36a-4b04-b9d4-5ac48b212595",
+   "cardId": "2502287f-2191-42f9-b8f3-db37d5822295",
+   "requestClass": "simple",
+   "stage": "ready",
+   "attempt": 1,
+   "terminal": true,
+   "round": 0,
+   "stopReason": "accepted",
+   "failure": null,
+   "recovery": [],
+   "usage": {
+    "credits": 22,
+    "unknown": false
+   },
+   "result": {
+    "jobId": "ej_8a536a2c5188420bb3d394cd1e2fca70",
+    "resultId": "er_4c679188f1d44817b7d0b39c311aa4a0",
+    "cardId": "2502287f-2191-42f9-b8f3-db37d5822295",
+    "canvas": {
+     "boardId": "4a0a87a0-e36a-4b04-b9d4-5ac48b212595"
+    },
+    "promptRef": "fb22fdfd10e611ce",
+    "revision": "xr_3378a0e44229457c9188cac4ba52bd01",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb",
+    "sourceHash": "c110598c85e352c72dea041db8e07cd69234295b58d4f77268440494773f89a8",
+    "manifestHash": "ed967f2dede131278062ebca8724218ed93706303dd12ca7ff54c323245d181c",
+    "versions": {
+     "schema": 1,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1,
+    "program": {
+     "kind": "explain_program",
+     "schemaVersion": 1,
+     "runtimeVersion": "quickjs-release-sync@0.32.0",
+     "sdkVersion": "sdk-2",
+     "rendererVersion": "renderer-1",
+     "runtimePolicyVersion": "policy-1",
+     "permissionProfileVersion": "perm-1",
+     "fingerprints": {
+      "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+      "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+      "renderer": "renderer-1"
+     },
+     "dependencies": [],
+     "manifest": {
+      "title": "One attention row: scores, softmax weights and output for three tokens",
+      "summary": "Three made-up tokens have small query, key and value vectors. For the query you choose, the card works out the scaled score with each key, the softmax weights as numbers and bars, and the output as a weighted mix of the values. Causal masking hides later tokens: their weights become zero and the others are re-normalized to add up to one.",
+      "assumptions": [
+       "Query, key and value numbers are small made-up values, not from a trained model.",
+       "A single attention head with key size d_k = 2, so scores are divided by the square root of 2.",
+       "Causal masking sets the scores of later tokens to minus infinity before the softmax, so their weights are exactly zero.",
+       "Only one row of the attention matrix is computed; projections, multiple heads and the output projection are left out."
+      ],
+      "description": "Top left: a table of three tokens t1 to t3 with their query, key and value vectors; the chosen query's row is highlighted. Right: for each key, the dot product with the query, the scaled score, and a bar with its softmax weight; masked keys show minus infinity and a weight of zero. Formulas for the score and softmax sit beside them. Bottom: the output formula, the weighted sum written out with the current weights, and the resulting output vector.",
+      "inputs": [
+       {
+        "type": "select",
+        "id": "query",
+        "label": "Query token",
+        "default": "2",
+        "options": [
+         {
+          "value": "1",
+          "label": "t1"
+         },
+         {
+          "value": "2",
+          "label": "t2"
+         },
+         {
+          "value": "3",
+          "label": "t3"
+         }
+        ]
+       },
+       {
+        "type": "select",
+        "id": "mask",
+        "label": "Causal masking",
+        "default": "off",
+        "options": [
+         {
+          "value": "off",
+          "label": "Off"
+         },
+         {
+          "value": "on",
+          "label": "On"
+         }
+        ]
+       }
+      ],
+      "readouts": [
+       {
+        "id": "w1",
+        "label": "Weight on t1",
+        "decimals": 2
+       },
+       {
+        "id": "w2",
+        "label": "Weight on t2",
+        "decimals": 2
+       },
+       {
+        "id": "w3",
+        "label": "Weight on t3",
+        "decimals": 2
+       },
+       {
+        "id": "o1",
+        "label": "Output, first number",
+        "decimals": 2
+       },
+       {
+        "id": "o2",
+        "label": "Output, second number",
+        "decimals": 2
+       }
+      ],
+      "capabilities": [
+       "select_inputs",
+       "math_text"
+      ]
+     },
+     "source": "const Q=[[2,0],[0,2],[1,1]];\nconst K=[[1,0],[1,1],[0,1]];\nconst V=[[1,0],[0,2],[3,1]];\nconst DK=2;\nfunction vec(a){return '['+a[0]+', '+a[1]+']';}\nexport function evaluate({ inputs }){\n  const i=parseInt(inputs.query,10)-1;\n  const masked=inputs.mask==='on';\n  const f=(v)=>sdk.format(v,2);\n  const s=[],dots=[],allowed=[];\n  for(let j=0;j<3;j++){\n    dots[j]=Q[i][0]*K[j][0]+Q[i][1]*K[j][1];\n    s[j]=dots[j]/Math.sqrt(DK);\n    allowed[j]=!(masked&&j>i);\n  }\n  let m=-Infinity;\n  for(let j=0;j<3;j++){if(allowed[j]&&s[j]>m)m=s[j];}\n  const e=[];let Z=0;\n  for(let j=0;j<3;j++){e[j]=allowed[j]?Math.exp(s[j]-m):0;Z+=e[j];}\n  const w=e.map(x=>x/Z);\n  const o=[0,0];\n  for(let j=0;j<3;j++){o[0]+=w[j]*V[j][0];o[1]+=w[j]*V[j][1];}\n  const objs=[];\n  objs.push(sdk.text('title',24,30,'One attention row for query token t'+(i+1)+' (causal mask '+(masked?'on':'off')+')'));\n  objs.push(sdk.text('tablecap',24,70,'Synthetic vectors, key size d_k = 2'));\n  const cols=[40,110,200,290];\n  const rowY=[105,140,175,210];\n  objs.push(sdk.box('qrow',28,rowY[i+1]-15,330,30,{role:'input',opacity:0.3}));\n  const hdr=['token','query q','key k','value v'];\n  for(let c=0;c<4;c++)objs.push(sdk.text('h'+c,cols[c],rowY[0],hdr[c]));\n  for(let j=0;j<3;j++){\n    const y=rowY[j+1];\n    const r=(j===i)?'input':'neutral';\n    objs.push(sdk.text('tok'+j,cols[0],y,'t'+(j+1),{role:r}));\n    objs.push(sdk.text('q'+j,cols[1],y,vec(Q[j]),{role:r}));\n    objs.push(sdk.text('k'+j,cols[2],y,vec(K[j])));\n    objs.push(sdk.text('v'+j,cols[3],y,vec(V[j])));\n  }\n  objs.push(sdk.text('hl1',24,255,'Highlighted row: the chosen query q_'+(i+1)+' = '+vec(Q[i])+'.'));\n  objs.push(sdk.text('hl2',24,285,'It is compared with every key k_j.'));\n  objs.push(sdk.text('hl3',24,315,masked?'Mask on: keys after t'+(i+1)+' are hidden.':'Mask off: every key is visible.',{role:masked?'warning':'neutral'}));\n  objs.push(sdk.math('fs',440,75,'s_j = \\\\frac{q_i \\\\cdot k_j}{\\\\sqrt{d_k}}'));\n  objs.push(sdk.text('colh1',440,115,'Scaled score for each key'));\n  objs.push(sdk.text('colh2',700,115,'Softmax weight'));\n  for(let j=0;j<3;j++){\n    const y=155+j*50;\n    let t;\n    if(allowed[j]) t='k_'+(j+1)+': q·k = '+dots[j]+', s = '+dots[j]+'/√2 = '+f(s[j]);\n    else t='k_'+(j+1)+': later token, masked, s = −∞';\n    objs.push(sdk.text('sc'+j,440,y,t,{role:allowed[j]?'neutral':'warning'}));\n    objs.push(sdk.box('bar'+j,700,y-10,Math.max(2,170*w[j]),20,{role:'output'}));\n    objs.push(sdk.text('wt'+j,885,y,'w = '+f(w[j]),{role:allowed[j]?'output':'warning'}));\n  }\n  objs.push(sdk.math('fw',440,320,'w_j = \\\\frac{e^{s_j}}{\\\\sum_{l} e^{s_l}}'));\n  objs.push(sdk.text('wsum',600,320,'sum over visible keys; weights add to '+f(w[0]+w[1]+w[2])));\n  objs.push(sdk.math('fo',24,400,'o_i = \\\\sum_j w_j\\\\, v_j'));\n  objs.push(sdk.text('terms',24,445,'o = '+f(w[0])+'·[1, 0] + '+f(w[1])+'·[0, 2] + '+f(w[2])+'·[3, 1]'));\n  objs.push(sdk.text('out',24,480,'o_'+(i+1)+' = ['+f(o[0])+', '+f(o[1])+']',{role:'output'}));\n  objs.push(sdk.text('note',24,520,'The better a key matches the query, the larger its weight and the more of its value enters o.'));\n  return { frame: sdk.frame(objs,{width:960,height:540,readouts:[{id:'w1',value:w[0]},{id:'w2',value:w[1]},{id:'w3',value:w[2]},{id:'o1',value:o[0]},{id:'o2',value:o[1]}]}), quantities:{s1:allowed[0]?s[0]:-1e9,s2:allowed[1]?s[1]:-1e9,s3:allowed[2]?s[2]:-1e9,w1:w[0],w2:w[1],w3:w[2],o1:o[0],o2:o[1]} };\n}\n",
+     "sourceHash": "c110598c85e352c72dea041db8e07cd69234295b58d4f77268440494773f89a8",
+     "manifestHash": "ed967f2dede131278062ebca8724218ed93706303dd12ca7ff54c323245d181c",
+     "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb"
+    },
+    "execution": {
+     "allowed": true
+    }
+   },
+   "brief": {
+    "version": 1,
+    "title": "One Attention Row: Scores, Softmax Weights and Output for Three Tokens",
+    "summary": "You will see three made-up tokens, each with its own small query, key and value vectors, shown as tables of numbers. Below them, one attention row is worked out for the chosen query token: its scaled score with each key, the softmax weights shown as numbers and bars, and the output vector, a weighted mix of the value vectors with the formula written beside it. When you choose a different query token, every score, weight and the output update together. This shows how the query's match with each key decides how much of each value goes into the result. Turning causal masking on hides the tokens that come later in the sequence, so their weights become zero and the remaining weights are re-normalized to add up to one. With it on, the first token can only attend to itself.",
+    "assumptions": [
+     "The query, key and value numbers are small made-up values, not taken from a trained model.",
+     "There is a single attention head, and the key size is small (about 2 to 4 numbers), so the score scaling uses the square root of that size.",
+     "Causal masking sets the scores for later tokens to minus infinity before the softmax."
+    ],
+    "presentation": "experiment",
+    "components": [],
+    "evidenceIds": [],
+    "limitations": [
+     "Only one row of attention, for one query, is worked out at a time, not the full attention matrix.",
+     "It leaves out how the queries, keys and values are produced from the token embeddings, as well as multiple heads and the output projection.",
+     "You can't edit the vector values themselves."
+    ],
+    "ambiguous": false,
+    "expanded": false
+   },
+   "briefHash": "80cb4fc7570447127d53712591a44683796fc14a5af5e02754ba8bcea4f7f507",
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "firstFeedbackMs": 93,
+    "proposalMs": 10512,
+    "generateToResultMs": 66633,
+    "processingMs": 77052,
+    "approvalWaitMs": 2503,
+    "calls": 3,
+    "repairs": 0,
+    "stages": [
+     {
+      "stage": "preparing",
+      "ms": 10419,
+      "calls": 1,
+      "inputTokens": 447,
+      "outputTokens": 823,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "ms": 2503,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "ms": 46778,
+      "calls": 1,
+      "inputTokens": 8887,
+      "outputTokens": 5042,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "ms": 44,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "ms": 6606,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 5,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "ms": 13205,
+      "calls": 1,
+      "inputTokens": 8113,
+      "outputTokens": 1188,
+      "images": 5,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   },
+   "createdAt": 1794101989977,
+   "updatedAt": 1794102069625
+  },
+  "block": {
+   "type": "animation",
+   "id": "2502287f-2191-42f9-b8f3-db37d5822295",
+   "title": "One attention row: scores, softmax weights and output for three tokens",
+   "program": {
+    "kind": "explain_program",
+    "resultId": "er_4c679188f1d44817b7d0b39c311aa4a0",
+    "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb"
+   },
+   "explain": {
+    "jobId": "ej_8a536a2c5188420bb3d394cd1e2fca70",
+    "resultId": "er_4c679188f1d44817b7d0b39c311aa4a0",
+    "cardId": "2502287f-2191-42f9-b8f3-db37d5822295",
+    "canvas": {
+     "boardId": "4a0a87a0-e36a-4b04-b9d4-5ac48b212595"
+    },
+    "promptRef": "fb22fdfd10e611ce",
+    "revision": "xr_3378a0e44229457c9188cac4ba52bd01",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb",
+    "sourceHash": "c110598c85e352c72dea041db8e07cd69234295b58d4f77268440494773f89a8",
+    "manifestHash": "ed967f2dede131278062ebca8724218ed93706303dd12ca7ff54c323245d181c",
+    "versions": {
+     "schema": 1,
+     "runtime": "quickjs-release-sync@0.32.0",
+     "sdk": "sdk-2",
+     "renderer": "renderer-1"
+    },
+    "policyVersion": 1
+   }
+  },
+  "diagnostics": {
+   "spec": null,
+   "program": {
+    "source": "const Q=[[2,0],[0,2],[1,1]];\nconst K=[[1,0],[1,1],[0,1]];\nconst V=[[1,0],[0,2],[3,1]];\nconst DK=2;\nfunction vec(a){return '['+a[0]+', '+a[1]+']';}\nexport function evaluate({ inputs }){\n  const i=parseInt(inputs.query,10)-1;\n  const masked=inputs.mask==='on';\n  const f=(v)=>sdk.format(v,2);\n  const s=[],dots=[],allowed=[];\n  for(let j=0;j<3;j++){\n    dots[j]=Q[i][0]*K[j][0]+Q[i][1]*K[j][1];\n    s[j]=dots[j]/Math.sqrt(DK);\n    allowed[j]=!(masked&&j>i);\n  }\n  let m=-Infinity;\n  for(let j=0;j<3;j++){if(allowed[j]&&s[j]>m)m=s[j];}\n  const e=[];let Z=0;\n  for(let j=0;j<3;j++){e[j]=allowed[j]?Math.exp(s[j]-m):0;Z+=e[j];}\n  const w=e.map(x=>x/Z);\n  const o=[0,0];\n  for(let j=0;j<3;j++){o[0]+=w[j]*V[j][0];o[1]+=w[j]*V[j][1];}\n  const objs=[];\n  objs.push(sdk.text('title',24,30,'One attention row for query token t'+(i+1)+' (causal mask '+(masked?'on':'off')+')'));\n  objs.push(sdk.text('tablecap',24,70,'Synthetic vectors, key size d_k = 2'));\n  const cols=[40,110,200,290];\n  const rowY=[105,140,175,210];\n  objs.push(sdk.box('qrow',28,rowY[i+1]-15,330,30,{role:'input',opacity:0.3}));\n  const hdr=['token','query q','key k','value v'];\n  for(let c=0;c<4;c++)objs.push(sdk.text('h'+c,cols[c],rowY[0],hdr[c]));\n  for(let j=0;j<3;j++){\n    const y=rowY[j+1];\n    const r=(j===i)?'input':'neutral';\n    objs.push(sdk.text('tok'+j,cols[0],y,'t'+(j+1),{role:r}));\n    objs.push(sdk.text('q'+j,cols[1],y,vec(Q[j]),{role:r}));\n    objs.push(sdk.text('k'+j,cols[2],y,vec(K[j])));\n    objs.push(sdk.text('v'+j,cols[3],y,vec(V[j])));\n  }\n  objs.push(sdk.text('hl1',24,255,'Highlighted row: the chosen query q_'+(i+1)+' = '+vec(Q[i])+'.'));\n  objs.push(sdk.text('hl2',24,285,'It is compared with every key k_j.'));\n  objs.push(sdk.text('hl3',24,315,masked?'Mask on: keys after t'+(i+1)+' are hidden.':'Mask off: every key is visible.',{role:masked?'warning':'neutral'}));\n  objs.push(sdk.math('fs',440,75,'s_j = \\\\frac{q_i \\\\cdot k_j}{\\\\sqrt{d_k}}'));\n  objs.push(sdk.text('colh1',440,115,'Scaled score for each key'));\n  objs.push(sdk.text('colh2',700,115,'Softmax weight'));\n  for(let j=0;j<3;j++){\n    const y=155+j*50;\n    let t;\n    if(allowed[j]) t='k_'+(j+1)+': q·k = '+dots[j]+', s = '+dots[j]+'/√2 = '+f(s[j]);\n    else t='k_'+(j+1)+': later token, masked, s = −∞';\n    objs.push(sdk.text('sc'+j,440,y,t,{role:allowed[j]?'neutral':'warning'}));\n    objs.push(sdk.box('bar'+j,700,y-10,Math.max(2,170*w[j]),20,{role:'output'}));\n    objs.push(sdk.text('wt'+j,885,y,'w = '+f(w[j]),{role:allowed[j]?'output':'warning'}));\n  }\n  objs.push(sdk.math('fw',440,320,'w_j = \\\\frac{e^{s_j}}{\\\\sum_{l} e^{s_l}}'));\n  objs.push(sdk.text('wsum',600,320,'sum over visible keys; weights add to '+f(w[0]+w[1]+w[2])));\n  objs.push(sdk.math('fo',24,400,'o_i = \\\\sum_j w_j\\\\, v_j'));\n  objs.push(sdk.text('terms',24,445,'o = '+f(w[0])+'·[1, 0] + '+f(w[1])+'·[0, 2] + '+f(w[2])+'·[3, 1]'));\n  objs.push(sdk.text('out',24,480,'o_'+(i+1)+' = ['+f(o[0])+', '+f(o[1])+']',{role:'output'}));\n  objs.push(sdk.text('note',24,520,'The better a key matches the query, the larger its weight and the more of its value enters o.'));\n  return { frame: sdk.frame(objs,{width:960,height:540,readouts:[{id:'w1',value:w[0]},{id:'w2',value:w[1]},{id:'w3',value:w[2]},{id:'o1',value:o[0]},{id:'o2',value:o[1]}]}), quantities:{s1:allowed[0]?s[0]:-1e9,s2:allowed[1]?s[1]:-1e9,s3:allowed[2]?s[2]:-1e9,w1:w[0],w2:w[1],w3:w[2],o1:o[0],o2:o[1]} };\n}\n",
+    "manifest": {
+     "title": "One attention row: scores, softmax weights and output for three tokens",
+     "summary": "Three made-up tokens have small query, key and value vectors. For the query you choose, the card works out the scaled score with each key, the softmax weights as numbers and bars, and the output as a weighted mix of the values. Causal masking hides later tokens: their weights become zero and the others are re-normalized to add up to one.",
+     "assumptions": [
+      "Query, key and value numbers are small made-up values, not from a trained model.",
+      "A single attention head with key size d_k = 2, so scores are divided by the square root of 2.",
+      "Causal masking sets the scores of later tokens to minus infinity before the softmax, so their weights are exactly zero.",
+      "Only one row of the attention matrix is computed; projections, multiple heads and the output projection are left out."
+     ],
+     "description": "Top left: a table of three tokens t1 to t3 with their query, key and value vectors; the chosen query's row is highlighted. Right: for each key, the dot product with the query, the scaled score, and a bar with its softmax weight; masked keys show minus infinity and a weight of zero. Formulas for the score and softmax sit beside them. Bottom: the output formula, the weighted sum written out with the current weights, and the resulting output vector.",
+     "inputs": [
+      {
+       "type": "select",
+       "id": "query",
+       "label": "Query token",
+       "default": "2",
+       "options": [
+        {
+         "value": "1",
+         "label": "t1"
+        },
+        {
+         "value": "2",
+         "label": "t2"
+        },
+        {
+         "value": "3",
+         "label": "t3"
+        }
+       ]
+      },
+      {
+       "type": "select",
+       "id": "mask",
+       "label": "Causal masking",
+       "default": "off",
+       "options": [
+        {
+         "value": "off",
+         "label": "Off"
+        },
+        {
+         "value": "on",
+         "label": "On"
+        }
+       ]
+      }
+     ],
+     "readouts": [
+      {
+       "id": "w1",
+       "label": "Weight on t1",
+       "decimals": 2
+      },
+      {
+       "id": "w2",
+       "label": "Weight on t2",
+       "decimals": 2
+      },
+      {
+       "id": "w3",
+       "label": "Weight on t3",
+       "decimals": 2
+      },
+      {
+       "id": "o1",
+       "label": "Output, first number",
+       "decimals": 2
+      },
+      {
+       "id": "o2",
+       "label": "Output, second number",
+       "decimals": 2
+      }
+     ],
+     "capabilities": [
+      "select_inputs",
+      "math_text"
+     ]
+    }
+   },
+   "artifact": {
+    "kind": "explain_program",
+    "schemaVersion": 1,
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "sdkVersion": "sdk-2",
+    "rendererVersion": "renderer-1",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+     "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+     "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+     "renderer": "renderer-1"
+    },
+    "dependencies": [],
+    "manifest": {
+     "title": "One attention row: scores, softmax weights and output for three tokens",
+     "summary": "Three made-up tokens have small query, key and value vectors. For the query you choose, the card works out the scaled score with each key, the softmax weights as numbers and bars, and the output as a weighted mix of the values. Causal masking hides later tokens: their weights become zero and the others are re-normalized to add up to one.",
+     "assumptions": [
+      "Query, key and value numbers are small made-up values, not from a trained model.",
+      "A single attention head with key size d_k = 2, so scores are divided by the square root of 2.",
+      "Causal masking sets the scores of later tokens to minus infinity before the softmax, so their weights are exactly zero.",
+      "Only one row of the attention matrix is computed; projections, multiple heads and the output projection are left out."
+     ],
+     "description": "Top left: a table of three tokens t1 to t3 with their query, key and value vectors; the chosen query's row is highlighted. Right: for each key, the dot product with the query, the scaled score, and a bar with its softmax weight; masked keys show minus infinity and a weight of zero. Formulas for the score and softmax sit beside them. Bottom: the output formula, the weighted sum written out with the current weights, and the resulting output vector.",
+     "inputs": [
+      {
+       "type": "select",
+       "id": "query",
+       "label": "Query token",
+       "default": "2",
+       "options": [
+        {
+         "value": "1",
+         "label": "t1"
+        },
+        {
+         "value": "2",
+         "label": "t2"
+        },
+        {
+         "value": "3",
+         "label": "t3"
+        }
+       ]
+      },
+      {
+       "type": "select",
+       "id": "mask",
+       "label": "Causal masking",
+       "default": "off",
+       "options": [
+        {
+         "value": "off",
+         "label": "Off"
+        },
+        {
+         "value": "on",
+         "label": "On"
+        }
+       ]
+      }
+     ],
+     "readouts": [
+      {
+       "id": "w1",
+       "label": "Weight on t1",
+       "decimals": 2
+      },
+      {
+       "id": "w2",
+       "label": "Weight on t2",
+       "decimals": 2
+      },
+      {
+       "id": "w3",
+       "label": "Weight on t3",
+       "decimals": 2
+      },
+      {
+       "id": "o1",
+       "label": "Output, first number",
+       "decimals": 2
+      },
+      {
+       "id": "o2",
+       "label": "Output, second number",
+       "decimals": 2
+      }
+     ],
+     "capabilities": [
+      "select_inputs",
+      "math_text"
+     ]
+    },
+    "sourceHash": "c110598c85e352c72dea041db8e07cd69234295b58d4f77268440494773f89a8",
+    "manifestHash": "ed967f2dede131278062ebca8724218ed93706303dd12ca7ff54c323245d181c",
+    "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb",
+    "sourceBytes": 3405
+   },
+   "coverage": {
+    "compiledHash": "b20463ab28dfd23ab6eb50db69b6b7cd7b23b5982dba6980022cf75356844dd1",
+    "states": 5,
+    "moments": 1,
+    "frames": 5,
+    "themes": [
+     "light"
+    ],
+    "sampled": [
+     {
+      "id": "light",
+      "label": "default",
+      "inputs": {},
+      "time": 0
+     },
+     {
+      "id": "a0-light",
+      "label": "first of query",
+      "inputs": {
+       "query": "1"
+      },
+      "time": 0
+     },
+     {
+      "id": "a1-light",
+      "label": "last of query",
+      "inputs": {
+       "query": "3"
+      },
+      "time": 0
+     },
+     {
+      "id": "a2-light",
+      "label": "last of mask",
+      "inputs": {
+       "mask": "on"
+      },
+      "time": 0
+     },
+     {
+      "id": "a3-light",
+      "label": "combined: every input at its max/last",
+      "inputs": {
+       "query": "3",
+       "mask": "on"
+      },
+      "time": 0
+     }
+    ],
+    "omitted": []
+   },
+   "history": [
+    {
+     "round": 0,
+     "attempt": 1,
+     "stage": "reviewing",
+     "outcome": "accepted",
+     "at": 1794102069625,
+     "hashes": {
+      "programHash": "94895d223005f454",
+      "sourceHash": "c110598c85e352c72dea041db8e07cd69234295b58d4f77268440494773f89a8",
+      "manifestHash": "ed967f2dede131278062ebca8724218ed93706303dd12ca7ff54c323245d181c",
+      "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb"
+     },
+     "sizes": {
+      "sourceBytes": 3415,
+      "manifestBytes": 1965
+     },
+     "problems": [],
+     "findings": [
+      {
+       "id": "rf1",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "visual",
+       "capture": "light",
+       "object": "fs",
+       "message": "The fractions in the score and softmax formulas (fs, fw) are drawn very small (numerator and denominator at subscript size). They can still be read, but larger math would help.",
+       "programHash": "94895d223005f454"
+      },
+      {
+       "id": "rf2",
+       "category": "spec",
+       "severity": "minor",
+       "verdict": "semantic",
+       "capture": "a3-light",
+       "object": "hl3",
+       "message": "For t3 with the mask on, no key is later than the query, so the card correctly matches mask off. The line 'keys after t3 are hidden' could also say that no keys are hidden for this query.",
+       "programHash": "94895d223005f454"
+      }
+     ],
+     "truncated": false,
+     "cut": [],
+     "version": {
+      "stored": true,
+      "key": "explainver:ej_8a536a2c5188420bb3d394cd1e2fca70:94895d223005f454"
+     }
+    }
+   ],
+   "historyDropped": 0,
+   "findings": [
+    {
+     "round": 0,
+     "stage": "reviewing",
+     "accepted": true,
+     "findings": [
+      {
+       "version": 1,
+       "id": "rf1",
+       "verdict": "visual",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "light",
+        "object": "fs"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "The fractions in the score and softmax formulas (fs, fw) are drawn very small (numerator and denominator at subscript size). They can still be read, but larger math would help."
+      },
+      {
+       "version": 1,
+       "id": "rf2",
+       "verdict": "semantic",
+       "category": "spec",
+       "severity": "minor",
+       "target": {
+        "capture": "a3-light",
+        "object": "hl3"
+       },
+       "evidence": [],
+       "specRepairable": true,
+       "message": "For t3 with the mask on, no key is later than the query, so the card correctly matches mask off. The line 'keys after t3 are hidden' could also say that no keys are hidden for this query."
+      }
+     ]
+    }
+   ],
+   "candidates": [],
+   "settings": {
+    "presentation": "experiment"
+   },
+   "calls": [
+    {
+     "key": "ej_8a536a2c5188420bb3d394cd1e2fca70-brief-1",
+     "role": "brief",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 115595,
+     "images": 0,
+     "costMicros": 18616,
+     "inputTokens": 447,
+     "outputTokens": 823,
+     "startedAt": 1794101991070,
+     "endedAt": 1794102000333,
+     "error": null
+    },
+    {
+     "key": "ej_8a536a2c5188420bb3d394cd1e2fca70-author-2",
+     "role": "author",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 421730,
+     "images": 0,
+     "costMicros": 137842,
+     "inputTokens": 8887,
+     "outputTokens": 5042,
+     "startedAt": 1794102003043,
+     "endedAt": 1794102049770,
+     "error": null
+    },
+    {
+     "key": "ej_8a536a2c5188420bb3d394cd1e2fca70-review-3",
+     "role": "review",
+     "attempt": 1,
+     "requested": "claude-opus-5-5",
+     "served": "claude-opus-5-5",
+     "status": "settled",
+     "boundMicros": 257585,
+     "images": 5,
+     "costMicros": 56504,
+     "inputTokens": 8113,
+     "outputTokens": 1188,
+     "startedAt": 1794102057499,
+     "endedAt": 1794102069625,
+     "error": null
+    }
+   ],
+   "captures": [
+    {
+     "id": "light",
+     "aliases": [],
+     "stateHash": "4ad24bf6a97d3c6223bd739b258632510ab37b6231016dcec3ca106639791bc8",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "query": "2",
+      "mask": "off"
+     },
+     "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb",
+     "trace": {
+      "inputs": {
+       "query": "2",
+       "mask": "off"
+      },
+      "time": 0,
+      "quantities": {
+       "s1": 0,
+       "s2": 1.414213562373095,
+       "s3": 1.414213562373095,
+       "w1": 0.10838345178479356,
+       "w2": 0.44580827410760315,
+       "w3": 0.44580827410760315,
+       "o1": 1.4458082741076028,
+       "o2": 1.3374248223228093
+      },
+      "metrics": {
+       "ms": 39.7
+      }
+     },
+     "sha256": "5d2e09004b37de21a5c6a8375c8693153ba393eb0d5b0ee524cd2e5599002ea2",
+     "key": "explain/ej_8a536a2c5188420bb3d394cd1e2fca70/4ad24bf6a97d3c62.png",
+     "compiledHash": "b20463ab28dfd23ab6eb50db69b6b7cd7b23b5982dba6980022cf75356844dd1",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a0-light",
+     "aliases": [],
+     "stateHash": "e5a6316ae8b21e8d97767529058d41d762802135c31ebed1f45c34a6de42f1bf",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "query": "1",
+      "mask": "off"
+     },
+     "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb",
+     "trace": {
+      "inputs": {
+       "query": "1",
+       "mask": "off"
+      },
+      "time": 0,
+      "quantities": {
+       "s1": 1.414213562373095,
+       "s2": 1.414213562373095,
+       "s3": 0,
+       "w1": 0.44580827410760315,
+       "w2": 0.44580827410760315,
+       "w3": 0.10838345178479356,
+       "o1": 0.7709586294619838,
+       "o2": 0.9999999999999999
+      },
+      "metrics": {
+       "ms": 15.6
+      }
+     },
+     "sha256": "2cc75d71a77b70c8f330effef5b3b6ad0ab19e251315a6bfb45e23e41ed90487",
+     "key": "explain/ej_8a536a2c5188420bb3d394cd1e2fca70/e5a6316ae8b21e8d.png",
+     "compiledHash": "b20463ab28dfd23ab6eb50db69b6b7cd7b23b5982dba6980022cf75356844dd1",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a1-light",
+     "aliases": [],
+     "stateHash": "fce088a70d65d3d9abfa35e212f409bb6335b91a8112b98516f504c4a0d9718d",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "query": "3",
+      "mask": "off"
+     },
+     "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb",
+     "trace": {
+      "inputs": {
+       "query": "3",
+       "mask": "off"
+      },
+      "time": 0,
+      "quantities": {
+       "s1": 0.7071067811865475,
+       "s2": 1.414213562373095,
+       "s3": 0.7071067811865475,
+       "w1": 0.2482550782577231,
+       "w2": 0.5034898434845538,
+       "w3": 0.2482550782577231,
+       "o1": 0.9930203130308924,
+       "o2": 1.2552347652268308
+      },
+      "metrics": {
+       "ms": 13.3
+      }
+     },
+     "sha256": "d6658fac9ce0b0ea4c4b07c49bb706c86689fbc8c30886978c14dcbffb54a6e1",
+     "key": "explain/ej_8a536a2c5188420bb3d394cd1e2fca70/fce088a70d65d3d9.png",
+     "compiledHash": "b20463ab28dfd23ab6eb50db69b6b7cd7b23b5982dba6980022cf75356844dd1",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a2-light",
+     "aliases": [],
+     "stateHash": "3612b3b01375db8a2e54b34aeb6ec56afefb269b5e4013aa7b0538a3df49b619",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "query": "2",
+      "mask": "on"
+     },
+     "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb",
+     "trace": {
+      "inputs": {
+       "query": "2",
+       "mask": "on"
+      },
+      "time": 0,
+      "quantities": {
+       "s1": 0,
+       "s2": 1.414213562373095,
+       "s3": -1000000000,
+       "w1": 0.19557031749304313,
+       "w2": 0.8044296825069569,
+       "w3": 0,
+       "o1": 0.19557031749304313,
+       "o2": 1.6088593650139138
+      },
+      "metrics": {
+       "ms": 10.3
+      }
+     },
+     "sha256": "9ddb13b24b5d772e4e1d5cd8c5eb30b9955c4467cce541222605512fd41b0018",
+     "key": "explain/ej_8a536a2c5188420bb3d394cd1e2fca70/3612b3b01375db8a.png",
+     "compiledHash": "b20463ab28dfd23ab6eb50db69b6b7cd7b23b5982dba6980022cf75356844dd1",
+     "mediaType": "image/png"
+    },
+    {
+     "id": "a3-light",
+     "aliases": [],
+     "stateHash": "95a80bba129667e029b41d78e265bc8397aef04a48970e98da0e0354799758b1",
+     "theme": "light",
+     "time": 0,
+     "inputs": {
+      "query": "3",
+      "mask": "on"
+     },
+     "bundleHash": "b93440d11a45854ad79521918f4313eb7c0f94ae97cf462a6e34be63acfcf3eb",
+     "trace": {
+      "inputs": {
+       "query": "3",
+       "mask": "on"
+      },
+      "time": 0,
+      "quantities": {
+       "s1": 0.7071067811865475,
+       "s2": 1.414213562373095,
+       "s3": 0.7071067811865475,
+       "w1": 0.2482550782577231,
+       "w2": 0.5034898434845538,
+       "w3": 0.2482550782577231,
+       "o1": 0.9930203130308924,
+       "o2": 1.2552347652268308
+      },
+      "metrics": {
+       "ms": 10.4
+      }
+     },
+     "sha256": "b45f5bd2d30d495f1f25a028cfd245762b57b54caad7db317a2885c062b47507",
+     "key": "explain/ej_8a536a2c5188420bb3d394cd1e2fca70/95a80bba129667e0.png",
+     "compiledHash": "b20463ab28dfd23ab6eb50db69b6b7cd7b23b5982dba6980022cf75356844dd1",
+     "mediaType": "image/png"
+    }
+   ],
+   "counts": {
+    "brief": 1,
+    "author": 1,
+    "review": 1,
+    "repair": 0
+   },
+   "timing": {
+    "requestClass": "simple",
+    "cache": null,
+    "marks": {
+     "submitted": 1794101989977,
+     "firstFeedback": 1794101990070,
+     "proposalReady": 1794102000489,
+     "generate": 1794102002992,
+     "result": 1794102069625
+    },
+    "stages": [
+     {
+      "stage": "preparing",
+      "startedAt": 1794101990070,
+      "endedAt": 1794102000489,
+      "calls": 1,
+      "inputTokens": 447,
+      "outputTokens": 823,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "awaiting_approval",
+      "startedAt": 1794102000489,
+      "endedAt": 1794102002992,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": null
+     },
+     {
+      "stage": "authoring",
+      "startedAt": 1794102002992,
+      "endedAt": 1794102049770,
+      "calls": 1,
+      "inputTokens": 8887,
+      "outputTokens": 5042,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "validating",
+      "startedAt": 1794102049770,
+      "endedAt": 1794102049814,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 0,
+      "outcome": "done"
+     },
+     {
+      "stage": "rendering",
+      "startedAt": 1794102049814,
+      "endedAt": 1794102056420,
+      "calls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "images": 0,
+      "captures": 5,
+      "outcome": "done"
+     },
+     {
+      "stage": "reviewing",
+      "startedAt": 1794102056420,
+      "endedAt": 1794102069625,
+      "calls": 1,
+      "inputTokens": 8113,
+      "outputTokens": 1188,
+      "images": 5,
+      "captures": 0,
+      "outcome": "accepted"
+     }
+    ]
+   }
+  }
+ }
+}

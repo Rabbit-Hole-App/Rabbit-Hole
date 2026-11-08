@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import { buildProgramArtifact } from '../../../control-plane/src/explain-program.js';
 import { parseGuestResult, resolveInputs } from './contract.js';
 import { normalizeFrame } from './frame.js';
-import { loadEngine, runProgram } from './runtime.js';
+import { loadEngine, runProgram as runWithDefaultLimits } from './runtime.js';
 import { convolutionFixture as fixture } from './ai-convolution-fixture.js';
+import { LIMITS as DEFAULT_LIMITS } from './limits.js';
+// These tests check numbers, not the evaluation deadline: a loaded machine can pass the default 50 ms (genuine-card.test.mjs does the same).
+const runProgram = (engine, input) => runWithDefaultLimits(engine, input, { ...DEFAULT_LIMITS, interruptMs: 5000 });
 
 const engine=await loadEngine();
 const artifact=await buildProgramArtifact({manifest:fixture.manifest,source:fixture.source});

@@ -20,11 +20,9 @@ is ignored. An artifact sealed for anything else gets the fixed "could not run" 
 - Schema 2 is R3, which carries 8.1 `86d746e0d`, 8.2 `137018604`, 8.3 `0ee34e70c` and the owner-review fixes. It is on `main`
   and production-released in `d3d50986e` (3:11 PM PT), with `EXPLAIN_PROGRAM_STATEFUL=true`. `stamps.js SUPPORTED_PROGRAM_TUPLES` lists both
   tuples; schema 2 seals with `STATEFUL_PROGRAM_STAMPS`.
-- Which schema new generation seals:
-  - On `main`: `PROGRAM_STAMPS`, schema 1 only. `control-plane/src/explain-program.js` imports it from
-    `web/src/explain-program/stamps.js`.
-  - In R3: a draft is stateful when its manifest declares a viewport, actions or targets. Such a draft is admitted only
-    while `EXPLAIN_PROGRAM_STATEFUL` is on. It then needs all three exports and seals as schema 2.
+- New drafts seal as schema 1 by default. A draft that declares a viewport, actions or targets uses schema 2 when
+  `EXPLAIN_PROGRAM_STATEFUL` is on and exports `initialState`, `reduce` and `evaluate`. The server selects the SDK and renderer
+  from the supported stamps based on the declared capability.
 - The learner's card and the review renderer (`render/program-render.jsx`) both run through `host.js createProgramHost`, so
   both resolve the same tuple.
 - Evidence (`packages/web/src/explain-program/retention.test.mjs`, 6 tests): the saved sandbox-ex1-b cooling artifact
@@ -38,14 +36,18 @@ is ignored. An artifact sealed for anything else gets the fixed "could not run" 
 
 ## Interactive visual SDK
 
-The interactive kit branch seals new programs with `sdk-2` for both schemas. It adds
+The interactive kit seals ordinary new programs with `sdk-2` for both schemas. It adds
 `sdk.plot`, `sdk.graph`, `sdk.grid`, `sdk.geometry`, `sdk.timeline`, and `sdk.readout`.
 Each helper returns ordinary frame objects. Author and repair calls keep the same
 request limits, and all helpers share the existing frame limits.
 
-Saved `sdk-1` programs keep their original guest source and supported tuples.
-The server, learner player, and review renderer need the compatible build when
-new cards use `sdk-2`. Rolling back to an earlier player makes those cards
+The heat-grid capability seals a separate `sdk-3` and `renderer-2` tuple for either schema. The author declares
+`heat_grid` in the manifest and uses `sdk.heatGrid(id, { x, y, cell, rows, cols, values, domain })` to return one frame object.
+Values are finite and in row-major order. The increasing `[min, max]` domain drives the existing sequential heat renderer
+while labels can retain the original units. A comparison uses the same domain in every setting.
+
+Saved `sdk-1` and `sdk-2` programs keep their original guest source and supported tuples. The server, learner player and
+review renderer need a compatible build for a new tuple. Rolling back to a player that predates a tuple makes its cards
 unavailable until a compatible build returns.
 
 ### Medium interactive visuals
@@ -231,6 +233,39 @@ See the [generation and dev acceptance handoff](./explain-on-canvas/handoff/ai-e
 for exact prompts and checks. These examples do not increase the reusable
 component capability count or retroactively change the frozen 508-topic audit.
 
+## Dev verification evidence (integrated branch, 2026-11-08)
+
+One branch carries the heat-grid line (SDK 3), Medium (SDK 4), linked comparison, cyclic networks (SDK 5), raster and masks (SDK 6) and the three AI teaching examples. Each SDK line keeps its own
+stamp tuple and source bytes. Verified on the dev clone `rabbit-hole-web-dev-tc-s7d2` (deployed from commit `a1804bc8f`; hand-authored fixtures, no model call unless stated). Strictly 2D.
+
+| Capability | Fixture | Checked in a browser | Result |
+|---|---|---|---|
+| Medium: trace, field, evidence, expandable tree, image regions, image views | the six `fixture-medium-*` | render, change a control or selection, reload, fresh browser context | pass (7 of 7 with linked comparison, repeated on the integrated build) |
+| Linked selection and comparison | `fixture-medium-linked-comparison` | select from the plot and from a row, reopen | pass; both views highlight and the readout updates |
+| Cyclic networks | `fixture-cyclic-network` | select each node, arrow highlight and note, reload and fresh reopen, Reset and reload, clipping | pass (10 of 10); labels sit about 80 px from their arrows because the fixture places them explicitly |
+| Raster and masks | `fixture-raster-mask`, `fixture-raster-transform` | pixel-level: every cell's colour against the expected class or filter, source unchanged, reload, fresh reopen, Reset, resize from the corner grip | pass at default and wide sizes (mask covers exactly its selected pixels, ring hole transparent, filters match their formulas on all 576 cells); resized width is saved. At narrow widths the drawing keeps its legible size and the card scrolls, as for every program card |
+| AI teaching examples | `fixture-ai-convolution`, `fixture-ai-attention`, `fixture-ai-gradient` | render, change every control, reload, fresh reopen, Reset and reload; hand-computed values compared with the drawn numbers | pass (convolution 10 of 10, gradient 10 of 10, attention 9 of 9; for query C the causal and unmasked views are identical by construction) |
+
+One real `/interactive` request (Opus, dev clone, about $0.61) produced a card that calls `sdk.trace`, declares `medium_visuals` and seals `sdk-4`; a control change survived a reload and a fresh browser context.
+Before the author rule named the Medium helpers the same request drew the trace by hand (`sdk-2`).
+
+Integration decisions (flagged for review):
+- The Medium, cyclic, raster and heat-grid helper docs are authoring-only: the repair request carries the program and the validator's problems. With all four stacked a maximal program no longer fits the repair request.
+- The fixed author request is 41,010 bytes with all four families. The sanity line in `explain-program-budget.test.js` moved from 40,000 to 44,000 bytes (the pinned role ceilings are unchanged). Selecting helper docs per family is the lasting fix before more families.
+- Both guard tests that listed exact capability sets were updated to the stacked sets, and the board-link reader registry lists the field helper's contour links.
+
+Not verified: a plain-words Tutor request routing to `/interactive` on the dev clone (it lacks the chat router key, so the router answers in text); production behaviour; the heat-grid fixture in a browser on this branch (SDK 3 compatibility is covered by unit tests only).
+
+Generation access: the fixtures are resolved only by `program-card.js` from a saved card's `program.fixtureId`, and only in dev builds (`fixturesAdmitted`). The author, brief and example selection do not import them, so the generation workflow cannot use them. The author is taught the helper signatures (authoring context only).
+
+## Backend generation results for the AI teaching examples (2026-11-08)
+
+Separate from the hand-authored fixtures above, and separate from visual and browser acceptance. Five prompts were run through the real `/interactive` pipeline (brief, author, review, repair; `claude-opus-5-5`; dev clone; $1.559 in total for the first five).
+Convolution and attention were generated and accepted on the first attempt; the gradient-descent prompt failed twice and the decision-tree prompt failed once, all with `unsupported_repair` (the repair step returned no program, or the reviewer rejected the repaired program).
+A sixth run sent the decision-tree prompt as plain words (no slash command) through the chat router, after the one-line router usage fix on `fix/chat-route-usage` (611e1e55c, not released): it routed to `explain` (jev 0.84), and the job was **accepted in round 3** ($0.718, job `ej_98db85deeebe4a1d95625808e741f276`, fixture `fixture-generated-ai-tree-split`). Total generation spend $2.277.
+The generated programs' numbers pass offline acceptance from their own data. Visual, interaction and saved-state acceptance of the generated cards is **pending**. The records, the saved programs and the dev fixture ids (`fixture-generated-ai-*`) are in
+[ai-example-regeneration-results.md](explain-on-canvas/handoff/ai-example-regeneration-results.md); the generation workflow cannot use any fixture, hand-authored or generated.
+
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
 | Limit | Value |
@@ -238,6 +273,7 @@ component capability count or retroactively change the frozen 508-topic audit.
 | Source / manifest | 16 KiB / 4 KiB |
 | Guest output | 256 KiB serialized, depth 32 |
 | Frame | 60 objects, 2,000 points per object, 10,000 points total, coordinates ±100,000, size 2,000, text 200, 16 runs |
+| Heat grids | At most 256 cells across a frame, with each grid fully inside its viewport |
 | Inputs | 4 controls; a select has at most 8 options; at most 64 option combinations |
 | Readouts / quantities / assumptions | 8 / 32 / 8 |
 | Duration | at most 120 s |

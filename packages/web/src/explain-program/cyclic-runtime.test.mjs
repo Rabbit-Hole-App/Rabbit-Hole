@@ -7,9 +7,12 @@ import { CAPABILITIES, CONTRACT_LIMITS, parseGuestResult, verifyHashes } from '.
 import { cyclicNetworkFixture as fixture } from './cyclic-fixture.js';
 import { normalizeFrame } from './frame.js';
 import { programStateFor, resetProgram, resolveProgram } from './program-card.js';
-import { loadEngine, runProgram } from './runtime.js';
+import { loadEngine, runProgram as runWithDefaultLimits } from './runtime.js';
 import { programSdkSource } from './sdk.js';
 import { CYCLIC_PROGRAM_STAMPS, MEDIUM_PROGRAM_STAMPS, PROGRAM_STAMPS } from './stamps.js';
+import { LIMITS as DEFAULT_LIMITS } from './limits.js';
+// These tests check numbers, not the evaluation deadline: a loaded machine can pass the default 50 ms (genuine-card.test.mjs does the same).
+const runProgram = (engine, input) => runWithDefaultLimits(engine, input, { ...DEFAULT_LIMITS, interruptMs: 5000 });
 
 const engine = await loadEngine();
 const artifact = await buildProgramArtifact({ manifest: fixture.manifest, source: fixture.source });
@@ -60,10 +63,11 @@ test('normal card fixture resolves, selects every loop stage, restores state and
   assert.deepEqual(evaluate(run('initialize',null)),baseline);
 });
 
-test('author and repair both receive the cyclic helper contract', () => {
-  for(const repair of [false,true]) {
-    const context=programContext(CONTRACT_LIMITS,CAPABILITIES,{stateful:true,repair});
-    assert.match(context.sdk.cyclicGraph.signature,/sdk.cyclicGraph/);
-    assert.match(context.sdk.cyclicGraph.usage,/cyclic_networks/);
-  }
+// Integration decision (cyclic + Medium + heat grid): like the Medium and heat-grid docs, the cyclic helper contract is for authoring. With all three stacked, a maximal valid
+// program no longer fits the repair request's size budget (explain-program-budget.test.js), so the repair request carries the program itself and the validator's problems.
+test('the author receives the cyclic helper contract; the repair request leaves it out, as it does the Medium and heat-grid docs', () => {
+  const author=programContext(CONTRACT_LIMITS,CAPABILITIES,{stateful:true,repair:false});
+  assert.match(author.sdk.cyclicGraph.signature,/sdk.cyclicGraph/);
+  assert.match(author.sdk.cyclicGraph.usage,/cyclic_networks/);
+  assert.equal(programContext(CONTRACT_LIMITS,CAPABILITIES,{stateful:true,repair:true}).sdk.cyclicGraph,undefined);
 });

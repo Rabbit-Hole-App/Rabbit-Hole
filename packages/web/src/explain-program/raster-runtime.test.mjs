@@ -7,9 +7,12 @@ import { CAPABILITIES, CONTRACT_LIMITS, parseGuestResult, verifyHashes } from '.
 import { normalizeFrame } from './frame.js';
 import { RASTER_FIXTURES } from './raster-fixtures.js';
 import { resolveProgram, resetProgram } from './program-card.js';
-import { loadEngine, runProgram } from './runtime.js';
+import { loadEngine, runProgram as runWithDefaultLimits } from './runtime.js';
 import { programSdkSource } from './sdk.js';
 import { RASTER_PROGRAM_STAMPS, CYCLIC_PROGRAM_STAMPS, MEDIUM_PROGRAM_STAMPS, VISUAL_PROGRAM_STAMPS, PROGRAM_STAMPS } from './stamps.js';
+import { LIMITS as DEFAULT_LIMITS } from './limits.js';
+// These tests check numbers, not the evaluation deadline: a loaded machine can pass the default 50 ms (genuine-card.test.mjs does the same).
+const runProgram = (engine, input) => runWithDefaultLimits(engine, input, { ...DEFAULT_LIMITS, interruptMs: 5000 });
 
 const engine=await loadEngine();
 async function setup(fixture) {
@@ -62,9 +65,9 @@ test('filters compute expected pixels and leave the original unchanged',async()=
  assert.equal(blur.find(o=>o.id==='filtered').pixels[p(x,y)],Math.round(sum/9));
 });
 
-test('author and repair know raster and mask signatures and data limitations',()=>{
- for(const repair of [false,true]){
-  const c=programContext(CONTRACT_LIMITS,CAPABILITIES,{repair});
-  assert.match(c.sdk.raster.pixels,/sdk.raster/);assert.match(c.sdk.raster.mask,/sdk.mask/);assert.match(c.sdk.raster.usage,/no URLs/);
- }
+// Integration decision (raster + cyclic + Medium + heat grid): the helper docs are for authoring; the repair request carries the program and the problems (a maximal program no longer fits it with all four).
+test('the author knows raster and mask signatures and data limitations; the repair request leaves the docs out',()=>{
+ const c=programContext(CONTRACT_LIMITS,CAPABILITIES,{repair:false});
+ assert.match(c.sdk.raster.pixels,/sdk.raster/);assert.match(c.sdk.raster.mask,/sdk.mask/);assert.match(c.sdk.raster.usage,/no URLs/);
+ assert.equal(programContext(CONTRACT_LIMITS,CAPABILITIES,{repair:true}).sdk.raster,undefined);
 });

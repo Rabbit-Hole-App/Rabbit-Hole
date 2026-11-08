@@ -4,8 +4,11 @@ import { AI_TEACHING_FIXTURES } from './ai-teaching-fixtures.js';
 import { resolveProgram, resetProgram, programStateFor } from './program-card.js';
 import { resolveInputs, verifyHashes, parseGuestResult, parseEvent, stateProblem } from './contract.js';
 import { PROGRAM_STAMPS } from './stamps.js';
-import { loadEngine, runProgram } from './runtime.js';
+import { loadEngine, runProgram as runWithDefaultLimits } from './runtime.js';
 import { normalizeFrame } from './frame.js';
+import { LIMITS as DEFAULT_LIMITS } from './limits.js';
+// These tests check numbers, not the evaluation deadline: a loaded machine can pass the default 50 ms (genuine-card.test.mjs does the same).
+const runProgram = (engine, input) => runWithDefaultLimits(engine, input, { ...DEFAULT_LIMITS, interruptMs: 5000 });
 
 const engine=await loadEngine();
 for(const fixture of AI_TEACHING_FIXTURES) test(fixture.id+' uses the normal card resolver, saves controls, and resets',async()=>{
