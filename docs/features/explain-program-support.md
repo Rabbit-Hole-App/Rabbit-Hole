@@ -48,6 +48,27 @@ The server, learner player, and review renderer need the compatible build when
 new cards use `sdk-2`. Rolling back to an earlier player makes those cards
 unavailable until a compatible build returns.
 
+### Medium interactive visuals
+
+Programs using the Medium helpers declare `medium_visuals` in their manifest and
+seal with `sdk-4`. The server and player retain the earlier SDK tuples. The helpers
+use the existing card controls, state and shared scene renderer.
+
+| Helper | What it supports | Dev fixture ID |
+|---|---|---|
+| `sdk.trace` | Intervals, nested and overlapping calls, dependencies, a shared clock and selection details | `fixture-medium-trace` |
+| `sdk.field` | Sampled scalar contours and vector fields with explicit scales and units | `fixture-medium-field` |
+| `sdk.evidence` | Wrapped source text, stable UTF-16 offsets and the selected excerpt and citation label | `fixture-medium-evidence` |
+| `sdk.expandableGraph` | Branch selection in a bounded rooted tree, with stable positions as branches open | `fixture-medium-tree` |
+| `sdk.imageRegions` | Selectable rectangles in normalized image coordinates | `fixture-medium-image-regions` |
+| `sdk.imageViews` | An overview and synchronized crops of the selected region | `fixture-medium-image-views` |
+
+The image helpers accept the bundled `vlm-patch-source` asset ID. The renderer
+resolves that ID to a repository-owned raster. User attachments require a
+permission-aware asset binding before they can appear in these views. The guest
+cannot supply an image URL. The dev fixtures are hand-authored card inputs for
+verification.
+
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
 | Limit | Value |

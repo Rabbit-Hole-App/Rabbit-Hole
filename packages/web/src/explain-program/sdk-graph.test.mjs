@@ -4,10 +4,10 @@ import { runInNewContext } from 'node:vm';
 import { parseFrame } from './contract.js';
 import { normalizeFrame } from './frame.js';
 import { SDK_SOURCE } from './sdk.js';
-import { GRAPH_SOURCE } from './sdk-graph.js';
+import { EXPANDABLE_GRAPH_SOURCE, GRAPH_SOURCE } from './sdk-graph.js';
 
 // Only the trusted SDK and our test-owned data execute here.
-const sdk = runInNewContext(`${SDK_SOURCE}\n${GRAPH_SOURCE}\nsdk`);
+const sdk = runInNewContext(`${SDK_SOURCE}\n${GRAPH_SOURCE}\n${EXPANDABLE_GRAPH_SOURCE}\nsdk`);
 const bounds = { x: 20, y: 30, w: 620, h: 370 };
 const nodes = [
   { id: 'pick', label: 'Is it cached?', role: 'input' },
@@ -85,4 +85,63 @@ test('insufficient bounds and a dense fan-out fail instead of emitting an unread
   assert.throws(() => draw({ ...graph, h: 80 }), /room/);
   const dense = Array.from({ length: 6 }, (_, i) => ({ id: `n${i}`, label: `Node ${i}` }));
   assert.throws(() => draw({ ...bounds, nodes: dense, edges: dense.slice(1).map(({ id }) => ({ from: 'n0', to: id })) }), /four/);
+});
+
+const tree = {
+  ...bounds, h: 410,
+  nodes: [
+    { id: 'repo', label: 'Repository', role: 'input' },
+    { id: 'src', label: 'Source' }, { id: 'docs', label: 'Docs' },
+    { id: 'entry', label: 'Entry' }, { id: 'util', label: 'Utilities' },
+    { id: 'guide', label: 'Guide' }, { id: 'types', label: 'Types' },
+  ],
+  edges: [
+    { from: 'repo', to: 'src' }, { from: 'repo', to: 'docs' },
+    { from: 'src', to: 'entry', label: 'Boot' }, { from: 'src', to: 'util' },
+    { from: 'docs', to: 'guide' }, { from: 'util', to: 'types' },
+  ],
+};
+const drawTree = (config = tree) => JSON.parse(JSON.stringify(sdk.expandableGraph('map.1:tree', config)));
+const treeNodes = objects => objects.filter(({ kind }) => kind === 'box').map(({ text }) => text);
+
+test('a branch choice reveals just its children without moving existing boxes, edges or labels', () => {
+  const overview = drawTree();
+  const source = drawTree({ ...tree, expanded: ['src'] });
+  const docs = drawTree({ ...tree, expanded: ['docs'] });
+  const all = drawTree({ ...tree, expanded: ['src', 'docs', 'util'] });
+  assert.deepEqual(treeNodes(overview), ['Repository', 'Source', 'Docs']);
+  assert.deepEqual(treeNodes(source), ['Repository', 'Source', 'Docs', 'Entry', 'Utilities']);
+  assert.deepEqual(treeNodes(docs), ['Repository', 'Source', 'Docs', 'Guide']);
+  assert.deepEqual(treeNodes(all), tree.nodes.map(({ label }) => label));
+  assert.equal(overview.filter(({ kind }) => kind === 'arrow').length, 2);
+  assert.equal(source.filter(({ kind }) => kind === 'arrow').length, 4);
+  assert.equal(docs.filter(({ kind }) => kind === 'arrow').length, 3);
+  assert.deepEqual(overview.filter(({ kind }) => kind === 'text'), []);
+  assert.deepEqual(source.filter(({ kind }) => kind === 'text').map(({ text }) => text), ['Boot']);
+  assert.deepEqual(drawTree({ ...tree, expanded: [] }), overview);
+  for (const objects of [overview, source, docs, all]) {
+    const frame = { width: 680, height: 470, objects };
+    assert.equal(parseFrame(frame).ok, true);
+    const normalized = normalizeFrame(frame);
+    assert.equal(normalized.ok, true, normalized.issue);
+    const ids = new Set(objects.map(({ id }) => id));
+    assert.deepEqual(objects, all.filter(({ id }) => ids.has(id)));
+  }
+});
+
+test('a nested branch choice opens its ancestors, and preserves graph path highlighting', () => {
+  const expanded = drawTree({ ...tree, expanded: ['util'], active: ['repo', 'src', 'util', 'types'] });
+  assert.deepEqual(treeNodes(expanded), ['Repository', 'Source', 'Docs', 'Entry', 'Utilities', 'Types']);
+  const chosen = expanded.filter(({ kind, role }) => kind === 'arrow' && role === 'learner');
+  assert.deepEqual(chosen.map(({ id }) => id), ['map.1:tree.e.repo:src.a', 'map.1:tree.e.src:util.a', 'map.1:tree.e.util:types.a']);
+});
+
+test('expansion rejects invalid choice state, non-trees and trees that cannot fit when open', () => {
+  for (const expanded of [null, 'src', ['src', 'src'], ['missing'], ['entry'], Array(1)]) {
+    assert.throws(() => drawTree({ ...tree, expanded }), /expand/i);
+  }
+  assert.throws(() => drawTree(graph), /rooted tree/);
+  assert.throws(() => drawTree({ ...tree, edges: tree.edges.slice(0, -1) }), /rooted tree/);
+  assert.throws(() => drawTree({ ...tree, edges: [...tree.edges.slice(0, -1), { from: 'docs', to: 'util' }] }), /rooted tree/);
+  assert.throws(() => drawTree({ ...tree, h: 200 }), /room/);
 });

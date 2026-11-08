@@ -1,6 +1,7 @@
 import { getSceneState, validateScene } from '../animation-scene.js';
 import { LEGIBILITY_FLOORS, MAX_SCENE_VIEWPORT, sceneLegibility } from '../scene-layout.js';
 import { parseFrame, RuntimeError } from './contract.js';
+import { IMAGE_FIXTURE_PATHS } from './sdk-image.js';
 
 // A guest's frame becomes the trusted renderer's input: the contract check (contract.js), then the existing scene gate
 // (validateScene: roles, KaTeX trust and expansion bounds on every math run, on-screen limits) and getSceneState at one
@@ -23,6 +24,7 @@ function sceneObject(object) {
     case 'box': return { ...base, type: 'box', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, rotation: object.rotation, ...label(object), ...common(object) } };
     case 'circle': return { ...base, type: 'circle', initialState: { x: object.x, y: object.y, w: object.w, rotation: object.rotation, ...label(object), ...common(object) } };
     case 'text': return { ...base, type: 'text', initialState: { x: object.x, y: object.y, align: object.align, ...label(object), ...common(object) } };
+    case 'image': return { ...base, type: 'image', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, src: IMAGE_FIXTURE_PATHS[object.asset], crop: object.crop, ...common(object) } };
     case 'line':
     case 'arrow': return { ...base, type: object.kind, initialState: { x: object.from.x, y: object.from.y, from: object.from, to: object.to, ...label(object), ...common(object) } };
     case 'polyline': return { ...base, type: 'polyline', initialState: { ...bounds(object.points), points: object.points, ...(object.clip ? { clip: object.clip } : {}), ...common(object) } };
