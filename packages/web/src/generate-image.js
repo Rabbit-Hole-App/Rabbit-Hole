@@ -6,7 +6,6 @@
 // GET /api/learn/image-jobs; VITE_IMAGE_GENERATION is for a review build and grants nothing the server refuses).
 import { imageGenerationLive } from './agent/slash.js';
 import { track } from './usage-analytics.js';
-import { ILLUSTRATION_CAPTION } from './illustration-target.js';
 import { canvasFamilyOf, fileCardFromSource, sameFileCard } from './file-to-canvas.js';
 import { withPrompt } from './card-prompt.js';
 
@@ -61,7 +60,7 @@ export function illustrationFrom(job, proposal) {
   const a = job.artifact;
   if (!a) return null;
   return { fileRef: { v: 1, source: { id: a.sourceId, rev: a.sha256 }, meta: { name: `illustration.${a.mimeType === 'image/jpeg' ? 'jpg' : a.mimeType.split('/')[1]}`, type: a.mimeType, size: a.bytes } },
-    alt: String(proposal.input?.request || '').slice(0, 300), caption: ILLUSTRATION_CAPTION, aspect: 1 };
+    alt: String(proposal.input?.request || '').slice(0, 300), caption: 'Generated illustration, not a photograph or a measurement.', aspect: 1 };
 }
 
 // Production acceptance only (owner-only window): the owner sets localStorage 'rh-image-fault' to a fault name and the next Generate asks the

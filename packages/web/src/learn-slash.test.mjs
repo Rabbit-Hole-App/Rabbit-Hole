@@ -592,19 +592,3 @@ test('/explain takes the composer image when the target has none, and waits for 
   assert.equal(waiting.keep, '/interactive this part ');
   assert.deepEqual(did, [], 'nothing sent until the crop is attached');
 });
-
-// E2 (explain.md section 5, "Ask in a new card"): the written /explain from an Explanation card's suggested question joins the child to its parent, once, with the
-// card and revision the question was pressed on; a command from any other target is exactly what it was.
-test('Ask in a new card: the written /explain inserts its card with the parent link; no parentLink, no parent option', async () => {
-  const reply = { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'T', body: 'B' } };
-  const run = target => {
-    const did = [];
-    const canvas = { reserve: () => 'slot:1', release() {}, insertBlock: (block, options) => { did.push(options); return 'child-1'; } };
-    return runLearnCommand('/explain How does a tree choose its first question?', { app: 'demo', target, canvas, post: async () => reply, openSearch: () => {} }).then(out => ({ did, out }));
-  };
-  const linked = await run({ id: 'card-1', title: 'Why trees', text: 'The card text', explanation: { revision: 'r1-abc', actionId: 'act-1' }, parentLink: { revision: 'r1-abc', actionId: 'act-1' } });
-  assert.deepEqual(linked.did, [{ into: 'slot:1', parent: { id: 'card-1', revision: 'r1-abc', actionId: 'act-1' } }]);
-  assert.equal(linked.out.notice.blockId, 'child-1');
-  const plain = await run({ id: 'card-1', title: 'Why trees', text: 'The card text' });
-  assert.deepEqual(plain.did, [{ into: 'slot:1' }], 'a selected card alone adds no link');
-});

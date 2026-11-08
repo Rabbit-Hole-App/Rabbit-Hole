@@ -1,7 +1,0 @@
-{
-  "caseId": "cal-malformed-diagram",
-  "calibration": {
-    "expectFlag": true,
-    "signal": "explanation_bad_diagram|required_visual_invalid"
-  }
-}

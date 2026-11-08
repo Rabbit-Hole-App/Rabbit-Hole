@@ -55,8 +55,6 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     const ui = commandUi(out, { raw, started, current: scopeNow.current, tracked: !!turn });
     if (!ui) return true; // the conversation changed: the card stays, nothing here (New chat already cleared the notice)
     setBusy(false);
-    // The command ran without an error notice (its card is on the canvas, or its confirmation is shown): a handoff that asked to know (explanation-host.js) is told once.
-    if (handoff?.onAdmitted && !ui.prompt && ui.notice?.tone !== 'error') handoff.onAdmitted();
     // A prompt the chat refuses (onPrompt answers false) is never lost: the line comes back with an error, or stays in Ctrl+K.
     if (ui.prompt) {
       setNotice(null);

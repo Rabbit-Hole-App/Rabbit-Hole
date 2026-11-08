@@ -96,21 +96,3 @@ test('a grouped card keeps its own ports, drawn above the Group at the points co
   // A comment pin at the top centre takes the top port's place, as on a card.
   assert.deepEqual(memberPorts(card, { top: false }).map(p => p.side), ['bottom']);
 });
-
-// E2 (explain.md section 4, EXP-04-C20): a bowed curved link between aligned ports arcs; otherwise it is the curve it always was.
-test('routePath with bow: aligned ports take a gentle arc, offset ports and unbowed links are unchanged', () => {
-  const aligned = { a: { x: 100, y: 0 }, b: { x: 100, y: 300 } };
-  const straight = routePath(aligned.a, 'bottom', aligned.b, 'top', 'curved');
-  const bowed = routePath(aligned.a, 'bottom', aligned.b, 'top', 'curved', true);
-  const xs = text => [...text.matchAll(/(?:C|,)\s*(-?\d+(?:\.\d+)?)/g)].map(m => Number(m[1]));
-  assert.ok(xs(straight.d).every(x => Math.abs(x - 100) < 0.001), 'unbowed and aligned: a straight run');
-  assert.ok(Math.abs(bowed.mid.x - 100) > 3 && Math.abs(bowed.mid.x - 100) < 40, `bowed: the middle leaves the line gently (${bowed.mid.x})`);
-  assert.equal(bowed.d.split('C').length, 2, 'still one continuous cubic Bezier');
-  assert.match(bowed.d, /^M100 0 C/);
-  assert.match(bowed.d, /100 300$/, 'both ends stay on their ports');
-  const offset = { a: { x: 100, y: 0 }, b: { x: 260, y: 300 } };
-  assert.equal(routePath(offset.a, 'bottom', offset.b, 'top', 'curved', true).d, routePath(offset.a, 'bottom', offset.b, 'top', 'curved').d, 'offset ports: no extra bow');
-  const side = routePath({ x: 0, y: 50 }, 'right', { x: 300, y: 50 }, 'left', 'curved', true);
-  assert.ok(Math.abs(side.mid.y - 50) > 3, 'level side ports bow too');
-  assert.equal(routePath(aligned.a, 'bottom', aligned.b, 'top', 'straight', true).d, 'M100 0 L100 300', 'only curved links bow');
-});

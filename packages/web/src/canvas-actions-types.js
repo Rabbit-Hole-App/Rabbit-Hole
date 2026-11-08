@@ -110,14 +110,6 @@ export const TYPE_ACTIONS = [
     applies: (t, ctx) => !!ctx.canvas.canAddIllustration?.() && !t.object.illustration?.fileRef,
     run: (t, ctx) => ctx.canvas.addIllustration(t.id),
   },
-  // Add note (a written Explanation with the E2 interactions envelope, explain.md section 4): ONE blank Sticky note linked to this card, no quote, opened for typing;
-  // the page supplies addCardNote. The same edit permission as Edit text, so a view-only viewer cannot invoke it.
-  {
-    id: 'explanation.add-note', label: 'Add note', icon: 'StickyNote', group: 'type', order: 14,
-    targets: ['card'], types: ['explanation'], requires: 'edit', mutates: true, data: 'data-menu-add-note',
-    applies: (t, ctx) => !!t.object.interactions && !!ctx.canvas.addCardNote,
-    run: (t, ctx) => ctx.canvas.addCardNote(t.id),
-  },
   {
     id: 'wiki.open-source', label: 'Open on Wikipedia', icon: 'ExternalLink', group: 'type', order: 12,
     targets: ['card'], types: ['wiki'], requires: 'open', applies: t => !!t.object.title,

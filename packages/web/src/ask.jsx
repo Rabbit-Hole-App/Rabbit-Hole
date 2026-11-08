@@ -559,7 +559,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   useEffect(() => { if (editTarget?.command !== 'roadmap' && editSpent(editTarget, msgs, outputOps?.proposalMade)) chat.editing.clear(); }, [msgs, editTarget]); // eslint-disable-line react-hooks/exhaustive-deps
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
-  const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null, onAdmitted = null } = {}) => {
+  const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
     // The area picture is still uploading: Send is held (ChatComposer hold), and a line that reaches here another way waits too, so the question never goes without its image.
     if (uploadHeld(canvasTarget) && !keepDraft && !about) return;
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
@@ -780,7 +780,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // The learner's own words; the card, group or region they asked about rides beside them,
         // its text resolved at send (targetText) so a live card sends the state the learner sees.
         message,
-        ...(target ? { canvas_target: canvasTargetField({ ...target, text: targetText }) } : about?.selection?.explanation && about.selection.id ? { canvas_target: canvasTargetField({ kind: 'card', ...about.selection }) } : {}), // an Explanation card's Ask here (explanation-host.js): the card, captured when the question was pressed
+        ...(target ? { canvas_target: canvasTargetField({ ...target, text: targetText }) } : {}),
         thread_id: threadId.current,
         ...(regenerate ? { regenerate } : {}),
         // A Continue convo's first request also carries the card its answer was linked from.
@@ -871,8 +871,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         }
         return;
       }
-      // The server accepted the turn and its answer is streaming: a caller that asked to know (the Explanation card's suggested questions, explanation-host.js) is told once.
-      if (r.ok) onAdmitted?.();
       const reader = r.body.getReader();
       const dec = new TextDecoder();
       let buf = '';
@@ -944,9 +942,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // composer's draft and chips stay as they are.
   // Ctrl+K's explicit command (owner spec 2026-10-29 4.2): { line, about } runs through this Chat's own dispatcher (LearnSlash), as if
   // typed here, about Ctrl+K's selection; the composer's draft and chips are never touched. false: not taken (another command runs).
-  useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about, line, onAdmitted } = {}) => {
-    if (line) { if (!slashRef.current?.handoff) return false; promptCommand.current = lineCommand(line); return slashRef.current.handoff(line, { about: about ?? null, target: about?.selection ?? null, onAdmitted }); }
-    if (prompt) return send(prompt, undefined, { command: asked, prompted: true, about, keepDraft: true, onAdmitted });
+  useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about, line } = {}) => {
+    if (line) { if (!slashRef.current?.handoff) return false; promptCommand.current = lineCommand(line); return slashRef.current.handoff(line, { about: about ?? null, target: about?.selection ?? null }); }
+    if (prompt) return send(prompt, undefined, { command: asked, prompted: true, about, keepDraft: true });
     const index = msgs.findIndex(m => m.messageId === regenerate?.messageId);
     const question = index > 0 ? msgs.slice(0, index).findLast(m => m.role === 'user')?.content : null;
     return question ? send(question, undefined, { regenerate }) : undefined;

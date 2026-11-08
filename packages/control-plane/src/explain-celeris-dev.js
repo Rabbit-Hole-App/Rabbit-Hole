@@ -63,7 +63,7 @@ const ADDENDUM = required => `
 Answer format for this request (it replaces the tool call and the fence instructions above): reply with exactly one JSON object {"title","body","diagram"}.
 - title and body are required: the card's text, as the guidance describes, with no rh-diagram fence in the body.
 - diagram: ${required ? 'REQUIRED, the learner asked for a diagram.' : 'the TutorDiagram spec object, or null when you choose no diagram.'} It is the same object the fence would hold, {"version":1,"diagram":{...}}, as a JSON object and never as a string. The app draws it; do not describe it twice.
-- The whole card (title, body, table cells and every word in the diagram) must stay under the visible-character budget above; do not pad it: the Depth's objective and any required table or diagram decide how much text is needed.`;
+- The whole card (title, body, table cells and every word in the diagram) must stay under the visible-character budget above; aim for 650 to 750 characters in total.`;
 
 // -> { options, served() } for generateArtifact, or null when the switch is off. served() is what the provider said it ran (the response's model field)
 // and what became of each attempt's diagram (omitted, present and valid, present and invalid).

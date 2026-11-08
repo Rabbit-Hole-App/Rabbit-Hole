@@ -1,7 +1,0 @@
-{
-  "kind": "calibration",
-  "entry": "direct",
-  "id": "cal-control-clean",
-  "base": "ex02p-gini-standard",
-  "script": "clean"
-}

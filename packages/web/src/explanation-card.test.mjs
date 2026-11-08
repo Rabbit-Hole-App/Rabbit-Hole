@@ -67,16 +67,15 @@ const click = target => B.act(async () => { target.dispatchEvent(new window.Even
 // Document order: a before b.
 const before = (a, b) => !!(a.compareDocumentPosition(b) & 4);
 
-test('the pinned header stands above ONE reading flow that holds the body and the section toggles; the header holds Explanation, the accepted title and Source: en.md with View passage', async () => {
+test('header, reading scroller, rail and expansion stand in that order; the header holds Explanation, the accepted title and Source: en.md with View section', async () => {
   await mount(card());
-  const head = $('[data-explanation-head]'), scroll = $('[data-explanation] > [data-scroll]');
-  assert.ok(head && scroll, 'the two regions exist');
-  assert.ok(before(head, scroll), 'header, then the reading flow');
+  const head = $('[data-explanation-head]'), scroll = $('[data-explanation] > [data-scroll]'), rail = $('[data-explanation-rail]');
+  assert.ok(head && scroll && rail, 'the three regions exist');
+  assert.ok(before(head, scroll) && before(scroll, rail), 'header, then the scroller, then the rail');
   assert.match(head.className, /shrink-0/, 'the header never shrinks');
-  assert.match(scroll.className, /min-h-0 flex-1 overflow-y-auto/, 'the reading flow is the one flexible scroller');
-  assert.ok(!head.contains(scroll), 'the header is outside the scroller');
-  assert.equal($('[data-explanation-rail]'), null, 'no separate rail: the sections are part of the reading flow');
-  assert.ok(scroll.contains($('[data-explain-more]')), 'the toggles scroll with the body');
+  assert.match(scroll.className, /min-h-0 flex-1 overflow-y-auto/, 'the body is the one flexible scroller');
+  assert.match(rail.className, /shrink-0/);
+  assert.ok(!scroll.contains(rail) && !head.contains(scroll), 'the rail and header are outside the scroller');
   assert.match(head.textContent, /Explanation/);
   assert.equal(head.querySelector('h3').textContent, 'Why trees, and what a tree actually does');
   assert.match(head.querySelector('h3').className, /text-xl/, 'the larger heading');
@@ -84,14 +83,14 @@ test('the pinned header stands above ONE reading flow that holds the body and th
   assert.match(row.textContent, /Source: en\.md/);
   assert.equal(row.getAttribute('data-source-ref-status'), 'current', 'the server status was read');
   const view = row.querySelector('button[data-view-section]');
-  assert.equal(view.getAttribute('aria-label'), 'View passage', 'the approved card 07 label (GAP-04)');
-  assert.equal(view.getAttribute('title'), 'View passage');
+  assert.equal(view.getAttribute('aria-label'), 'View section');
+  assert.equal(view.getAttribute('title'), 'View section');
   assert.match(view.innerHTML, /lucide-scan-text/, 'the ScanText glyph the Markdown View card button shares');
   assert.ok(requests.every(url => url.endsWith('/api/learn/source-refs/resolve')), 'only the status read');
   assert.equal(B.headerSource(card()), true, 'the canvas skips its footer source row for this card (counted once)');
 });
 
-test('fixture-deep-body in the body: Mermaid is selected inside the scroller; fixture-deep-more opens in place as a real table inside the reading flow and the card grows down', async () => {
+test('fixture-deep-body in the body: Mermaid is selected inside the scroller; fixture-deep-more opens below the rail as a real table and the card grows down', async () => {
   globalThis.MERMAID_STUB.rendered.length = 0;
   heights.length = 0;
   await mount(card());
@@ -104,25 +103,26 @@ test('fixture-deep-body in the body: Mermaid is selected inside the scroller; fi
   const toggle = $('[data-explain-more]');
   assert.equal(toggle.getAttribute('aria-expanded'), 'false');
   const controls = toggle.getAttribute('aria-controls');
-  assert.equal(document.getElementById(controls), null, 'closed: nothing mounted');
+  assert.equal($('[data-explanation-expansion]'), null, 'closed: nothing mounted');
   scroll.scrollTop = 40;
   await click(toggle);
   await settle();
   assert.equal(toggle.getAttribute('aria-expanded'), 'true');
   const section = document.getElementById(controls);
   assert.ok(section, 'aria-controls names the opened section');
-  assert.ok(before(toggle, section) && section.parentElement.contains(toggle), 'right under its own toggle');
-  assert.ok(scroll.contains(section), 'inside the one reading flow');
+  assert.ok(before($('[data-explanation-rail]'), section) && !$('[data-explanation-rail]').contains(section), 'below the rail, outside it');
+  assert.ok(!scroll.contains(section), 'not inside the reading scroller');
   assert.equal($('[data-explanation] > [data-scroll]'), scroll, 'the same scroller element: never remounted');
   assert.equal(scroll.scrollTop, 40, 'its scroll position is kept');
   const table = section.querySelector('table');
   assert.deepEqual([...table.querySelectorAll('th')].map(th => th.textContent), ['Split', 'Group 1', 'Group 2', 'Gini after']);
   assert.deepEqual([...table.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('td')].map(td => td.textContent)), [['A', '3 / 1', '1 / 3', '0.375'], ['B', '2 / 2', '2 / 2', '0.5']]);
-  assert.ok(heights.length > 0, 'the opened height is still reported so the frame grows with it');
+  assert.match(section.closest('[data-explanation-expansion]').className, /shrink-0/);
+  assert.ok(heights.length > 0, 'the opened height is reported so the frame grows below its core');
   await click(toggle);
   await settle();
   assert.equal(toggle.getAttribute('aria-expanded'), 'false');
-  assert.equal(document.getElementById(controls), null, 'closed again');
+  assert.equal($('[data-explanation-expansion]'), null, 'closed again');
   assert.equal(heights.at(-1), 0, 'and the growth is released');
 });
 
@@ -135,7 +135,7 @@ test('swapped: the table in the body and the Mermaid flowchart in the expanded s
   assert.equal(scroll.querySelector('[data-md-diagram]'), null);
   await click($('[data-explain-more]'));
   await settle();
-  const expansion = scroll.querySelector('section[aria-label]');
+  const expansion = $('[data-explanation-expansion]');
   assert.ok(expansion.querySelector('[data-md-diagram] [data-mermaid]'), 'the section draws its diagram');
   assert.equal(globalThis.MERMAID_STUB.rendered.length, 1);
 });
@@ -156,13 +156,14 @@ test('a renderer failure keeps the prose and shows the escaped diagram source, n
   } finally { globalThis.MERMAID_STUB.fail = false; }
 });
 
-test('a direct-question card has no source row; a legacy card has no toggles; a topic anchor keeps no kicker', async () => {
+test('a direct-question card has no source row; a legacy card has no rail; a topic anchor keeps no kicker', async () => {
   await mount(card({ sourceRef: undefined, stepId: undefined }));
   assert.equal($('[data-source-ref]'), null, 'no ref: no row');
   assert.ok($('[data-explanation-head] h3') && $('[data-explanation] > [data-scroll]'));
   assert.equal(B.headerSource(card({ sourceRef: undefined })), false);
   await mount({ id: 'old', type: 'explanation', dx: 0, dy: 0, title: 'An id is an index', body: 'Token ids are positions.' });
-  assert.equal($('[data-explain-more]'), null, 'no sections: no toggles');
+  assert.equal($('[data-explanation-rail]'), null, 'no sections: no rail');
+  assert.equal($('[data-explain-more]'), null);
   assert.match($('[data-explanation] > [data-scroll]').textContent, /Token ids are positions\./);
   await mount({ id: 'topic', type: 'explanation', dx: 0, dy: 0, title: 'Attention', anchor: { source: 'dive' }, body: '' });
   assert.doesNotMatch($('[data-explanation-head]').textContent, /Explanation/, 'a topic anchor is not an explanation yet');

@@ -36,7 +36,7 @@ function context({ role = 'owner', readOnly = false, legacy = false, locked = []
     openUrl: act('openUrl'), copyText: act('copyText'), addToChat: act('addToChat'), edit: act('edit'), editEquation: act('editEquation'),
     patchItem: act('patchItem'), updateBlock: act('updateBlock'), openStyle: act('openStyle'), openInNotebook: act('openInNotebook'),
     downloadText: act('downloadText'), downloadUrl: act('downloadUrl'), downloadOriginal: act('downloadOriginal'), downloadCad: act('downloadCad'),
-    insertText: act('insertText'), insertSticky: act('insertSticky'), toggleDone: act('toggleDone'), addCardNote: act('addCardNote'), select: () => {},
+    insertText: act('insertText'), insertSticky: act('insertSticky'), toggleDone: act('toggleDone'), select: () => {},
   };
   // legacy: today's wiring (canvas-actions.js legacyCan from readOnly); otherwise S1's rules for the role.
   const can = legacy ? legacyCan({ readOnly }) : capability => (RULES[capability] ? RULES[capability](role) : { allowed: false, reason: 'Not available' });
@@ -317,30 +317,4 @@ test('Pin for study: PDF, Explanation, text and sticky notes on the owner canvas
   const ctx = withPin();
   for (const target of TARGETS()) actionsFor(target, ctx);
   assert.deepEqual(ctx.calls, [], 'opening a menu pins nothing');
-});
-
-// E2 (explain.md section 4, EXP-04-C18, EXP-05-C06): Add note on a written Explanation that carries the interactions envelope.
-test('Add note: only on an Explanation with the E2 envelope, the edit permission, one call with the card id and no quote; a viewer cannot invoke it', () => {
-  const envelope = { id: 'x1', type: 'explanation', title: 'Why trees', body: 'Body.', interactions: { version: 1, questions: [], terms: [] } };
-  const legacy = { id: 'x2', type: 'explanation', title: 'Why trees', body: 'Body.' };
-  assert.ok(labels(card(envelope), context()).includes('Add note'));
-  assert.ok(!labels(card(legacy), context()).includes('Add note'), 'a card without the envelope has no E2 rows');
-  assert.ok(!labels(card({ id: 'x3', type: 'table', title: 'T', columns: [], rows: [] }), context()).includes('Add note'), 'Explanation only');
-  const ctx = context();
-  assert.deepEqual(run(card(envelope), ctx, 'Add note'), ['addCardNote', 'x1'], 'one blank linked note for this card, no quote argument');
-  const row = byId('explanation.add-note');
-  assert.equal(row.requires, 'edit');
-  assert.equal(row.mutates, true);
-  // The same permission as Edit text, in every role and engine: wherever Edit text cannot run (a view-only board), Add note cannot either.
-  const note = { id: 't1', kind: 'sticky', text: 'x' };
-  const can = (target, view, label) => { const row = rows(target, view).find(entry => entry.label === label); return !!row && !row.disabled && !row.hidden; };
-  for (const role of ['owner', 'editor', 'viewer', 'guest']) for (const [readOnly, legacyEngine] of [[false, false], [true, false], [false, true], [true, true]]) {
-    const view = context({ role, readOnly, legacy: legacyEngine });
-    assert.equal(can(card(envelope), view, 'Add note'), can(item(note), view, 'Edit text'), `${role} readOnly=${readOnly} legacy=${legacyEngine}`);
-  }
-  const viewOnly = context({ role: 'viewer', readOnly: true, legacy: true });
-  assert.equal(can(card(envelope), viewOnly, 'Add note'), false, 'a view-only board cannot add a note');
-  runAction('explanation.add-note', card(envelope), viewOnly);
-  assert.ok(!viewOnly.calls.some(call => call[0] === 'addCardNote'), 'and running it anyway adds nothing');
-  assert.ok(!labels(card(envelope), { ...context(), canvas: { ...context().canvas, addCardNote: null } }).includes('Add note'), 'a surface with no canvas note function omits it');
 });

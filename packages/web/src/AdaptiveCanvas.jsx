@@ -91,8 +91,7 @@ import { MathText } from './MathText.jsx';
 import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { buildContext, buildCreationContext, createContextCache, freezeTarget } from './inline-ai-context.js';
-import { FACING, applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
-import { ExplanationHost } from './explanation-host.js';
+import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
 import { holdsTocLink, resolvedLinks, sectionChoices, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
@@ -1148,8 +1147,6 @@ function CanvasItem({ item, zoom, cameraKey, getTooltipSpace, tool, selected, on
           </div>
         </div>
       )}
-      {/* E2 (explain.md section 4, Create note): a note made from selected Explanation text shows that exact quote above its editable body. */}
-      {sticky && item.quote?.text && <blockquote data-note-quote className="mb-1.5 shrink-0 border-l-2 border-current/30 pl-2 text-[12px] leading-snug opacity-80 select-text">{item.quote.text}</blockquote>}
       {code && editing ? <Suspense fallback={<div role="status">Loading code editor</div>}>
         <CodeBoxEditor key={item.id} value={item.text || ''} language={item.lang} filename={item.filename} base={base}
           readOnly={locked} zoom={zoom} cameraKey={cameraKey} getTooltipSpace={getTooltipSpace} onApi={onEditorApi}
@@ -2289,17 +2286,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // `after` (a block id): right after that block in the flow, ignoring the view - a journey section's steps
       // under their heading (learn-journey-materialize.js). The updater reads `previous`, so inserts chained in one
       // tick land in order.
-      // parent: { id, revision?, actionId? } - a child made from one card (an Explanation's Ask in a new card, explanation-host.js): the child names its parent and a curved
-      // connector joins them, its id derived from the action so a repeated insert for the same action adds no second link.
-      insertBlock: (block, { into = null, after = null, parent = null } = {}) => {
+      insertBlock: (block, { into = null, after = null } = {}) => {
         if (!alive.current) return null;
         snapshot();
         // A confirmed /motion card lands with its press's request id (withPressId), so a reload can never start a second job.
-        const added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}) } } : {}) });
-        if (parent?.id && blocksRef.current.some(entry => entry.id === parent.id)) {
-          const linkId = parent.actionId ? `explain-child-${parent.actionId}` : crypto.randomUUID();
-          setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
-        }
+        const added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 });
         if (after == null) return insertAtView(added, into);
         perfMark(added.id, 'insert');
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
@@ -4538,9 +4529,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // A Group's ports are its rendered frame's top and bottom centres, footer included (groupFrameOf).
     const frame = groupFrameOf(id);
     if (frame) return { x: frame.x + frame.w / 2, y: frame.y + (side === 'bottom' ? frame.h : 0) };
-    // A Sticky note joined to its parent card (addCardNote): its ports are its box's four side points.
-    const note = itemsRef.current.find(entry => entry.id === id && entry.kind === 'sticky' && entry.parentCard);
-    if (note) { const at = boxesOf([id])[0]; return at ? sidePoint(at, side) : null; }
     if (side === INPUT_SIDE) return bounds[id] ? inputPoint(bounds[id]) : null;
     // An asked-about area is a link end too: its answer card hangs from it.
     const area = areaById(id);
@@ -4690,7 +4678,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const linkRoute = link => {
     const a = portPosition(link.from, link.fromSide), b = link.toPoint || portPosition(link.to, link.toSide);
     if (!a || !b) return null;
-    if (link.route || link.toSide === INPUT_SIDE || link.fromSide === INPUT_SIDE) return { ...routePath(a, routeSide(link.fromSide), b, link.toSide ? routeSide(link.toSide) : null, link.route || 'curved', !!link.bow), tip: b };
+    if (link.route || link.toSide === INPUT_SIDE || link.fromSide === INPUT_SIDE) return { ...routePath(a, routeSide(link.fromSide), b, link.toSide ? routeSide(link.toSide) : null, link.route || 'curved'), tip: b };
     const bend = Math.max(60, Math.abs(b.y - a.y) / 2);
     const c1 = { x: a.x, y: a.y + (link.fromSide === 'bottom' ? bend : -bend) }, c2 = { x: b.x, y: b.y + (link.toSide === 'bottom' ? bend : -bend) };
     return { d: `M${a.x} ${a.y} C${c1.x} ${c1.y},${c2.x} ${c2.y},${b.x} ${b.y}`, mid: { x: 0.125 * a.x + 0.375 * c1.x + 0.375 * c2.x + 0.125 * b.x, y: 0.125 * a.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * b.y }, from: c2, tip: b };
@@ -5440,23 +5428,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
   }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
-  // E2 (explain.md section 4, Create note and Add note): ONE editable Sticky note beside an Explanation card, joined to it by a curved connector, opened for typing.
-  // The same item insertSticky builds, placed by placeNote clear of everything else (nothing moves); quote: the exact selected text, shown above the body and kept
-  // on the note even if the card later changes (Add note passes none). One undo step; a view-only or locked card makes none.
-  const addCardNote = (id, { quote = null, revision = null } = {}) => {
-    const parent = blocksRef.current.find(entry => entry.id === id), target = boxesOf([id])[0];
-    if (!parent || !target || readOnlyRef.current || lockedRef.current.has(id)) return null;
-    const noteId = crypto.randomUUID(), size = { w: 160, h: quote ? 220 : 160 };
-    const spot = placeNote(target, size, [...inlineCanvas.obstacles([id]), ...placementChrome()], inlineCanvas.visibleWorld());
-    const [fromSide, toSide] = FACING[spot.side] || FACING.right;
-    snapshot();
-    setItems(previous => [...previous, { id: noteId, kind: 'sticky', x: spot.x, y: spot.y, text: '', color, opacity, ...armedText('sticky'), fresh: true, parentCard: { id, ...(revision ? { revision } : {}) },
-      ...(quote ? { quote: { text: quote, cardId: id, ...(revision ? { contentRevision: revision } : {}) } } : {}) }]);
-    setLinks(previous => [...previous, { id: crypto.randomUUID(), from: id, fromSide, to: noteId, toSide, color: '#6b7280', route: 'curved', bow: true, head: true, kind: 'annotation' }]);
-    setSelection([noteId]);
-    if (spot.offscreen) inlineCanvas.reveal({ x: spot.x, y: spot.y, ...size });
-    return noteId;
-  };
   // Open in notebook: a new notebook card from one code card, beside it in free space - placeNote and its obstacles
   // (inlineCanvas.obstacles: obstaclesOf), the inline editor's, so nothing else moves - selected, and panned to when the
   // spot is off-screen, as the editor's ghost is; one undo step. The code card is left as it is.
@@ -6037,8 +6008,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Add illustration (canvas-actions-types.js): Chat opens with /image and a prompt about this Explanation, unsent; its plan marks this card (illustration-target.js).
       canAddIllustration: () => imageGenerationOn() && !readOnlyRef.current, // asked when the menu opens: whether image generation is offered is only known after the page's first answer
       addIllustration: id => { const block = blocksRef.current.find(entry => entry.id === id); if (!block || block.type !== 'explanation') return; setIllustrationTarget(id); chatWorkspace.composer.prepare({ text: `/image ${illustrationPrompt(block)}` }); },
-      // Add note (canvas-actions-types.js explanation.add-note): a blank Sticky note linked to the card, no quote.
-      addCardNote: id => addCardNote(id),
       openStyle: () => setStyleOpen(true),
       insertText: at => commandsRef.current.insertText(at),
       insertSticky: at => commandsRef.current.insertSticky(at),
@@ -6102,33 +6071,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     rows: (id, groups) => actionsFor(cardTarget(id), actionCtx).filter(row => row.separator || !groups || groups.includes(rowGroup(row.id))),
     run: (id, actionId) => { const done = runAction(actionId, cardTarget(id), actionCtx); if (!done.ran && done.reason) toast(done.reason); },
   };
-  // E2: what an Explanation card's interaction layer may do here (explanation-host.js). Stable identity (the cards read it from context); the closures read the
-  // latest render through hostRef. A control whose capability is absent (no Chat, a view-only board, no Rabbit Hole here) gets no function and the card omits it.
-  const hostRef = useRef(null);
-  hostRef.current = {
-    dig: ({ id, term, revision }) => divePortals.open(id, term, 'explain_term', { label: term, revision }),
-    note: ({ id, quote, revision }) => addCardNote(id, { quote, revision }),
-    ask: async ({ id, revision, question, destination, actionId }, { onAdmitted } = {}) => {
-      const card = blocksRef.current.find(entry => entry.id === id);
-      if (!card || !chatWorkspace?.ask) return false;
-      chatWorkspace.panels?.openChat?.();
-      const text = [card.title, card.body, ...(card.more || []).map(section => section.text)].filter(Boolean).join('\n\n').slice(0, 8000);
-      // The card is the turn's subject, captured now. parentLink asks the written /explain to join its child card to this one (learn-slash.js insertBlock parent).
-      const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}) };
-      // Admission is what the Chat or the command dispatcher reports (ask.jsx: the stream opened; LearnSlash: the command ran without an error notice), never the
-      // promise's value, which for a Chat reply only settles when the whole answer is in.
-      let admitted = false;
-      const told = () => { admitted = true; onAdmitted?.(); };
-      const taken = destination === 'card' ? await chatWorkspace.ask({ line: `/explain ${question}`, about: { selection }, onAdmitted: told }) : await chatWorkspace.ask({ prompt: question, about: { selection }, onAdmitted: told });
-      return taken !== false && admitted;
-    },
-  };
-  const canDig = !!(divePortals?.open && !visiting), canAsk = !!chatWorkspace?.ask && !visiting, canNote = !readOnly && !localCopy;
-  const explanationHost = useMemo(() => ({
-    ...(canDig ? { dig: request => hostRef.current.dig(request) } : {}),
-    ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
-    ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
-  }), [canDig, canAsk, canNote]);
   const soleFocus = selection.length === 1 && !focus ? adapterFor(objectById(selection[0]), { view, readOnly }) : null;
   // On a shared page (view-only or a local copy), a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
@@ -6144,7 +6086,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
-    <ExplanationHost.Provider value={explanationHost}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
@@ -6696,7 +6637,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       </div>}
     </div>
     </SelectionActionsProvider>
-    </ExplanationHost.Provider>
     </CardActions.Provider>
     </CanvasEdit.Provider>
   );
