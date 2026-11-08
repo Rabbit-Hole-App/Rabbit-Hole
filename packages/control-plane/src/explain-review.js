@@ -178,7 +178,8 @@ export function parseReview(output, captures) {
 
 // One review round. callRole(role, { system, tool, content }) -> { input, identity, usage } (Lane C's callExplainRole).
 // Failures before the call spend nothing; a failed call is review_unavailable, never an accept.
-export async function reviewCaptures(input, { callRole, limits = REVIEW_LIMITS }) {
+// extraSystem: appended review rules for a caller whose captures are more than a card frame (the /interact complete card, interact-checks.js).
+export async function reviewCaptures(input, { callRole, limits = REVIEW_LIMITS, extraSystem = '' }) {
   if (typeof callRole !== 'function') throw new ReviewError('no_transport', 'review has no admitted model transport');
   if (!input.captures?.length) throw new ReviewError('missing_pixels', 'review needs at least one rendered capture');
   const results = [];
@@ -187,7 +188,7 @@ export async function reviewCaptures(input, { callRole, limits = REVIEW_LIMITS }
     const { content, imageBlocks } = buildReviewContent({ ...input, captures: batch }, limits);
     if (imageBlocks !== batch.length || !imageBlocks) throw new ReviewError('missing_pixels', 'a review without images is not an image review');
     let reply;
-    try { reply = await callRole('review', { system: reviewSystem(input.program), tool: REVIEW_TOOL, content }); }
+    try { reply = await callRole('review', { system: reviewSystem(input.program) + (extraSystem ? `\n\n${extraSystem}` : ''), tool: REVIEW_TOOL, content }); }
     catch (error) { throw Object.assign(new ReviewError('review_unavailable', `review call failed: ${error.message}`), { cause: error }); }
     calls.push({ identity: reply.identity ?? null, usage: reply.usage ?? null, imageBlocks });
     results.push(...parseReview(reply.input, batch).captures);
