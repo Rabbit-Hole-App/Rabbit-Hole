@@ -6,10 +6,12 @@
     "packages/web/src/BuyCreditsDialog.jsx",
     "packages/web/src/CanvasMenubar.jsx",
     "packages/web/src/CardFeedback.jsx",
+    "packages/web/src/CardStar.jsx",
     "packages/web/src/ChatComposer.jsx",
     "packages/web/src/FeedbackButton.jsx",
     "packages/web/src/FileDocCard.jsx",
     "packages/web/src/FileDocMarkdown.jsx",
+    "packages/web/src/Home.jsx",
     "packages/web/src/LearnProgress.jsx",
     "packages/web/src/LearningBlocks.jsx",
     "packages/web/src/LibraryViews.jsx",
@@ -20,6 +22,7 @@
     "packages/web/src/Sidebar.jsx",
     "packages/web/src/SlashCommandsSheet.jsx",
     "packages/web/src/SlotCard.jsx",
+    "packages/web/src/StarButton.jsx",
     "packages/web/src/StartDialog.jsx",
     "packages/web/src/TableOfContents.jsx",
     "packages/web/src/UsageGauge.jsx",
@@ -29,6 +32,8 @@
     "packages/web/src/explain-program/ProgramScene.jsx",
     "packages/web/src/home/CardMenu.jsx",
     "packages/web/src/home/CardSize.jsx",
+    "packages/web/src/home/LearningCard.jsx",
+    "packages/web/src/home/card-size.js",
     "packages/web/src/index.css",
     "packages/web/src/session-display.js",
     "packages/web/src/settings-model.js",
@@ -48,7 +53,12 @@
       "packages/web/src/UsageGauge.jsx",
       "packages/web/src/BuyCreditsDialog.jsx",
       "packages/web/src/session-display.js",
-      "packages/control-plane/src/profile.js"
+      "packages/control-plane/src/profile.js",
+      "packages/web/src/home/LearningCard.jsx",
+      "packages/web/src/home/card-size.js",
+      "packages/web/src/CardStar.jsx",
+      "packages/web/src/StarButton.jsx",
+      "packages/web/src/Home.jsx"
     ]
   }
 }

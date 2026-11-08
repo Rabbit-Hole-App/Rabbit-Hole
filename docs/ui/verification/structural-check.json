@@ -1,8 +1,8 @@
 {
-  "standalone_previews": 35,
+  "standalone_previews": 36,
   "result": "PASS",
-  "components": 86,
-  "javascript_files": 45,
+  "components": 87,
+  "javascript_files": 46,
   "errors": [],
   "warnings": [
     "patterns/card-lifecycle: script ID accept is dynamic or absent",

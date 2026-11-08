@@ -1,0 +1,47 @@
+{
+  "id": "cards/canvas-summary",
+  "title": "Canvas summary cards",
+  "category": "cards",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/CANVAS-CARD.md",
+  "source_file": "canvas-card.html",
+  "status": "Owner-reviewed HTML reference; browser verification and runtime integration pending",
+  "styles": [
+    "standards",
+    "review-corrections",
+    "canvas-card"
+  ],
+  "scripts": [
+    "canvas-card"
+  ],
+  "implementation": [
+    "packages/web/src/home/LearningCard.jsx",
+    "packages/web/src/home/card-size.js",
+    "packages/web/src/CardStar.jsx",
+    "packages/web/src/StarButton.jsx",
+    "packages/web/src/Home.jsx"
+  ],
+  "notes": "Four sizes; absent, short and long descriptions. Zero stars hide the count and divider; positive counts appear beside Star. See CANVAS-CARD.md for exact component mapping and demo boundaries.",
+  "issues": [],
+  "templates": [],
+  "includes": [
+    "canvas-card-examples",
+    "canvas-card"
+  ],
+  "keywords": [
+    "canvas",
+    "home",
+    "library",
+    "explore",
+    "description",
+    "thumbnail",
+    "star",
+    "zero",
+    "count",
+    "small",
+    "medium",
+    "large"
+  ],
+  "path": "components/cards/canvas-summary",
+  "paletteRole": "shared",
+  "catalogVisible": true
+}

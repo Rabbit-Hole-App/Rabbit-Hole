@@ -12,11 +12,15 @@ This document routes work to the detailed screen handoffs and shared component l
 | Sidebar, Search, Trash, Notifications and Feedback | [SIDEBAR.md](SIDEBAR.md) | [16-sidebar.html](clean/16-sidebar.html) | Owner-reviewed reference; runtime integration and browser verification pending |
 | Settings and account states | [SETTINGS.md](SETTINGS.md) | [21-settings.html](clean/21-settings.html) | Async states and API contract tested; browser verification and runtime integration pending |
 
+| Canvas summary cards: Home, Library and Explore | [CANVAS-CARD.md](CANVAS-CARD.md) | [36-canvas-card.html](clean/36-canvas-card.html) | Four sizes and description states; zero-star count hidden; browser verification and runtime integration pending |
+
 **For Start a rabbit hole, read START-DIALOG.md in full.** It maps every visible element to its canonical template, component, CSS selector, behavior script and icon. It distinguishes existing primitives from the four newly authorized templates and records the latest copy, button, resize and focus corrections.
 
 **For the sidebar and its panels, read SIDEBAR.md in full.** It maps the shell, four panels, shared primitives, icons and behavior, including feedback submission confirmation and concise copy.
 
 **For Settings, read SETTINGS.md in full.** It maps all five panes, state previews, the server handle-conflict contract and outstanding browser checks. Dark-theme tokens are deferred until the end.
+
+**For canvas summary cards, read CANVAS-CARD.md in full.** Reuse the single shell across all four sizes. Descriptions remain readable and complete. A zero star total has no visible count or divider; the Star action remains available.
 
 Add future screen-specific handoffs to this table as they are prepared. A component appearing in the library does not by itself establish that its full screen flow has been reviewed or integrated.
 

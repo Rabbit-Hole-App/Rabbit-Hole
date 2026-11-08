@@ -1,10 +1,11 @@
 # Component to app mapping
 
-86 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
+87 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
 
 | ID | Preview | Status | App landmarks |
 | --- | --- | --- | --- |
 | `cards/bootstrap-sampling` | [Bootstrap sampling](components/cards/bootstrap-sampling/preview.html) | reference | `packages/web/src/LearningBlocks.jsx`, `packages/web/src/explain-program/ProgramScene.jsx` |
+| `cards/canvas-summary` | [Canvas summary cards](components/cards/canvas-summary/preview.html) | Owner-reviewed HTML reference; browser verification and runtime integration pending | `packages/web/src/home/LearningCard.jsx`, `packages/web/src/home/card-size.js`, `packages/web/src/CardStar.jsx`, `packages/web/src/StarButton.jsx`, `packages/web/src/Home.jsx` |
 | `cards/decision-tracer` | [Loan Decision Tracer](components/cards/decision-tracer/preview.html) | reference | `packages/web/src/LearningBlocks.jsx`, `packages/web/src/explain-program/ProgramScene.jsx` |
 | `cards/impurity-metrics` | [Impurity metrics](components/cards/impurity-metrics/preview.html) | reference | `packages/web/src/LearningBlocks.jsx`, `packages/web/src/explain-program/ProgramScene.jsx` |
 | `cards/split-comparison` | [Split Comparison](components/cards/split-comparison/preview.html) | reference | `packages/web/src/LearningBlocks.jsx`, `packages/web/src/explain-program/ProgramScene.jsx` |

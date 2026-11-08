@@ -39,7 +39,8 @@ EXPORTS=[
  ('32-settings-usage-empty', 'navigation/settings-usage-empty'),
  ('33-settings-usage-exhausted', 'navigation/settings-usage-exhausted'),
  ('34-settings-usage-unavailable', 'navigation/settings-usage-unavailable'),
- ('35-settings-preference-failure', 'navigation/settings-preference-failure')]
+ ('35-settings-preference-failure', 'navigation/settings-preference-failure'),
+ ('36-canvas-card', 'cards/canvas-summary')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:
@@ -74,7 +75,7 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
 #resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 @media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
 '''
-  if ident.startswith(('navigation/sidebar','navigation/settings')):
+  if ident.startswith(('navigation/sidebar','navigation/settings')) or ident=='cards/canvas-summary':
    extra+='\nmain.clean-stage{max-width:none;margin:0;padding:0;}\n'
   if ident=='controls/toggle':
    # A single switch with its label, without availability and usage documentation.
