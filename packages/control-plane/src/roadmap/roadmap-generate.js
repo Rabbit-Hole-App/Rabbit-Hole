@@ -8,6 +8,7 @@ import { planModel } from '../ask.js';
 import { requestSpendBound } from '../learn-spend.js';
 import { toMicros } from '../learn-usage.js';
 import { sha256 } from './roadmap-source.js';
+import { explanationProfileBinding, resolveExplanationProfile } from '../explanation-models.js';
 import { roadmapCardSuffix } from '../agents/roadmap-card.js';
 import { ROADMAP_LIMITS } from './roadmap-policy.js';
 import { ROADMAP_FORMATS } from './roadmap-tools.js';
@@ -56,7 +57,8 @@ export async function quoteRoadmapCard(env, rec, { limits = ROADMAP_LIMITS } = {
   if (prepared.result) return fail('unsupported_capability', String(prepared.result));
   const route = authorRoute(env, prepared.model), boundMicros = boundOf(prepared.body, route);
   if (!Number.isSafeInteger(boundMicros) || boundMicros <= 0) return fail('unsupported_capability', 'unpriced_request');
-  return { outcome: 'quoted', boundMicros, requestFingerprint: await requestFingerprint(prepared.body, route), provider: route.provider, model: route.model };
+  // EXP-11-C02: the profile the request was built from rides with the quote, for the accepted record to keep (the model is already in the fingerprint).
+  return { outcome: 'quoted', boundMicros, requestFingerprint: await requestFingerprint(prepared.body, route), provider: route.provider, model: route.model, ...(prepared.profile ? { profile: await explanationProfileBinding(prepared.profile) } : {}) };
 }
 
 // ref = { authorizationId, resultId, resultVersion } (checklist R4.08). Everything else comes from the accepted, immutable records:
@@ -75,6 +77,12 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
   if (!rec) return { outcome: 'unavailable', code: 'not_accepted' };
   const built = authorInput(rec, limits);
   if (built.failed) return built.failed;
+  // An accepted record that kept its profile binding dispatches with exactly that profile; if the registry no longer resolves to the same hash, nothing is sent.
+  if (rec.profile) {
+    let pinned = null; try { pinned = resolveExplanationProfile(rec.profile.id); } catch { /* unknown: refused below */ }
+    if (!pinned || (await explanationProfileBinding(pinned)).hash !== rec.profile.hash) return fail('terminal_validation_failure', 'profile_changed');
+    built.options.profile = pinned;
+  }
   let call = 0;
   const metered = async (e, body, model, org) => {
     // CORE.04: one authoring call per accepted card (generationPerCard 1, repairs 0); a second fails closed before any admission.

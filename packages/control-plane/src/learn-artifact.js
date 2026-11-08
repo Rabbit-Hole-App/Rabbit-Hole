@@ -17,6 +17,7 @@ import { contextDocumentBlocks } from './learn-context-docs.js';
 import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, dropInvalidDiagrams } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
+import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
@@ -81,10 +82,14 @@ export function artifactPlan(command, { args = '', selection = null } = {}, env 
 
 // CORE.05: the exact first author request (system with any trusted suffix, tools, messages, output cap), so a quote and the dispatch hash
 // the same full body. -> a plan refusal ({ result }) | { request, ready, messages, model, body }
-export function prepareArtifactAuthorRequest(env, input, { only = null, systemSuffix = '' } = {}) {
+export function prepareArtifactAuthorRequest(env, input, { only = null, systemSuffix = '', profile = null } = {}) {
   const plan = artifactPlan(input.command, input, env, only);
   if (plan.result) return plan;
   const { request, ready } = plan;
+  // EXP-11-C02: the written Explanation (its card is the only one on offer) takes its model from the server profile (EXPLANATION_MODEL_PROFILE, default =
+  // the plan transport LEARN_TASKS.artifact pins, so the default request is unchanged). A profile that cannot be used is a plan refusal, never a silent default.
+  let bound = null;
+  if (ready.length === 1 && ready[0] === 'explanation') { try { bound = profile ?? explanationProfileFor(env); } catch (error) { return { result: 'unsupported', message: error.message }; } }
   const tools = [...ready.map(id => ({
     name: toolName(id),
     description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${explanationTarget(input.depth)}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
@@ -96,21 +101,22 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   // The canvas's switched-on context documents come first (canvas-context-docs.md), then the request.
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
-  const maxTokens = Math.max(LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
+  const maxTokens = Math.max(bound ? bound.roles.author.maxOutputTokens : LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
   const system = (input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '');
-  return { request, ready, messages, model: LEARN_TASKS.artifact.model, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
+  return { request, ready, messages, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
-export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null } = {}) {
+export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null } = {}) {
   // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
-  const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix });
+  const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   if (prepared.result) return prepared;
   const { request, ready, messages, body, model } = prepared;
+  const binding = prepared.profile ? await explanationProfileBinding(prepared.profile) : null; // what this card's model was chosen by, saved with the result
   const callModel = systemSuffix ? (e, b, m, org) => baseCall(e, { ...b, system: `${b.system}\n${systemSuffix}` }, m, org) : baseCall; // the verifier's call
   const ask = async (history, kind) => {
-    const response = await baseCall(kind ? withAttemptKind(env, kind) : env, { ...body, messages: history }, model, null);
+    const response = await baseCall(kind ? withAttemptKind(env, kind) : env, { ...body, messages: history }, kind === 'repair' && prepared.repairModel ? prepared.repairModel : model, null); // the repair role: the author's model unless the profile pins another
     // A refused spend admission says why (learn-spend.js spendMessage), never only its status.
     const refused = response.status === 429 ? (await response.clone().json().catch(() => null)) : null;
     if (refused?.code === 'spend_limited' && refused.error) throw new Error(refused.error);
@@ -151,7 +157,7 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(extraction ? { extraction } : {}) };
+      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
     } catch (error) {
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));

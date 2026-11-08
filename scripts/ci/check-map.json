@@ -47,6 +47,7 @@
   },
   "mapped": {
     "packages/control-plane/src/explain-celeris-dev.js": ["packages/control-plane/test/explain-celeris-dev.test.js"],
+    "packages/control-plane/src/explanation-models.js": ["packages/control-plane/test/explanation-model-profiles.test.js","packages/control-plane/test/learn-artifact.test.js","packages/control-plane/test/roadmap-generate.test.js"],
     "packages/control-plane/src/interact-model-adapters.js": ["packages/control-plane/test/interact-model-adapters.test.js","packages/control-plane/test/interact-models.test.js","packages/control-plane/test/interact-design.test.js"],
     "packages/control-plane/src/interact-models.js": ["packages/control-plane/test/interact-models.test.js","packages/control-plane/test/interact-model-adapters.test.js","packages/control-plane/test/explain-policy.test.js"],
     "packages/control-plane/src/interact-design.js": ["packages/control-plane/test/interact-e2e.test.js","packages/control-plane/test/interact-design.test.js","packages/control-plane/test/interact-approval.test.js","packages/control-plane/test/explain-job.test.js"],
