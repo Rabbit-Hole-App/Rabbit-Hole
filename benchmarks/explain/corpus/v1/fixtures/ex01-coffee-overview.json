@@ -1,0 +1,13 @@
+{
+  "caseId": "ex01-coffee-overview",
+  "replies": {
+    "clean": {
+      "title": "Why hot coffee cools fastest at first",
+      "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room. Fresh coffee is far hotter than the air, so it loses heat quickly; as it cools the gap shrinks and the loss slows.\n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |"
+    },
+    "over-cap": {
+      "title": "Why hot coffee cools fastest at first",
+      "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. \n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "caseId": "heldout-tides-standard",
+  "facts": [
+    {
+      "id": "moon-gravity",
+      "severity": "major",
+      "description": "The Moon (and Sun) gravity differs across the Earth, raising bulges.",
+      "patterns": [
+        "\\bmoon\\b[^.]{0,120}(?:gravit|pull)|(?:gravit|pull)[^.]{0,120}\\bmoon\\b"
+      ]
+    },
+    {
+      "id": "two-bulges",
+      "severity": "major",
+      "description": "There is a bulge on the near side and the far side.",
+      "patterns": [
+        "two (?:tidal )?bulges|near side[^.]{0,80}far side|far side[^.]{0,80}near side|opposite side"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "wind-cause",
+      "severity": "major",
+      "description": "Tides are not caused by wind.",
+      "pattern": "tides? (?:is|are) (?:mainly |mostly |simply )?caused by (?:the )?wind"
+    }
+  ],
+  "calculations": [
+    {
+      "id": "interval",
+      "severity": "major",
+      "description": "About 12.4 hours (12 h 25 min) between successive high tides.",
+      "cue": "high tides?|between",
+      "window": 140,
+      "expected": 12.4,
+      "tolerance": 0.6
+    }
+  ],
+  "visuals": [],
+  "reviewRequired": true,
+  "note": "Text-pattern rubric: it checks the saved card text against frozen facts, not the truth of arbitrary prose. Disputed facts need independent or human review."
+}

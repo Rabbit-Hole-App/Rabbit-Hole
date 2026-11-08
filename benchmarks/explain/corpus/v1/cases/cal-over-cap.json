@@ -1,0 +1,7 @@
+{
+  "kind": "calibration",
+  "entry": "direct",
+  "id": "cal-over-cap",
+  "base": "ex01-coffee-overview",
+  "script": "over-cap"
+}
