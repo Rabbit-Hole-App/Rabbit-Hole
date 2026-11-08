@@ -1,7 +1,6 @@
 import { getSceneState, validateScene } from '../animation-scene.js';
 import { LEGIBILITY_FLOORS, MAX_SCENE_VIEWPORT, sceneLegibility } from '../scene-layout.js';
 import { parseFrame, RuntimeError } from './contract.js';
-import { IMAGE_FIXTURE_PATHS } from './sdk-image.js';
 
 // A guest's frame becomes the trusted renderer's input: the contract check (contract.js), then the existing scene gate
 // (validateScene: roles, KaTeX trust and expansion bounds on every math run, on-screen limits) and getSceneState at one
@@ -24,15 +23,9 @@ function sceneObject(object) {
     case 'box': return { ...base, type: 'box', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, rotation: object.rotation, ...label(object), ...common(object) } };
     case 'circle': return { ...base, type: 'circle', initialState: { x: object.x, y: object.y, w: object.w, rotation: object.rotation, ...label(object), ...common(object) } };
     case 'text': return { ...base, type: 'text', initialState: { x: object.x, y: object.y, align: object.align, ...label(object), ...common(object) } };
-    case 'raster': return { ...base, type: 'raster', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, rows: object.rows, cols: object.cols, pixels: object.pixels, ...common(object) } };
-    case 'image': return { ...base, type: 'image', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, src: IMAGE_FIXTURE_PATHS[object.asset], crop: object.crop, ...common(object) } };
     case 'line':
     case 'arrow': return { ...base, type: object.kind, initialState: { x: object.from.x, y: object.from.y, from: object.from, to: object.to, ...label(object), ...common(object) } };
     case 'polyline': return { ...base, type: 'polyline', initialState: { ...bounds(object.points), points: object.points, ...(object.clip ? { clip: object.clip } : {}), ...common(object) } };
-    case 'heat_grid': {
-      const { x, y, cell, rows, cols, values } = object;
-      return { ...base, type: 'grid', initialState: { x, y, cell, rows, cols, values, matrixKind: 'input', heat: { mode: 'sequential' }, valueScale: 'fixed', ...common(object) } };
-    }
     default: throw new Error(`unknown object kind "${object.kind}"`);
   }
 }
@@ -96,11 +89,6 @@ export function normalizeFrame(raw, manifest = null) {
   try {
     // duration is a required positive number by the scene schema; a program frame is one moment, so any value serves.
     const scene = validateScene({ id: 'explain-program', width: frame.width, height: frame.height, duration: 1, objects: frame.objects.map(sceneObject), timeline: [] });
-    // The frame contract already checked the explicit domain. The shared grid reads it from the scene so the original values and
-    // units stay available, and neither input changes nor the grid's own extrema can re-normalize the colors.
-    frame.objects.forEach((object, index) => {
-      if (object.kind === 'heat_grid') scene.objects[index].valueDomain = { min: object.domain[0], max: object.domain[1] };
-    });
     return { ok: true, scene, state: getSceneState(scene, 0), readouts };
   } catch (problem) {
     return invalid(problem.message);

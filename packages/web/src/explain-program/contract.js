@@ -1,8 +1,5 @@
 import { z } from 'zod';
-import { RASTER_LIMITS, rasterProblem } from '../raster-pixels.js';
 import { ROLES } from '../scene-vocab.js';
-import { IMAGE_FIXTURE_IDS } from './sdk-image.js';
-import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION, RASTER_CAPABILITY, RASTER_SDK_VERSION } from './stamps.js';
 
 // The frozen artifact and frame contract of the generic /explain sandbox (plan section 5.2, Task 2).
 // Subject-independent on purpose: nothing here names a topic. Every object is strict, every value bounded; the host
@@ -25,7 +22,6 @@ export const PROGRAM_VERSIONS = Object.freeze({
 export const CONTRACT_LIMITS = Object.freeze({
   sourceBytes: 16 * 1024, manifestBytes: 4 * 1024, maxOutputBytes: 256 * 1024, depth: 32,
   objects: 60, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
-  heatCells: 256,
   duration: 120, coordinate: 100000, size: 2000, text: 200, runs: 16,
   stateBytes: 32 * 1024, actions: 8, targets: 8, // schema 2 only; LIMITS.stateBytes is this value
   // schema 2 only: a viewport's width x height, the per-capture size the review reserves (explain-render.js reserveRound: the largest
@@ -35,11 +31,9 @@ export const CONTRACT_LIMITS = Object.freeze({
 
 export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capability', 'runtime_limit', 'runtime_error', 'invalid_output', 'version_unavailable']);
 // Capabilities a manifest may require. An unknown one is unsupported_capability, never silently ignored.
-export const HEAT_GRID_CAPABILITY = 'heat_grid';
-export const requiresHeatGrid = manifest => Array.isArray(manifest?.capabilities) && manifest.capabilities.includes(HEAT_GRID_CAPABILITY);
-export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, RASTER_CAPABILITY, HEAT_GRID_CAPABILITY]);
+export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text']);
 // Frame object kinds: the closed set the trusted renderer draws. Equations are text objects with math runs (hardened path).
-export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image', 'raster', 'heat_grid']);
+export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline']);
 
 const finite = limit => z.number().min(-limit).max(limit); // z.number() already refuses NaN and Infinity
 const coordinate = finite(CONTRACT_LIMITS.coordinate);
@@ -50,8 +44,8 @@ const version = z.string().regex(/^[A-Za-z0-9._@+-]{1,64}$/);
 
 // Text is data. It is always drawn through escaped text nodes (React children and SVG text), never parsed as HTML, so a lesson may
 // quote a URL or a tag ("A URL starts with https://", "The <div> tag groups content") as literal words. What stays forbidden is
-// arbitrary resource fields: every object below is strict, so an href, src, url, image, handler or function-valued key is
-// refused. An image object may name only an asset in the app's closed fixture list.
+// FIELDS that make the host load or run something: every object below is strict, so an href, src, url, image, handler or
+// function-valued key is refused as an unknown key, and zod types refuse a function where a string or number belongs.
 const plain = max => z.string().min(1).max(max);
 const maybePlain = max => z.string().max(max);
 
@@ -196,27 +190,15 @@ const style = { role: z.enum(ROLES).default('neutral'), opacity: z.number().min(
 const labelled = { text: plain(CONTRACT_LIMITS.text).optional(), runs: z.array(run).min(1).max(CONTRACT_LIMITS.runs).optional() };
 const point = z.tuple([coordinate, coordinate]);
 const size = z.number().positive().max(CONTRACT_LIMITS.size);
-const cropFraction = z.number().positive().max(1);
-const imageCrop = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: cropFraction, h: cropFraction }).strict()
-  .refine(({ x, y, w, h }) => x + w <= 1 && y + h <= 1, 'crop must stay within the source');
 const frameObject = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('box'), id, x: coordinate, y: coordinate, w: size, h: size, ...labelled, ...style, rotation: finite(360).default(0) }).strict(),
   z.object({ kind: z.literal('circle'), id, x: coordinate, y: coordinate, w: size, ...labelled, ...style, rotation: finite(360).default(0) }).strict(), // w is the diameter
   z.object({ kind: z.literal('text'), id, x: coordinate, y: coordinate, ...labelled, align: z.enum(['start', 'middle']).default('start'), ...style }).strict(),
   z.object({ kind: z.enum(['line', 'arrow']), id, from: z.object({ x: coordinate, y: coordinate }).strict(), to: z.object({ x: coordinate, y: coordinate }).strict(), ...labelled, ...style }).strict(),
-  z.object({ kind: z.literal('image'), id, asset: z.enum(IMAGE_FIXTURE_IDS), x: coordinate, y: coordinate, w: size, h: size, crop: imageCrop.optional(), ...style }).strict(),
-  z.object({ kind: z.literal('raster'), id, x: coordinate, y: coordinate, w: size, h: size, rows: z.number().int().min(1).max(64), cols: z.number().int().min(1).max(64), pixels: z.array(z.number().int().min(0).max(255)).max(RASTER_LIMITS.pixels * 4), ...style }).strict(),
   z.object({
     kind: z.literal('polyline'), id, points: z.array(point).min(2).max(CONTRACT_LIMITS.pointsPerObject),
     // Everything outside this rectangle is not drawn: a plotted series cannot cover the rest of the picture.
     clip: z.object({ x: coordinate, y: coordinate, w: size, h: size }).strict().optional(), ...style,
-  }).strict(),
-  z.object({
-    kind: z.literal('heat_grid'), id, x: coordinate, y: coordinate, cell: z.number().min(1).max(80),
-    rows: z.number().int().min(1).max(64), cols: z.number().int().min(1).max(64),
-    values: z.array(finite(1e12)).min(1).max(CONTRACT_LIMITS.heatCells),
-    domain: z.tuple([finite(1e12), finite(1e12)]).refine(([min, max]) => min < max, 'the heat domain must increase'),
-    ...style,
   }).strict(),
 ]);
 
@@ -226,42 +208,15 @@ export const Frame = z.object({
   readouts: z.array(z.object({ id: name, value: finite(1e12) }).strict()).max(CONTRACT_LIMITS.readouts).default([]),
 }).strict().superRefine((frame, context) => {
   const seen = new Set();
-  let points = 0, images = 0, rasterPixels = 0, heatCells = 0;
+  let points = 0;
   frame.objects.forEach((object, index) => {
     if (seen.has(object.id)) context.addIssue({ code: 'custom', message: `duplicate object id "${object.id}"`, path: ['objects', index, 'id'] });
     seen.add(object.id);
     if (object.kind === 'polyline') points += object.points.length;
-    if (object.kind === 'raster') {
-      rasterPixels += object.rows * object.cols;
-      const problem = rasterProblem(object);
-      if (problem) context.addIssue({ code: 'custom', message: problem, path: ['objects', index] });
-      if (object.x < 0 || object.y < 0 || object.x + object.w > frame.width || object.y + object.h > frame.height) context.addIssue({ code: 'custom', message: 'raster must stay within the frame', path: ['objects', index] });
-    }
-    if (object.kind === 'image') {
-      images += 1;
-      if (object.x < 0 || object.y < 0 || object.x + object.w > frame.width || object.y + object.h > frame.height) {
-        context.addIssue({ code: 'custom', message: 'image must stay within the frame', path: ['objects', index] });
-      }
-      // The shared renderer displays a centered crop of a square source. A matching viewport preserves the exact ROI.
-      const scaledW = object.w * (object.crop?.h ?? 1), scaledH = object.h * (object.crop?.w ?? 1);
-      if (Math.abs(scaledW - scaledH) > 1e-9 * Math.max(scaledW, scaledH)) {
-        context.addIssue({ code: 'custom', message: 'image viewport must match the source crop aspect ratio', path: ['objects', index] });
-      }
-    }
-    if (object.kind === 'heat_grid') {
-      heatCells += object.values.length;
-      if (object.values.length !== object.rows * object.cols) context.addIssue({ code: 'custom', message: 'give one heat value per cell', path: ['objects', index, 'values'] });
-      if (object.x < 0 || object.y < 0 || object.x + object.cols * object.cell > frame.width || object.y + object.rows * object.cell > frame.height) {
-        context.addIssue({ code: 'custom', message: 'the heat grid must fit inside the frame', path: ['objects', index] });
-      }
-    }
     if (object.kind === 'text' && !object.text && !object.runs) context.addIssue({ code: 'custom', message: 'a text object needs text or runs', path: ['objects', index] });
     if ('text' in object && object.text && object.runs) context.addIssue({ code: 'custom', message: 'give text or runs, not both', path: ['objects', index] });
   });
   if (points > CONTRACT_LIMITS.pointsTotal) context.addIssue({ code: 'custom', message: `${points} polyline points in total (at most ${CONTRACT_LIMITS.pointsTotal})`, path: ['objects'] });
-  if (rasterPixels > RASTER_LIMITS.framePixels) context.addIssue({ code: 'custom', message: 'at most 8192 raster pixels per frame', path: ['objects'] });
-  if (images > 4) context.addIssue({ code: 'custom', message: 'at most four image views per frame', path: ['objects'] });
-  if (heatCells > CONTRACT_LIMITS.heatCells) context.addIssue({ code: 'custom', message: `at most ${CONTRACT_LIMITS.heatCells} heat cells in total`, path: ['objects'] });
 });
 
 export const Quantities = z.record(name, finite(1e12)).refine(record => Object.keys(record).length <= CONTRACT_LIMITS.quantities, 'too many quantities');
@@ -327,21 +282,7 @@ export const parseBundle = (raw, schemaVersion = SCHEMA_VERSION) => {
 export const parseArtifact = raw => {
   const schemaVersion = stateful(raw?.schemaVersion) ? STATEFUL_SCHEMA_VERSION : SCHEMA_VERSION;
   const manifest = parseManifest(raw?.manifest, schemaVersion);
-  if (!manifest.ok) return manifest;
-  if (manifest.value.capabilities.includes(MEDIUM_CAPABILITY) && ![MEDIUM_SDK_VERSION, CYCLIC_SDK_VERSION, RASTER_SDK_VERSION].includes(raw.sdkVersion)) {
-    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'the Medium capability requires its SDK version' };
-  }
-  if (manifest.value.capabilities.includes(CYCLIC_CAPABILITY) && ![CYCLIC_SDK_VERSION, RASTER_SDK_VERSION].includes(raw.sdkVersion)) {
-    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'cyclic networks require their SDK version' };
-  }
-  if (manifest.value.capabilities.includes(RASTER_CAPABILITY) && raw.sdkVersion !== RASTER_SDK_VERSION) {
-    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'raster visuals require their SDK version' };
-  }
-  const parsed = parseWith(stateful(schemaVersion) ? StatefulArtifact : ProgramArtifact, raw, 'invalid_program');
-  if (parsed.ok && requiresHeatGrid(manifest.value) && parsed.value.sdkVersion !== HEAT_GRID_SDK_VERSION) {
-    return { ok: false, error: new RuntimeError('unsupported_capability'), issue: `heat_grid requires ${HEAT_GRID_SDK_VERSION}` };
-  }
-  return parsed;
+  return manifest.ok ? parseWith(stateful(schemaVersion) ? StatefulArtifact : ProgramArtifact, raw, 'invalid_program') : manifest;
 };
 export const parseEvaluateRequest = raw => parseWith(EvaluateRequest, raw, 'invalid_program');
 export const parseStatefulEvaluateRequest = raw => parseWith(StatefulEvaluateRequest, raw, 'invalid_program');
@@ -379,20 +320,11 @@ function parseOutput(schema, raw) {
 export const parseFrame = raw => parseOutput(Frame, raw);
 // With a schema 2 manifest, every frame must also have exactly the declared viewport and draw every declared target under its own id
 // (stable ids: a learner can always select what the card offers). The Frame's object and point limits apply to every result as before.
-export function parseGuestResult(raw, manifest = null, sdkVersion = null) {
+export function parseGuestResult(raw, manifest = null) {
   const result = parseOutput(GuestResult, raw);
-  if (!result.ok) return result;
-  const { width, height, objects } = result.value.frame;
+  if (!result.ok || !manifest?.viewport) return result;
+  const { width, height, objects } = result.value.frame, viewport = manifest.viewport;
   const invalid = issue => ({ ok: false, error: new RuntimeError('invalid_output'), issue });
-  if (objects.some(object => object.kind === 'image') && !manifest?.capabilities?.includes(MEDIUM_CAPABILITY)) {
-    return invalid('frame: image views require the Medium capability');
-  }
-  if (objects.some(object => object.kind === 'heat_grid') && (sdkVersion !== HEAT_GRID_SDK_VERSION || !requiresHeatGrid(manifest))) {
-    return invalid('heat_grid requires a declared capability and a heat-grid SDK');
-  }
-  if (objects.some(object => object.kind === 'raster') && !manifest?.capabilities?.includes(RASTER_CAPABILITY)) return invalid('frame: raster pixels require raster_visuals');
-  const viewport = manifest?.viewport;
-  if (!viewport) return result;
   if (width !== viewport.width || height !== viewport.height) return invalid(`frame: ${width} x ${height}, but the manifest viewport is ${viewport.width} x ${viewport.height}`);
   const drawn = new Set(objects.map(object => object.id)), missing = (manifest.targets || []).filter(target => !drawn.has(target.id)).map(target => target.id);
   return missing.length ? invalid(`frame: declared targets are not drawn: ${missing.slice(0, 4).join(', ')} (draw every target in every frame under its own id)`) : result;

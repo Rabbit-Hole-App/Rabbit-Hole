@@ -20,9 +20,11 @@ is ignored. An artifact sealed for anything else gets the fixed "could not run" 
 - Schema 2 is R3, which carries 8.1 `86d746e0d`, 8.2 `137018604`, 8.3 `0ee34e70c` and the owner-review fixes. It is on `main`
   and production-released in `d3d50986e` (3:11 PM PT), with `EXPLAIN_PROGRAM_STATEFUL=true`. `stamps.js SUPPORTED_PROGRAM_TUPLES` lists both
   tuples; schema 2 seals with `STATEFUL_PROGRAM_STAMPS`.
-- New drafts seal as schema 1 by default. A draft that declares a viewport, actions or targets uses schema 2 when
-  `EXPLAIN_PROGRAM_STATEFUL` is on and exports `initialState`, `reduce` and `evaluate`. The server selects the SDK and renderer
-  from the supported stamps based on the declared capability.
+- Which schema new generation seals:
+  - On `main`: `PROGRAM_STAMPS`, schema 1 only. `control-plane/src/explain-program.js` imports it from
+    `web/src/explain-program/stamps.js`.
+  - In R3: a draft is stateful when its manifest declares a viewport, actions or targets. Such a draft is admitted only
+    while `EXPLAIN_PROGRAM_STATEFUL` is on. It then needs all three exports and seals as schema 2.
 - The learner's card and the review renderer (`render/program-render.jsx`) both run through `host.js createProgramHost`, so
   both resolve the same tuple.
 - Evidence (`packages/web/src/explain-program/retention.test.mjs`, 6 tests): the saved sandbox-ex1-b cooling artifact
@@ -36,192 +38,15 @@ is ignored. An artifact sealed for anything else gets the fixed "could not run" 
 
 ## Interactive visual SDK
 
-The interactive kit seals ordinary new programs with `sdk-2` for both schemas. It adds
+The interactive kit branch seals new programs with `sdk-2` for both schemas. It adds
 `sdk.plot`, `sdk.graph`, `sdk.grid`, `sdk.geometry`, `sdk.timeline`, and `sdk.readout`.
 Each helper returns ordinary frame objects. Author and repair calls keep the same
 request limits, and all helpers share the existing frame limits.
 
-The heat-grid capability seals a separate `sdk-3` and `renderer-2` tuple for either schema. The author declares
-`heat_grid` in the manifest and uses `sdk.heatGrid(id, { x, y, cell, rows, cols, values, domain })` to return one frame object.
-Values are finite and in row-major order. The increasing `[min, max]` domain drives the existing sequential heat renderer
-while labels can retain the original units. A comparison uses the same domain in every setting.
-
-Saved `sdk-1` and `sdk-2` programs keep their original guest source and supported tuples. The server, learner player and
-review renderer need a compatible build for a new tuple. Rolling back to a player that predates a tuple makes its cards
+Saved `sdk-1` programs keep their original guest source and supported tuples.
+The server, learner player, and review renderer need the compatible build when
+new cards use `sdk-2`. Rolling back to an earlier player makes those cards
 unavailable until a compatible build returns.
-
-### Medium interactive visuals
-
-Programs using the Medium helpers declare `medium_visuals` in their manifest and
-seal with `sdk-4`. The server and player retain the earlier SDK tuples. The helpers
-use the existing card controls, state and shared scene renderer.
-
-| Helper | What it supports | Dev fixture ID |
-|---|---|---|
-| `sdk.trace` | Intervals, nested and overlapping calls, dependencies, a shared clock and selection details | `fixture-medium-trace` |
-| `sdk.field` | Sampled scalar contours and vector fields with explicit scales and units | `fixture-medium-field` |
-| `sdk.evidence` | Wrapped source text, stable UTF-16 offsets and the selected excerpt and citation label | `fixture-medium-evidence` |
-| `sdk.expandableGraph` | Branch selection in a bounded rooted tree, with stable positions as branches open | `fixture-medium-tree` |
-| `sdk.imageRegions` | Selectable rectangles in normalized image coordinates | `fixture-medium-image-regions` |
-| `sdk.imageViews` | An overview and synchronized crops of the selected region | `fixture-medium-image-views` |
-
-The image helpers accept the bundled `vlm-patch-source` asset ID. The renderer
-resolves that ID to a repository-owned raster. User attachments require a
-permission-aware asset binding before they can appear in these views. The guest
-cannot supply an image URL. The dev fixtures are hand-authored card inputs for
-verification.
-
-### Linked selection and comparison
-
-Bounded linked comparisons compose the existing geometry, grid and readout helpers
-with schema 2 selection state. Keep one selected record ID in state. Map each
-plot-point target and its corresponding row target to that ID, then derive the
-highlighted point, highlighted row and displayed value from the same record.
-Every declared target remains present across selections.
-
-The dev fixture `fixture-medium-linked-comparison` demonstrates three records,
-selection from either view, a shared value readout and clearing the selection.
-It uses the existing saved-state handling. This is a reusable composition example;
-the broader inventory's seven linked-comparison designs still describe potential
-applications of that pattern.
-
-### Cyclic networks
-
-Programs declare `cyclic_networks` to seal with `sdk-5`. The new source appends
-`sdk.cyclicGraph` while retaining the exact SDK 1, 2 and 4 sources and tuples.
-Both schemas use the existing renderer; no new frame object kind is introduced.
-Declare `medium_visuals` as well if using Medium image objects.
-
-```js
-sdk.cyclicGraph(id, {
-  x, y, w, h,
-  nodes: [{ id, label, x, y, role }],
-  edges: [{ from, to, label, via: [[x, y]], labelAt: [x, y] }],
-  selected: null,
-})
-```
-
-`role`, `via`, `labelAt`, and `selected` are optional. Node positions are centers
-in local pixel coordinates; route waypoints and label positions are local too.
-Use 2–8 nodes and 1–12 directed edges. Labels are required: up to 24 characters
-for nodes and 14 for relationships. Cycles, reciprocal edges and self-loops are
-supported. Reciprocal links separate automatically; a self-loop routes above its
-node unless an explicit route is supplied. Route points, node boxes and labels
-must fit the supplied rectangle. Crowded layouts fail with a specific diagnostic;
-this is a bounded teaching helper, not an automatic layout for dense networks.
-
-The selected node and its outgoing arrows use the existing learner color.
-Selection preserves positions and object IDs. Node targets are
-`<graphId>.node.<nodeId>`; edges use `<graphId>.e.<from>:<to>` with primitive
-suffixes `.p`, `.a`, `.l`. At most 44 objects are emitted, within the existing
-60-object frame budget; other scene content shares that budget.
-
-`fixture-cyclic-network` in `cyclic-fixture.js` shows Plan → Act → Observe → Plan.
-It uses the existing card selection, persistence and Reset handling. The author
-and repair context both describe the helper. Focused checks cover routing,
-invalid input, sealing/version compatibility, every node selection, restoration
-and reset. All 50 affected checks passed, and the dev web build passed. A static
-render of the shared Frame was inspected with Observe selected (SVG color-mix
-and context-stroke resolved for the offline rasterizer only). This is not browser
-interaction evidence. Deployed generation and live browser interaction remain unverified;
-this environment has no authorized deployment credentials or working browser
-capture. No planner mapping, repair-budget or browser-assertion changes are part
-of this implementation.
-
-### Numeric raster images and segmentation masks
-
-Programs declare `raster_visuals` and seal with SDK 6 / renderer 4. The earlier
-SDK sources and supported tuples remain unchanged. The shared `Frame` renders
-numeric RGBA rasters with nearest-neighbor scaling and transparent alpha, using
-bounded horizontal SVG runs. Guest URLs, markup and image decoders are not added.
-
-- `sdk.raster(id,{x,y,w,h,rows,cols,pixels})` returns **one** frame object. Pixels
-  are a flat row-major array of RGBA integer bytes (0–255), four per pixel.
-- `sdk.mask(id,{x,y,w,h,rows,cols,values,color?,opacity?})` returns one RGBA raster.
-  Each value is coverage 0–1. Color is `#RRGGBB`, default `#E5AA46`; opacity defaults
-  to 1. Alpha is rounded coverage × opacity × 255. Zero alpha paints nothing,
-  including holes within a region. Draw after the source using matching bounds
-  and pixel grid; multiple masks can represent different classes within the limits.
-- Each raster has 1–64 rows/columns and at most 4096 pixels. A frame permits at
-  most 8192 raster pixels total. Existing 256 KiB output, object, viewport and
-  execution budgets still apply. A raster counts as one frame object, but its
-  pixel workload is independently bounded. Resizing scales the pixel grid; it
-  does not recompute a higher-resolution segmentation.
-
-Examples are in `raster-fixtures.js`, available through the normal dev fixture
-resolver and existing select controls:
-
-| Fixture | Behavior |
-| --- | --- |
-| `fixture-raster-mask` | Select ring, rectangle or none on a synthetic 24 × 24 image. The ring mask keeps its center transparent. |
-| `fixture-raster-transform` | Switch original, 3 × 3 box blur, or Laplacian edges. Numeric pixels are recomputed by the sandbox. |
-
-Both examples are explicitly synthetic, not model predictions. Author and repair
-contexts include the signatures and limits. This closes bounded raster/mask
-rendering support, not full-resolution photo processing, learner attachment
-binding, automatic segmentation inference or GPU model execution. Those remain
-separate integrations. The other four deferred capability groups are unchanged.
-
-Verification: helper validation, real QuickJS fixture execution, capability/version
-gates, preserved SDK fingerprints, exact filter pixels, transparency and holes,
-shared-scene conversion, and unchanged external-image rejection are checked by
-focused tests: 61 integration/helper/compatibility checks passed, as did the shared
-scene checks and dev web build. Static shared-Frame output was inspected for the
-ring mask and blur (offline SVG export maps transparent paint to none). Raster
-selection uses whole-object bounds, not per-pixel hit testing.
-Dev deployment and live browser interaction remain pending because
-this environment lacks the authorized dev credentials and working browser capture.
-
-### AI teaching examples
-
-Three hand-authored examples compose the existing 2D SDK in normal program cards.
-They are exported together by `ai-teaching-fixtures.js`, admitted only through the
-existing dev fixture gate. They are reusable source examples, not a new automatic
-lesson-routing system and not proof of LLM generation quality.
-
-| Fixture | Teaching mechanism | Source |
-| --- | --- | --- |
-| `fixture-ai-convolution` | Move a 3 × 3 kernel across a small synthetic image and inspect the calculated response. Uses the CNN cross-correlation convention. | `ai-convolution-fixture.js` |
-| `fixture-ai-attention` | Select a query and causal masking; compare scaled scores, normalized weights and their weighted value output. Numbers are synthetic. | `ai-attention-fixture.js` |
-| `fixture-ai-gradient` | Vary learning rate and update count for a known quadratic loss; compare convergence, overshoot and divergence. | `ai-gradient-fixture.js` |
-
-All source paths above are under `packages/web/src/explain-program/`. The examples
-reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
-and Reset behavior. No new SDK version, planner mapping or repair budget is added.
-Focused tests check the numerical mechanisms independently and exercise the real
-QuickJS and frame-normalization paths. The normal fixture resolver and saved input
-round trips have their own integration checks. Verification: all 14 focused AI
-tests pass; the dev web build passes. Shared-Frame SVG renders were inspected for
-all three scenes (offline rasterization does not render the gradient's KaTeX
-foreignObject formulas). This is static scene inspection, not browser acceptance.
-Live browser/dev acceptance and
-real model generation remain pending; the authorized deployment environment is
-not available here.
-
-## Dev verification evidence (integrated branch, 2026-11-08)
-
-One branch carries the heat-grid line (SDK 3), Medium (SDK 4), linked comparison, cyclic networks (SDK 5), raster and masks (SDK 6) and the three AI teaching examples. Each SDK line keeps its own
-stamp tuple and source bytes. Verified on the dev clone `rabbit-hole-web-dev-tc-s7d2` (deployed from commit `a1804bc8f`; hand-authored fixtures, no model call unless stated). Strictly 2D.
-
-| Capability | Fixture | Checked in a browser | Result |
-|---|---|---|---|
-| Medium: trace, field, evidence, expandable tree, image regions, image views | the six `fixture-medium-*` | render, change a control or selection, reload, fresh browser context | pass (7 of 7 with linked comparison, repeated on the integrated build) |
-| Linked selection and comparison | `fixture-medium-linked-comparison` | select from the plot and from a row, reopen | pass; both views highlight and the readout updates |
-| Cyclic networks | `fixture-cyclic-network` | select each node, arrow highlight and note, reload and fresh reopen, Reset and reload, clipping | pass (10 of 10); labels sit about 80 px from their arrows because the fixture places them explicitly |
-| Raster and masks | `fixture-raster-mask`, `fixture-raster-transform` | pixel-level: every cell's colour against the expected class or filter, source unchanged, reload, fresh reopen, Reset, resize from the corner grip | pass at default and wide sizes (mask covers exactly its selected pixels, ring hole transparent, filters match their formulas on all 576 cells); resized width is saved. At narrow widths the drawing keeps its legible size and the card scrolls, as for every program card |
-| AI teaching examples | `fixture-ai-convolution`, `fixture-ai-attention`, `fixture-ai-gradient` | render, change every control, reload, fresh reopen, Reset and reload; hand-computed values compared with the drawn numbers | pass (convolution 10 of 10, gradient 10 of 10, attention 9 of 9; for query C the causal and unmasked views are identical by construction) |
-
-One real `/interactive` request (Opus, dev clone, about $0.61) produced a card that calls `sdk.trace`, declares `medium_visuals` and seals `sdk-4`; a control change survived a reload and a fresh browser context.
-Before the author rule named the Medium helpers the same request drew the trace by hand (`sdk-2`).
-
-Integration decisions (flagged for review):
-- The Medium, cyclic, raster and heat-grid helper docs are authoring-only: the repair request carries the program and the validator's problems. With all four stacked a maximal program no longer fits the repair request.
-- The fixed author request is 41,010 bytes with all four families. The sanity line in `explain-program-budget.test.js` moved from 40,000 to 44,000 bytes (the pinned role ceilings are unchanged). Selecting helper docs per family is the lasting fix before more families.
-- Both guard tests that listed exact capability sets were updated to the stacked sets, and the board-link reader registry lists the field helper's contour links.
-
-Not verified: a plain-words Tutor request routing to `/interactive` on the dev clone (it lacks the chat router key, so the router answers in text); production behaviour; the heat-grid fixture in a browser on this branch (SDK 3 compatibility is covered by unit tests only).
-
-Generation access: the fixtures are resolved only by `program-card.js` from a saved card's `program.fixtureId`, and only in dev builds (`fixturesAdmitted`). The author, brief and example selection do not import them, so the generation workflow cannot use them. The author is taught the helper signatures (authoring context only).
 
 ## Limits (main: `contract.js CONTRACT_LIMITS`, `limits.js LIMITS`)
 
@@ -230,7 +55,6 @@ Generation access: the fixtures are resolved only by `program-card.js` from a sa
 | Source / manifest | 16 KiB / 4 KiB |
 | Guest output | 256 KiB serialized, depth 32 |
 | Frame | 60 objects, 2,000 points per object, 10,000 points total, coordinates ±100,000, size 2,000, text 200, 16 runs |
-| Heat grids | At most 256 cells across a frame, with each grid fully inside its viewport |
 | Inputs | 4 controls; a select has at most 8 options; at most 64 option combinations |
 | Readouts / quantities / assumptions | 8 / 32 / 8 |
 | Duration | at most 120 s |

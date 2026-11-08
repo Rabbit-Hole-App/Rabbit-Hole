@@ -1,5 +1,4 @@
 import { RuntimeError, STATEFUL_SCHEMA_VERSION, draftSchemaVersion, parseArtifact, resolveInputs, sealProgram, stateProblem, verifyHashes } from './contract.js';
-import { RASTER_CAPABILITY, RASTER_PROGRAM_STAMPS, CYCLIC_CAPABILITY, CYCLIC_PROGRAM_STAMPS, MEDIUM_CAPABILITY, MEDIUM_PROGRAM_STAMPS } from './stamps.js';
 
 // The program card's pure logic (no React): what a block holds, how a saved reference becomes a runnable artifact, and how
 // inputs and time turn into EvaluateRequests. ProgramScene.jsx is the thin view over this.
@@ -29,15 +28,10 @@ export async function resolveProgram(block, { client, fixtures = false, stamps =
   if (ref.fixtureId !== undefined) {
     if (!fixtures || !stamps) return refuse('invalid_program', 'fixture cards are not admitted in this build');
     const { FIXTURES, STATEFUL_FIXTURES, ERROR_FIXTURES } = await import('./fixtures.js');
-    const { MEDIUM_FIXTURES } = await import('./medium-fixtures.js');
-    const { cyclicNetworkFixture } = await import('./cyclic-fixture.js');
-    const { RASTER_FIXTURES } = await import('./raster-fixtures.js');
-    const { AI_TEACHING_FIXTURES } = await import('./ai-teaching-fixtures.js');
-    const fixture = [...FIXTURES, ...STATEFUL_FIXTURES, ...ERROR_FIXTURES, ...MEDIUM_FIXTURES, cyclicNetworkFixture, ...RASTER_FIXTURES, ...AI_TEACHING_FIXTURES].find(item => item.id === ref.fixtureId);
+    const fixture = [...FIXTURES, ...STATEFUL_FIXTURES, ...ERROR_FIXTURES].find(item => item.id === ref.fixtureId);
     if (!fixture) return refuse('invalid_program', 'unknown fixture');
     const bundle = { manifest: fixture.manifest, source: fixture.source };
-    const fixtureStamps = bundle.manifest.capabilities.includes(RASTER_CAPABILITY) ? RASTER_PROGRAM_STAMPS : bundle.manifest.capabilities.includes(CYCLIC_CAPABILITY) ? CYCLIC_PROGRAM_STAMPS : bundle.manifest.capabilities.includes(MEDIUM_CAPABILITY) ? MEDIUM_PROGRAM_STAMPS : stamps;
-    const sealed = await sealProgram(bundle, { ...fixtureStamps, schemaVersion: draftSchemaVersion(bundle) });
+    const sealed = await sealProgram(bundle, { ...stamps, schemaVersion: draftSchemaVersion(bundle) });
     return sealed.ok ? { ok: true, artifact: sealed.value } : { ok: false, error: sealed.error };
   }
   const identity = block.explain;
