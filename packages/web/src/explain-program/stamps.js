@@ -33,22 +33,10 @@ export const VISUAL_PROGRAM_STAMPS = Object.freeze({
 });
 export const STATEFUL_VISUAL_PROGRAM_STAMPS = Object.freeze({ ...VISUAL_PROGRAM_STAMPS, schemaVersion: 2 });
 
-export const MEDIUM_CAPABILITY = 'medium_visuals';
-export const MEDIUM_SDK_VERSION = 'sdk-4';
-const MEDIUM_RENDERER_VERSION = 'renderer-3';
-export const MEDIUM_PROGRAM_STAMPS = Object.freeze({
-  ...VISUAL_PROGRAM_STAMPS,
-  sdkVersion: MEDIUM_SDK_VERSION,
-  rendererVersion: MEDIUM_RENDERER_VERSION,
-  fingerprints: Object.freeze({ ...VISUAL_PROGRAM_STAMPS.fingerprints, sdk: '2cc86433d85c08ec6b622db40e3e56f7ea330b533fbda0ee11557ac9928b944e', renderer: MEDIUM_RENDERER_VERSION }),
-});
-export const STATEFUL_MEDIUM_PROGRAM_STAMPS = Object.freeze({ ...MEDIUM_PROGRAM_STAMPS, schemaVersion: 2 });
-
 // Every version tuple host.js will run, whole: an artifact runs only if all of these fields equal one entry exactly. No "same major",
 // no field ignored. A new engine, SDK, renderer or policy is a new entry, added beside the old one while artifacts sealed with it remain.
 const tuple = (schemaVersion, stamps) => Object.freeze({ schemaVersion, sdkVersion: 'sdk-1', rendererVersion: RENDERER_VERSION, ...stamps });
 export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([
   tuple(1, PROGRAM_STAMPS), tuple(2, STATEFUL_PROGRAM_STAMPS),
   tuple(1, VISUAL_PROGRAM_STAMPS), tuple(2, STATEFUL_VISUAL_PROGRAM_STAMPS),
-  tuple(1, MEDIUM_PROGRAM_STAMPS), tuple(2, STATEFUL_MEDIUM_PROGRAM_STAMPS),
 ]);

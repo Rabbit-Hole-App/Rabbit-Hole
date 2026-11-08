@@ -3,7 +3,6 @@
 // D's (explain-review.js), a separate call that never sees the author's reasoning.
 import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
 import { CONTRACT_LIMITS, STATEFUL_CONTRACT } from '../../../web/src/explain-program/contract.js';
-import { MEDIUM_CAPABILITY } from '../../../web/src/explain-program/stamps.js';
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
 
@@ -171,7 +170,7 @@ A program is one ES module that EXPORTS evaluate, exactly: export function evalu
 - Do all calculation in the program, from the learner's request and the context. Write the formulas the explanation needs; the host has no subject formulas. Report calculated values as quantities (name: number) and show the ones the learner should read as frame text, from the same variables that draw the picture, so the drawing and the numbers cannot disagree.
 - Declare every control the learner is meant to move in manifest.inputs with a sensible domain, and any playback in manifest.duration (seconds). Input ids and readout ids share one namespace and must all differ. State assumptions and idealisations in manifest.assumptions. Keep one idea per card.
 - Each run is stopped after ${RUNTIME_LIMITS.interruptMs} ms of your own work: loading your source, evaluate and serialization, in a slow interpreter that can be several times slower on its first run. Keep it small: compute each curve once, a few hundred points in total at most, no long loops.
-- Draw only within program.frame (width and height); keep every object inside it for every admitted input and time, and keep text clear of moving parts. Use program.sdk for geometry and number formatting. When the picture is a trace of time spans (calls, tasks or intervals on one clock), a sampled contour or vector field, text with selectable evidence spans, an expandable rooted tree, or regions of the bundled sample image, call the matching program.sdk.medium helper (sdk.trace, sdk.field, sdk.evidence, sdk.expandableGraph, sdk.imageRegions, sdk.imageViews) and declare medium_visuals in manifest.capabilities; do not draw those by hand with line, polyline, box, arrow or text.
+- Draw only within program.frame (width and height); keep every object inside it for every admitted input and time, and keep text clear of moving parts. Use program.sdk for geometry and number formatting.
 - Keep source under program.limits.sourceBytes and the manifest under program.limits.manifestBytes. Do not write hashes, versions, permissions or limits; the host sets them.
 - Quote nothing from the examples; they show composition only.`;
 
@@ -212,13 +211,6 @@ export function programContext(limits, capabilities, { stateful = false, repair 
         geometry: 'sdk.geometry(id, {x,y,w,h,xDomain:[min,max],yDomain:[min,max],points?:[{id,at:[x,y],label?,role?}],segments?,vectors?,paths?}). Segments and vectors are {id,from:[x,y],to:[x,y],label?,role?}; paths are {id,points:[[x,y],...],role?}. Use equal pixels per unit for distances and angles.',
         timeline: 'sdk.timeline(id, {x,y,w,h,domain:[min,max],lanes:[{id,label,events:[{id,at,label,role?}]}],cursor?,unit?}) for ordered events with a cursor in domain units',
         readout: 'sdk.readout(id, {x,y,w,h,label,value,unit?,decimals?,role?}) for a formatted number inside the scene. Keep manifest readouts for values shown below the scene.',
-      }, ...(!repair && capabilities?.includes(MEDIUM_CAPABILITY) ? { medium: {
-        usage: 'Declare medium_visuals in manifest.capabilities when using one of these helpers. Use existing controls or state and spread the returned objects into frame.objects.',
-        trace: 'sdk.trace(id,{x,y,w,h,domain:[min,max],unit?,lanes:[{id,label,spans:[{id,label,start,end,role?,detail?,parent?,dependsOn?:[id]}]}],cursor?,selected?}) for up to 12 time spans. Use original trace records when supplied; identify simulated traces.',
-        field: 'sdk.field(id,{x,y,w,h,kind:"contour"|"vector",xDomain,yDomain,xLabel,yLabel,xUnit,yUnit,valueLabel,valueUnit,sample:(x,y)=>number|[u,v],samples?,levels?,maxMagnitude?}). Contours need levels; vectors need a fixed maxMagnitude. Use empty units for dimensionless axes.',
-        evidence: 'sdk.evidence(id,{x,y,w,h,text,spans:[{id,start,end,citation?}],selected?}) uses half-open UTF-16 offsets into the exact text. Use plain citation labels from supplied evidence.',
-        expandableGraph: 'sdk.expandableGraph(id,{x,y,w,h,nodes:[{id,label,role?}],edges:[{from,to,label?}],expanded?:[id],active?:[id]}) for 2–10 nodes in a rooted tree. Select which branch to open with an input.',
-        image: 'For a demonstration on the bundled sample only, use sdk.imageRegions(id,{asset:"vlm-patch-source",x,y,w,h,regions:[{id,x,y,w,h}],selected?}) or sdk.imageViews(id,{asset:"vlm-patch-source",views:[{id,x,y,w,h,mode:"overview"|"detail"}],regions,selected?}). Region coordinates are normalized to the source image. This sample cannot represent a learner attachment.',
-      } } : {}) },
+      } },
   };
 }

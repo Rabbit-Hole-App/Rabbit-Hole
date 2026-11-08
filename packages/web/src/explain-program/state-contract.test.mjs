@@ -7,7 +7,7 @@ import {
   CONTRACT_LIMITS, PROGRAM_VERSIONS, computeHashes, parseArtifact, parseEvent, parseGuestResult, parseManifest, parseState, sealProgram, stateProblem, verifyHashes,
 } from './contract.js';
 import { LIMITS } from './limits.js';
-import { MEDIUM_PROGRAM_STAMPS, PROGRAM_STAMPS, STATEFUL_MEDIUM_PROGRAM_STAMPS, STATEFUL_PROGRAM_STAMPS, STATEFUL_VISUAL_PROGRAM_STAMPS, SUPPORTED_PROGRAM_TUPLES, VISUAL_PROGRAM_STAMPS } from './stamps.js';
+import { PROGRAM_STAMPS, STATEFUL_PROGRAM_STAMPS, STATEFUL_VISUAL_PROGRAM_STAMPS, SUPPORTED_PROGRAM_TUPLES, VISUAL_PROGRAM_STAMPS } from './stamps.js';
 import { createProgramHost } from './host.js';
 import { loadEngine, runProgram } from './runtime.js';
 import { growthFixture } from './fixtures.js';
@@ -142,8 +142,6 @@ test('the allowlist has the exact stamp set for each SDK and schema', () => {
     { ...PROGRAM_VERSIONS, ...STATEFUL_PROGRAM_STAMPS },
     { ...PROGRAM_VERSIONS, ...VISUAL_PROGRAM_STAMPS },
     { ...PROGRAM_VERSIONS, ...STATEFUL_VISUAL_PROGRAM_STAMPS },
-    { ...PROGRAM_VERSIONS, ...MEDIUM_PROGRAM_STAMPS },
-    { ...PROGRAM_VERSIONS, ...STATEFUL_MEDIUM_PROGRAM_STAMPS },
   ]);
   assert.equal(PROGRAM_STAMPS.runtimeVersion, 'quickjs-release-sync@0.32.0', 'the engine stays QuickJS 0.32.0');
 });
