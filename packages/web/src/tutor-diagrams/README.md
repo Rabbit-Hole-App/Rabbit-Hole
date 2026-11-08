@@ -40,6 +40,8 @@ Flow represents one connected acyclic graph. Decision nodes need two or three di
 
 Figure callouts refer to anchors defined by the local schematic. See the three figure fixtures for anchor names and the free-body vector inputs. Chart coordinates are numeric data in the declared domains. The renderer maps that data to the visual scale. Both accounting kinds use integer minor units and accept amounts with up to two decimal places.
 
+Any label, title, caption, heading or item may hold maths in the card prose's delimiters (`$...$`, `\(...\)`, `$$...$$`, `\[...\]`). The renderer typesets each formula with KaTeX in a `foreignObject` (`math.js`), measures it whole from its TeX so its box holds it, never splits it across lines, and sets a formula taller than a line (a fraction, a sum with limits) smaller so it fits that line. TeX that KaTeX refuses stays as its source text. A formula counts against a text limit by what it shows: delimiters, braces and spaces are free and a command such as `\frac` counts one; its source may be up to twice the limit.
+
 ## Approved visual treatment
 
 The renderer uses the existing `--viz-surface` for the background and existing RH theme tokens for neutral text and lines. Colored nodes retain dark outlines and dark label ink. The component fills are process blue `#8DBFEF`, decision amber `#E5AA46`, outcome teal `#67B9A0`, comparison olive `#95A448`, and comparison coral `#F58371`. The expansion adds concept lavender `#B9A4E8`, exception rose `#E8A3B7`, and context slate blue `#A8BBD0`. The model supplies semantic inputs and data values. SVG, CSS, layout positions, asset URLs, and fill assignments are renderer-owned.

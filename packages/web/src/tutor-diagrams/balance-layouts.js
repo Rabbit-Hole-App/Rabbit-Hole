@@ -1,13 +1,13 @@
 import { createElement as h } from 'react';
 import { formatMinor, sumMinor, toMinor } from './balance-values.js';
-import { box, connector, label, lineHeight, textWidth, wrap } from './primitives.js';
+import { box, connector, label, lineHeight, textWidth, words, wrap } from './primitives.js';
 
 const PAD = 12;
 const SMALL = 13;
 const STEP = lineHeight(SMALL);
 
 function longestWord(text) {
-  return Math.max(...text.split(/\s+/u).map(word => textWidth(word, SMALL)));
+  return Math.max(...words(text).map(word => textWidth(word, SMALL)));
 }
 
 function postingText(posting, width) {

@@ -154,12 +154,14 @@ test('pendulum: drawn length is proportional to L, quarter length halves the per
 test('playback, steps and controls make no model or network call: the scene card and its modules have no network path', async () => {
   const { readFileSync } = await import('node:fs');
   const files = ['AnimatedScene.jsx', 'SceneControls.jsx', 'scene-evaluate.js', 'animation-scene.js', 'scene-inputs.js', 'scene-activity.js',
-    'scene-derive.js', 'scene-format.js', 'scene-layout.js', 'scene-style.js', 'interact-style.js', 'tutor-diagrams/primitives.js', 'raster-pixels.js', 'scene-vocab.js', 'scene-legacy.js', 'scene-engine.js', 'scene-behaviors.js', 'scene-sound.js', 'learn-audio.js', 'inline-equation-result.js', 'scene-selection.js', 'storage-fallback.js'];
+    'scene-derive.js', 'scene-format.js', 'scene-layout.js', 'scene-style.js', 'interact-style.js', 'tutor-diagrams/primitives.js', 'tutor-diagrams/math.js', 'math-tokens.js', 'raster-pixels.js', 'scene-vocab.js', 'scene-legacy.js', 'scene-engine.js', 'scene-behaviors.js', 'scene-sound.js', 'learn-audio.js', 'inline-equation-result.js', 'scene-selection.js', 'storage-fallback.js'];
   for (const file of files) {
     const source = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
     assert.doesNotMatch(source, /\bfetch\s*\(|\/api\/|XMLHttpRequest|sendBeacon|new WebSocket|EventSource/, `${file} has a network path`);
     for (const [, path] of source.matchAll(/^import [^'"]*['"](\.[^'"]+)['"]/gm)) {
-      assert.ok(files.includes(path.replace(/^\.\//, '')) || /\.css$/.test(path), `${file} imports ${path}, which this test does not cover`);
+      // An import is named from src/, wherever the importing file sits (tutor-diagrams/primitives.js imports ./math.js).
+      const named = new URL(path, new URL(`./${file}`, import.meta.url)).href.slice(new URL('./', import.meta.url).href.length);
+      assert.ok(files.includes(named) || /\.css$/.test(path), `${file} imports ${path}, which this test does not cover`);
     }
   }
 });
