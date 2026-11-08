@@ -108,3 +108,23 @@ test('every jump to a card goes through the one glideTo camera move, animated, i
   assert.match(read('index.css'), /\.canvas-dragging \[data-canvas-world\] \{ transition: none; \}/, 'a drag that starts mid-glide is never animated');
   assert.equal((canvas.match(/setGlide\(true\)/g) || []).length, 0, 'no camera move glides on its own path');
 });
+
+// Owner correction 2026-11-08: a Full content card keeps the bottom-right resize; dragging it takes the card out of Full at the dragged size.
+import { resizeCardLayout } from './card-layout.js';
+test('a Full card renders the corner resize; a corner drag leaves Full at the new size; a locked card has none', () => {
+  const opened = fullLength(GENERATED, 440);
+  const sized = resizeCardLayout(opened, 520, 610, null, undefined, true);
+  assert.equal(sized.cardLayout, undefined, 'a card that opened full becomes an ordinary sized card');
+  assert.equal(sized.w, 520); assert.equal(sized.h, 610);
+  assert.equal(sized.body, GENERATED.body); assert.equal(sized.dx, 0);
+  const slotted = { ...GENERATED, cardLayout: { mode: 'full', scrollableSize: { w: 440, h: 520 }, fullWidth: 440, slot: { w: 440, h: 520 } } };
+  assert.deepEqual(resizeCardLayout(slotted, 500, 400, null, undefined, true).cardLayout, { mode: 'scrollable', scrollableSize: { w: 500, h: 400 }, fullWidth: 440, slot: { w: 440, h: 520 } }, 'a slotted Full card turns Scrollable at that size');
+  assert.equal(resizeCardLayout(opened, 600, 900, null).cardLayout.mode, 'full', 'the side sliders still change the width only');
+  const canvas = read('AdaptiveCanvas.jsx');
+  assert.match(canvas, /\{!locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block"/, 'the corner shows on Full cards too, never on a locked one');
+  assert.doesNotMatch(canvas, /\{!full && !locked && resizable && <button/);
+  assert.match(canvas, /if \(event\.button !== 0 \|\| locked\) return;\n    const element = card\.current, sized = fit \|\| opensSized;/, 'a Full card can be corner-dragged; a locked one cannot');
+  assert.match(canvas, /if \(cardLayout\) edit\.resizeCard\?\.\(id, last\.w, last\.h, null, undefined, false, true\);/, 'the release goes through the existing resizeCard, as a corner resize');
+  assert.match(canvas, /resizeCardLayout\(block, w, h, x, minimum, corner\)/);
+  assert.match(canvas, /if \(cornerDrag && opensSized\) cardLayout = null;\n  const full = cardLayout\?\.mode === 'full' && !cornerDrag;/, 'drawn at the dragged size while dragged');
+});
