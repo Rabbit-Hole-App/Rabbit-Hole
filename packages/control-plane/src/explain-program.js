@@ -4,6 +4,7 @@
 // the HOST computes (never a hash the model wrote), and answers the facts a reviewer reads. It runs no guest code: execution
 // belongs to the pinned interpreter in the browser and in the review browser. The checks here are a fast, deterministic early
 // refusal that gives the author a one-line fix; they are not the security boundary.
+import { resolveTimeline } from '../../web/src/interact-composition.js';
 import {
   CAPABILITIES, CONTRACT_LIMITS, ProgramBundle, STATEFUL_SCHEMA_VERSION, StatefulBundle, draftSchemaVersion, requiresHeatGrid, resolveInputs, sealProgram, unsupportedCapabilities, verifyHashes,
 } from '../../web/src/explain-program/contract.js';
@@ -90,10 +91,13 @@ export const programFacts = manifest => [...new Set([manifest.summary, manifest.
 // input states within the capture budget, and states what it sampled and omitted. Never claimed exhaustive.
 export const defaultInputs = manifest => resolveInputs(manifest, {});
 // A card whose timeline names markers (interact.md INT-01 mode.timeline) is captured at them: the moments the design says the learner must be able to see.
-export const programMoments = manifest => {
-  if (!manifest.duration) return [0];
-  const marked = [...new Set((manifest.timeline?.markers || []).map(marker => marker.time))].filter(time => time > 0 && time < manifest.duration).sort((a, b) => a - b).slice(0, 3);
-  return marked.length ? [0, ...marked, manifest.duration] : [0, Number((manifest.duration / 2).toFixed(3)), manifest.duration];
+// composition + inputs (interact-composition.js; new /interact cards): the endpoint and markers are those of THAT input state, so each tested
+// state is planned against its own end (INT-05-C03). Without a composition this is exactly the legacy planner.
+export const programMoments = (manifest, composition = null, inputs = {}) => {
+  const timeline = composition ? resolveTimeline(composition, inputs) : null, end = timeline ? timeline.end : manifest.duration;
+  if (!end) return [0];
+  const marked = [...new Set((timeline ? timeline.markers : manifest.timeline?.markers || []).map(marker => marker.time))].filter(time => time > 0 && time < end).sort((a, b) => a - b).slice(0, 3);
+  return marked.length ? [0, ...marked, end] : [0, Number((end / 2).toFixed(3)), end];
 };
 
 // The bundle the author sees back on an edit or a repair: source and manifest only (never hashes it could copy).
