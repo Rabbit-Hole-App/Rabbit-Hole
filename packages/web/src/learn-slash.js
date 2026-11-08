@@ -334,7 +334,8 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // fit: a new written Explanation opens at its full length and the camera frames it (AdaptiveCanvas insertBlock, owner 2026-11-08).
   // The notice names the new card and can take the learner to it. target.parentLink: an Explanation card's Ask in a new card (explanation-host.js) joins the child to its parent.
-  if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot, ...(result.block?.type === 'explanation' ? { fit: true } : {}), ...(target?.parentLink && target.id ? { parent: { id: target.id, ...target.parentLink } } : {}) }); return { notice: { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
+  // A written /explain says nothing on success (owner 2026-11-08): its card on the canvas and its chip under the line are the answer.
+  if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot, ...(result.block?.type === 'explanation' ? { fit: true } : {}), ...(target?.parentLink && target.id ? { parent: { id: target.id, ...target.parentLink } } : {}) }); return { notice: name === 'explanation' ? null : { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
   // Generate inserts the card already confirmed, so it starts once (useConfirmedStart). Confirming commits it:
   // its place is held at once (the camera glides there), and the card - which shows its own progress while the
   // paid job runs - takes that slot as soon as the skeleton has been drawn. Cancel holds nothing.

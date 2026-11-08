@@ -298,8 +298,8 @@ await step('Generate (a double-click) sends exactly one approve with the saved v
   assert.equal(body.boardId, job.boardId, 'for the job\'s own canvas');
   assert.deepEqual(body.proposal, proposals.get(id), 'the exact saved revision');
   assert.equal(body.proposal.version, 3);
-  await card.locator('[data-proposal-made]').waitFor({ timeout: 10000 });
-  assert.equal(await card.getAttribute('data-proposal-active'), 'false', 'a made proposal cannot Generate again');
+  // Owner 2026-11-08: an accepted review card leaves the Chat (its line and chip stay), so it cannot be pressed again.
+  await card.waitFor({ state: 'detached', timeout: 10000 });
   release(job);
   await page.locator(`[data-block-id="${job.cardId}"] svg [data-animation-object]`).first().waitFor({ state: 'attached', timeout: 20000 });
   assert.equal(approvesOf(job).length, 1, 'still one approve');
@@ -363,9 +363,9 @@ await step('a refused reference (409 reference_blocked): the reason is on the ca
   await until(async () => approvesOf(job).length === 2, 'the second approve');
   const body = approvesOf(job)[1].body;
   assert.deepEqual([body.proposal.version, body.proposal.references], [2, []]);
-  await saved.locator('[data-proposal-made]').waitFor({ timeout: 10000 });
+  await saved.waitFor({ state: 'detached', timeout: 10000 }); // accepted: gone from the Chat (owner 2026-11-08)
   release(job);
-  await saved.screenshot({ path: `${OUT}/6-reference-recovered.png` });
+  await page.screenshot({ path: `${OUT}/6-reference-recovered.png` });
 });
 
 await step('nothing else asked a model, left the stack, or threw', async () => {
