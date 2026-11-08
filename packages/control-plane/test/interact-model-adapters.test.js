@@ -86,15 +86,6 @@ test('normalizeStructured returns one validated object and records why it refuse
   assert.equal(reason([{ source: 'tool call', value: { title: 'T', n: '2' } }]), 'schema_mismatch', 'no coercion: "2" is not 2');
 });
 
-test('a result nested under one undefined key is unwrapped only when the inner value satisfies the schema in full', () => {
-  const ok = { title: 'T', n: 2 }, run = value => normalizeStructured({ candidates: [{ source: 'tool call', value }], schema: PLAN });
-  assert.deepEqual(run({ plan: ok }), ok, 'the {"plan": {...}} slip seen in real runs');
-  assert.deepEqual(run({ whatever: { title: 'T', n: 2 } }), ok);
-  assert.throws(() => run({ plan: { title: 'T' } }), error => error.code === 'schema_mismatch', 'an invalid inner value is still refused');
-  assert.throws(() => run({ plan: ok, extra: 1 }), error => error.code === 'schema_mismatch', 'two keys are never unwrapped');
-  assert.throws(() => run({ plan: { plan: ok } }), error => error.code === 'schema_mismatch', 'one level only');
-});
-
 // ---- C03 Anthropic ----
 test('the Anthropic adapter sends one tool on auto with the config limits and parses exactly one tool call', async () => {
   const record = [], adapter = anthropicWith(message([toolUse({ title: 'T', n: 1 })]), record);

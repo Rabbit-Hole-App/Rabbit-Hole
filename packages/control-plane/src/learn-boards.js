@@ -901,9 +901,6 @@ async function sharedProgram(req, env, token, cardId) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
   const missing = json({ error: 'Not available' }, 404);
-  // ?panel=<id>: one supporting panel of an /interact card (the main program when absent), asked for by the card's own composition.
-  const panel = new URL(req.url).searchParams.get('panel');
-  if (panel !== null && !/^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(panel)) return missing;
   // explain-job.js explainEnabled: the whole /explain v2 route's switch applies here too (not imported: it pulls the render stack).
   if (env.EXPLAIN_V2_ENABLED !== 'true' || !env.EXPLAIN_JOBS) return missing;
   const { row } = found;
@@ -912,14 +909,12 @@ async function sharedProgram(req, env, token, cardId) {
   if (!ref?.bundleHash || !saved?.resultId || !saved.revision) return missing;
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(row.id));
   const answer = await stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'result', id: saved.resultId, board: { id: row.id, app: row.app, board: row.board }, user: { org: row.org, email: row.owner_email }, panel }) });
+    body: JSON.stringify({ action: 'result', id: saved.resultId, board: { id: row.id, app: row.app, board: row.board }, user: { org: row.org, email: row.owner_email } }) });
   if (!answer.ok) return missing;
-  const { artifact, identity, execution, composition } = await answer.json();
-  // A panel's artifact must be one the card's composition (checked whole by the result action) names for that panel; the main program is the card's saved bundle.
-  const support = panel && panel !== 'main';
-  if (identity?.resultId !== saved.resultId || identity.cardId !== cardId || identity.revision !== saved.revision || identity.bundleHash !== ref.bundleHash
-    || (support ? !composition?.supporting?.some(s => s.id === panel && s.artifact.hash === artifact?.bundleHash) : artifact?.bundleHash !== ref.bundleHash)) return missing;
-  return json({ artifact, ...(composition ? { composition } : {}), identity: Object.fromEntries(PROGRAM_IDENTITY.map(key => [key, identity[key] ?? null])), execution: { allowed: execution?.allowed === true } });
+  const { artifact, identity, execution } = await answer.json();
+  if (identity?.resultId !== saved.resultId || identity.cardId !== cardId || identity.revision !== saved.revision
+    || identity.bundleHash !== ref.bundleHash || artifact?.bundleHash !== ref.bundleHash) return missing;
+  return json({ artifact, identity: Object.fromEntries(PROGRAM_IDENTITY.map(key => [key, identity[key] ?? null])), execution: { allowed: execution?.allowed === true } });
 }
 
 async function openShared(req, env, token) {

@@ -29,8 +29,6 @@ import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
 import AnimatedScene from './AnimatedScene.jsx';
 import ProgramScene from './explain-program/ProgramScene.jsx';
-import InteractCardContent from './InteractCardContent.jsx';
-import { compositionOf } from './interact-composition-adapter.js';
 import { programCardSize } from './explain-program/frame.js';
 import { describeProgram } from './explain-program/program-card.js';
 const WhiteboardBlock = lazyFeature(() => import('./WhiteboardBlock.jsx'), 'The whiteboard');
@@ -1467,8 +1465,6 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
   // A same-card Edit's candidate, while the learner looks at Proposed (ExplainEditBar): drawn, never saved or changed.
   const [candidate, setCandidate] = useState(null);
   const proposed = explainProposedBlock(block, candidate);
-  // An /interact card (block.interact, interact-composition-adapter.js) draws through InteractCardContent; null for a legacy card, which is untouched.
-  const composition = compositionOf(block), proposedComposition = proposed ? compositionOf(proposed) : null;
   const ignore = () => {};
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
@@ -1483,20 +1479,15 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
         {block.explainJob && !block.scene && !block.program
           ? <ExplainPending block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} />
           // Proposed: the candidate's own artifact in a preview player of its own (key: Current and Proposed never share a host).
-          : proposed && proposedComposition
-            ? <InteractCardContent key="proposed" preview block={proposed} composition={proposedComposition} onChange={ignore} onChangeQuiet={ignore} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />
           : proposed?.program
             ? <ProgramScene key="proposed" preview block={proposed} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} />
           : proposed?.scene
             ? <AnimatedScene key="proposed" interact block={proposed} onChange={ignore} onChangeQuiet={ignore} />
-            : composition
-            ? <InteractCardContent block={block} composition={composition} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskAnimation} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} onFile={onFile} />
             : block.program
             ? <ProgramScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onControlsHeight={onControlsHeight} onProgramFrame={onProgramFrame} onFile={onFile} />
             : <AnimatedScene block={block} interact={!!block.explain?.revision} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
       </div>
-      {/* An /interact card has no practice or explanatory section under its scene or controls (interact.md INT-06-C03). */}
-      {!composition && <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />}
+      <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
     </div>
   );
 }

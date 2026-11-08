@@ -1,5 +1,4 @@
 import { RuntimeError, STATEFUL_SCHEMA_VERSION, draftSchemaVersion, parseArtifact, resolveInputs, sealProgram, stateProblem, verifyHashes } from './contract.js';
-import { resolveTimeline } from '../interact-composition.js';
 import { RASTER_CAPABILITY, RASTER_PROGRAM_STAMPS, CYCLIC_CAPABILITY, CYCLIC_PROGRAM_STAMPS, MEDIUM_CAPABILITY, MEDIUM_PROGRAM_STAMPS } from './stamps.js';
 
 // The program card's pure logic (no React): what a block holds, how a saved reference becomes a runnable artifact, and how
@@ -62,29 +61,21 @@ export async function resolveProgram(block, { client, fixtures = false, stamps =
 // ---- learner state ----------------------------------------------------------------------------------------------------
 
 export const programInputs = (manifest, block) => resolveInputs(manifest, block.inputs);
-// Time helpers. composition (interact-composition.js CardComposition, new /interact cards only) makes the endpoint, pacing, markers and
-// displayed origin depend on the current inputs: pass it with the inputs the card is at. Absent composition = exactly the legacy
-// behaviour, so saved cards are unchanged. manifest.duration stays the maximum admitted duration across the input range.
-const timelineOf = (composition, inputs) => (composition ? resolveTimeline(composition, inputs) : null);
-export const programDuration = (manifest, composition = null, inputs = {}) => {
-  const timeline = timelineOf(composition, inputs);
-  return timeline ? (manifest.duration ? Math.min(timeline.end, manifest.duration) : timeline.end) : manifest.duration ?? 0;
-};
+export const programDuration = manifest => manifest.duration ?? 0;
 // A time within half a step of a timeline marker is the marker (see snapToMarker): the saved moment keeps four decimals, the marker has more, so every evaluation uses the exact one.
-export const clampTime = (manifest, time, composition = null, inputs = {}) => snapToMarker(manifest, Math.min(programDuration(manifest, composition, inputs), Math.max(0, Number.isFinite(time) ? time : 0)), composition, inputs);
-export const programTime = (manifest, block, composition = null) => clampTime(manifest, block.time ?? 0, composition, composition ? programInputs(manifest, block) : {});
+export const clampTime = (manifest, time) => snapToMarker(manifest, Math.min(programDuration(manifest), Math.max(0, Number.isFinite(time) ? time : 0)));
+export const programTime = (manifest, block) => clampTime(manifest, block.time ?? 0);
 // Optional manifest.timeline (interact.md INT-01 mode.timeline). Elapsed time always starts at zero; the label shows elapsed + displayOffset.
-export const playbackRate = (manifest, composition = null, inputs = {}) => timelineOf(composition, inputs)?.playbackRate ?? manifest.timeline?.playbackRate ?? 1;
-export const scrubStep = (manifest, composition = null) => (composition?.main?.timeline || manifest.timeline ? 0.001 : 0.05);
-export const savedTime = (manifest, time, composition = null, inputs = {}) => Number(clampTime(manifest, time, composition, inputs).toFixed(composition?.main?.timeline || manifest.timeline ? 4 : 2));
+export const playbackRate = manifest => manifest.timeline?.playbackRate ?? 1;
+export const scrubStep = manifest => (manifest.timeline ? 0.001 : 0.05);
+export const savedTime = (manifest, time) => Number(clampTime(manifest, time).toFixed(manifest.timeline ? 4 : 2));
 // A scrub within half a step of a named marker lands exactly on it, so a pointer or key seek reaches the stated moment.
-export const snapToMarker = (manifest, value, composition = null, inputs = {}) => {
-  const markers = timelineOf(composition, inputs)?.markers ?? manifest.timeline?.markers ?? [];
-  const near = markers.find(marker => Math.abs(marker.time - value) <= scrubStep(manifest, composition) / 2);
+export const snapToMarker = (manifest, value) => {
+  const near = (manifest.timeline?.markers || []).find(marker => Math.abs(marker.time - value) <= scrubStep(manifest) / 2);
   return near ? near.time : value;
 };
-export const timeLabel = (manifest, elapsed, composition = null, inputs = {}) => {
-  const timeline = timelineOf(composition, inputs) ?? manifest.timeline;
+export const timeLabel = (manifest, elapsed) => {
+  const timeline = manifest.timeline;
   if (!timeline) return `${elapsed.toFixed(1)}s`;
   const shown = Number((elapsed + (timeline.displayOffset ?? 0)).toFixed(2));
   return `${shown > 0 && timeline.displayOffset ? '+' : shown < 0 ? '\u2212' : ''}${Math.abs(shown).toFixed(2)}s`;
@@ -96,12 +87,6 @@ export function setProgramInput(block, manifest, name, value) {
   if (!Object.hasOwn(current, name)) return block;
   const next = resolveInputs(manifest, { ...current, [name]: value });
   return next[name] === current[name] ? block : { ...block, inputs: next, inputRevision: (block.inputRevision || 0) + 1 };
-}
-// The same change under a composition (new /interact cards): a timed scene's onInputChange policy is reset_pause, so a changed input also returns time to zero
-// (the caller pauses; frames in flight for the old inputs are dropped by the new inputRevision). recompute_still and a legacy card keep their time.
-export function setProgramInputUnder(block, manifest, name, value, composition = null) {
-  const next = setProgramInput(block, manifest, name, value);
-  return next !== block && composition?.main?.onInputChange === 'reset_pause' ? { ...next, time: 0 } : next;
 }
 export const programChanged = (manifest, block) => JSON.stringify(programInputs(manifest, block)) !== JSON.stringify(resolveInputs(manifest, {}));
 // Reset: defaults for every input and time zero, and no saved program state (the card initializes again with its seed). It does
@@ -129,8 +114,8 @@ export const shownProgram = (saved, kept) => (kept?.key === savedKey(saved) ? ke
 
 // The request the host evaluates. requestId is the card's own counter so a late answer can be recognised and dropped. state: the
 // committed schema 2 state (null for schema 1).
-export const evaluateRequestFor = (manifest, block, time, requestId, state = null, composition = null) => ({
-  requestId: String(requestId), inputs: programInputs(manifest, block), time: clampTime(manifest, time, composition, composition ? programInputs(manifest, block) : {}), seed: programSeed(block), state,
+export const evaluateRequestFor = (manifest, block, time, requestId, state = null) => ({
+  requestId: String(requestId), inputs: programInputs(manifest, block), time: clampTime(manifest, time), seed: programSeed(block), state,
 });
 
 // What a learner sees for a failure: only the fixed message of the normalised code (contract.js).
@@ -177,7 +162,7 @@ export const PROGRAM_DESCRIPTION = 2000;
 // artifact's (by default what this page loaded for this exact card). The moment and readouts are the drawn frame's, and only while
 // it was drawn at the card's current inputs (the shown moment runs ahead of the saved time during Play); else the saved time, with
 // the readouts said to be not drawn. Without a loaded manifest it says what is not known rather than guessing.
-export function describeProgram(block, manifest = loadedProgram(block)?.manifest ?? null, composition = null) {
+export function describeProgram(block, manifest = loadedProgram(block)?.manifest ?? null) {
   const lines = [`Interactive explanation on the canvas: ${block.title}`];
   if (manifest) {
     lines.push(manifest.summary, `What it shows: ${manifest.description}`);
@@ -187,9 +172,8 @@ export function describeProgram(block, manifest = loadedProgram(block)?.manifest
     // The drawn frame counts only at the card's current inputs and, for a stateful card, its current committed state: a frame of an
     // older state (the newer one is still being drawn) is never described as current.
     const current = entry?.committed ? entry.committed.revision : block.programState?.revision ?? null;
-    const drawn = entry?.drawn?.inputs === JSON.stringify(inputs) && entry.drawn.revision === current ? entry.drawn : null, time = drawn ? clampTime(manifest, drawn.time, composition, inputs) : programTime(manifest, block, composition);
-    const total = programDuration(manifest, composition, inputs);
-    if (total) lines.push(`${drawn && entry.playing ? 'Playing, now at' : 'Paused at'} ${time.toFixed(1)}s of ${composition ? Number(total.toFixed(3)) : total}s`);
+    const drawn = entry?.drawn?.inputs === JSON.stringify(inputs) && entry.drawn.revision === current ? entry.drawn : null, time = drawn ? clampTime(manifest, drawn.time) : programTime(manifest, block);
+    if (manifest.duration) lines.push(`${drawn && entry.playing ? 'Playing, now at' : 'Paused at'} ${time.toFixed(1)}s of ${manifest.duration}s`);
     // Schema 2 (FX-61): what the learner can press and select, by the card's own labels, and the action the shown state came from.
     const actions = manifest.actions || [], targets = manifest.targets || [], dragged = targets.filter(target => target.drag);
     if (actions.length) lines.push(`Buttons: ${actions.map(action => action.label).join(', ')}`);

@@ -8,7 +8,7 @@
 // scene frame's fit-to-view scaling, so the completed legibility floors apply
 // to them the way they apply to any card text.
 
-import { createContext, useContext, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { describeInputForLearner } from './scene-inputs.js';
 
 // The labels a positional input shows on its chips: the entries of its own
@@ -185,12 +185,7 @@ export function InputWidget({ declaration, value, data, onInput, disabled = fals
   );
 }
 
-// ShowPurposes=false (an /interact card, InteractCardContent.jsx; interact.md INT-06-C04): the experiments' explanatory sentences are not drawn;
-// labels, units, values and the native controls stay. A context, so AnimatedScene (a fingerprinted renderer file) is untouched. Every other card keeps them.
-export const ShowPurposes = createContext(true);
-
 export default function SceneControls({ declarations, inputs, data, onInput, onReset, locked = [], onHeight = null, experiments = [] }) {
-  const purposes = useContext(ShowPurposes);
   // EVERY meaningful input gets an obvious control here, below the visual -
   // the primary way to operate the experiment. An input whose scene object
   // also offers direct manipulation ('visual' index, a dragged vec2) keeps
@@ -213,7 +208,7 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
     <div ref={root} data-scene-controls className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
       <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
       {/* Each declared experiment's question (EXP-T26 M2): what moving the control is for. */}
-      {purposes && experiments.map(experiment => <p key={experiment.id} data-experiment-purpose={experiment.input} className="mb-1.5 text-sm text-ink">{experiment.purpose}</p>)}
+      {experiments.map(experiment => <p key={experiment.id} data-experiment-purpose={experiment.input} className="mb-1.5 text-sm text-ink">{experiment.purpose}</p>)}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {rows.map(declaration => {
         const Widget = declaration.type === 'index' && declaration.presentation === 'slider' ? IndexSlider : WIDGETS[declaration.type];

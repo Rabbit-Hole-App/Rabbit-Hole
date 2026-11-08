@@ -58,7 +58,7 @@ export function durable(data = new Map()) {
 export const FIXTURE_BRIEF = Object.freeze({ version: 1, title: 'Fixture plan', summary: 'The card shows what was asked.', assumptions: [], presentation: 'static', components: [], evidenceIds: [], limitations: [], ambiguous: false, expanded: false });
 export const postedProposal = (sqlite, id) => rows(sqlite, 'chat_message_meta').map(r => JSON.parse(r.meta_json).proposal).filter(p => p?.input?.job === id).at(-1) ?? null;
 
-export function explainStack(t, { pipeline, used = 0, generate = false, deps = {} } = {}) {
+export function explainStack(t, { pipeline, used = 0, generate = false } = {}) {
   const { sqlite, LEARN_DB } = d1(t);
   if (used) spent(sqlite, used);
   const env = { SMALL_ENV: 'dev', ANTHROPIC_API_KEY: 'test-key', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', LEARN_DB, EXPLAIN_V2_ENABLED: 'true',
@@ -66,7 +66,7 @@ export function explainStack(t, { pipeline, used = 0, generate = false, deps = {
     EXPLAIN_BRIEF_THRESHOLDS: JSON.stringify({ components: 12, credits: 400 }) };
   const state = durable();
   if (generate) pipeline = { ...(pipeline || explainPipeline), prepare: async job => ({ brief: { ...FIXTURE_BRIEF, request: job.prompt } }) };
-  const object = () => new ExplainJobs(state, env, pipeline, deps);
+  const object = () => new ExplainJobs(state, env, pipeline);
   const actor = object();
   const send = async (action, payload = {}, id = null, who = OWNER, on = actor) => {
     const response = await on.fetch(new Request('https://explain/action', { method: 'POST', body: JSON.stringify({ action, id, payload, board: BOARD, user: who, origin: 'https://dev.test' }) }));

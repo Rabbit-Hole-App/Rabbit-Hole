@@ -55,8 +55,7 @@ test('under the readable scale the drawing is drawn whole at it and the Focus co
   assert.match(scene, /style=\{focusBox \? \{ flex: 'none', width: focusBox\.w \+ 2, height: focusBox\.h \+ 2, overflow: 'hidden', alignSelf: 'safe center' \} : undefined\}/, 'the drawing is whole and centred, never scrolled inside its own box');
   // The Slash Commands window's /explain example (owner, 2026-10-29: about 660 px wide, the whole drawing visible) is fitted the
   // same way inside its own card, with no readable-scale floor.
-  assert.match(scene, /focusFrameBox\(box, focusRoom\(\{ cardW, cardH, fixed, rowsH: rowsHeight, introH \}\), example \? 0 : box\.minScale\)/, 'the room is the card less its fixed chrome, rows and (an /interact card) its live intro, never the sized viewport');
-  assert.match(scene, /fixed = focusFixed\(\{ cardW, cardH, viewportW: viewport\.clientWidth, viewportH: viewport\.clientHeight, rowsH: rowsHeight, introH \}\)/, 'the fixed part is measured once, without the live intro');
+  assert.match(scene, /focusFrameBox\(box, \{ w: card\.clientWidth - fixed\.w, h: card\.clientHeight - fixed\.h - rowsHeight \}, example \? 0 : box\.minScale\)/, 'the room is the card less its fixed chrome and rows, never the sized viewport');
   assert.match(scene, /root\.current\?\.closest\(example \? '\[data-slash-card\]' : '\[data-block\]'\)/);
   const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
   assert.match(css, /@media \(max-height: 800px\) \{\s*:is\(\[data-focus-host\], \[data-slash-card\]\) \[data-program-card\], :is\(\[data-focus-host\], \[data-slash-card\]\) \[data-program-card\] > div:last-child \{ gap: 0\.25rem; \}/, 'a short window closes up the rows first');

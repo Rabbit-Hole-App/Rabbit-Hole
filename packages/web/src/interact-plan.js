@@ -453,31 +453,20 @@ export function parseScenePlan(raw, capabilities) {
 }
 
 // The provider-facing JSON Schema. Providers may normalise syntax; the reply is always re-checked by parseScenePlan.
-const SCALAR_EXPR_DEF = {
-  description: `Bounded arithmetic, at most ${PLAN_LIMITS.exprNodes} nodes and ${PLAN_LIMITS.exprDepth} levels. Only declared number inputs are readable.`,
-  oneOf: [
-    { type: 'object', properties: { op: { const: 'literal' }, value: { type: 'number' } }, required: ['op', 'value'], additionalProperties: false },
-    { type: 'object', properties: { op: { const: 'input' }, id: { type: 'string' } }, required: ['op', 'id'], additionalProperties: false },
-    { type: 'object', properties: { op: { enum: BINARY }, left: { $ref: '#/$defs/ScalarExpr' }, right: { $ref: '#/$defs/ScalarExpr' } }, required: ['op', 'left', 'right'], additionalProperties: false },
-  ],
-};
 export function scenePlanJsonSchema() {
   const schema = z.toJSONSchema(planShape, { unrepresentable: 'any', io: 'input' });
   schema.$id = `scene-plan-v${SCENE_PLAN_VERSION}`;
-  schema.$defs = { ...schema.$defs, ScalarExpr: SCALAR_EXPR_DEF };
-  return schema;
-}
-// The provider-facing schemas of the other two design roles (the validators stay DesignReviewSchema / DesignRevisionSchema; the
-// reply is always re-checked by them). The revision embeds the whole plan, so it carries the same ScalarExpr definition.
-export function designReviewJsonSchema() {
-  const schema = z.toJSONSchema(DesignReviewSchema, { unrepresentable: 'any', io: 'input' });
-  schema.$id = `design-review-v${SCENE_PLAN_VERSION}`;
-  return schema;
-}
-export function designRevisionJsonSchema() {
-  const schema = z.toJSONSchema(DesignRevisionSchema, { unrepresentable: 'any', io: 'input' });
-  schema.$id = `design-revision-v${SCENE_PLAN_VERSION}`;
-  schema.$defs = { ...schema.$defs, ScalarExpr: SCALAR_EXPR_DEF };
+  schema.$defs = {
+    ...schema.$defs,
+    ScalarExpr: {
+      description: `Bounded arithmetic, at most ${PLAN_LIMITS.exprNodes} nodes and ${PLAN_LIMITS.exprDepth} levels. Only declared number inputs are readable.`,
+      oneOf: [
+        { type: 'object', properties: { op: { const: 'literal' }, value: { type: 'number' } }, required: ['op', 'value'], additionalProperties: false },
+        { type: 'object', properties: { op: { const: 'input' }, id: { type: 'string' } }, required: ['op', 'id'], additionalProperties: false },
+        { type: 'object', properties: { op: { enum: BINARY }, left: { $ref: '#/$defs/ScalarExpr' }, right: { $ref: '#/$defs/ScalarExpr' } }, required: ['op', 'left', 'right'], additionalProperties: false },
+      ],
+    },
+  };
   return schema;
 }
 

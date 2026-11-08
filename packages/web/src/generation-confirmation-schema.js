@@ -37,10 +37,6 @@ const motionRatios = ratiosFor(MOTION_RATIOS).map(r => ({ value: r.id, label: r.
 const ANIMATION_EXPERIENCES = [{ value: 'inspect', label: 'Inspect', hint: 'Look around a still scene.' }, { value: 'watch', label: 'Watch', hint: 'Watch a motion that loops.' },
   { value: 'experiment', label: 'Experiment', hint: 'Change values and see what happens.' }, { value: 'game', label: 'Mini-game', hint: 'Reach a goal in a short challenge.' }];
 const PRESENTATIONS = [{ value: 'static', label: 'Static' }, { value: 'steps', label: 'Steps' }, { value: 'time', label: 'Over time' }, { value: 'experiment', label: 'Experiment' }];
-// A new /interact plan offers Static, Over time and Experiment only (interact.md INT-03-C05). Steps stays in the runtime enum and on legacy cards:
-// only the new-flow selector and validation drop it, through the newFlow option below.
-export const NEW_FLOW_PRESENTATIONS = Object.freeze(PRESENTATIONS.filter(option => option.value !== 'steps'));
-const forNewFlow = field => (field.key === 'presentation' ? { ...field, options: NEW_FLOW_PRESENTATIONS } : field);
 
 // review_policy: 'always' (a person approves every request), 'conditional' (the SERVER decides per request and says why in
 // proposal.review.reasons), 'none' (no confirmation by policy: a free, immediate card). editable_fields: proposal-level fields and
@@ -202,7 +198,7 @@ export const optionsOf = (f, resolved = {}, settings = {}) => (f.by_model ? f.by
 export const appliesTo = (f, settings = {}) => !f.by_model || !!f.by_model[settings.model];
 export const isAvailable = (f, resolved = {}, settings = {}) => f.available !== false && appliesTo(f, settings) && !(f.options_from === 'server' && !optionsOf(f, resolved, settings).length);
 // The fields to draw for these settings, each with its options resolved: only what the selected model supports.
-export const fieldsFor = (command, settings = {}, resolved = {}, { newFlow = false } = {}) => settingsOf(command).filter(f => !f.hidden && appliesTo(f, settings)).map(f => (newFlow ? forNewFlow(f) : f)).map(f => (f.type === 'select' ? { ...f, options: optionsOf(f, resolved, settings) } : f));
+export const fieldsFor = (command, settings = {}, resolved = {}) => settingsOf(command).filter(f => !f.hidden && appliesTo(f, settings)).map(f => (f.type === 'select' ? { ...f, options: optionsOf(f, resolved, settings) } : f));
 // The reference rules for a command and its settings: null where it declares none.
 export const referenceRules = (command, settings = {}) => commandDefinition(command)?.reference_rules?.(settings) ?? null;
 // Reference problems, never a silent drop: too many for the model, or a kind it cannot take. -> [{ path, message }]
@@ -252,10 +248,10 @@ export function fieldProblem(f, value, path = `settings.${f.key}`, resolved = {}
 // is named when a value is present, an unavailable one likewise, and cross-field and reference rules follow. [] when valid.
 // keep: the settings of the revision being edited; an available field whose value is unchanged from it is not judged again (a saved
 // proposal made under an older rule, such as a 12 second Motion duration, stays editable); a changed value is judged by the current rule.
-export function settingsProblems(command, values, { resolved = {}, groups = {}, references = [], keep = null, newFlow = false } = {}) {
+export function settingsProblems(command, values, { resolved = {}, groups = {}, references = [], keep = null } = {}) {
   const def = commandDefinition(command);
   if (!def) return [{ path: 'settings', message: 'These settings cannot be changed here.' }];
-  const fields = newFlow ? def.settings.map(forNewFlow) : def.settings, shape = `settings must be {${fields.map(f => f.key).join(', ')}}`;
+  const fields = def.settings, shape = `settings must be {${fields.map(f => f.key).join(', ')}}`;
   if (values === undefined && fields.some(f => f.required)) return [{ path: 'settings', message: shape }];
   const given = values === undefined || values === null ? {} : values;
   if (!plain(given)) return [{ path: 'settings', message: shape }];

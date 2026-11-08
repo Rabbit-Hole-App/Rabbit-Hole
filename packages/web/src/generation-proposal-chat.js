@@ -7,7 +7,6 @@ import { imageGenerationOn } from './generate-image.js';
 import { isBriefCommand } from './material-brief.js';
 import { isSmallTalk } from './inline-ai-route.js';
 import { startTiming } from './client-timing.js';
-import { INTERACT_REVIEW_HEADING, isInteractProposal } from './interact-stage.js';
 
 const proposalOf = m => (m?.role === 'assistant' && m.meta?.proposal?.proposal_id ? m.meta.proposal : null);
 // Each proposal's newest version in the conversation: a refinement in chat is a later message with the same id.
@@ -70,7 +69,7 @@ export const durationRefinement = (before, after) => (after?.command === 'whiteb
 // A plan message with no text of its own (the model gave no lead-in; owner 2026-11-07: no canned sentence) is the card alone, never an empty bubble.
 export const proposalOnly = m => m?.meta?.proposal?.command === 'whiteboard-video' || (!!m?.meta?.proposal && !String(m.content ?? '').trim());
 // A job-approving proposal's heading and cost note, by its command.
-export const jobReviewCopy = p => (p?.command === 'whiteboard-video' ? { eyebrow: WHITEBOARD_REVIEW_HEADING, ...(whiteboardCostNote(p) ? { note: whiteboardCostNote(p) } : {}) } : p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: isInteractProposal(p) ? INTERACT_REVIEW_HEADING : EXPLAIN_REVIEW_HEADING });
+export const jobReviewCopy = p => (p?.command === 'whiteboard-video' ? { eyebrow: WHITEBOARD_REVIEW_HEADING, ...(whiteboardCostNote(p) ? { note: whiteboardCostNote(p) } : {}) } : p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: EXPLAIN_REVIEW_HEADING });
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs
 // ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
 // 'image' (IMG-01, generate-image.js): the image job is started and followed from the card, behind the web flag.

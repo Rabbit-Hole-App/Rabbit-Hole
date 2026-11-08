@@ -8,15 +8,6 @@
 // The stage work (brief, author, compile, render, review, repair) is a pipeline injected at construction (explainPipeline by
 // default, T16-T19's stages); the whole route is off unless EXPLAIN_V2_ENABLED is 'true'.
 //
-// /interact scene-plan flow (docs/features/interact.md, INT-02/INT-03): a job created while INTERACT_SCENE_PLAN_ENABLED is 'true' (and not an
-// Edit of a delivered card) records its flow, model profile id/hash and prompt versions at creation and keeps them for life. It replaces
-// preparing with queued -> design_authoring -> design_reviewing -> design_revising -> design_verifying (a follow-up review loops back to
-// design_reviewing only when interact-design.js says so) -> awaiting_approval, publishes the validated plan as the signed proposal, and
-// approves only the exact current final plan. After Generate the same durable stages carry the new build (interact-job.js): authoring = the build_author call and
-// the trusted validation, validating = the stored candidate is still the composition's, rendering = every planned state captured through the existing render
-// service and checked against the plan, reviewing = the independent rendered review, repairing = one build_repair call; the correction rounds (three) are shared.
-// The accepted result keeps the main and supporting artifacts and the compiled CardComposition (kind 'interact'). Legacy jobs never enter any of this.
-//
 // Money: every model call is admitted on its own by spendTransport (the existing ledger), under one stable usage action per
 // job phase (preparation, generation) so the learner sees one action; review calls are kind evaluation. Before generation
 // starts (and before each Retry), the full generation worst case (explain-policy.js) must fit the learner's available
@@ -38,14 +29,6 @@ import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRev
 import { blockedBody, referencesKey, resolveReferences } from './generation-review-refs.js';
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
-import { INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
-import { DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, approvalHashOf, designCapabilities, designPipeline, designPromptContracts, freshDesign, isBlocking, modeToPresentation, runtimeProblems } from './interact-design.js';
-import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } from '../../web/src/interact-plan.js';
-import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
-import { verifyComposition } from '../../web/src/interact-composition.js';
-import { captureCardFor, interactBuildPipeline } from './interact-job.js';
-import { canonicalJson } from '../../web/src/explain-contract.js';
-import { capabilityGap } from './explain-author.js';
 import { authorStage, selectExamples, specFacts, validateProgramStage, validateStage } from './explain-author.js';
 import { PROGRAM_LIMITS, artifactIntact, draftOf, programEnabled, programExecution, programFacts, programReference } from './explain-program.js';
 import { REVIEW_LIMITS, reviewCaptures, traceBytes } from './explain-review.js';
@@ -161,15 +144,8 @@ export async function reviewStage(job, ctx) {
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
   return { accepted: out.accepted, findings, repairable: job.artifact ? programRepairable({ findings }) : allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
 }
-// The stages of a new-flow job after Generate run interact-job.js (ctx.build is set only for those); everything else is the legacy pipeline. deps.buildScene is a
-// test seam that returns the legacy shape (a program or a spec) and keeps the legacy stages after it.
-const legacyRender = renderStage();
-export const explainPipeline = Object.freeze({ ...designPipeline, buildScene: (job, ctx) => (ctx.build ? interactBuildPipeline.buildScene(job, ctx) : ctx.buildScene(job, ctx)), prepare: prepareStage, author: authorStage,
-  validate: (job, ctx) => (ctx.build ? interactBuildPipeline.validate(job, ctx) : job.program ? validateProgramStage(job, ctx) : validateStage(job, ctx)),
-  render: (job, ctx) => (ctx.build ? interactBuildPipeline.render(job, ctx) : legacyRender(job, ctx)),
-  review: (job, ctx) => (ctx.build ? interactBuildPipeline.review(job, ctx) : reviewStage(job, ctx)),
-  repair: (job, ctx) => (ctx.build ? interactBuildPipeline.repair(job, ctx) : job.artifact || job.program ? programRepairStage(job, ctx) : repairStage(job, ctx)) });
-const BUILD_STAGES = ['authoring', 'validating', 'rendering', 'reviewing', 'repairing'];
+export const explainPipeline = Object.freeze({ prepare: prepareStage, author: authorStage, validate: (job, ctx) => (job.program ? validateProgramStage(job, ctx) : validateStage(job, ctx)), render: renderStage(), review: reviewStage,
+  repair: (job, ctx) => (job.artifact || job.program ? programRepairStage(job, ctx) : repairStage(job, ctx)) });
 
 // Learner-facing view: credits, never dollars; no prompt, findings, spec or private diagnostics.
 const credits = micros => Math.ceil((micros || 0) / 10000);
@@ -183,29 +159,8 @@ export function publicExplainJob(job) {
     result: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}), ...(job.brief ? { brief: { ...job.brief, request: undefined }, briefHash: job.briefHash } : {}),
     // Stage timing (plan 3.6): durations and counts only, the measurements T22 and the targets use.
     timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
-    // The new flow's public state in the learner's words (INT-03-C10); the real stage above stays in diagnostics.
-    ...(job.flow ? { flow: { version: job.flow.version }, designState: DESIGN_PUBLIC_STATE[job.stage] ?? null, designRevision: job.design.rev } : {}),
   };
 }
-// The validated final plan and its provenance, on the authenticated job route only (never in a list or a public view): what Chat reviews and
-// what Generate consumes. null until the design is closed.
-export const scenePlanView = job => {
-  const d = job.design, last = d.reviews.at(-1);
-  return d.finalHash ? { version: 1, hash: d.finalHash, revision: d.rev, plan: d.plan, open: d.open, carried: d.carried, fit: d.fit ? { styleVersion: d.fit.styleVersion } : null,
-    review: last ? { verdict: last.verdict, scores: last.scores, reviews: d.reviews.length, revisions: d.revisions.length } : null } : null;
-};
-// What the signed proposal shows and carries for a new-flow job, computed from the validated plan alone; approve compares the presented proposal with this.
-const line = (value, max = 300) => String(value).replace(/\s+/g, ' ').trim().slice(0, max);
-export const planProposalFields = job => {
-  const d = job.design, plan = d.plan;
-  return { command: 'explain', title: line(plan.title, 120), description: plan.cardDescription, settings: { presentation: modeToPresentation(plan.mode.kind) }, source_refs: [],
-    // ponytail: assumptions and limitations are shown as lines of at most 300 characters; the full text stays in the plan.
-    assumptions: plan.assumptions.map(a => line(a)).filter(Boolean).slice(0, 20),
-    limitations: [...(job.context?.refs || []).filter(r => r.note).map(r => line(`${r.name}: ${r.note}.`)), ...plan.limitations.map(a => line(a)), ...d.open.map(text => line(`Open question: ${text}`))].filter(Boolean).slice(0, 20),
-    // brief_hash is kept equal to the plan hash so a client that still reads it keeps working.
-    input: { org: job.owner.org, app: job.app, job: job.id, brief_hash: d.finalHash, scene_plan_version: 1, scene_plan_hash: d.finalHash, profile_hash: job.flow.profile.hash, runtime_binding_hash: d.runtimeHash,
-      approval_hash: d.approvalHash, plan_revision: d.rev, board: job.boardId, revision: job.revision, generation_reserve_micros: job.reservation.generationMicros, request: job.prompt.slice(0, 500) } };
-};
 // The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
 const explainDiagnostics = job => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), ...(job.coverage ? { coverage: job.coverage } : {}), ...(job.history ? { history: job.history, historyDropped: job.historyDropped || 0 } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
   calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing });
@@ -218,12 +173,12 @@ export function recoveryOf(job) {
   if (job.inFlight) return ['reconcile'];
   const actions = [];
   // Not after a stop about the candidate itself (corrections spent, no progress, unrepairable): rendering it again fails the same way.
-  if (job.failure?.stage === 'rendering' && (job.compiled || job.artifact || job.build?.envelopeHash) && !CANDIDATE_STOPS.has(job.stopReason)) actions.push('retry_render');
+  if (job.failure?.stage === 'rendering' && (job.compiled || job.artifact) && !CANDIDATE_STOPS.has(job.stopReason)) actions.push('retry_render');
   // Paused for the provider: the refused call was never counted, so resuming is always within the ceiling.
   else if (job.failure?.category === 'provider_unavailable' || job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
   return [...actions, 'edit_request'];
 }
-const withinCeiling = job => (job.flow && !job.approval) || job.counts.author < EXPLAIN_LIMITS.calls.author || ((job.spec || job.artifact) && job.round < EXPLAIN_LIMITS.correctionRounds);
+const withinCeiling = job => job.counts.author < EXPLAIN_LIMITS.calls.author || ((job.spec || job.artifact) && job.round < EXPLAIN_LIMITS.correctionRounds);
 
 function validateCreate(p) {
   if (!KEY.test(p.requestId || '')) throw fail('requestId is required.');
@@ -276,8 +231,6 @@ export async function explainRoute(path, req, env, deps = {}) {
     await learnMedia(env).put(key, JSON.stringify({ mediaType: image.source.media_type, data: image.source.data }), { httpMetadata: { contentType: 'application/json' } });
     body.reference = { key, role: 'layout_reference', mediaType: image.source.media_type };
   }
-  const panel = url.searchParams.get('panel');
-  if (panel !== null && !(results && /^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(panel))) return json({ error: 'Not found' }, 404);
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   const who = { org: user.org, email: user.email, userId: user.userId || user.user_id || null };
   // R2: Depth is the learner's selection when they pressed Generate (the client's snapshot), validated here; omitted, their saved Depth for
@@ -323,17 +276,11 @@ export async function explainRoute(path, req, env, deps = {}) {
       // Owner-only diagnostics for live verification runs on a dev clone (EXPLAIN_DIAGNOSTICS, never set in a committed config).
       detail: req.method === 'GET' && url.searchParams.get('detail') === '1' && env.EXPLAIN_DIAGNOSTICS === 'true',
       // ?version=<programHash>: the complete stored source and manifest of one candidate (owner diagnostics only, with detail=1).
-      version: /^[0-9a-f]{16}$/.test(url.searchParams.get('version') || '') ? url.searchParams.get('version') : null,
-      // ?panel=<id>: one supporting panel's artifact of an /interact card (the card's own main program when absent).
-      panel }) });
+      version: /^[0-9a-f]{16}$/.test(url.searchParams.get('version') || '') ? url.searchParams.get('version') : null }) });
 }
 
 export class ExplainJobs {
-  // deps (new flow only): descriptionFit(plan) -> the description-fit receipt (INT-06-C17; interact-design.js fixtureDescriptionFit stands in for tests; absent, the server
-  // setting INTERACT_DESCRIPTION_FIT=estimate selects the pure estimate and anything else fails closed); buildScene(job, ctx) -> a legacy-shaped builder (a test seam;
-  // absent, the real build of interact-job.js runs).
-  // deps.render: renderStates' own deps for the new flow's captures (launch, browser, store); deps.captureCard replaces the capture seam (tests).
-  constructor(state, env, pipeline = explainPipeline, deps = {}) { this.state = state; this.env = env; this.pipeline = pipeline; this.deps = deps; this.active = new Set(); this.building = new Map(); }
+  constructor(state, env, pipeline = explainPipeline) { this.state = state; this.env = env; this.pipeline = pipeline; this.active = new Set(); }
   async locked(fn) {
     // An exception escaping blockConcurrencyWhile resets the object; expected refusals leave the gate first.
     const out = await this.state.blockConcurrencyWhile(async () => { try { return { value: await fn() }; } catch (error) { return { error }; } });
@@ -354,22 +301,22 @@ export class ExplainJobs {
     }
   }
 
-  async action({ action, id, payload = {}, board, user, origin, detail = false, version = null, panel = null }) {
+  async action({ action, id, payload = {}, board, user, origin, detail = false, version = null }) {
     if (action === 'list') {
       const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()].filter(j => j.owner.email === user.email);
       return json({ jobs: jobs.sort((a, b) => a.createdAt - b.createdAt).map(publicExplainJob) });
     }
     if (action === 'create') return this.create(payload, board, user, origin);
     if (action === 'lineage') return json({ refs: await this.lineage(payload, board, user) });
-    if (action === 'result') return this.programResult(id, board, user, panel);
+    if (action === 'result') return this.programResult(id, board, user);
     const job = id && await this.get(id);
     if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
     if (action === 'get') {
-      const view = publicExplainJob(job), block = job.stage === 'ready' ? await this.block(job) : null, scenePlan = job.flow ? scenePlanView(job) : null;
+      const view = publicExplainJob(job), block = job.stage === 'ready' ? await this.block(job) : null;
       // A program's artifact rides on this authorized answer only (never in the identity the card saves): the host-hashed artifact and the
       // server's execution decision, which the card obeys.
       if (block?.program) view.result = { ...view.result, program: (await this.state.storage.get(`result:${job.resultId}`)).artifact, execution: programExecution(this.env) };
-      return json({ job: view, ...(block ? { block } : {}), ...(scenePlan ? { scenePlan } : {}), ...(detail ? { diagnostics: explainDiagnostics(job), ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
+      return json({ job: view, ...(block ? { block } : {}), ...(detail ? { diagnostics: explainDiagnostics(job), ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
     }
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
@@ -379,20 +326,10 @@ export class ExplainJobs {
   }
 
   // The saved program for a card on this canvas, for its owner only; a program is never served by hash alone or by another canvas.
-  async programResult(resultId, board, user, panel = null) {
+  async programResult(resultId, board, user) {
     const saved = await this.state.storage.get(`result:${resultId}`);
-    if (!['program', 'interact'].includes(saved?.kind) || saved.owner?.email !== user.email || saved.boardId !== board.id) throw fail('Not available', 404);
-    const unavailable = () => fail('This explanation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
-    if (saved.kind === 'interact') {
-      // The whole envelope is checked on every read: the composition names each artifact by hash, so no panel can be swapped on its own.
-      const envelope = { main: { kind: 'program', program: saved.artifact }, supporting: saved.supporting.map(s => ({ id: s.id, artifact: { kind: 'program', program: s.artifact } })) };
-      if ((await verifyComposition(saved.composition, envelope)).length) throw unavailable();
-      const support = panel && panel !== 'main' ? saved.supporting.find(s => s.id === panel) : null;
-      if (panel && panel !== 'main' && !support) throw fail('Not available', 404);
-      return json({ artifact: support ? support.artifact : saved.artifact, panel: support ? support.id : 'main', identity: saved.identity, execution: programExecution(this.env), composition: saved.composition, sources: learnerSources(saved.provenance) });
-    }
-    if (panel && panel !== 'main') throw fail('Not available', 404);
-    if (!await artifactIntact(saved.artifact)) throw unavailable();
+    if (saved?.kind !== 'program' || saved.owner?.email !== user.email || saved.boardId !== board.id) throw fail('Not available', 404);
+    if (!await artifactIntact(saved.artifact)) throw fail('This explanation could not be opened. Your saved version is kept.', 409, 'version_unavailable');
     // Task 9.4: the sources it was made from, as the card's source list, on this owner-only answer only (a share link's read keeps none).
     return json({ artifact: saved.artifact, identity: saved.identity, execution: programExecution(this.env), sources: learnerSources(saved.provenance) });
   }
@@ -429,14 +366,6 @@ export class ExplainJobs {
       timing: newTiming(payload.requestClass, now), createdAt: now, updatedAt: now, deadline: now + EXPLAIN_LIMITS.deadlines.jobMs,
       reservation: reserve,
     };
-    // The new flow is chosen per job, once, here: the switch, the model profile and the prompt versions are pinned on the job and never change.
-    if (interactFlowEnabled(this.env) && payload.requestClass !== 'edit') {
-      let profile; try { profile = interactProfileFor(this.env); } catch { throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured'); }
-      const priced = interactReservation(profile);
-      if (priced.preparationMicros == null || priced.generationMicros == null) throw fail('Scene design is not priced for this model profile yet.', 503, 'flow_unpriced'); // an unknown price is never zero
-      Object.assign(job, { flow: { version: 1, switch: 'INTERACT_SCENE_PLAN_ENABLED', profile: { id: profile.id, version: profile.version, hash: await interactProfileHash(profile) }, prompts: await designPromptContracts() },
-        design: freshDesign(), prepare: true, reservation: { version: INTERACT_POLICY_VERSION, preparationMicros: priced.preparationMicros, generationMicros: priced.generationMicros } });
-    }
     // Generation is admitted up front on the direct path; a prepared request is admitted at approve. Refused: nothing is
     // stored, no fence, no call, so the learner's request and draft stay theirs to retry.
     // The chat thread a reviewed brief is posted on: the owner's own, on this canvas.
@@ -461,8 +390,6 @@ export class ExplainJobs {
     if (block.explain.revision !== payload.baseRevision) throw fail('This explanation changed. Reload before editing.', 409, 'edit_stale');
     const saved = await this.state.storage.get(`result:${block.explain.resultId}`);
     if (!saved || saved.identity.cardId !== payload.cardId || saved.identity.revision !== payload.baseRevision) throw unsupported();
-    // ponytail: Ctrl+K Edit of a composed /interact card is not wired (INT-07B-C05); it would rebuild the main program alone and drop the composition.
-    if (saved.kind === 'interact') throw unsupported();
     // A program card's base is its stored artifact, read from this canvas's own result record and checked against its hashes.
     if (saved.kind === 'program') {
       if (!programEnabled(this.env) || saved.boardId !== board.id || !await artifactIntact(saved.artifact)) throw unsupported();
@@ -480,7 +407,7 @@ export class ExplainJobs {
   }
   async prune(jobs) {
     const old = jobs.filter(j => TERMINAL.has(j.stage)).sort((a, b) => b.updatedAt - a.updatedAt).slice(JOBS_KEPT - 1);
-    for (const j of old) { await this.state.storage.delete?.(jobKey(j.id)); await this.state.storage.delete?.(`request:${j.requestId}`); if (!j.artifact && !(j.flow && j.result)) await this.state.storage.delete?.(`result:${j.resultId}`); for (const h of j.history || []) if (h.version?.stored) await this.state.storage.delete?.(h.version.key); if (j.design) for (const [key] of await this.state.storage.list({ prefix: `design:${j.id}:` })) await this.state.storage.delete?.(key); if (j.build) for (const [key] of await this.state.storage.list({ prefix: `build:${j.id}:` })) await this.state.storage.delete?.(key); } // a program's source lives only here, so pruning a job keeps its result (an accepted /interact card's artifacts too: the flow test)
+    for (const j of old) { await this.state.storage.delete?.(jobKey(j.id)); await this.state.storage.delete?.(`request:${j.requestId}`); if (!j.artifact) await this.state.storage.delete?.(`result:${j.resultId}`); for (const h of j.history || []) if (h.version?.stored) await this.state.storage.delete?.(h.version.key); } // a program's source lives only here, so pruning a job keeps its result
   }
 
   // The learner's available allowance must cover generation's full worst case before any of it starts.
@@ -523,21 +450,10 @@ export class ExplainJobs {
     } else if (actions.includes('new_attempt')) {
       // A job paused for the provider resumes at the stage it paused in, keeping every completed stage (its spec, compiled
       // result and captures); preparation is admitted per call, so only generation is checked against the allowance.
-      let paused = job.failure?.category === 'provider_unavailable' ? job.failure.stage : null;
-      if (job.flow && !job.approval) {
-        // Design work already saved is not thrown away (INT-02-R05): a call-level failure resumes at its stage with its counts; a design that stopped on its
-        // own findings starts a fresh plan attempt (own counts), at most once per allowed refinement.
-        const at = job.failure?.stage, call = ['provider_unavailable', 'transport', 'budget', 'internal'].includes(job.failure?.category);
-        paused = DESIGN_STAGES.includes(at) && call && (at === 'design_authoring' || job.design.plan) ? at : null;
-        if (!paused) {
-          if (job.design.attempts >= 1 + INTERACT_LIMITS.refinements) throw fail('This scene design reached its attempt limit. Edit the request to start a new one.', 429);
-          Object.assign(job.design, { attempts: job.design.attempts + 1, counts: { author: 0, review: 0, revise: 0 }, plan: job.refinement ? job.design.plan : null, planHash: job.refinement ? job.design.planHash : null, review: null, pending: null, changes: [], problems: [], reviews: [], revisions: [], finalHash: null, runtimeHash: null, approvalHash: null, fit: null, open: [], carried: [] });
-          paused = 'design_authoring';
-        }
-      }
+      const paused = job.failure?.category === 'provider_unavailable' ? job.failure.stage : null;
       // A brief that was never approved is prepared again: a Retry never skips the learner's review.
-      const stage = paused || (this.buildFlow(job) ? (BUILD_STAGES.includes(job.failure?.stage) ? job.failure.stage : 'authoring') : job.prepare && !job.approval ? 'preparing' : job.spec || job.program ? 'validating' : 'authoring');
-      if (stage !== 'preparing' && !DESIGN_STAGES.includes(stage)) await this.admitGeneration(job);
+      const stage = paused || (job.prepare && !job.approval ? 'preparing' : job.spec || job.program ? 'validating' : 'authoring');
+      if (stage !== 'preparing') await this.admitGeneration(job);
       Object.assign(job, { stage, failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     } else throw fail(job.stage === 'failed' ? 'This explanation reached its limit. Edit the request to start a new one.' : 'Only a failed explanation can be retried.', 409);
     beginStage(job.timing, job.stage);
@@ -552,7 +468,7 @@ export class ExplainJobs {
     const db = this.env.LEARN_DB, previous = job.pendingProposal;
     const record = previous ? await proposalRecord(db, job.owner.email, job.app, previous.id) : null;
     if (record?.state?.used) return;
-    const p = await signProposal(this.env, job.flow ? planProposalFields(job) : { command: 'explain', title: job.brief.title, description: job.brief.summary, settings: { presentation: job.brief.presentation }, source_refs: [],
+    const p = await signProposal(this.env, { command: 'explain', title: job.brief.title, description: job.brief.summary, settings: { presentation: job.brief.presentation }, source_refs: [],
       assumptions: (job.brief.assumptions || []).map(a => String(a).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 20),
       // Task 9.2: the server's own word on each attached source it did not read comes first, never only the model's.
       limitations: [...(job.context?.refs || []).filter(r => r.note).map(r => `${r.name}: ${r.note}.`), ...(job.brief.limitations || [])].map(a => String(a).replace(/\s+/g, ' ').trim().slice(0, 300)).filter(Boolean).slice(0, 20),
@@ -574,7 +490,7 @@ export class ExplainJobs {
     id = `canvaschat-${crypto.randomUUID()}`;
     const at = new Date().toISOString();
     await db.batch([
-      db.prepare("INSERT INTO threads (id, org, user, scope_ref, commit_sha, title) VALUES (?, ?, ?, ?, '', ?)").bind(id, org, email, job.app, (job.brief?.title || job.design?.plan?.title || 'Explanation plan').slice(0, 120)),
+      db.prepare("INSERT INTO threads (id, org, user, scope_ref, commit_sha, title) VALUES (?, ?, ?, ?, '', ?)").bind(id, org, email, job.app, (job.brief?.title || 'Explanation plan').slice(0, 120)),
       db.prepare('INSERT INTO chat_thread_state (thread_id, context_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(thread_id) DO UPDATE SET context_json = excluded.context_json, updated_at = excluded.updated_at').bind(key, JSON.stringify({ threadId: id }), at),
     ]);
     return id;
@@ -591,18 +507,6 @@ export class ExplainJobs {
       const record = job.pendingProposal ? await proposalRecord(this.env.LEARN_DB, job.owner.email, job.app, job.pendingProposal.id).catch(() => null) : null;
       if (!record?.current || record.state?.used || payload.proposal?.proposal_id !== job.pendingProposal.id || payload.proposal?.version !== record.current.version) throw fail('This plan changed since you chose Edit. Review the latest version, then press Edit on it.', 409, 'brief_stale');
     }
-    // Edit on a scene plan is a new design revision: the plan goes back through design and review with the learner's words, the old approval is void, and the
-    // refinement is counted apart from repair rounds (INT-02-C13).
-    if (job.flow) {
-      const d = job.design;
-      if (d.refinements >= INTERACT_LIMITS.refinements) throw fail('This scene plan reached its change limit. Start a new request.', 429);
-      Object.assign(d, { rev: d.rev + 1, refinements: d.refinements + 1, counts: { author: 0, review: 0, revise: 0 }, review: null, pending: null, changes: [], problems: [], reviews: [], revisions: [], finalHash: null, runtimeHash: null, approvalHash: null, fit: null, open: [], carried: [] });
-      endStage(job.timing, 'refined');
-      Object.assign(job, { refinement: message, approval: null, stage: 'design_authoring' });
-      beginStage(job.timing, 'design_authoring');
-      await this.save(job); await this.wake();
-      return json({ job: publicExplainJob(job) }, 202);
-    }
     if (job.counts.brief >= EXPLAIN_LIMITS.calls.brief * (1 + EXPLAIN_LIMITS.refinements)) throw fail('This brief reached its change limit. Start a new request.', 429);
     endStage(job.timing, 'refined');
     Object.assign(job, { refinement: message, approval: null, stage: 'preparing' });
@@ -616,7 +520,6 @@ export class ExplainJobs {
   // Generate of the same job is idempotent and any other use is refused. The allowance is checked first: a refused Generate
   // consumes nothing and the proposal stays current.
   async approve(job, payload) {
-    if (job.flow) return this.approveScenePlan(job, payload);
     const stale = () => fail('This brief changed. Review it again before generating.', 409, 'brief_stale');
     if (job.proposal && job.proposal.id === payload.proposal?.proposal_id && job.proposal.version === payload.proposal?.version) return json({ job: publicExplainJob(job) });
     if (job.stage === 'cancelled') throw fail('This explanation was stopped. Ask for it again to make one.', 409, 'brief_stale');
@@ -655,8 +558,6 @@ export class ExplainJobs {
   // The saved result the browser places: the compiled scene and its identity. Saved content renders without a model call.
   async block(job) {
     const saved = await this.state.storage.get(`result:${job.resultId}`);
-    // A composed /interact card keeps the bounded CardComposition (hashes and declarations, never source) beside the program reference; the full Story stays in the design record.
-    if (saved?.kind === 'interact') return { type: 'animation', id: job.cardId, title: saved.composition.title, program: programReference(saved.artifact, job.resultId), interact: { version: 1, planHash: saved.planHash, composition: saved.composition }, explain: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}) };
     // A program card keeps a reference on the canvas, never its source: the player reads the artifact through the result route.
     if (saved?.kind === 'program') return { type: 'animation', id: job.cardId, title: saved.artifact.manifest.title, program: programReference(saved.artifact, job.resultId), explain: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}) };
     return saved && { type: 'animation', id: job.cardId, scene: saved.compiled?.scene ?? saved.compiled, explain: job.result, ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}) };
@@ -671,11 +572,6 @@ export class ExplainJobs {
   transport(job, role) {
     return (env, body, model) => spendTransport(this.usageEnv(job, role === 'brief' ? job.prepKey : job.actionKey), body, model, null,
       admitted => anthropic(admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'explain', provider: 'anthropic', kind: KIND[role] });
-  }
-  // The new flow's transport: the same admitted Anthropic dispatch, under the usage action of the role's phase (design = preparation, build = generation).
-  interactTransport(job, role) {
-    return (env, body, model) => spendTransport(this.usageEnv(job, interactPhase(role) === 'preparation' ? job.prepKey : job.actionKey), body, model, null,
-      admitted => anthropic(admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'explain', provider: 'anthropic', kind: interactCallKind(role) });
   }
   // Closes a phase's usage action once the job ends (usage_actions.status), so its record is terminal.
   async finishUsage(job, status) {
@@ -725,153 +621,6 @@ export class ExplainJobs {
     return out;
   }
 
-  // One design-role call (callInteractRole under the job's pinned profile), fenced as paidCall is: the job is still this stage and attempt, not stopped, nothing else
-  // in flight, the plan attempt's ceiling for the role and the deadline allow it; the intent is stored before anything is sent, and an unknown outcome is never resent.
-  async interactCall(job, role, args) {
-    const short = DESIGN_ROLE_KEY[role];
-    if (!short) throw fail(`No scene design role ${String(role).slice(0, 40)}.`, 500);
-    const profile = resolveInteractProfile(job.flow.profile.id);
-    if (await interactProfileHash(profile) !== job.flow.profile.hash) throw Object.assign(fail('The model settings changed since this request started. Start a new request.', 409, 'profile_changed'), { stopReason: 'profile_changed' });
-    const key = await this.locked(async () => {
-      const current = await this.get(job.id);
-      if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
-      if (current.design.counts[short] + 1 > INTERACT_LIMITS.calls[role]) throw Object.assign(fail(`This scene design reached its ${short} limit.`, 429), { stopReason: 'budget' });
-      if (Date.now() >= current.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${current.stage}.`, 409), { stopReason: 'deadline' });
-      const boundMicros = roleBoundMicros(profile.roles[role]) ?? 0;
-      current.design.counts[short]++; current.reservedMicros += boundMicros;
-      const callKey = `${current.id}-${role}-${current.calls.length + 1}`;
-      current.inFlight = { key: callKey, role, at: Date.now() };
-      current.calls.push({ key: callKey, role, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros, images: 0, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
-      await this.save(current);
-      return callKey;
-    });
-    if (!key) throw Object.assign(fail('This explanation changed while it was working.', 409), { abandoned: true });
-    this.active.add(job.id);
-    let out, error;
-    try { out = await callInteractRole({ env: this.env, profile, adapters: interactAdapters({ env: this.env, callModel: this.interactTransport(job, role) }) }, role, args); } catch (e) { error = e; } finally { this.active.delete(job.id); }
-    await this.locked(async () => {
-      const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
-      const refused = ['provider_unavailable', 'spend_refused'].includes(error?.code);
-      if (refused) { current.design.counts[short]--; current.reservedMicros -= call.boundMicros; }
-      const usage = out?.usage?.raw ?? error?.usage?.raw ?? null;
-      Object.assign(call, { requested: out?.requested.model ?? error?.requested ?? null, served: out?.served?.model ?? error?.served?.model ?? null, status: refused ? 'refused' : error?.code === 'unknown_outcome' ? 'unknown' : error ? 'failed' : 'settled',
-        costMicros: refused ? 0 : out?.costMicros ?? error?.costMicros ?? null, inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null) });
-      if (current.inFlight?.key === key) current.inFlight = null;
-      countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens });
-      await this.save(current);
-    });
-    if (error) throw error;
-    return out;
-  }
-
-  // ---- the new flow's build (interact-job.js) ----
-  // A new-flow job after Generate runs the real build unless a test injected the legacy-shaped seam.
-  buildFlow(job) { return !!job.flow && !!job.approval && !this.deps.buildScene; }
-  // The candidate and its captures live under their own keys (a program's source alone can be 16 KB, and a storage value is at most 128 KB), never on the job record.
-  async loadBuild(job) {
-    const [draft, artifacts, composition, captures] = await Promise.all(['draft', 'artifacts', 'composition', 'captures'].map(name => this.state.storage.get(`build:${job.id}:${name}`)));
-    return { draft, artifacts, composition, captures };
-  }
-  // The role context of interact-build.js / interact-checks.js under this job's pinned profile. Every call is fenced as interactCall fences one: admit stores the intent
-  // (job still this stage and attempt, not stopped, nothing in flight, the role's ceiling and the deadline allow it) before anything is sent; settle closes the record.
-  async buildRoleCtx(job) {
-    const profile = resolveInteractProfile(job.flow.profile.id);
-    if (await interactProfileHash(profile) !== job.flow.profile.hash) throw Object.assign(fail('The model settings changed since this request started. Start a new request.', 409, 'profile_changed'), { stopReason: 'profile_changed' });
-    return { env: this.env, profile,
-      adapters: { anthropic: { name: 'anthropic', call: args => interactAdapters({ env: this.env, callModel: this.interactTransport(job, args.config.role) }).anthropic.call(args) } },
-      // ponytail: the render service cannot compose the card, so every capture is per-panel (completeCard:false) and the reviewer is told so; see interact-checks.js.
-      completeCardUnavailable: true, captureCard: this.deps.captureCard ?? captureCardFor(this.env, { jobId: job.id, ...(this.deps.render || {}) }),
-      admit: info => this.admitBuildCall(job, info), settle: info => this.settleBuildCall(job, info) };
-  }
-  async admitBuildCall(job, { role, boundMicros, images }) {
-    const key = await this.locked(async () => {
-      const current = await this.get(job.id);
-      if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
-      const used = current.build.counts[role] ?? 0;
-      if (used + 1 > INTERACT_LIMITS.calls[role]) throw Object.assign(fail(`This scene build reached its ${role.replace('build_', '')} limit.`, 429), { stopReason: 'budget' });
-      if (Date.now() >= current.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${current.stage}.`, 409), { stopReason: 'deadline' });
-      current.build.counts[role] = used + 1; current.reservedMicros += boundMicros ?? 0;
-      const callKey = `${current.id}-${role}-${current.calls.length + 1}`;
-      current.inFlight = { key: callKey, role, at: Date.now() };
-      current.calls.push({ key: callKey, role, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros: boundMicros ?? 0, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
-      await this.save(current);
-      return callKey;
-    });
-    if (!key) throw Object.assign(fail('This explanation changed while it was working.', 409), { abandoned: true });
-    this.active.add(job.id); this.building.set(job.id, key);
-  }
-  async settleBuildCall(job, s) {
-    const key = this.building.get(job.id);
-    if (!key) return; // refused before it was admitted: nothing was recorded
-    this.building.delete(job.id); this.active.delete(job.id);
-    await this.locked(async () => {
-      const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
-      const refused = s.status === 'refused';
-      if (refused) { current.build.counts[s.role]--; current.reservedMicros -= call.boundMicros; }
-      const usage = s.usage?.raw ?? null;
-      Object.assign(call, { requested: s.requested?.model ?? null, served: s.served?.model ?? null, status: refused ? 'refused' : s.status === 'unknown' ? 'unknown' : s.status === 'settled' ? 'settled' : 'failed',
-        costMicros: refused ? 0 : s.costMicros ?? null, inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: s.error?.code || null });
-      if (current.inFlight?.key === key) current.inFlight = null;
-      countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images: call.images });
-      await this.save(current);
-    });
-  }
-  // What each build stage's result does to the job (the bodies are interact-job.js). A failure the checks or the review found is remembered as job.build.failure and goes to
-  // repairOrStop (three rounds shared across validation, render and review); a candidate is replaced only by a repair that passed the same trusted validation.
-  async applyBuild(job, stage, out) {
-    const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
-    const keep = (name, value) => this.state.storage.put(`build:${job.id}:${name}`, value);
-    const drop = names => Promise.all(names.map(name => this.state.storage.delete?.(`build:${job.id}:${name}`)));
-    const b = job.build;
-    const failWith = async (failure, over = out) => { b.failure = failure; job.findings.push({ round: job.round, stage, ...(failure.problems?.length ? { problems: failure.problems } : { accepted: false, findings: failure.findings }) }); return this.repairOrStop(job, over); };
-    if (out.incomplete) return this.stopWith(job, 'incomplete', 'spec', `This scene plan needs more checks than one review can cover (${String(out.incomplete).slice(0, 300)}). Edit the request to use fewer checkpoints.`);
-    if (stage === 'authoring') {
-      if (out.draft) await keep('draft', out.draft);
-      if (out.problems) return failWith({ stage: 'validate', problems: out.problems, findings: [] });
-      await keep('artifacts', out.artifacts); await keep('composition', out.composition); await drop(['captures']);
-      b.envelopeHash = out.composition.envelopeHash; b.failure = null;
-      next('validating');
-    } else if (stage === 'validating') {
-      if (out.problems?.length) return failWith({ stage: 'validate', problems: out.problems, findings: [] });
-      next('rendering');
-    } else if (stage === 'rendering') {
-      if (out.problems?.length) return failWith(out.failure ?? { stage: 'check', problems: out.problems, findings: [] });
-      await keep('captures', out.captured); b.check = out.check; b.failure = null;
-      job.renders += out.renders.length; countStage(job.timing, { captures: out.captured.length });
-      await this.recordRenders(job, out.renders);
-      next('reviewing');
-    } else if (stage === 'reviewing') {
-      if (out.accepted === true) { job.findings.push({ round: job.round, stage, accepted: true, findings: [] }); return this.acceptInteract(job); }
-      return failWith(out.failure, out);
-    } else if (stage === 'repairing') {
-      job.candidates = [...(job.candidates || []), { round: job.round, operation: out.operation || null, progress: out.progress !== false, specHash: null, ...(out.repaired || out.invalid ? { envelope: out.composition?.envelopeHash ?? null } : {}) }];
-      if (out.rejected) return this.stopWith(job, 'rounds', 'spec', 'The explanation did not pass its checks within three corrections. Edit the request and try again.');
-      if (out.progress === false) return this.stopWith(job, 'no_progress', 'spec', 'The explanation could not be repaired. Edit the request and try again.');
-      await keep('draft', out.draft); await drop(['captures']);
-      if (out.invalid) { await drop(['artifacts', 'composition']); b.envelopeHash = null; return failWith(out.failure, { repairable: true, category: 'spec' }); }
-      await keep('artifacts', out.artifacts); await keep('composition', out.composition);
-      b.envelopeHash = out.composition.envelopeHash; b.failure = null;
-      next('validating');
-    }
-    await this.save(job);
-  }
-  // The accepted /interact card: the main program, every supporting program and the compiled CardComposition (its envelope hash names each artifact), stored together behind this
-  // canvas's ownership. The result says honestly that the checks looked at each panel and not at one image of the whole card (interact-checks.js, the ponytail above INTERACT_REVIEW_RULES).
-  async acceptInteract(job) {
-    const b = await this.loadBuild(job), author = job.calls.filter(c => c.role === 'build_author' && c.status === 'settled').at(-1);
-    const main = b.artifacts.main.program, supporting = b.artifacts.supporting.map(s => ({ id: s.id, artifact: s.artifact.program }));
-    const hashOf = async value => (await sha256Hex(JSON.stringify(value ?? null))).slice(0, 16);
-    job.result = { jobId: job.id, resultId: job.resultId, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: (await sha256Hex(job.prompt)).slice(0, 16),
-      revision: job.revision, baseRevision: job.baseRevision, kind: 'program', bundleHash: main.bundleHash, sourceHash: main.sourceHash, manifestHash: main.manifestHash,
-      versions: { schema: main.schemaVersion, runtime: main.runtimeVersion, sdk: main.sdkVersion, renderer: main.rendererVersion }, policyVersion: job.policyVersion,
-      interact: { version: 1, planHash: b.composition.planHash, envelopeHash: b.composition.envelopeHash, rounds: job.round, completeCard: false, descriptionFit: job.design.fit?.styleVersion ?? null } };
-    await this.state.storage.put(`result:${job.resultId}`, { kind: 'interact', artifact: main, supporting, composition: b.composition, planHash: b.composition.planHash, identity: job.result, owner: { org: job.owner.org, email: job.owner.email }, boardId: job.boardId, cardId: job.cardId,
-      authoredBy: author ? { requested: author.requested, served: author.served } : null, provenance: { ...provenanceOf(job), request: job.result.promptRef, context: await hashOf(job.context), edited: null } });
-    endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
-    Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
-    await this.save(job); await this.finishUsage(job, 'completed');
-  }
-
   async alarm() {
     await this.state.storage.setAlarm(Date.now() + 30000); // re-armed first: a terminated isolate still gets a recovery turn
     let active = false;
@@ -904,14 +653,10 @@ export class ExplainJobs {
   async advance(job) {
     if (job.inFlight) { if (!this.active.has(job.id)) await this.locked(async () => { const current = await this.get(job.id); if (current.inFlight && !this.active.has(job.id)) await this.reconcile(current); }); return; }
     if (Date.now() > job.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${job.stage}.`, 409), { stopReason: 'deadline' });
-    if (job.stage === 'queued') return this.move(job, job.flow ? 'design_authoring' : job.prepare && !job.approval ? 'preparing' : 'authoring');
-    const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: EXPLAIN_LIMITS,
-      ...(job.flow ? { interact: (role, args) => this.interactCall(job, role, args), capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene,
-        // The description fit is a measurement; only the pure estimate exists in a Worker (no DOM), so it runs only when the server setting says so, labelled estimate in the stored receipt.
-        descriptionFit: this.deps.descriptionFit ?? (this.env.INTERACT_DESCRIPTION_FIT === 'estimate' ? estimateDescriptionFit : undefined) } : {}) };
-    if (this.buildFlow(job)) Object.assign(ctx, { build: await this.loadBuild(job), role: await this.buildRoleCtx(job) });
+    if (job.stage === 'queued') return this.move(job, job.prepare && !job.approval ? 'preparing' : 'authoring');
+    const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: EXPLAIN_LIMITS };
     const stage = job.stage, attempt = job.attempt;
-    const run = { preparing: 'prepare', design_authoring: 'designAuthor', design_reviewing: 'designReview', design_revising: 'designRevise', design_verifying: 'designVerify', authoring: job.flow ? 'buildScene' : 'author', validating: 'validate', rendering: 'render', reviewing: 'review', repairing: 'repair' }[stage];
+    const run = { preparing: 'prepare', authoring: 'author', validating: 'validate', rendering: 'render', reviewing: 'review', repairing: 'repair' }[stage];
     const out = await this.pipeline[run](structuredClone(job), ctx);
     // A late result (after Stop, Retry or another stage) never overwrites what happened meanwhile.
     await this.locked(async () => {
@@ -934,10 +679,6 @@ export class ExplainJobs {
     // A capability gap (the request needs math, steps, an experiment or a component that cannot be drawn yet) ends the job
     // with what is missing: no repair, no simpler substitute card.
     if (out.gap) { await this.stopWith(job, 'capability_gap', 'capability', out.gap.message); job.failure.gap = out.gap; return this.save(job); }
-    if (DESIGN_STAGES.includes(stage)) return this.applyDesign(job, stage, out);
-    if (this.buildFlow(job) && BUILD_STAGES.includes(stage)) return this.applyBuild(job, stage, out);
-    // The build seam returns what the legacy author returns (a program or a spec) until interact-runner.js owns the new flow's later stages.
-    if (job.flow && stage === 'authoring' && !out.program && !out.spec) return this.stopWith(job, 'build_unsupported', 'internal', 'The scene builder returned nothing this job can continue with.');
     if (stage === 'preparing') {
       job.brief = out.brief; job.briefHash = await sha256Hex(JSON.stringify(out.brief)); job.approval = null; job.refinement = null;
       job.reply = typeof out.reply === 'string' ? out.reply : ''; // the model's own lead-in for the plan message, or nothing
@@ -996,101 +737,8 @@ export class ExplainJobs {
     }
     await this.save(job);
   }
-  // The design stages (interact-design.js decides; this stores, bounds and moves). Each stage's output is written under its own key before the job moves on, so a
-  // restart or a retry resumes from saved work: design:<job>:<rev>:draft | review-N | revision-N | rejected-N | final.
-  async applyDesign(job, stage, out) {
-    const d = job.design, now = Date.now();
-    const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
-    const keep = (name, value) => this.state.storage.put(`design:${job.id}:${d.rev}:${name}`, value);
-    if (out.stop) return this.stopWith(job, out.stop.reason, out.stop.category, out.stop.message, !['design_unresolved'].includes(out.stop.reason));
-    if (out.problems) {
-      // A reply that cannot be used was still a counted call: the stage tries again while its role has calls left, else the design stops with the reasons.
-      const role = { design_authoring: 'author', design_reviewing: 'review', design_revising: 'revise' }[stage];
-      await keep(`${stage}-invalid-${d.counts[role]}`, { problems: out.problems, at: now });
-      if (d.counts[role] < DESIGN_BOUNDS[role]) { if (stage === 'design_revising') d.problems = [...out.problems, ...d.problems].slice(0, 20); return this.save(job); }
-      return this.stopWith(job, 'design_invalid', 'spec', `The scene design could not be completed: ${out.problems.slice(0, 3).map(p => `${p.path || 'plan'}: ${p.message}`).join('; ')}. Try again or edit the request.`, true);
-    }
-    if (stage === 'design_authoring') {
-      Object.assign(d, { plan: out.plan, planHash: out.planHash, draftHash: out.planHash, problems: out.bindingProblems, review: null, pending: null, changes: [], reviews: [], revisions: [] });
-      await keep('draft', { plan: out.plan, planHash: out.planHash, bindingProblems: out.bindingProblems, at: now });
-      next('design_reviewing');
-    } else if (stage === 'design_reviewing') {
-      const followUp = d.revisions.length > 0, blocking = out.review.findings.filter(isBlocking);
-      d.review = out.review;
-      d.reviews.push({ n: d.reviews.length + 1, planHash: d.planHash, verdict: out.review.verdict, overridden: !!out.overridden, blocking: blocking.length, minor: out.review.findings.length - blocking.length, scores: [out.review.learning.score, out.review.sceneQuality.score], followUp });
-      await keep(followUp ? `followup-${d.reviews.length}` : 'review', { review: out.review, planHash: d.planHash, overridden: !!out.overridden, at: now });
-      if (out.review.verdict === 'gap') {
-        const gap = capabilityGap(['other'], blocking.map(f => f.message).join(' ') || out.review.sceneQuality.buildability, 'design');
-        await this.stopWith(job, 'capability_gap', 'capability', gap.message); job.failure.gap = gap; return this.save(job);
-      }
-      // The normal reviser always follows the first review. After a follow-up, findings that still block send it back once more while a revision is left.
-      if (!followUp) next('design_revising');
-      else if (blocking.length) {
-        if (d.counts.revise < DESIGN_BOUNDS.revise) next('design_revising');
-        else return this.stopWith(job, 'design_blocked', 'spec', `The scene plan still had ${blocking.length} blocking finding${blocking.length === 1 ? '' : 's'} after its allowed revisions: ${blocking.slice(0, 3).map(f => f.message).join(' ')} Edit the request and try again.`, true);
-      } else { d.pending = null; next('design_verifying'); }
-    } else if (stage === 'design_revising') {
-      d.pending = out.revision; d.problems = [];
-      d.revisions.push({ n: d.revisions.length + 1, fromHash: d.planHash, changes: out.revision.changes.length, unresolved: out.revision.unresolvedFindingIds });
-      await keep(`revision-${d.revisions.length}`, { revision: out.revision, fromHash: d.planHash, at: now });
-      next('design_verifying');
-    } else if (out.next === 'revise') {
-      await keep(`rejected-${d.revisions.length}`, { problems: out.feedback, ...(out.rejected || {}), at: now });
-      Object.assign(d, { problems: out.feedback, pending: null });
-      next('design_revising');
-    } else if (out.next === 'review') {
-      Object.assign(d, { changes: d.pending.changes, plan: out.plan, planHash: out.planHash, pending: null, problems: [] });
-      next('design_reviewing');
-    } else {
-      // Closed: blocking findings answered, the final plan validated, every panel's runtime bound, the description fit receipt on file. The plan is the proposal.
-      Object.assign(d, { plan: out.plan, planHash: out.planHash, finalHash: out.planHash, fit: out.fit, runtimeHash: out.runtimeHash, open: out.open, carried: out.carried, pending: null, problems: [] });
-      d.approvalHash = await approvalHashOf(job, d);
-      await keep('final', { plan: out.plan, planHash: out.planHash, fit: out.fit, runtimeHash: out.runtimeHash, approvalHash: d.approvalHash, open: out.open, carried: out.carried, at: now });
-      await this.finishUsage({ ...job, actionKey: null }, 'completed');
-      endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
-      job.threadId ??= await this.briefThread(job);
-      await this.postBrief(job);
-    }
-    await this.save(job);
-  }
-
-  // Generate on a scene plan (INT-03-C08): only the exact current final plan, once. Early, stale, edited, cancelled and unbound proposals are refused before anything is
-  // consumed; the proposal's title, description and settings are compared with the plan and never patched into it.
-  async approveScenePlan(job, payload) {
-    const d = job.design, p = payload.proposal;
-    const stale = (message = 'This scene plan changed. Review the latest plan before generating.', code = 'plan_stale') => fail(message, 409, code);
-    if (job.proposal && job.proposal.id === p?.proposal_id && job.proposal.version === p?.version) return json({ job: publicExplainJob(job) });
-    if (job.stage === 'cancelled') throw stale('This explanation was stopped. Ask for it again to make one.');
-    if (DESIGN_STAGES.includes(job.stage)) throw stale('The scene plan is not ready to generate yet.', 'plan_not_ready');
-    if (job.stage !== 'awaiting_approval' || !d.finalHash) throw stale();
-    const refused = await verifyProposal(this.env, p, job.owner.email);
-    if (refused) throw fail(refused, 409, 'proposal_invalid');
-    const want = planProposalFields(job);
-    const bound = ['scene_plan_version', 'scene_plan_hash', 'profile_hash', 'runtime_binding_hash', 'approval_hash', 'plan_revision', 'board', 'revision', 'job', 'org', 'app'].every(key => canonicalJson(p.input?.[key]) === canonicalJson(want.input[key]));
-    if (p.command !== 'explain' || !bound) throw stale();
-    // The stored plan is the one that was hashed and approved, and nothing about the card was edited around it.
-    if (await scenePlanHash(d.plan) !== d.finalHash || await approvalHashOf(job, d) !== d.approvalHash) throw stale('The stored scene plan does not match its approval. Edit the request and try again.');
-    const squash = text => String(text).replace(/\s+/g, ' ').trim();
-    if (squash(p.title) !== squash(want.title) || p.description !== want.description || canonicalJson(p.settings) !== canonicalJson(want.settings) || canonicalJson(p.assumptions ?? []) !== canonicalJson(want.assumptions) || canonicalJson(p.limitations ?? []) !== canonicalJson(want.limitations) || (p.references || []).length) throw stale('This plan was edited without a design review. Use Edit so the change is reviewed.', 'plan_edited');
-    // Still buildable now: every panel's runtime against the tuples this server seals today, and the description fit receipt for exactly this copy.
-    const capabilities = await designCapabilities(this.env, job), parsed = parseScenePlan(d.plan, capabilities), problems = [...(parsed.ok ? [] : parsed.problems), ...runtimeProblems(d.plan, capabilities), ...await descriptionFitProblems(d.plan, d.fit)];
-    if (problems.length) throw fail(`This scene plan can no longer be built as designed (${problems[0].path || 'plan'}: ${problems[0].message}). Edit the request to design it again.`, 409, 'runtime_unavailable');
-    await this.admitGeneration(job);
-    const used = await consumeProposal(this.env.LEARN_DB, p, job.owner.email, { org: job.owner.org, app: job.app }, job.id);
-    if (used) throw fail(used.error, 409, used.code);
-    job.proposal = { id: p.proposal_id, version: p.version };
-    job.settings = want.settings;
-    markTiming(job.timing, 'generate');
-    Object.assign(job, { approval: { scenePlanHash: d.finalHash, profileHash: job.flow.profile.hash, planRevision: d.rev, runtimeHash: d.runtimeHash, approvalHash: d.approvalHash, at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs,
-      // The build's own small record: its role call counts (ceilings of INTERACT_LIMITS.calls), the last failure to repair, the checks' coverage. The candidate itself is under build:<job>:*.
-      build: { counts: { build_author: 0, build_review: 0, build_repair: 0 }, failure: null, check: null, envelopeHash: null } });
-    beginStage(job.timing, 'authoring');
-    await this.save(job); await this.wake();
-    return json({ job: publicExplainJob(job) }, 202);
-  }
-
   async repairOrStop(job, out) {
-    if (!job.flow) await this.recordDefects(job, out.findings); // shared-library defects are the legacy specs' backlog; a composed card's findings are its own program's
+    await this.recordDefects(job, out.findings);
     // A program has no unrepairable finding of its own to blame once the corrections are spent: the budget is the reason it stops.
     const program = job.artifact || job.program;
     if (program && job.round >= EXPLAIN_LIMITS.correctionRounds) return this.stopWith(job, 'rounds', out.category || 'spec', 'The explanation did not pass its checks within three corrections. Edit the request and try again.');
