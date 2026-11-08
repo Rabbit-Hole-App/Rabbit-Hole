@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveVisualRequirements, requiredVisualProblem, requirementText, danglingFigureProblem } from '../src/explanation-visuals.js';
-import { markdownVisuals, explanationProseChars } from '../src/learn-primitives.js';
+import { markdownVisuals, explanationProseChars, simplifiedDiagram } from '../src/learn-primitives.js';
 import { artifactFetch, generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
 import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
@@ -150,11 +150,12 @@ test('optional diagram degradation: a valid required diagram beside an invalid o
   const optionalOnly = { title: 'T', body: `Softmax turns scores into probabilities.\n\n${SOFTMAX}\n\nThe largest score gets the largest share.\n\n${optionalBad}\n\nThe shares add up to one.` };
   const fine = await quiet(() => generate('Explain softmax', [optionalOnly, optionalOnly]));
   assert.deepEqual([fine.out.result, fine.out.diagramsDropped], ['artifact', 1]);
-  // EXP-13: a visual is required, so dropping the card's only diagram leaves no visual and the card fails truthfully.
+  // Owner 2026-11-08 (a card should not fail; replaces EXP-13's "the card fails truthfully"): the card's only diagram is invalid after the repair and has one
+  // label, too few to simplify, so the prose card is delivered without a visual, recorded on the card and not as an error.
   const onlyBad = { title: 'T', body: `Softmax turns scores into probabilities.\n\n${optionalBad}\n\nThe shares add up to one.` };
   const lost = await quiet(() => generate('Explain softmax', [onlyBad, onlyBad]));
-  assert.equal(lost.out.result, 'validation_error');
-  assert.match(lost.out.error, /explanation_missing_visual/);
+  assert.deepEqual([lost.out.result, lost.out.block.visualFallback, lost.out.diagramsDropped, lost.out.block.body], ['artifact', 'dropped', 1, 'Softmax turns scores into probabilities.\n\nThe shares add up to one.']);
+  assert.equal(lost.m.seen.length, 2, 'the one repair was tried first');
   const pointing = { title: 'T', body: `Softmax turns scores into probabilities, as the diagram below shows.\n\n${SOFTMAX}\n\nThe largest score gets the largest share.\n\n${optionalBad}\n\nThe shares add up to one.` };
   const dangling = await quiet(() => generate('Explain softmax', [pointing, pointing]));
   assert.equal(dangling.out.result, 'validation_error');
@@ -165,6 +166,27 @@ test('optional diagram degradation: a valid required diagram beside an invalid o
   const wrongOne = await quiet(() => generate(EX07, [reqBad, reqBad]));
   assert.equal(wrongOne.out.result, 'artifact', 'a valid diagram remains for the one requirement, so the invalid extra is the optional one');
   assert.equal(wrongOne.out.diagramsDropped, 1);
+});
+
+test('owner 2026-11-08, a card should not fail: the only diagram still invalid after the repair becomes a straight flow of its own labels, no model call', async () => {
+  // The heart's loop drawn as a flow has no start node, which a flow refuses ("A flow needs exactly one root").
+  const labels = ['Right atrium', 'Right ventricle', 'Lungs', 'Left atrium', 'Left ventricle', 'Body'];
+  const loop = { kind: 'flow', title: 'Blood through the heart', caption: 'Blood loops through the heart twice.', nodes: labels.map((label, i) => ({ id: `s${i}`, label, role: 'process' })),
+    edges: labels.map((_, i) => ({ from: `s${i}`, to: `s${(i + 1) % labels.length}` })) };
+  const card = { title: 'How the heart pumps', body: `The heart is two pumps side by side, moving blood from the body to the lungs and back.\n\n${diagram(loop)}\n\nEach beat squeezes the atria first, then the ventricles.` };
+  const { out, m } = await quiet(() => generate('How does the human heart pump blood?', [card, card]));
+  assert.deepEqual([out.result, out.block.visualFallback, out.diagramsSimplified, out.diagramsDropped, m.seen.length], ['artifact', 'simplified', 1, undefined, 2]);
+  const [drawn] = markdownVisuals(out.block.body).diagrams;
+  assert.deepEqual([drawn.ok, drawn.kind], [true, 'flow']);
+  const spec = JSON.parse(out.block.body.match(/```rh-diagram\n(.*)\n```/)[1]).diagram;
+  assert.deepEqual([spec.title, spec.caption, spec.nodes.map(n => n.label), spec.nodes.map(n => n.role).at(-1), spec.edges.length], [loop.title, loop.caption, labels, 'outcome', 5]);
+  assert.ok(out.block.body.startsWith('The heart is two pumps') && out.block.body.endsWith('then the ventricles.'), 'the prose around it is kept');
+  // With a repair left, nothing is simplified: the validator's words go to the model first.
+  assert.match(m.seen[1].messages.at(-1).content[0].content, /exactly one root/);
+  // (A diagram beside another valid visual is still dropped, not simplified: the optional-degradation test above.)
+  assert.equal(simplifiedDiagram(['not json']), null);
+  assert.equal(simplifiedDiagram([JSON.stringify({ version: 1, diagram: { kind: 'cycle', title: 'One', steps: ['only'] } })]), null, 'fewer than two labels');
+  assert.deepEqual(simplifiedDiagram([JSON.stringify({ version: 1, diagram: { kind: 'cycle', title: 'Water cycle', steps: ['Evaporation', 'Condensation', 'Rain', 'Runoff', 'Soak', 'Flow', 'Melt', 'Freeze'] } })]).diagram.nodes.length, 8, 'a cycle over its 7 steps keeps its labels as a flow');
 });
 
 test('the route reads the requirement from the learner\'s own args on the server, ignores context words, and answers an unsupported picture before any call', async () => {

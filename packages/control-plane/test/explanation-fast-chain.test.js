@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { EXPLANATION_PROFILE_SETTING, EXPLANATION_REGISTRY, explanationProfileBinding, explanationProfileFor, resolveExplanationProfile } from '../src/explanation-models.js';
-import { CHAIN_ENDPOINTS, FALLBACK_SETTING, stepRequest } from '../src/explanation-fast-chain.js';
+import { CHAIN_ENDPOINTS, FALLBACK_SETTING, stepRequest, withoutBounds } from '../src/explanation-fast-chain.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { EXPLANATION_GUIDANCE, artifactBlock, explanationProblem, settleExplanationBody } from '../src/learn-primitives.js';
 import { explanationTarget } from '../src/chat-depth.js';
@@ -154,6 +154,53 @@ test('an exclusive oneOf is sent as anyOf; a non-exclusive one is refused, not w
   assert.match(stepRequest(step, 'low', withPart({ type: 'document', title: 'notes.txt', source: { type: 'text', media_type: 'text/plain', data: 'Heat flows.' } })).messages[1].content, /<document title="notes.txt">\nHeat flows.\n<\/document>/);
   for (const part of [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA' } }, { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'AA' } }])
     assert.throws(() => stepRequest(step, 'low', withPart(part)), e => e.final && /text only/.test(e.message));
+});
+
+// Gemini stand-in. Bisected against the real endpoint 2026-11-08: the fallback request was refused with HTTP 400 INVALID_ARGUMENT ("Request contains an
+// invalid argument.") while its response schema held any maxItems (Gemini's state-machine limit, https://aistudio.google.com/docs/structured-output), and
+// accepted once they were dropped. The stand-in refuses that shape the way Gemini did, so the fallback path runs in CI.
+const hasMaxItems = o => (Array.isArray(o) ? o.some(hasMaxItems) : !!o && typeof o === 'object' && Object.entries(o).some(([k, v]) => (k === 'maxItems' && typeof v === 'number') || hasMaxItems(v)));
+const geminiRefuses = body => body.model !== 'gemini-3.5-flash-lite' || body.response_format?.type !== 'json_schema' || hasMaxItems(body.response_format.json_schema?.schema);
+const GEMINI_400 = { error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } };
+const GEMINI_FIXTURE = JSON.parse(readFileSync(new URL('./fixtures/explanation-gemini-request.json', import.meta.url), 'utf8'));
+const shapeOf = ({ messages, ...rest }) => rest;
+
+test('the Gemini step request: array and numeric bounds dropped from its schema only (pinned against the request Gemini refused on 2026-11-08); Fireworks keeps them', async t => {
+  assert.ok(geminiRefuses(GEMINI_FIXTURE.rejected), 'the stand-in refuses the request Gemini refused');
+  assert.ok(!geminiRefuses(GEMINI_FIXTURE.sent), 'and accepts the one Gemini accepted');
+  assert.deepEqual(withoutBounds(GEMINI_FIXTURE.rejected.response_format), GEMINI_FIXTURE.sent.response_format, 'the transform turns the refused schema into the accepted one');
+  const sent = providers(t, ok(card));
+  quiet(t);
+  await ask(offline('fireworks-low', { FIREWORKS_API_KEY: '' }), 'how does the human heart pump blood?', {}).catch(() => null);
+  await ask(offline('fireworks-low', { GEMINI_API_KEY: '' }), 'how does the human heart pump blood?', {}).catch(() => null);
+  const [gemini, fireworks] = sent.map(s => s.body);
+  assert.deepEqual(sent.map(s => s.provider), ['google', 'fireworks']);
+  assert.deepEqual(shapeOf(gemini), GEMINI_FIXTURE.sent, 'the Gemini request shape changed: check it against the real endpoint, then update test/fixtures/explanation-gemini-request.json');
+  assert.ok(hasMaxItems(fireworks.response_format.json_schema.schema), 'the Fireworks step still sends the bounded schema');
+  assert.deepEqual(withoutBounds(fireworks.response_format), gemini.response_format, 'the bounds are the only difference');
+  // A property NAMED like a bound is a field, not a keyword: it is kept.
+  assert.deepEqual(withoutBounds({ type: 'object', properties: { maxItems: { type: 'number', maximum: 3 } }, minItems: 1 }), { type: 'object', properties: { maxItems: { type: 'number' } } });
+});
+
+test('the fallback path end to end: Fireworks fails, the Gemini step request passes the stand-in, and its card is delivered, priced and settled', async t => {
+  quiet(t);
+  const { sqlite, LEARN_DB } = d1(t);
+  const sent = [], original = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body), provider = Object.keys(URL_OF).find(k => URL_OF[k] === url);
+    sent.push({ provider, body });
+    if (provider === 'fireworks') return Response.json({ message: 'synthetic failure' }, { status: 503 });
+    if (geminiRefuses(body)) return Response.json([GEMINI_400], { status: 400 });
+    return Response.json({ model: body.model, choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: JSON.stringify(card) } }], usage: { prompt_tokens: 1000, completion_tokens: 2000 } });
+  };
+  t.after(() => { globalThis.fetch = original; });
+  const out = await ask(metered(LEARN_DB, 'fireworks-low'));
+  assert.equal(out.result, 'artifact');
+  assert.deepEqual(steps(out), [['fireworks', 'provider_error'], ['google', 'artifact']]);
+  assert.deepEqual(out.block.authoredBy, { provider: 'google', model: 'gemini-3.5-flash-lite' });
+  assert.deepEqual(out.block.title, card.title);
+  // 1,000 input at $0.30/M + 2,000 output at $2.50/M = $0.0053, from the provider's own counts.
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.status, a.cost_micros]), [['fireworks', 'failed', null], ['google', 'settled', 5300]], 'the failed Fireworks call settles with no cost recorded, as any 5xx');
 });
 
 test('end to end on the real ledger: the card records who wrote it, and the call is reserved and settled at that provider\'s price', async t => {

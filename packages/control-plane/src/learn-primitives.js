@@ -384,12 +384,36 @@ export function withoutIllustrations(md, ids) {
 // delivered without a diagram that cannot be drawn. A Mermaid fence is still refused, not dropped. -> { block, dropped }; the block is the same
 // object when nothing was dropped.
 const parses = lines => { try { parseTutorDiagram(lines.join('\n')); return true; } catch { return false; } };
-function dropFrom(md) {
-  const out = []; let open = null, dropped = 0;
+// Owner 2026-11-08 (a card should not fail): an invalid diagram the one repair did not fix becomes, with no model call, a straight flow of its own labels in
+// the order written (n1 -> n2 -> ..., each a process, the last the outcome; title and caption kept when they fit). -> the spec, or null when the fence is
+// not JSON or fewer than two labels can be read.
+const LABEL_LISTS = ['nodes', 'steps', 'events', 'layers', 'actors', 'messages', 'bars', 'changes', 'markers', 'callouts'];
+const fit = (s, max) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, ''); };
+export function simplifiedDiagram(lines) {
+  let d; try { d = JSON.parse(lines.join('\n'))?.diagram; } catch { return null; }
+  const list = LABEL_LISTS.map(k => d?.[k]).find(v => Array.isArray(v) && v.length >= 2) || [];
+  const labels = [...new Set(list.map(x => (typeof x === 'string' ? x : x?.label)).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60)))].slice(0, 12);
+  if (labels.length < 2) return null;
+  const title = fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0]} to ${labels.at(-1)}`, 90);
+  const caption = typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {};
+  const spec = { version: 1, diagram: { title, ...caption, kind: 'flow', nodes: labels.map((label, i) => ({ id: `n${i + 1}`, label, role: i === labels.length - 1 ? 'outcome' : 'process' })),
+    edges: labels.slice(1).map((_, i) => ({ from: `n${i + 1}`, to: `n${i + 2}` })) } };
+  try { return parseTutorDiagram(spec); } catch { return null; }
+}
+// simplify: an invalid closed diagram is replaced by simplifiedDiagram when it can be, else removed. -> { md, dropped (removed or replaced), simplified }
+function dropFrom(md, simplify = false) {
+  const out = []; let open = null, dropped = 0, simplified = 0;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       open.raw.push(line);
-      if (/^\s*```/.test(line)) { if (open.lang === DIAGRAM && !parses(open.lines)) dropped++; else out.push(...open.raw); open = null; } else open.lines.push(line);
+      if (/^\s*```/.test(line)) {
+        if (open.lang === DIAGRAM && !parses(open.lines)) {
+          dropped++;
+          const spec = simplify && simplifiedDiagram(open.lines);
+          if (spec) { simplified++; out.push(open.raw[0], JSON.stringify(spec), line); }
+        } else out.push(...open.raw);
+        open = null;
+      } else open.lines.push(line);
       continue;
     }
     const m = line.match(FENCE);
@@ -397,14 +421,14 @@ function dropFrom(md) {
     out.push(line);
   }
   if (open) { if (open.lang === DIAGRAM) dropped++; else out.push(...open.raw); }
-  return dropped ? { md: out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), dropped } : { md, dropped: 0 };
+  return dropped ? { md: out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), dropped, simplified } : { md, dropped: 0, simplified: 0 };
 }
-export function dropInvalidDiagrams(block) {
-  const body = dropFrom(block?.body);
-  const more = (block?.more || []).map(s => ({ s, d: dropFrom(s?.text) }));
-  const dropped = body.dropped + more.reduce((n, { d }) => n + d.dropped, 0);
-  if (!dropped) return { block, dropped: 0 };
-  return { block: { ...block, body: body.md, ...(block.more ? { more: more.map(({ s, d }) => (d.dropped ? { ...s, text: d.md } : s)) } : {}) }, dropped };
+export function dropInvalidDiagrams(block, { simplify = false } = {}) {
+  const body = dropFrom(block?.body, simplify);
+  const more = (block?.more || []).map(s => ({ s, d: dropFrom(s?.text, simplify) }));
+  const dropped = body.dropped + more.reduce((n, { d }) => n + d.dropped, 0), simplified = body.simplified + more.reduce((n, { d }) => n + d.simplified, 0);
+  if (!dropped) return { block, dropped: 0, simplified: 0 };
+  return { block: { ...block, body: body.md, ...(block.more ? { more: more.map(({ s, d }) => (d.dropped ? { ...s, text: d.md } : s)) } : {}) }, dropped, simplified };
 }
 
 // E1: the tables and diagrams a Markdown string really holds, for the required-visual check (explanation-visuals.js). A pipe table is complete only with a header row, a
@@ -537,6 +561,7 @@ export const contentWords = text => new Set((String(text ?? '').toLowerCase().ma
 export function explanationLayoutProblem(block, question = '') {
   if (block?.more?.length) return 'explanation_layout: a new card has no folded sections; put everything in the body.';
   const parts = explanationParts(block?.body), visuals = parts.filter(p => p.kind === 'visual');
+  if (!visuals.length && block?.visualFallback === 'dropped') return null; // the server removed the only visual it could neither draw nor simplify (learn-artifact.js)
   if (!visuals.length) return 'explanation_missing_visual: the card needs one or two visuals, an rh-diagram or an rh-illustration fence, each with prose before and after it; add one that shows what the question asks.';
   if (visuals.length > 2) return `explanation_too_many_visuals: the card has ${visuals.length} visuals; keep one or two, each with prose before and after it.`;
   if (!/^P(?:VP){1,2}$/.test(parts.map(p => (p.kind === 'prose' ? 'P' : 'V')).join(''))) return 'explanation_layout: a visual needs prose before and after it; write prose, visual, prose (optionally visual, prose), with paragraph or list text between two visuals.';
