@@ -6,9 +6,9 @@ import { programInputs, programSeed, programStateFor } from './program-card.js';
 // ProgramScene's thin binding to interaction.js for a schema 2 card: one controller per host, the committed state for the frame
 // scheduler, settled states saved through persist (the owner's board save, or a share-link visitor's or a Proposed preview's in-memory
 // copy). A schema 1 card gets { stateful: false, ready: true } and nothing else runs.
-//   useProgramState({ host, hostKey, artifact, block, time, persist(envelope, { reset }), fail })
+//   useProgramState({ host, hostKey, artifact, block, time, composition, persist(envelope, { reset }), fail })
 //     -> { stateful, envelope, changed, last, ready, full, dispatch(event, context) -> boolean, reset(inputs) }
-export function useProgramState({ host, hostKey, artifact, block, time, persist, fail }) {
+export function useProgramState({ host, hostKey, artifact, block, time, composition = null, persist, fail }) {
   const stateful = artifact?.schemaVersion === STATEFUL_SCHEMA_VERSION;
   const [envelope, setEnvelope] = useState(null);
   const [pending, setPending] = useState(0);
@@ -16,7 +16,7 @@ export function useProgramState({ host, hostKey, artifact, block, time, persist,
   const [changed, setChanged] = useState(false); // a transition since the last initialization (a rehydrated state counts as one)
   const controller = useRef(null);
   const latest = useRef(null);
-  latest.current = { block, time, persist, fail };
+  latest.current = { block, time, composition, persist, fail };
   useEffect(() => {
     setEnvelope(null);
     setPending(0);
@@ -32,7 +32,7 @@ export function useProgramState({ host, hostKey, artifact, block, time, persist,
       persist: (next, how) => latest.current.persist(next, how),
       fail: error => { setPending(0); latest.current.fail(error); },
       // A new state is kept only if its frame is valid too, at the inputs and time it was computed for (never newer ones).
-      check: (next, { inputs, time: moment }) => checkStateFrame({ host, manifest: artifact.manifest, block: latest.current.block, inputs, time: moment, state: next.state, requestId: `c${++checks}` }),
+      check: (next, { inputs, time: moment }) => checkStateFrame({ host, manifest: artifact.manifest, block: latest.current.block, composition: latest.current.composition, inputs, time: moment, state: next.state, requestId: `c${++checks}` }),
     });
     controller.current = created;
     // A saved state is restored with the input snapshot it was committed with, and nothing else: a change that never committed (it failed,
