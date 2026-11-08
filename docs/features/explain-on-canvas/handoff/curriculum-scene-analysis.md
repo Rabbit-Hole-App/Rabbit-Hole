@@ -606,6 +606,15 @@ Three more hand-authored examples extend the teaching registry to **six examples
 
 [Claude handoff: prompts, numerical checks and dev acceptance](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/08dd084784f6551c844a2afa332372dac89854ea/docs/features/explain-on-canvas/handoff/ai-example-regeneration-handoff.md). Task `e3e779ff-23c6-43ab-b4fb-5b06f9eda2a4`.
 
+## Decision Tree Split Explorer · implemented 2026-11-08
+
+- [x] Added `fixture-ai-tree-split` as the seventh hand-authored AI teaching example. Ten labeled points on one feature illustrate the first decision tree split using the existing 2D plot and card controls.
+- [x] The cutoff updates the left and right class counts, original impurity, weighted child impurity and gain. Reveal preserves the learner's cutoff and marks the best of nine midpoints. Gini picks 9 and entropy picks 15 on this dataset.
+- [x] Nine focused sandbox and resolver checks passed, including persisted reveal state and Reset. The dev web build passed. Initial and revealed static scenes were inspected.
+- [ ] Live browser acceptance and real generation through `/interact`.
+
+**Pushed** [`chatgpt/decision-tree-split-explorer`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/chatgpt/decision-tree-split-explorer) at [`3365b53e`](https://github.com/Rabbit-Hole-App/Rabbit-Hole/commit/3365b53e365d64ebd4c9aa3434bbbb940ae81826). This example uses existing components. The capability ledger and frozen topic audit retain their counts.
+
 ## Review criteria
 
 - Read the story on its own. The ending should answer the opening question, and the explanation should account for the cause of the outcome.
