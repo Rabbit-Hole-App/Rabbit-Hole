@@ -11,7 +11,6 @@ import { artifactFetch, generateArtifact } from '../src/learn-artifact.js';
 import { setDepth } from '../src/learn-user-settings.js';
 import { depthInstruction } from '../src/chat-depth.js';
 import { BOARD, OWNER, explainStack } from './explain-fixture.js';
-import { withVisual } from './explanation-layout-fixture.js';
 
 const MIGRATION = readFileSync(new URL('../learn-migrations/0037-learn-user-settings.sql', import.meta.url), 'utf8');
 const SUMMARY = 'The card shows how a pendulum swings. It names the length and the period.';
@@ -178,7 +177,7 @@ test('artifact route: invalid depth rejected before model, the saved Depth only 
 });
 
 test('artifact repair keeps original Depth: the one repair call carries the same Depth sentence and request JSON as the first call', async () => {
-  const calls = [], bad = { title: 'Why softmax', body: '' }, good = { title: 'Why softmax', body: withVisual('Softmax turns scores into probabilities.') }; // EXP-13, owner 2026-11-08: a new card has a visual
+  const calls = [], bad = { title: 'Why softmax', body: '' }, good = { title: 'Why softmax', body: 'It turns scores into probabilities.' };
   const replies = [['make_explanation', bad], ['make_explanation', good]];
   const callModel = async (env, body) => { calls.push({ system: body.system, content: body.messages[0].content, messages: body.messages.length }); const [name, input] = replies[calls.length - 1]; return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${calls.length}`, name, input }] }); };
   const out = await generateArtifact({}, { command: 'explain', args: 'how softmax works', depth: 'deep' }, { callModel });

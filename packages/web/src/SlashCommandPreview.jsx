@@ -6,7 +6,6 @@
 // explanation's scene, a video) is narrowed until the whole card fits. Fixtures come from slash-sheet.js; nothing here generates,
 // searches, captures, grades or saves (the notebook's own in-browser Python runs only what the visitor runs).
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { GripHorizontal } from 'lucide-react';
 import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
 import CardHeader from './CardHeader.jsx';
 import NotebookBody from './NotebookCard.jsx';
@@ -146,7 +145,7 @@ function CardPreview({ preview, stage, appName, narrow }) {
   const body = (
     <div ref={card} data-slash-card={type} style={{ width, height, maxHeight }} {...guard} {...(type === 'image' ? noEnter : {})}
       className={`group relative flex shrink-0 cursor-default flex-col rounded-xl border select-text ${spec.ghost ? 'border-line bg-surface' : 'border-line bg-surface shadow-sm'} ${type === 'image' ? IMAGE_RESULT : ''} ${type === 'animation3d' ? ANIMATION_FIT : ''}`}>
-      <div aria-hidden className="flex h-6 shrink-0 items-center justify-center rounded-t-xl"><GripHorizontal size={13} className="text-ink-3 opacity-0 transition-opacity group-hover:opacity-100" /></div>
+      <div aria-hidden className="flex h-6 shrink-0 items-center justify-center rounded-t-xl"><span className="h-1 w-12 rounded-full bg-line" /></div>
       {clip === null
         ? <p data-slash-clip-loading className="px-4 py-3 text-xs text-ink-2">Loading the example video</p>
         : <LearningBlockBody block={clip && clip !== block.src ? { ...block, src: clip, variants: [{ src: clip }], variant: 0 } : block} onChange={setBlock} onChangeQuiet={setBlock}
@@ -192,7 +191,7 @@ function NotebookPreview({ block, stage }) {
 function Shell({ kind, width, height, children }) {
   return (
     <div data-slash-card={kind} style={{ width, height }} {...guard} className="flex shrink-0 flex-col rounded-xl border border-line bg-surface shadow-sm">
-      <div aria-hidden className="h-6 shrink-0 rounded-t-xl" />
+      <div aria-hidden className="flex h-6 shrink-0 items-center justify-center rounded-t-xl"><span className="h-1 w-12 rounded-full bg-line" /></div>
       {children}
     </div>
   );

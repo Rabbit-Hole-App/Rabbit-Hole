@@ -18,7 +18,7 @@ import { ctrlkCommands } from './inline-ai-command.js';
 import { PREVIEWS, previewBlock } from './slash-sheet.js';
 import { draftSlot } from './chat-draft.js';
 import { sentCommand } from './command-token.js';
-import { explanationProblem, explanationProseChars } from '../../control-plane/src/learn-primitives.js';
+import { explanationProblem, explanationText } from '../../control-plane/src/learn-primitives.js';
 import { EXPLANATION_CAPS } from '../../control-plane/src/chat-depth.js';
 
 const WRITTEN = '/explain Why does coffee cool faster at first? Include a small table comparing early and late cooling.';
@@ -104,7 +104,7 @@ test('the written command makes a card directly: no job, the Explanation primiti
   assert.equal(started.length, 0, 'no explain job');
   const request = posts.find(([path]) => path === '/api/learn/artifact')[1];
   assert.deepEqual([request.command, request.args, request.context], ['explanation', 'how a heap keeps its order', 'a tree']);
-  assert.deepEqual([out.notice, out.prompt], [null, undefined], 'no "Added an explanation" notice (owner 2026-11-08) and no prompt to the chat');
+  assert.ok(out.notice, 'it answers with a notice, not a prompt to the chat');
   assert.deepEqual(posts.filter(([path]) => path !== '/api/learn/artifact').map(entry => entry[0]), ['inserted'], 'the card is inserted by the same canvas hook');
 });
 
@@ -120,7 +120,7 @@ test('the written preview is the example\'s answer: a saved Explanation block wi
   assert.equal(fixture.prompt, WRITTEN_ARGS, 'the fixture answers exactly the prompt Use example fills');
   assert.deepEqual([block.title, block.body], [fixture.block.title, fixture.block.body]);
   for (const depth of Object.keys(EXPLANATION_CAPS)) assert.equal(explanationProblem(block, depth), null, `${depth}: within ${EXPLANATION_CAPS[depth]} characters and every diagram supported`);
-  assert.ok(explanationProseChars(block) <= EXPLANATION_CAPS.overview, 'its prose fits the 600 target (EXP-13: only prose counts), with one visual between prose');
+  assert.ok(Array.from(explanationText(block)).length <= EXPLANATION_CAPS.overview, 'fits the smallest Depth, so the Depth the learner picked cannot make it an over-length card');
   const rows = block.body.split('\n').filter(line => /^\|/.test(line));
   assert.match(rows[0], /Early/); assert.match(rows[0], /Late/);
   const dataRows = rows.slice(2);

@@ -442,8 +442,7 @@ test('a Context capture: no board reference, unreachable through a share link or
   const forked = await board('POST', '/api/learn/boards/fork', 'friend', { source: { token: links.view } });
   for (const id of ids) {
     assert.equal(await file(id, 'owner'), 200, 'its owner reads it');
-    // canvas-file-imports.md 4.1 rule 1: the owner reads their own source whatever scope the page names (2026-11-08); a board still grants no one else a read.
-    assert.equal(await file(id, 'owner', '?app=demo-app&board=main'), 200, 'its owner, even through a board that has no card of it');
+    assert.equal(await file(id, 'owner', '?app=demo-app&board=main'), 404, 'not through a board that has no card of it');
     assert.equal(await file(id, 'friend', `?share=${links.view}`), 404, 'a shared-board viewer never reads a Context capture');
     assert.equal(await file(id, 'friend', `?app=${forked.body.name}&board=main`), 404, 'nor a fork');
   }

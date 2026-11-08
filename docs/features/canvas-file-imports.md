@@ -215,10 +215,7 @@ share or publication link; `sharedAccess` decides who it admits), `{ row }` (a `
 authorized for this requester: their own board, a fork, a member board), or nothing (the source's owner only). It
 returns `{ source, via: 'owner' | 'board' | 'link', board? }` or a Response: 401 to sign in, otherwise the same 404 for
 every refusal. `fileRefSources(state)` lists a state's referenced source ids. Every file route calls it; none checks
-access its own way. The original download (`learn-files.js`) applies rule 1 in every scope (2026-11-08): when a read
-through `?app=&board=`, `?member=` or `?share=` is refused, the source's own owner still reads it, exactly as the bare
-owner read does, so a new written Explanation's picture shows before the board save that references it lands. Anyone
-else keeps the first refusal (a signed-out link viewer still gets 404).
+access its own way.
 
 **A reference authorizes only when it is a `file_source_refs` row** (`packages/control-plane/src/file-refs.js`, built,
 tested in `test/file-access.test.js`), never because a card merely names an id:

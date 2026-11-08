@@ -19,7 +19,7 @@ const RETRIEVED = '2026-10-23';
 
 // [provider, model, tier, category, usd, per, status, note, source]. retrieved is the day an official page was read (null for the owner table).
 const ROWS = [];
-const row = (provider, model, tier, category, usd, per, status, note = null, source = OWNER, retrieved = RETRIEVED) => ROWS.push({ provider, model, tier, category, usd, per, status, note, source, retrieved: /^https/.test(source) ? retrieved : null });
+const row = (provider, model, tier, category, usd, per, status, note = null, source = OWNER) => ROWS.push({ provider, model, tier, category, usd, per, status, note, source, retrieved: /^https/.test(source) ? RETRIEVED : null });
 
 // Anthropic: every figure is on the official pricing page (read 2026-10-23): a 5-minute write is 1.25x input, a 1-hour write 2x,
 // a read 0.1x (0.05x on Opus 5.5 and Sonnet 5.5, so $0.20 and $0.10; Sonnet 5.5 was $0.20 until 2026-10-07). Fast mode is its own
@@ -58,19 +58,6 @@ for (const model of ['gpt-4.1-mini', 'gpt-4.1-mini-2025-04-14']) {
   row('openai', model, 'standard', 'output', 1.6, PER.mtok, VERIFIED);
   row('openai', model, 'standard', 'cache_read', 0.1, PER.mtok, VERIFIED, null, OPENAI_PRICING);
 }
-// The written /explain fast chain (explanation-fast-chain.js, profiles cerebras-*), each read on the provider's official page 2026-11-08. No cache rows:
-// cached prompt tokens are charged at the input rate (an over-estimate). PRICE_VERSION is not bumped (the gpt-transcribe precedent): nothing prices with
-// these rows until EXPLANATION_MODEL_PROFILE names a cerebras profile.
-// Cerebras: the model page states "$0.35 per million input tokens, $0.75 per million output tokens" (www.cerebras.ai/pricing did not load its tables as text).
-const CEREBRAS_GPT_OSS = 'https://inference-docs.cerebras.ai/models/openai-oss', FIREWORKS_PRICING = 'https://fireworks.ai/pricing', GEMINI_PRICING = 'https://aistudio.google.com/docs/pricing';
-row('cerebras', 'gpt-oss-120b', 'standard', 'input', 0.35, PER.mtok, VERIFIED, null, CEREBRAS_GPT_OSS, '2026-11-08');
-row('cerebras', 'gpt-oss-120b', 'standard', 'output', 0.75, PER.mtok, VERIFIED, 'includes reasoning tokens', CEREBRAS_GPT_OSS, '2026-11-08');
-// Fireworks serverless standard rate for OpenAI GPT OSS 120B: $0.15 input ($0.015 cached), $0.60 output (Priority $0.18 / $0.72 is not used).
-row('fireworks', 'accounts/fireworks/models/gpt-oss-120b', 'standard', 'input', 0.15, PER.mtok, VERIFIED, null, FIREWORKS_PRICING, '2026-11-08');
-row('fireworks', 'accounts/fireworks/models/gpt-oss-120b', 'standard', 'output', 0.6, PER.mtok, VERIFIED, null, FIREWORKS_PRICING, '2026-11-08');
-// Gemini 3.5 Flash-Lite paid Standard tier: $0.30 input (text / image / video / audio), $2.50 output "including thinking tokens" (ai.google.dev/gemini-api/docs/pricing redirects here).
-row('google', 'gemini-3.5-flash-lite', 'standard', 'input', 0.3, PER.mtok, VERIFIED, null, GEMINI_PRICING, '2026-11-08');
-row('google', 'gemini-3.5-flash-lite', 'standard', 'output', 2.5, PER.mtok, VERIFIED, 'includes thinking tokens', GEMINI_PRICING, '2026-11-08');
 // JEV 1.13 (practice grading, platform-funded: recorded apart, never in the user's balance): $0.042 per million input, free output.
 for (const model of ['jev-1.13.0', 'jev-1.13']) {
   row('jev', model, 'standard', 'input', 0.042, PER.mtok, VERIFIED, 'platform-funded');

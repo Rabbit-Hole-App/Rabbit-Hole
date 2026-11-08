@@ -1,7 +1,0 @@
-{
-  "kind": "calibration",
-  "entry": "direct",
-  "id": "cal-wrong-fact",
-  "base": "ex02p-gini-standard",
-  "script": "wrong-fact"
-}

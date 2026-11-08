@@ -640,8 +640,6 @@ a {
 /* A canvas drag keeps the pointer even when it crosses an embedded page
    (notebook, PDF, video); see startDrag in AdaptiveCanvas.jsx. */
 .canvas-dragging iframe { pointer-events: none; }
-/* A drag that starts during a camera glide (AdaptiveCanvas glideTo) follows the pointer at once, never through the glide's transition. */
-.canvas-dragging [data-canvas-world] { transition: none; }
 
 /* Excalidraw's own rule for its overlay layer doesn't survive our Tailwind cascade -
    without it the layer swallows pointer events and nothing can be drawn. */

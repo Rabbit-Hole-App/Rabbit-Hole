@@ -9,7 +9,6 @@ import { MAX_SETTINGS, SAMPLES_NOTE, calculationProblem, cardAtSettings, falseCa
 import { VERIFY_SYSTEM, VERIFY_TOOL } from '../src/agents/learn-scene-verify.js';
 import { attemptKind } from '../src/learn-usage.js';
 import { evaluateScene } from '../../web/src/scene-evaluate.js';
-import { withVisual } from './explanation-layout-fixture.js';
 
 // L10's two real /explain scenes with wrong stored content (2026-10-21 run records, kept exactly as they came back).
 const wrongRun = name => JSON.parse(readFileSync(new URL(`./fixtures/explain-wrong/${name}.json`, import.meta.url), 'utf8'));
@@ -61,7 +60,7 @@ test('an explicit interactive request offers only the scene; a plain-text reques
   const interactive = scripted(['make_animation', scene()]);
   await generateArtifact({}, { command: 'explain', args: 'an interactive look at weighted grades' }, interactive);
   assert.deepEqual(interactive.seen[0].tools.map(tool => tool.name), ['make_animation', 'ask_clarifying_question']);
-  const plain = scripted(['make_explanation', { title: 'Weights', body: withVisual('A weighted average.') }]); // EXP-13, owner 2026-11-08: a new card has a visual
+  const plain = scripted(['make_explanation', { title: 'Weights', body: 'A weighted average.' }]);
   await generateArtifact({}, { command: 'explain', args: 'in plain text: an interactive look at weighted grades' }, plain);
   assert.deepEqual(plain.seen[0].tools.map(tool => tool.name), ['make_explanation', 'ask_clarifying_question']);
   assert.equal(plain.seen[0].max_tokens, 4000);

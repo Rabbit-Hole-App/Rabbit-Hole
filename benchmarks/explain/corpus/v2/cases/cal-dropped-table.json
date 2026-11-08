@@ -1,7 +1,0 @@
-{
-  "kind": "calibration",
-  "entry": "direct",
-  "id": "cal-dropped-table",
-  "base": "ex01-coffee-standard",
-  "script": "no-table"
-}

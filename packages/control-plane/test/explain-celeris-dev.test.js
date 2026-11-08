@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { celerisExplainOn, celerisExplainRoute, ASKS_FOR_DIAGRAM, exclusiveOneOfToAnyOf } from '../src/explain-celeris-dev.js';
 import { tutorDiagramJsonSchema, parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { generateArtifact } from '../src/learn-artifact.js';
-import { withVisual } from './explanation-layout-fixture.js';
 
 const ON = { SMALL_ENV: 'dev', EXPLAIN_CELERIS_DEV: 'true', CELERIS_API_KEY: 'k' };
 const DIAGRAM = { version: 1, diagram: { kind: 'flow', title: 'Cache', nodes: [{ id: 'a', label: 'Read cache', role: 'process' }, { id: 'b', label: 'Return value', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] } };
@@ -27,7 +26,7 @@ test('the dev Celeris route is off unless a dev or test Worker turns it on, for 
 });
 
 test('json_schema mode: title, body and a separate diagram object in one call; RH writes the fence; the guidance is the plan model\'s own; the served model and diagram status are reported', async () => {
-  await withFetch([() => reply({ title: 'How a cache answers', body: 'A cache keeps recent answers.\n\nSo a repeat request skips the slow source.' /* EXP-13: two paragraphs, the route puts the diagram between them */, diagram: DIAGRAM })], async requests => {
+  await withFetch([() => reply({ title: 'How a cache answers', body: 'A cache keeps recent answers so a repeat request skips the slow source.', diagram: DIAGRAM })], async requests => {
     const route = celerisExplainRoute(ON, 'explanation');
     const out = await ask(route, 'How does a cache work?');
     assert.equal(out.result, 'artifact');
@@ -39,20 +38,19 @@ test('json_schema mode: title, body and a separate diagram object in one call; R
     assert.deepEqual(sent.response_format.json_schema.schema.required, ['title', 'body', 'diagram']);
     assert.ok(sent.response_format.json_schema.schema.properties.diagram.anyOf, 'optional when not asked for');
     assert.equal(sent.tools, undefined);
-    assert.match(sent.messages[0].content, /every visual has paragraph or list text both before and after it/, 'the make_explanation guidance, unchanged');
-    assert.match(sent.messages[0].content, /Only the body's prose .* counts toward the budget above.*Do not pad it/); // EXP-13, owner 2026-11-08: prose-only budget
-    assert.deepEqual(route.served(), { requested: 'celeris-1', models: ['celeris-1'], calls: 1, inTokens: 10, outTokens: 5, attempts: [{ required: false, diagram: 'valid', chars: 'How a cache answers'.length + 'A cache keeps recent answers.\n\nSo a repeat request skips the slow source.'.length } /* the answer's own title and body */] });
+    assert.match(sent.messages[0].content, /optional only when neither the learner nor the accepted step requires one/, 'the make_explanation guidance, unchanged');
+    assert.match(sent.messages[0].content, /do not pad it: the Depth's objective/);
+    assert.deepEqual(route.served(), { requested: 'celeris-1', models: ['celeris-1'], calls: 1, inTokens: 10, outTokens: 5, attempts: [{ required: false, diagram: 'valid', chars: out.block.title.length + out.block.body.indexOf('\n\n```rh-diagram') }] });
   });
 });
 
 test('no diagram (null) gives a text card; an unreadable answer is repaired once with the validator\'s words', async () => {
-  // EXP-13, owner 2026-11-08: every new card needs a visual, so the repaired answer carries its own inline diagram in the body.
-  await withFetch([() => reply('not json {'), () => reply({ title: 'DNS', body: withVisual('A resolver asks servers in turn.'), diagram: null })], async requests => {
+  await withFetch([() => reply('not json {'), () => reply({ title: 'DNS', body: 'A resolver asks servers in turn.', diagram: null })], async requests => {
     const route = celerisExplainRoute(ON, 'explanation');
     const out = await ask(route, 'How does DNS work?');
     assert.equal(out.result, 'artifact');
     assert.equal(out.repaired, true);
-    assert.equal(out.block.body, withVisual('A resolver asks servers in turn.'));
+    assert.equal(out.block.body, 'A resolver asks servers in turn.');
     assert.equal(requests.length, 2);
     assert.match(requests[1].body.messages.at(-1).content, /Validation failed/);
     assert.deepEqual(route.served().attempts.map(a => a.diagram), ['omitted', 'omitted']);
@@ -62,7 +60,7 @@ test('no diagram (null) gives a text card; an unreadable answer is repaired once
 test('an explicit diagram request makes the field required; an invalid diagram that survives the one repair is dropped and the valid text is delivered', async () => {
   assert.ok(ASKS_FOR_DIAGRAM.test('Draw a diagram of DNS') && ASKS_FOR_DIAGRAM.test('flowchart of login') && !ASKS_FOR_DIAGRAM.test('How does DNS resolve a domain name?'));
   const bad = { version: 1, diagram: { kind: 'flow', title: 'x', nodes: [], edges: [] } };
-  await withFetch([() => reply({ title: '', body: 'Short.', diagram: DIAGRAM }), () => reply({ title: 'DNS', body: withVisual('A resolver asks servers in turn.'), diagram: bad })], async requests => {
+  await withFetch([() => reply({ title: '', body: 'Short.', diagram: DIAGRAM }), () => reply({ title: 'DNS', body: 'A resolver asks servers in turn.', diagram: bad })], async requests => {
     const route = celerisExplainRoute(ON, 'explanation');
     const out = await ask(route, 'Draw a diagram of how DNS works');
     assert.equal(requests.length, 2, 'one call and one repair');
@@ -70,8 +68,8 @@ test('an explicit diagram request makes the field required; an invalid diagram t
     assert.match(requests[1].body.messages.at(-1).content, /Validation failed/);
     assert.equal(out.result, 'artifact');
     assert.equal(out.diagramsDropped, 1, 'the diagram that still failed is dropped');
-    // EXP-13: the body's own inline visual keeps the card valid once the invalid appended diagram is dropped.
-    assert.equal(out.block.body, withVisual('A resolver asks servers in turn.'));
+    assert.doesNotMatch(out.block.body, /rh-diagram/);
+    assert.equal(out.block.body, 'A resolver asks servers in turn.');
     assert.deepEqual(route.served().attempts.map(a => a.diagram), ['valid', 'invalid']);
   });
 });

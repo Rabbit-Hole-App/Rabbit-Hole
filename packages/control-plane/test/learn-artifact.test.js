@@ -5,7 +5,6 @@ import { PRIMITIVES, artifactBlock } from '../src/learn-primitives.js';
 import { artifactPlan, generateArtifact, artifactFetch } from '../src/learn-artifact.js';
 import { videoProvider } from '../src/video-provider.js';
 import { ManimProvider } from '../src/math-provider.js';
-import { withVisual } from './explanation-layout-fixture.js';
 
 // A model stub: answers each call with the next scripted tool call and
 // records the tools it was offered.
@@ -20,7 +19,7 @@ const scripted = (...replies) => {
 };
 const offered = body => body.tools.map(tool => tool.name);
 
-const explanation = { title: 'Why softmax', body: withVisual('Softmax turns scores into probabilities.') }; // EXP-13, owner 2026-11-08: every new card has a visual
+const explanation = { title: 'Why softmax', body: 'It turns scores into probabilities.' };
 const quiz = { question: 'What does softmax output sum to?', options: [{ text: '1', correct: true }, { text: '0', correct: false }], why: 'It normalises.' };
 const sigmoid = { title: 'Sigmoid', brief: 'Drag k.', spec: { op: 'interactive_plot', id: 'sigmoid', renderer: 'desmos', concept: 'sigmoid', parameters: { k: { value: 1, min: 0.2, max: 5 } }, expressions: [{ id: 'curve', expression: 'y=\\frac{1}{1+e^{-kx}}' }] } };
 const loss = { title: 'Loss', brief: 'Loss falls.', illustrative: true, spec: { op: 'interactive_plot', id: 'loss', renderer: 'plotly', concept: 'training loss', traces: [{ id: 'train', type: 'line', x: [0, 1, 2], y: [3, 2, 1.5] }] } };
@@ -267,13 +266,11 @@ test('the availability preflight agrees with the providers own not-configured ch
 
 // ---- Owner 2026-11-07: /explain is split. The written command (id `explanation`, typed /explain) makes one Explanation card through the
 // same server path; the playable one keeps the saved id `explain` (typed /interactive). The narrowing is by command, never by wording.
-import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
-import { explanationProseChars } from '../src/learn-primitives.js';
+import { EXPLANATION_CAPS } from '../src/chat-depth.js';
+import { explanationChars } from '../src/learn-primitives.js';
 
 const COOLING_TABLE = ['Heat leaves the cup in proportion to the temperature gap.', '', '| | Early | Late |', '| --- | --- | --- |', '| Gap to the room | Large | Small |', '| Heat lost each minute | Fast | Slow |'].join('\n');
-// EXP-13, owner 2026-11-08: prose with the table inside it, a diagram, prose; only the prose counts toward the budget (asked for 600, refused above 700).
-const COOLING = withVisual(COOLING_TABLE, { after: 'So the cup cools fastest at first.' });
-const padTo = (limit, extra = {}) => ({ title: 'Why coffee cools', body: withVisual(COOLING_TABLE, { after: 'x'.repeat(limit - explanationProseChars({ body: COOLING_TABLE }) - 1) }), ...extra });
+const padTo = (limit, extra = {}) => ({ title: 'Why coffee cools', body: COOLING_TABLE + '\n\n' + 'x'.repeat(limit - explanationChars({ title: 'Why coffee cools', body: COOLING_TABLE }) - 1), ...extra });
 
 test('the written command offers only the Explanation card, whatever its words say; the playable one keeps the whole family', () => {
   assert.deepEqual(artifactPlan('explanation').ready, ['explanation']);
@@ -286,17 +283,15 @@ test('the written command offers only the Explanation card, whatever its words s
 });
 
 test('the written command validates a Markdown table card against the Depth budget on the direct path, with no job and no paid step', async () => {
-  const table = { title: 'Why coffee cools fastest at the start', body: COOLING };
+  const table = { title: 'Why coffee cools fastest at the start', body: COOLING_TABLE };
   const ok = scripted(['make_explanation', table]);
   const out = await generateArtifact({}, { command: 'explanation', args: 'Why does coffee cool faster at first? Include a small table comparing early and late cooling.' }, { callModel: ok.callModel });
-  assert.deepEqual([out.result, out.primitive, out.block.type, out.block.body], ['artifact', 'explanation', 'explanation', COOLING]);
-  assert.match(ok.seen[0].tools[0].description, new RegExp(`at most ${EXPLANATION_BUDGET.target} characters of prose`), 'the request asks for the 600 target');
+  assert.deepEqual([out.result, out.primitive, out.block.type, out.block.body], ['artifact', 'explanation', 'explanation', COOLING_TABLE]);
   assert.deepEqual(offered(ok.seen[0]), ['make_explanation', 'ask_clarifying_question']);
   assert.equal(JSON.parse(ok.seen[0].messages[0].content).command, '/explanation');
-  // Every Depth's hard limit holds exactly; one character over is refused with the validator's words and, after the repair, a validation error.
+  // Each Depth's cap holds exactly; one character over is refused with the validator's words and, after the repair, a validation error.
   for (const depth of ['overview', 'standard', 'deep']) {
-    const cap = EXPLANATION_BUDGET.hard;
-    assert.equal(explanationProseChars(padTo(cap)), cap);
+    const cap = EXPLANATION_CAPS[depth];
     const fits = await generateArtifact({}, { command: 'explanation', args: 'coffee', depth }, { callModel: scripted(['make_explanation', padTo(cap)]).callModel });
     assert.equal(fits.result, 'artifact', `${depth} at ${cap}`);
     const over = scripted(['make_explanation', padTo(cap + 1)], ['make_explanation', padTo(cap + 1)], ['make_explanation', padTo(cap + 1)]);

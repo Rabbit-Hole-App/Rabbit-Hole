@@ -12,8 +12,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { parseHTML } from 'linkedom';
-import { contentRevision, fieldText, quotedNote, withConsumed, withHighlight } from './explanation-interactions.js';
-import { runsOf } from './learn-rich-text.js';
+import { contentRevision, fieldText, withConsumed, withHighlight } from './explanation-interactions.js';
 
 const { window, document } = parseHTML('<!doctype html><html><body><div id="app"></div></body></html>');
 Object.assign(globalThis, { window, document, HTMLElement: window.HTMLElement, Node: window.Node, Element: window.Element, CustomEvent: window.CustomEvent, IS_REACT_ACT_ENVIRONMENT: true });
@@ -102,9 +101,7 @@ test('orange term pills mark only the anchored occurrences, never every equal wo
   const flow = $('[data-explanation-flow]');
   const pills = $$('[data-term-id]');
   assert.deepEqual(pills.map(p => [p.getAttribute('data-term-id'), p.textContent]), [['t-1', 'decision tree'], ['t-2', 'leaf'], ['t-3', 'tree']]);
-  // Owner 2026-11-08: no solid fill; the Claude orange token on the text and a thin outline, never a hex. Hover only tints faintly.
-  assert.ok(pills.every(p => /\btext-claude-deep\b/.test(p.className) && /\bborder-claude\/50\b/.test(p.className)), 'the Claude orange token, never a hex');
-  assert.ok(pills.every(p => !/(^|\s)bg-claude(\s|$)|text-black/.test(p.className)), 'no solid fill, no black text on it');
+  assert.ok(pills.every(p => /bg-claude/.test(p.className)), 'the Claude orange token, never a hex');
   // "tree" occurs three times in the body ("decision tree", "a tree learns"); only the anchored second whole-word occurrence is a pill.
   const bodyField = $('[data-explanation-field="body"]');
   assert.equal([...bodyField.textContent.matchAll(/\btree\b/g)].length, 2);
@@ -417,17 +414,12 @@ test('wiring: the canvas provides the host; admission is reported by the Chat st
   assert.match(dive, /open: \(id, title, via = 'learner_dblclick', term = null\) =>/);
 });
 
-test('wiring: Add note and Create note make one note each with no connector (owner 2026-11-08); child cards keep curved bowed links that follow their saved ports', () => {
+test('wiring: Add note, Create note and child cards make one note or link each, with curved bowed connectors that follow their saved ports', () => {
   const canvas = read('AdaptiveCanvas.jsx');
   assert.match(canvas, /const addCardNote = \(id, \{ quote = null, revision = null \} = \{\}\) => \{/);
   assert.match(canvas, /const spot = placeNote\(target, size, \[\.\.\.inlineCanvas\.obstacles\(\[id\]\), \.\.\.placementChrome\(\)\], inlineCanvas\.visibleWorld\(\)\);/, 'beside the parent, clear of everything, nothing moves');
   assert.match(canvas, /kind: 'sticky', x: spot\.x, y: spot\.y, text: '', color, opacity, \.\.\.armedText\('sticky'\), fresh: true, parentCard: /, 'the same sticky insertSticky builds, opened for typing');
-  // Owner 2026-11-08: neither note entry draws a connector; Create note (a quote) starts the note's own text with the quote in italics.
-  const noteFn = canvas.slice(canvas.indexOf('const addCardNote = '), canvas.indexOf('const openInNotebook = '));
-  assert.match(noteFn, /\.\.\.\(quote \? quotedNote\(quote\) : \{\}\) \}\]\);\n\s+setSelection\(\[noteId\]\);/);
-  assert.doesNotMatch(noteFn, /setLinks/, 'no connector to the card');
-  assert.deepEqual(quotedNote('makes a prediction'), { text: 'makes a prediction\n\n', runs: [{ t: 'makes a prediction', i: true }, { t: '\n\n' }] });
-  assert.deepEqual(runsOf({ text: quotedNote('a b').text, runs: quotedNote('a b').runs }), [{ t: 'a b', i: true }, { t: '\n\n' }], 'the canvas text model keeps the italics');
+  assert.match(canvas, /route: 'curved', bow: true, head: true, kind: 'annotation' \}\]\);\n\s+setSelection\(\[noteId\]\);/);
   assert.match(canvas, /addCardNote: id => addCardNote\(id\),/, 'the context menu row');
   assert.match(canvas, /route: 'curved', bow: true, head: true \}\]\)\);/, 'the child card link');
   assert.match(canvas, /const linkId = parent\.actionId \? `explain-child-\$\{parent\.actionId\}` : crypto\.randomUUID\(\);/, 'one link per action');

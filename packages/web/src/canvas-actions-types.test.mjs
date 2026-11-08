@@ -319,14 +319,6 @@ test('Pin for study: PDF, Explanation, text and sticky notes on the owner canvas
   assert.deepEqual(ctx.calls, [], 'opening a menu pins nothing');
 });
 
-// EXP-13 (owner 2026-11-08): Add illustration is removed; a written Explanation's pictures come only from the author's rh-illustration fences.
-test('Add illustration is not offered on any Explanation, even where the page could still answer for it', () => {
-  assert.equal(TYPE_ACTIONS.some(row => row.id === 'explanation.add-illustration' || row.label === 'Add illustration'), false);
-  const ctx = context();
-  const offered = { ...ctx, canvas: { ...ctx.canvas, canAddIllustration: () => true, addIllustration() {} } };
-  for (const block of [{ id: 'x1', type: 'explanation', title: 'T', body: 'B.' }, { id: 'x2', type: 'explanation', title: 'T', body: 'B.', interactions: { version: 1, questions: [], terms: [] } }]) assert.ok(!labels(card(block), offered).includes('Add illustration'));
-});
-
 // E2 (explain.md section 4, EXP-04-C18, EXP-05-C06): Add note on a written Explanation that carries the interactions envelope.
 test('Add note: only on an Explanation with the E2 envelope, the edit permission, one call with the card id and no quote; a viewer cannot invoke it', () => {
   const envelope = { id: 'x1', type: 'explanation', title: 'Why trees', body: 'Body.', interactions: { version: 1, questions: [], terms: [] } };

@@ -1,7 +1,0 @@
-{
-  "caseId": "cal-over-cap",
-  "calibration": {
-    "expectFlag": true,
-    "signal": "explanation_over_budget"
-  }
-}

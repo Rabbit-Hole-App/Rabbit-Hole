@@ -64,19 +64,6 @@ export function withCardSink(canvas, sink) {
   return { ...canvas, ...tap('insertBlock'), ...tap('insertNotebook'), ...tap('insertImported'), ...tap('insertPaper') };
 }
 
-// The canvas a command reserves through, with its reserved slot reported to onSlot: { id, label } when the canvas draws the skeleton,
-// null in the same call that fills the slot with the card or releases it (a failure, a question, a timeout). The canvas slot is the one
-// pending state: the Chat's waiting row (ChatMessages m.making) is set and cleared by these calls, so the two always agree.
-export function withSlotSink(canvas, onSlot) {
-  if (!canvas?.reserve || !onSlot) return canvas;
-  let held = null;
-  const settle = id => { if (id && id === held) { held = null; onSlot(null); } };
-  return { ...canvas,
-    reserve: slot => { const id = canvas.reserve(slot); if (id) { held = id; onSlot({ id, label: slot.label }); } return id; },
-    release: id => { canvas.release?.(id); settle(id); },
-    insertBlock: (block, options) => { const id = canvas.insertBlock(block, options); settle(options?.into); return id; } };
-}
-
 // A card still carrying its plan or job (/interactive, /animation, /whiteboard skeletons, or one mid-run) is unfinished: generationState reads those as done (no status), so the field itself is checked. Deleting a skeleton cancels its job for good, so it is never restored (owner 2026-11-07).
 const JOB_FIELDS = ['explainJob', 'animation3dJob', 'whiteboardJob'];
 // Why a deleted card cannot come back, or null when its snapshot restores it.

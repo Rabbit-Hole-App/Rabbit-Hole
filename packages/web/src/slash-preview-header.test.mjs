@@ -45,9 +45,7 @@ test('each card example the window draws shows the new header: the type icon, it
     // These bodies are loaded lazily (Suspense), so a Node render holds only their fallback; the source test below pins their header.
     if (LAZY.has(block.type) && !/data-card-header/.test(markup)) { drawn.push(`${name}: lazy body, checked by source`); continue; }
     assert.match(markup, /data-card-header/, `/${name}: the shared header`);
-    // The written Explanation's header has no icon (owner 2026-11-08); every other card keeps its type icon.
-    if (block.type === 'explanation' && !block.anchor && !block.excerpt) assert.doesNotMatch(markup, /data-card-icon/, `/${name}: no icon on the Explanation`);
-    else assert.match(markup, /data-card-icon/, `/${name}: a type icon`);
+    assert.match(markup, /data-card-icon/, `/${name}: a type icon`);
     assert.doesNotMatch(markup, /h-1.5 w-1.5 rounded-full bg-ink/, `/${name}: no dot Kicker`);
     assert.ok(decode(markup).includes(headerTitleOf(block).replace(/&/g, '&')) || markup.includes('data-card-title'), `/${name}: its title`);
     assert.doesNotMatch(markup, /data-card-title-placeholder/, `/${name}: not the placeholder`);

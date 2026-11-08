@@ -1,5 +1,4 @@
 import { createElement as h } from 'react';
-import { mathLabel, SLOT } from './math.js';
 
 export const PALETTE = Object.freeze({
   process: '#8DBFEF',
@@ -20,7 +19,7 @@ const FILLED_INK = '#32211c';
 
 export const lineHeight = (size = 14) => Math.ceil(size * 1.25);
 
-function plainWidth(text, size) {
+export function textWidth(text, size = 14) {
   let width = 0;
   for (const char of text) {
     if (/^[ .,:;!ilI'|’]$/u.test(char)) width += 0.38;
@@ -31,58 +30,33 @@ function plainWidth(text, size) {
   return width * size;
 }
 
-// A formula is drawn no taller than the line it sits on (so no layout's line count changes), and is measured at that scale.
-const mathScale = (set, size) => Math.min(1, lineHeight(size) / (set.height * size));
-const runWidth = ({ raw, set }, size) => set ? set.width * size * mathScale(set, size) : plainWidth(raw, size);
-const measure = ({ source, math }, size) => source.split(SLOT)
-  .reduce((width, part, index) => width + (index % 2 ? runWidth(math[part], size) : plainWidth(part, size)), 0);
-
-export function textWidth(text, size = 14) {
-  return measure(mathLabel(text), size);
-}
-
-// The widest formula in a label (0 without one): the narrowest a box can be, since a formula never wraps.
-export function widestFormula(text, size = 14) {
-  return Math.max(0, ...mathLabel(text).math.filter(run => run.set).map(run => runWidth(run, size)));
-}
-
 function wordParts(word) {
   return word.split(/(?<=[\p{L}\p{N}][-‐])(?=[\p{L}\p{N}])/u);
 }
 
-// The words of a label, split at whitespace outside its formulas.
-export function words(text) {
-  const { source, math } = mathLabel(text);
-  return source.split(/\s+/u).map(word => restore(word, math));
-}
-const restore = (value, math) => value.replace(new RegExp(SLOT, 'gu'), (_, index) => math[index].raw);
-
 export function longestWordWidth(text, size = 14) {
-  const { source, math } = mathLabel(text);
-  return Math.max(...source.trim().split(/\s+/u).flatMap(wordParts).map(part => measure({ source: part, math }, size)));
+  return Math.max(...text.trim().split(/\s+/u).flatMap(wordParts).map(part => textWidth(part, size)));
 }
 
 export function wrap(text, width, size = 14) {
-  const { source, math } = mathLabel(text);
-  const fits = value => measure({ source: value, math }, size) <= width;
   const lines = [];
   let line = '';
-  for (const word of source.trim().split(/\s+/u)) {
+  for (const word of text.trim().split(/\s+/u)) {
     const joined = line ? `${line} ${word}` : word;
-    if (fits(joined)) {
+    if (textWidth(joined, size) <= width) {
       line = joined;
       continue;
     }
     if (line) lines.push(line);
     line = '';
     for (const part of wordParts(word)) {
-      if (line && !fits(line + part)) {
+      if (line && textWidth(line + part, size) > width) {
         lines.push(line);
         line = '';
       }
-      // Long identifiers and unspaced scripts still need a bounded line; a formula is one unit.
-      for (const char of part.match(/\uE000\d+\uE001|[\s\S]/gu)) {
-        if (line && !fits(line + char)) {
+      // Long identifiers and unspaced scripts still need a bounded line.
+      for (const char of part) {
+        if (line && textWidth(line + char, size) > width) {
           lines.push(line);
           line = '';
         }
@@ -91,40 +65,15 @@ export function wrap(text, width, size = 14) {
     }
   }
   if (line) lines.push(line);
-  return lines.map(value => restore(value, math));
-}
-
-const JUSTIFY = { start: 'flex-start', middle: 'center', end: 'flex-end' };
-
-// A line holding a formula is HTML in a foreignObject as wide as the line was measured, centred on the line like a tspan: the text keeps
-// the label's font, each formula is KaTeX's markup at the line's scale. data-tutor-tex keeps the formula as written for the card's text
-// alignment (explanation-interactions.js).
-function mathLine({ source, math }, x, y, { size, weight, anchor, fill, step }) {
-  const width = Math.ceil(measure({ source, math }, size)) + 2;
-  const left = anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
-  const runs = source.split(SLOT).map((part, index) => {
-    if (!(index % 2)) return part;
-    const { raw, set } = math[part];
-    return set ? h('span', { 'data-tutor-tex': raw, style: { fontSize: size * mathScale(set, size), lineHeight: 'normal' }, dangerouslySetInnerHTML: set.inner }) : raw;
-  });
-  return h('foreignObject', { x: left, y: y - step / 2, width, height: step, overflow: 'visible' },
-    h('div', { style: {
-      display: 'flex', alignItems: 'center', justifyContent: JUSTIFY[anchor], height: '100%', whiteSpace: 'pre',
-      color: fill, fontSize: size, fontWeight: weight, lineHeight: `${step}px`,
-    } }, ...runs));
+  return lines;
 }
 
 export function label(lines, x, y, { size = 14, weight = 400, anchor = 'middle', tone = 'ink' } = {}) {
   const values = Array.isArray(lines) ? lines : [lines];
   const step = lineHeight(size);
   const fill = tone === 'onFill' ? FILLED_INK : tone === 'muted' ? MUTED : INK;
-  const center = index => y + (index - (values.length - 1) / 2) * step;
-  const typeset = values.map(value => mathLabel(value)).map(parsed => parsed.math.some(run => run.set) ? parsed : null);
-  const plain = values.flatMap((value, index) => typeset[index] ? [] : [h('tspan', { x, y: center(index) + size * 0.34 }, value)]);
-  const text = h('text', { x, y, fill, fontSize: size, fontWeight: weight, textAnchor: anchor }, ...plain);
-  if (!typeset.some(Boolean)) return text;
-  return h('g', null, plain.length ? text : null,
-    ...typeset.flatMap((parsed, index) => parsed ? [mathLine(parsed, x, center(index), { size, weight, anchor, fill, step })] : []));
+  return h('text', { x, y, fill, fontSize: size, fontWeight: weight, textAnchor: anchor },
+    ...values.map((value, index) => h('tspan', { x, y: y + (index - (values.length - 1) / 2) * step + size * 0.34 }, value)));
 }
 
 export function box(x, y, width, height, { role = 'plain', radius = 7, active = false } = {}) {

@@ -12,11 +12,11 @@ const BAD = { version: 1, diagram: { kind: 'flow', title: 'Cache', nodes: [{ id:
 const reply = card => Response.json({ model: 'celeris-1', choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(card) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
 const withFetch = async (replies, run) => {
   const requests = [], realFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init) => { requests.push({ url: String(url), body: JSON.parse(init.body) }); return (replies.length > 1 ? replies.shift() : replies[0])(); }; // the last reply answers any further call (an EXP-13 layout repair)
+  globalThis.fetch = async (url, init) => { requests.push({ url: String(url), body: JSON.parse(init.body) }); return replies.shift()(); };
   try { return await run(requests); } finally { globalThis.fetch = realFetch; }
 };
 const ask = (route, args) => generateArtifact({}, { command: 'explanation', args, selection: null, context: null }, route.options);
-const card = diagram => ({ title: 'How a cache answers', body: 'A cache keeps recent answers.\n\nSo a repeat request skips the slow source.' /* EXP-13: two paragraphs, the route puts the diagram between them */, diagram });
+const card = diagram => ({ title: 'How a cache answers', body: 'A cache keeps recent answers so a repeat request skips the slow source.', diagram });
 
 test('capture is off by default: the served report has no capture field', async () => {
   await withFetch([() => reply(card(GOOD))], async () => {

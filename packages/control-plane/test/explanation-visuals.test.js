@@ -3,30 +3,25 @@
 // (generateArtifact / artifactFetch); no prebuilt success block stands in for the generator. Offline: no provider is called.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveVisualRequirements, repeats, requiredMix, requiredVisualProblem, requirementText, danglingFigureProblem } from '../src/explanation-visuals.js';
-import { EXPLANATION_GUIDANCE, chainsAsCycles, markdownVisuals, explanationProseChars, simplifiedDiagram } from '../src/learn-primitives.js';
+import { deriveVisualRequirements, requiredVisualProblem, requirementText, danglingFigureProblem } from '../src/explanation-visuals.js';
+import { markdownVisuals, explanationChars } from '../src/learn-primitives.js';
 import { artifactFetch, generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
-import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
-import { cycleSpec, diagramFence, illustrationFence } from './explanation-layout-fixture.js';
+import { EXPLANATION_CAPS } from '../src/chat-depth.js';
 
 const EX01 = 'Why does coffee cool faster at first? Include a small table comparing early and late cooling.';
 const EX07 = 'Show a decision-tree diagram for this toy rule: if age is under 30, check whether income is over $50,000; yes means Approve and no means Deny. Otherwise, Check credit score. Trace a 25-year-old earning $60,000.';
 
 const TABLE = '| Phase | Gap to the room | Cooling rate |\n| --- | --- | --- |\n| Early | Large | Fast |\n| Late | Small | Slow |';
 const prose = 'A hot cup loses heat faster at first because the gap between the coffee and the room is largest then; the gap shrinks as it cools, so the rate falls.';
-// EXP-13: every new card has a visual between prose; a table sits inside prose and is not one. COOLING is the visual these cards share.
-const COOLING = diagramFence(cycleSpec('Why coffee cools'));
-const AFTER = 'So the rate falls as the coffee nears room temperature.';
-const withTable = { title: 'Why coffee cools fast at first', body: `${prose}\n\n${TABLE}\n\n${COOLING}\n\n${AFTER}` };
-// The same card without the table the learner may ask for (its diagram is not a table).
-const proseOnly = { title: 'Why coffee cools fast at first', body: `${prose}\n\n${COOLING}\n\n${AFTER}` };
+const withTable = { title: 'Why coffee cools fast at first', body: `${prose}\n\n${TABLE}` };
+const proseOnly = { title: 'Why coffee cools fast at first', body: prose };
 const diagram = spec => `\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: spec })}\n\`\`\``;
 const flowSpec = { kind: 'flow', title: 'Toy approval rule', caption: 'A 25-year-old earning $60,000 takes Yes, then Yes, and is approved.', nodes: [
   { id: 'age', label: 'Age under 30?', role: 'decision' }, { id: 'inc', label: 'Income over $50k?', role: 'decision' }, { id: 'ok', label: 'Approve', role: 'outcome' }, { id: 'no', label: 'Deny', role: 'outcome' }, { id: 'cs', label: 'Check credit score', role: 'outcome' }],
   edges: [{ from: 'age', to: 'inc', label: 'Yes' }, { from: 'age', to: 'cs', label: 'No' }, { from: 'inc', to: 'ok', label: 'Yes' }, { from: 'inc', to: 'no', label: 'No' }],
   highlightPath: ['age', 'inc', 'ok'] }; // E3: the worked route the request asks to trace
-const withFlow = { title: 'The approval rule', body: `The rule asks about age first, then income. The 25-year-old earning $60,000 answers Yes to both questions and is approved.\n\n${diagram(flowSpec)}\n\nSo the rule ends at Approve.` };
+const withFlow = { title: 'The approval rule', body: `The rule asks about age first, then income. The 25-year-old earning $60,000 answers Yes to both questions and is approved.\n\n${diagram(flowSpec)}` };
 
 // A provider double: each call answers the next scripted explanation input and records the request body.
 const scripted = (...inputs) => { const seen = []; return { seen, callModel: async (env, body) => { seen.push(body); return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${seen.length}`, name: 'make_explanation', input: inputs[Math.min(seen.length, inputs.length) - 1] }] }); } }; };
@@ -56,7 +51,7 @@ test('EX-01 at every Depth: the early/late table is required, present succeeds i
     const ok = await generate(EX01, [withTable], { depth });
     assert.equal(ok.out.result, 'artifact', depth);
     assert.equal(ok.out.block.visualRequirements.items[0].satisfied, true);
-    assert.ok(explanationProseChars(ok.out.block) <= EXPLANATION_BUDGET.hard, depth);
+    assert.ok(explanationChars(ok.out.block) <= EXPLANATION_CAPS[depth], depth);
     assert.equal(markdownVisuals(ok.out.block.body).tables.length, 1);
     assert.equal(ok.m.seen.length, 1, 'a card that has its table needs no repair');
     // The author reads the server-derived requirement in the same request that is dispatched, and the guidance no longer says "optional at every Depth".
@@ -73,26 +68,25 @@ test('EX-01 at every Depth: the early/late table is required, present succeeds i
   }
   // A malformed table (no separator row, ragged rows, empty body) is invalid, not missing.
   for (const bad of ['| Phase | Rate |\n| Early | Fast |', '| Phase | Rate |\n| --- | --- |', '| Phase | Rate |\n| --- | --- |\n| Early |', '| | Rate |\n| --- | --- |\n| Early | Fast |']) {
-    const r = await quiet(() => generate(EX01, [{ title: 'T', body: `${prose}\n\n${bad}\n\n${COOLING}\n\n${AFTER}` }]));
+    const r = await quiet(() => generate(EX01, [{ title: 'T', body: `${prose}\n\n${bad}` }]));
     assert.equal(r.out.result, 'validation_error', bad);
     assert.match(r.out.error, /^required_visual_invalid:/, bad);
   }
-  // A table in a SAVED card's collapsed section still satisfies the requirement (saved content keeps reading); a new card has no sections (EXP-13, decision C1).
-  assert.equal(requiredVisualProblem({ title: 'T', body: prose, more: [{ label: 'Compare', text: TABLE }] }, deriveVisualRequirements(EX01)), null);
-  const inSection = await quiet(() => generate(EX01, [{ ...proseOnly, more: [{ label: 'Compare', text: TABLE }] }]));
-  assert.equal(inSection.out.result, 'validation_error', 'a new card with a folded section is refused');
-  // Without a request for one, a card without a table is a success at every Depth, and carries no record.
+  // A table in a collapsed section satisfies the requirement too (it is saved content), and counts toward the cap like all closed sections.
+  const inSection = await generate(EX01, [{ title: 'T', body: prose, more: [{ label: 'Compare', text: TABLE }] }]);
+  assert.equal(inSection.out.result, 'artifact');
+  // Without a request for one, a prose-only card is a success at every Depth, and carries no record.
   for (const depth of ['overview', 'standard', 'deep']) { const r = await generate('Why does coffee cool faster at first?', [proseOnly], { depth }); assert.equal(r.out.result, 'artifact'); assert.equal('visualRequirements' in r.out.block, false); assert.doesNotMatch(r.m.seen[0].messages[0].content, /requiredVisuals/); }
 });
 
-test('over-budget output fails exactly one code point over the 700 hard limit; the table and the diagram do not count (EXP-13)', async () => {
-  const fits = n => ({ title: 'T', body: `${'x'.repeat(n)}\n\n${TABLE}\n\n${COOLING}\n\n${AFTER}` });
-  const room = EXPLANATION_BUDGET.hard - AFTER.length - 1; // the two prose parts join with one space
-  const exact = await generate(EX01, [fits(room)], { depth: 'overview' });
-  assert.equal(explanationProseChars(exact.out.block), EXPLANATION_BUDGET.hard);
+test('over-cap output still fails exactly one code point over, with the table kept inside the budget at Overview', async () => {
+  const fits = (n, text) => ({ title: 'T', body: `${text.repeat(1).slice(0, n)}\n\n${TABLE}` });
+  const tableChars = explanationChars({ title: 'T', body: TABLE });
+  const room = EXPLANATION_CAPS.overview - tableChars - 1; // explanationChars joins title, prose and table cells with single spaces
+  const exact = await generate(EX01, [fits(room, 'x'.repeat(2000))], { depth: 'overview' });
+  assert.equal(explanationChars(exact.out.block), EXPLANATION_CAPS.overview);
   assert.equal(exact.out.result, 'artifact');
-  assert.match(exact.m.seen[0].tools[0].description, new RegExp(`at most ${EXPLANATION_BUDGET.target} characters of prose`), 'the author is asked for the 600 target');
-  const over = await quiet(() => generate(EX01, [fits(room + 1)], { depth: 'overview' }));
+  const over = await quiet(() => generate(EX01, [fits(room + 1, 'x'.repeat(2000))], { depth: 'overview' }));
   assert.equal(over.out.result, 'validation_error');
   assert.match(over.out.error, /explanation_over_budget/);
 });
@@ -102,9 +96,8 @@ test('EX-07: a valid flow with Yes/No branches and outcomes is delivered and sav
   assert.equal(ok.out.result, 'artifact');
   assert.deepEqual(ok.out.block.visualRequirements.items.map(i => [i.kind, i.diagramKind, i.satisfied]), [['diagram', 'flow', true]]);
   assert.deepEqual(JSON.parse(JSON.stringify(ok.out.block)), ok.out.block, 'the saved block survives a save/read round trip unchanged');
-  // An illustration is a visual but not a diagram: the card has its visual, the learner's diagram is still missing.
-  const missing = await quiet(() => generate(EX07, [{ title: 'T', body: `The 25-year-old is approved.\n\n${illustrationFence({ caption: 'The 25-year-old approved', alt: 'An approved applicant' })}\n\nThat is the result.` }]));
-  assert.match(missing.out.error, /required_visual_missing:/); // the picture is not the asked mix, so the server drops it (owner review 2026-11-08)
+  const missing = await quiet(() => generate(EX07, [{ title: 'T', body: 'The 25-year-old is approved.' }]));
+  assert.match(missing.out.error, /^required_visual_missing:/);
   const unclosed = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: flowSpec })}` }]));
   assert.equal(unclosed.out.result, 'validation_error');
   assert.match(unclosed.out.error, /required_visual_invalid:/);
@@ -119,18 +112,14 @@ test('EX-07: a valid flow with Yes/No branches and outcomes is delivered and sav
   const { highlightPath: _route, ...unmarked } = flowSpec;
   const noRoute = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.
 
-${diagram(unmarked)}
-
-So the rule approves.` }]));
+${diagram(unmarked)}` }]));
   assert.equal(noRoute.out.result, 'validation_error');
   assert.match(noRoute.out.error, /^required_visual_invalid: .*highlightPath/);
   assert.deepEqual(deriveVisualRequirements(EX07).items[0].trace, true);
   assert.equal(deriveVisualRequirements('Show a flowchart of how a request is handled').items[0].trace, undefined, 'no trace wording, no route required');
   const badRoute = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.
 
-${diagram({ ...flowSpec, highlightPath: ['age', 'ok'] })}
-
-So the rule approves.` }]));
+${diagram({ ...flowSpec, highlightPath: ['age', 'ok'] })}` }]));
   assert.match(badRoute.out.error, /required_visual_invalid:/, 'a route that is not on existing edges is an invalid diagram');
   // Standard EX-07 with a Tutor-style zero repair is one call and the same refusal.
   const m = scripted({ title: 'T', body: 'Approved.' });
@@ -140,53 +129,26 @@ So the rule approves.` }]));
 
 test('optional diagram degradation: a valid required diagram beside an invalid optional one delivers the required one and records the drop; a dangling pointer fails', async () => {
   const optionalBad = `\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: { kind: 'flow', title: 'Extra', nodes: [{ id: 'a', label: 'A', role: 'process' }], edges: [{ from: 'a', to: 'zz' }] } })}\n\`\`\``;
-  const both = { title: 'T', body: `The 25-year-old is approved.\n\n${diagram(flowSpec)}\n\nA second view of the rule.\n\n${optionalBad}\n\nThat is the rule.` };
+  const both = { title: 'T', body: `The 25-year-old is approved.\n\n${diagram(flowSpec)}`, more: [{ label: 'Extra', text: `A second view of the rule.\n\n${optionalBad}` }] };
   const r = await quiet(() => generate(EX07, [both, both]));
   assert.equal(r.out.result, 'artifact');
   assert.equal(r.out.diagramsDropped, 1, 'the degradation is recorded in the result');
-  assert.deepEqual(markdownVisuals(r.out.block.body).diagrams.map(d => d.ok), [true], 'only the required diagram is left');
-  // No requirement at all: an invalid optional diagram beside a valid one is dropped at the last attempt only when nothing points at it.
-  const SOFTMAX = diagramFence(cycleSpec('Softmax scores'));
-  const optionalOnly = { title: 'T', body: `Softmax turns scores into probabilities.\n\n${SOFTMAX}\n\nThe largest score gets the largest share.\n\n${optionalBad}\n\nThe shares add up to one.` };
+  assert.equal(markdownVisuals(r.out.block.more[0].text).diagrams.length, 0);
+  assert.equal(markdownVisuals(r.out.block.body).diagrams[0].ok, true);
+  // No requirement at all: an invalid optional diagram is dropped at the last attempt only when nothing points at it.
+  const optionalOnly = { title: 'T', body: `Softmax turns scores into probabilities.\n\n${optionalBad}` };
   const fine = await quiet(() => generate('Explain softmax', [optionalOnly, optionalOnly]));
   assert.deepEqual([fine.out.result, fine.out.diagramsDropped], ['artifact', 1]);
-  // Owner 2026-11-08 (a card should not fail; replaces EXP-13's "the card fails truthfully"): the card's only diagram is invalid after the repair and has one
-  // label, too few to simplify, so the prose card is delivered without a visual, recorded on the card and not as an error.
-  const onlyBad = { title: 'T', body: `Softmax turns scores into probabilities.\n\n${optionalBad}\n\nThe shares add up to one.` };
-  const lost = await quiet(() => generate('Explain softmax', [onlyBad, onlyBad]));
-  assert.deepEqual([lost.out.result, lost.out.block.visualFallback, lost.out.diagramsDropped, lost.out.block.body], ['artifact', 'dropped', 1, 'Softmax turns scores into probabilities.\n\nThe shares add up to one.']);
-  assert.equal(lost.m.seen.length, 2, 'the one repair was tried first');
-  const pointing = { title: 'T', body: `Softmax turns scores into probabilities, as the diagram below shows.\n\n${SOFTMAX}\n\nThe largest score gets the largest share.\n\n${optionalBad}\n\nThe shares add up to one.` };
+  const pointing = { title: 'T', body: `Softmax turns scores into probabilities, as the diagram below shows.\n\n${optionalBad}` };
   const dangling = await quiet(() => generate('Explain softmax', [pointing, pointing]));
   assert.equal(dangling.out.result, 'validation_error');
   assert.match(dangling.out.error, /still points at it/);
   assert.equal(danglingFigureProblem({ body: 'Softmax is a function.' }), null);
   // The invalid REQUIRED diagram with a separate valid optional one is not "fixed" by dropping the required one.
-  const reqBad = { title: 'T', body: `Approved.\n\n${optionalBad}\n\nThe rule checks age first.\n\n${diagram(flowSpec)}\n\nSo the rule approves.` };
+  const reqBad = { title: 'T', body: `Approved.\n\n${optionalBad}`, more: [{ label: 'Extra', text: diagram(flowSpec) }] };
   const wrongOne = await quiet(() => generate(EX07, [reqBad, reqBad]));
   assert.equal(wrongOne.out.result, 'artifact', 'a valid diagram remains for the one requirement, so the invalid extra is the optional one');
   assert.equal(wrongOne.out.diagramsDropped, 1);
-});
-
-test('owner 2026-11-08, a card should not fail: the only diagram still invalid after the repair becomes a straight flow of its own labels, no model call', async () => {
-  // The heart's loop drawn as a flow has no start node, which a flow refuses ("A flow needs exactly one root").
-  const labels = ['Right atrium', 'Right ventricle', 'Lungs', 'Left atrium', 'Left ventricle', 'Body'];
-  const loop = { kind: 'flow', title: 'Blood through the heart', caption: 'Blood loops through the heart twice.', nodes: labels.map((label, i) => ({ id: `s${i}`, label, role: 'process' })),
-    edges: labels.map((_, i) => ({ from: `s${i}`, to: `s${(i + 1) % labels.length}` })) };
-  const card = { title: 'How the heart pumps', body: `The heart is two pumps side by side, moving blood from the body to the lungs and back.\n\n${diagram(loop)}\n\nEach beat squeezes the atria first, then the ventricles.` };
-  const { out, m } = await quiet(() => generate('How does the human heart pump blood?', [card, card]));
-  assert.deepEqual([out.result, out.block.visualFallback, out.diagramsSimplified, out.diagramsDropped, m.seen.length], ['artifact', 'simplified', 1, undefined, 2]);
-  const [drawn] = markdownVisuals(out.block.body).diagrams;
-  assert.deepEqual([drawn.ok, drawn.kind], [true, 'flow']);
-  const spec = JSON.parse(out.block.body.match(/```rh-diagram\n(.*)\n```/)[1]).diagram;
-  assert.deepEqual([spec.title, spec.caption, spec.nodes.map(n => n.label), spec.nodes.map(n => n.role).at(-1), spec.edges.length], [loop.title, loop.caption, labels, 'outcome', 5]);
-  assert.ok(out.block.body.startsWith('The heart is two pumps') && out.block.body.endsWith('then the ventricles.'), 'the prose around it is kept');
-  // With a repair left, nothing is simplified: the validator's words go to the model first.
-  assert.match(m.seen[1].messages.at(-1).content[0].content, /exactly one root/);
-  // (A diagram beside another valid visual is still dropped, not simplified: the optional-degradation test above.)
-  assert.equal(simplifiedDiagram(['not json']), null);
-  assert.equal(simplifiedDiagram([JSON.stringify({ version: 1, diagram: { kind: 'cycle', title: 'One', steps: ['only'] } })]), null, 'fewer than two labels');
-  assert.deepEqual(simplifiedDiagram([JSON.stringify({ version: 1, diagram: { kind: 'cycle', title: 'Water cycle', steps: ['Evaporation', 'Condensation', 'Rain', 'Runoff', 'Soak', 'Flow', 'Melt', 'Freeze'] } })]).diagram.nodes.length, 8, 'a cycle over its 7 steps keeps its labels as a flow');
 });
 
 test('the route reads the requirement from the learner\'s own args on the server, ignores context words, and answers an unsupported picture before any call', async () => {
@@ -217,7 +179,7 @@ test('the Tutor roadmap path: the accepted learner instruction carries the requi
   const record = over => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Why coffee cools', stepGoal: 'Explain the gap.', passageText: 'Coffee cools.', language: 'en', depth: 'standard', retry: 0,
     learnerInstruction: { original: 'Include a small table comparing early and late cooling.', revisions: [] }, ...over });
   const run = async (rec, inputs) => { const m = scripted(...inputs); const out = await generateRoadmapCard({}, access, ref, { loadAccepted: async () => rec, withProviderCall: async e => e, callModel: m.callModel }); return { out, m }; };
-  const ok = await run(record(), [{ ...withTable, title: 'A different model title' }]);
+  const ok = await run(record(), [{ title: 'A different model title', body: `${prose}\n\n${TABLE}` }]);
   assert.equal(ok.out.outcome, 'ok');
   assert.equal(ok.out.block.title, 'Why coffee cools');
   assert.equal(ok.out.block.visualRequirements.items[0].kind, 'table');
@@ -252,64 +214,4 @@ test('a topic word alone is not a request for a picture: a decision tree, a time
   for (const q of ['Explain how a decision tree works', 'What is the timeline of the French Revolution?', 'How does a t-account record a sale?', 'Explain the number line']) assert.deepEqual(deriveVisualRequirements(q).items, [], q);
   assert.equal(deriveVisualRequirements('Draw a decision tree diagram for loan approval').items[0].diagramKind, 'flow');
   assert.equal(deriveVisualRequirements('Show a timeline diagram of the French Revolution').items[0].diagramKind, 'timeline');
-});
-
-// EXP-13 visual choice (owner 2026-11-08, study C:/s/spec/benchmarks/explain-visual-choice-2026-11-08): fixes 1-4 ride in the author guidance.
-test('the guidance leads its visual choice with the firm type rule, then the kind by the shape of the answer, the cannot-draw rules and the count', () => {
-  const g = EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
-  const order = ['objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them',
-    'processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams', 'never use a picture for a data structure, an algorithm or numbers',
-    'cycle when the last step feeds the first', 'sequence for messages between actors', 'timeline for dates or eras', 'transformation for inputs becoming outputs',
-    'tree for splits, sub-parts or sub-calls', 'relationship for causes', 'layers only for a real ordered stack', 'flow otherwise, a straight chain included',
-    'Layers, matrix, comparison, flow, tree and figure cannot draw a shape, object, place or appearance', 'figure is only for a cell, a free-body diagram or a layered cross-section',
-    'comparison is for 2-4 separate items, never the parts of one thing',
-    'two visuals when the question names two things (X and Y, X vs Y) or asks both how something looks and how it works; otherwise one'].map(at);
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'in the owner\'s order');
-  assert.ok(at('Choose visuals in this order') < at('Kinds: flow'), 'the choice comes before the kind catalogue');
-  assert.equal(g.includes('a diagram cannot draw'), false, 'the old negative rule is gone');
-});
-
-const meshPicture = illustrationFence({ id: 'pic-1', prompt: 'A 3D mesh of a teapot drawn as small triangles', alt: 'A teapot mesh made of triangles', caption: 'A 3D mesh is many small triangles' });
-const meshDiagram = diagramFence({ version: 1, diagram: { kind: 'tree', title: 'Parts of a 3D mesh', nodes: [{ id: 'm', label: 'Mesh' }, { id: 'v', label: 'Vertices', parent: 'm' }, { id: 'f', label: 'Faces', parent: 'm' }] } });
-const meshCard = visuals => ({ title: 'What a 3D mesh looks like', body: `A 3D mesh is a surface built from many flat triangles that share corners.\n\n${visuals}\n\nMore triangles make the mesh look smoother.` });
-const meshBoth = `${meshPicture}\n\nIts corners are vertices and its triangles are faces of the mesh.\n\n${meshDiagram}`;
-test('fix 6b: "look like", "3D" or "anatomy" with no diagram asked needs a picture on the card (the one repair), never "shape", and the mix stays free', async () => {
-  for (const q of ['What does a 3D mesh look like?', 'What does a neuron look like?', 'explain the anatomy of the eye', 'what a coral reef looks like']) assert.deepEqual(deriveVisualRequirements(q).items.map(i => [i.kind, i.implied]), [['illustration', true]], q);
-  for (const q of ['What is the shape of the curve?', 'Draw a diagram of what a 3D mesh looks like', 'Show a picture of what a cell looks like', 'How does a request reach the database?']) assert.equal(deriveVisualRequirements(q).items.some(i => i.implied), false, q);
-  assert.equal(deriveVisualRequirements('Show a picture of what a cell looks like').items.length, 1, 'an asked picture is the only one');
-  assert.equal(requiredMix(deriveVisualRequirements('What does a 3D mesh look like?')), null, 'an implied picture does not fix the mix');
-  // A diagram alone goes to the one repair; the author is not told the picture is the whole mix.
-  const { out, m } = await quiet(() => generate('What does a 3D mesh look like?', [meshCard(meshDiagram), meshCard(meshBoth)]));
-  assert.deepEqual([out.result, m.seen.length], ['artifact', 2]);
-  assert.match(m.seen[1].messages.at(-1).content[0].content, /required_visual_missing: the learner asked for an illustration/);
-  assert.equal(JSON.parse(m.seen[0].messages[0].content).requiredVisuals, undefined);
-  // A picture beside a diagram is kept as it is, first time.
-  const both = await quiet(() => generate('What does a 3D mesh look like?', [meshCard(meshBoth)]));
-  assert.deepEqual([both.out.result, both.m.seen.length, markdownVisuals(both.out.block.body).diagrams.length], ['artifact', 1, 1]);
-  // "the shape of the curve" asks for no picture: a diagram alone passes.
-  const curve = await quiet(() => generate('What is the shape of the curve?', [{ title: 'The shape of the curve', body: `The curve rises fast, then levels off.\n\n${diagramFence({ version: 1, diagram: { kind: 'cycle', title: 'The curve rises then levels', steps: ['Rises', 'Levels off'] } })}\n\nSo the curve flattens.` }]));
-  assert.deepEqual([curve.out.result, curve.m.seen.length], ['artifact', 1]);
-});
-
-const chain = (title, labels) => diagramFence({ version: 1, diagram: { kind: 'flow', title, caption: `${labels[0]} comes first.`, nodes: labels.map((label, i) => ({ id: `n${i}`, label, role: i === labels.length - 1 ? 'outcome' : 'process' })), edges: labels.slice(1).map((_, i) => ({ from: `n${i}`, to: `n${i + 1}` })) } });
-const drawnSpec = body => JSON.parse(body.match(/```rh-diagram\n(.*)\n```/)[1]).diagram;
-test('fix 6a: a branchless flow becomes a cycle of the same steps in order when the question repeats; otherwise, or with a decision, it stays a flow', async () => {
-  const water = ['Evaporation', 'Condensation', 'Precipitation', 'Collection'];
-  const waterCard = { title: 'How the water cycle works', body: `The sun heats water so it rises as vapour, then falls again as rain.\n\n${chain('The water cycle', water)}\n\nThe collected water evaporates once more.` };
-  const cycled = await quiet(() => generate('How does the water cycle work?', [waterCard]));
-  assert.deepEqual([cycled.out.result, cycled.m.seen.length], ['artifact', 1]);
-  assert.deepEqual(drawnSpec(cycled.out.block.body), { kind: 'cycle', title: 'The water cycle', caption: 'Evaporation comes first.', steps: water });
-  assert.ok(cycled.out.block.body.startsWith('The sun heats water') && cycled.out.block.body.endsWith('evaporates once more.'), 'the prose around it is kept');
-  const request = ['Request', 'Auth', 'Handler', 'Database'];
-  const requestCard = { title: 'How a request reaches the database', body: `A request passes several checks before it reaches the database.\n\n${chain('How a request reaches the database', request)}\n\nThe database answers the handler.` };
-  const flowed = await quiet(() => generate('How does a request reach the database?', [requestCard]));
-  assert.deepEqual([flowed.out.result, drawnSpec(flowed.out.block.body).kind], ['artifact', 'flow']);
-  assert.equal(flowed.out.block.body, requestCard.body, 'left exactly as it is');
-  // A flow with a decision is not a chain, whatever the words; a chain over the cycle's 7 steps stays a flow.
-  const branched = `Water.\n\n${diagramFence({ version: 1, diagram: { kind: 'flow', title: 'The water cycle check', nodes: [{ id: 'a', label: 'Is it warm?', role: 'decision' }, { id: 'b', label: 'Evaporation', role: 'outcome' }, { id: 'c', label: 'Freezing', role: 'outcome' }], edges: [{ from: 'a', to: 'b', label: 'Yes' }, { from: 'a', to: 'c', label: 'No' }] } })}\n\nMore.`;
-  assert.equal(chainsAsCycles(branched), branched);
-  const long = `Water.\n\n${chain('Too long', ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'])}\n\nMore.`;
-  assert.equal(chainsAsCycles(long), long);
-  for (const q of ['How do the phases of the Moon repeat?', 'why does it loop again', 'recurring seasons', 'one round of the game', 'the cell cycle']) assert.ok(repeats(q), q);
-  for (const q of ['How does a request reach the database?', 'explain bicycle gears', 'what goes around the sun']) assert.equal(repeats(q), false, q);
 });

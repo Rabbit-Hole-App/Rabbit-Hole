@@ -6,7 +6,6 @@ import assert from 'node:assert/strict';
 import { rows } from './roadmap-fixture.js';
 import { BOARD, ID_B, INSTRUCTION, KEY, answer, loop, planInput } from './roadmap-loop-fixture.js';
 import { runDueRoadmapEvents } from '../src/roadmap/roadmap-events.js';
-import { withVisual } from './explanation-layout-fixture.js'; // EXP-13, owner 2026-11-08: prose, a visual, prose
 import { authorRoute, requestFingerprint } from '../src/roadmap/roadmap-generate.js';
 
 // A document longer than the 8,000-character public artifact limit but inside the 40,000-character whole-source limit. The fact the
@@ -17,8 +16,8 @@ const AT = { entropy: MD.indexOf('## Entropy'), notes: MD.indexOf('## Notes'), h
 // The plan covers the whole document (passages within the 8,000-character passage limit); the first two steps are the ones bought here.
 const PLAN = planInput([['Gini', 0, AT.entropy], ['Entropy', AT.entropy, AT.notes], ['Notes', AT.notes, AT.half], ['More notes', AT.half, AT.comparison], ['Comparison', AT.comparison, MD.length]]);
 // Paraphrase plus a quoted illustrative phrase that the passage never says: under the old gate this card was withheld.
-const CARD_1 = answer('make_explanation', { title: 'Gini impurity', body: withVisual('Think of it as "how mixed the node is". Gini and entropy usually pick the same split.') });
-const CARD_2 = answer('make_explanation', { title: 'Entropy', body: withVisual('Entropy measures disorder; a pure node has zero.') });
+const CARD_1 = answer('make_explanation', { title: 'Gini impurity', body: 'Think of it as "how mixed the node is". Gini and entropy usually pick the same split.' });
+const CARD_2 = answer('make_explanation', { title: 'Entropy', body: 'Entropy measures disorder; a pure node has zero.' });
 
 const context = body => JSON.parse(typeof body.messages[0].content === 'string' ? body.messages[0].content : body.messages[0].content.at(-1).text).context;
 

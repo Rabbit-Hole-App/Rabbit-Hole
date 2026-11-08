@@ -7,7 +7,6 @@ import { spendTransport } from '../src/learn-spend.js';
 import { usageTotals, periodOf } from '../src/learn-usage.js';
 import { readFileSync } from 'node:fs';
 import { world, MODEL } from './roadmap-fixture.js';
-import { withVisual } from './explanation-layout-fixture.js';
 
 export const PERIOD = periodOf(Math.floor(Date.now() / 1000));
 export const BOARD = 'lb_board00000000000001';
@@ -62,8 +61,7 @@ export const classify = async () => calm;
 // The artifact provider behind the real spendTransport. `script` is a list of async () => Response, consumed in order.
 // A scripted reply reports the model it was asked for (CORE.05: the served model is the requested one).
 export const answer = (name, input, usage = { input_tokens: 400, output_tokens: 120 }) => async (model = MODEL) => Response.json({ model, stop_reason: 'tool_use', usage, content: [{ type: 'tool_use', id: 'tu_p', name, input }] });
-// EXP-13, owner 2026-11-08: a new card is prose, a visual, prose.
-export const GOOD = answer('make_explanation', { title: 'The gradient', body: withVisual('The gradient points uphill, so stepping against it lowers the loss.') });
+export const GOOD = answer('make_explanation', { title: 'The gradient', body: 'The gradient points uphill, so stepping against it lowers the loss.' });
 export const TABLE = answer('make_table', { title: 'Rates', caption: '', columns: ['rate', 'effect'], rows: [['small', 'slow'], ['large', 'overshoots']] });
 export const BAD = answer('make_explanation', { title: 'No body' }); // fails the schema: the one repair
 export const FAIL = async () => new Response('{"error":"overloaded"}', { status: 500, headers: { 'content-type': 'application/json' } });

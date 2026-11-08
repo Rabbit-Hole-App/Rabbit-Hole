@@ -15,8 +15,8 @@ import { validateMathAnimation } from './learn-math-schema.js';
 import { validateToolInput as validateSchema } from './learn-validation.js';
 import { MATH_FORMAT } from './agents/math-format.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
-import { EXPLANATION_BUDGET, EXPLANATION_CAPS, validDepth } from './chat-depth.js';
-import { parseTutorDiagram, tutorDiagramJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
+import { DEFAULT_DEPTH, EXPLANATION_CAPS, validDepth } from './chat-depth.js';
+import { parseTutorDiagram, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
 const list = (items, minItems, maxItems) => ({ type: 'array', minItems, maxItems, items });
@@ -37,38 +37,6 @@ const graphSpec = (renderer, spec) => {
   return checked;
 };
 
-// EXP-13 fix 2: one visual of the author's answer. k pins the branch, so the oneOf is exclusive (sent as anyOf where a provider refuses oneOf).
-// The diagram spec is the TutorDiagram JSON with its own schema; parseTutorDiagram still checks what a schema cannot, after the fence is written.
-// Owner review 2026-11-08: output tokens are latency, so our own keys are short (k kind, p prompt, a alt, c caption), the picture text is shorter than a
-// saved fence allows (ILLUSTRATION_LIMITS still reads saved cards) and nothing the card does not show is asked for: the server numbers the picture ids.
-export const AUTHOR_PICTURE_LIMITS = Object.freeze({ prompt: 200, alt: 120, caption: 100 });
-const VISUAL_ITEM = { oneOf: [
-  shape({ k: { type: 'string', const: 'diagram' }, spec: tutorDiagramJsonSchema }),
-  shape({ k: { type: 'string', const: 'picture' }, p: text(AUTHOR_PICTURE_LIMITS.prompt), a: text(AUTHOR_PICTURE_LIMITS.alt), c: text(AUTHOR_PICTURE_LIMITS.caption) }),
-] };
-const MARKER = /[ \t]*\[\[visual:(\d+)\]\][ \t]*/g;
-// The fence id of the picture at a 0-based position of visuals.
-export const pictureId = i => `pic-${i + 1}`;
-// visuals[i] of the author's answer as the rh-illustration spec the server makes and saves, or null when it is not a complete picture.
-export const authorPicture = (v, i) => (v?.k === 'picture' && [v.p, v.a, v.c].every(x => typeof x === 'string' && x.trim()) ? { version: 1, id: pictureId(i), prompt: v.p.trim(), alt: v.a.trim(), caption: v.c.trim() } : null);
-const visualFence = (v, i) => {
-  // an incomplete picture keeps its fence, so the validator names what is missing
-  const made = v?.k === 'diagram' ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
-  return made ? '```' + made[0] + '\n' + JSON.stringify(made[1]) + '\n```' : null;
-};
-// The saved body: each first [[visual:N]] marker becomes visual N's fence on its own lines; an unknown or repeated marker is removed; a visual with no marker
-// goes at the end (the layout settling then moves it between prose parts).
-export function composeVisuals(body, visuals) {
-  const placed = new Set();
-  const out = String(body ?? '').replace(MARKER, (_, n) => {
-    const i = Number(n) - 1, fence = placed.has(i) ? null : visualFence(visuals[i], i);
-    if (fence) placed.add(i);
-    return fence ? '\n\n' + fence + '\n\n' : '\n\n';
-  });
-  const rest = visuals.map((v, i) => (placed.has(i) ? null : visualFence(v, i))).filter(Boolean);
-  return [out, ...rest].join('\n\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-}
-
 // ready: a generator may produce it now. unavailable: what the learner is
 // told when their command needs it. Which primitives are paid is the shared
 // contract's call (primitive(id) in agent/slash.js); a paid one is only ever
@@ -76,15 +44,9 @@ export function composeVisuals(body, visuals) {
 export const PRIMITIVES = {
   explanation: {
     ready: true,
-    about: `A titled explanation in Markdown: prose, one or two visuals, each with prose before and after it. ${MATH_FORMAT}`,
-    // EXP-13 (owner 2026-11-08, decision C1): no folded `more` sections on new cards; saved cards that have them still render and read (explanationFieldText, fieldText).
-    // EXP-13 fix 2 (owner 2026-11-08): the author gives its visuals as structured fields, placed in the body by [[visual:N]] markers; the server writes the
-    // rh-diagram / rh-illustration fences there, so the saved body is the one the card already renders. `visuals` comes BEFORE body: a streamed answer's
-    // pictures start while the body is still being written (explanation-fast-chain.js). The author is always asked for visuals (learn-artifact.js
-    // authorSchema, which also asks for at most two); a body that already holds its fences (the earlier answer shape) is still read as it is. More than two
-    // visuals are read and the extras dropped by the server (settleExplanationBody: owner review 2026-11-08, never repair what the server can drop).
-    schema: shape({ title: text(120), visuals: list(VISUAL_ITEM, 1, 6), body: text(3000) }, ['title', 'body']),
-    block: spec => ({ type: 'explanation', title: spec.title, body: spec.visuals ? composeVisuals(spec.body, spec.visuals) : spec.body, ...(spec.more?.length ? { more: spec.more } : {}) }),
+    about: `A titled explanation in Markdown with optional folded extras (worked example, misconception). ${MATH_FORMAT}`,
+    schema: shape({ title: text(120), body: text(3000), more: list(shape({ label: text(40), text: text(1500) }), 0, 3) }, ['title', 'body']),
+    block: spec => ({ type: 'explanation', title: spec.title, body: spec.body, ...(spec.more?.length ? { more: spec.more } : {}) }),
   },
   table: {
     ready: true,
@@ -305,15 +267,12 @@ export function artifactBlock(id, spec) {
 // --- CORE.09: the shared Explanation teaching guidance, display-text budget and the card's diagram format ----------------------------------
 // Offered with make_explanation on every path (direct /explain, Quick Edit, the Tutor roadmap); the request's Depth objective and budget
 // (chat-depth.js explanationTarget) follow it in the same tool description.
-export const EXPLANATION_GUIDANCE = 'For make_explanation, write the title, then visuals, then one body in Markdown (paragraphs, headings, lists and pipe tables); there are no folded sections. Lay the body out as prose, then a visual, then prose, and optionally a second visual followed by prose: one or two visuals, and every visual has paragraph or list text both before and after it. Each visual is one entry of visuals, either a diagram {"k":"diagram","spec":<the diagram>} or an illustration {"k":"picture","p":<prompt>,"a":<alt>,"c":<caption>}. Place each visual in the body with a line holding only its marker, [[visual:1]] or [[visual:2]] (its position in visuals), between two prose parts; never write a fence, JSON or a diagram label in the body. Choose visuals in this order. 1) Type: objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them; processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams; never use a picture for a data structure, an algorithm or numbers. 2) Diagram kind, by the shape of the answer: cycle when the last step feeds the first; sequence for messages between actors; timeline for dates or eras; transformation for inputs becoming outputs; tree for splits, sub-parts or sub-calls; relationship for causes; layers only for a real ordered stack; flow otherwise, a straight chain included (request, auth, handler, database). Layers, matrix, comparison, flow, tree and figure cannot draw a shape, object, place or appearance; figure is only for a cell, a free-body diagram or a layered cross-section; comparison is for 2-4 separate items, never the parts of one thing. 3) Count: two visuals when the question names two things (X and Y, X vs Y) or asks both how something looks and how it works; otherwise one. A table is not a visual: it may sit inside a prose part. Each visual must show what the learner\'s question asks and what the prose next to it explains, never decoration: its title, caption or labels name that idea in the same words the question or the neighbouring prose uses. Every visual has a title or caption (a diagram its title, an illustration its caption). An illustration is a picture made for you by an image model while you answer: p says what to draw in at most 200 characters (subject, view, style; no text or labels in the picture), a says what the picture shows for a reader who cannot see it in at most 120 characters, c is one line under the picture saying what to notice in at most 100 characters. Use a table to compare items across shared attributes. Fulfill every entry of requiredVisuals in the request at every Depth, including Overview, as a complete table, a valid diagram of the kind named or an illustration; when requiredVisuals lists diagrams or illustrations, the visuals are exactly those, that many of each kind and no other; shorten the prose to stay inside the same budget rather than omit it. When the request traces a worked case through a flow, give the flow a highlightPath (the node ids of the route in order, from the start node to an end node along existing edges) and also say the route in the caption in words (for example First check? Yes, then second check? Yes, so Approve). The body must answer the learner\'s question on its own. Be factual: explain the mechanism; leave out exact numbers, formulas, named parts and historical particulars unless they are standard textbook facts you are certain of, and never invent the name of an object, tool or part. Apply the requested Depth guidance and character budget. Only prose counts toward the budget: paragraph, heading and list text; the title, tables, diagrams and illustrations do not count. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. The spec of a diagram is one TutorDiagram object {"version":1,"diagram":{"kind":...,"title":...}}; never write Mermaid, HTML or SVG. Kinds: flow for a process with decisions (nodes [{id,label,role:"process"|"decision"|"outcome"}], edges [{from,to,label?}], optional highlightPath [node ids] for a traced worked case: one connected acyclic graph with exactly one start node; a decision has two or three outgoing edges with distinct short labels such as Yes and No, each to its own node, and a failed check ends in its own outcome; a process has one outgoing edge, an outcome has none; use cycle or relationship for a loop), comparison for items across attributes (columns [{heading,items:[1-5 texts]}], 2-4 columns), timeline for events in time (events [{time,label,detail?}]), sequence for messages between actors (actors [{id,label}] 2-4, messages [{from,to,label}] between different actors), matrix for a grid (columns [...], rows [{heading,cells:[one per column]}]), layers for a stack (layers [{label,detail?}]), cycle for a repeating process (steps [...]), figure for a labeled drawing (figure "cell"|"free-body"|"cross-section", callouts [{anchor,label,detail?}] with one callout per anchor: cell anchors membrane, nucleus, cytoplasm, mitochondrion; cross-section anchors top-layer, core, bottom-layer, interface; free-body anchors body or a direction that has a vector; free-body also takes vectors [{direction:"up"|"down"|"left"|"right",magnitude above zero,label}] with unique directions and an optional unit, and only free-body takes vectors and unit), tree for a hierarchy (nodes [{id,label,parent?}], exactly one node without a parent, no cycles), relationship for labeled links between things, reciprocal or cyclic allowed (nodes [{id,label}], edges [{from,to,label}]: different ends, every node linked, no repeated labeled pair), transformation for before and after (before {label,items}, after {label,items}, operation, optional links [{from,to,label?}] as zero-based item indexes), argument for claim and evidence (claim, support [{label,source?}], objections [{label,source?}] possibly empty, conclusion), number-line for values and intervals (min, max, markers [{value,label}] distinct and inside the range, optional intervals [{from,to,startClosed,endClosed,label}] increasing and inside the range; at least one marker or interval), coordinate-plot for data on two axes (x and y {label,min,max,unit?} with min below max, series [{label,kind:"line"|"scatter",points:[{x,y}]}] 1-3 series, points inside the axes, a line needs two points), bar-chart for comparing quantities (unit?, bars [{label,value}] 2-8, values may be negative), t-account for debits and credits (account, unit?, debits and credits [{label,amount}] nonnegative with at most two decimals, at least one posting), waterfall for an opening value changed by signed steps (opening, unit?, changes [{label,amount}] with at most two decimals). IDs start with a letter. Labels are short single-line text: title at most 90 characters, optional caption 140, flow node label 60 and edge label 30. Never invent numbers; use exact values from the request or the source.';
+export const EXPLANATION_GUIDANCE = 'For make_explanation, the main body and optional section text support Markdown paragraphs, headings, lists, pipe tables and diagram fences. Choose the form that makes the idea easiest to understand. Use a table to compare items across shared attributes. Use a diagram to explain branching decisions, relationships, a sequence of events or a process. Include enough prose to explain what the learner should notice. A table or diagram is optional only when neither the learner nor the accepted step requires one. Fulfill every entry of requiredVisuals in the request at every Depth, including Overview, as a complete table or a valid diagram of the kind named; shorten the prose to stay inside the same budget rather than omit it. When the request traces a worked case through a flow, give the flow a highlightPath (the node ids of the route in order, from the start node to an end node along existing edges) and also say the route in the caption in words (for example First check? Yes, then second check? Yes, so Approve). Otherwise choose the structure to suit the question. The main body must answer the learner\'s question on its own. Optional sections can add a worked example, prediction or further reasoning. Apply the requested Depth guidance and total character budget. Include the title, section labels, table cells, diagram title, caption and labels, and collapsed content in that budget. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. A diagram is one closed ```rh-diagram fence holding one JSON object {"version":1,"diagram":{"kind":...,"title":...}} and nothing else; never write Mermaid, HTML or SVG. Pick the kind by the idea. Kinds: flow for a process with decisions (nodes [{id,label,role:"process"|"decision"|"outcome"}], edges [{from,to,label?}], optional highlightPath [node ids] for a traced worked case: one connected acyclic graph with exactly one start node; a decision has two or three outgoing edges with distinct short labels such as Yes and No, each to its own node, and a failed check ends in its own outcome; a process has one outgoing edge, an outcome has none; use cycle or relationship for a loop), comparison for items across attributes (columns [{heading,items:[1-5 texts]}], 2-4 columns), timeline for events in time (events [{time,label,detail?}]), sequence for messages between actors (actors [{id,label}] 2-4, messages [{from,to,label}] between different actors), matrix for a grid (columns [...], rows [{heading,cells:[one per column]}]), layers for a stack (layers [{label,detail?}]), cycle for a repeating process (steps [...]), figure for a labeled drawing (figure "cell"|"free-body"|"cross-section", callouts [{anchor,label,detail?}] with one callout per anchor: cell anchors membrane, nucleus, cytoplasm, mitochondrion; cross-section anchors top-layer, core, bottom-layer, interface; free-body anchors body or a direction that has a vector; free-body also takes vectors [{direction:"up"|"down"|"left"|"right",magnitude above zero,label}] with unique directions and an optional unit, and only free-body takes vectors and unit), tree for a hierarchy (nodes [{id,label,parent?}], exactly one node without a parent, no cycles), relationship for labeled links between things, reciprocal or cyclic allowed (nodes [{id,label}], edges [{from,to,label}]: different ends, every node linked, no repeated labeled pair), transformation for before and after (before {label,items}, after {label,items}, operation, optional links [{from,to,label?}] as zero-based item indexes), argument for claim and evidence (claim, support [{label,source?}], objections [{label,source?}] possibly empty, conclusion), number-line for values and intervals (min, max, markers [{value,label}] distinct and inside the range, optional intervals [{from,to,startClosed,endClosed,label}] increasing and inside the range; at least one marker or interval), coordinate-plot for data on two axes (x and y {label,min,max,unit?} with min below max, series [{label,kind:"line"|"scatter",points:[{x,y}]}] 1-3 series, points inside the axes, a line needs two points), bar-chart for comparing quantities (unit?, bars [{label,value}] 2-8, values may be negative), t-account for debits and credits (account, unit?, debits and credits [{label,amount}] nonnegative with at most two decimals, at least one posting), waterfall for an opening value changed by signed steps (opening, unit?, changes [{label,amount}] with at most two decimals). IDs start with a letter. Labels are short single-line text: title at most 90 characters, optional caption 140, flow node label 60 and edge label 30. Never invent numbers; use exact values from the request or the source.';
 
 // The card's own patterns (Md.jsx lines()): an opening ``` takes its language token and ignores the rest of the line, any line starting with
 // ``` closes, and the card draws a TutorDiagram for /^rh-diagram$/i. Pinned against Md.jsx by explanation-validation.test.js.
 const FENCE = /^\s*```\s*([\w+#.-]*)/;
 const DIAGRAM = 'rh-diagram';
-// EXP-13: an illustration the server makes with the image model before the card is saved (explanation-figures.js). One JSON object, these keys only.
-export const ILLUSTRATION = 'rh-illustration';
-export const ILLUSTRATION_LIMITS = Object.freeze({ id: 32, prompt: 600, alt: 200, caption: 140 });
 
 // A fence that does not parse still counts as the literal lines, so a bad block cannot hide text; diagramProblem refuses it anyway.
 const fenceWords = lines => { try { return tutorDiagramVisibleText(parseTutorDiagram(lines.join('\n'))).filter(Boolean); } catch { return lines; } };
@@ -348,72 +307,16 @@ export function diagramProblem(md) {
   return null;
 }
 
-// -> { ok: true, spec: { version, id, prompt, alt, caption } } | { ok: false, problem }. The renderer and the server read the same parse.
-export function parseIllustration(lines) {
-  let spec;
-  try { spec = JSON.parse(Array.isArray(lines) ? lines.join('\n') : String(lines ?? '')); } catch { return { ok: false, problem: 'the rh-illustration fence must hold one JSON object' }; }
-  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return { ok: false, problem: 'the rh-illustration fence must hold one JSON object' };
-  const extra = Object.keys(spec).filter(k => !['version', 'id', 'prompt', 'alt', 'caption'].includes(k));
-  if (extra.length) return { ok: false, problem: `the rh-illustration object takes only version, id, prompt, alt and caption (not ${extra.slice(0, 3).join(', ')})` };
-  if (spec.version !== 1) return { ok: false, problem: 'the rh-illustration version must be 1' };
-  if (typeof spec.id !== 'string' || !new RegExp(`^[A-Za-z][A-Za-z0-9-]{0,${ILLUSTRATION_LIMITS.id - 1}}$`).test(spec.id)) return { ok: false, problem: `the rh-illustration id must be a letter then letters, digits or hyphens, at most ${ILLUSTRATION_LIMITS.id} characters` };
-  for (const key of ['prompt', 'alt', 'caption']) {
-    const value = typeof spec[key] === 'string' ? spec[key].trim() : '';
-    if (!value) return { ok: false, problem: `the rh-illustration "${spec.id}" needs a ${key}` };
-    if (Array.from(value).length > ILLUSTRATION_LIMITS[key]) return { ok: false, problem: `the rh-illustration "${spec.id}" ${key} is longer than ${ILLUSTRATION_LIMITS[key]} characters` };
-  }
-  return { ok: true, spec: { version: 1, id: spec.id, prompt: spec.prompt.trim(), alt: spec.alt.trim(), caption: spec.caption.trim() } };
-}
-// Every rh-illustration fence of a Markdown string, in order: -> [{ ok, spec?, problem? }]
-export const markdownIllustrations = md => split(md).fences.filter(f => f.lang === ILLUSTRATION).map(f => (f.closed ? parseIllustration(f.lines) : { ok: false, problem: 'an rh-illustration fence is not closed' }));
-
-// After the pictures were made (explanation-figures.js): the fences whose picture could not be made are removed, the prose around them joined. ids: Set of ids to drop.
-export function withoutIllustrations(md, ids) {
-  const out = []; let open = null;
-  for (const line of String(md ?? '').split('\n')) {
-    if (open) { open.raw.push(line); if (/^\s*```/.test(line)) { const got = parseIllustration(open.lines); if (!(got.ok && ids.has(got.spec.id))) out.push(...open.raw); open = null; } else open.lines.push(line); continue; }
-    const m = line.match(FENCE);
-    if (m && m[1].toLowerCase() === ILLUSTRATION) { open = { lines: [], raw: [line] }; continue; }
-    out.push(line);
-  }
-  if (open) out.push(...open.raw);
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-}
-
 // The last attempt only (no repair left): every rh-diagram fence that is unclosed or does not parse is removed, so the written explanation is
 // delivered without a diagram that cannot be drawn. A Mermaid fence is still refused, not dropped. -> { block, dropped }; the block is the same
 // object when nothing was dropped.
 const parses = lines => { try { parseTutorDiagram(lines.join('\n')); return true; } catch { return false; } };
-// Owner 2026-11-08 (a card should not fail): an invalid diagram the one repair did not fix becomes, with no model call, a straight flow of its own labels in
-// the order written (n1 -> n2 -> ..., each a process, the last the outcome; title and caption kept when they fit). -> the spec, or null when the fence is
-// not JSON or fewer than two labels can be read.
-const LABEL_LISTS = ['nodes', 'steps', 'events', 'layers', 'actors', 'messages', 'bars', 'changes', 'markers', 'callouts'];
-const fit = (s, max) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, ''); };
-export function simplifiedDiagram(lines) {
-  let d; try { d = JSON.parse(lines.join('\n'))?.diagram; } catch { return null; }
-  const list = LABEL_LISTS.map(k => d?.[k]).find(v => Array.isArray(v) && v.length >= 2) || [];
-  const labels = [...new Set(list.map(x => (typeof x === 'string' ? x : x?.label)).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60)))].slice(0, 12);
-  if (labels.length < 2) return null;
-  const title = fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0]} to ${labels.at(-1)}`, 90);
-  const caption = typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {};
-  const spec = { version: 1, diagram: { title, ...caption, kind: 'flow', nodes: labels.map((label, i) => ({ id: `n${i + 1}`, label, role: i === labels.length - 1 ? 'outcome' : 'process' })),
-    edges: labels.slice(1).map((_, i) => ({ from: `n${i + 1}`, to: `n${i + 2}` })) } };
-  try { return parseTutorDiagram(spec); } catch { return null; }
-}
-// simplify: an invalid closed diagram is replaced by simplifiedDiagram when it can be, else removed. -> { md, dropped (removed or replaced), simplified }
-function dropFrom(md, simplify = false) {
-  const out = []; let open = null, dropped = 0, simplified = 0;
+function dropFrom(md) {
+  const out = []; let open = null, dropped = 0;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       open.raw.push(line);
-      if (/^\s*```/.test(line)) {
-        if (open.lang === DIAGRAM && !parses(open.lines)) {
-          dropped++;
-          const spec = simplify && simplifiedDiagram(open.lines);
-          if (spec) { simplified++; out.push(open.raw[0], JSON.stringify(spec), line); }
-        } else out.push(...open.raw);
-        open = null;
-      } else open.lines.push(line);
+      if (/^\s*```/.test(line)) { if (open.lang === DIAGRAM && !parses(open.lines)) dropped++; else out.push(...open.raw); open = null; } else open.lines.push(line);
       continue;
     }
     const m = line.match(FENCE);
@@ -421,46 +324,14 @@ function dropFrom(md, simplify = false) {
     out.push(line);
   }
   if (open) { if (open.lang === DIAGRAM) dropped++; else out.push(...open.raw); }
-  return dropped ? { md: out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), dropped, simplified } : { md, dropped: 0, simplified: 0 };
+  return dropped ? { md: out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), dropped } : { md, dropped: 0 };
 }
-export function dropInvalidDiagrams(block, { simplify = false } = {}) {
-  const body = dropFrom(block?.body, simplify);
-  const more = (block?.more || []).map(s => ({ s, d: dropFrom(s?.text, simplify) }));
-  const dropped = body.dropped + more.reduce((n, { d }) => n + d.dropped, 0), simplified = body.simplified + more.reduce((n, { d }) => n + d.simplified, 0);
-  if (!dropped) return { block, dropped: 0, simplified: 0 };
-  return { block: { ...block, body: body.md, ...(block.more ? { more: more.map(({ s, d }) => (d.dropped ? { ...s, text: d.md } : s)) } : {}) }, dropped, simplified };
-}
-
-// EXP-13 fix 6a (owner 2026-11-08, a re-route, never a refusal): when the learner's words say the process repeats, every rh-diagram flow with no decision
-// and no branch (a straight chain) becomes a cycle of the same steps in order, title and caption kept. Any other diagram, or a chain the cycle kind cannot
-// hold (more than 7 steps), is left as it is. -> the Markdown, unchanged when nothing was converted.
-function chainAsCycle(spec) {
-  const d = spec.diagram;
-  if (d.kind !== 'flow' || d.nodes.some(n => n.role === 'decision')) return null;
-  const next = new Map();
-  for (const e of d.edges) { if (next.has(e.from)) return null; next.set(e.from, e.to); }
-  const into = new Set(d.edges.map(e => e.to)), byId = new Map(d.nodes.map(n => [n.id, n]));
-  const steps = [];
-  for (let id = d.nodes.find(n => !into.has(n.id))?.id; id && steps.length <= d.nodes.length; id = next.get(id)) steps.push(fit(byId.get(id).label, 55));
-  if (steps.length !== d.nodes.length) return null;
-  try { return parseTutorDiagram({ version: 1, diagram: { title: d.title, ...(d.caption ? { caption: d.caption } : {}), kind: 'cycle', steps } }); } catch { return null; }
-}
-export function chainsAsCycles(md) {
-  const out = []; let open = null, changed = false;
-  for (const line of String(md ?? '').split('\n')) {
-    if (open) {
-      if (/^\s*```/.test(line)) {
-        let spec = null; try { spec = chainAsCycle(parseTutorDiagram(open.lines.join('\n'))); } catch { /* an invalid diagram is the drop or repair path's */ }
-        out.push(open.raw, ...(spec ? [JSON.stringify(spec)] : open.lines), line); changed ||= !!spec; open = null;
-      } else open.lines.push(line);
-      continue;
-    }
-    const m = line.match(FENCE);
-    if (m && m[1].toLowerCase() === DIAGRAM) { open = { lines: [], raw: line }; continue; }
-    out.push(line);
-  }
-  if (open) out.push(open.raw, ...open.lines);
-  return changed ? out.join('\n') : md;
+export function dropInvalidDiagrams(block) {
+  const body = dropFrom(block?.body);
+  const more = (block?.more || []).map(s => ({ s, d: dropFrom(s?.text) }));
+  const dropped = body.dropped + more.reduce((n, { d }) => n + d.dropped, 0);
+  if (!dropped) return { block, dropped: 0 };
+  return { block: { ...block, body: body.md, ...(block.more ? { more: more.map(({ s, d }) => (d.dropped ? { ...s, text: d.md } : s)) } : {}) }, dropped };
 }
 
 // E1: the tables and diagrams a Markdown string really holds, for the required-visual check (explanation-visuals.js). A pipe table is complete only with a header row, a
@@ -503,40 +374,18 @@ const inlineText = s => s.split(INLINE).map((part, i) => {
 }).join('');
 
 // The display text of one Markdown string in reading order: prose, headings, list items, table cells, code as literal text, diagram labels.
-// -> [{ text, prose }]: prose is paragraph, heading, list and code text (EXP-13: what the budget counts and term anchors may sit in); table cells and diagram words are not.
-// An rh-illustration fence (EXP-13, new: no saved card has one, so DISPLAY_TEXT_VERSION is unchanged) shows no text in the body: its caption sits under the picture, outside the anchorable text.
-function markdownPieces(md) {
+function markdownText(md) {
   const out = [];
   for (const line of split(md).prose) {
-    if (typeof line !== 'string') {
-      if (line.fence.lang === ILLUSTRATION) continue;
-      out.push(...(line.fence.lang === DIAGRAM ? fenceWords(line.fence.lines).map(text => ({ text, prose: false })) : line.fence.lines.map(text => ({ text, prose: true }))));
-      continue;
-    }
+    if (typeof line !== 'string') { out.push(...(line.fence.lang === DIAGRAM ? fenceWords(line.fence.lines) : line.fence.lines)); continue; }
     if (/^\s*\|.*\|\s*$/.test(line)) {
       const cells = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-      if (!cells.every(c => /^:?-{3,}:?$/.test(c))) out.push(...cells.map(c => ({ text: inlineText(c), prose: false })));
+      if (!cells.every(c => /^:?-{3,}:?$/.test(c))) out.push(...cells.map(inlineText));
       continue;
     }
-    out.push({ text: inlineText(line.replace(/^\s*#{1,6}\s+/, '').replace(/\s+#+\s*$/, '').replace(/^\s*>\s?/, '').replace(/^\s*(?:[-*+]|\d{1,9}[.)])\s+/, '')), prose: true });
+    out.push(inlineText(line.replace(/^\s*#{1,6}\s+/, '').replace(/\s+#+\s*$/, '').replace(/^\s*>\s?/, '').replace(/^\s*(?:[-*+]|\d{1,9}[.)])\s+/, '')));
   }
-  return out;
-}
-const markdownText = md => markdownPieces(md).map(p => p.text).join(' ');
-const proseText = md => markdownPieces(md).filter(p => p.prose).map(p => p.text).join(' ').replace(/\s+/g, ' ').trim();
-
-// E2 + EXP-13: which code points of explanationFieldText(md) are prose, so a term anchor can be refused when it sits in a table cell or a diagram label.
-// The same collapse and trim as explanationFieldText, applied to the text and its flags together. -> boolean[] (one per code point of the field text)
-export function explanationFieldProse(md) {
-  const chars = [], flags = [];
-  markdownPieces(md).forEach((p, i) => { if (i) { chars.push(' '); flags.push(false); } for (const c of p.text) { chars.push(c); flags.push(p.prose); } });
-  const out = [];
-  for (let i = 0; i < chars.length; i++) {
-    if (/\s/.test(chars[i])) { if (out.length && !out.at(-1).space) out.push({ space: true, prose: false }); continue; }
-    out.push({ space: false, prose: flags[i] });
-  }
-  if (out.at(-1)?.space) out.pop();
-  return out.map(c => c.prose);
+  return out.join(' ');
 }
 
 // E2: one Markdown field's canonical display text, the single mapping that term anchors, selections and highlights share (explanation-interactions.js DISPLAY_TEXT_VERSION).
@@ -548,8 +397,8 @@ export const explanationText = block => [block?.title ?? '', markdownText(block?
   block?.illustration?.caption ?? '', ...(Array.isArray(block?.illustration?.callouts) ? block.illustration.callouts.map(c => c?.text ?? '') : [])].join(' ').replace(/\s+/g, ' ').trim();
 export const explanationChars = block => Array.from(explanationText(block)).length;
 
-// E3 (GAP-03, EXP-03-C02): an attached illustration's caption and callout text count toward the teaching cap with everything else, checked before a picture is attached by hand.
-// Owner 2026-11-08 removed "Add illustration" from the card; a saved card's single block.illustration still renders, and this check stays for any caller that attaches one.
+// E3 (GAP-03, EXP-03-C02): an attached illustration's caption and callout text count toward the teaching cap with everything else. The attach check runs BEFORE the picture is
+// marked on the card (LearnPage markIllustration), so nothing is generated for a card that cannot take it and the accepted lesson is never rewritten to make room.
 // ponytail: a card saved before E3 carries no Depth (block.depth), so its budget is unknown and the check passes; stamp the Depth and this tightens by itself.
 export function illustrationProblem(block, illustration) {
   const level = validDepth(block?.depth);
@@ -558,141 +407,15 @@ export function illustrationProblem(block, illustration) {
   return used > cap ? `This explanation is at its ${level} limit (${used} of ${cap} characters with the picture's caption), so the illustration was not attached. Shorten the card or use a higher Depth, then add it again.` : null;
 }
 
-// EXP-13 (owner decision B): the budget counts prose only, paragraph, heading and list text of the body (and of a saved card's sections); the title, tables, diagrams and
-// illustrations do not count. Code points, whitespace collapsed, like explanationChars.
-export const explanationProseChars = block => Array.from([proseText(block?.body), ...(block?.more || []).map(s => proseText(s?.text))].filter(Boolean).join(' ')).length;
-
-// EXP-13 layout: the body as parts in reading order, -> [{ kind: 'prose', text } | { kind: 'visual', visual: 'diagram'|'illustration', ok, words, name }]. A prose part needs
-// paragraph, heading or list text (a table alone is not prose between visuals). words: the visual's own text (diagram title, caption and labels; illustration caption and alt).
-function explanationParts(md) {
-  const parts = []; let prose = [];
-  const flush = () => { const text = prose.join(' ').replace(/\s+/g, ' ').trim(); if (text) parts.push({ kind: 'prose', text }); prose = []; };
-  for (const line of split(md).prose) {
-    if (typeof line === 'string') { if (!/^\s*\|.*\|\s*$/.test(line)) prose.push(markdownText(line)); continue; }
-    const { lang, lines, closed } = line.fence;
-    if (lang === DIAGRAM) {
-      flush();
-      let d = null; try { if (closed) d = parseTutorDiagram(lines.join('\n')); } catch { d = null; }
-      parts.push({ kind: 'visual', visual: 'diagram', ok: !!d, words: d ? tutorDiagramVisibleText(d).filter(Boolean).join(' ') : '', name: d?.diagram?.title || d?.diagram?.caption || '' });
-    } else if (lang === ILLUSTRATION) {
-      flush();
-      const got = closed ? parseIllustration(lines) : { ok: false };
-      parts.push({ kind: 'visual', visual: 'illustration', ok: got.ok, words: got.ok ? `${got.spec.caption} ${got.spec.alt}` : '', name: got.ok ? got.spec.caption : '' });
-    } else prose.push(lines.join(' '));
-  }
-  flush();
-  return parts;
-}
-
-// Visual relevance (owner 2026-11-08): a deterministic word check, no model call. Content words: lowercased letters and digits, stop words removed, a simple plural stripped.
-const STOP = new Set('a an and are as at be been but by can do does for from has have how in into is it its of on or that the their them then there these this those to was were what when where which while who why will with you your our we they he she his her not no yes than so if also each every one two more most some any all about over under between through'.split(' '));
-const stem = w => (w.length > 4 && w.endsWith('ies') ? `${w.slice(0, -3)}y` : w.length > 4 && /(?:ses|xes|zes|ches|shes)$/.test(w) ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
-export const contentWords = text => new Set((String(text ?? '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter(w => !STOP.has(w) && (w.length > 1 || /\d/.test(w))).map(stem));
-
-// -> null, or the one layout problem of a NEW card (the problem words name the repair). question: the learner's own words (direct) or the step's title and goal (Tutor).
-export function explanationLayoutProblem(block, question = '') {
-  if (block?.more?.length) return 'explanation_layout: a new card has no folded sections; put everything in the body.';
-  const parts = explanationParts(block?.body), visuals = parts.filter(p => p.kind === 'visual');
-  if (!visuals.length && block?.visualFallback === 'dropped') return null; // the server removed the only visual it could neither draw nor simplify (learn-artifact.js)
-  if (!visuals.length) return 'explanation_missing_visual: the card needs one or two visuals, an rh-diagram or an rh-illustration fence, each with prose before and after it; add one that shows what the question asks.';
-  if (visuals.length > 2) return `explanation_too_many_visuals: the card has ${visuals.length} visuals; keep one or two, each with prose before and after it.`;
-  if (!/^P(?:VP){1,2}$/.test(parts.map(p => (p.kind === 'prose' ? 'P' : 'V')).join(''))) return 'explanation_layout: a visual needs prose before and after it; write prose, visual, prose (optionally visual, prose), with paragraph or list text between two visuals.';
-  const asked = contentWords(question);
-  for (const [i, p] of parts.entries()) {
-    if (p.kind !== 'visual' || !p.ok) continue; // a broken fence is diagramProblem's or the illustration check's to name
-    const near = new Set([...asked, ...contentWords(parts[i - 1]?.text), ...contentWords(parts[i + 1]?.text)]);
-    if (![...contentWords(p.words)].some(w => near.has(w))) return `explanation_visual_unrelated: the ${p.visual} "${String(p.name).slice(0, 80)}" names nothing from the question or the text around it; make it show what the question asks and the prose next to it explains, and name that idea in its ${p.visual === 'diagram' ? 'title, caption or labels' : 'caption and alt'}.`;
-  }
-  return null;
-}
-
-// -> null, or the validator's words for a NEW card: over the prose budget, the layout, and each broken diagram or illustration. When several are wrong, ONE message
-// names them all, so the single repair can fix them together. The repair (direct paths) reads the words; the roadmap fails terminally.
-// depth: kept for the callers; EXP-13 has one budget for every Depth (asked for 600, refused above 700).
-export function explanationProblem(block, depth, question = '') {
-  const cap = EXPLANATION_BUDGET.hard, used = explanationProseChars(block);
+// -> null, or the validator's words: over the Depth's budget and/or an invalid diagram. When both are wrong on the same card, ONE message names both, so the
+// single repair can fix them together: the measured length with its limit, and each diagram's specific errors. A fence that does not parse counts as the
+// literal lines it holds (a bad block cannot hide text), so the message says so: the length changes once the diagram is fixed.
+// The repair (direct paths) reads the words; the roadmap fails terminally.
+export function explanationProblem(block, depth) {
+  const level = validDepth(depth) || DEFAULT_DEPTH, cap = EXPLANATION_CAPS[level], used = explanationChars(block);
   const diagrams = [block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(Boolean);
-  const pictures = markdownIllustrations(block?.body), ids = pictures.filter(p => p.ok).map(p => p.spec.id);
   const problems = [];
-  if (used > cap) problems.push(`explanation_over_budget: the card has ${used} characters of prose (paragraph, heading and list text), the limit is ${cap} (aim for ${EXPLANATION_BUDGET.target}); the title, tables, diagrams and illustrations do not count; shorten the prose.`);
+  if (used > cap) problems.push(`explanation_over_budget: the card has ${used} characters, the ${level} budget is ${cap} including the title, section labels, table cells, diagram title, caption and labels, and collapsed sections; shorten it.${diagrams.length ? ' The text of a diagram that does not parse is counted as written, so fixing the diagram also changes this length.' : ''}`);
   problems.push(...diagrams);
-  problems.push(...pictures.filter(p => !p.ok).map(p => `explanation_bad_illustration: ${p.problem}.`));
-  if (new Set(ids).size !== ids.length) problems.push('explanation_bad_illustration: two rh-illustration fences share an id; give each its own.');
-  const layout = explanationLayoutProblem(block, question); if (layout) problems.push(layout);
   return problems.length ? problems.join(' ') : null;
-}
-
-// ---- EXP-13 fix 1 (owner 2026-11-08, after the gpt-oss benchmark): what the server can fix is fixed here, never sent to the one repair ----------------
-// The body as blocks in reading order: each fence its own block, other text split at blank lines. visual: 'diagram' | 'illustration' | null; ok: it parses.
-function bodyBlocks(md) {
-  const blocks = []; let open = null, run = [];
-  const flush = () => { if (run.length) blocks.push({ lines: run, visual: null }); run = []; };
-  const fence = ({ lang, lines }) => {
-    const inner = lines.slice(1, /^\s*```/.test(lines.at(-1)) && lines.length > 1 ? -1 : undefined);
-    const visual = lang === DIAGRAM ? 'diagram' : lang === ILLUSTRATION ? 'illustration' : null;
-    let kind = null; if (visual === 'diagram') try { kind = JSON.parse(inner.join('\n'))?.diagram?.kind ?? null; } catch { /* unreadable: no kind */ }
-    return { lines, fence: true, visual, kind, ok: visual === 'diagram' ? parses(inner) : visual === 'illustration' ? parseIllustration(inner).ok : true };
-  };
-  for (const line of String(md ?? '').split('\n')) {
-    if (open) { open.lines.push(line); if (/^\s*```/.test(line)) { blocks.push(fence(open)); open = null; } continue; }
-    const m = line.match(FENCE);
-    if (m) { flush(); open = { lang: m[1].toLowerCase(), lines: [line] }; continue; }
-    if (line.trim()) run.push(line); else flush();
-  }
-  if (open) blocks.push(fence(open));
-  flush();
-  return blocks;
-}
-const joinBlocks = blocks => blocks.map(b => b.lines.join('\n')).join('\n\n');
-const layoutOk = md => /^P(?:VP){1,2}$/.test(explanationParts(md).map(p => (p.kind === 'prose' ? 'P' : 'V')).join(''));
-
-// Every way to put the visuals (in their order) into the gaps of the other blocks: [[gap, ...]], gap = the number of other blocks before that visual.
-const placements = (n, m, from = 0) => (m === 0 ? [[]] : Array.from({ length: n + 1 - from }, (_, k) => from + k).flatMap(g => placements(n, m - 1, g).map(rest => [g, ...rest])));
-
-// A list item or heading is one unit; a paragraph line is split into sentences (shortcut: a sentence ends at . ! or ? before a space and a capital, digit
-// or opening mark, so "e.g. The" splits too; upgrade if a real card shows a bad cut). Table rows and fences are never units: they do not count.
-const PIPE = /^\s*\|.*\|\s*$/;
-const unitsOf = line => (PIPE.test(line) ? null : /^\s*(?:#{1,6}\s|[-*+]\s|\d{1,9}[.)]\s)/.test(line) ? [line] : line.split(/(?<=[.!?]["')\]*_]?)\s+(?=[\p{Lu}\p{N}"'(*_$[])/u));
-
-// -> the body with (1) visuals the server can drop dropped: more than two keeps the first two by position, and when the learner asked for a mix
-// (mix = { diagram, illustration, diagramKind? }, explanation-visuals.js requiredMix) only that many of each kind are kept: a diagram of the asked kind
-// first (an invalid one is then named for the repair rather than replaced by another kind), then valid ones, then by position;
-// (2) the visuals moved, if their order is wrong, to the nearest gaps where each has prose before and after it; (3) prose over EXPLANATION_BUDGET.hard
-// trimmed by whole sentences or list items from the end, every prose part keeping at least one. What cannot be settled is left for the validator to
-// name. The same string when nothing changes.
-export function settleExplanationBody(md, mix = null) {
-  let blocks = bodyBlocks(md);
-  const visuals = blocks.map((b, i) => (b.visual ? i : -1)).filter(i => i >= 0);
-  const asked = i => !!mix?.diagramKind && blocks[i].kind === mix.diagramKind;
-  const rank = list => list.sort((x, y) => (asked(y) - asked(x)) || (blocks[y].ok - blocks[x].ok) || x - y);
-  const keep = new Set(mix ? ['diagram', 'illustration'].flatMap(kind => rank(visuals.filter(i => blocks[i].visual === kind)).slice(0, mix[kind] || 0)) : visuals.slice(0, 2));
-  let changed = keep.size !== visuals.length;
-  blocks = blocks.filter((b, i) => !b.visual || keep.has(i));
-  if (keep.size && !layoutOk(joinBlocks(blocks))) {
-    const flow = blocks.filter(b => !b.visual), seen = blocks.filter(b => b.visual);
-    const at = []; let n = 0; for (const b of blocks) { if (b.visual) at.push(n); else n++; }
-    const build = gaps => { const out = []; flow.forEach((b, i) => { gaps.forEach((g, v) => { if (g === i) out.push(seen[v]); }); out.push(b); }); gaps.forEach((g, v) => { if (g === flow.length) out.push(seen[v]); }); return out; };
-    const best = placements(flow.length, seen.length).map(gaps => ({ gaps, cost: gaps.reduce((sum, g, v) => sum + Math.abs(g - at[v]), 0) }))
-      .sort((a, b) => a.cost - b.cost).find(({ gaps }) => layoutOk(joinBlocks(build(gaps))));
-    if (best) { blocks = build(best.gaps); changed = true; }
-  }
-  const prose = () => explanationProseChars({ body: joinBlocks(blocks) });
-  if (prose() > EXPLANATION_BUDGET.hard) {
-    // units in reading order, each with its prose part (the parts are split by visuals)
-    for (let part = 0, b = 0; b < blocks.length; b++) { if (blocks[b].visual) { part++; continue; } if (!blocks[b].fence) blocks[b] = { ...blocks[b], part, units: blocks[b].lines.map(unitsOf) }; }
-    const count = part => blocks.reduce((sum, b) => sum + (b.part === part && b.units ? b.units.reduce((s, u) => s + (u ? u.length : 0), 0) : 0), 0);
-    const render = b => (b.units ? { ...b, lines: b.units.map((u, i) => (u ? u.join(' ') : b.lines[i])).filter((line, i) => !b.units[i] || b.units[i].length) } : b);
-    while (prose() > EXPLANATION_BUDGET.hard) {
-      let cut = false;
-      for (let b = blocks.length - 1; b >= 0 && !cut; b--) {
-        const block = blocks[b];
-        if (!block.units || count(block.part) < 2) continue;
-        for (let l = block.units.length - 1; l >= 0 && !cut; l--) if (block.units[l]?.length) { block.units[l] = block.units[l].slice(0, -1); blocks[b] = render(block); blocks[b].units = block.units.filter(u => !u || u.length); cut = true; }
-      }
-      if (!cut) break;
-      blocks = blocks.filter(b => b.lines.length);
-      changed = true;
-    }
-  }
-  return changed ? joinBlocks(blocks) : md;
 }

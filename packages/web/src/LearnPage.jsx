@@ -6,7 +6,7 @@ import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
 import { SKELETON_DROPPED_EVENT, EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, skeletonJobOf, CHAT_DELETED_EVENT, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
 import { HIGHLIGHT_EXPLAIN_COMMAND, heldPassageTarget } from './source-refs.js';
-import { withCardSink, withSlotSink } from './chat-output-refs.js';
+import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, FileText, House, Type, PanelRightClose, PanelRightOpen, Pause, Play, Share2 } from 'lucide-react';
@@ -18,7 +18,8 @@ import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
-import { pendingBlock } from './illustration-target.js';
+import { ILLUSTRATION_CAPTION, markedBlock, pendingBlock } from './illustration-target.js';
+import { illustrationProblem } from '../../control-plane/src/learn-primitives.js';
 import { setFileScope, fileScope, uploadSource } from './file-source-client.js';
 import {verifySourceReadings} from './inline-source-readings.js';
 import { verifyExtractionRead } from './inline-extraction.js';
@@ -489,7 +490,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       if (result.result === 'artifact' || result.result === 'paid_proposal') {
         // A paid card (a 3D scene) starts at once: this Generate on its brief is the confirmation.
         const block = { ...withPrompt(result.block, proposal.input?.request), proposalId: proposal.proposal_id, ...(result.result === 'paid_proposal' ? { confirmedStart: true } : {}) };
-        return { blockId: canvasApi.current?.insertBlock(block, { into: slot, fit: block.type === 'explanation' }) ?? null }; // fit: learn-slash.js's, a new Explanation shown whole
+        return { blockId: canvasApi.current?.insertBlock(block, { into: slot }) ?? null };
       }
       if (slot) live.release?.(slot);
       throw new Error(result.question || result.message || result.error || 'That could not be made. Press Generate to try again.');
@@ -587,8 +588,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       window.dispatchEvent(new CustomEvent(event, { detail: { jobId: proposal.input.job } }));
       return job;
     },
-    // A written Explanation's illustration (IllustrationFigure.jsx, generate-image.js illustrationFrom). Add illustration is removed (EXP-13, owner 2026-11-08), so no card is marked
-    // any more; a card marked before then still takes its picture when that plan's job is ready (through the canvas's own updateBlock, one undo step).
+    // A written Explanation's illustration (IllustrationFigure.jsx, generate-image.js illustrationFrom). markIllustration writes the /image plan's id on the card the learner pressed
+    // Add illustration on; attachIllustration, when that plan's job is ready, replaces the mark with the finished picture. Both go through the canvas's own updateBlock (one undo step each).
+    // E3: the picture's caption counts toward the card's Depth budget (GAP-03). A card with no room for it is not marked: say so now, before anything is generated.
+    markIllustration: (blockId, proposalId) => {
+      const problem = illustrationProblem(canvasApi.current?.blocks?.().find(entry => entry.id === blockId), { caption: ILLUSTRATION_CAPTION });
+      if (problem) { toast(problem); return false; }
+      return !!canvasApi.current?.updateBlock?.(blockId, block => markedBlock(block, proposalId));
+    },
     attachIllustration: (proposalId, illustration) => {
       const block = illustration && pendingBlock(canvasApi.current?.blocks?.(), proposalId);
       if (!block) return null;
@@ -1019,8 +1026,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         target: handoff ? heldPassageTarget(handoff.target, text, passageRef) : askTarget,
         // The composer's attached image (its uploaded media id), as a question carries it (ask.jsx image_context); never a handoff's.
         attachedImage: !handoff && imageAttached && imageContext?.id ? imageContext.id : null,
-        // withSlotSink: the Chat's line shows its waiting row while this canvas holds the command's skeleton (ask.jsx recordCommand onSlot).
-        canvas: withCardSink(withSlotSink({
+        canvas: withCardSink({
           startCad: async (prompt, options) => { const result = await startCad(prompt, options); if (result?.block?.id) sink?.(result.block.id); return result; },
           // turn (ask.jsx recordCommand): the thread its line was saved in (a reviewed brief is posted there) and the Chat's
           // pinned and temporary refs, which the server resolves under this canvas's authorization.
@@ -1039,7 +1045,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           goal: args => chat.goals?.open(args), // /goal: goal management in Progress (chat-workspace.jsx goals.open)
           // A Chat canvas prepares an explicit material command's brief before generating it (learn-slash.js, material-brief.js).
           briefs: !!chat?.thread,
-        }, turn?.onSlot), sink),
+        }, sink),
         // A Chat source command's finder (the shared opener): settles { added } when it closes, so the composer keeps its
         // draft until then; focus goes back to the composer.
         openSearch: seed => openSourceFinder({ source: seed.source, query: seed.query, origin: { returnFocus: document.activeElement } }).then(done => { if (done?.blockId) sink?.(done.blockId); return done; }),

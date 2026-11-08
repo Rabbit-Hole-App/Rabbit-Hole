@@ -1,8 +1,0 @@
-{
-  "id": "explain-written-v2",
-  "version": 2,
-  "entries": [
-    "direct"
-  ],
-  "note": "Frozen corpus for the written /explain benchmark. Authors see only cases/ fields args, depth, command. Expected facts live only in rubrics/. Fixture replies are scripted offline provider doubles for harness tests, never model output. Tutor-entry cases are not in v2. v2 (EXP-13 card layout v2, owner 2026-11-08): the v1 cases, rubrics and seeded defects, with every scripted reply rewritten to prose, a related visual, prose, no folded sections and at most 700 prose characters."
-}

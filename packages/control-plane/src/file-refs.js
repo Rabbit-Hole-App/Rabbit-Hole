@@ -2,10 +2,9 @@
 // in the same batch as a board write (learn-migrations/0023). Only pure shared helpers, so canvases.js, dives.js and learn-boards.js can
 // use it without an import cycle; file-access.js reads the rows.
 // The source ids named by visible cards or retained file provenance in state.sources.
-// The card's own source, a written Explanation's illustration and its EXP-13 figures (explanation-figures.js), and, for a model, its dependency files (fileRef.bundle: glTF .bin and textures, OBJ .mtl and textures).
+// The card's own source, a written Explanation's illustration and, for a model, its dependency files (fileRef.bundle: glTF .bin and textures, OBJ .mtl and textures).
 import { retainedFileSources } from '../../web/src/file-context-manifest.js';
 export const fileRefSources = state => [...new Set([...(state?.blocks || []), ...retainedFileSources(state)].flatMap(block => [block?.fileRef?.source?.id, block?.illustration?.fileRef?.source?.id,
-  ...(block?.figures && typeof block.figures === 'object' ? Object.values(block.figures).map(f => f?.fileRef?.source?.id) : []),
   ...(Array.isArray(block?.fileRef?.bundle) ? block.fileRef.bundle.map(part => part?.source?.id) : [])]).filter(id => typeof id === 'string'))];
 
 // The board row exactly as this batch's write left it (canvas-refs.js GUARD): a rejected or stale save changes no reference.

@@ -69,17 +69,6 @@ export const durationRefinement = (before, after) => (after?.command === 'whiteb
 // history, and the card already shows it. Every other answer, proposals included, shows its text.
 // A plan message with no text of its own (the model gave no lead-in; owner 2026-11-07: no canned sentence) is the card alone, never an empty bubble.
 export const proposalOnly = m => m?.meta?.proposal?.command === 'whiteboard-video' || (!!m?.meta?.proposal && !String(m.content ?? '').trim());
-// A review card whose Generate was admitted leaves the Chat (owner 2026-11-08): the learner's line and the chip to the made card stay. Its
-// press marks the message here (m.accepted, ProposalSlot); after a reload, the proposal's one server state says so (generation-proposal.js
-// consumeProposal: meta.proposalState.used on its root answer, the legacy meta.proposalUsed). A refused or failed Generate marks nothing,
-// and a failed material start gives the proposal back (releaseProposal), so its card stays to press again.
-export const proposalAccepted = (m, msgs = []) => {
-  const p = m?.meta?.proposal;
-  // ponytail: /motion keeps its card (its live job status and Stop are the Chat's, owner 2026-11-07); ask before removing it too.
-  if (!p || p.command === 'motion') return false;
-  if (m.accepted) return true;
-  return msgs.some(x => x?.meta?.proposal?.proposal_id === p.proposal_id && (x.meta.proposalState?.used ?? x.meta.proposalUsed)?.version === p.version);
-};
 // A job-approving proposal's heading and cost note, by its command.
 export const jobReviewCopy = p => (p?.command === 'whiteboard-video' ? { eyebrow: WHITEBOARD_REVIEW_HEADING, ...(whiteboardCostNote(p) ? { note: whiteboardCostNote(p) } : {}) } : p?.command === 'animation' ? { eyebrow: ANIMATION_REVIEW_HEADING, ...(animationCostNote(p) ? { note: animationCostNote(p) } : {}) } : { eyebrow: isInteractProposal(p) ? INTERACT_REVIEW_HEADING : EXPLAIN_REVIEW_HEADING });
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs

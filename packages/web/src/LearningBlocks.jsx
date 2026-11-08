@@ -15,7 +15,7 @@ import { Md } from './ask.jsx';
 import { diagramsAsText } from './diagram-fence.js';
 import { MdInline } from './Md.jsx';
 import IllustrationFigure from './IllustrationFigure.jsx';
-import { FollowUp, HighlightMenu, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
+import { FollowUp, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
 import { splitLead } from './explanation-lead.js';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
@@ -939,7 +939,7 @@ function Progress({ seconds, expected, label }) {
 // hidden at rest, drawn on hover, focus or touch selection in a slot reserved beside the actions so nothing jumps) and, only for
 // a card with a real source badge (tutor, learner, PDF), that badge on hover as before. The generic "course" pill is gone
 // (owner correction 2026-10-23): a card by default has no top-right label at all.
-function Kicker({ block = null, author = null, action = null, size = 'sm', sticky = true, className = '-mx-4 -mt-3 mb-2 px-4 pt-3 pb-1', icon = null, children }) {
+function Kicker({ block = null, author = null, action = null, size = 'sm', sticky = true, className = '-mx-4 -mt-3 mb-2 px-4 pt-3 pb-1', children }) {
   const slot = useContext(PromptSlot);
   useLayoutEffect(() => { slot?.claim(true); return () => slot?.claim(false); }, [slot?.claim]);
   const trailing = (
@@ -951,7 +951,7 @@ function Kicker({ block = null, author = null, action = null, size = 'sm', stick
   );
   // The shared header (CardHeader.jsx, owner 2026-11-07): the type's icon, the card's title (or a placeholder), and the type label as its meta line;
   // sticky, so a card whose body scrolls keeps it at the top. The flush offsets are the ones this header always had inside the card's padding.
-  return <CardHeader block={block} meta={children} trailing={trailing} size={size} sticky={sticky} className={className} icon={icon} />;
+  return <CardHeader block={block} meta={children} trailing={trailing} size={size} sticky={sticky} className={className} />;
 }
 
 // Attempts whose grade request is running in this page. A block saved while
@@ -2033,10 +2033,10 @@ function IllustratedBody({ block, onFile, interactive = false }) {
   const figure = <IllustrationFigure illustration={block.illustration} />;
   return (
     <>
-      {lead && <Md text={lead} onFile={onFile} fences explain figures={block.figures} />}
+      {lead && <Md text={lead} onFile={onFile} fences explain />}
       {/* E2: the picture's caption and callouts are not the body's words; the interaction layer reads the field without them. */}
       {interactive ? <div data-explanation-skip>{figure}</div> : figure}
-      {rest && <Md text={rest} onFile={onFile} fences explain figures={block.figures} />}
+      {rest && <Md text={rest} onFile={onFile} fences explain />}
     </>
   );
 }
@@ -2045,7 +2045,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
   const [open, setOpen] = useState({});
   // E2 (explain.md section 4): null unless the card carries the interactions envelope; then terms, suggestions, follow-up and the selection toolbar (ExplanationInteractions.jsx).
   const layer = useExplanationLayer(block, { onChange, onChangeQuiet, readOnly, enabled: !block.anchor });
-  const bodyNode = block.illustration && (block.illustration.src || block.illustration.cacheKey || block.illustration.fileRef?.source?.id) ? <IllustratedBody block={block} onFile={onFile} interactive={!!layer} /> : block.body && <Md text={block.body} onFile={onFile} fences explain figures={block.figures} />;
+  const bodyNode = block.illustration && (block.illustration.src || block.illustration.cacheKey || block.illustration.fileRef?.source?.id) ? <IllustratedBody block={block} onFile={onFile} interactive={!!layer} /> : block.body && <Md text={block.body} onFile={onFile} fences explain />;
   const id = useId(), more = block.more || [], sections = useRef({});
   const opened = more.some((_, index) => open[index]);
   useEffect(() => {
@@ -2067,7 +2067,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
       <div data-explanation-head data-focus-hide className="shrink-0">
         {block.anchor
           ? <CardHeader block={block} size="xs" className="px-4 pt-3 pb-2" />
-          : <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
+          : <Kicker block={block} size="lg" sticky={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
       </div>
       {/* E1 (approved card 07): one continuous reading flow. The body, its visuals and the supplementary sections all scroll together under the pinned head. */}
       <div ref={layer?.flowRef} data-scroll data-explanation-flow {...layer?.flowProps} className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">
@@ -2080,12 +2080,12 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
               <MdInline text={section.label} />
               <ChevronRight size={13} aria-hidden="true" className={open[index] ? 'rotate-90 transition-transform' : 'transition-transform'} />
             </button>
-            {open[index] && <section ref={node => { sections.current[index] = node; }} id={`${id}-more-${index}`} aria-label={section.label} className="pb-2 text-sm text-ink-2">{wrapField(layer, `more[${index}].text`, section.text, <Md text={section.text} onFile={onFile} fences explain figures={block.figures} />)}</section>}
+            {open[index] && <section ref={node => { sections.current[index] = node; }} id={`${id}-more-${index}`} aria-label={section.label} className="pb-2 text-sm text-ink-2">{wrapField(layer, `more[${index}].text`, section.text, <Md text={section.text} onFile={onFile} fences explain />)}</section>}
           </div>
         ))}
         {layer && <Suggestions layer={layer} />}
       </div>
-      {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><HighlightMenu layer={layer} /><FollowUp layer={layer} /></>}
+      {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><FollowUp layer={layer} /></>}
     </div>
   );
 }

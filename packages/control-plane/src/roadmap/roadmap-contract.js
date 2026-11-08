@@ -212,7 +212,7 @@ export const FAILURE_CLASSES = set(['clarification', 'unsupported_capability', '
   'transient_provider_failure', 'checking_unavailable', 'terminal_validation_failure']);
 export const AUTOMATIC_RETRY_CLASSES = set(['transient_provider_failure']);
 // Provider-call stages (R4.06): the stage names inside a deterministic operation identity.
-export const PROVIDER_STAGES = set(['subject', 'draft', 'revise', 'proposal', 'generate', 'repair', 'grounding_check', 'grounding_escalation', 'safety', 'safety_adjudicate', 'illustration']); // illustration: EXP-13 pictures of an explanation card, drawn on the step hold
+export const PROVIDER_STAGES = set(['subject', 'draft', 'revise', 'proposal', 'generate', 'repair', 'grounding_check', 'grounding_escalation', 'safety', 'safety_adjudicate']);
 export const BLIND_RETRY_FORBIDDEN = set(['admitted', 'dispatched', 'unknown', 'reconciling']);
 export const mayRetryCall = checkpoint => !BLIND_RETRY_FORBIDDEN.includes(checkpoint) && CALL_CHECKPOINTS.includes(checkpoint);
 

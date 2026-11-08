@@ -28,16 +28,12 @@ export const depthInstruction = (depth, kind = 'answer') => WORDS[kind]?.[validD
 // ponytail: Depth reaches /explain and /walkthrough only; add a command here when its card has a depth to choose.
 export const DEPTH_COMMANDS = Object.freeze(['explain', 'explanation', 'walkthrough']);
 
-// CORE.09: an Explanation card's teaching objective and prose budget per Depth (EXP-13: prose only), the same on the direct and roadmap paths.
+// CORE.09: an Explanation card's teaching objective and inclusive display-text budget per Depth, the same on the direct and roadmap paths.
 // Unlike depthInstruction, Standard has an explicit target too. An omitted or unknown Depth is the default.
-// Owner 2026-11-08: one budget for every Depth, about 10 lines of the 440 px card (408 px of 14 px text, about 60 characters a line).
-// Owner 2026-11-08 (EXP-13, revised after the gpt-oss benchmark): the author is asked for 450; the server accepts up to 700 without a repair, and above 700 it
-// trims whole sentences or list items (learn-primitives.js trimExplanationProse) before anything goes to the one repair.
-export const EXPLANATION_BUDGET = Object.freeze({ target: 450, hard: 700 });
-export const EXPLANATION_CAPS = Object.freeze({ overview: EXPLANATION_BUDGET.target, standard: EXPLANATION_BUDGET.target, deep: EXPLANATION_BUDGET.target });
+export const EXPLANATION_CAPS = Object.freeze({ overview: 600, standard: 1000, deep: 1500 });
 export const EXPLANATION_OBJECTIVES = Object.freeze({
   overview: 'Depth: Overview. Explain the central idea and essential mechanism in everyday language. A concrete example can make the idea easier to follow.',
   standard: 'Depth: Standard. Explain how and why the mechanism works, with enough reasoning to apply it to another case.',
   deep: 'Depth: Deep. Develop the reasoning and relevant assumptions, limitations or connections. Work through a calculation or consequence when it helps.',
 });
-export const explanationTarget = depth => { const d = validDepth(depth) || DEFAULT_DEPTH; return `${EXPLANATION_OBJECTIVES[d]} Budget: at most ${EXPLANATION_CAPS[d].toLocaleString('en-US')} characters of prose (paragraph, heading and list text); the title, tables, diagrams and illustrations do not count. Layout: prose, a visual, prose, and optionally a second visual and prose.`; };
+export const explanationTarget = depth => { const d = validDepth(depth) || DEFAULT_DEPTH; return `${EXPLANATION_OBJECTIVES[d]} Budget: at most ${EXPLANATION_CAPS[d].toLocaleString('en-US')} characters of card content in total.`; };

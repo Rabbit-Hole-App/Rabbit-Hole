@@ -6,7 +6,7 @@ import { createPortal, flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { CapturingLabel, beginAreaCapture, endAreaCapture } from './AreaCapturing.jsx';
 import { Md } from './ask.jsx';
-import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, naturalHeight, fullLength, freshFitStep } from './card-layout.js';
+import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, naturalHeight } from './card-layout.js';
 import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
 import { nameKey, positionHint, titleTaken, uniquifyBlocks } from './unique-title.js';
 import CardCustomTitle from './CardCustomTitle.jsx';
@@ -44,6 +44,8 @@ import { anchorOf } from './selection-bar-place.js';
 import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
+import { imageGenerationOn } from './generate-image.js';
+import { illustrationPrompt, setIllustrationTarget } from './illustration-target.js';
 import { fileChatRef } from './file-chat-ref.js';
 import { objectKind, objectName, selectionName, selectionRef } from './selection-ref.js';
 import LearnWiki from './LearnWiki.jsx';
@@ -89,9 +91,8 @@ import { MathText } from './MathText.jsx';
 import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 import { buildContext, buildCreationContext, createContextCache, freezeTarget } from './inline-ai-context.js';
-import { applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
+import { FACING, applyTx, obstaclesOf, placeAnswers, placeNote } from './inline-ai-apply.js';
 import { ExplanationHost } from './explanation-host.js';
-import { quotedNote } from './explanation-interactions.js';
 import { REF_CARD, refCardSpot, reIdRefs, withRef, withoutRef } from './canvas-refs-model.js';
 import { holdsTocLink, resolvedLinks, sectionChoices, withLiveLinks, withTocLink, withoutTocLink } from './toc-links.js';
 import { CODE_LANGS, codeLang, highlightCode, withCodeLang } from './code-lang.js';
@@ -447,8 +448,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           selected and links inside the block stay clickable. */}
       <div data-drag-handle data-drag-zone title="Drag to move this block"
         className={`flex h-6 shrink-0 cursor-grab items-center justify-center rounded-t-xl active:cursor-grabbing ${ghost ? 'opacity-0 group-hover:opacity-100' : 'hover:bg-hover'}`}>
-        {/* The six dots the toolbar and the Rabbit Holes Map grips use (owner 2026-11-08), shown while the card is hovered or focused. */}
-        <GripHorizontal data-drag-grip size={13} aria-hidden className={`text-ink-3 ${ghost ? '' : 'opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'}`} />
+        <span className="h-1 w-12 rounded-full bg-line" />
       </div>
       {children}
       {/* The footer (owner, Rabbit Hole and reference navigation design 2026-10-29): the card's Rabbit Hole row, then its
@@ -2020,8 +2020,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   onPaperRef.current = onPaper;
   // Put the camera around a set of boxes. Used both to find your way back to
   // everything, and to land on one section while presenting.
-  // auto: the canvas's own move (a new card's fit), not the learner's, so it does not count as a camera move (manualMoves).
-  const frame = (boxes, pad = 48, maxZoom = 1, auto = false) => {
+  const frame = (boxes, pad = 48, maxZoom = 1) => {
     const element = surface.current;
     if (!element || !boxes.length) return;
     const left = Math.min(...boxes.map(box => box.x)), top = Math.min(...boxes.map(box => box.y));
@@ -2040,12 +2039,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Centred horizontally; vertically too when the section is short enough to
     // sit in the middle of the screen, which is what reads as a slide.
     const height = (bottom - top) * z;
-    const next = {
+    setView({
       z,
       x: across(z),
       y: area.top + (height + pad * 2 < h ? (h - height) / 2 : pad) - top * z,
-    };
-    glideTo(next, auto);
+    });
   };
   // Frame everything on the canvas. An infinite surface you can pan forever needs
   // a way back to your own work.
@@ -2154,7 +2152,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         cameraRef.current = null; revealRef.current = null;
         for (const entry of saved.scroll) if (entry.node.isConnected) { entry.node.scrollTop = entry.top; entry.node.scrollLeft = entry.left; }
         setSelection(saved.selection.filter(id => objectById(id) || shapesRef.current.some(shape => shape.id === id) || present.current.links.some(link => link.id === id) || groupsRef.current.some(group => group.id === id)));
-        setGlide(0); viewRef.current = { ...saved.view }; setView(viewRef.current);
+        setGlide(false); viewRef.current = { ...saved.view }; setView(viewRef.current);
         return { found: true };
       },
       focusSearchTarget: target => focusSearchTarget(target),
@@ -2293,23 +2291,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // tick land in order.
       // parent: { id, revision?, actionId? } - a child made from one card (an Explanation's Ask in a new card, explanation-host.js): the child names its parent and a curved
       // connector joins them, its id derived from the action so a repeated insert for the same action adds no second link.
-      // fit (learn-slash.js, a new written Explanation; owner 2026-11-08): the card opens at its full length (card-layout.js fullLength) and its one
-      // camera correction frames it whole instead of only panning to it (revealRef fit), zooming out or in; a reopened board has no such correction.
-      insertBlock: (block, { into = null, after = null, parent = null, fit = false } = {}) => {
+      insertBlock: (block, { into = null, after = null, parent = null } = {}) => {
         if (!alive.current) return null;
         snapshot();
-        const framed = id => { if (fit && revealRef.current?.id === id) revealRef.current.fit = { moves: revealRef.current.moves, h: null }; return id; };
         // A confirmed /motion card lands with its press's request id (withPressId), so a reload can never start a second job.
-        let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}) } } : {}) });
+        const added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}) } } : {}) });
         if (parent?.id && blocksRef.current.some(entry => entry.id === parent.id)) {
           const linkId = parent.actionId ? `explain-child-${parent.actionId}` : crypto.randomUUID();
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
         }
-        if (fit) added = fullLength(added, BLOCK_TYPES[added.type]?.width);
-        if (after == null) return framed(insertAtView(added, into));
+        if (after == null) return insertAtView(added, into);
         perfMark(added.id, 'insert');
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
-        return framed(revealAfter(added.id));
+        return revealAfter(added.id);
       },
       // A screen rect (a selection's) in world units, for a card to be placed beside it.
       worldRect: rect => (rect && surface.current ? toWorld(rect, surface.current.getBoundingClientRect(), viewRef.current) : null),
@@ -3074,7 +3068,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const floor = chromeTop(first.x + box.x * current.z, first.x + (box.x + box.w) * current.z) - 24;
     const next = floor < area.bottom ? panInto(box, current, { ...area, bottom: Math.max(area.top + 1, floor) }, centre) : first;
     if (next.x === was.x && next.y === was.y && next.z === was.z) return true;
-    glideTo(next, true); // every reveal glides now (owner 2026-11-08); `smooth` is kept by its callers
+    if (smooth) setGlide(true);
+    autoView.current = next;
+    setView(next);
     return true;
   };
   // The floating bottom strip's controls over a span of the surface (surface px; owner, 2026-10-08: "in the canvas above
@@ -3204,20 +3200,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, []);
   // A new card's one correction (revealAfter), once its measured box has been still for SETTLE_MS - an animation
   // card measures its controls a frame or two after mount - or REVEAL_MS after the insert at the latest; never
-  // after the learner has moved the camera. A `fit` card (insertBlock fit) is framed whole instead, and framed again each time it grows
-  // until the learner moves the camera (card-layout.js freshFitStep).
+  // after the learner has moved the camera.
   useEffect(() => {
     const want = revealRef.current;
     if (!want || !boundsRef.current[want.id]) return;
     clearTimeout(want.timer);
     want.timer = setTimeout(() => {
       if (revealRef.current !== want) return;
-      if (want.fit) {
-        const box = boundsRef.current[want.id], step = freshFitStep(want.fit, box, manualMoves.current);
-        if (step === 'drop') revealRef.current = null;
-        if (step === 'fit') { want.fit.h = box.h; frame([box], 64, 1, true); }
-        return;
-      }
       revealRef.current = null;
       if (manualMoves.current === want.moves) bringIntoView(want.id);
     }, Math.max(0, Math.min(SETTLE_MS, want.until - performance.now())));
@@ -3245,19 +3234,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, [slots]);
   // ponytail: only the world transform glides; the grid backdrop (when on) jumps. Transition its
   // background-position too if that shows.
-  // The canvas's one animated camera move (owner 2026-11-08: a jump to a card is a short continuous flow, never a cut): a chat or
-  // reference chip, Search, Focus and Locate (frame), a new card's reveal and fit (showBox, frame) and the document all set the
-  // camera through glideTo. The world transform's transition (300ms ease-in-out) animates it, none under prefers-reduced-motion
-  // (motion-reduce), and none while the learner drags (startDrag's body.canvas-dragging): then the camera moves at once.
-  // glide counts moves, so a second move restarts the timer instead of being cut short by the first one's.
-  // auto: the canvas's own move, not counted as the learner's (manualMoves).
-  const [glide, setGlide] = useState(0);
-  useEffect(() => { if (!glide) return undefined; const timer = setTimeout(() => setGlide(0), 350); return () => clearTimeout(timer); }, [glide]);
-  const glideTo = (next, auto = false) => {
-    setGlide(count => (document.body.classList.contains('canvas-dragging') ? 0 : count + 1));
-    if (auto) autoView.current = next;
-    setView(next);
-  };
+  const [glide, setGlide] = useState(false);
+  useEffect(() => { if (!glide) return undefined; const timer = setTimeout(() => setGlide(false), 250); return () => clearTimeout(timer); }, [glide]);
   useLayoutEffect(() => {
     const want = cameraRef.current;
     if (!want) return;
@@ -3267,7 +3245,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     cameraRef.current = null;
     if (want.moves != null && want.moves !== manualMoves.current) return; // the learner moved the camera since
     const box = { x: element.offsetLeft + (owner?.dx || 0), y: element.offsetTop + (owner?.dy || 0), w: element.offsetWidth, h: element.offsetHeight };
-    // A slot or a Tutor card glides there at the learner's zoom; a Files-panel card, a chip's or Locate's card is framed, gliding too (glideTo).
+    // A slot or a Tutor card glides there (200ms, none under reduced motion); a Files-panel card is framed at once, as before.
     if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre);
   });
   // Search changes only camera, selection and transient DOM scroll/paint. It never commits text or card dimensions.
@@ -3313,7 +3291,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     let area = visibleArea(), next = searchCamera(box, viewRef.current, area);
     area = { ...area, bottom: Math.min(area.bottom, chromeTop(next.x + box.x * next.z, next.x + (box.x + box.w) * next.z) - 24) };
     next = searchCamera(box, viewRef.current, area);
-    viewRef.current = next; glideTo(next);
+    setGlide(false); viewRef.current = next; setView(next);
     searchPaint.current = temporarySearchHighlight(element, range);
     return { found: true, matched: !!range };
   };
@@ -5462,18 +5440,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
   }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
-  // E2 (explain.md section 4, Create note and Add note): ONE editable Sticky note beside an Explanation card, opened for typing, with no connector to the card (owner
-  // 2026-11-08). The same item insertSticky builds, placed by placeNote clear of everything else (nothing moves). Add note: a blank note. Create note (quote): the
-  // note's own text starts with the exact selected text in italics, then an empty line to type on. One undo step; a view-only or locked card makes none.
-  // Notes saved earlier keep their separate quote (item.quote, drawn above the body) and their connector.
+  // E2 (explain.md section 4, Create note and Add note): ONE editable Sticky note beside an Explanation card, joined to it by a curved connector, opened for typing.
+  // The same item insertSticky builds, placed by placeNote clear of everything else (nothing moves); quote: the exact selected text, shown above the body and kept
+  // on the note even if the card later changes (Add note passes none). One undo step; a view-only or locked card makes none.
   const addCardNote = (id, { quote = null, revision = null } = {}) => {
     const parent = blocksRef.current.find(entry => entry.id === id), target = boxesOf([id])[0];
     if (!parent || !target || readOnlyRef.current || lockedRef.current.has(id)) return null;
     const noteId = crypto.randomUUID(), size = { w: 160, h: quote ? 220 : 160 };
     const spot = placeNote(target, size, [...inlineCanvas.obstacles([id]), ...placementChrome()], inlineCanvas.visibleWorld());
+    const [fromSide, toSide] = FACING[spot.side] || FACING.right;
     snapshot();
     setItems(previous => [...previous, { id: noteId, kind: 'sticky', x: spot.x, y: spot.y, text: '', color, opacity, ...armedText('sticky'), fresh: true, parentCard: { id, ...(revision ? { revision } : {}) },
-      ...(quote ? quotedNote(quote) : {}) }]);
+      ...(quote ? { quote: { text: quote, cardId: id, ...(revision ? { contentRevision: revision } : {}) } } : {}) }]);
+    setLinks(previous => [...previous, { id: crypto.randomUUID(), from: id, fromSide, to: noteId, toSide, color: '#6b7280', route: 'curved', bow: true, head: true, kind: 'annotation' }]);
     setSelection([noteId]);
     if (spot.offscreen) inlineCanvas.reveal({ x: spot.x, y: spot.y, ...size });
     return noteId;
@@ -5526,7 +5505,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!element || !target) return;
     const area = visibleArea(), span = Math.max(240, area.right - area.left);
     const z = Math.max(0.3, Math.min(1, (span - 48) / target.w));
-    glideTo({ x: area.left + (span - target.w * z) / 2 - target.x * z, y: area.top + 32 - target.y * z, z }, true);
+    autoView.current = { x: area.left + (span - target.w * z) / 2 - target.x * z, y: area.top + 32 - target.y * z, z };
+    setGlide(true);
+    setView(autoView.current);
   };
   const goToDoc = () => docFrame(docRef.current);
   // First opening: the sheet goes where the learner is looking, across the middle of the free view, its top just below the
@@ -6053,6 +6034,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       editEquation: id => setEditTarget({ id, n: Date.now() }),
       patchItem: (id, patch) => { snapshot(); patchItem(id, patch); },
       updateBlock: (id, patch) => { snapshot(); setBlocks(previous => previous.map(entry => (entry.id === id ? { ...entry, ...patch } : entry))); },
+      // Add illustration (canvas-actions-types.js): Chat opens with /image and a prompt about this Explanation, unsent; its plan marks this card (illustration-target.js).
+      canAddIllustration: () => imageGenerationOn() && !readOnlyRef.current, // asked when the menu opens: whether image generation is offered is only known after the page's first answer
+      addIllustration: id => { const block = blocksRef.current.find(entry => entry.id === id); if (!block || block.type !== 'explanation') return; setIllustrationTarget(id); chatWorkspace.composer.prepare({ text: `/image ${illustrationPrompt(block)}` }); },
       // Add note (canvas-actions-types.js explanation.add-note): a blank Sticky note linked to the card, no quote.
       addCardNote: id => addCardNote(id),
       openStyle: () => setStyleOpen(true),
@@ -6262,7 +6246,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             </> : <p>Loading the document</p>}
           </div>
         )}
-        <div ref={worldRef} data-canvas-world style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-300 ease-in-out motion-reduce:transition-none' : ''}`}>
+        <div ref={worldRef} data-canvas-world style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
         {/* The document (docs/features/blocknote-canvas.md): a writing surface in world units BELOW every canvas object
             (blocknote-layers-minimap.md): the first child of the world layer with no z-index of its own, so cards, notes, shapes,
             connectors and their handles - all later in this layer - paint and take the pointer above it, whatever their own

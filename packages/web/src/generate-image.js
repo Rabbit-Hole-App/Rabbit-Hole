@@ -56,7 +56,7 @@ export function imageCard(job, proposal) {
 }
 
 // The finished image as a written Explanation's illustration (IllustrationFigure.jsx): the stored file source named by a fileRef (read through file-source-client loadSource, so a fresh
-// browser reads the board's server copy), the prompt as its alt text and an honest caption. A card saved with this proposal's id as its mark takes it (Add illustration, which wrote the mark, is removed: EXP-13).
+// browser reads the board's server copy), the prompt as its alt text and an honest caption. The Explanation was marked with this proposal's id when the plan was made (canvasOps.markIllustration).
 export function illustrationFrom(job, proposal) {
   const a = job.artifact;
   if (!a) return null;

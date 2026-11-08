@@ -16,7 +16,7 @@ test('it needs the Anthropic key, not the Celeris key, and production never take
 
 test('the plan model is called with the app\'s own tool request; tokens and the diagram status are recorded', async () => {
   const diagram = JSON.stringify({ version: 1, diagram: { kind: 'flow', title: 'x', nodes: [{ id: 'a', label: 'Read', role: 'process' }, { id: 'b', label: 'Done', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] } });
-  const body = 'Short read.\n\n```rh-diagram\n' + diagram + '\n```\n\nDone.'; // EXP-13, owner 2026-11-08: prose before and after the visual
+  const body = 'Short.\n\n```rh-diagram\n' + diagram + '\n```';
   const requests = [], realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     requests.push({ url: String(url), body: JSON.parse(init.body) });

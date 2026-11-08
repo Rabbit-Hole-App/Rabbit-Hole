@@ -1,7 +1,0 @@
-{
-  "caseId": "cal-wrong-fact",
-  "calibration": {
-    "expectFlag": true,
-    "signal": "fact_missing:chooses-a|calc_failed:gini-a|forbidden:b-purer"
-  }
-}

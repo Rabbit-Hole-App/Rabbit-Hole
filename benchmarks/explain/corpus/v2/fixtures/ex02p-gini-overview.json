@@ -1,9 +1,0 @@
-{
-  "caseId": "ex02p-gini-overview",
-  "replies": {
-    "clean": {
-      "title": "Which split a decision tree prefers",
-      "body": "A decision tree picks split A. Gini impurity measures how mixed a group is; lower means purer. In split A each group is 3 of one class and 1 of the other, so Gini = 1 - (0.75² + 0.25²) = 0.375, and the weighted Gini is also 0.375. In split B each group is an even 2 and 2, so Gini = 1 - (0.5² + 0.5²) = 0.5.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"kind\":\"cycle\",\"title\":\"Which split a decision tree prefers\",\"steps\":[\"Start\",\"Change\",\"Result\"]}}\n```\n\nBecause 0.375 is lower than 0.5, split A leaves purer groups and is chosen."
-    }
-  }
-}

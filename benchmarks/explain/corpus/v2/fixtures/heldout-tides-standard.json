@@ -1,9 +1,0 @@
-{
-  "caseId": "heldout-tides-standard",
-  "replies": {
-    "clean": {
-      "title": "Why most coasts have two high tides a day",
-      "body": "The Moon's gravity pulls on the whole Earth, but the pull is stronger on the side facing the Moon and weaker on the far side. That difference stretches the ocean into two bulges: one on the near side and one on the far side. As the Earth turns, a coast passes through both bulges each day, so it sees two high tides.\n\n```rh-diagram\n{\"version\":1,\"diagram\":{\"kind\":\"cycle\",\"title\":\"Why most coasts have two high tides a day\",\"steps\":[\"Start\",\"Change\",\"Result\"]}}\n```\n\nThe Moon also moves along its orbit while the Earth turns, so the bulges catch up with a coast a little later each day. That makes the gap between successive high tides about 12.4 hours, not exactly 12. The Sun adds its own, smaller pull, which is why tides are stronger at new and full Moon. Local coastline shape can change the pattern."
-    }
-  }
-}

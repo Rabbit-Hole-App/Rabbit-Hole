@@ -47,13 +47,8 @@ const lowerBound = (list, value) => { let lo = 0, hi = list.length; while (lo < 
 const SKIP = '[data-code-lang],[data-code-copy],[data-explanation-skip],[data-explanation-ui],script,style,title,desc';
 // A TutorDiagram is an island: its words are in the canonical text (tutorDiagramVisibleText) as one run, but in the drawing's own order, so it is matched by
 // the multiset of its characters and never decorated or selected into.
-// Typeset maths (MathText.jsx, [data-chat-math]) is an island too: the canonical text holds its LaTeX source (learn-primitives mathText keeps what is between the
-// dollars) but the DOM holds KaTeX glyphs, so it is matched by the source KaTeX keeps in its annotation (a formula KaTeX refused shows its source as text).
-// A formula in a diagram label ([data-tutor-tex], tutor-diagrams/primitives.js) counts as the source written in the label, delimiters included.
-const MATH = '[data-chat-math]';
-const ISLAND = `[data-tutor-diagram],[data-tutor-tex],${MATH}`;
+const ISLAND = '[data-tutor-diagram]';
 const TEXT = 3, ELEMENT = 1;
-const texOf = node => node.querySelector?.('annotation[encoding="application/x-tex"]')?.textContent ?? node.textContent;
 function walkItems(node, out) {
   for (const child of Array.from(node.childNodes || [])) {
     if (child.nodeType === TEXT) out.push({ text: child });
@@ -63,24 +58,16 @@ function walkItems(node, out) {
   return out;
 }
 const nonSpace = text => Array.from(String(text ?? '')).filter(ch => !isSpace(ch));
-const islandChars = node => node.hasAttribute?.('data-tutor-tex') ? nonSpace(node.getAttribute('data-tutor-tex')) : walkItems(node, []).flatMap(item => (item.text ? nonSpace(item.text.data) : item.island ? islandChars(item.island) : []));
+const islandChars = node => walkItems(node, []).flatMap(item => (item.text ? nonSpace(item.text.data) : item.island ? islandChars(item.island) : []));
 const inIsland = node => !!(node?.nodeType === ELEMENT ? node : node?.parentNode)?.closest?.(ISLAND);
 
-// The aligned field: `root`'s rendered text against the canonical text. null when they disagree (anything rendered that the canonical
+// The aligned field: `root`'s rendered text against the canonical text. null when they disagree (typeset math, anything rendered that the canonical
 // mapping does not contain): the caller then decorates nothing in that field and offers no highlight over it.
-// domToCan[i]: the squeezed canonical index of the i-th rendered character (they differ only after a diagram or maths island).
+// domToCan[i]: the squeezed canonical index of the i-th rendered character (they differ only after a diagram island).
 export function alignField(root, canonical) {
   const can = squeeze(canonical), nodes = [], chars = [], where = [], domToCan = [], first = new Map();
   let at = 0;
   for (const item of walkItems(root, [])) {
-    if (item.island?.matches?.(MATH)) {
-      const tex = nonSpace(texOf(item.island));
-      // \( \) and \[ \] are typeset by the card but kept, delimiters and all, by the canonical text.
-      const wrapped = ['\\(', '\\['].includes(can.chars.slice(at, at + 2).join('')), from = at + (wrapped ? 2 : 0);
-      if (can.chars.slice(from, from + tex.length).join('') !== tex.join('')) return null;
-      at = from + tex.length + (wrapped ? 2 : 0);
-      continue;
-    }
     if (item.island) {
       const inside = islandChars(item.island), run = can.chars.slice(at, at + inside.length);
       if (run.length !== inside.length || [...run].sort().join('') !== [...inside].sort().join('')) return null;
@@ -153,9 +140,6 @@ export function anchorsFromRange(range, fields, revision) {
   return out;
 }
 export const quoteOf = segments => segments.map(segment => segment.quote).join(' ').trim();
-// Create note (owner 2026-11-08): the Sticky note's own words start with the selected text in italics, then an empty line for the learner's note
-// (learn-rich-text.js: `text` stays the plain string, `runs` carry the italics). -> { text, runs }
-export const quotedNote = quote => ({ text: `${quote}\n\n`, runs: [{ t: quote, i: true }, { t: '\n\n' }] });
 
 // A stored segment still belongs to this text: the field exists and its slice is the quote.
 export const segmentHolds = (block, segment) => {

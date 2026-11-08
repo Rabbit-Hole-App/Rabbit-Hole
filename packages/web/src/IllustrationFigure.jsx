@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loadAsset } from './learn-board-assets.js';
-import { readOriginal } from './media-storage.js';
-import { parseIllustrationFence } from './explanation-lead.js';
+import { loadSource } from './file-source-client.js';
 
 // A reusable figure: an illustration in its own container with its caption below (the written Explanation puts one after its opening paragraph).
 // Layout follows the approved Image mockup (handoff/ui/07-explanation-card-approved.html on chatgpt/tutor, .picture-figure): margin 13px 0 11px, the picture full width with 9px corners,
@@ -19,30 +18,16 @@ function useIllustrationUrl({ src, cacheKey, fileRef }) {
     setMissing(false);
     if (src) { setUrl(src); return undefined; }
     setUrl('');
-    if (fileRef?.source?.id) return followSource(fileRef, { setUrl, setMissing });
-    if (!cacheKey) return undefined;
-    loadAsset(cacheKey).then(value => {
+    if (!cacheKey && !fileRef?.source?.id) return undefined;
+    (fileRef?.source?.id ? loadSource({ fileRef }) : loadAsset(cacheKey)).then(value => {
       if (!live) return;
-      if (value == null) { setMissing(true); return; } // not in this browser
+      if (value == null) { setMissing(true); return; } // not in this browser and not readable from the board's server copy
       if (typeof value === 'string') setUrl(value);
       else { made = URL.createObjectURL(value); setUrl(made); }
     });
     return () => { live = false; if (made) URL.revokeObjectURL(made); };
   }, [src, cacheKey, fileRef?.source?.id, fileRef?.source?.rev]);
   return { url, missing };
-}
-
-// A stored picture through media-storage readOriginal: a new card's picture can be read before the board save that references it lands (404 until then), so the read
-// is retried with bounded backoff and after each board save instead of failing for good; missing only once those run out. -> cancel().
-export function followSource(fileRef, { setUrl, setMissing }, options) {
-  let made = '';
-  const cancel = readOriginal({ fileRef }, ({ status, blob }) => {
-    if (status === 'missing') { setMissing(true); return; }
-    if (status !== 'ready') return;
-    if (made) URL.revokeObjectURL(made);
-    made = URL.createObjectURL(blob); setMissing(false); setUrl(made);
-  }, options);
-  return () => { cancel(); if (made) URL.revokeObjectURL(made); };
 }
 
 export default function IllustrationFigure({ illustration, className = '' }) {
@@ -52,11 +37,11 @@ export default function IllustrationFigure({ illustration, className = '' }) {
   const state = missing ? 'failed' : url && done.url === url ? (done.ok ? 'ready' : 'failed') : 'loading'; // loading | ready | failed
   const callouts = state === 'ready' ? validCallouts(illustration?.callouts) : [];
   const ratio = Number.isFinite(illustration?.aspect) && illustration.aspect > 0.3 && illustration.aspect < 3 ? illustration.aspect : 1;
-  if (state === 'failed') return null; // a learner never sees a failed picture (owner 2026-11-08): no frame, no gap, no message
   return (
     <figure data-illustration data-illustration-state={state} className={`m-0 mt-[13px] mb-[11px] ${className}`}>
       <div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden rounded-[9px] bg-[var(--viz-surface,#fbfbfa)]">
-        {state !== 'ready' && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-hover" />}
+        {state !== 'ready' && <div aria-hidden="true" className={`absolute inset-0 ${state === 'loading' ? 'animate-pulse bg-hover' : ''}`} />}
+        {state === 'failed' && <div role="status" className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-ink-2">The illustration is unavailable.</div>}
         {url && <img src={url} alt={illustration?.alt || ''} draggable={false} ref={el => { if (el && el.complete && el.naturalWidth > 0 && !(done.url === url && done.ok)) setDone({ url, ok: true }); }} onLoad={() => setDone({ url, ok: true })} onError={() => setDone({ url, ok: false })} className={`absolute inset-0 block h-full w-full object-contain transition-opacity ${state === 'ready' ? 'opacity-100' : 'opacity-0'}`} />}
         {callouts.length > 0 && (
           <div data-illustration-callouts className="pointer-events-none absolute inset-0">
@@ -75,13 +60,4 @@ export default function IllustrationFigure({ illustration, className = '' }) {
       {illustration?.caption && <figcaption data-illustration-caption className="mt-[7px] text-center text-xs leading-[1.45] text-ink-2">{illustration.caption}</figcaption>}
     </figure>
   );
-}
-
-// EXP-13: an rh-illustration fence in a written Explanation (Md.jsx), drawn from figures[id] = { status: 'ready', fileRef | cacheKey | src, alt?, caption?, aspect? }; the entry's
-// fields win over the fence's alt and caption. A learner never sees a failed picture (owner 2026-11-08: the server retries, then removes the fence before saving), so a fence
-// without a ready entry draws nothing, no gap, and never its JSON. E2: the caption is not the body's words, so the interaction layer reads the field without it (data-explanation-skip).
-export function FenceFigure({ source, figures }) {
-  const fence = parseIllustrationFence(source), entry = fence && Object.hasOwn(figures || {}, fence.id) ? figures[fence.id] : null;
-  if (entry?.status !== 'ready') return null;
-  return <div data-explanation-skip data-figure-id={fence.id}><IllustrationFigure illustration={{ alt: fence.alt, caption: fence.caption, ...entry }} /></div>;
 }

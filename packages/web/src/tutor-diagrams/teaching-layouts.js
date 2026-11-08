@@ -1,4 +1,4 @@
-import { box, connector, label, lineHeight, textWidth, words, wrap } from './primitives.js';
+import { box, connector, label, lineHeight, textWidth, wrap } from './primitives.js';
 
 const PAD = 12;
 const GAP = 8;
@@ -73,7 +73,7 @@ function linkRow(from, to, text, y, width, roles) {
   const usable = width - PAD * 2;
   const sideWidth = Math.floor(usable * 0.34);
   const centerWidth = usable - 2 * sideWidth - 12;
-  const wordTooWide = (value, space, size) => words(value).some(word => textWidth(word, size) > space);
+  const wordTooWide = (value, space, size) => value.split(/\s+/u).some(word => textWidth(word, size) > space);
   const labelAbove = !!text && (wordTooWide(text, centerWidth, SMALL) ||
     wordTooWide(from, sideWidth - 2 * TEXT_PAD, TEXT) || wordTooWide(to, sideWidth - 2 * TEXT_PAD, TEXT));
   const cellWidth = labelAbove ? Math.floor((usable - 30) / 2) : sideWidth;

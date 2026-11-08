@@ -1,7 +1,0 @@
-{
-  "caseId": "cal-dropped-table",
-  "calibration": {
-    "expectFlag": true,
-    "signal": "required_visual_missing"
-  }
-}
