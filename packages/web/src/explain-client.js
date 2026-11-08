@@ -1,6 +1,7 @@
 // /explain v2 jobs in the browser (EXP-T20 slice 1; server API C:/s/spec/explain/job-api-c.md, Lane C explain-job.js).
 // The card is placed before the job runs, under a card id chosen once per press; polling only observes the job, and the
 // result attaches to that card on that canvas, never another. The server never writes boards.
+import { interactStageText } from './interact-stage.js';
 export const EXPLAIN_ROOT = '/api/learn/explain/jobs';
 
 // What the card says while the job works: the server's stage, never a guess. No ellipses (UI copy rule).
@@ -9,7 +10,9 @@ const STAGES = {
   validating: 'Checking it', rendering: 'Rendering it', reviewing: 'Reviewing the render', repairing: 'Fixing what the review found',
   ready: 'Ready', cancelled: 'Stopped',
 };
-export const explainStage = job => (explainUnavailable(job) ? job.failure?.message || EXPLAIN_UNAVAILABLE : job?.stage === 'failed' ? job.failure?.message || 'The explanation could not be made.' : STAGES[job?.stage] || 'Checking status');
+// A new /interact job's design stages read in the public words of interact-stage.js (Designing scene ... Ready to review); the real stage stays
+// on the card as data-explain-pending. Its build stages keep the words below.
+export const explainStage = job => (interactStageText(job) ?? (explainUnavailable(job) ? job.failure?.message || EXPLAIN_UNAVAILABLE : job?.stage === 'failed' ? job.failure?.message || 'The explanation could not be made.' : STAGES[job?.stage] || 'Checking status'));
 // Provider-cap resilience (owner, 2026-10-22): the AI provider refused for a spend cap, a usage limit or overload. The server
 // pauses the job with its finished stages kept (Lane L1, provider_unavailable); the learner's request stays on the card and
 // Retry continues the same job, never a second one. The server's words (job-api-c.md, Provider unavailable), else these. Credits
@@ -53,7 +56,7 @@ export const explainDisabled = error => error?.status === 404 && (error.data?.co
 // threadId: the chat thread a reviewed brief is posted on, so that thread shows it when the job waits for Generate.
 export const explainPendingBlock = ({ job, title, prompt, threadId = null }) => ({
   id: job.cardId, type: 'animation', title: String(title || prompt || 'Explanation').slice(0, 200), scene: null,
-  explainJob: { id: job.id, boardId: job.boardId, stage: job.stage, ...(threadId ? { threadId } : {}) },
+  explainJob: { id: job.id, boardId: job.boardId, stage: job.stage, ...(job.flow ? { flow: job.flow } : {}), ...(threadId ? { threadId } : {}) },
   // R3: the passage this explanation is about, as the server read it when the job was made (source-ref.js); the chip shows from the first moment.
   ...(job.sourceRef ? { sourceRef: job.sourceRef } : {}),
 });

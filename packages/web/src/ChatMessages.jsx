@@ -1,5 +1,5 @@
 // The chat transcript (moved out of ask.jsx's AskPanel): one ChatMessage per message, and the cards a message can be.
-import { Component, useEffect, useRef, useState } from 'react';
+import { Component, useEffect, useMemo, useRef, useState } from 'react';
 import { SKELETON_DROPPED_EVENT } from './explain-client.js';
 import { ArrowDown, Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
 import CommandPill from './CommandPill.jsx';
@@ -27,6 +27,8 @@ import { responseKind, turnIndex } from './chat-response-kind.js';
 import { briefHeading, isBriefCommand } from './material-brief.js';
 import PlanSummary, { planSummary } from './animation3d/PlanSummary.jsx';
 import AnimationChoices from './animation3d/AnimationChoices.jsx';
+import InteractPlanDetail from './InteractPlanDetail.jsx';
+import { reviewModel } from './interact-plan-review.js';
 
 // An /animation plan with its scene (owner, 2026-10-31): the short summary in place of the plan lines, and Edit reads Edit plan.
 // A plan made before the server sent its scene keeps the full lists.
@@ -191,6 +193,9 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       onOutput: kept => setMsgs(ms => ms.map((x, j) => (j === here && x.role === 'user' ? { ...x, outputs: mergeOutputs(x.outputs, [kept]) } : x))) })(id);
   };
   const animationStatus = useAnimationProposal(p, made, ops);
+  // A new /interact proposal (interact-plan-review.js): its plan detail rides the card's summary slot, and Generate waits for a whole, valid plan.
+  const scenePlan = useMemo(() => reviewModel(p), [p]);
+  const scenePlanProps = scenePlan ? { plan: scenePlan, ...(scenePlan.detail ? { summary: <InteractPlanDetail detail={scenePlan.detail} /> } : {}) } : {};
   // The status the card draws (bug 2): the job's, never the press's. A superseded version of the proposal draws none.
   const own = madeFromVersion(card || output, p);
   const status = cardKind === 'card' ? (own ? cardStatus({ card, output: refusedCard ? null : output, pressed, loaded: ops?.workspace?.().loaded !== false, noun: 'video' }) : null)
@@ -214,7 +219,7 @@ export function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     <div className="mt-2">
       {/* A motion or image proposal draws its job's status on the card itself (status), so it no longer reads Added to the canvas. */}
       <GenerationProposalCard proposal={p} active={active} made={cardKind ? false : made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
-        {...(explainJob ? { ...jobReviewCopy(p), onCancel, skeleton: !!ops?.explainWaiting?.(p.input?.job), ...animationReview(p) } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
+        {...(explainJob ? { ...jobReviewCopy(p), onCancel, skeleton: !!ops?.explainWaiting?.(p.input?.job), ...animationReview(p), ...scenePlanProps } : isBriefCommand(p.command) ? { eyebrow: briefHeading(p.command) } : {})}
         status={status} startedAt={output?.startedAt || pressedAt} noun={cardKind === 'image' ? 'image' : p.command === 'animation' ? 'scene' : 'video'} onGoToCard={goToCard}
         onStop={status?.canStop ? (p.command === 'animation' ? (ops?.stopAnimation ? () => ops.stopAnimation(p) : null) : ops?.stopGeneration ? () => ops.stopGeneration(status.cardId) : null) : null} onStopFailed={setError}
         onEdit={onEdit} targeted={targeted} onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />

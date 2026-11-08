@@ -60,7 +60,7 @@ export default function ExplainPending({ block, onChange, onChangeQuiet, readOnl
     } catch (error) { setProblem(error.message); }
     finally { acting.current = false; setBusy(false); }
   };
-  const shown = job || { stage: waiting.stage, terminal: false };
+  const shown = job || { stage: waiting.stage, flow: waiting.flow, terminal: false };
   const running = explainRunning(shown);
   const retry = explainRetry(shown), paused = explainUnavailable(shown), working = explainWorking(shown);
   const request = String(block.promptUsed || block.title || '').trim();
