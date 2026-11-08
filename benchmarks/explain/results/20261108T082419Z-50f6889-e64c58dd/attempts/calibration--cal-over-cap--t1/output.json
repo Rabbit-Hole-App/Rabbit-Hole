@@ -1,0 +1,63 @@
+{
+  "status": "failed",
+  "failure": {
+    "stage": "validation",
+    "reason": "explanation_over_budget: the card has 977 characters, the overview budget is 600 including the title, section labels, table cells, diagram title, caption and labels, and collapsed sections; shorten it."
+  },
+  "result": {
+    "result": "validation_error",
+    "repaired": false,
+    "profile": null
+  },
+  "block": null,
+  "normalizedCalls": [
+    {
+      "callId": "calibration--cal-over-cap--t1.c1",
+      "role": "author",
+      "requested": {
+        "provider": "plan",
+        "model": "claude-opus-5"
+      },
+      "served": {
+        "provider": "plan",
+        "model": "claude-opus-5"
+      },
+      "stop": "end",
+      "error": null,
+      "usage": {
+        "input": 1800,
+        "output": 650,
+        "cache": null,
+        "reasoning": null
+      },
+      "output": {
+        "title": "Why hot coffee cools fastest at first",
+        "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. \n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |"
+      }
+    },
+    {
+      "callId": "calibration--cal-over-cap--t1.c2",
+      "role": "repair",
+      "requested": {
+        "provider": "plan",
+        "model": "claude-opus-5"
+      },
+      "served": {
+        "provider": "plan",
+        "model": "claude-opus-5"
+      },
+      "stop": "end",
+      "error": null,
+      "usage": {
+        "input": 1800,
+        "output": 650,
+        "cache": null,
+        "reasoning": null
+      },
+      "output": {
+        "title": "Why hot coffee cools fastest at first",
+        "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room, and this is worth explaining at length. \n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |"
+      }
+    }
+  ]
+}

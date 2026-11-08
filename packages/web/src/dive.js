@@ -125,13 +125,15 @@ export function planDive({ card, args = '', children = [], pending = {}, parent,
 // journey (LP1 Task 14, adaptive-learning-path-v1-architecture.md §13): a hole opened from an active journey section
 // carries { journey_id, section_id, concept_ids, claim_ids } (LearnJourney.jsx journeyDiveContext, at most 4 ids each),
 // beside origin and never inside it, so the child Tutor knows what caused the dive; absent otherwise.
-export function diveRecord({ name, title, via, parent, target, block = null, view = null, question = '', level = 1, journey = null }) {
+export function diveRecord({ name, title, via, parent, target, block = null, view = null, question = '', level = 1, journey = null, term = null }) {
   return {
     dive_id: name, concept: title, title, created_by: via,
     origin: {
       parent, origin_block_id: target.block_id, origin_scene_id: target.scene_id, origin_card_id: target.card_id,
       origin_part_id: target.part_id, origin_concept_ids: target.concept_ids, selected_object: target.selected_object,
       depth: target.depth, level, ...(target.anchor_request ? { anchor_request: target.anchor_request } : {}),
+      // A hole dug from an Explanation card's term pill (explanation-host.js dig): the exact term and the card revision it was read at.
+      ...(term ? { origin_term: { label: String(term.label), card_revision: String(term.revision) } } : {}),
     },
     return_point: {
       block_id: target.block_id, part_id: target.part_id, selected_object: target.selected_object, inputs: block?.inputs ?? null, input_revision: block?.inputRevision ?? null,

@@ -1,0 +1,76 @@
+{
+  "status": "success",
+  "failure": null,
+  "result": {
+    "result": "artifact",
+    "repaired": false,
+    "profile": {
+      "id": "fixture-fast",
+      "version": 1,
+      "hash": "ae8bf6a0d2e93118"
+    }
+  },
+  "block": {
+    "type": "explanation",
+    "title": "Why hot coffee cools fastest at first",
+    "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room. Fresh coffee is far hotter than the air, so it loses heat quickly; as it cools the gap shrinks and the loss slows. Under comparable conditions (same cup, same room, same lid) that is why the first minutes matter most.\n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |\n| Trend | Drops steeply | Flattens out |\n\nNewton's law of cooling is the simple model: the rate of loss is roughly proportional to the temperature difference. It is an approximation, not an exact rule for a real cup.",
+    "more": [
+      {
+        "label": "What carries the heat away",
+        "text": "Heat leaves by conduction through the cup, by the air moving around it, by evaporation from the open surface and by radiation. Evaporation and radiation grow faster than in proportion to temperature, so the early loss can be even larger than the simple model predicts."
+      },
+      {
+        "label": "What changes the pattern",
+        "text": "A lid, a thicker mug or a cooler room change how steeply the curve falls, but not its shape: the cup always cools fastest when the gap is largest and approaches room temperature slowly at the end."
+      }
+    ],
+    "visualRequirements": {
+      "version": 1,
+      "items": [
+        {
+          "id": "vr-1",
+          "kind": "table",
+          "purpose": "Why does coffee cool faster at first? Include a small table comparing early and late cooling.",
+          "satisfied": true
+        }
+      ]
+    },
+    "depth": "deep"
+  },
+  "normalizedCalls": [
+    {
+      "callId": "fixture-fast--ex01-coffee-deep--t1.c1",
+      "role": "author",
+      "requested": {
+        "provider": "plan",
+        "model": "fixture-model-fast"
+      },
+      "served": {
+        "provider": "plan",
+        "model": "fixture-model-fast"
+      },
+      "stop": "end",
+      "error": null,
+      "usage": {
+        "input": 1800,
+        "output": 520,
+        "cache": null,
+        "reasoning": null
+      },
+      "output": {
+        "title": "Why hot coffee cools fastest at first",
+        "body": "Heat leaves a cup at a rate that grows with the temperature difference between the coffee and the room. Fresh coffee is far hotter than the air, so it loses heat quickly; as it cools the gap shrinks and the loss slows. Under comparable conditions (same cup, same room, same lid) that is why the first minutes matter most.\n\n| Stage | Coffee vs room | Heat loss |\n| --- | --- | --- |\n| Early | Large gap | Faster |\n| Late | Small gap | Slower |\n| Trend | Drops steeply | Flattens out |\n\nNewton's law of cooling is the simple model: the rate of loss is roughly proportional to the temperature difference. It is an approximation, not an exact rule for a real cup.",
+        "more": [
+          {
+            "label": "What carries the heat away",
+            "text": "Heat leaves by conduction through the cup, by the air moving around it, by evaporation from the open surface and by radiation. Evaporation and radiation grow faster than in proportion to temperature, so the early loss can be even larger than the simple model predicts."
+          },
+          {
+            "label": "What changes the pattern",
+            "text": "A lid, a thicker mug or a cooler room change how steeply the curve falls, but not its shape: the cup always cools fastest when the gap is largest and approaches room temperature slowly at the end."
+          }
+        ]
+      }
+    }
+  ]
+}

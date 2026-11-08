@@ -1,0 +1,16 @@
+{
+  "evaluator": "deterministic-offline-v1",
+  "checks": [],
+  "factualPass": false,
+  "requiredOutputPass": false,
+  "majorErrors": 0,
+  "minorErrors": 0,
+  "omissions": 0,
+  "flags": [
+    "no_card",
+    "explanation_bad_diagram",
+    "required_visual_invalid"
+  ],
+  "blind": "provider identity is not given to the deterministic evaluator",
+  "reviewRequired": true
+}

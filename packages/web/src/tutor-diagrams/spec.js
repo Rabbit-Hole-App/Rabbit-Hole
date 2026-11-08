@@ -30,6 +30,8 @@ const diagramShape = z.discriminatedUnion('kind', [
     ...titled, kind: z.literal('flow'),
     nodes: z.array(z.strictObject({ id, label: text(60), role: z.enum(['process', 'decision', 'outcome']) })).min(2).max(12),
     edges: z.array(z.strictObject({ ...endpoint, label: text(30).optional() })).min(1).max(20),
+    // E3 (explain.md EXP-12-C04): an ordered worked route through the flow, root to terminal; the renderer draws it in the theme's fixed path style. Node IDs only: no colour, CSS or SVG.
+    highlightPath: z.array(id).min(2).max(12).optional(),
   }),
   z.strictObject({
     ...titled, kind: z.literal('comparison'),
@@ -105,7 +107,7 @@ const diagramShape = z.discriminatedUnion('kind', [
 ]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
 
-function checkFlow({ nodes, edges }, issue) {
+function checkFlow({ nodes, edges, highlightPath }, issue) {
   const outgoing = new Map(nodes.map(node => [node.id, []]));
   if (outgoing.size !== nodes.length) return issue(['nodes'], 'Flow nodes need unique IDs');
   const incoming = new Map(nodes.map(node => [node.id, 0]));
@@ -138,7 +140,18 @@ function checkFlow({ nodes, edges }, issue) {
       if (remaining === 0) ordered.push(to);
     }
   }
-  if (ordered.length !== nodes.length) issue(['edges'], 'A flow cannot contain a cycle or unreachable nodes');
+  if (ordered.length !== nodes.length) return issue(['edges'], 'A flow cannot contain a cycle or unreachable nodes');
+  if (!highlightPath) return;
+  // The worked route: at least two distinct, known nodes, every step an existing directed edge, from the one start node to a node with no outgoing edge.
+  const at = ['highlightPath'];
+  if (new Set(highlightPath).size !== highlightPath.length) return issue(at, 'A highlighted path cannot repeat a node');
+  const unknown = highlightPath.findIndex(step => !nodes.some(node => node.id === step));
+  if (unknown >= 0) return issue([...at, unknown], 'The highlighted path names an unknown node');
+  for (let i = 1; i < highlightPath.length; i++) {
+    if (!edges.some(edge => edge.from === highlightPath[i - 1] && edge.to === highlightPath[i])) return issue([...at, i], 'The highlighted path must follow existing edges in their direction');
+  }
+  if (edges.some(edge => edge.to === highlightPath[0])) return issue([...at, 0], 'The highlighted path must start at the start node of the flow');
+  if (edges.some(edge => edge.from === highlightPath.at(-1))) return issue([...at, highlightPath.length - 1], 'The highlighted path must end at a node with no outgoing edge');
 }
 
 function checkSequence({ actors, messages }, issue) {
@@ -288,7 +301,7 @@ const describeEntry = ({ label, amount }, unit) => `${label}: ${withUnit(formatM
 
 function describeContent(diagram) {
   switch (diagram.kind) {
-    case 'flow': return describeConnections(diagram.nodes, diagram.edges);
+    case 'flow': return [...describeConnections(diagram.nodes, diagram.edges), ...(diagram.highlightPath ? [`Highlighted path: ${diagram.highlightPath.map(step => diagram.nodes.find(node => node.id === step).label).join(' → ')}`] : [])];
     case 'comparison': return diagram.columns.map(({ heading, items }) => `${heading}: ${items.join('; ')}`);
     case 'timeline': return diagram.events.map(({ time, label, detail }) => `${time}: ${[label, detail].filter(Boolean).join(' — ')}`);
     case 'sequence': return [diagram.actors.map(actor => actor.label).join(', '), ...describeConnections(diagram.actors, diagram.messages)];

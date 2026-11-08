@@ -76,7 +76,10 @@ function labelBounds(route, others, width) {
   return null;
 }
 
-export function layoutFlow({ nodes, edges }, requestedWidth) {
+export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
+  // E3: the validated worked route (spec.js checkFlow); absent, every wire and node is neutral exactly as before.
+  const onPath = new Set(highlightPath ?? []);
+  const pathEdge = edge => !!highlightPath && onPath.has(edge.from) && onPath.has(edge.to) && highlightPath.indexOf(edge.to) === highlightPath.indexOf(edge.from) + 1;
   const incoming = new Map(nodes.map(node => [node.id, []]));
   const outgoing = new Map(nodes.map(node => [node.id, []]));
   for (const edge of edges) {
@@ -159,7 +162,8 @@ export function layoutFlow({ nodes, edges }, requestedWidth) {
     points.push(to);
     return { ...route, points };
   });
-  const wires = routed.map(({ edge, points }) => h('g', { 'data-tutor-edge': `${edge.from}:${edge.to}` }, connector(points)));
+  const wires = routed.map(({ edge, points }) => ({ active: pathEdge(edge), element: h('g', { 'data-tutor-edge': `${edge.from}:${edge.to}`, ...(pathEdge(edge) ? { 'data-tutor-path': '' } : {}) }, connector(points, { path: pathEdge(edge) })) }))
+    .sort((a, b) => a.active - b.active).map(wire => wire.element); // the route is drawn last, over any wire it crosses
   const annotations = [];
   let bottom = y;
   for (const route of routed.filter(route => route.words.length)) {
@@ -187,9 +191,9 @@ export function layoutFlow({ nodes, edges }, requestedWidth) {
     const { id, cx, y, width, height, role, lines, offset } = node;
     const x = cx - width / 2;
     const shape = role === 'decision'
-      ? diamond(x, y, width, height)
-      : box(x, y, width, height, { role, radius: role === 'outcome' ? height / 2 : 7 });
-    return h('g', { 'data-tutor-node': id }, shape, label(lines, cx, y + height / 2 + offset, { tone: 'onFill' }));
+      ? diamond(x, y, width, height, { active: onPath.has(id) })
+      : box(x, y, width, height, { role, radius: role === 'outcome' ? height / 2 : 7, active: onPath.has(id) });
+    return h('g', { 'data-tutor-node': id, ...(onPath.has(id) ? { 'data-tutor-path': '' } : {}) }, shape, label(lines, cx, y + height / 2 + offset, { tone: 'onFill' }));
   });
   return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes] };
 }

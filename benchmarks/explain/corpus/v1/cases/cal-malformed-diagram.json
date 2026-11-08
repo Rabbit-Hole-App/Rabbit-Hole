@@ -1,0 +1,7 @@
+{
+  "kind": "calibration",
+  "entry": "direct",
+  "id": "cal-malformed-diagram",
+  "base": "ex07-decision-tree",
+  "script": "bad-diagram"
+}

@@ -1,0 +1,17 @@
+{
+  "visualRequirements": {
+    "version": 1,
+    "items": [
+      {
+        "id": "vr-1",
+        "kind": "diagram",
+        "diagramKind": "flow",
+        "trace": true,
+        "purpose": "Show a decision-tree diagram for this toy rule: if age is under 30, check whether income is over $50,000; yes means Approve and no means Deny. Otherwise, Check credit score. Trace a 25-year-old earnin"
+      }
+    ]
+  },
+  "refusedAttempts": [],
+  "finalChecks": [],
+  "calibration": null
+}

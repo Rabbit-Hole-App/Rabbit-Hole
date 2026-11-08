@@ -17,6 +17,9 @@ import { contextDocumentBlocks } from './learn-context-docs.js';
 import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, dropInvalidDiagrams } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
+import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
+import { INTERACTION_GUIDANCE, INTERACTION_PROPERTIES, bindInteractions, interactionsEnabled, interactionsProblem } from './explanation-interactions.js';
+import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, requiredVisualProblem, requirementText } from './explanation-visuals.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
@@ -29,6 +32,9 @@ import { VERIFY_SYSTEM, VERIFY_TOOL, falseItems, verifyMessage } from './agents/
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
 const toolName = id => `make_${id}`;
+// E2 (explanation-interactions.js): while EXPLANATION_INTERACTIONS is on, the written Explanation tool also takes the three questions and the anchored terms. They are validated
+// apart from the card (the card's own schema stays the one that was), then bound to the final text with server-assigned ids and revision.
+const interactiveSchema = schema => ({ ...schema, required: [...schema.required, 'questions'], properties: { ...schema.properties, ...INTERACTION_PROPERTIES } });
 const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 // A long text field's limit, said in words in the tool's description: a schema maxLength alone was overrun twice, repair
 // included (inline lane R, 2026-10-13: an explanation body over 2,000 characters, nothing added, $0.12).
@@ -81,36 +87,43 @@ export function artifactPlan(command, { args = '', selection = null } = {}, env 
 
 // CORE.05: the exact first author request (system with any trusted suffix, tools, messages, output cap), so a quote and the dispatch hash
 // the same full body. -> a plan refusal ({ result }) | { request, ready, messages, model, body }
-export function prepareArtifactAuthorRequest(env, input, { only = null, systemSuffix = '' } = {}) {
+export function prepareArtifactAuthorRequest(env, input, { only = null, systemSuffix = '', profile = null } = {}) {
   const plan = artifactPlan(input.command, input, env, only);
   if (plan.result) return plan;
   const { request, ready } = plan;
+  // EXP-11-C02: the written Explanation (its card is the only one on offer) takes its model from the server profile (EXPLANATION_MODEL_PROFILE, default =
+  // the plan transport LEARN_TASKS.artifact pins, so the default request is unchanged). A profile that cannot be used is a plan refusal, never a silent default.
+  let bound = null;
+  if (ready.length === 1 && ready[0] === 'explanation') { try { bound = profile ?? explanationProfileFor(env); } catch (error) { return { result: 'unsupported', message: error.message }; } }
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${explanationTarget(input.depth)}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
-    input_schema: PRIMITIVES[id].schema,
+    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${explanationTarget(input.depth)}${interactionsEnabled(env) ? ` ${INTERACTION_GUIDANCE}` : ''}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
+    input_schema: id === 'explanation' && interactionsEnabled(env) ? interactiveSchema(PRIMITIVES[id].schema) : PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Standard sends nothing.
   const depthNote = depthInstruction(input.depth, 'card');
-  const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null, ...(depthNote ? { depth: input.depth } : {}) });
+  // E1: the server-derived required visuals ride in the request the author reads (and the quote hashes); absent, the request is unchanged.
+  const required = id => input.visualRequirements?.items?.length && ready.includes('explanation') ? { requiredVisuals: input.visualRequirements.items.map(({ id, kind, diagramKind, purpose }) => ({ id, kind, ...(diagramKind ? { diagramKind } : {}), purpose })) } : {};
+  const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null, ...(depthNote ? { depth: input.depth } : {}), ...required() });
   // The canvas's switched-on context documents come first (canvas-context-docs.md), then the request.
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
-  const maxTokens = Math.max(LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
+  const maxTokens = Math.max(bound ? bound.roles.author.maxOutputTokens : LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
   const system = (input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '');
-  return { request, ready, messages, model: LEARN_TASKS.artifact.model, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
+  return { request, ready, messages, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
-export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null } = {}) {
+export async function generateArtifact(env, input, { callModel: baseCall = loggedModel('artifact', planModel), only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null } = {}) {
   // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
-  const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix });
+  const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   if (prepared.result) return prepared;
   const { request, ready, messages, body, model } = prepared;
+  const binding = prepared.profile ? await explanationProfileBinding(prepared.profile) : null; // what this card's model was chosen by, saved with the result
   const callModel = systemSuffix ? (e, b, m, org) => baseCall(e, { ...b, system: `${b.system}\n${systemSuffix}` }, m, org) : baseCall; // the verifier's call
   const ask = async (history, kind) => {
-    const response = await baseCall(kind ? withAttemptKind(env, kind) : env, { ...body, messages: history }, model, null);
+    const response = await baseCall(kind ? withAttemptKind(env, kind) : env, { ...body, messages: history }, kind === 'repair' && prepared.repairModel ? prepared.repairModel : model, null); // the repair role: the author's model unless the profile pins another
     // A refused spend admission says why (learn-spend.js spendMessage), never only its status.
     const refused = response.status === 429 ? (await response.clone().json().catch(() => null)) : null;
     if (refused?.code === 'spend_limited' && refused.error) throw new Error(refused.error);
@@ -134,24 +147,41 @@ export async function generateArtifact(env, input, { callModel: baseCall = logge
     try {
       if (result.stop_reason === 'max_tokens') throw new Error('The artifact was cut off before it was complete');
       if (!id) throw new Error('The clarifying question was empty');
-      let block, extraction, diagramsDropped = 0;
+      let block, extraction, diagramsDropped = 0, questions, terms;
       if (input.imageSource) {
         const checked = checkImageExtraction(call.input, content => ({ result: artifactBlock(id, content) }), input.imageSource);
         if (checked.error) throw new Error(checked.error);
         if (checked.result.kind === 'clarify') return { result: 'clarification', question: checked.result.question };
         ({ extraction, ...block } = checked.result);
+      } else if (id === 'explanation' && interactionsEnabled(env)) {
+        const { questions: q, terms: t, ...card } = call.input ?? {};
+        questions = q; terms = t; block = artifactBlock(id, card);
       } else block = artifactBlock(id, call.input);
       if (title && typeof block.title === 'string') block = { ...block, title };
       // CORE.09: the final title first, then the Depth's display-text budget and supported Mermaid, on every path that makes an explanation.
       // No repair left: an rh-diagram that cannot be drawn is dropped and the written explanation is delivered (the prose still passes its own checks).
       if (id === 'explanation') {
-        if (attempt >= repairs) ({ block, dropped: diagramsDropped } = dropInvalidDiagrams(block));
-        const problem = explanationProblem(block, input.depth); if (problem) throw new Error(problem);
+        const wanted = input.visualRequirements?.items?.length ? input.visualRequirements : null;
+        if (attempt >= repairs) {
+          const trimmed = dropInvalidDiagrams(block);
+          // E1: only an OPTIONAL diagram may be dropped. With a required one, the drop stands only if the card still holds a valid diagram for each requirement
+          // and no text points at the dropped figure; otherwise the card keeps its invalid diagram and fails the checks below, truthfully.
+          if (trimmed.dropped && !requiredVisualProblem(trimmed.block, wanted)) {
+            const dangling = danglingFigureProblem(trimmed.block); if (dangling) throw new Error(dangling);
+            ({ block, dropped: diagramsDropped } = trimmed);
+          }
+        }
+        // E2: the questions and term anchors are checked against the FINAL text (accepted title applied, diagrams settled), in the same message as every other problem.
+        const interactive = interactionsEnabled(env);
+        const problem = [explanationProblem(block, input.depth), requiredVisualProblem(block, wanted), interactive ? interactionsProblem(block, { questions, terms }) : null].filter(Boolean).join(' '); if (problem) throw new Error(problem);
+        if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
+        block = { ...block, depth: validDepth(input.depth) || DEFAULT_DEPTH }; // E3: the budget this card was written to, so a later illustration caption is checked against it
+        if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };
       }
       if (GATES[id]) block = GATES[id](block);
       if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
-      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(extraction ? { extraction } : {}) };
+      return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(diagramsDropped ? { diagramsDropped } : {}), ...(extraction ? { extraction } : {}), ...(binding && id === 'explanation' ? { profile: binding } : {}) };
     } catch (error) {
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
@@ -256,8 +286,11 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
   let celeris = null; // DEV ONLY (explain-celeris-dev.js): declared outside the try so a refused request can still report what the route saw
   try {
+    // E1: what the learner explicitly asked the written card to contain, read from their own words on the server; a picture the library does not draw is told now, before any call.
+    const visuals = body.command === 'explanation' ? deriveVisualRequirements(requirementText({ args: body.args })) : null;
+    if (visuals?.unsupported) { await giveBack(); return json({ result: 'unsupported', message: visuals.unsupported }); }
     celeris = celerisExplainRoute(env, body.command); // DEV ONLY (explain-celeris-dev.js): off unless a dev or test Worker turns it on; production never takes it
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}) }, celeris?.options);
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, celeris?.options);
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     const done = celeris ? { ...out, devModel: celeris.served() } : out;

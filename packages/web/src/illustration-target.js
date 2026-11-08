@@ -4,6 +4,8 @@ let target = null;
 export const setIllustrationTarget = id => { target = typeof id === 'string' && id ? id : null; };
 export const peekIllustrationTarget = () => target;
 export const takeIllustrationTarget = () => { const held = target; target = null; return held; };
+// The caption an attached illustration carries (generate-image.js illustrationFrom): it is lesson text, so it counts toward the card's Depth budget (control-plane learn-primitives.js illustrationProblem).
+export const ILLUSTRATION_CAPTION = 'Generated illustration, not a photograph or a measurement.';
 // The words /image opens with for an Explanation: what the card is about, asked for as one clean illustration with no lettering (a model draws its own text badly).
 export const illustrationPrompt = block => {
   const topic = String(block?.title || '').trim();

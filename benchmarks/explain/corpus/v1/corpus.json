@@ -1,0 +1,8 @@
+{
+  "id": "explain-written-v1",
+  "version": 1,
+  "entries": [
+    "direct"
+  ],
+  "note": "Frozen corpus for the written /explain benchmark. Authors see only cases/ fields args, depth, command. Expected facts live only in rubrics/. Fixture replies are scripted offline provider doubles for harness tests, never model output. Tutor-entry cases are not in v1."
+}
