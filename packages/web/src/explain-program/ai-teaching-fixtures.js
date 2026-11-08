@@ -6,5 +6,19 @@ import { backpropFixture } from './ai-backprop-fixture.js';
 import { boundaryFixture } from './ai-boundary-fixture.js';
 import { qlearningFixture } from './ai-qlearning-fixture.js';
 import { treeSplitFixture } from './ai-tree-split-fixture.js';
+import { classifierThresholdFixture } from './ai-classifier-threshold-fixture.js';
+import { regressionFitFixture } from './ai-regression-fit-fixture.js';
+import { kmeansFixture } from './ai-kmeans-fixture.js';
 
-export const AI_TEACHING_FIXTURES = [convolutionFixture, attentionFixture, gradientFixture, backpropFixture, boundaryFixture, qlearningFixture, treeSplitFixture];
+export const AI_TEACHING_FIXTURES = [
+  convolutionFixture,
+  attentionFixture,
+  gradientFixture,
+  backpropFixture,
+  boundaryFixture,
+  qlearningFixture,
+  treeSplitFixture,
+  classifierThresholdFixture,
+  regressionFitFixture,
+  kmeansFixture,
+];

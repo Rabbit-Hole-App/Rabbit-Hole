@@ -28,6 +28,16 @@ Reference sources: `packages/web/src/explain-program/ai-convolution-fixture.js`,
 
 These use the same `AI_TEACHING_FIXTURES` registry and dev fixture admission gate. They are not a new automatic lesson-routing library.
 
+## Phase 02 generation cases
+
+Use the pushed `chatgpt/phase-02-ml-examples` branch for the reference fixtures. Send each prompt through the normal Tutor router and /interact workflow. Keep the generated result and the reference fixture as separate artifacts. Commit the generated source, manifest, replay inputs and state alongside the routing and job evidence so it can be tested without another model call. Record the actual outcome for a case that delivers no card.
+
+| Reference | Learner request | Check on the generated card |
+| --- | --- | --- |
+| `fixture-ai-classifier-threshold` | Show me how moving a classifier's cutoff changes false alarms and missed positives. Use ten labeled scores with two actual positives. Let me change the cutoff and see the confusion matrix, precision, recall and accuracy. | Recompute the four counts and metrics from the card's displayed scores. At a score equal to the cutoff, count it as positive. Show precision as undefined if there are no positive predictions. |
+| `fixture-ai-regression-fit` | Let me change a line's slope and intercept and see how far six points are from its predictions. Show how each error contributes to the mean squared error. | Confirm each residual ends at the prediction for the same x value. Verify the six squared residuals and their average at two settings. |
+| `fixture-ai-kmeans` | Let me move two starting centroids and step through assigning points and updating the centroids. Use a small example where different starts can lead to different groups. | Check nearest-center assignments, centroid means, and the sum of squared point-to-center distances for the displayed assignments. Try two starts, reopen, and Reset. |
+
 ## Common acceptance and report
 
 - Keep `/interact` strictly 2D. Use the existing title, a concise description above the scene, existing controls and Reset. Do not add explanatory text below the scene or controls.

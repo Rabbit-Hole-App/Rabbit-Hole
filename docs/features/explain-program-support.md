@@ -172,7 +172,7 @@ this environment lacks the authorized dev credentials and working browser captur
 
 ### AI teaching examples
 
-Seven hand-authored examples compose the existing 2D SDK in normal program cards.
+Ten hand-authored examples compose the existing 2D SDK in normal program cards.
 They are exported together by `ai-teaching-fixtures.js`, admitted only through the
 existing dev fixture gate. They are reusable source examples, not a new automatic
 lesson-routing system and not proof of LLM generation quality.
@@ -186,6 +186,9 @@ lesson-routing system and not proof of LLM generation quality.
 | `fixture-ai-boundary` | Drag six training points and a query; compare 1/3-neighbor regions, prediction and leave-one-out error. | `ai-boundary-fixture.js` |
 | `fixture-ai-qlearning` | Take actions in a 3 × 3 world; inspect terminal/wall rewards, Q updates and greedy policy. New episode retains Q; parameter changes clear it. | `ai-qlearning-fixture.js` |
 | `fixture-ai-tree-split` | Move a cutoff across ten labeled points. Compare left and right class counts, impurity and gain, then reveal the best cutoff for Gini or entropy. | `ai-tree-split-fixture.js` |
+| `fixture-ai-classifier-threshold` | Move a cutoff over ten fixed scores. Compare confusion counts, precision, recall and accuracy as the predicted classes change. | `ai-classifier-threshold-fixture.js` |
+| `fixture-ai-regression-fit` | Change a line's slope and intercept. Compare its six vertical residuals, their squares and mean squared error. | `ai-regression-fit-fixture.js` |
+| `fixture-ai-kmeans` | Drag two starting centroids and alternate assigning points and updating the means. Compare groupings and inertia from different starts. | `ai-kmeans-fixture.js` |
 
 All source paths above are under `packages/web/src/explain-program/`. The examples
 reuse `ProgramScene`, shared `Frame`, existing input controls and their persistence
@@ -211,6 +214,18 @@ Reset hides the reveal and restores the default cutoff and criterion.
 Nine focused checks passed through the real resolver and sandbox. The dev web
 build passed, and the initial and revealed shared-Frame renders were inspected.
 Live browser acceptance and generated-card acceptance remain pending.
+
+The Phase 02 batch adds the classifier threshold, regression fit and K-means
+references. At cutoff 0.70 the classifier catches one of two positives with zero
+false alarms. At 0.50 it catches both with two false alarms. The regression scene
+keeps its axes fixed and shows all six residuals across both sliders' ranges.
+K-means converges to different groups from the two demonstrated starting layouts.
+The left/right result has inertia 13.5 and the top/bottom result has inertia 25.5.
+
+All 17 focused checks passed through the real sandbox and the dev fixture
+resolver, including save/reopen and Reset. The dev web build passed. The initial
+and changed shared-Frame scenes were inspected. Live browser and generated-card
+acceptance remain pending.
 
 See the [generation and dev acceptance handoff](./explain-on-canvas/handoff/ai-example-regeneration-handoff.md)
 for exact prompts and checks. These examples do not increase the reusable
