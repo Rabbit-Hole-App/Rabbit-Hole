@@ -7,21 +7,61 @@
   <style>
     :root {
       color-scheme: light;
+      /* Card tokens. The design tables below describe these same values. */
+      --font-family: Inter, "Liberation Sans", Arial, sans-serif;
+      --font-base: 1rem;
+      --leading-default: 1.45;
+      --title-size: 1.65rem;
+      --title-size-compact: 1.35rem;
+      --title-leading: 1.17;
+      --title-tracking: -.023em;
+      --copy-size: .9375rem;
+      --detail-size: .875rem;
+      --label-size: .8125rem;
+      --weight-normal: 400;
+      --weight-label: 650;
+      --weight-bold: 700;
+      --subtitle-leading: 1.35;
       --paper: #f5f4ed;
       --card: #fffefa;
       --card-border: #dedfd8;
+      --card-shadow: #e6e5de;
+      --header-line: #ecece6;
       --panel: #f6f8f4;
       --panel-border: #e3e7e0;
       --ink: #202723;
       --muted: #5d675f;
+      --copy-ink: #505b52;
       --blue: #426db2;
+      --explanation-ink: #375d92;
       --blue-soft: #eaf1fb;
       --orange: #b86232;
       --orange-dark: #934723;
       --orange-soft: #f8ece3;
       --green: #267657;
       --green-soft: #e5f2ea;
-      font: 16px/1.45 Inter, "Liberation Sans", Arial, sans-serif;
+      --why-ink: #205c45;
+      --why-border: #b8dccc;
+      --deny-border: #eac6ad;
+      --control-bg: #ffffff;
+      --control-hover-bg: #f6f8f4;
+      --control-hover-border: #d2d9d2;
+      --control-selected-border: #e2ad8f;
+      --control-active-bg: #f5e0d2;
+      --tree-line: #b9c3b9;
+      --tree-active-border: #93c9af;
+      --tree-deny-border: #dfae8e;
+      --disabled-opacity: .45;
+      --card-radius: 18px;
+      --card-inset-default: 24px;
+      --card-inset-compact: 15px;
+      --pill-height: 26px;
+      --pill-radius: 999px;
+      --why-radius: 9px;
+      --control-radius: 8px;
+      --grip-radius: 7px;
+      --focus-width: 2px;
+      font: var(--font-base)/var(--leading-default) var(--font-family);
       background: var(--paper);
       color: var(--ink);
     }
@@ -41,7 +81,7 @@
     .teaching-card {
       --card-width: 548px;
       --card-height: 430px;
-      --card-inset: 24px;
+      --card-inset: var(--card-inset-default);
       display: flex;
       flex-direction: column;
       position: relative;
@@ -51,17 +91,18 @@
       min-height: 0;
       background: var(--card);
       border: 1px solid var(--card-border);
-      border-radius: 18px;
-      box-shadow: 0 2px #e6e5de;
+      border-radius: var(--card-radius);
+      box-shadow: 0 2px var(--card-shadow);
       overflow: hidden;
       container-type: inline-size;
     }
-    .card-header { flex: none; padding: 17px var(--card-inset) 11px; background: var(--card); border-bottom: 1px solid #ecece6; }
+    .card-header { flex: none; padding: 17px var(--card-inset) 11px; background: var(--card); border-bottom: 1px solid var(--header-line); }
     .card-top { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .card-pill { display: inline-flex; align-items: center; min-height: 26px; padding: 1px 11px; border-radius: 999px; font-size: .8125rem; font-weight: 700; }
-    .card-pill.explain { color: #375d92; background: var(--blue-soft); }
+    .card-pill { display: inline-flex; align-items: center; min-height: var(--pill-height); padding: 1px 11px; border-radius: var(--pill-radius); font-size: var(--label-size); font-weight: var(--weight-bold); }
+    .card-pill.explain { color: var(--explanation-ink); background: var(--blue-soft); }
     .card-pill.interactive { color: var(--orange-dark); background: var(--orange-soft); }
-    .card-title { font-size: 1.65rem; line-height: 1.17; letter-spacing: -.023em; overflow-wrap: anywhere; }
+    .card-title { color: var(--ink); font-size: var(--title-size); font-weight: var(--weight-bold); line-height: var(--title-leading); letter-spacing: var(--title-tracking); overflow-wrap: anywhere; }
+    .card-subtitle { margin-top: 4px; color: var(--muted); font-size: var(--detail-size); font-weight: var(--weight-label); line-height: var(--subtitle-leading); }
     .card-actions:empty { display: none; }
     .card-body {
       flex: 0 1 auto;
@@ -73,49 +114,68 @@
       scrollbar-gutter: stable;
       scrollbar-width: thin;
     }
-    .card-body:focus-visible { outline: 2px solid var(--blue); outline-offset: -3px; }
-    .card-copy { display: grid; gap: 5px; margin-bottom: 10px; color: #505b52; font-size: .9375rem; }
-    .card-why { margin-bottom: 9px; padding: 7px 10px; border: 1px solid #b8dccc; border-radius: 9px; background: var(--green-soft); color: #205c45; font-size: .875rem; }
-    .card-why strong { margin-inline-end: 5px; }
-    .card-why[data-decision="deny"] { border-color: #eac6ad; background: var(--orange-soft); color: var(--orange-dark); }
+    .card-body:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -3px; }
+    .card-copy { display: grid; gap: 5px; margin-bottom: 10px; color: var(--copy-ink); font-size: var(--copy-size); font-weight: var(--weight-normal); }
+    .card-why { margin-bottom: 9px; padding: 7px 10px; border: 1px solid var(--why-border); border-radius: var(--why-radius); background: var(--green-soft); color: var(--why-ink); font-size: var(--detail-size); }
+    .card-why strong { margin-inline-end: 5px; font-weight: var(--weight-bold); }
+    .card-why[data-decision="deny"] { border-color: var(--deny-border); background: var(--orange-soft); color: var(--orange-dark); }
     .card-visual { width: 100%; min-width: 0; }
     .card-visual :is(svg, img) { display: block; width: 100%; max-width: 100%; height: auto; }
     .card-visual img { object-fit: contain; }
-    .card-caption { margin-top: 6px; color: var(--muted); font-size: .875rem; }
+    .card-caption { margin-top: 6px; color: var(--muted); font-size: var(--detail-size); }
     .card-controls:not(:empty) { margin-top: 10px; }
+    .tree-background { fill: var(--panel); stroke: var(--panel-border); }
+    .branch { stroke: var(--tree-line); stroke-width: 1.6; }
     .branch.is-active { stroke: var(--green); stroke-width: 3; }
+    .edge-label { fill: var(--muted); }
     .edge-label.is-active { fill: var(--green); }
-    .tree-node.is-active rect { fill: var(--green-soft); stroke: #93c9af; }
+    .tree-node rect { fill: var(--control-bg); stroke: var(--panel-border); }
+    .tree-node text { fill: var(--ink); }
+    .tree-node:is([data-route$="-approve"], [data-route$="-deny"]) text { fill: var(--muted); }
+    .tree-node.is-active rect { fill: var(--green-soft); stroke: var(--tree-active-border); }
     .tree-node.is-active text { fill: var(--green); }
-    .tree-node.is-active[data-route$="-deny"] rect { fill: var(--orange-soft); stroke: #dfae8e; }
+    .tree-node.is-active[data-route$="-deny"] rect { fill: var(--orange-soft); stroke: var(--tree-deny-border); }
     .tree-node.is-active[data-route$="-deny"] text { fill: var(--orange-dark); }
     fieldset { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
     .choices { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .choice-label { margin-inline-end: 4px; font-weight: 650; font-size: .875rem; }
+    .choice-label { margin-inline-end: 4px; font-weight: var(--weight-label); font-size: var(--detail-size); }
     .choice { display: grid; flex: 1 1 83px; cursor: pointer; }
-    .choice-text { display: grid; place-items: center; min-height: 35px; padding: 5px 7px; text-align: center; border: 1px solid var(--panel-border); border-radius: 8px; background: #fff; color: var(--muted); font-size: .8125rem; font-weight: 650; }
-    .choice input:checked + .choice-text { border-color: #e2ad8f; background: var(--orange-soft); color: var(--orange-dark); }
-    .choice input:focus-visible + .choice-text { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .choice-text { display: grid; place-items: center; min-height: 35px; padding: 5px 7px; text-align: center; border: 1px solid var(--panel-border); border-radius: var(--control-radius); background: var(--control-bg); color: var(--muted); font-size: var(--label-size); font-weight: var(--weight-label); }
+    .choice:hover input:enabled + .choice-text { background: var(--control-hover-bg); border-color: var(--control-hover-border); }
+    .choice input:checked + .choice-text { border-color: var(--control-selected-border); background: var(--orange-soft); color: var(--orange-dark); }
+    .choice:hover input:checked:enabled + .choice-text, .choice:active input:enabled + .choice-text { background: var(--control-active-bg); border-color: var(--control-selected-border); color: var(--orange-dark); }
+    .choice input:focus-visible + .choice-text { outline: var(--focus-width) solid var(--blue); outline-offset: 2px; }
+    .choice input:disabled + .choice-text { opacity: var(--disabled-opacity); cursor: not-allowed; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .resize-handle {
       position: absolute; right: 2px; bottom: 2px;
       display: grid; place-items: center;
       width: 26px; height: 26px; padding: 0;
-      border: 1px solid transparent; border-radius: 7px;
+      border: 1px solid transparent; border-radius: var(--grip-radius);
       background: var(--card); color: var(--muted);
       cursor: nwse-resize; touch-action: none;
     }
-    .resize-handle:hover, .teaching-card.is-resizing .resize-handle { color: var(--orange-dark); background: var(--orange-soft); border-color: #e2ad8f; }
-    .resize-handle:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+    .resize-handle:hover, .teaching-card.is-resizing .resize-handle { color: var(--orange-dark); background: var(--orange-soft); border-color: var(--control-selected-border); }
+    .resize-handle:focus-visible { outline: var(--focus-width) solid var(--blue); outline-offset: -2px; }
     .teaching-card.is-resizing { user-select: none; }
     @container (max-width: 370px) {
-      .card-header { padding-inline: 15px; }
-      .card-body { padding-inline: 15px; }
-      .card-title { font-size: 1.35rem; }
+      .card-header, .card-body { padding-inline: var(--card-inset-compact); }
+      .card-title { font-size: var(--title-size-compact); }
       .choices .choice-label { flex-basis: 100%; }
     }
     @media (max-width: 790px) { .examples { grid-template-columns: 1fr; } }
     @media (max-width: 510px) { main { padding: 18px 12px 32px; } }
+    .spec-link { display: inline-block; margin-top: 8px; color: var(--explanation-ink); font-size: var(--detail-size); }
+    .design-spec { margin-top: 32px; }
+    .design-spec > p { margin: 7px 0 13px; color: var(--muted); }
+    .design-spec details { margin-bottom: 10px; padding: 10px 13px; background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; }
+    .design-spec summary { cursor: pointer; font-weight: var(--weight-bold); }
+    .spec-table { margin-top: 8px; overflow-x: auto; }
+    .design-spec table { width: 100%; border-collapse: collapse; text-align: left; font-size: var(--detail-size); }
+    .design-spec th, .design-spec td { border-bottom: 1px solid var(--header-line); padding: 7px 8px; vertical-align: top; }
+    .design-spec th { background: var(--panel); }
+    .design-spec code { white-space: nowrap; }
+    .swatch { display: inline-block; width: 13px; height: 13px; margin-inline-end: 5px; vertical-align: -1px; border: 1px solid var(--card-border); border-radius: 3px; background: var(--swatch); }
   </style>
 </head>
 <body>
@@ -124,8 +184,112 @@
       <p class="eyebrow">Rabbit Hole · Canvas card reference</p>
       <h1>Resizable card shell</h1>
       <p class="page-note" id="resize-guide">Drag the lower-right handle, or focus it and use the arrow keys. Hold Shift for larger steps. The body scrolls when the card is shorter than its content, and the card stops growing once the content fits.</p>
+      <a class="spec-link" href="#design-spec">View exact design values</a>
     </header>
     <div class="examples" id="examples"></div>
+    <section class="design-spec" id="design-spec" aria-labelledby="design-spec-title">
+      <h2 id="design-spec-title">Exact card design values</h2>
+      <p>Use these values for both card variants. The preview reads the same named CSS tokens. The font stack is <code>Inter, Liberation Sans, Arial, sans-serif</code> with pixel equivalents based on a 16 px root size. Line heights below are multipliers.</p>
+      <details open>
+        <summary>Typography</summary>
+        <div class="spec-table"><table>
+          <thead><tr><th scope="col">Role</th><th scope="col">Font size</th><th scope="col">Weight</th><th scope="col">Line height</th><th scope="col">Text color</th><th scope="col">Placement</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Title</th><td><code>26.4 px (1.65rem)</code></td><td><code>700</code></td><td><code>1.17</code></td><td><span class="swatch" style="--swatch: var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td>Tracking −0.023 em.</td></tr>
+            <tr><th scope="row">Title · compact</th><td><code>21.6 px (1.35rem)</code></td><td><code>700</code></td><td><code>1.17</code></td><td><span class="swatch" style="--swatch: var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td>Same tracking. Use at card content width ≤370 px.</td></tr>
+            <tr><th scope="row">Subtitle · optional</th><td><code>14 px (.875rem)</code></td><td><code>650</code></td><td><code>1.35</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>4 px below the title. The slot collapses when empty.</td></tr>
+            <tr><th scope="row">Description and instructions</th><td><code>15 px (.9375rem)</code></td><td><code>400</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--copy-ink)" aria-hidden="true"></span><code>#505B52</code></td><td>5 px between the two text blocks.</td></tr>
+            <tr><th scope="row">Why · approval</th><td><code>14 px (.875rem)</code></td><td><code>400</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td>Why label weight 700.</td></tr>
+            <tr><th scope="row">Why · denial</th><td><code>14 px (.875rem)</code></td><td><code>400</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>Why label weight 700.</td></tr>
+            <tr><th scope="row">Figure caption</th><td><code>14 px (.875rem)</code></td><td><code>400</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>6 px above the caption.</td></tr>
+            <tr><th scope="row">Explanation pill</th><td><code>13 px (.8125rem)</code></td><td><code>700</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td></td></tr>
+            <tr><th scope="row">Interactive pill</th><td><code>13 px (.8125rem)</code></td><td><code>700</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Control group label</th><td><code>14 px (.875rem)</code></td><td><code>650</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td></td></tr>
+            <tr><th scope="row">Choice · default</th><td><code>13 px (.8125rem)</code></td><td><code>650</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
+            <tr><th scope="row">Choice · selected</th><td><code>13 px (.8125rem)</code></td><td><code>650</code></td><td><code>1.45</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+          </tbody>
+        </table></div>
+      </details>
+      <details open>
+        <summary>Palette and transparency</summary>
+        <div class="spec-table"><table>
+          <thead><tr><th scope="col">Role</th><th scope="col">CSS token</th><th scope="col">Value</th><th scope="col">Opacity</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Canvas background</th><td><code>--paper</code></td><td><span class="swatch" style="--swatch: var(--paper)" aria-hidden="true"></span><code>#F5F4ED</code></td><td>100%</td></tr>
+            <tr><th scope="row">Card and header</th><td><code>--card</code></td><td><span class="swatch" style="--swatch: var(--card)" aria-hidden="true"></span><code>#FFFEFA</code></td><td>100%</td></tr>
+            <tr><th scope="row">Card outline</th><td><code>--card-border</code></td><td><span class="swatch" style="--swatch: var(--card-border)" aria-hidden="true"></span><code>#DEDFD8</code></td><td>100%</td></tr>
+            <tr><th scope="row">Card shadow</th><td><code>--card-shadow</code></td><td><span class="swatch" style="--swatch: var(--card-shadow)" aria-hidden="true"></span><code>#E6E5DE</code></td><td>100%</td></tr>
+            <tr><th scope="row">Header divider</th><td><code>--header-line</code></td><td><span class="swatch" style="--swatch: var(--header-line)" aria-hidden="true"></span><code>#ECECE6</code></td><td>100%</td></tr>
+            <tr><th scope="row">Scene panel</th><td><code>--panel</code></td><td><span class="swatch" style="--swatch: var(--panel)" aria-hidden="true"></span><code>#F6F8F4</code></td><td>100%</td></tr>
+            <tr><th scope="row">Scene and control outline</th><td><code>--panel-border</code></td><td><span class="swatch" style="--swatch: var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td>100%</td></tr>
+            <tr><th scope="row">Primary ink</th><td><code>--ink</code></td><td><span class="swatch" style="--swatch: var(--ink)" aria-hidden="true"></span><code>#202723</code></td><td>100%</td></tr>
+            <tr><th scope="row">Secondary ink</th><td><code>--muted</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td>100%</td></tr>
+            <tr><th scope="row">Description ink</th><td><code>--copy-ink</code></td><td><span class="swatch" style="--swatch: var(--copy-ink)" aria-hidden="true"></span><code>#505B52</code></td><td>100%</td></tr>
+            <tr><th scope="row">Blue accent and keyboard focus</th><td><code>--blue</code></td><td><span class="swatch" style="--swatch: var(--blue)" aria-hidden="true"></span><code>#426DB2</code></td><td>100%</td></tr>
+            <tr><th scope="row">Explanation pill background</th><td><code>--blue-soft</code></td><td><span class="swatch" style="--swatch: var(--blue-soft)" aria-hidden="true"></span><code>#EAF1FB</code></td><td>100%</td></tr>
+            <tr><th scope="row">Explanation pill ink</th><td><code>--explanation-ink</code></td><td><span class="swatch" style="--swatch: var(--explanation-ink)" aria-hidden="true"></span><code>#375D92</code></td><td>100%</td></tr>
+            <tr><th scope="row">Orange accent</th><td><code>--orange</code></td><td><span class="swatch" style="--swatch: var(--orange)" aria-hidden="true"></span><code>#B86232</code></td><td>100%</td></tr>
+            <tr><th scope="row">Interactive pill and selected control background</th><td><code>--orange-soft</code></td><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td>100%</td></tr>
+            <tr><th scope="row">Interactive pill and selected control ink</th><td><code>--orange-dark</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td>100%</td></tr>
+            <tr><th scope="row">Approval path and node ink</th><td><code>--green</code></td><td><span class="swatch" style="--swatch: var(--green)" aria-hidden="true"></span><code>#267657</code></td><td>100%</td></tr>
+            <tr><th scope="row">Approval tint</th><td><code>--green-soft</code></td><td><span class="swatch" style="--swatch: var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td>100%</td></tr>
+            <tr><th scope="row">Approval Why ink</th><td><code>--why-ink</code></td><td><span class="swatch" style="--swatch: var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td>100%</td></tr>
+            <tr><th scope="row">Approval Why border</th><td><code>--why-border</code></td><td><span class="swatch" style="--swatch: var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td>100%</td></tr>
+            <tr><th scope="row">Denial Why border</th><td><code>--deny-border</code></td><td><span class="swatch" style="--swatch: var(--deny-border)" aria-hidden="true"></span><code>#EAC6AD</code></td><td>100%</td></tr>
+            <tr><th scope="row">Control and inactive node surface</th><td><code>--control-bg</code></td><td><span class="swatch" style="--swatch: var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td>100%</td></tr>
+            <tr><th scope="row">Unselected hover surface</th><td><code>--control-hover-bg</code></td><td><span class="swatch" style="--swatch: var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code></td><td>100%</td></tr>
+            <tr><th scope="row">Unselected hover border</th><td><code>--control-hover-border</code></td><td><span class="swatch" style="--swatch: var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td>100%</td></tr>
+            <tr><th scope="row">Selected and resize-hover border</th><td><code>--control-selected-border</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td>100%</td></tr>
+            <tr><th scope="row">Selected hover and press surface</th><td><code>--control-active-bg</code></td><td><span class="swatch" style="--swatch: var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td>100%</td></tr>
+            <tr><th scope="row">Inactive tree line</th><td><code>--tree-line</code></td><td><span class="swatch" style="--swatch: var(--tree-line)" aria-hidden="true"></span><code>#B9C3B9</code></td><td>100%</td></tr>
+            <tr><th scope="row">Active tree node outline</th><td><code>--tree-active-border</code></td><td><span class="swatch" style="--swatch: var(--tree-active-border)" aria-hidden="true"></span><code>#93C9AF</code></td><td>100%</td></tr>
+            <tr><th scope="row">Denied tree node outline</th><td><code>--tree-deny-border</code></td><td><span class="swatch" style="--swatch: var(--tree-deny-border)" aria-hidden="true"></span><code>#DFAE8E</code></td><td>100%</td></tr>
+            <tr><th scope="row">Disabled choice composite</th><td><code>--disabled-opacity</code></td><td><code>.45</code></td><td>45%</td></tr>
+            <tr><th scope="row">Resize grip border · default</th><td><code>transparent</code></td><td>No visible paint</td><td>0%</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+      <details open>
+        <summary>Dimensions, spacing and borders</summary>
+        <div class="spec-table"><table>
+          <thead><tr><th scope="col">Part</th><th scope="col">Exact values</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Card frame</th><td>Default width 548 px and height ceiling 430 px. Width is capped by the parent. Resize bounds use a 300 px preferred minimum width and a 245–760 px requested height. Actual height follows content up to the ceiling.</td></tr>
+            <tr><th scope="row">Card edge</th><td>1 px solid #DEDFD8, 18 px radius, opaque #E6E5DE shadow at x 0, y 2 px, blur 0.</td></tr>
+            <tr><th scope="row">Insets</th><td>24 px horizontal, 15 px at card content width ≤370 px. Header padding 17 px top and 11 px bottom. Body padding 11 px top and 24 px bottom.</td></tr>
+            <tr><th scope="row">Header row</th><td>10 px gap between the pill and actions, 8 px below the row, 1 px #ECECE6 divider below the header.</td></tr>
+            <tr><th scope="row">Pill</th><td>26 px minimum height, 1 px vertical and 11 px horizontal padding, 999 px radius.</td></tr>
+            <tr><th scope="row">Copy and feedback</th><td>5 px between copy blocks and 10 px below copy. Why padding 7 px vertical and 10 px horizontal, 1 px border, 9 px radius, 9 px below the box.</td></tr>
+            <tr><th scope="row">Control row</th><td>10 px above controls, 6 px between choices, 4 px trailing margin on the group label. Choice minimum 35 px high, 83 px flex basis, 5 px vertical and 7 px horizontal padding, 1 px border, 8 px radius.</td></tr>
+            <tr><th scope="row">Resize handle</th><td>26 × 26 px, 7 px radius, 2 px from the lower and right edges, 1 px border. Grip glyph is 14 × 14 px with 1.4 px stroke.</td></tr>
+            <tr><th scope="row">Scroll and visual</th><td>Header stays in its own row. The body scrolls vertically when needed. SVG and image fill available width with auto height and preserve aspect ratio.</td></tr>
+            <tr><th scope="row">Loan tracer visual</th><td>540 × 190 SVG viewBox. Scene panel radius 10, node radius 9. Branch strokes 1.6 inactive and 3 active. Edge labels 13, node labels 14, root label 15, all weight 650 and sized in SVG units.</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+      <details open>
+        <summary>Control and feedback states</summary>
+        <div class="spec-table"><table>
+          <thead><tr><th scope="col">State</th><th scope="col">Surface</th><th scope="col">Border or outline</th><th scope="col">Ink</th><th scope="col">Behavior</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Choice · default</th><td><span class="swatch" style="--swatch: var(--control-bg)" aria-hidden="true"></span><code>#FFFFFF</code></td><td><span class="swatch" style="--swatch: var(--panel-border)" aria-hidden="true"></span><code>#E3E7E0</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
+            <tr><th scope="row">Choice · hover</th><td><span class="swatch" style="--swatch: var(--control-hover-bg)" aria-hidden="true"></span><code>#F6F8F4</code></td><td><span class="swatch" style="--swatch: var(--control-hover-border)" aria-hidden="true"></span><code>#D2D9D2</code></td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
+            <tr><th scope="row">Choice · selected</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Choice · selected hover or press</th><td><span class="swatch" style="--swatch: var(--control-active-bg)" aria-hidden="true"></span><code>#F5E0D2</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Resize grip · default</th><td><span class="swatch" style="--swatch: var(--card)" aria-hidden="true"></span><code>#FFFEFA</code></td><td>Transparent</td><td><span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code></td><td></td></tr>
+            <tr><th scope="row">Resize grip · hover or drag</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--control-selected-border)" aria-hidden="true"></span><code>#E2AD8F</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Why · approval</th><td><span class="swatch" style="--swatch: var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td><span class="swatch" style="--swatch: var(--why-border)" aria-hidden="true"></span><code>#B8DCCC</code></td><td><span class="swatch" style="--swatch: var(--why-ink)" aria-hidden="true"></span><code>#205C45</code></td><td></td></tr>
+            <tr><th scope="row">Why · denial</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--deny-border)" aria-hidden="true"></span><code>#EAC6AD</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Tree node · active approval path</th><td><span class="swatch" style="--swatch: var(--green-soft)" aria-hidden="true"></span><code>#E5F2EA</code></td><td><span class="swatch" style="--swatch: var(--tree-active-border)" aria-hidden="true"></span><code>#93C9AF</code></td><td><span class="swatch" style="--swatch: var(--green)" aria-hidden="true"></span><code>#267657</code></td><td></td></tr>
+            <tr><th scope="row">Tree node · active denial leaf</th><td><span class="swatch" style="--swatch: var(--orange-soft)" aria-hidden="true"></span><code>#F8ECE3</code></td><td><span class="swatch" style="--swatch: var(--tree-deny-border)" aria-hidden="true"></span><code>#DFAE8E</code></td><td><span class="swatch" style="--swatch: var(--orange-dark)" aria-hidden="true"></span><code>#934723</code></td><td></td></tr>
+            <tr><th scope="row">Keyboard focus</th><td>Same state</td><td>2 px <span class="swatch" style="--swatch: var(--blue)" aria-hidden="true"></span><code>#426DB2</code></td><td>Same state</td><td>Outline offset +2 px on choices, −2 px on the grip and −3 px on the scroll body.</td></tr>
+            <tr><th scope="row">Disabled choice</th><td>Same state</td><td>Same state</td><td>Same state</td><td>45% opacity. Suppress hover and press; use the disabled cursor.</td></tr>
+            <tr><th scope="row">Tree lines</th><td>Scene panel</td><td><span class="swatch" style="--swatch: var(--tree-line)" aria-hidden="true"></span><code>#B9C3B9</code> inactive / <span class="swatch" style="--swatch: var(--green)" aria-hidden="true"></span><code>#267657</code> active</td><td>Inactive labels use <span class="swatch" style="--swatch: var(--muted)" aria-hidden="true"></span><code>#5D675F</code>. Active labels use <span class="swatch" style="--swatch: var(--green)" aria-hidden="true"></span><code>#267657</code>.</td><td>1.6 SVG units inactive, 3 active.</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+      <p>See the <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/ca0affecfb39caf6790f4b2636f1ed3c2dd90800/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-card-component-kit.html">component kit</a> for the slider, playback row, and other control templates.</p>
+    </section>
   </main>
 
   <!-- Reuse the same shell with either command and mount an SVG or image in the visual slot. -->
@@ -134,6 +298,7 @@
       <header class="card-header">
         <div class="card-top"><span class="card-pill" data-slot="pill"></span><div class="card-actions" data-slot="header-actions"></div></div>
         <h2 class="card-title" data-slot="title"></h2>
+        <p class="card-subtitle" data-slot="subtitle" hidden></p>
       </header>
       <div class="card-body" data-slot="body" role="region" tabindex="0">
         <div class="card-copy"><p data-slot="concept"></p><p data-slot="instruction" hidden></p></div>
@@ -282,12 +447,14 @@ function installResize(card, handle) {
     let cardId = 0;
 
     // The visual and the controls are independent slots. The shell owns dimensions and scroll.
-    function createCard({ type, title, concept, instruction = '', visual = null, caption = '' }) {
+    function createCard({ type, title, subtitle = '', concept, instruction = '', visual = null, caption = '' }) {
       const node = getTemplate('card-shell');
       const slot = name => node.querySelector(`[data-slot="${name}"]`);
       const titleId = `card-title-${++cardId}`;
       slot('title').id = titleId;
       slot('title').textContent = title;
+      slot('subtitle').textContent = subtitle;
+      slot('subtitle').hidden = !subtitle;
       node.setAttribute('aria-labelledby', titleId);
       node.dataset.command = type === 'explain' ? '/explain' : '/interactive';
       slot('pill').classList.add(type);
