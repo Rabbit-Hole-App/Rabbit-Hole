@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Changing K changes the decision regions",
+    "caption": "Uniform votes, Euclidean distance. Break equal-distance neighbor ties by smaller x. All training $y = 2$, so boundaries are vertical.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "$k = 1$",
+        "diagram": {
+          "title": "$k = 1$: q predicts A",
+          "caption": "For every $y$: A at $x \\le 2.5$; B at $2.5 < x \\le 4.5$; A at $4.5 < x \\le 5.5$; B at $x > 5.5$.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Feature x",
+            "min": 0,
+            "max": 7,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Feature y",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Class A",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 2,
+                  "id": "a1",
+                  "label": "A1"
+                },
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "a2",
+                  "label": "A2"
+                },
+                {
+                  "x": 5,
+                  "y": 2,
+                  "id": "a3",
+                  "label": "A3"
+                }
+              ]
+            },
+            {
+              "label": "Class B",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 3,
+                  "y": 2,
+                  "id": "b1",
+                  "label": "B1"
+                },
+                {
+                  "x": 4,
+                  "y": 2,
+                  "id": "b2",
+                  "label": "B2"
+                },
+                {
+                  "x": 6,
+                  "y": 2,
+                  "id": "b3",
+                  "label": "B3"
+                }
+              ]
+            },
+            {
+              "label": "Query q",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 5,
+                  "y": 2.5,
+                  "id": "q",
+                  "label": "q"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "A | B at $x = 2.5$",
+              "axis": "x",
+              "value": 2.5
+            },
+            {
+              "kind": "reference-line",
+              "label": "B | A at $x = 4.5$",
+              "axis": "x",
+              "value": 4.5
+            },
+            {
+              "kind": "reference-line",
+              "label": "A | B at $x = 5.5$",
+              "axis": "x",
+              "value": 5.5
+            }
+          ]
+        }
+      },
+      {
+        "heading": "$k = 3$",
+        "diagram": {
+          "title": "$k = 3$: q predicts B",
+          "caption": "For every $y$: A at $x \\le 2.5$; B at $x > 2.5$. At q, the three votes are A, B, B.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Feature x",
+            "min": 0,
+            "max": 7,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Feature y",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Class A",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 2,
+                  "id": "a1",
+                  "label": "A1"
+                },
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "a2",
+                  "label": "A2"
+                },
+                {
+                  "x": 5,
+                  "y": 2,
+                  "id": "a3",
+                  "label": "A3"
+                }
+              ]
+            },
+            {
+              "label": "Class B",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 3,
+                  "y": 2,
+                  "id": "b1",
+                  "label": "B1"
+                },
+                {
+                  "x": 4,
+                  "y": 2,
+                  "id": "b2",
+                  "label": "B2"
+                },
+                {
+                  "x": 6,
+                  "y": 2,
+                  "id": "b3",
+                  "label": "B3"
+                }
+              ]
+            },
+            {
+              "label": "Query q",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 5,
+                  "y": 2.5,
+                  "id": "q",
+                  "label": "q"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "A | B at $x = 2.5$",
+              "axis": "x",
+              "value": 2.5
+            }
+          ]
+        }
+      }
+    ],
+    "sharedAxes": [
+      "x",
+      "y"
+    ]
+  }
+}

@@ -1613,6 +1613,143 @@
       "height": 1574
     },
     {
+      "id": "ml-tree-impurity-gain",
+      "lessons": [
+        "04"
+      ],
+      "prompts": [
+        "How does a decision tree know whether a split is good?"
+      ],
+      "useWhen": "Work from the same parent/child class counts to weighted child impurity and its decrease. Entropy decrease is information gain in bits.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 955
+    },
+    {
+      "id": "ml-svm-c-tradeoff",
+      "lessons": [
+        "05"
+      ],
+      "prompts": [
+        "What changes when I increase C in an SVM?"
+      ],
+      "useWhen": "Compare exact soft-margin SVM optima on the same six samples. C weights the sum of hinge losses; classification need not improve.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1341
+    },
+    {
+      "id": "ml-svm-feature-map",
+      "lessons": [
+        "05"
+      ],
+      "prompts": [
+        "Why can a nonlinear feature map help an SVM separate classes?"
+      ],
+      "useWhen": "Show an explicit quadratic feature map that makes four samples linearly separable while preserving sample identities and classes.",
+      "kind": "transformation",
+      "width": 444,
+      "height": 1288
+    },
+    {
+      "id": "ml-knn-distance-weighted-vote",
+      "lessons": [
+        "06"
+      ],
+      "prompts": [
+        "Can distance-weighted KNN disagree with majority voting on the same three neighbors?",
+        "Show how inverse-distance weights change a KNN prediction."
+      ],
+      "useWhen": "Compare uniform and inverse-distance voting with exact distances, per-neighbor weights and class totals for the same k = 3 set.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1524
+    },
+    {
+      "id": "ml-knn-scaled-distance",
+      "lessons": [
+        "06"
+      ],
+      "prompts": [
+        "Why can changing the scale of one feature change the nearest neighbor?",
+        "Keep the points fixed and show how doubling the x contribution changes KNN distance."
+      ],
+      "useWhen": "Hold raw coordinates and both axes fixed while changing the metric d = √((sΔx)² + Δy²); separate metric distance from drawn displacement.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1626
+    },
+    {
+      "id": "ml-knn-k-boundaries",
+      "lessons": [
+        "06"
+      ],
+      "prompts": [
+        "How does changing K from 1 to 3 change a KNN decision boundary?",
+        "Show KNN boundaries and the prediction for one query using the same training points."
+      ],
+      "useWhen": "Compare actual Euclidean majority-vote regions for k = 1 and k = 3 on identical 2D samples; all training y values equal 2.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1762
+    },
+    {
+      "id": "ml-kd-tree-partitions",
+      "lessons": [
+        "06"
+      ],
+      "prompts": [
+        "How do KD-tree splits correspond to regions in a two-dimensional plot?",
+        "Trace the first KD-tree leaf visited for a query and show its nearest neighbor."
+      ],
+      "useWhen": "Pair a binary KD-tree with the exact bounded partition segments, sample counts and first query route; do not imply descent alone completes exact search.",
+      "kind": "comparison",
+      "width": 510,
+      "height": 1545
+    },
+    {
+      "id": "ml-kmeans-assignment-update",
+      "lessons": [
+        "07"
+      ],
+      "prompts": [
+        "Explain the assignment and update steps in one K-means iteration using the same points.",
+        "What is the difference between assigning points to clusters and moving K-means centroids?"
+      ],
+      "useWhen": "Separate nearest-center assignment from the mean update. Preserve every sample ID, coordinate, series color and axis; only centers move.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1615
+    },
+    {
+      "id": "ml-dbscan-core-border-noise",
+      "lessons": [
+        "07"
+      ],
+      "prompts": [
+        "Explain how DBSCAN distinguishes core, border and noise points with epsilon 1 and min_samples 4.",
+        "Why can a sparse point be a DBSCAN border point instead of noise?"
+      ],
+      "useWhen": "Compute Euclidean neighborhoods including self. A non-core point is border only if it lies within epsilon of a core point; show the counts and distances.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1489
+    },
+    {
+      "id": "ml-gmm-responsibilities",
+      "lessons": [
+        "07"
+      ],
+      "prompts": [
+        "Show how a Gaussian mixture model turns likelihoods into numerical responsibilities for each sample.",
+        "How does a GMM calculate the probability that a point belongs to each cluster?"
+      ],
+      "useWhen": "Compare numerical GMM membership for fixed means, priors and unit covariance. Distinguish component density from normalized posterior probability.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1275
+    },
+    {
       "id": "general-sequence-1",
       "lessons": [],
       "prompts": [
@@ -1765,7 +1902,8 @@
         "tree-class-mixtures",
         "tree-impurity-mixtures",
         "regression-tree-steps",
-        "ensemble-votes"
+        "ensemble-votes",
+        "ml-tree-impurity-gain"
       ]
     },
     {
@@ -1775,7 +1913,9 @@
         "svm-margin-support-slack",
         "svm-hinge-loss",
         "rbf-kernel-similarity",
-        "svr-epsilon-tube"
+        "svr-epsilon-tube",
+        "ml-svm-c-tradeoff",
+        "ml-svm-feature-map"
       ]
     },
     {
@@ -1789,7 +1929,11 @@
         "cosine-vector-directions",
         "knn-k-validation",
         "distance-concentration",
-        "ml-feature-scaling-transformation"
+        "ml-feature-scaling-transformation",
+        "ml-knn-distance-weighted-vote",
+        "ml-knn-scaled-distance",
+        "ml-knn-k-boundaries",
+        "ml-kd-tree-partitions"
       ]
     },
     {
@@ -1801,7 +1945,10 @@
         "clustering-inertia-elbow",
         "dbscan-density-neighbourhoods",
         "gmm-elliptical-components",
-        "ml-clustering-comparison"
+        "ml-clustering-comparison",
+        "ml-kmeans-assignment-update",
+        "ml-dbscan-core-border-noise",
+        "ml-gmm-responsibilities"
       ]
     },
     {

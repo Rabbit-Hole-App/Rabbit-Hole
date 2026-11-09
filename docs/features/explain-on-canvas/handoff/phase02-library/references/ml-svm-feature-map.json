@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A new feature makes separation possible",
+    "caption": "No single threshold separates A–B–B–A in $x$. After this explicit map, $x^2 = 2.5$ separates the classes.",
+    "kind": "transformation",
+    "variant": "visual",
+    "before": {
+      "label": "Original feature",
+      "diagram": {
+        "title": "Original feature",
+        "kind": "coordinate-plot",
+        "x": {
+          "label": "Feature $x$",
+          "min": -2.5,
+          "max": 2.5,
+          "scale": "linear"
+        },
+        "y": {
+          "label": "Display only (all 0)",
+          "min": -1,
+          "max": 1,
+          "scale": "linear"
+        },
+        "series": [
+          {
+            "label": "Class A: −2, 2",
+            "kind": "scatter",
+            "points": [
+              {
+                "x": -2,
+                "y": 0,
+                "id": "outerLeft"
+              },
+              {
+                "x": 2,
+                "y": 0,
+                "id": "outerRight"
+              }
+            ]
+          },
+          {
+            "label": "Class B: −1, 1",
+            "kind": "scatter",
+            "points": [
+              {
+                "x": -1,
+                "y": 0,
+                "id": "innerLeft"
+              },
+              {
+                "x": 1,
+                "y": 0,
+                "id": "innerRight"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "after": {
+      "label": "Mapped features",
+      "diagram": {
+        "title": "Mapped features",
+        "caption": "Class A has height 4; class B has height 1.",
+        "kind": "coordinate-plot",
+        "x": {
+          "label": "Feature $x$",
+          "min": -2.5,
+          "max": 2.5,
+          "scale": "linear"
+        },
+        "y": {
+          "label": "Feature $x^2$",
+          "min": 0,
+          "max": 5,
+          "scale": "linear"
+        },
+        "series": [
+          {
+            "label": "Class A: −2, 2",
+            "kind": "scatter",
+            "points": [
+              {
+                "x": -2,
+                "y": 4,
+                "id": "outerLeft"
+              },
+              {
+                "x": 2,
+                "y": 4,
+                "id": "outerRight"
+              }
+            ]
+          },
+          {
+            "label": "Class B: −1, 1",
+            "kind": "scatter",
+            "points": [
+              {
+                "x": -1,
+                "y": 1,
+                "id": "innerLeft"
+              },
+              {
+                "x": 1,
+                "y": 1,
+                "id": "innerRight"
+              }
+            ]
+          }
+        ],
+        "annotations": [
+          {
+            "kind": "reference-line",
+            "label": "Linear separator",
+            "axis": "y",
+            "value": 2.5
+          }
+        ]
+      }
+    },
+    "operation": "$\\phi(x) = (x, x^2)$",
+    "identity": {
+      "mode": "preserved",
+      "note": "The same four IDs and class labels remain. $x$ stays fixed; $x^2$ becomes the second feature."
+    }
+  }
+}

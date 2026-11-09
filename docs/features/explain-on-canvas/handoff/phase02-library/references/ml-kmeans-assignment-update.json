@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "K-means: assign first, then update",
+    "caption": "Illustrative Euclidean K-means with two clusters. Filled marks are samples; hollow marks are centers. Repeat assignment after this update.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "1. Assign to initial centers",
+        "diagram": {
+          "title": "1. Assign to initial centers",
+          "caption": "Use nearest-center distance to assign points. The centers stay fixed at $c_A=(0,0)$ and $c_B=(8,0)$.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Feature x",
+            "min": -1,
+            "max": 9,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Feature y",
+            "min": -1,
+            "max": 3,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Cluster A",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 1,
+                  "id": "a1",
+                  "label": "A1"
+                },
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "a2",
+                  "label": "A2"
+                },
+                {
+                  "x": 3,
+                  "y": 1,
+                  "id": "a3",
+                  "label": "A3"
+                }
+              ]
+            },
+            {
+              "label": "Cluster B",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 6,
+                  "y": 1,
+                  "id": "b1",
+                  "label": "B1"
+                },
+                {
+                  "x": 7,
+                  "y": 2,
+                  "id": "b2",
+                  "label": "B2"
+                },
+                {
+                  "x": 8,
+                  "y": 1,
+                  "id": "b3",
+                  "label": "B3"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "point",
+              "label": "$c_A$",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "kind": "point",
+              "label": "$c_B$",
+              "x": 8,
+              "y": 0
+            }
+          ]
+        }
+      },
+      {
+        "heading": "2. Update each cluster mean",
+        "diagram": {
+          "title": "2. Update each cluster mean",
+          "caption": "Only centers move: $c_A=(2,\\frac{4}{3})$, $c_B=(7,\\frac{4}{3})$. Each is the mean of its three points; all samples stay fixed.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Feature x",
+            "min": -1,
+            "max": 9,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Feature y",
+            "min": -1,
+            "max": 3,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Cluster A",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 1,
+                  "id": "a1",
+                  "label": "A1"
+                },
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "a2",
+                  "label": "A2"
+                },
+                {
+                  "x": 3,
+                  "y": 1,
+                  "id": "a3",
+                  "label": "A3"
+                }
+              ]
+            },
+            {
+              "label": "Cluster B",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 6,
+                  "y": 1,
+                  "id": "b1",
+                  "label": "B1"
+                },
+                {
+                  "x": 7,
+                  "y": 2,
+                  "id": "b2",
+                  "label": "B2"
+                },
+                {
+                  "x": 8,
+                  "y": 1,
+                  "id": "b3",
+                  "label": "B3"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "point",
+              "label": "$c_A$",
+              "x": 2,
+              "y": 1.3333333333333333
+            },
+            {
+              "kind": "point",
+              "label": "$c_B$",
+              "x": 7,
+              "y": 1.3333333333333333
+            }
+          ]
+        }
+      }
+    ],
+    "sharedAxes": [
+      "x",
+      "y"
+    ]
+  }
+}

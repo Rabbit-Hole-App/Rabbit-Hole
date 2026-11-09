@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A KD-tree links branch tests to spatial regions",
+    "caption": "$q = (2, 1)$ enters the lower-left leaf A, B. A is nearest at distance 1; exact search also checks whether backtracking is needed.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Follow the branch conditions",
+        "diagram": {
+          "title": "First leaf visited by $q = (2, 1)$",
+          "caption": "The route chooses the first leaf to inspect. Exact nearest-neighbor search may backtrack to another region.",
+          "kind": "tree",
+          "layout": "binary",
+          "nodes": [
+            {
+              "id": "root",
+              "label": "$x < 5$?",
+              "count": 8
+            },
+            {
+              "id": "left",
+              "label": "$y < 4$?",
+              "parent": "root",
+              "side": "left",
+              "edgeLabel": "$x < 5$",
+              "count": 4
+            },
+            {
+              "id": "right",
+              "label": "$y < 6$?",
+              "parent": "root",
+              "side": "right",
+              "edgeLabel": "$x \\ge 5$",
+              "count": 4
+            },
+            {
+              "id": "lowerLeft",
+              "label": "A, B",
+              "parent": "left",
+              "side": "left",
+              "edgeLabel": "$y < 4$",
+              "count": 2,
+              "detail": "First leaf visited"
+            },
+            {
+              "id": "upperLeft",
+              "label": "C, D",
+              "parent": "left",
+              "side": "right",
+              "edgeLabel": "$y \\ge 4$",
+              "count": 2
+            },
+            {
+              "id": "lowerRight",
+              "label": "E, F",
+              "parent": "right",
+              "side": "left",
+              "edgeLabel": "$y < 6$",
+              "count": 2
+            },
+            {
+              "id": "upperRight",
+              "label": "G, H",
+              "parent": "right",
+              "side": "right",
+              "edgeLabel": "$y \\ge 6$",
+              "count": 2
+            }
+          ],
+          "highlightPath": [
+            "root",
+            "left",
+            "lowerLeft"
+          ]
+        }
+      },
+      {
+        "heading": "Locate the same leaf in space",
+        "diagram": {
+          "title": "The same splits partition feature space",
+          "caption": "The root split spans the domain. Each horizontal split stops at its parent region. A is the nearest sample to q.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Feature x",
+            "min": 0,
+            "max": 10,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Feature y",
+            "min": 0,
+            "max": 10,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Training samples",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 1,
+                  "id": "a",
+                  "label": "A"
+                },
+                {
+                  "x": 3,
+                  "y": 2,
+                  "id": "b",
+                  "label": "B"
+                },
+                {
+                  "x": 2,
+                  "y": 5,
+                  "id": "c",
+                  "label": "C"
+                },
+                {
+                  "x": 4,
+                  "y": 7,
+                  "id": "d",
+                  "label": "D"
+                },
+                {
+                  "x": 6,
+                  "y": 2,
+                  "id": "e",
+                  "label": "E"
+                },
+                {
+                  "x": 8,
+                  "y": 4,
+                  "id": "f",
+                  "label": "F"
+                },
+                {
+                  "x": 7,
+                  "y": 7,
+                  "id": "g",
+                  "label": "G"
+                },
+                {
+                  "x": 9,
+                  "y": 8,
+                  "id": "h",
+                  "label": "H"
+                }
+              ]
+            },
+            {
+              "label": "Query q",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 2,
+                  "y": 1,
+                  "id": "q",
+                  "label": "q"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "segment",
+              "label": "Root split: $x = 5$",
+              "from": {
+                "x": 5,
+                "y": 0
+              },
+              "to": {
+                "x": 5,
+                "y": 10
+              }
+            },
+            {
+              "kind": "segment",
+              "label": "Left split: $y = 4$",
+              "from": {
+                "x": 0,
+                "y": 4
+              },
+              "to": {
+                "x": 5,
+                "y": 4
+              }
+            },
+            {
+              "kind": "segment",
+              "label": "Right split: $y = 6$",
+              "from": {
+                "x": 5,
+                "y": 6
+              },
+              "to": {
+                "x": 10,
+                "y": 6
+              }
+            },
+            {
+              "kind": "rectangle",
+              "label": "First leaf visited: A, B",
+              "xMin": 0,
+              "xMax": 5,
+              "yMin": 0,
+              "yMax": 4
+            },
+            {
+              "kind": "segment",
+              "label": "A is nearest: $d = 1$",
+              "from": {
+                "x": 2,
+                "y": 1
+              },
+              "to": {
+                "x": 1,
+                "y": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

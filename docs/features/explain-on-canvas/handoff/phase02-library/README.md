@@ -6,7 +6,11 @@ Task: `96d13bbb-6cd1-45be-b27a-95820d3495b0` · branch: `chatgpt/explain-phase02
 
 Four new diagram kinds and nine additive extensions are implemented in the **written `/explain`** path. The model receives relevant, valid JSON examples; Rabbit Hole renders the resulting semantic JSON using the existing SVG component. These are reusable layouts and reference data, not fixed lesson cards returned in place of generation. The `/interact` fixtures and `/animation` renderer are separate and unchanged.
 
-There are **130 registered references: 116 with Phase 02 lesson tags and 14 general examples**, with every one of the 21 Phase 02 lessons mapped to concrete IDs. **That is lesson-level presence, not completion of every scene in the owner’s coverage table.** See the [per-lesson coverage audit and remaining reference work](coverage-audit.md). They cover all 21 currently supported kinds. Reference datasets are explicitly illustrative; generated cards must respect their own source values. The author remains free to produce a new example within the schema.
+There are **140 registered references: 126 with Phase 02 lesson tags and 14 general examples**, with every one of the 21 Phase 02 lessons mapped to concrete IDs. **That is lesson-level presence, not completion of every scene in the owner’s coverage table.** See the [per-lesson coverage audit and remaining reference work](coverage-audit.md). They cover all 21 currently supported kinds. Reference datasets are explicitly illustrative; generated cards must respect their own source values. The author remains free to produce a new example within the schema.
+
+The next ten worked references for lessons 04–07 are in [batch 1](batch-1.md), with exact prompts, mathematical expectations and separate dev acceptance instructions.
+
+Latest local batch verification: **421 focused tests passed**, web build passed, all ten new scenes statically inspected and all 140 JSON/SVG pairs re-exported. See the batch receipt for the formula/browser and live-model limitations; the original 373-test receipt below describes the earlier implementation snapshot.
 
 ## Implemented scope
 

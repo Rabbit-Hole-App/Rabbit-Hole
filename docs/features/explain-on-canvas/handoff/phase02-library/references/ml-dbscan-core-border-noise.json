@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "DBSCAN: core, border and noise",
+    "caption": "Illustrative Euclidean data: epsilon 1; min_samples 4 counts the point itself. All four core points belong to one cluster.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "One cluster and an isolated point",
+        "diagram": {
+          "title": "One cluster and an isolated point",
+          "caption": "B has only B and C2 within distance 1. It is border because C2 is core; N is too far from every core.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Feature x",
+            "min": 1,
+            "max": 6,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Feature y",
+            "min": 1,
+            "max": 5,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Core",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "c1",
+                  "label": "C1"
+                },
+                {
+                  "x": 2.5,
+                  "y": 2,
+                  "id": "c2",
+                  "label": "C2"
+                },
+                {
+                  "x": 2,
+                  "y": 2.5,
+                  "id": "c3",
+                  "label": "C3"
+                },
+                {
+                  "x": 2.5,
+                  "y": 2.5,
+                  "id": "c4",
+                  "label": "C4"
+                }
+              ]
+            },
+            {
+              "label": "Border",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 3.4,
+                  "y": 2,
+                  "id": "b",
+                  "label": "B"
+                }
+              ]
+            },
+            {
+              "label": "Noise",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 5,
+                  "y": 4,
+                  "id": "n",
+                  "label": "N"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "circle",
+              "label": "C2 neighborhood (epsilon 1)",
+              "center": {
+                "x": 2.5,
+                "y": 2
+              },
+              "radius": 1
+            },
+            {
+              "kind": "segment",
+              "label": "C2 to B: 0.9 (inside)",
+              "from": {
+                "x": 2.5,
+                "y": 2
+              },
+              "to": {
+                "x": 3.4,
+                "y": 2
+              }
+            },
+            {
+              "kind": "segment",
+              "label": "C4 to B: 1.030 (outside)",
+              "from": {
+                "x": 2.5,
+                "y": 2.5
+              },
+              "to": {
+                "x": 3.4,
+                "y": 2
+              }
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Counts and distance to a core",
+        "diagram": {
+          "title": "Counts and distance to a core",
+          "caption": "Count includes self. To core is the nearest core distance (0 for cores); border needs fewer than 4 neighbors and distance at most 1.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Nearby",
+            "Count",
+            "To core"
+          ],
+          "rows": [
+            {
+              "id": "c1",
+              "heading": "C1 · Core",
+              "cells": [
+                "C1 C2 C3 C4",
+                "4",
+                "0"
+              ]
+            },
+            {
+              "id": "c2",
+              "heading": "C2 · Core",
+              "cells": [
+                "C1 C2 C3 C4 B",
+                "5",
+                "0"
+              ]
+            },
+            {
+              "id": "c3",
+              "heading": "C3 · Core",
+              "cells": [
+                "C1 C2 C3 C4",
+                "4",
+                "0"
+              ]
+            },
+            {
+              "id": "c4",
+              "heading": "C4 · Core",
+              "cells": [
+                "C1 C2 C3 C4",
+                "4",
+                "0"
+              ]
+            },
+            {
+              "id": "b",
+              "heading": "B · Border",
+              "cells": [
+                "C2 B",
+                "2",
+                "0.9"
+              ]
+            },
+            {
+              "id": "n",
+              "heading": "N · Noise",
+              "cells": [
+                "N",
+                "1",
+                "2.915"
+              ]
+            }
+          ],
+          "emphasis": {
+            "rows": [
+              "b"
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

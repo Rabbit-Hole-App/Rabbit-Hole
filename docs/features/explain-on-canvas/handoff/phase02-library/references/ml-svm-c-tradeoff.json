@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "C trades margin width for hinge loss",
+    "caption": "Toy objective: $0.5w^2+C\\sum_i\\max(0,1-y_iwx_i)$. Larger C reduces hinge loss here; both fits misclassify 2 of 6.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "$C = 0.05$",
+        "diagram": {
+          "title": "$C = 0.05$",
+          "caption": "$w = 0.25$; $b = 0$; hinge sum = 4.75; objective = 0.26875.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Feature $x$",
+            "min": -5,
+            "max": 5,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Display only (all 0)",
+            "min": -1,
+            "max": 1,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Class −1: −2, −1, 0.5",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": -2,
+                  "y": 0,
+                  "id": "neg2"
+                },
+                {
+                  "x": -1,
+                  "y": 0,
+                  "id": "neg1"
+                },
+                {
+                  "x": 0.5,
+                  "y": 0,
+                  "id": "flippedNeg"
+                }
+              ]
+            },
+            {
+              "label": "Class +1: −0.5, 1, 2",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": -0.5,
+                  "y": 0,
+                  "id": "flippedPos"
+                },
+                {
+                  "x": 1,
+                  "y": 0,
+                  "id": "pos1"
+                },
+                {
+                  "x": 2,
+                  "y": 0,
+                  "id": "pos2"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "Decision: $wx + b = 0$",
+              "axis": "x",
+              "value": 0
+            },
+            {
+              "kind": "reference-line",
+              "label": "Margin: $wx + b = -1$",
+              "axis": "x",
+              "value": -4
+            },
+            {
+              "kind": "reference-line",
+              "label": "Margin: $wx + b = +1$",
+              "axis": "x",
+              "value": 4
+            }
+          ]
+        }
+      },
+      {
+        "heading": "$C = 2$",
+        "diagram": {
+          "title": "$C = 2$",
+          "caption": "$w = 1$; $b = 0$; hinge sum = 3; objective = 6.5.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Feature $x$",
+            "min": -5,
+            "max": 5,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Display only (all 0)",
+            "min": -1,
+            "max": 1,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Class −1: −2, −1, 0.5",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": -2,
+                  "y": 0,
+                  "id": "neg2"
+                },
+                {
+                  "x": -1,
+                  "y": 0,
+                  "id": "neg1"
+                },
+                {
+                  "x": 0.5,
+                  "y": 0,
+                  "id": "flippedNeg"
+                }
+              ]
+            },
+            {
+              "label": "Class +1: −0.5, 1, 2",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": -0.5,
+                  "y": 0,
+                  "id": "flippedPos"
+                },
+                {
+                  "x": 1,
+                  "y": 0,
+                  "id": "pos1"
+                },
+                {
+                  "x": 2,
+                  "y": 0,
+                  "id": "pos2"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "Decision: $wx + b = 0$",
+              "axis": "x",
+              "value": 0
+            },
+            {
+              "kind": "reference-line",
+              "label": "Margin: $wx + b = -1$",
+              "axis": "x",
+              "value": -1
+            },
+            {
+              "kind": "reference-line",
+              "label": "Margin: $wx + b = +1$",
+              "axis": "x",
+              "value": 1
+            }
+          ]
+        }
+      }
+    ],
+    "sharedAxes": [
+      "x",
+      "y"
+    ]
+  }
+}

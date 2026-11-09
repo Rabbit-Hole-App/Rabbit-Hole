@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Feature scaling changes which neighbor is closest",
+    "caption": "$d = \\sqrt{(s\\Delta x)^2 + (\\Delta y)^2}$. Points and axes stay fixed; segments show raw displacements; labels show metric distances.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "x contribution: $s = 1$",
+        "diagram": {
+          "title": "$s = 1$: nearest class B",
+          "caption": "For $k = 1$, class B wins. Distances use $s = 1$; the plotted points stay at their original raw coordinates.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Raw feature x",
+            "min": 0,
+            "max": 12,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Raw feature y",
+            "min": 0,
+            "max": 12,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Class A",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 6,
+                  "y": 9,
+                  "id": "a",
+                  "label": "A"
+                }
+              ]
+            },
+            {
+              "label": "Class B",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 8,
+                  "y": 6,
+                  "id": "b",
+                  "label": "B"
+                }
+              ]
+            },
+            {
+              "label": "Query q",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 5,
+                  "y": 5,
+                  "id": "q",
+                  "label": "q"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "segment",
+              "label": "A: $d = \\sqrt{17}$",
+              "from": {
+                "x": 5,
+                "y": 5
+              },
+              "to": {
+                "x": 6,
+                "y": 9
+              }
+            },
+            {
+              "kind": "segment",
+              "label": "B: $d = \\sqrt{10}$",
+              "from": {
+                "x": 5,
+                "y": 5
+              },
+              "to": {
+                "x": 8,
+                "y": 6
+              }
+            }
+          ]
+        }
+      },
+      {
+        "heading": "x contribution: $s = 2$",
+        "diagram": {
+          "title": "$s = 2$: nearest class A",
+          "caption": "For $k = 1$, class A wins. Distances use $s = 2$; the plotted points stay at their original raw coordinates.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Raw feature x",
+            "min": 0,
+            "max": 12,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Raw feature y",
+            "min": 0,
+            "max": 12,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Class A",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 6,
+                  "y": 9,
+                  "id": "a",
+                  "label": "A"
+                }
+              ]
+            },
+            {
+              "label": "Class B",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 8,
+                  "y": 6,
+                  "id": "b",
+                  "label": "B"
+                }
+              ]
+            },
+            {
+              "label": "Query q",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 5,
+                  "y": 5,
+                  "id": "q",
+                  "label": "q"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "segment",
+              "label": "A: $d = \\sqrt{20}$",
+              "from": {
+                "x": 5,
+                "y": 5
+              },
+              "to": {
+                "x": 6,
+                "y": 9
+              }
+            },
+            {
+              "kind": "segment",
+              "label": "B: $d = \\sqrt{37}$",
+              "from": {
+                "x": 5,
+                "y": 5
+              },
+              "to": {
+                "x": 8,
+                "y": 6
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "sharedAxes": [
+      "x",
+      "y"
+    ]
+  }
+}

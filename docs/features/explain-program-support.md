@@ -7,13 +7,17 @@ receipts; "not released" means not on `main`.
 
 ## Note for Claude Code
 
+### 2026-11-09: Ten further written Explanation references
+
+[Batch 1 handoff](explain-on-canvas/handoff/phase02-library/batch-1.md) adds the ten missing worked references for lessons 04–07: tree impurity, SVM C/mapping, four KNN/KD mechanisms, and three clustering mechanisms. They use the existing palette and semantic renderers and are registered in the actual author path. Live generated-card acceptance is a separate next step for Claude. The other gaps in the coverage audit remain open.
+
 ### 2026-11-08: Phase 02 written Explanation library
 
 The approved **four new kinds and nine existing-kind extensions are implemented** on `chatgpt/explain-phase02-library`, based on `748e561eda37a269e277d913cdc1f9099fe9bf94`. This addition concerns written `/explain` and its `tutor-diagrams` JSON→SVG path; the `/interact` program/SDK sections below describe a separate renderer and remain unchanged.
 
 - [Implementation and dev acceptance handoff](explain-on-canvas/handoff/phase02-library/README.md)
 - [Coverage correction: remaining scenes from the full 21-lesson list](explain-on-canvas/handoff/phase02-library/coverage-audit.md)
-- [All 130 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
+- [All 140 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
 - [Executable source/extension guide](../../packages/web/src/tutor-diagrams/README.md)
 - [Plan and completed implementation checklist](../superpowers/plans/2026-11-08-explain-phase02-library.md)
 

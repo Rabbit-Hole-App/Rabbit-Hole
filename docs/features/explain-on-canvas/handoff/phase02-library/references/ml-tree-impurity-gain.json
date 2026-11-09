@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Does this split make the groups purer?",
+    "caption": "Both criteria improve on these counts. Compare the gain with other candidate splits before choosing the best one.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "The same eight samples",
+        "diagram": {
+          "title": "A balanced parent, two purer children",
+          "caption": "Each child holds 4 of the 8 samples, so each impurity receives half the weight.",
+          "kind": "tree",
+          "layout": "binary",
+          "nodes": [
+            {
+              "id": "parent",
+              "label": "Before the split",
+              "count": 8,
+              "detail": "4 A; 4 B"
+            },
+            {
+              "id": "left",
+              "label": "Mostly A",
+              "parent": "parent",
+              "side": "left",
+              "edgeLabel": "Left",
+              "count": 4,
+              "detail": "3 A; 1 B"
+            },
+            {
+              "id": "right",
+              "label": "Mostly B",
+              "parent": "parent",
+              "side": "right",
+              "edgeLabel": "Right",
+              "count": 4,
+              "detail": "1 A; 3 B"
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Calculate the improvement",
+        "diagram": {
+          "title": "Parent minus weighted children",
+          "caption": "Weighted: half of each child impurity, added together. Gain: parent minus weighted. Values are rounded.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Gini",
+            "Entropy (bits)"
+          ],
+          "rows": [
+            {
+              "id": "parent",
+              "heading": "Parent",
+              "cells": [
+                "0.500",
+                "1.0000"
+              ]
+            },
+            {
+              "id": "left",
+              "heading": "Left",
+              "cells": [
+                "0.375",
+                "0.8113"
+              ]
+            },
+            {
+              "id": "right",
+              "heading": "Right",
+              "cells": [
+                "0.375",
+                "0.8113"
+              ]
+            },
+            {
+              "id": "weighted",
+              "heading": "Weighted",
+              "cells": [
+                "0.375",
+                "0.8113"
+              ]
+            },
+            {
+              "id": "gain",
+              "heading": "Gain",
+              "cells": [
+                "0.125",
+                "0.1887"
+              ]
+            }
+          ],
+          "emphasis": {
+            "rows": [
+              "gain"
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

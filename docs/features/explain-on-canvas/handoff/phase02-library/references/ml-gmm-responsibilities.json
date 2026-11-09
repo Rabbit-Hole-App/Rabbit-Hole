@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "GMM: normalize likelihoods into responsibilities",
+    "caption": "Illustrative 2D GMM: priors 0.5, means (0, 0) and (2, 0), identity covariance. $d$ is distance to that component’s mean.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Two unit-covariance Gaussians",
+        "diagram": {
+          "title": "Two unit-covariance Gaussians",
+          "caption": "Radius-1 circles are equal-density contours, not membership boundaries. Every sample has responsibility for both components.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Feature x",
+            "min": -1.5,
+            "max": 3.5,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Feature y",
+            "min": -1.5,
+            "max": 1.5,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Samples",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0,
+                  "id": "x0",
+                  "label": "X0"
+                },
+                {
+                  "x": 1,
+                  "y": 0,
+                  "id": "x1",
+                  "label": "X1"
+                },
+                {
+                  "x": 2,
+                  "y": 0,
+                  "id": "x2",
+                  "label": "X2"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "circle",
+              "label": "Component A contour",
+              "center": {
+                "x": 0,
+                "y": 0
+              },
+              "radius": 1
+            },
+            {
+              "kind": "circle",
+              "label": "Component B contour",
+              "center": {
+                "x": 2,
+                "y": 0
+              },
+              "radius": 1
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Bayes normalization for each sample",
+        "diagram": {
+          "title": "Bayes normalization for each sample",
+          "caption": "$p(x|k)=e^{-d^2/2}/(2\\pi)$ is a density. $r_k=\\pi_kp(x|k)/\\sum_j\\pi_jp(x|j)$. Share is posterior; pairs sum to 1. Rounded.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Prior",
+            "Density",
+            "Share"
+          ],
+          "rows": [
+            {
+              "id": "x0a",
+              "heading": "X0 / A",
+              "cells": [
+                "0.5",
+                "0.1592",
+                "0.8808"
+              ]
+            },
+            {
+              "id": "x0b",
+              "heading": "X0 / B",
+              "cells": [
+                "0.5",
+                "0.0215",
+                "0.1192"
+              ]
+            },
+            {
+              "id": "x1a",
+              "heading": "X1 / A",
+              "cells": [
+                "0.5",
+                "0.0965",
+                "0.5"
+              ]
+            },
+            {
+              "id": "x1b",
+              "heading": "X1 / B",
+              "cells": [
+                "0.5",
+                "0.0965",
+                "0.5"
+              ]
+            },
+            {
+              "id": "x2a",
+              "heading": "X2 / A",
+              "cells": [
+                "0.5",
+                "0.0215",
+                "0.1192"
+              ]
+            },
+            {
+              "id": "x2b",
+              "heading": "X2 / B",
+              "cells": [
+                "0.5",
+                "0.1592",
+                "0.8808"
+              ]
+            }
+          ],
+          "emphasis": {
+            "columns": [
+              2
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
