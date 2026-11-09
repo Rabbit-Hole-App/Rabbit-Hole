@@ -28,6 +28,28 @@ export function fieldText(block, field) {
   const m = /^more\[([0-2])\]\.text$/.exec(field);
   return m && block?.more?.[Number(m[1])] ? explanationFieldText(block.more[Number(m[1])].text) : null;
 }
+// Explore (owner 2026-11-09): the sentence a term sits in, from its anchor in the field's canonical text (code points). shortcut: sentence ends at . ! ? or a line break, so '3.5' cuts early; the prompt only uses it as context.
+export function termSentence(block, term) {
+  const text = term?.anchor ? fieldText(block, term.anchor.field) : null;
+  if (!text) return '';
+  const cps = Array.from(text), stop = c => c === '.' || c === '!' || c === '?' || c === '\n';
+  let a = term.anchor.start, b = term.anchor.end;
+  while (a > 0 && !stop(cps[a - 1])) a--;
+  while (b < cps.length && !stop(cps[b])) b++;
+  const sentence = cps.slice(a, Math.min(b + 1, cps.length)).join('').replace(/\s+/g, ' ').trim();
+  return sentence.length <= 140 ? sentence : '';
+}
+// The question Explore asks: built from the term (verbatim) and the card it was selected in, without a model call. One sentence, at most 220 characters: the sentence the term sits in goes
+// in only when it fits; a long title is cut at a word (it is context for the question, never shown as a title). Double quotes inside a value become single quotes so the quoting stays unambiguous.
+export function exploreQuestion({ term, title, sentence = '' }) {
+  const clean = text => String(text ?? '').replace(/\s+/g, ' ').trim().replace(/"/g, "'");
+  const t = clean(term), s = clean(sentence), head = clean(title);
+  const build = (name, as) => `In the context of "${name}": what is "${t}"${as ? ` (as in "${as}")` : ''}, and how does it work here?`;
+  let q = build(head, s);
+  if (q.length > 220) q = build(head, '');
+  if (q.length > 220) { const room = Math.max(10, head.length - (q.length - 220)); q = build(head.slice(0, room).replace(/\s+\S*$/, '') || head.slice(0, room), ''); }
+  return q;
+}
 export const fieldsOf = block => ['body', ...(block?.more || []).slice(0, 3).map((_, index) => `more[${index}].text`)];
 
 // ---- code points ----
