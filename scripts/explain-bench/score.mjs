@@ -13,7 +13,7 @@ export async function useSpecTree(tree) { const file = tree && join(tree, 'packa
 // The words a diagram draws (spec.js tutorDiagramVisibleText); a kind newer than this copy of spec.js falls back to the caller's own label list.
 export const visibleText = (d, fallback = []) => { let t; try { t = spec.tutorDiagramVisibleText({ diagram: d }); } catch { /* unknown kind */ } return (Array.isArray(t) ? t : fallback).filter(x => typeof x === 'string' && x.trim()); };
 export const SETS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'sets');
-export const SET_NAMES = ['regression', 'baseline', 'aiml', 'sequence', 'content'];
+export const SET_NAMES = ['regression', 'baseline', 'aiml', 'sequence', 'content', 'illustrations'];
 export const loadSet = (name, dir = SETS_DIR) => JSON.parse(readFileSync(join(dir, `${name}.json`), 'utf8'));
 export const availableSets = (dir = SETS_DIR) => readdirSync(dir).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5));
 

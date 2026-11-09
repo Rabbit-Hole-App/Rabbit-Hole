@@ -55,3 +55,18 @@ test('planner replay rejects duplicate and mismatched captured cases', () => {
   assert.throws(() => scorePlannerReplay(cases, [{ ...saved[0], prompt: 'Something else' }], scoring), /prompt/i);
   assert.throws(() => scorePlannerReplay(cases, [{ ...saved[0], depth: 'deep' }], scoring), /unknown/i);
 });
+
+test('the illustrations set carries the seven Codex reference prompts, labelled with the kind each reference teaches', async () => {
+  const { loadSet, SET_NAMES } = await import('./explain-bench/score.mjs');
+  const { illustrationReferences } = await import('../packages/web/src/tutor-diagrams/reference-library.js');
+  assert.ok(SET_NAMES.includes('illustrations'));
+  const set = loadSet('illustrations');
+  assert.equal(set.prompts.length, 7);
+  for (const ref of illustrationReferences) {
+    const p = set.prompts.find(x => x.id === ref.id);
+    assert.ok(p, ref.id);
+    assert.equal(p.prompt, ref.prompts[0]);
+    assert.ok(p.depths.standard.kinds.includes(ref.spec.diagram.kind), `${ref.id}: expected kind ${ref.spec.diagram.kind}`);
+    assert.match(p.depths.standard.sketch[0], /^Core: /);
+  }
+});
