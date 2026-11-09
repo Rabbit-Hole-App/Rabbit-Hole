@@ -1,3 +1,4 @@
+import { planExplanation, planShape, planStatement, plannerEnabled } from './explanation-planner.js';
 import { selectDiagramReferences, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
@@ -116,16 +117,18 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   // EXP-13 fix 6b: an implied picture is not sent (the author would read it as the whole mix); the guidance asks for it and the check below enforces it.
   const asked = (input.visualRequirements?.items ?? []).filter(i => !i.implied);
   const required = id => asked.length && ready.includes('explanation') ? { requiredVisuals: asked.map(({ id, kind, diagramKind, purpose }) => ({ id, kind, ...(diagramKind ? { diagramKind } : {}), purpose })) } : {};
-  const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null, ...(depthNote ? { depth: input.depth } : {}), ...required() });
+  const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null, ...(depthNote ? { depth: input.depth } : {}), ...(input.plan ? { cardPlan: planStatement(input.plan) } : {}), ...required() });
   // The canvas's switched-on context documents come first (canvas-context-docs.md), then the request.
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
   const maxTokens = Math.max(bound ? bound.roles.author.maxOutputTokens : LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
-  const diagramReferences = ready.includes('explanation') ? selectDiagramReferences({
+  const topicalReferences = ready.includes('explanation') ? selectDiagramReferences({
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
     requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind),
   }) : [];
+  // Planner prototype: the shape example of the planned kind goes first, before any topical reference.
+  const shape = input.plan ? planShape(input.plan) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
   // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
   if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind) })); }
@@ -140,6 +143,10 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
   // `figures` (EXP-13, trusted): { store, scope?, adapter? } for explanation-figures.js illustrateExplanation; omitted, no picture is made and every rh-illustration fence is removed.
   // `early` (EXP-13 fix 3, trusted, the fast chain only): explanation-figures.js figureStarter, the pictures already started from the streamed answer.
+  // JEV planner prototype (owner 2026-11-08, dev flag EXPLANATION_PLANNER=jev): planned once per card, before the first author call; the plan rides in `input` through every provider step and repair.
+  if (!input.planned && (input.command === 'explain' || input.command === 'explanation') && String(input.args || '').trim() && plannerEnabled(env)) {
+    input = { ...input, planned: true, plan: await planExplanation(env, { question: input.args, depth: input.depth || 'standard', context: input.context || null }) };
+  }
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   if (prepared.result) return prepared;
   // A fast-chain profile runs each provider step through this same function with that step's transport injected (explanation-fast-chain.js).
@@ -178,7 +185,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       if (id === 'explanation' && (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test')) {
         const visuals = call.input?.visuals ?? null;
         // references: the ids of the worked examples this request carried (0-2), so the bench can split results by them (owner 2026-11-08).
-        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
+        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, plan: input.plan ? { visuals: input.plan.visuals, depthTreatment: input.plan.depthTreatment, kind: input.plan.kind, fixed: input.plan.fixed, confidence: input.plan.confidence, flags: input.plan.flags, ms: input.plan.ms } : input.planned ? { planner: 'rules' } : null, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
       }
       // Owner M3 (2026-11-08): keys the schema does not declare are removed from the visuals before the card is read, logged and counted, never a repair.
       let keysStripped = 0;
