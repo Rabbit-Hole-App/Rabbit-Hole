@@ -44,7 +44,8 @@ function naturalWidth(diagram) {
 export function* illustrationCases() {
   for (const { id, spec, detail } of illustrationSpecs()) {
     const sizes = { 408: 408, natural: Math.max(320, naturalWidth(spec.diagram)), 960: 960 };
-    if (detail && spec.diagram.callouts?.length) sizes[320] = 320;
+    const row = spec.diagram.kind === 'block-stack' && spec.diagram.orientation === 'horizontal';
+    if (row || (detail && spec.diagram.callouts?.length)) sizes[320] = 320;
     for (const [size, available] of Object.entries(sizes)) yield { key: `${id}/${size}`, id, size, spec, available };
   }
 }

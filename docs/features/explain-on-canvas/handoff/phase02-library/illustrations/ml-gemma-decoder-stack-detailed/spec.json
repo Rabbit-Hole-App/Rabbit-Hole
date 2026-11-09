@@ -26,15 +26,15 @@
           "kind": "flow",
           "steps": [
             {
-              "label": "Apply Pre-RMSNorm 1",
+              "label": "Pre-RMSNorm 1",
               "role": "norm"
             },
             {
-              "label": "Use sliding-window and GQA attention (5:1 local to global)",
+              "label": "Sliding-window + GQA attention (5:1 local:global)",
               "role": "attention"
             },
             {
-              "label": "Apply Post-RMSNorm 1",
+              "label": "Post-RMSNorm 1",
               "role": "norm"
             }
           ]
@@ -48,15 +48,15 @@
           "kind": "flow",
           "steps": [
             {
-              "label": "Apply Pre-RMSNorm 2",
+              "label": "Pre-RMSNorm 2",
               "role": "norm"
             },
             {
-              "label": "Run Gated GELU FFN",
+              "label": "Gated GELU FFN",
               "role": "feedforward"
             },
             {
-              "label": "Apply Post-RMSNorm 2",
+              "label": "Post-RMSNorm 2",
               "role": "norm"
             }
           ]

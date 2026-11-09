@@ -11,6 +11,7 @@ const INSET = 10;
 const SMALL = 12;
 const NOTE = 13;
 const MIN_BLOCK_WIDTH = 142;
+const MIN_ROW_BLOCK_WIDTH = 72;
 const PREFERRED_BLOCK_WIDTH = 234;
 const BLOCK_GAP = 18;
 const INPUT_GAP = 18;
@@ -65,6 +66,21 @@ function metadata(block) {
   ].filter(([, text]) => text !== undefined);
 }
 
+function minimumBlockWidth(block, child) {
+  return Math.ceil(2 * INSET + Math.max(
+    widestFormula(block.label) + 2,
+    ...metadata(block).map(([, text]) => widestFormula(text, SMALL) + 14),
+    childMinimumWidth(child),
+  ));
+}
+
+function rowMetrics(blocks) {
+  const children = blocks.map(fullChild);
+  const widths = blocks.map((block, index) => Math.max(MIN_ROW_BLOCK_WIDTH, minimumBlockWidth(block, children[index])));
+  const width = widths.reduce((sum, tileWidth) => sum + tileWidth, 2 * PAD + (blocks.length - 1) * ROW_GAP);
+  return { children, widths, width };
+}
+
 function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
   const order = new Map(blocks.map(({ id }, index) => [id, index]));
   const groups = blocks.flatMap(({ id, repeat, repeatTo }, start) => repeatTo ? [{ id, repeat, repeatTo, start, end: order.get(repeatTo), lane: 0 }] : []);
@@ -80,17 +96,14 @@ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
   const splitBand = blocks.some(block => block.merge && block.inputs?.length === 2) ? FORK_LANE : 0;
   const leftBand = inputWidth ? inputWidth + INPUT_GAP + splitBand : 0;
   const children = blocks.map(fullChild);
-  const minBlockWidth = Math.ceil(Math.max(MIN_BLOCK_WIDTH, ...blocks.map((block, index) => 2 * INSET + Math.max(
-    widestFormula(block.label) + 2,
-    ...metadata(block).map(([, text]) => widestFormula(text, SMALL) + 14),
-    childMinimumWidth(children[index]),
-  ))));
+  const minBlockWidth = Math.max(MIN_BLOCK_WIDTH, ...blocks.map((block, index) => minimumBlockWidth(block, children[index])));
   const noteTextWidth = Math.max(0, ...callouts.flatMap(({ label, value }) => [widestFormula(label, NOTE) + 2, widestFormula(value, SMALL) + 14]));
   return { order, groups, skipBand, rightBand, leftBand, inputWidth, children, minBlockWidth,
     noteMinWidth: Math.ceil(Math.max(116, noteTextWidth)), ledgerMinWidth: Math.ceil(noteTextWidth + 2 * PAD + 46) };
 }
 
 export function blockStackNaturalWidth(diagram) {
+  if (diagram.orientation === 'horizontal') return rowMetrics(diagram.blocks).width;
   const { minBlockWidth, leftBand, rightBand, noteMinWidth, ledgerMinWidth } = horizontalMetrics(diagram);
   const noteBand = diagram.callouts?.length ? Math.max(156, noteMinWidth) + NOTE_GAP : 0;
   return Math.min(960, Math.max(ledgerMinWidth, 2 * PAD + Math.max(PREFERRED_BLOCK_WIDTH, minBlockWidth) + leftBand + rightBand + noteBand));
@@ -219,8 +232,33 @@ function drawJoin(operation, x, y) {
     label(operation === 'multiply' ? '⊗' : '⊕', x, y, { size: 22, weight: 700 }));
 }
 
+function layoutBlockRow(blocks, preferredWidth, renderChild) {
+  const { children, widths, width: rowWidth } = rowMetrics(blocks);
+  const width = Math.max(preferredWidth, rowWidth);
+  const measured = blocks.map((block, index) => {
+    const child = children[index];
+    return blockContent(block, widths[index], child ? renderChild(child, widths[index] - 2 * INSET) : null);
+  });
+  // Reserve the same heading height when a token's weight wraps onto a second line.
+  const titleHeight = Math.max(...measured.map(content => content.title.height));
+  const contents = measured.map(content => ({
+    ...content,
+    title: { ...content.title, height: titleHeight },
+    height: content.height + titleHeight - content.title.height,
+  }));
+  const height = Math.max(40, ...contents.map(content => content.height));
+  let x = (width - rowWidth) / 2 + PAD;
+  const elements = blocks.map((block, index) => {
+    const element = drawBlock(block, contents[index], x, PAD, widths[index], height, []);
+    x += widths[index] + ROW_GAP;
+    return element;
+  });
+  return { width, height: height + 2 * PAD, elements };
+}
+
 export function layoutBlockStack(diagram, preferredWidth, renderChild) {
   const { blocks, callouts = [] } = diagram;
+  if (diagram.orientation === 'horizontal') return layoutBlockRow(blocks, preferredWidth, renderChild);
   const { order, groups, skipBand, rightBand, leftBand, inputWidth, children, minBlockWidth, noteMinWidth, ledgerMinWidth } = horizontalMetrics(diagram);
   const available = callouts.length && preferredWidth > 320
     ? Math.max(preferredWidth, blockStackNaturalWidth(diagram)) : preferredWidth;

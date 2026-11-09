@@ -10,6 +10,7 @@ function embeddingSpec({
     version: 1,
     diagram: {
       kind: 'block-stack',
+      orientation: 'horizontal',
       title,
       blocks: labels.map((label, index) => ({
         id: 't' + index,

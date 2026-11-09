@@ -36,6 +36,17 @@ function vocabularyBars(title, values, caption) {
   } };
 }
 
+function vocabularyRow(title, caption, dimensions = 'Probability') {
+  return { version: 1, diagram: {
+    kind: 'block-stack', orientation: 'horizontal', title, caption,
+    blocks: vocabulary.map((label, index) => ({
+      id: label, label,
+      ...(label === predictedToken ? { role: 'output' } : {}),
+      diagram: { kind: 'tensor', tensor: { rows: 1, columns: 1, dimensions, values: [vocabularyWeights[index]] } },
+    })),
+  } };
+}
+
 export const transformerDecoderReferences = [
   {
     id: 'ml-transformer-causal-mask',
@@ -98,17 +109,17 @@ export const transformerDecoderReferences = [
       'transformer turn scores into a guess', 'vocabulary scores become next token probabilities',
       'predict on as the next word', 'next word probabilities from logits', 'vocabulary softmax',
     ],
-    useWhen: 'Project the decoder state to one logit per word in the six-word toy vocabulary. Apply softmax over these logits, then choose the top bar for the cat sat.',
+    useWhen: 'Project the decoder state to one logit per word in the six-word toy vocabulary. Apply softmax to these logits. Read the six candidate probabilities in one row and choose the highest for the cat sat.',
     spec: vocabularyBars(`Vocabulary logits after ${prefix}`, logits, 'A linear layer gives each word in the toy vocabulary a raw score.'),
-    detailSpec: vocabularyBars('Softmax next-token probabilities', vocabularyWeights, `Normalize across the six toy words. The largest probability predicts ${predictedToken}.`),
+    detailSpec: vocabularyRow('Softmax next-token probabilities', `Normalize across the six toy words. The largest probability predicts ${predictedToken}.`),
     depths: {
       overview: {
-        spec: vocabularyBars(`Next word after ${prefix}`, vocabularyWeights, `Of these six sample words, ${predictedToken} has the largest chance. This example picks the largest bar.`),
+        spec: vocabularyRow(`Next word after ${prefix}`, `Of these six sample words, ${predictedToken} has the largest chance.`, 'Chance'),
         detailSpec: null,
       },
       deep: {
         spec: vocabularyBars('Linear projection to vocabulary logits', logits, `Project the ${shownWidth} shown features (${modelWidth} in the full model). $z=hW$ gives one score for each toy word.`),
-        detailSpec: vocabularyBars('Softmax over the toy vocabulary', vocabularyWeights, `$p_i=e^{z_i}/\\sum_{j=1}^{6}e^{z_j}$. The winner is ${predictedToken}, with $\\log p_{\\mathrm{${predictedToken}}}\\approx ${logProbability}$.`),
+        detailSpec: vocabularyRow('Vocabulary probabilities', `$p_i=e^{z_i}/\\sum_j e^{z_j}$. “${predictedToken}” wins. $\\log p_{\\mathrm{${predictedToken}}}\\approx ${logProbability}$.`),
       },
     },
   },

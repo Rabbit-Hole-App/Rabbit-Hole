@@ -1,33 +1,101 @@
 {
   "version": 1,
   "diagram": {
-    "kind": "bar-chart",
+    "kind": "block-stack",
+    "orientation": "horizontal",
     "title": "Next word after the cat sat",
-    "caption": "Of these six sample words, on has the largest chance. This example picks the largest bar.",
-    "bars": [
+    "caption": "Of these six sample words, on has the largest chance.",
+    "blocks": [
       {
+        "id": "the",
         "label": "the",
-        "value": 0.134
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.134
+            ]
+          }
+        }
       },
       {
+        "id": "cat",
         "label": "cat",
-        "value": 0.073
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.073
+            ]
+          }
+        }
       },
       {
+        "id": "sat",
         "label": "sat",
-        "value": 0.178
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.178
+            ]
+          }
+        }
       },
       {
+        "id": "on",
         "label": "on",
-        "value": 0.465
+        "role": "output",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.465
+            ]
+          }
+        }
       },
       {
+        "id": "mat",
         "label": "mat",
-        "value": 0.1
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.1
+            ]
+          }
+        }
       },
       {
+        "id": "slept",
         "label": "slept",
-        "value": 0.05
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.05
+            ]
+          }
+        }
       }
     ]
   }

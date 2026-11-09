@@ -11,14 +11,14 @@
       },
       {
         "id": "att",
-        "label": "Grouped-query attention (share key and value heads)",
+        "label": "Grouped-query attention (shared key and value heads)",
         "repeat": 62,
         "repeatTo": "ff",
         "role": "attention"
       },
       {
         "id": "ff",
-        "label": "Gated GELU FFN (update each token)",
+        "label": "Gated GELU FFN (per-token update)",
         "role": "feedforward"
       },
       {
