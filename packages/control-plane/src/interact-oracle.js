@@ -12,7 +12,7 @@ const G = 9.8, U = 3, TOL = 1e-6;
 const SUPPORT_MOMENTS = { velocityBefore: -0.1, velocityTop: 0, velocityAfter: 0.1 }; // seconds from the apex
 
 export function standardTossDropOracle(plan) {
-  if (plan?.depth !== 'balanced' || plan.mode.kind !== 'time' || plan.scene.runtime.renderer !== 'program' || !plan.mode.timeline) return null;
+  if (plan?.depth !== 'standard' || plan.mode.kind !== 'time' || plan.scene.runtime.renderer !== 'program' || !plan.mode.timeline) return null;
   const fixed = plan.mode.fixedValues;
   if (fixed.launchSpeed !== U || fixed.gravity !== G || plan.mode.adjustableIds.length || plan.controls.some(c => c.binding.kind === 'input')) return null;
   let end;
@@ -39,7 +39,7 @@ export function standardTossDropOracle(plan) {
 const REFERENCE_U = 3, WINDOW = 0.1;
 
 export function deepTossDropOracle(plan) {
-  if (plan?.depth !== 'detailed' || plan.mode.kind !== 'experiment' || plan.scene.runtime.renderer !== 'program' || !plan.mode.timeline) return null;
+  if (plan?.depth !== 'deep' || plan.mode.kind !== 'experiment' || plan.scene.runtime.renderer !== 'program' || !plan.mode.timeline) return null;
   const fixed = plan.mode.fixedValues, speed = plan.controls.find(c => c.type === 'number' && c.binding.kind === 'input' && c.binding.id === 'launchSpeed');
   if (!speed || speed.min !== 3 || speed.max !== 5 || fixed.gravity !== G || fixed.referenceLaunchSpeed !== REFERENCE_U || plan.mode.adjustableIds.join() !== 'launchSpeed') return null;
   const domains = { launchSpeed: [speed.min, speed.max] }, at = (expr, u) => evalScalar(expr, { launchSpeed: u }, domains);
@@ -66,7 +66,7 @@ export function deepTossDropOracle(plan) {
 // After 0.10 s each has moved g * 0.1^2 / 2 = 0.049 m down. A static scene is one state (case id 'default'; the plan's checkpoints have no time, so they are aliases of it).
 // Exists only for the plan that IS this Overview (a program scene, static, no controls, gravity fixed at 9.8).
 export function overviewDropOracle(plan) {
-  if (plan?.depth !== 'brief' || plan.mode.kind !== 'static' || plan.scene.runtime.renderer !== 'program' || plan.mode.timeline || plan.controls.length || plan.mode.adjustableIds.length) return null;
+  if (plan?.depth !== 'overview' || plan.mode.kind !== 'static' || plan.scene.runtime.renderer !== 'program' || plan.mode.timeline || plan.controls.length || plan.mode.adjustableIds.length) return null;
   if (plan.mode.fixedValues.gravity !== G || !plan.scene.quantities.some(q => q.id === 'drop')) return null;
   const drop = G * WINDOW ** 2 / 2, values = { drop, dropReadout: drop };
   const required = new Set([...plan.scene.observations.flatMap(o => o.quantityIds).filter(q => !(q in plan.mode.fixedValues)), ...plan.scene.readoutIds]);

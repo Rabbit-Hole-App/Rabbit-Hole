@@ -1721,149 +1721,6 @@
       "kind": "waterfall",
       "width": 408,
       "height": 280
-    },
-    {
-      "id": "ml-zscore-distribution-tails",
-      "lessons": [
-        "16"
-      ],
-      "prompts": [
-        "Why do z scores in the tails get flagged as anomalies?"
-      ],
-      "useWhen": "Show the two tails of a standard normal density beyond three standard deviations. Each observation has a z-score on the horizontal axis. Area under the curve over a range of z-scores gives the probability of that range.",
-      "kind": "coordinate-plot",
-      "width": 420,
-      "height": 565
-    },
-    {
-      "id": "ml-local-outlier-factor",
-      "lessons": [
-        "16"
-      ],
-      "prompts": [
-        "How does local outlier factor compare a point with its neighbours?"
-      ],
-      "useWhen": "Compare local outlier factor for two points with the same nearest gap. Use horizontal distances and k=2. Reachability distance to a neighbour is the larger of the gap and that neighbour’s distance to its second-nearest other point. Local reachability density is the reciprocal of the mean reachability distance. The dense-row probe has density 2/9 and each of its neighbours has density 2/3. The sparse-row probe and both of its neighbours have density 1/4.",
-      "kind": "coordinate-plot",
-      "width": 420,
-      "height": 660
-    },
-    {
-      "id": "ml-collective-anomaly-run",
-      "lessons": [
-        "16"
-      ],
-      "prompts": [
-        "How can several normal readings in a row be a collective anomaly?"
-      ],
-      "useWhen": "Use failed-login counts that are ordinary in isolation. Highlight the consecutive high counts and mark the minute when the run rule first flags them.",
-      "kind": "coordinate-plot",
-      "width": 420,
-      "height": 565
-    },
-    {
-      "id": "ml-ranked-anomaly-scores",
-      "lessons": [
-        "16"
-      ],
-      "prompts": [
-        "How do I rank anomaly scores and decide which cases to review?"
-      ],
-      "useWhen": "Rank illustrative scores from most to least unusual. Show how a higher review cutoff narrows the queue while scores and their order stay fixed.",
-      "kind": "bar-chart",
-      "width": 408,
-      "height": 330
-    },
-    {
-      "id": "ml-churn-goal-prediction-decision",
-      "lessons": [
-        "19"
-      ],
-      "prompts": [
-        "How does a churn prediction turn into an action that helps reduce cancellations?"
-      ],
-      "useWhen": "Separate the business goal, the per-user probability of cancelling within the next 30 days and the decision made each night. Rank eligible users by predicted risk before allocating retention offers.",
-      "kind": "flow",
-      "width": 408,
-      "height": 428
-    },
-    {
-      "id": "ml-batch-vs-online-inference",
-      "lessons": [
-        "19"
-      ],
-      "prompts": [
-        "How is predicting on a schedule different from predicting when a request comes in?"
-      ],
-      "useWhen": "Trace a scheduled feature snapshot through the model and store before requests. At request time, batch reads a stored score and online uses current features to compute a fresh score.",
-      "kind": "sequence",
-      "width": 440,
-      "height": 643
-    },
-    {
-      "id": "ml-serving-latency-cost",
-      "lessons": [
-        "19"
-      ],
-      "prompts": [
-        "How do I compare the latency and cost of batch and online predictions?"
-      ],
-      "useWhen": "Compare batch and online on one illustrative workload with shared freshness and latency limits. Batch pays for scores and reads. Online rounds up peak QPS divided by replica capacity and pays for 24 hours.",
-      "kind": "matrix",
-      "width": 408,
-      "height": 539
-    },
-    {
-      "id": "ml-shadow-canary-ab-rollout",
-      "lessons": [
-        "19"
-      ],
-      "prompts": [
-        "When would I shadow a new model, canary it, or run an A/B test?"
-      ],
-      "useWhen": "Compare who sees the new model, which model drives decisions and what each test measures. Use stable random user groups for the A/B comparison.",
-      "kind": "comparison",
-      "width": 408,
-      "height": 427
-    },
-    {
-      "id": "ml-batch-score-fallback",
-      "lessons": [
-        "19"
-      ],
-      "prompts": [
-        "How should a churn system keep working if its nightly scoring job fails?"
-      ],
-      "useWhen": "On a successful batch, use the new scores. On failure, check whether a saved successful score set exists and is at most 25 hours old. If the set is missing or older, use the inactivity rule with the same nightly offer cap.",
-      "kind": "flow",
-      "width": 408,
-      "height": 571
-    },
-    {
-      "id": "ml-classification-vs-regression",
-      "lessons": [
-        "01"
-      ],
-      "prompts": [
-        "What's the difference between classification and regression?"
-      ],
-      "useWhen": "Use the same inputs to contrast a category with a numerical quantity. A classifier may estimate a probability before choosing a class.",
-      "kind": "matrix",
-      "width": 408,
-      "height": 318
-    },
-    {
-      "id": "ml-logistic-decision-boundary",
-      "lessons": [
-        "03"
-      ],
-      "prompts": [
-        "Why does logistic regression draw a straight line between the classes?"
-      ],
-      "useWhen": "The increasing sigmoid turns each probability cutoff into one linear score level, which traces a straight line in this feature space. The 50% cutoff fixes the score at 0. The 75% cutoff fixes it at ln(3). Keep the same probe to show how raising the cutoff changes its predicted class.",
-      "kind": "coordinate-plot",
-      "width": 420,
-      "height": 615
     }
   ],
   "lessons": [
@@ -1873,8 +1730,7 @@
         "ml-learning-taxonomy",
         "labelled-samples-and-split",
         "nearest-centroid-boundary",
-        "train-validation-test-split",
-        "ml-classification-vs-regression"
+        "train-validation-test-split"
       ]
     },
     {
@@ -1896,8 +1752,7 @@
         "sigmoid-threshold",
         "binary-cross-entropy-loss",
         "softmax-probabilities",
-        "roc-threshold-curve",
-        "ml-logistic-decision-boundary"
+        "roc-threshold-curve"
       ]
     },
     {
@@ -2074,11 +1929,7 @@
         "iqr-fences-and-outliers",
         "dbscan-density-neighbourhoods",
         "zscore-anomaly-band",
-        "contextual-time-anomaly",
-        "ml-zscore-distribution-tails",
-        "ml-local-outlier-factor",
-        "ml-collective-anomaly-run",
-        "ml-ranked-anomaly-scores"
+        "contextual-time-anomaly"
       ]
     },
     {
@@ -2119,12 +1970,7 @@
         "ml-version-lineage",
         "classification-cost-matrix",
         "regression-mean-baseline",
-        "event-created-label-time",
-        "ml-churn-goal-prediction-decision",
-        "ml-batch-vs-online-inference",
-        "ml-serving-latency-cost",
-        "ml-shadow-canary-ab-rollout",
-        "ml-batch-score-fallback"
+        "event-created-label-time"
       ]
     },
     {

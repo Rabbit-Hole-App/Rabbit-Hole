@@ -55,9 +55,8 @@ const auto = { host: 'api.anthropic.com', model: 'claude-opus-5', fallbacks: 'de
 const pinned = model => ({ host: 'api.anthropic.com', model, fallbacks: undefined, beta: null });
 const openai = model => ({ host: 'api.openai.com', model, fallbacks: undefined, beta: null });
 
-// Chat runs on Gemini by default (test/chat-gemini.test.js); CHAT_MODEL_PROFILE=anthropic is the switch back, and these rows pin that path as it was.
-test('chat on Auto with CHAT_MODEL_PROFILE=anthropic runs claude-opus-5 with the server-side fallback, with or without an OpenAI key', async t => {
-  for (const env of [{ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', CHAT_MODEL_PROFILE: 'anthropic' }, { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini', CHAT_MODEL_PROFILE: 'anthropic' }]) {
+test('chat on Auto runs claude-opus-5 with the server-side fallback, with or without an OpenAI key', async t => {
+  for (const env of [{ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' }, { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
     const calls = recordFetch(t), DB = recordingDb();
     await chat({ ...env, DB }, null);
     assert.deepEqual(shape(calls), [auto]);
@@ -126,7 +125,7 @@ test('the whiteboard still honours a crafted model key when no OpenAI key is set
 
 test('no Learn task sets thinking, effort or temperature: the model defaults apply (models-10)', async t => {
   const calls = recordFetch(t);
-  await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', CHAT_MODEL_PROFILE: 'anthropic' }, null);
+  await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' }, null);
   await artifact({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' });
   await board({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a' });
   for (const { body } of calls) for (const key of ['thinking', 'output_config', 'temperature']) assert.equal(key in body, false, key);
@@ -208,7 +207,7 @@ test('each Learn model call logs one sanitized learn_model line with the served 
   const logged = captureLog(t), original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async () => Response.json({ model: 'claude-opus-4-8', usage: { iterations: [{ type: 'message' }, { type: 'fallback_message' }] }, content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' });
-  await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'secret-anthropic-key', CHAT_MODEL_PROFILE: 'anthropic' }, null);
+  await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'secret-anthropic-key' }, null);
   const [line] = logged();
   assert.equal(logged().length, 1);
   // The terminal outcome and the call's duration (telemetry brief Task 5) ride on the same line.

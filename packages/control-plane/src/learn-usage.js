@@ -19,15 +19,14 @@ const KIND = Symbol('usage attempt kind');
 export const FEATURES = ['ask', 'auto', 'attempt_assessment', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
   'explore_find', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
   'image', 'image_generate', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render',
-  'webpage_capture', 'explanation_summary'];
+  'webpage_capture'];
 export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evaluation', 'escalation', 'tool', 'media'];
 
 // PROVISIONAL until Phase 2 (owner D2.5, D2.7): practice grading is free to the user, its provider cost still recorded.
 // 'render' is a job on our own renderers (scene worker, Manim): the platform pays for its compute (owner 5A decision C,
 // 2026-10-21), so it is recorded apart from the learner's allowance, cost unknown, never 0. Authoring its source is not this.
 // 'webpage_capture' is the webpage card's screening (owner brief 2026-10-22: platform-paid, no credits, no cost shown).
-// 'explanation_summary' is a new Explanation's collapsed-preview summary (explanation-summary.js): one tiny call the learner did not ask for, recorded, never charged.
-const FREE_FEATURES = new Set(['assess', 'grade', 'attempt_assessment', 'render', 'webpage_capture', 'explanation_summary']);
+const FREE_FEATURES = new Set(['assess', 'grade', 'attempt_assessment', 'render', 'webpage_capture']);
 // Entry points a signed-out visitor may reach on a public link (owner D2.4): platform-funded, never the canvas owner.
 // Not shared Next Steps: no AI generation for signed-out viewers (owner R3 decision, 2026-10-16; the route answers 401).
 const PUBLIC_FEATURES = new Set(['shared_ask']);
@@ -44,7 +43,6 @@ const ROUTES = [
   [/^\/api\/learn\/boards\/published\/find$/, 'explore_find'],
   [/^\/api\/learn\/home-ask$/, 'home_ask'],
   [/^\/api\/learn\/artifact$/, 'artifact'],
-  [/^\/api\/learn\/explanation-summary$/, 'explanation_summary'],
   [/^\/api\/learn\/board$/, 'board'],
   [/^\/api\/learn\/inline\/route$/, 'inline_route'],
   [/^\/api\/learn\/inline\/decide$/, 'inline_decide'],

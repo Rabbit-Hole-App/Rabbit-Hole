@@ -5,7 +5,6 @@ import { deriveVisualRequirements, requiredVisualProblem } from '../src/explanat
 import { diagramReferenceContext, selectDiagramReferences } from '../src/explanation-references.js';
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
-import { singleDiagramReferences } from '../../web/src/tutor-diagrams/reference-single-variants.js';
 
 const cases = [
   ['ml-ordinal-encoding', 'How can ordered categories be represented by numbers?'],
@@ -26,11 +25,10 @@ for (const [id, paraphrase] of cases) {
         command: 'explanation', args, visualRequirements: deriveVisualRequirements(args),
       });
       assert.ok(!prepared.result, `${args}: unexpected refusal`);
-      const selected = prepared.diagramReferences.filter(ref => (ref.sourceId ?? ref.id.replace(/-single$/, '')) === id); // a two-panel reference goes out as its `-single` variant
+      const selected = prepared.diagramReferences.filter(ref => (ref.sourceId ?? ref.id) === id);
       assert.ok(selected.length, `${args}: selected ${prepared.diagramReferences.map(ref => ref.id).join(', ')}`);
       for (const item of selected) {
-        const diagram = item.sourceId ? reference.spec.diagram.panels[item.partIndex].diagram
-          : item.id.endsWith('-single') ? singleDiagramReferences.find(single => single.id === item.id).spec.diagram : reference.spec.diagram;
+        const diagram = item.sourceId ? reference.spec.diagram.panels[item.partIndex].diagram : reference.spec.diagram;
         assert.deepEqual(item.spec, { version: 1, diagram });
         assert.ok(prepared.body.system.includes(JSON.stringify(item.spec)));
       }

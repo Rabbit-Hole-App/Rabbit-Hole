@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { parseHTML } from 'linkedom';
-import { contentRevision, exploreQuestion, fieldText, quotedNote, withConsumed, withHighlight, termSentence } from './explanation-interactions.js';
+import { contentRevision, fieldText, quotedNote, withConsumed, withHighlight } from './explanation-interactions.js';
 import { runsOf } from './learn-rich-text.js';
 
 const { window, document } = parseHTML('<!doctype html><html><body><div id="app"></div></body></html>');
@@ -83,7 +83,7 @@ const toasts = [];
 window.addEventListener('small:toast', event => toasts.push(event.detail));
 
 test('a card without the envelope is exactly what it was: no field wrapper, no pill, no suggestions, no follow-up, no listener-driven toolbar', async () => {
-  await mount(base, { host: { ask: async () => true, note: () => 'n' } });
+  await mount(base, { host: { ask: async () => true, dig() {}, note: () => 'n' } });
   assert.equal($('[data-explanation-field]'), null, 'not even a wrapper');
   assert.equal($('[data-term-id]'), null);
   assert.equal($('[data-explanation-suggestions]'), null, 'no blank row');
@@ -98,7 +98,7 @@ test('a card without the envelope is exactly what it was: no field wrapper, no p
 
 test('orange term pills mark only the anchored occurrences, never every equal word, and add no text', async () => {
   const card = await envelope();
-  await mount(card, { host: { ask: async () => true } });
+  await mount(card, { host: { ask: async () => true, dig() {} } });
   const flow = $('[data-explanation-flow]');
   const pills = $$('[data-term-id]');
   assert.deepEqual(pills.map(p => [p.getAttribute('data-term-id'), p.textContent]), [['t-1', 'decision tree'], ['t-2', 'leaf'], ['t-3', 'tree']]);
@@ -119,10 +119,10 @@ test('orange term pills mark only the anchored occurrences, never every equal wo
   assert.equal($('[data-term-note]'), null, 'no definition until a pill is activated');
 });
 
-test('a pill opens ONLY its definition with Explore; Explore asks a new /explain card about the exact term in the context of this card; Escape closes and returns focus', async () => {
+test('a pill opens ONLY its definition with Dig Rabbit Hole; Dig passes the exact term, card id and revision; Escape closes and returns focus', async () => {
   const card = await envelope();
-  const asks = [];
-  await mount(card, { host: { ask: async request => { asks.push(request); return true; } } });
+  const digs = [];
+  await mount(card, { host: { ask: async () => true, dig: request => digs.push(request) } });
   const [decision, leaf] = $$('[data-term-first]');
   let focused = null;
   decision.focus = () => { focused = decision; };
@@ -139,12 +139,9 @@ test('a pill opens ONLY its definition with Explore; Explore asks a new /explain
   await click(leaf);
   assert.equal($$('[data-term-note]').length, 1);
   assert.match($('[data-term-note]').textContent, /Where a branch ends\./);
-  await click($('[data-explore]'));
-  assert.equal(asks.length, 1);
-  assert.deepEqual({ id: asks[0].id, destination: asks[0].destination, revision: asks[0].revision }, { id: 'card-1', destination: 'explore', revision: card.interactions.contentRevision });
-  assert.match(asks[0].question, /^In the context of "Why trees": what is "leaf"/, 'the term verbatim, tied to this card');
-  assert.ok(asks[0].question.length <= 220);
-  assert.equal($('[data-term-note]'), null, 'closed after exploring');
+  await click($('[data-dig-rabbit-hole]'));
+  assert.deepEqual(digs.map(({ id, term, termId, revision }) => ({ id, term, termId, revision })), [{ id: 'card-1', term: 'leaf', termId: 't-2', revision: card.interactions.contentRevision }]);
+  assert.equal($('[data-term-note]'), null, 'closed after digging');
   // Keyboard: Enter opens, Escape closes and the pill takes the focus back.
   await fire(decision, 'keydown', { key: 'Enter' });
   assert.ok($('[data-term-note]'), 'Enter activates');
@@ -248,7 +245,7 @@ test('a late admission after the text changed does not consume the new revision\
 
 test('a read-only viewer sees the definitions but none of the edit-only controls: no suggestions, no follow-up, Highlight and Create note greyed', async () => {
   const card = await envelope();
-  await mount(card, { host: { ask: async () => true, note: () => 'n' }, readOnly: true });
+  await mount(card, { host: { ask: async () => true, dig() {}, note: () => 'n' }, readOnly: true });
   assert.ok($('[data-term-id]'));
   assert.equal($('[data-explanation-suggestions]'), null);
   assert.equal($('[data-follow-up-toggle]'), null);
@@ -408,11 +405,10 @@ const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
 test('wiring: the canvas provides the host; admission is reported by the Chat stream and by the command dispatcher, never by the promise', () => {
   const canvas = read('AdaptiveCanvas.jsx'), ask = read('ask.jsx'), slash = read('LearnSlash.jsx'), page = read('learn-slash.js'), dive = read('Dive.jsx');
   assert.match(canvas, /<ExplanationHost\.Provider value=\{explanationHost\}>/);
-  assert.doesNotMatch(canvas, /divePortals\.open\(id, term, 'explain_term'/, 'Explore replaced the Rabbit Hole dig: a term makes a new /explain card (owner 2026-11-09)');
-  assert.match(canvas, /destination === 'card' \|\| destination === 'explore' \? await chatWorkspace\.ask\(\{ line:/, 'Explore is the written /explain, with no parentLink (no connector)');
+  assert.match(canvas, /dig: \(\{ id, term, revision \}\) => divePortals\.open\(id, term, 'explain_term', \{ label: term, revision \}\)/, 'the existing Rabbit Hole route, titled with the exact term');
   assert.match(canvas, /return taken !== false && admitted;/, 'the promise of a Chat reply settles only when the answer is in; admission is the callback');
   assert.match(canvas, /chatWorkspace\.ask\(\{ line: `\/explain \$\{question\}`, about: \{ selection \}, onAdmitted: told \}\)/, 'Ask in a new card is the written /explain');
-  assert.match(canvas, /const canAsk = !!chatWorkspace\?\.ask && !visiting, canNote = !readOnly && !localCopy;/, 'a capability that is absent leaves no function, so the card omits the control');
+  assert.match(canvas, /const canDig = !!\(divePortals\?\.open && !visiting\), canAsk = !!chatWorkspace\?\.ask && !visiting, canNote = !readOnly && !localCopy;/, 'a capability that is absent leaves no function, so the card omits the control');
   assert.match(ask, /if \(r\.ok\) onAdmitted\?\.\(\);\n\s+const reader = r\.body\.getReader\(\);/, 'the stream opened');
   assert.match(ask, /chat\.registerSender\(\(\{ regenerate, prompt, command: asked, about, line, onAdmitted \} = \{\}\) => \{/);
   assert.match(ask, /\.handoff\(line, \{ about: about \?\? null, target: about\?\.selection \?\? null, onAdmitted \}\)/);
@@ -508,66 +504,10 @@ test('a card with a plot or a graph-layout diagram still has pills and Highlight
   const revision = await contentRevision(block), text = fieldText(block, 'body');
   const term = (id, label, occurrence) => { const start = cpStart(text, label, occurrence); return { id, label, definition: `${label} means something.`, anchor: { field: 'body', quote: label, occurrence, start, end: start + label.length } }; };
   const card = { ...block, interactions: { version: 1, displayTextVersion: 1, contentRevision: revision, questions: [{ id: 'q-1', text: 'A?' }, { id: 'q-2', text: 'B?' }, { id: 'q-3', text: 'C?' }], terms: [term('t-1', 'decision tree', 0), term('t-2', 'leaf', 0)] } };
-  await mount(card, { host: { ask: async () => true, note: () => 'n' }, chat: { addToChat() {} } });
+  await mount(card, { host: { ask: async () => true, note: () => 'n', dig: () => {} }, chat: { addToChat() {} } });
   assert.equal($$('[data-tutor-diagram]').length, 2, 'both drawings are on the card');
   assert.deepEqual($$('[data-term-id]').map(p => p.textContent), ['decision tree', 'leaf'], 'the pills are drawn around the plot and the graph');
   const paragraphs = $$('[data-explanation-field="body"] p'), last = textNodes(paragraphs.at(-1));
   await selection(last[0], 0, last[0], 4, 'The ');
   assert.equal($('[data-explanation-selection-toolbar] [aria-label="Highlight"]').disabled, false, 'Highlight works on prose after the diagrams');
-});
-
-test('Explore: the question is built from the term and the card, without a model call (owner 2026-11-09)', () => {
-  const card = { ...base, title: 'How does photosynthesis work?', body: 'A leaf has veins. A stoma opens in the leaf surface to let CO2 in.' };
-  const term = { anchor: { field: 'body', start: Array.from('A leaf has veins. A ').length, end: Array.from('A leaf has veins. A stoma').length } };
-  assert.equal(termSentence(card, term), 'A stoma opens in the leaf surface to let CO2 in.');
-  assert.equal(exploreQuestion({ term: 'stoma', title: card.title, sentence: termSentence(card, term) }), 'In the context of "How does photosynthesis work?": what is "stoma" (as in "A stoma opens in the leaf surface to let CO2 in."), and how does it work here?');
-  assert.equal(exploreQuestion({ term: 'stoma', title: card.title }), 'In the context of "How does photosynthesis work?": what is "stoma", and how does it work here?', 'no sentence: shorter');
-  assert.match(exploreQuestion({ term: '$p_i$', title: 'Say "hi"' }), /what is "\$p_i\$"/, 'maths stays in $...$, double quotes inside a value become single');
-  assert.match(exploreQuestion({ term: 'x', title: 'Say "hi"' }), /"Say 'hi'"/);
-  for (const long of [{ term: 't'.repeat(40), title: 'T'.repeat(300), sentence: 'S'.repeat(130) }, { term: 'x', title: 'word '.repeat(80), sentence: '' }]) assert.ok(exploreQuestion(long).length <= 220, 'never longer than 220 characters');
-  assert.equal(termSentence(card, { anchor: { field: 'nope', start: 0, end: 1 } }), '');
-  assert.equal(termSentence({ ...card, body: 'x'.repeat(200) }, { anchor: { field: 'body', start: 0, end: 1 } }), '', 'a sentence over 140 characters is not used as context');
-});
-
-test('no Dig Rabbit Hole string is left in the web source or the Explanation doc except the rename note (owner 2026-11-09)', () => {
-  for (const file of ['ExplanationInteractions.jsx', 'AdaptiveCanvas.jsx', 'LearningBlocks.jsx', 'explanation-host.js']) assert.doesNotMatch(read(file), /data-dig-rabbit-hole|Dig Rabbit Hole/, file);
-  const doc = readFileSync(new URL('../../../docs/features/explain.md', import.meta.url), 'utf8');
-  assert.equal((doc.match(/Dig Rabbit Hole/g) || []).length, 1, 'only the rename note');
-});
-
-test('hover (owner 2026-11-09): a pill opens its note on pointer hover after a short delay, the note stays while the pointer is on it, closes after a delay when it leaves, a click pins it, touch keeps the tap', async () => {
-  const card = await envelope(), asks = [];
-  await mount(card, { host: { ask: async request => { asks.push(request); return true; } } });
-  const [decision, leaf] = $$('[data-term-first]');
-  const over = (target, init = {}) => fire(target, 'pointerover', { pointerType: 'mouse', ...init }), out = (target, init = {}) => fire(target, 'pointerout', { pointerType: 'mouse', ...init });
-  const wait = ms => B.act(async () => { await new Promise(resolve => setTimeout(resolve, ms)); });
-  await over(decision, { relatedTarget: document.body });
-  assert.ok(!$('[data-term-note]'), 'not at once: a pointer crossing the text does not pop it');
-  await wait(180);
-  assert.ok($('[data-term-note]'), 'shown on hover, no click');
-  assert.ok($('[data-explore]'), 'Explore is in the note');
-  // The pointer travels from the pill onto the note: the close timer is cancelled, nothing flickers.
-  await out(decision, { relatedTarget: $('[data-term-note]') });
-  await over($('[data-term-note]'), { relatedTarget: decision });
-  await wait(320);
-  assert.ok($('[data-term-note]'), 'still open while the pointer is on the note');
-  await out($('[data-term-note]'), { relatedTarget: document.body });
-  await wait(320);
-  assert.ok(!$('[data-term-note]'), 'closes after the delay when the pointer is away');
-  // Hover then another pill: it replaces the hovered note.
-  await over(decision, { relatedTarget: document.body }); await wait(180);
-  await over(leaf, { relatedTarget: decision }); await wait(180);
-  assert.equal($$('[data-term-note]').length, 1);
-  assert.match($('[data-term-note]').textContent, /Where a branch ends\./);
-  // A click pins the hovered note: leaving no longer closes it.
-  await click(leaf);
-  await out(leaf, { relatedTarget: document.body }); await wait(320);
-  assert.ok($('[data-term-note]'), 'a click pins the note');
-  await fire(document, 'keydown', { key: 'Escape' });
-  assert.ok(!$('[data-term-note]'));
-  // Touch has no hover: pointerover with a touch pointer opens nothing, the tap still does.
-  await over(decision, { pointerType: 'touch', relatedTarget: document.body }); await wait(180);
-  assert.ok(!$('[data-term-note]'));
-  await click(decision);
-  assert.ok($('[data-term-note]'), 'the tap opens it');
 });

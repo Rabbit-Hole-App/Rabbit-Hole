@@ -79,10 +79,10 @@ test('an explicit diagram request makes the field required; an invalid diagram t
 test('oneOf is rewritten to anyOf only where its branches are mutually exclusive; the real diagram schema qualifies and what comes back is still checked by the original RH parser', () => {
   const rewritten = exclusiveOneOfToAnyOf(tutorDiagramJsonSchema);
   const text = JSON.stringify(rewritten);
-  assert.ok(!text.includes('"oneOf"') && rewritten.properties.diagram.anyOf.length === 24, 'the 24 kind branches become anyOf');
+  assert.ok(!text.includes('"oneOf"') && rewritten.properties.diagram.anyOf.length === 21, 'the 21 kind branches become anyOf');
   assert.ok(JSON.stringify(tutorDiagramJsonSchema).includes('"oneOf"'), 'the original is untouched');
   const kinds = rewritten.properties.diagram.anyOf.map(branch => branch.properties.kind.const);
-  assert.equal(new Set(kinds).size, 24, 'each branch is pinned to its own kind');
+  assert.equal(new Set(kinds).size, 21, 'each branch is pinned to its own kind');
   assert.throws(() => exclusiveOneOfToAnyOf({ oneOf: [{ type: 'object', properties: { kind: { const: 'a' } } }, { type: 'object', properties: { kind: { const: 'a' } } }] }), /not mutually exclusive/, 'two branches with one kind');
   assert.throws(() => exclusiveOneOfToAnyOf({ oneOf: [{ type: 'string' }, { type: 'number' }] }), /not mutually exclusive/, 'no discriminator');
   assert.throws(() => parseTutorDiagram({ version: 1, diagram: { kind: 'flow', title: 'x', nodes: [], edges: [] } }), undefined, 'the original RH parser still rejects what the rewritten schema would let through');

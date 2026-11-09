@@ -1,5 +1,3 @@
-> Depth names (renamed 2026-11-08): Brief = Overview, Balanced = Standard, Detailed = Deep. The names in this file below are updated where they name the learner's Depth; stored values written with the old names are read through an alias map (`packages/control-plane/src/chat-depth.js` `DEPTH_ALIASES`).
-
 # Explain on Canvas — Tutor product roadmap
 
 **Rabbit Hole · Version 1.4 · MVP flow update · 7 November 2026 · WHAT we are building**
@@ -217,7 +215,7 @@ Use [03 — Chat roadmap](ui/03-chat-roadmap.html) for this Chat message, its tw
 | --- | --- |
 | Roadmap parameters | Heading of the bordered parameter container. Retain the short concrete learning capability as its body; **Learning outcome** is not the visible container heading. |
 | Scope | **Full content · filename.md** by default for an uploaded supported Markdown. A supported **Selected passage** choice binds a stable source revision/range. A scope is not the source viewer's display mode or current scroll position. |
-| Depth | A direct three-position slider labelled **Brief**, **Balanced**, **Detailed**, showing the selected value. No extra button that opens another slider. |
+| Depth | A direct three-position slider labelled **Overview**, **Standard**, **Deep**, showing the selected value. No extra button that opens another slider. |
 | Roadmap | Dropdown labels **Explanations only** and **Explanations + practice**. Capability readiness is governed by section 8.2; no selectable inert mode. |
 | Roadmap draft | A separate bordered container below **Roadmap parameters**, headed **Roadmap draft** in sentence case; ordered step titles, useful short descriptions and suggested formats let the learner review the actual plan before acceptance. Keep any format or behavior the learner explicitly requires as a requirement. |
 | Decision actions | **Accept roadmap** and **Edit roadmap** in the same Tutor Chat entry. |
@@ -389,7 +387,7 @@ These six files are the visual references for the current MVP. Open their HTML, 
 | [03 — Chat roadmap](ui/03-chat-roadmap.html) | Tutor message with bordered **Roadmap parameters** and separate bordered **Roadmap draft**; Scope, direct Depth slider, explanations/practice dropdown; **Accept roadmap / Edit roadmap**; edit-target pill in the existing composer; accepted confirmation and main-style blue **Open table of contents**. Its ToC destination reuses file 01. | Sections 3.5–3.7 and 4.3–4.5; checklist UI.02–03. |
 | [04 — Explanation card](ui/04-explanation-card.html) | Fixed Explanation label, prominent accepted title, and Source: filename with ScanText View section. The main explanation scrolls. Disclosure controls stay available and expand the card downward. | Sections 3.9 and 7.6. Checklist CORE.09 and UI.04. |
 | [05 — Markdown source links](ui/05-markdown-source-links.html) | Hover over annotated prose, code, a diagram, an image or a whole section. The matching ScanText View card icon appears. Activate it to frame and briefly outline the exact linked card in blue. View section returns to the resolved source. | Sections 3.10 and 7.5–7.6. Checklist UI.07 and BE.13. |
-| [06 — Explanation depth](ui/06-explanation-depth.html) | Same accepted title and delivered frame across Brief, Balanced and Detailed. Open the Deep example to inspect the rendered table below the controls and inspect the Mermaid flowchart in the main explanation. The HTML embeds both Markdown source fixtures. | Sections 3.9 and 12.1. Checklist CORE.09 and BE.06a. |
+| [06 — Explanation depth](ui/06-explanation-depth.html) | Same accepted title and delivered frame across Overview, Standard and Deep. Open the Deep example to inspect the rendered table below the controls and inspect the Mermaid flowchart in the main explanation. The HTML embeds both Markdown source fixtures. | Sections 3.9 and 12.1. Checklist CORE.09 and BE.06a. |
 
 **Use deployed main as the product styling/component authority.** Never use a dev/preview deployment as the baseline, and never invent a replacement blue or hover color. Reuse main's shared `Button` and theme tokens: primary fill `--color-primary-fill` (`#1b6fc2`) and hover `--color-primary-fill-hover` (`#165ca3`), white text. Reuse the existing panel, Chat, skeleton, ToC and icon components. The owner explicitly approved green **Accept / Next card** and muted-red **Cancel** for these canvas pills; that local action-color change supersedes the older neutral/pale-blue pill rule. Use sentence case consistently; interpret the owner's wording rather than copying accidental capitalization. Do not add redundant instruction sentences below pills.
 

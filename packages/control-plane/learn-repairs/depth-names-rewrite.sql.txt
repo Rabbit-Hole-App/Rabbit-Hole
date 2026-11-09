@@ -1,6 +1,0 @@
--- ONE-OFF DATA REWRITE (owner-run, never applied by a lane): the Depth names became brief | balanced | detailed on 2026-11-08 (were overview | standard | deep).
--- Run AFTER learn-migrations/0044-depth-names.sql and after the release that writes the new names, so the alias map in chat-depth.js (depthOf) can be removed later.
--- Rewrites the two stored columns; nothing else changes (revision, ids, times stay). Re-runnable: a second run changes no row. Listing first: depth-names-rewrite-check.sql.txt.
--- NOT covered (still alias-read until they age out or a later rewrite): a Depth saved inside a card's JSON on a board (block.depth) and inside a roadmap plan's settings JSON.
-UPDATE learn_canvas_depth SET depth = CASE depth WHEN 'overview' THEN 'brief' WHEN 'standard' THEN 'balanced' WHEN 'deep' THEN 'detailed' END WHERE depth IN ('overview', 'standard', 'deep');
-UPDATE learn_roadmaps SET depth = CASE depth WHEN 'overview' THEN 'brief' WHEN 'standard' THEN 'balanced' WHEN 'deep' THEN 'detailed' END WHERE depth IN ('overview', 'standard', 'deep');

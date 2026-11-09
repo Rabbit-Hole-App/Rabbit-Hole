@@ -5,7 +5,7 @@
 // (generation-proposal.js, command explain) on the learner's chat thread, under MOT-22's one state.
 import { catalogue } from '../../web/src/visual-components/registry.js';
 import { capabilityGap, compilerSupport } from './explain-author.js';
-import { DEFAULT_DEPTH, depthInstruction, depthOf } from './chat-depth.js';
+import { DEFAULT_DEPTH, depthInstruction } from './chat-depth.js';
 import { EXPLAIN_BRIEF_SYSTEM, EXPLAIN_PROGRAM_BRIEF_SYSTEM, EXPLAIN_STATEFUL_BRIEF_RULES, briefTool } from './agents/explain-brief.js';
 import { programContext } from './agents/explain-author.js';
 import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, programEnabled, statefulEnabled } from './explain-program.js';
@@ -52,8 +52,8 @@ export function briefDecision(env, brief, { evidence = [], source = 'explicit' }
 export async function prepareStage(job, ctx) {
   const program = programEnabled(ctx.env || {}), stateful = statefulEnabled(ctx.env || {});
   const cat = program ? [] : catalogue(), names = cat.map(entry => entry.name), supported = program ? null : compilerSupport();
-  // R2: Depth (a job stored before it has none: Balanced) rides in the model's input and its system prompt, and on the brief it makes.
-  const stored = depthOf(job.depth), depth = stored && stored !== DEFAULT_DEPTH ? stored : null, depthNote = depthInstruction(depth, 'card');
+  // R2: Depth (a job stored before it has none: Standard) rides in the model's input and its system prompt, and on the brief it makes.
+  const depth = job.depth && job.depth !== DEFAULT_DEPTH ? job.depth : null, depthNote = depthInstruction(depth, 'card');
   const content = JSON.stringify({ request: job.prompt, context: job.context ?? null, refinement: job.refinement ?? null, previous: job.brief ?? null,
     ...(depth ? { depth } : {}), evidence: modelEvidence(job.evidence),
     ...(program ? { runtime: { capabilities: PROGRAM_CAPABILITIES, limits: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES).limits, ...(stateful ? { buttons: { actions: PROGRAM_LIMITS.actions, selectable: PROGRAM_LIMITS.targets } } : {}) } } : { catalogue: cat.map(({ name, description }) => ({ name, description })), supported }) });

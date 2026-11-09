@@ -1,7 +1,7 @@
 // packages/control-plane/src/learn-user-settings.js
 // Learn user settings on LEARN_DB (learn-migrations/0037; Tutor ladder R2, decisions D11 and D12):
 //   Auto-suggest: one value per learner (learn_user_settings), default on. One boolean, idempotent: the last write wins.
-//   Depth: brief | balanced | detailed (renamed 2026-11-08; the old overview | standard | deep are read through chat-depth.js depthOf), one value per learner and canvas (learn_canvas_depth), default balanced. Guarded writes.
+//   Depth: overview | standard | deep, one value per learner and canvas (learn_canvas_depth), default standard. Guarded writes.
 //   GET  /api/learn/user-settings?app=&board= -> { settings: { depth, autoSuggest }, depthRevision, learner }
 //   POST /api/learn/user-settings { app, board, autoSuggest } -> the same answer
 //   POST /api/learn/user-settings { app, board, depth, expectedRevision, actionId? } -> the same answer (set_depth)
@@ -37,8 +37,8 @@ export async function readSettings(env, actor) {
   return { depth: validDepth(canvas?.depth) ?? DEFAULT_SETTINGS.depth, autoSuggest: user ? user.auto_suggest === 1 : DEFAULT_SETTINGS.autoSuggest, depthRevision: canvas?.revision ?? 0 };
 }
 
-// The Depth a model call should honor: the stored one, or Balanced when there is none, no identity, no canvas or board, or the tables
-// are not there yet (no 'main' fallback: an unnamed board is Balanced). Never throws: Depth is a preference, and a failed read must
+// The Depth a model call should honor: the stored one, or Standard when there is none, no identity, no canvas or board, or the tables
+// are not there yet (no 'main' fallback: an unnamed board is Standard). Never throws: Depth is a preference, and a failed read must
 // not stop an answer.
 export async function readDepth(env, actor) {
   if (!env?.LEARN_DB || !actor?.org || !actor?.userId || !actor?.app || !actor?.board) return DEFAULT_DEPTH;
@@ -116,10 +116,10 @@ export async function userSettingsRoute(path, req, env, deps = {}) {
       if (typeof body.autoSuggest !== 'boolean') return json({ error: 'autoSuggest must be true or false' }, 400);
       write = () => saveAutoSuggest(env, actor, body.autoSuggest);
     } else {
-      if (!validDepth(body.depth)) return json({ error: 'depth must be brief, balanced or detailed' }, 400);
+      if (!validDepth(body.depth)) return json({ error: 'depth must be overview, standard or deep' }, 400);
       if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 0) return json({ error: 'expectedRevision must be the revision this change was made from (0 when none was saved)' }, 400);
       if (body.actionId !== undefined && !ACTION.test(body.actionId)) return json({ error: 'actionId must be 8-64 letters, digits, dashes or underscores' }, 400);
-      write = () => setDepth(env, actor, { depth: validDepth(body.depth), expectedRevision: body.expectedRevision, actionId: body.actionId ?? null });
+      write = () => setDepth(env, actor, { depth: body.depth, expectedRevision: body.expectedRevision, actionId: body.actionId ?? null });
     }
   }
   try {

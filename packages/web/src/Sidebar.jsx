@@ -16,7 +16,7 @@ import FeedbackButton, { sentTitle } from './FeedbackButton.jsx';
 import RabbitHoleSettings from './RabbitHoleSettings.jsx';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 import { isInternalPrincipal, personLabel, useShownIdentity } from './session-display.js';
-import { MODEL_CHOICES, MODEL_SCOPE, savedModel } from './model-choices.js';
+import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 import { keyLabel } from './shortcuts.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
@@ -51,7 +51,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
   const [people, setPeople] = useState(null);
   const [invite, setInvite] = useState('');
   const [wsRename, setWsRename] = useState(null); // null until the owner edits the name field
-  const [askModel, setAskModel] = useState(() => savedModel(localStorage.getItem('small.askModel')));
+  const [askModel, setAskModel] = useState(() => localStorage.getItem('small.askModel') || 'auto');
   useEffect(() => {
     if ((tab === 'general' || tab === 'people') && !wsInfo) api('/api/workspaces').then(setWsInfo).catch(() => {});
     if (tab === 'teamspaces' && teams === null) api('/api/teams').then((d) => setTeams(d.teams || [])).catch(() => setTeams([]));

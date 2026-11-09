@@ -30,7 +30,7 @@ export function validatePlan(plan, ctx = {}) {
   }
   const ceiling = ceilingFor(ctx.depth, L);
   if (!plan.steps.length) errors.push(err('step_count', 'no steps and no question'));
-  if (plan.steps.length > ceiling) errors.push(err('step_count', `${plan.steps.length} steps; the ${ctx.depth || 'balanced'} ceiling is ${ceiling}, a maximum, not a target`));
+  if (plan.steps.length > ceiling) errors.push(err('step_count', `${plan.steps.length} steps; the ${ctx.depth || 'standard'} ceiling is ${ceiling}, a maximum, not a target`));
   plan.steps.forEach((s, i) => {
     if (!ROADMAP_FORMATS.includes(s.format)) errors.push(err('format', `step ${i + 1} format ${s.format} is not supported`));
     const { start, end } = s.passage;

@@ -26,7 +26,7 @@ const observations = [10, 13, 16, 19, 22, 25];
 const rollingRows = [4, 5, 6, 7].map(day => {
   const firstDay = day - 3;
   const pastValues = observations.slice(firstDay - 1, day - 1);
-  const inputs = pastValues.map((value, i) => `D${firstDay + i}:${value}`).join(' ');
+  const inputs = pastValues.map((value, i) => `D${firstDay + i}=${value}`).join(' ');
   const mean = pastValues.reduce((sum, value) => sum + value, 0) / pastValues.length;
   return { id: `day-${day}`, heading: `Day ${day}`, cells: [inputs, String(mean)] };
 });
@@ -44,7 +44,7 @@ export const references = [
         plotPanel('Seasonal contribution', contributionAxis, [seasonal], 'Day 4 · seasonality −1'),
         plotPanel('Residuals', contributionAxis, [residual], 'Day 4 · residual +0.5'),
       ],
-      caption: String.raw`Illustrative daily values. $\text{Observed}=\text{trend}+\text{seasonality}+\text{residual}$. On Day 4, $3.5-1+0.5=3$.`,
+      caption: 'Illustrative daily values. Observed = trend + seasonality + residual. On Day 4, 3.5 − 1 + 0.5 = 3.',
     } },
   },
   {
@@ -57,7 +57,7 @@ export const references = [
       columns: ['Past values', 'Mean'],
       rows: rollingRows,
       emphasis: { columns: [1] },
-      caption: String.raw`Illustrative values. For Day 4, $\frac{10+13+16}{3}=13$. Each feature uses the three days before its prediction day.`,
+      caption: 'Illustrative values. For Day 4, (10 + 13 + 16) ÷ 3 = 13. Each feature uses the three days before its prediction day.',
     } },
   },
 ];

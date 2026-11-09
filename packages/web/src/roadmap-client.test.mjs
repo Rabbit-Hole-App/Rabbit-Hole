@@ -223,7 +223,7 @@ test('wire shapes match the recorded request fixtures key for key', () => {
   assert.deepEqual(keys(routes.dismiss('lb_1', 'iv_1', 'ak_dismiss_0001').body), keys(fx('invitation-dismiss').request));
   const result = view('accept-proposal-response-generating').results[0];
   assert.deepEqual(keys(routes.ack(pending, result, result.slot.cardId, 41, 'ak_ack_0001').body), keys(fx('result-ack-request').request));
-  assert.deepEqual(keys(routes.revise(pending, { instruction: 'x', settings: { depth: 'brief' } }, 'ak_revise_0001').body), keys(fx('revise-request').request));
+  assert.deepEqual(keys(routes.revise(pending, { instruction: 'x', settings: { depth: 'overview' } }, 'ak_revise_0001').body), keys(fx('revise-request').request));
 });
 
 test('action keys: one per gesture, stable across retries, fresh after the server answered, valid for CLIENT_KEY', () => {

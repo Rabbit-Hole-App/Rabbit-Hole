@@ -10,9 +10,6 @@ export const VISUAL_REQUIREMENTS_VERSION = 1;
 // What the card's diagram library draws (tutor-diagrams/spec.js), by the words a learner uses for it. The first match wins, most specific first.
 const KINDS = [
   [/\b(?:binary(?: search)? trees?|bst|dendrograms?)\b/i, 'tree'],
-  [/\b(?:tensor strips?|tensor diagrams?)\b/i, 'tensor'],
-  [/\btoken[- ]links?(?: diagrams?)?\b/i, 'token-links'],
-  [/\bblock[- ]stack(?: diagrams?)?\b/i, 'block-stack'],
   [/\bheat ?maps?\b/i, 'heatmap'], [/\bhistograms?\b/i, 'histogram'],
   [/\bbox[- ]?plots?\b/i, 'box-plot'], [/\bsample[- ]set diagrams?\b/i, 'sample-set'],
   // Owner B1 (2026-11-08): a decision tree stays a flow: a flow with decision nodes and Yes/No branches to outcomes is a faithful decision tree.
@@ -26,7 +23,7 @@ const KINDS = [
 const UNSUPPORTED = /\b(venn diagram|pie chart|mind ?map|uml|class diagram|er diagram|entity[- ]relationship|gantt|state (?:diagram|machine)|sankey|org(?:anisation|anization)? chart)\b/i;
 // A topic word alone ("how a decision tree works", "the timeline of the war", "a t-account") is not a request for a picture: only the picture words are.
 // EXP-13 fix 5b (owner 2026-11-08): plurals count too ("two diagrams", "diagrams"), and a picture word asks for an illustration ("two pictures", "a diagram and a picture").
-const DIAGRAM_WORD = /\b(heat ?maps?|histograms?|box[- ]?plots?|sample[- ]set diagrams?|dendrograms?|tensor strips?|tensor diagrams?|token[- ]links? diagrams?|block[- ]stack diagrams?|diagrams?|flow ?charts?|bar charts?|bar graphs?|(?:coordinate|scatter|line) (?:plots?|charts?))\b/gi;
+const DIAGRAM_WORD = /\b(heat ?maps?|histograms?|box[- ]?plots?|sample[- ]set diagrams?|dendrograms?|diagrams?|flow ?charts?|bar charts?|bar graphs?|(?:coordinate|scatter|line) (?:plots?|charts?))\b/gi;
 const PICTURE_WORD = /\b(pictures?|illustrations?|drawings?|images? of)\b/gi;
 // How many of a kind a mention asks for: a number word just before it, else a plural is two and a singular one (a card holds at most three visuals, at most two pictures: owner 2026-11-08).
 // The kind's count is the larger of one mention's count and the number of mentions brought in by an article or a number ("a flowchart and a bar chart"),

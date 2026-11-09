@@ -1,8 +1,8 @@
 // Depth and Auto-suggest controls (Tutor ladder R2, decisions D11, D12, D22) in the real app, against the LOCAL stack only, with no model
 // call: the settings API is a fake server in this browser (GET/POST /api/learn/user-settings, kept per canvas and learner), and every
 // model-capable request is aborted and counted (none may come from these steps).
-// Covers: the Chat composer shows a Depth control reading Balanced; its menu offers Brief, Balanced and Detailed; the Auto-suggest switch (one control, beside the mode selector, not in the
-// Depth menu) is shown in Auto and in Tutor and absent in Ask; choosing Detailed posts { app, board, depth: "detailed", expectedRevision: 0 } once and the control reads Detailed;
+// Covers: the Chat composer shows a Depth control reading Standard; its menu offers Overview, Standard and Deep; the Auto-suggest switch (one control, beside the mode selector, not in the
+// Depth menu) is shown in Auto and in Tutor and absent in Ask; choosing Deep posts { app, board, depth: "deep", expectedRevision: 0 } once and the control reads Deep;
 // switching Auto-suggest off posts { autoSuggest: false } and the switch shows it off; a save the server refuses says "Not saved: this
 // change applies in this tab only." with Retry, and the choice stays in the tab; no page error and no model request.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/depth-settings-command-check.mjs [shotsDir]
@@ -25,7 +25,7 @@ const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify
 const MODEL = /^\/api\/(ask$|learn\/(ask|selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|artifact|explain|animation|chat\/material-proposals|cad\/jobs|motion))/;
 const stray = [], errors = [], results = [], posts = [];
 let refuse = false; // the fake server refuses the next POSTs (a save that fails)
-const store = { depth: 'balanced', autoSuggest: true, depthRevision: 0 };
+const store = { depth: 'standard', autoSuggest: true, depthRevision: 0 };
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); await page?.screenshot({ path: `${SHOTS}/fail-${results.length}.png` }).catch(() => {}); }
@@ -71,12 +71,12 @@ try {
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await pane.waitFor({ timeout: 60000 });
   await pane.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
-  await step('the composer shows Depth reading Balanced, and its menu offers Brief, Balanced and Detailed with Balanced checked', async () => {
+  await step('the composer shows Depth reading Standard, and its menu offers Overview, Standard and Deep with Standard checked', async () => {
     await depthButton.waitFor();
-    assert.equal((await depthButton.getAttribute('aria-label')).replace('Depth: ', ''), 'Balanced');
+    assert.equal((await depthButton.getAttribute('aria-label')).replace('Depth: ', ''), 'Standard');
     await openMenu();
-    assert.deepEqual(await menu.getByRole('menuitemradio').evaluateAll(nodes => nodes.map(n => n.dataset.depthOption)), ['brief', 'balanced', 'detailed']);
-    assert.equal(await menu.locator('[data-depth-option="balanced"]').getAttribute('aria-checked'), 'true');
+    assert.deepEqual(await menu.getByRole('menuitemradio').evaluateAll(nodes => nodes.map(n => n.dataset.depthOption)), ['overview', 'standard', 'deep']);
+    assert.equal(await menu.locator('[data-depth-option="standard"]').getAttribute('aria-checked'), 'true');
     await page.screenshot({ path: `${SHOTS}/A-menu-auto.png` });
   });
   await step('the Auto-suggest switch is beside the mode selector in Auto and in Tutor, and the Depth menu holds Depth only', async () => {
@@ -96,13 +96,13 @@ try {
     await page.keyboard.press('Escape');
     await pickMode('Auto');
   });
-  await step('choosing Detailed posts the canvas and depth once, the menu closes and the control reads Detailed', async () => {
+  await step('choosing Deep posts the canvas and depth once, the menu closes and the control reads Deep', async () => {
     const before = posts.length;
     await openMenu();
-    await menu.locator('[data-depth-option="detailed"]').click();
+    await menu.locator('[data-depth-option="deep"]').click();
     await until(async () => posts.length === before + 1, 'one POST');
-    assert.deepEqual([posts.at(-1).app, posts.at(-1).board, posts.at(-1).depth, posts.at(-1).expectedRevision], [canvas.name, 'main', 'detailed', 0]);
-    await until(async () => (await depthButton.getAttribute('aria-label')).replace('Depth: ', '') === 'Detailed', 'the control reads Detailed');
+    assert.deepEqual([posts.at(-1).app, posts.at(-1).board, posts.at(-1).depth, posts.at(-1).expectedRevision], [canvas.name, 'main', 'deep', 0]);
+    await until(async () => (await depthButton.getAttribute('aria-label')).replace('Depth: ', '') === 'Deep', 'the control reads Deep');
     assert.equal(await menu.count(), 0);
   });
   await step('switching Auto-suggest off posts only that change and the switch shows it off', async () => {
@@ -112,15 +112,15 @@ try {
     assert.deepEqual(posts.at(-1), { app: canvas.name, board: 'main', autoSuggest: false });
     await until(async () => await pane.locator('[data-tutor-switch="off"]').count() === 1, 'shown off');
     await openMenu();
-    assert.equal(await menu.locator('[data-depth-option="detailed"]').getAttribute('aria-checked'), 'true', 'Depth kept');
+    assert.equal(await menu.locator('[data-depth-option="deep"]').getAttribute('aria-checked'), 'true', 'Depth kept');
     await page.screenshot({ path: `${SHOTS}/C-auto-suggest-off.png` });
     await page.keyboard.press('Escape');
   });
   await step('a refused save says it is not saved and keeps the choice in this tab; no model request and no page error', async () => {
     refuse = true;
     await openMenu();
-    await menu.locator('[data-depth-option="brief"]').click();
-    await until(async () => (await depthButton.getAttribute('aria-label')).replace('Depth: ', '') === 'Brief', 'applied in this tab');
+    await menu.locator('[data-depth-option="overview"]').click();
+    await until(async () => (await depthButton.getAttribute('aria-label')).replace('Depth: ', '') === 'Overview', 'applied in this tab');
     await openMenu();
     const note = menu.locator('[data-depth-status="error"]');
     await note.waitFor();

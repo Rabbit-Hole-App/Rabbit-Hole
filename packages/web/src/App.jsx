@@ -11,7 +11,6 @@ import { onAnotherDevice } from './home/continue.js';
 import { chipHref, isMine, libraryQuery, ofType } from './library-filter.js';
 import LibraryViews, { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
 import { StarsLink } from './CardStar.jsx';
-import { libraryShows } from './library-folders.js';
 import { FolderCrumb, FolderTitle, useLibraryFolders } from './LibraryFolders.jsx';
 import SharedWithYou from './comments/SharedWithYou.jsx';
 import { SortMenu } from './home/LearningCard.jsx';
@@ -280,7 +279,7 @@ function AppContent({ data, load }) {
           )}
 
           {/* Projects and Canvases are cards, All is sections; only the Apps view is the table. */}
-          {learnPreview && !archived && type !== 'apps' && libraryShows(withFixtures.length, lib.folders.length) && (
+          {learnPreview && !archived && type !== 'apps' && withFixtures.length > 0 && (
             <LibraryViews apps={found} type={type} data={data} sort={cardSort} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive} onForked={load}
               onType={(k) => navigate(chipHref(window.location.search, 'type', k))} folders={lib} folderId={folderId} searching={!!needle} />
           )}

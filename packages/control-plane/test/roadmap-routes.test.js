@@ -187,7 +187,7 @@ test('lifecycle over HTTP: Cancel pauses, a manual next step offers the NEXT ste
   assert.equal(rows(w.sqlite, 'SELECT state FROM learn_roadmaps')[0].state, 'ended');
   assert.equal(rows(w.sqlite, "SELECT state FROM learn_step_proposals WHERE state IN ('checking', 'held', 'pending')").length, 0);
   // an ended roadmap no longer blocks a new one
-  const created = await call(env, 'POST', '/api/learn/roadmap', { boardId: BOARD, instruction: 'Another', source: { sourceId: 'file:fs_a', revision: 'rev1' }, depth: 'detailed', actionKey: 'create-key-0099' },
+  const created = await call(env, 'POST', '/api/learn/roadmap', { boardId: BOARD, instruction: 'Another', source: { sourceId: 'file:fs_a', revision: 'rev1' }, depth: 'deep', actionKey: 'create-key-0099' },
     { readSource: async () => ({ key: 'file:fs_a', rev: 'rev1', scope: { kind: 'whole' }, scopeFingerprint: 'fp1' }), startPlanning: async () => {} });
   assert.equal(created.status, 202);
 });

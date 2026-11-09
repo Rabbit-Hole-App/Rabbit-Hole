@@ -3,7 +3,7 @@
 // detected and enforced (fix 5b, 5c). Offline: the model and Recraft are doubles, the ledger is the real one on node:sqlite. Nothing is sent or paid.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { withNoTextSuffix, composeVisuals, explanationProseChars, markdownIllustrations, markdownVisuals, settleExplanationBody } from '../src/learn-primitives.js';
+import { composeVisuals, explanationProseChars, markdownIllustrations, markdownVisuals, settleExplanationBody } from '../src/learn-primitives.js';
 import { deriveVisualRequirements, requiredMix, requiredVisualProblem } from '../src/explanation-visuals.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { CHAIN_ENDPOINTS, STREAM_SETTING, visualScanner } from '../src/explanation-fast-chain.js';
@@ -41,11 +41,9 @@ test('fix 2: visuals are fields; the server writes the same rh-diagram / rh-illu
   assert.deepEqual([picture.p.maxLength, picture.a.maxLength, picture.c.maxLength], [200, 120, 100], 'terse picture fields (owner review 2026-11-08)');
   const description = m.seen[0].tools.find(t => t.name === 'make_explanation').description;
   assert.match(description, /\[\[visual:1\]\]/, 'the author is told to place visuals by marker');
-  // Owner 2026-11-08 (clean-up): "Be factual: leave out exact numbers..." is gone (Depth governs precision); its never-invent half is its own line under "# Numbers and maths".
-  assert.doesNotMatch(description, /leave out exact numbers, formulas, named parts and historical particulars/, 'the factual-specifics sentence is removed');
-  assert.match(description, /Never invent the name of an object, tool, part, person or source; state only what you are certain is standard knowledge or what the request supplies\./, 'the never-invent line');
+  assert.match(description, /leave out exact numbers, formulas, named parts and historical particulars unless they are standard textbook facts you are certain of, and never invent the name of an object, tool or part/, 'the factual-specifics rule (owner review 2026-11-08)');
   // A picture fence the server wrote is the saved rh-illustration format, with a server-numbered id.
-  assert.deepEqual(markdownIllustrations(composeVisuals('A. [[visual:1]] B.', [PICTURE])).map(p => p.spec), [{ version: 1, id: 'pic-1', prompt: withNoTextSuffix(PICTURE.p), alt: PICTURE.a, caption: PICTURE.c }]);
+  assert.deepEqual(markdownIllustrations(composeVisuals('A. [[visual:1]] B.', [PICTURE])).map(p => p.spec), [{ version: 1, id: 'pic-1', prompt: PICTURE.p, alt: PICTURE.a, caption: PICTURE.c }]);
   // An unknown or repeated marker is removed; a visual without a marker goes to the end (then the layout is settled).
   assert.equal(composeVisuals('A. [[visual:3]] B. [[visual:1]] C. [[visual:1]]', [DIAGRAM]), `A.\n\nB.\n\n${diagramFence(DIAGRAM.spec)}\n\nC.`);
   const unplaced = await direct([answer([DIAGRAM], `${ICE}\n\n${AFTER}`)]);
@@ -236,7 +234,7 @@ test('fix 3: a streamed answer starts its picture before the body has arrived; t
   const asked = sent[0].at, bodyEnd = asked + 2500;
   assert.equal(sent[0].body.stream, true);
   assert.deepEqual([out.result, out.repaired, image.calls.length], ['artifact', false, 1]);
-  assert.equal(image.calls[0].prompt, withNoTextSuffix(PICTURE.p));
+  assert.equal(image.calls[0].prompt, PICTURE.p);
   assert.ok(image.calls[0].at - asked <= 400, `the picture started ${image.calls[0].at - asked} ms after the request, when its visual arrived`);
   assert.ok(image.calls[0].at < bodyEnd, 'before the body ended');
   assert.ok(doneAt - asked < 2500 + 2000, `the card took ${doneAt - asked} ms: text and picture overlapped (one after the other is 4,500 ms)`);
@@ -272,7 +270,7 @@ test('fix 3: after a repair, a picture whose prompt is unchanged is reused; a ch
   const changed = answer([{ ...PICTURE, p: 'A block of ice in a lake, seen from the shore' }]);
   fireworks(t, { content: bad }, { content: changed });
   const out = await generateArtifact(moved.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: fresh } });
-  assert.deepEqual([out.result, fresh.calls.map(c => c.prompt)], ['artifact', [withNoTextSuffix(PICTURE.p), withNoTextSuffix('A block of ice in a lake, seen from the shore')]]);
+  assert.deepEqual([out.result, fresh.calls.map(c => c.prompt)], ['artifact', [PICTURE.p, 'A block of ice in a lake, seen from the shore']]);
   assert.deepEqual(Object.keys(out.block.figures), ['pic-1']);
   assert.equal(moved.rows("SELECT * FROM usage_attempts WHERE provider = 'recraft' AND status = 'settled'").length, 2, 'both pictures are on the ledger');
 });
@@ -288,7 +286,7 @@ test('fix 3 with three visuals: a picture at visuals[2] starts early as pic-3; a
   const b = fastEnv(t), two = recraft();
   fireworks(t, { content: answer([pic(1), pic(2), pic(3)], body) });
   const kept = await generateArtifact(b.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: two } });
-  assert.deepEqual([kept.result, two.calls.map(c => c.prompt), Object.keys(kept.block.figures)], ['artifact', [withNoTextSuffix(pic(1).p), withNoTextSuffix(pic(2).p)], ['pic-1', 'pic-2']], 'the third picture is dropped, never made or charged');
+  assert.deepEqual([kept.result, two.calls.map(c => c.prompt), Object.keys(kept.block.figures)], ['artifact', [pic(1).p, pic(2).p], ['pic-1', 'pic-2']], 'the third picture is dropped, never made or charged');
 });
 
 test('fix 3: the stream scanner hands over each visuals[i] once, as soon as it closes, and is not fooled by braces in strings', () => {

@@ -9,7 +9,7 @@ This is a static SVG renderer for the written Explanation card. It takes a versi
 - `TutorDiagram.js` exports the default React component. Use `<TutorDiagram spec={value} fallback={existingContent} />`. The spec can be an object or a JSON string. Invalid specs use the caller's fallback. The component measures its container and keeps the text at native size when a dense diagram needs horizontal scrolling.
 - `renderTutorDiagram(value, width)` in the same module returns `{ element, width, height }` for deterministic static rendering and geometry tests. It throws on invalid input.
 - `spec.js` exports `parseTutorDiagram(value)` for backend validation and `tutorDiagramJsonSchema` for a structured-output request. The runtime parser is authoritative for topology, references, distinct branch labels, and matrix row lengths. `describeTutorDiagram(parsedSpec)` produces the readable diagram text for context, copying, and accessibility.
-- `examples.json` retains the original saved-spec fixtures. `reference-library.js` is the current author/reference registry: 176 examples across 24 kinds and all 21 Phase 02 lessons. Its `ml-*-references.js` sources contain complete JSON plus natural prompts and selection keywords.
+- `examples.json` retains the original saved-spec fixtures. `reference-library.js` is the current author/reference registry: 150 examples (Phase 02 batches 2a, 2b, 2c and 3a included; batch 1 queued), all 21 kinds and all 21 Phase 02 lessons. Its `ml-*-references.js` sources contain complete JSON plus natural prompts and selection keywords.
 - `packages/control-plane/src/explanation-references.js` selects at most two relevant examples and supplies them to the **actual** `prepareArtifactAuthorRequest` system context in `learn-artifact.js`. Repairs reuse that context. Required kinds filter examples; they never justify an unrelated example. When the required kind matches a comparison/visual-transformation leaf, selection can excerpt that leaf as a standalone valid spec, with a deterministic part ID and its source reference ID. Ordinary conceptual requests retain the full composition. Required-kind validation remains strict. Unknown topics can receive no example and still use the schema.
 - [Phase 02 handoff](../../../../docs/features/explain-on-canvas/handoff/phase02-library/README.md) records the implementation, acceptance limits and exact sources. [Generated gallery](../../../../docs/features/explain-on-canvas/handoff/phase02-library/references/index.html) renders the same reference objects.
 
@@ -22,7 +22,7 @@ Every spec has the shape `{ "version": 1, "diagram": { "kind": "...", "title": "
 | `flow` | Nodes with `id`, `label`, `role`; directed edges with `from`, `to`, optional `label` | Process boxes, decision diamonds, outcome pills, elbow arrows, branch labels, skip lanes |
 | `comparison` | Columns with `heading` and `items` | Colored headers, outlined cells, dashed column dividers |
 | `timeline` | Events with `time`, `label`, optional `detail` | Time pills, event cards, connected markers |
-| `sequence` | Actors with `id` and `label`, messages with `from`, `to`, and `label`. Self-messages may appear anywhere. At least one message must go between different actors, and ordinary messages separate self-messages. | Actor boxes, lifelines, directed arrows, labelled loops for self-messages |
+| `sequence` | Actors with `id` and `label`; messages with `from`, `to`, and `label` | Actor boxes, lifelines, directed message arrows |
 | `matrix` | Column labels; rows with `heading` and `cells` | Column headers, row headers, data cells |
 | `layers` | Ordered layers with `label`, optional `detail` | Stacked color blocks with wrapped labels and details |
 | `cycle` | Ordered step labels | Step boxes, arrows, outer return connector |
@@ -32,7 +32,7 @@ Every spec has the shape `{ "version": 1, "diagram": { "kind": "...", "title": "
 | `transformation` | Before and after item lists, operation, optional zero-based item mappings | Two states, operation banner, and labeled mappings |
 | `argument` | Claim, support, objections, conclusion. Evidence can include a source label | Evidence lanes joined to a conclusion |
 | `number-line` | Explicit domain, value markers, intervals with open or closed endpoints | Scaled ticks, numbered markers, interval segments |
-| `coordinate-plot` | Two labeled axis domains, optional units, line or scatter series. Set `smooth: false` on a line series for straight segments. | Linear axes, monotone cubic line paths, exact point values, distinct series symbols |
+| `coordinate-plot` | Two labeled axis domains, optional units, line or scatter series | Linear axes, data marks, exact point values, distinct series symbols |
 | `bar-chart` | Labeled signed values and optional unit | Horizontal bars with a shared zero baseline |
 | `t-account` | Account label, optional unit, debit and credit entries | Debit and credit columns, totals, balance side |
 | `waterfall` | Opening value, signed changes, optional unit | Floating change bars, running totals, computed closing balance |
@@ -46,7 +46,7 @@ Any label, title, caption, heading or item may hold maths in the card prose's de
 
 ## Phase 02 extensions (2026-11-08)
 
-This batch added four kinds to the original 17. Nine original kinds have additive variants. Old version-1 JSON without the new fields keeps its existing rendering.
+The runtime supports **21 kinds**: the original 17 above plus the four new kinds below. Nine original kinds have additive variants. Old version-1 JSON without the new fields keeps its existing rendering.
 
 | Kind | New supported fields / variant | Primary source |
 | --- | --- | --- |
@@ -56,8 +56,8 @@ This batch added four kinds to the original 17. Nine original kinds have additiv
 | `box-plot` | Quartiles, median, observed whiskers, fences and labelled outliers on an explicit axis | `ml-statistical-*` |
 | `tree` | `layout: binary/hierarchy/dendrogram`, child `edgeLabel`, count/detail/pruned; `highlightPath`, merge heights and cutoff | `ml-topology-*` |
 | `relationship` | `layout: graph`, each node drawn once, separate directed/reciprocal routes and labelled ledger | `ml-topology-*` |
-| `flow` | `fork` and `merge` for simultaneous branches. Arrivals from three or more edges use distinct top ports and staggered approaches. | `ml-topology-*` |
-| `coordinate-plot` | Linear/log axes, up to five series, step/stem series, low/high uncertainty, bounded annotations in data coordinates. Use `endLabel: true` for a line ending at the x-axis maximum. | `ml-plot-*` |
+| `flow` | `fork` and `merge` roles for simultaneous branches; legacy routing retained | `ml-topology-*` |
+| `coordinate-plot` | Linear/log axes, step/stem series, low/high uncertainty, bounded annotations in data coordinates | `ml-plot-*` |
 | `bar-chart` | `variant: grouped/stacked`, categories, series; signed stacks calculated separately around zero | `ml-plot-*` |
 | `timeline` | `layout: scaled-lanes`, numeric domain/unit, lanes with intervals/events and cutoffs | `ml-data-*` |
 | `matrix` | `layout: teaching`, stable row IDs, emphasis and missing/changed cell states | `ml-data-*` |
@@ -69,16 +69,6 @@ This batch added four kinds to the original 17. Nine original kinds have additiv
 Plots accept point, segment, vector, reference-line, rectangle, polygon, circle, ellipse and band annotations. Coordinates are **data values** inside declared domains, never authored pixels. Circles/ellipses are axis-aligned data geometry; nonlinear axes can change their apparent shape. Large teaching diagrams retain native text and scroll using the existing component, rather than shrinking labels. A three-panel comparison stacks at narrow widths and can be tall.
 
 A highlighted tree path is root-to-descendant, not an arbitrary traversal order. Inorder traversal uses visit annotations on the actual structure. A family descendant hierarchy has one root and one parent per child; a multiple-parent pedigree needs a relationship graph.
-
-## Static illustration kinds
-
-| Kind | Schema and layout modules | Supported structure |
-| --- | --- | --- |
-| `tensor` | `tensor-spec.js`, `tensor-layout.js` | Up to eight visible cells, optional numbers, name and dimension label. The payload also works in flow, relationship, transformation and block stacks. |
-| `token-links` | `token-links-spec.js`, `token-links-layout.js` | Weighted links between token rows. Comparison panels use compact token boxes with a 56 px minimum. Two six-token panels fit from 912 px. |
-| `block-stack` | `block-stack-spec.js`, `block-stack-layout.js` | Inset flows, tensors or layers, residual arrows, repeat groups, add and multiply joins, side inputs, callouts and detail indices. A comparison can use two of these stacks and highlight changed blocks. |
-
-The registry includes their reference prompts and keywords. `explanation-references.js` adds the matching fields to the fast-author bundle. The natural-width renderer uses the existing scroll viewport. [Previews, JSON and test receipts](../../../../docs/features/explain-on-canvas/handoff/phase02-library/illustration-primitives.md)
 
 ## Approved visual treatment
 
@@ -120,5 +110,3 @@ node packages/web/scripts/export-explanation-references.mjs
 ```
 
 The fixtures exercise deterministic rendering and narrow widths without calling a model. Backend tests use the actual request/validation path with a scripted provider. Browser fit, live provider schema acceptance and generated-card save/reopen still require dev evidence. The existing math test needs `linkedom` available in the test environment; it is not a production dependency of this change.
-
-`kind-gallery.json` is one neutral example per kind (token budget in `kind-gallery.token-budget.json`); `kind-gallery-depths.json` has an Overview, Standard and Deep version of each, and the planner path attaches the one for the planned kind at the card's depth. `content-contract.js` lints reference and gallery text in `reference-content-contract.test.mjs`; `formula-sampler.js` fills a plot series from a formula behind `EXPLANATION_FORMULA_SAMPLER=on`; `correction-corpus*.fixtures.mjs` are rejected/corrected spec pairs (`packages/control-plane/scripts/explanation-correction-corpus-report.mjs` runs them through the server corrections); `reference-single-variants.js` holds the one-diagram variants of two-panel references, sent by default. After an intended rendering change, regenerate the snapshots with `UPDATE_TUTOR_SVG_SNAPSHOTS=1 node --test packages/web/src/tutor-diagrams/svg-snapshots.test.mjs` and read the diff (`node packages/web/scripts/explanation-svg-snapshots.mjs --before <old tree> --out <empty dir>`).

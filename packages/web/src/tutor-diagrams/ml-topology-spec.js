@@ -1,9 +1,6 @@
 // Additive semantics only. The shared spec retains tree/flow identity, cycle,
 // binary-slot, and edge-reference checks for both old and extended diagrams.
-import { flowPaths } from './flow-paths.js';
-import { tensorText } from './tensor-spec.js';
-
-export function createShapes({ z, titled, text, id, numeric, node, axes, tensorNode = node, flowPath = z.array(id).min(2).max(12) }) {
+export function createShapes({ z, titled, text, id, numeric, node, axes }) {
   const endpoint = { from: id, to: id };
   return [
     z.strictObject({
@@ -18,15 +15,15 @@ export function createShapes({ z, titled, text, id, numeric, node, axes, tensorN
     }),
     z.strictObject({
       ...titled, kind: z.literal('relationship'), layout: z.literal('graph').optional(),
-      nodes: z.array(z.strictObject(tensorNode)).min(2).max(8),
+      nodes: z.array(z.strictObject(node)).min(2).max(8),
       edges: z.array(z.strictObject({ ...endpoint, label: text(48) })).min(1).max(12),
     }),
     z.strictObject({
       ...titled, kind: z.literal('flow'),
       // title (item 47): the server-written full text of a trimmed label, the node's tooltip; spec.js removes it from the author schema.
-      nodes: z.array(z.strictObject({ ...tensorNode, role: z.enum(['process', 'decision', 'outcome', 'fork', 'merge']), title: text(240).optional() })).min(2).max(12),
+      nodes: z.array(z.strictObject({ ...node, role: z.enum(['process', 'decision', 'outcome', 'fork', 'merge']), title: text(240).optional() })).min(2).max(12),
       edges: z.array(z.strictObject({ ...endpoint, label: text(30).optional() })).min(1).max(20),
-      highlightPath: flowPath.optional(),
+      highlightPath: z.array(id).min(2).max(12).optional(),
     }),
   ];
 }
@@ -34,9 +31,7 @@ export function createShapes({ z, titled, text, id, numeric, node, axes, tensorN
 export const extendedTree = d => d.layout === 'hierarchy' || d.layout === 'dendrogram' || !!d.highlightPath ||
   d.nodes.some(n => ['edgeLabel', 'count', 'detail', 'pruned', 'height'].some(key => n[key] !== undefined));
 export const extendedFlow = d => d.nodes.some(n => n.role === 'fork' || n.role === 'merge');
-const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
-const tensors = d => d.nodes.flatMap(n => n.tensor ? tensorText(n.tensor) : []);
-export const flowLabel = node => node.role === 'fork' ? `Parallel: ${nodeName(node)}` : node.role === 'merge' ? `Merge: ${nodeName(node)}` : node.label;
+export const flowLabel = node => node.role === 'fork' ? `Parallel: ${node.label}` : node.role === 'merge' ? `Merge: ${node.label}` : node.label;
 export const nodeMetadata = node => [node.count !== undefined ? `n = ${node.count}` : null, node.detail, node.pruned ? 'Pruned' : null].filter(Boolean);
 
 function validateTree(d, issue) {
@@ -106,7 +101,7 @@ export function validate(d, issue) {
 }
 
 const connections = d => {
-  const names = new Map(d.nodes.map(n => [n.id, nodeName(n)]));
+  const names = new Map(d.nodes.map(n => [n.id, n.label]));
   return d.edges.map(e => `${names.get(e.from)}${e.label ? ` — ${e.label}` : ''} → ${names.get(e.to)}`);
 };
 const heightText = (n, d) => `${n.height}${d.heightAxis?.unit ? ` ${d.heightAxis.unit}` : ''}`;
@@ -123,12 +118,12 @@ export function describe(d) {
       ...(d.cutoff ? [`Cutoff: ${d.cutoff.label} = ${d.cutoff.value}${d.heightAxis?.unit ? ` ${d.heightAxis.unit}` : ''}`] : []),
     ];
   }
-  if (d.kind === 'relationship' && d.layout === 'graph') return [...connections(d), ...tensors(d)];
+  if (d.kind === 'relationship' && d.layout === 'graph') return connections(d);
   if (d.kind === 'flow' && extendedFlow(d)) return [
     ...d.nodes.filter(n => n.role === 'fork' || n.role === 'merge').map(n => n.role === 'fork'
-      ? `${nodeName(n)}: simultaneous parallel routes` : `${nodeName(n)}: merge incoming routes before continuing`),
-    ...connections(d), ...tensors(d),
-    ...flowPaths(d.highlightPath).map(path => `Highlighted path: ${path.map(id => nodeName(d.nodes.find(n => n.id === id))).join(' → ')}`),
+      ? `${n.label}: simultaneous parallel routes` : `${n.label}: merge incoming routes before continuing`),
+    ...connections(d),
+    ...(d.highlightPath ? [`Highlighted path: ${d.highlightPath.map(id => d.nodes.find(n => n.id === id).label).join(' → ')}`] : []),
   ];
   return null;
 }
@@ -141,7 +136,7 @@ export function visibleText(d) {
     ...(d.heightAxis ? [d.heightAxis.label, d.heightAxis.unit].filter(Boolean) : []),
     ...(d.cutoff ? [`Cutoff: ${d.cutoff.label} = ${d.cutoff.value}`] : []),
   ];
-  if (d.kind === 'relationship' && d.layout === 'graph') return [...own, ...d.nodes.map(n => n.label), ...connections(d), ...tensors(d)];
-  if (d.kind === 'flow' && extendedFlow(d)) return [...own, ...d.nodes.map(flowLabel), ...d.edges.map(e => e.label).filter(Boolean), ...tensors(d)];
+  if (d.kind === 'relationship' && d.layout === 'graph') return [...own, ...d.nodes.map(n => n.label), ...connections(d)];
+  if (d.kind === 'flow' && extendedFlow(d)) return [...own, ...d.nodes.map(flowLabel), ...d.edges.map(e => e.label).filter(Boolean)];
   return null;
 }

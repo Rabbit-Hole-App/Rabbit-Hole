@@ -87,7 +87,7 @@ test('UI.03: planning is one activity entry, then the draft in the SAME entry wi
   assert.equal(next.activity, 'Generating roadmap');
   assert.ok(historyActions(draft.tutor).every(a => a.disabled), 'a superseded draft keeps its labels, disabled');
   assert.deepEqual(historyActions(draft.tutor).map(a => a.label), ['Accept roadmap', 'Edit roadmap']);
-  const backend = entriesOf(at('status-active-proposal-pending', v => ({ ...v, planDraft: { version: 3, outcome: 'o', steps: [{ position: 1, title: 'New future step', format: 'explanation' }], settings: { depth: 'detailed' }, acceptable: true } })));
+  const backend = entriesOf(at('status-active-proposal-pending', v => ({ ...v, planDraft: { version: 3, outcome: 'o', steps: [{ position: 1, title: 'New future step', format: 'explanation' }], settings: { depth: 'deep' }, acceptable: true } })));
   const after = backend.find(e => e.kind === 'draft');
   assert.equal(after.clientId, `roadmap-draft-${body('status-active-proposal-pending').roadmap.id}-v3`, 'Edit roadmap after acceptance: contracts.md draft');
   assert.ok(backend.some(e => e.kind === 'accepted'), 'the accepted roadmap stays authoritative while the draft is reviewed');
@@ -209,12 +209,12 @@ test('a saved entry renders in place: live when its ids are current, else as his
 test('Explain on canvas creates the roadmap with the composer Depth and no scraped instruction, and only then (BE.01: no paid call before Explain)', async () => {
   const calls = [];
   const api = async (path, opts = {}) => { calls.push({ path, method: opts.method || 'GET', body: opts.body ? JSON.parse(opts.body) : null }); if (path.includes('/invitations') && !opts.method) return body('invitation-offered'); if (!opts.method) return { roadmap: null }; return body('create-response-draft'); };
-  const controller = createRoadmapController({ api, boardId: 'lb_7c1e5a90d2b84f63a1c07e92', host: { readOnly: () => false, depth: () => 'balanced', instruction: () => 'scraped', sourceRev: () => 'rev1', hasBlock: () => false }, schedule: () => 0, cancel() {}, random: () => 'k1aaaaaaaa' });
+  const controller = createRoadmapController({ api, boardId: 'lb_7c1e5a90d2b84f63a1c07e92', host: { readOnly: () => false, depth: () => 'standard', instruction: () => 'scraped', sourceRev: () => 'rev1', hasBlock: () => false }, schedule: () => 0, cancel() {}, random: () => 'k1aaaaaaaa' });
   controller.start(); await new Promise(r => setTimeout(r, 10));
   assert.equal(calls.filter(c => c.method === 'POST').length, 0, 'the invitation alone starts nothing');
-  await controller.explain({ depth: 'detailed', instruction: '' });
+  await controller.explain({ depth: 'deep', instruction: '' });
   const create = calls.find(c => c.method === 'POST' && c.body?.invitationId);
-  assert.equal(create.body.depth, 'detailed');
+  assert.equal(create.body.depth, 'deep');
   assert.equal(create.body.instruction, '', 'the explicit (empty) instruction of this flow, not a host read');
 });
 

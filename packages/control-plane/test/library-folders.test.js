@@ -147,17 +147,3 @@ test('Trash keeps the membership: a trashed item leaves the Library and comes ba
   assert.deepEqual((await ownerCanvases(f.env, PEOPLE.ana)).map(x => x.name), [c]);
   assert.deepEqual((await f.list('ana')).items, { [c]: folder.id }, 'back in its folder');
 });
-
-test('deleting every canvas leaves every folder: an empty folder stays listed until its owner deletes it (owner bug 2026-11-09)', async t => {
-  const f = setup(t);
-  const one = await f.canvas('ana', 'One'), two = await f.canvas('ana', 'Two');
-  const { folder } = await f.folder('ana', 'Batch', { item: one });
-  await f.call('PUT', `/api/library/folders/${folder.id}/items/${two}`, { as: 'ana' });
-  const empty = (await f.folder('ana', 'Empty')).folder;
-  for (const name of [one, two]) assert.equal((await f.call('DELETE', `/api/apps/${name}`, { as: 'ana' })).status, 200);
-  assert.deepEqual((await ownerCanvases(f.env, PEOPLE.ana)).map(x => x.name), [], 'no canvas is left');
-  assert.deepEqual((await f.list('ana')).folders.map(x => x.name), ['Batch', 'Empty'], 'both folders are still there');
-  assert.equal((await f.call('DELETE', `/api/library/folders/${empty.id}`, { as: 'ana' })).status, 200, 'an explicit delete still works');
-  assert.deepEqual((await f.list('ana')).folders.map(x => x.name), ['Batch'], 'and deletes only that folder');
-});
-

@@ -4,7 +4,6 @@
 // Asking the author for a bundle the reviewer cannot receive would waste a paid call, so the preflight builds the REAL review and
 // repair requests at their worst-case image and evidence sizes, with the program, and returns a specific size problem instead of
 // omitting anything. Nothing here calls a model.
-import { DEFAULT_DEPTH, depthOf } from './chat-depth.js';
 import { buildReviewContent, REVIEW_LIMITS, REVIEW_TOOL, reviewSystem } from './explain-review.js';
 import { EXPLAIN_REPAIR_PROGRAM_SYSTEM, repairProgramTool } from './agents/explain-repair.js';
 import { STATEFUL_SCHEMA_VERSION, draftSchemaVersion } from '../../web/src/explain-program/contract.js';
@@ -29,7 +28,7 @@ export function programRepairContent(job, failure, images = []) {
   const problems = (failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(clip);
   const findings = [...(failure.findings || [])].sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings).map(plainFinding);
   const omitted = Math.max(0, (failure.problems || []).length - problems.length) + Math.max(0, (failure.findings || []).length - findings.length);
-  const head = { request: job.prompt, ...(job.depth && depthOf(job.depth) !== DEFAULT_DEPTH ? { depth: depthOf(job.depth) } : {}), problems, findings, ...(omitted ? { omitted } : {}), allowed: ['program'],
+  const head = { request: job.prompt, ...(job.depth && job.depth !== 'standard' ? { depth: job.depth } : {}), problems, findings, ...(omitted ? { omitted } : {}), allowed: ['program'],
     roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round, program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful: programStateful(program), repair: true }),
     // The same records the author and the reviewer were given, so a source finding is repaired against its source.
     ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}) };

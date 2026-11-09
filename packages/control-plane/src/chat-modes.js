@@ -115,9 +115,9 @@ export function chatFields(body) {
     if (!/^\d{1,15}$/.test(id)) throw Error('regenerate.messageId must be a message id');
     regenerate = { messageId: Number(id) };
   }
-  // R2: the learner's Depth for this turn; absent (an old client, or Balanced) adds nothing.
-  if (body.depth !== undefined && !validDepth(body.depth)) throw Error('depth must be brief, balanced or detailed');
-  return { mode, command, contextRefs: refs, regenerate, ...(body.depth !== undefined ? { depth: validDepth(body.depth) } : {}) };
+  // R2: the learner's Depth for this turn; absent (an old client, or Standard) adds nothing.
+  if (body.depth !== undefined && !validDepth(body.depth)) throw Error('depth must be overview, standard or deep');
+  return { mode, command, contextRefs: refs, regenerate, ...(body.depth !== undefined ? { depth: body.depth } : {}) };
 }
 
 // The context documents a turn may send: the ids its doc refs name, or null (no refs sent: every switched-on one).

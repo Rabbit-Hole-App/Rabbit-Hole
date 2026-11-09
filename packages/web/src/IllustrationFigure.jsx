@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { loadAsset } from './learn-board-assets.js';
 import { readOriginal } from './media-storage.js';
 import { parseIllustrationFence } from './explanation-lead.js';
-import { PICTURE_DISPLAY_WIDTH } from './explanation-card-width.js';
 
 // A reusable figure: an illustration in its own container with its caption below (the written Explanation puts one after its opening paragraph).
 // Layout follows the approved Image mockup (handoff/ui/07-explanation-card-approved.html on chatgpt/tutor, .picture-figure): margin 13px 0 11px, the picture full width with 9px corners,
@@ -55,7 +54,7 @@ export default function IllustrationFigure({ illustration, className = '' }) {
   const ratio = Number.isFinite(illustration?.aspect) && illustration.aspect > 0.3 && illustration.aspect < 3 ? illustration.aspect : 1;
   if (state === 'failed') return null; // a learner never sees a failed picture (owner 2026-11-08): no frame, no gap, no message
   return (
-    <figure data-illustration data-illustration-state={state} style={{ maxWidth: PICTURE_DISPLAY_WIDTH }} className={`mx-auto mt-[13px] mb-[11px] ${className}`}>
+    <figure data-illustration data-illustration-state={state} className={`m-0 mt-[13px] mb-[11px] ${className}`}>
       <div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden rounded-[9px] bg-[var(--viz-surface,#fbfbfa)]">
         {state !== 'ready' && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-hover" />}
         {url && <img src={url} alt={illustration?.alt || ''} draggable={false} ref={el => { if (el && el.complete && el.naturalWidth > 0 && !(done.url === url && done.ok)) setDone({ url, ok: true }); }} onLoad={() => setDone({ url, ok: true })} onError={() => setDone({ url, ok: false })} className={`absolute inset-0 block h-full w-full object-contain transition-opacity ${state === 'ready' ? 'opacity-100' : 'opacity-0'}`} />}

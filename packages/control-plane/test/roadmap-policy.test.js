@@ -14,9 +14,9 @@ test('the shipped policy is internally consistent and versioned', () => {
 });
 
 test('step ceilings are provisional maxima by Depth, cards per step start at one', () => {
-  assert.deepEqual(L.stepCeiling, { brief: 5, balanced: 10, detailed: 15 });
+  assert.deepEqual(L.stepCeiling, { overview: 5, standard: 10, deep: 15 });
   for (const d of DEPTHS) assert.equal(P.ceilingFor(d), L.stepCeiling[d]);
-  assert.equal(P.ceilingFor('nonsense'), 10, 'an unknown Depth reads as balanced');
+  assert.equal(P.ceilingFor('nonsense'), 10, 'an unknown Depth reads as standard');
   assert.equal(L.cardsPerStep.ceiling, 3);
   assert.equal(L.cardsPerStep.r4Default, 1);
   assert.match(P.LIMIT_BASIS.stepCeiling[1], /not quotas/);
@@ -26,7 +26,7 @@ test('every numeric limit says whether it is existing (with its source) or propo
   for (const path of P.leafPaths()) assert.ok(P.basisOf(path), `${path} has no basis`);
   for (const path of ['source.passageChars', 'source.instructionChars', 'source.requestBodyBytes', 'maxTokens.artifact', 'calls.generationPerCard',
     'deadlineMs.safetyFetch', 'retries.safetyFetch', 'hold.artifactSeconds']) assert.equal(P.basisOf(path).status, 'existing', path);
-  for (const path of ['source.chars', 'deadlineMs.draft', 'quotas.perHour.plan', 'stepCeiling.detailed']) assert.equal(P.basisOf(path).status, 'proposed', path);
+  for (const path of ['source.chars', 'deadlineMs.draft', 'quotas.perHour.plan', 'stepCeiling.deep']) assert.equal(P.basisOf(path).status, 'proposed', path);
 });
 
 test('the overall checking deadline includes the admitted screening retry and the adjudication', () => {
@@ -60,7 +60,7 @@ test('bounds a step depends on are consistent', () => {
   assert.ok(P.validateLimits(small).some(p => /source bound/.test(p)));
   const retries = clone(); retries.calls.automaticRetriesPerCard = 2;
   assert.ok(P.validateLimits(retries).some(p => /one automatic retry/.test(p)));
-  const ceilings = clone(); ceilings.stepCeiling.balanced = 3;
+  const ceilings = clone(); ceilings.stepCeiling.standard = 3;
   assert.ok(P.validateLimits(ceilings).some(p => /grow with Depth/.test(p)));
   const bad = clone(); bad.quotas.perHour.plan = -1;
   assert.ok(P.validateLimits(bad).some(p => /non-negative/.test(p)));

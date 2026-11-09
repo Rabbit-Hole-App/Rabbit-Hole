@@ -69,25 +69,6 @@ test('coordinate plot puts values on a linear scale and exposes exact values per
   assert.match(d.tag, /^<rect/);
 });
 
-test('a dense legacy line keeps every vertex and marks only its first and last point (and labelled ones)', () => {
-  const dense = Array.from({ length: 7 }, (_, i) => ({ x: i - 3, y: i - 3 }));
-  const short = dense.slice(0, 6).map(({ x, y }) => ({ x, y: -y }));
-  const scatter = dense.map(({ x }) => ({ x, y: 2 }));
-  const svg = render(quantitativeLayouts['coordinate-plot']({
-    x: { label: 'X', min: -3, max: 3 }, y: { label: 'Y', min: -3, max: 3 },
-    series: [
-      { label: 'Dense line', kind: 'line', points: dense },
-      { label: 'Short line', kind: 'line', points: short },
-      { label: 'Observed', kind: 'scatter', points: scatter },
-    ],
-  }, 320));
-  assert.deepEqual(marks(svg, 'data-tutor-coordinate-point').map(mark => mark.value),
-    [dense[0], dense[6], ...short, ...scatter].map(({ x, y }) => `${x},${y}`));
-  const denseLine = [...svg.matchAll(/<path[^>]* d="(M[^"]+)"/g)].map(m => m[1]).find(d => d.split('C').length === 7); // smooth: one move-to and six cubic segments (Codex c92ec1279)
-  assert.ok(denseLine, 'the rendered line retains all seven vertices');
-  assert.match(svg, /Dense line/);
-});
-
 test('coordinate plot emits finite geometry even for ranges crossing both finite extremes', () => {
   const min = -Number.MAX_VALUE;
   const max = Number.MAX_VALUE;

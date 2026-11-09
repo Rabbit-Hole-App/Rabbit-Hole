@@ -15,9 +15,9 @@ const diagramFor = id => {
 
 test('Bayesian acquisition recomputes UCB from the four surrogate predictions', () => {
   const { rows, columns, emphasis, caption } = diagramFor('ml-bayesian-acquisition-choice');
-  assert.deepEqual(columns, [String.raw`$\mu,\sigma$`, 'UCB']);
-  assert.deepEqual(rows.map(row => row.heading), ['A · $d=2$', 'B · $d=4$', 'C · $d=6$', 'D · $d=8$']);
-  const predictions = rows.map(row => row.cells[0].slice(1, -1).split(',').map(Number));
+  assert.deepEqual(columns, ['μ + σ', 'UCB']);
+  assert.deepEqual(rows.map(row => row.heading), ['A · d=2', 'B · d=4', 'C · d=6', 'D · d=8']);
+  const predictions = rows.map(row => row.cells[0].split('+').map(Number));
   assert.deepEqual(predictions, [[0.70, 0.02], [0.76, 0.02], [0.73, 0.10], [0.68, 0.08]]);
   const scores = predictions.map(([mean, deviation]) => (mean + deviation).toFixed(2));
   assert.deepEqual(scores, ['0.72', '0.78', '0.83', '0.76']);
@@ -67,7 +67,7 @@ test('successive halving advances only the top trials and charges only added epo
   assert.deepEqual(spend, [4, 2, 2]);
   const total = spend.reduce((sum, cost) => sum + cost, 0);
   assert.equal(total, 8);
-  assert.ok(caption.includes(`$${spend.join(' + ')} = ${total}$ trial-epochs`));
+  assert.ok(caption.includes(`${spend.join(' + ')} = ${total} trial-epochs`));
   assert.match(caption, /held-out accuracy.*Epochs are cumulative.*Total spend when resuming/);
   assert.deepEqual(emphasis.cells, rows.filter(row => row.cells[1] !== 'Stop')
     .map(row => ({ row: row.id, column: 1 })));
@@ -106,14 +106,11 @@ test('lesson 12 tuning references round-trip and render every numeric label at 3
       const visible = Object.fromEntries(elements.flatMap((element, index) => {
         const key = element.props['data-tutor-matrix-row'] ?? element.props['data-tutor-matrix-cell'];
         if (!key) return [];
-        const label = elements[index + 1];
-        const lines = Children.toArray(label.props.children);
+        const text = elements[index + 1];
+        assert.equal(text.type, 'text');
+        const lines = Children.toArray(text.props.children);
         assert.equal(lines.length, 1, `${key} must stay on one line at ${width} px`);
-        const [line] = lines;
-        if (label.type === 'text') return [[key, line.props.children]];
-        assert.equal(line.type, 'foreignObject');
-        const runs = Children.toArray(line.props.children.props.children);
-        return [[key, runs.map(run => typeof run === 'string' ? run : run.props['data-tutor-tex']).join('')]];
+        return [[key, lines[0].props.children]];
       }));
       assert.deepEqual(visible, expected);
     }

@@ -18,7 +18,7 @@ function fixture(t){
   sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(1,'team','repo-example','owner@test','example/project','main','${sha}','ready'); INSERT INTO repository_versions VALUES(1,'${sha}','snapshot',datetime('now'));`);
   const db={prepare:sql=>{let args=[];const stmt=sqlite.prepare(sql);return{bind(...v){args=v;return this;},first:async()=>stmt.get(...args)||null,all:async()=>({results:stmt.all(...args)}),run:async()=>({meta:stmt.run(...args)})};},batch:async statements=>Promise.all(statements.map(s=>s.run()))};
   const assets=new Map([['snapshot',snapshot]]),data=new Map();
-  const env={SMALL_ENV:'test',LEARN_DB:db,ANTHROPIC_API_KEY:'test',CHAT_MODEL_PROFILE:'anthropic',SCENE_WORKER_URL:'https://worker.test',SCENE_WORKER_TOKEN:'secret',CONTROL_PLANE:{fetch:async req=>req.headers.get('cookie')==='denied'?new Response('',{status:401}):Response.json({org:req.headers.get('x-small-workspace')||'team',email:req.headers.get('x-email')||'owner@test',apps:[]})},REPOSITORY_SNAPSHOTS:{get:async k=>assets.has(k)?{json:async()=>typeof assets.get(k)==='string'?JSON.parse(assets.get(k)):assets.get(k)}:null,put:async(k,v)=>assets.set(k,v)},RUNS:{get(){throw Error('live bucket touched');},put(){throw Error('live bucket touched');}}};
+  const env={SMALL_ENV:'test',LEARN_DB:db,ANTHROPIC_API_KEY:'test',SCENE_WORKER_URL:'https://worker.test',SCENE_WORKER_TOKEN:'secret',CONTROL_PLANE:{fetch:async req=>req.headers.get('cookie')==='denied'?new Response('',{status:401}):Response.json({org:req.headers.get('x-small-workspace')||'team',email:req.headers.get('x-email')||'owner@test',apps:[]})},REPOSITORY_SNAPSHOTS:{get:async k=>assets.has(k)?{json:async()=>typeof assets.get(k)==='string'?JSON.parse(assets.get(k)):assets.get(k)}:null,put:async(k,v)=>assets.set(k,v)},RUNS:{get(){throw Error('live bucket touched');},put(){throw Error('live bucket touched');}}};
   const state={storage:{get:async k=>structuredClone(data.get(k)),put:async(k,v)=>data.set(k,structuredClone(v)),setAlarm:async()=>{}},blockConcurrencyWhile:async fn=>fn()};
   return{env,sqlite,data,assets,state,actor:new RepositoryImports(state,env),send:(path,body,headers={})=>repositoriesFetch(new Request(`https://dev.test/api/repositories/repo-example/${path}`,{method:body?'POST':'GET',headers, ...(body?{body:JSON.stringify(body)}:{})}),env,{})};
 }
@@ -165,7 +165,7 @@ test('selected source is bounded per question: past the budget a selection is na
 // C4 models-1, repository row: same resolution as apiAsk; Auto keeps the server-side fallback.
 test('repository chat runs Auto as claude-opus-5 with fallback, and a picked key as that id alone',async t=>{
   const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const sent=[];
-  f.env.ANTHROPIC_API_KEY='a';f.env.CHAT_MODEL_PROFILE='anthropic';f.env.OPENAI_API_KEY='o';
+  f.env.ANTHROPIC_API_KEY='a';f.env.OPENAI_API_KEY='o';
   globalThis.fetch=async(url,options)=>{const body=JSON.parse(options.body);sent.push({host:new URL(url).host,model:body.model,fallbacks:body.fallbacks});return Response.json({content:[{type:'text',text:'ok'}],stop_reason:'end_turn'});};
   for(const model of [undefined,'sonnet-5','gpt-5'])await(await f.send('ask',{message:'Hi',...(model?{model}:{})})).text();
   assert.deepEqual(sent,[{host:'api.anthropic.com',model:'claude-opus-5',fallbacks:'default'},{host:'api.anthropic.com',model:'claude-sonnet-5',fallbacks:undefined},{host:'api.anthropic.com',model:'claude-opus-5',fallbacks:'default'}]);
@@ -470,7 +470,7 @@ test('the 25-project import cap counts only projects the caller owns, never the 
 // Bedrock role) from production D1. The course draft uses the default provider; no DB means no settings.
 test('a repository course draft uses the default provider and reads no org_ai row from production D1',async t=>{
   const f=fixture(t),live=liveDb(),original=globalThis.fetch,hosts=[];
-  Object.assign(f.env,{DB:live,ANTHROPIC_API_KEY:'test',CHAT_MODEL_PROFILE:'anthropic'});
+  Object.assign(f.env,{DB:live,ANTHROPIC_API_KEY:'test'});
   globalThis.fetch=async url=>{hosts.push(new URL(String(url)).hostname);return Response.json({content:[{type:'text',text:'{}'}],stop_reason:'end_turn'});};
   t.after(()=>{globalThis.fetch=original;});
   assert.equal((await f.send('learn-course',{action:'brief',revision:0,brief:{audience:'Students',goal:'Understand models',knowledge:'Python',duration:'20 minutes'}})).status,200);

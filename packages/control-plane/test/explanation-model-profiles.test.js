@@ -73,7 +73,7 @@ test('a one-role override changes only that role: the repair role may pin anothe
 test('a quote carries the profile binding, and an accepted record that kept a binding dispatches only while the registry still matches it', async () => {
   const access = { org: 'o', actorUserId: 'u1', actorEmail: 'a@x.test', boardId: 'b1', boardOwnerEmail: 'a@x.test', role: 'owner', payerUserId: 'u1' };
   const ref = { authorizationId: 'auth_00000001', resultId: 'res_00000001', resultVersion: 1 };
-  const rec = { cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Slopes', stepGoal: 'Read the slope.', passageText: 'The gradient points uphill.', language: 'en', depth: 'balanced', retry: 0 };
+  const rec = { cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Slopes', stepGoal: 'Read the slope.', passageText: 'The gradient points uphill.', language: 'en', depth: 'standard', retry: 0 };
   const quote = await quoteRoadmapCard({}, rec);
   assert.equal(quote.outcome, 'quoted');
   assert.deepEqual(quote.profile, await explanationProfileBinding(explanationProfileFor({})));
