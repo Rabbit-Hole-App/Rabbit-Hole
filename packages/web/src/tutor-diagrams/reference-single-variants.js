@@ -3,12 +3,14 @@ import { singleSpecs as specsA } from './reference-single-specs-a.js';
 import { singleSpecs as specsB } from './reference-single-specs-b.js';
 import { architectureSingleSpecs } from './illustration-architecture-references.js';
 import { transformerMultiheadReference, transformerMultiheadSingleSpec } from './transformer-multihead-reference.js';
+import { figureChapterSingleSpecs } from './figure-chapter-single-specs.js';
 
 const panelsById = new Map(diagramReferences.map(ref => [ref.id, ref]));
 
 export const singleDiagramReferences = Object.freeze(
   Object.entries({ ...specsA, ...specsB, ...architectureSingleSpecs,
     [transformerMultiheadReference.id]: transformerMultiheadSingleSpec,
+    ...figureChapterSingleSpecs,
   }).map(([panelReferenceId, { spec, useWhen }]) => {
     const { id, keywords, prompts, lessons } = panelsById.get(panelReferenceId);
     return {

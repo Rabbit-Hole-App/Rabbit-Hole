@@ -3221,6 +3221,1334 @@
           "sha256": "ab07e9c6d73ad09e788449bcbe6c44484f26a34aaff885845c2b0e41e9c590da"
         }
       ]
+    },
+    "figure-gpt2-learned-position-decoder": {
+      "overview": [
+        {
+          "tokens": 82,
+          "sha256": "57a8c9c8baac145a4da5d637f9ace0971c62ebe3f4ccaa035adf33968abf4645"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 179,
+          "sha256": "5cb0ce9fc9fe4598730ec6fcdacf3d5358f1e41d4152ff79f989c1247316f9bd"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 194,
+          "sha256": "bb8b8df6102759438e4220632061e92278435e2549887c75fcf7426f12ce8ecb"
+        },
+        {
+          "tokens": 162,
+          "sha256": "85f0b8c476dfd965a3731588e7e6fb507cbe4cb08dd528c3975340eec0c23519"
+        }
+      ]
+    },
+    "figure-fixed-vs-learned-positions": {
+      "overview": [
+        {
+          "tokens": 158,
+          "sha256": "01237bf61c4186af8939063d7105940813282b118c19e1891d961111c5b1cbc4"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 161,
+          "sha256": "f15c791cf6a14a9e34aa1a43004e3d635c1c1c549f6cbd1f0fb599165589467a"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 174,
+          "sha256": "ff280275e88a38555f16548eca891e496e2dbd2618ce6c820d140af20b6c1f58"
+        }
+      ]
+    },
+    "figure-grouped-query-heads": {
+      "overview": [
+        {
+          "tokens": 216,
+          "sha256": "b6d0c442bae3320c359862b3fcf49e8e68419eddde3542ca109a54db4ebd9722"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 226,
+          "sha256": "4f12ddc3fec3c4724a42b77448af00f778ea0bc5230d3075c2d2499b5c6558ac"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 234,
+          "sha256": "59ff37c1384ebacb849501c0e0f261405579627aa90c47b124fc73aa266a75e4"
+        }
+      ]
+    },
+    "figure-attention-head-sharing-counts": {
+      "overview": [
+        {
+          "tokens": 121,
+          "sha256": "24b53e907ea341dd323951cbe920fe2fa4ee12d9fd9959d77e6c663ee6f92211"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 120,
+          "sha256": "a2deae902e82340caab6621dfc300c8cca9e14efece8f3bf8216eafc514f576f"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 129,
+          "sha256": "a9bd2aa97075eaaf6037118126d017ee8dfe7877f8bc8855877ecf23a84111c8"
+        }
+      ]
+    },
+    "figure-olmo-residual-norm-placement": {
+      "overview": [
+        {
+          "tokens": 135,
+          "sha256": "fb6687a15fffb540c3e8744a3fcd59ab7a193437267bc721cf7e8887bb307c1a"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 135,
+          "sha256": "c415abdd17167c53453407dfea48614206dc39ebe82bef8fe3f9d1e715e6de73"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 148,
+          "sha256": "6ecdab9aff09d212dce9680a7b2b9eb07089d4c68cc3ce5b7fcbe6c2fc858e52"
+        }
+      ]
+    },
+    "figure-deepseek-latent-cache-experts": {
+      "overview": [
+        {
+          "tokens": 216,
+          "sha256": "fb15f8503f447821c0fc977138239fe3f709152673dfedc061be94f1153ab4ff"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 218,
+          "sha256": "005ff936b994f58003a65490e59801ca1bf98af34668be49c8cee247bb4f4232"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 220,
+          "sha256": "487fc3d151c53865834ca31ef21d1ddf1411545ddc41b9fd8de085e3aa900d8b"
+        }
+      ]
+    },
+    "figure-decoder-independent-schedules": {
+      "overview": [
+        {
+          "tokens": 142,
+          "sha256": "6c940eb7c4694dc5ae52ddcda8901315da3f1ccffb1f2c885d9fba4dde390702"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 138,
+          "sha256": "2f6bc35b9af98028f04988d8ef5ac295177d922814a42dd14dae74b7910bcdda"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 144,
+          "sha256": "1da8caaac9d589873e893d79751ed384cdd8a91ac186cb99625c13d847a1e874"
+        }
+      ]
+    },
+    "figure-routed-vs-shared-experts": {
+      "overview": [
+        {
+          "tokens": 155,
+          "sha256": "e5fb2bda84d7b4b4dfa4a6e999fb33efbe1e174b811c5388b89c283bfcc62e1f"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 159,
+          "sha256": "58dcac5d0975105e5353976d18b566c93c8224c5277628de09692bb49769c94b"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 177,
+          "sha256": "0fa05a7707e6aef890279b0da9f74c5294960ba5831dfb78550cb33ce0c9caa8"
+        }
+      ]
+    },
+    "figure-query-key-score-normalization": {
+      "overview": [
+        {
+          "tokens": 109,
+          "sha256": "e8d857612c286e626eacfe02a654d07895ac912c9577747d44369dabc41634e0"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 112,
+          "sha256": "afeca75a156961bc8c14fc37e824d60d9d184864bb62227bf4a6a2a6917e5fce"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 135,
+          "sha256": "18c9f98e9580c1a5716b4f78357c00bdfb560b6dd4571cd02366720e3d8cb2d2"
+        }
+      ]
+    },
+    "figure-selective-rotary-position": {
+      "overview": [
+        {
+          "tokens": 101,
+          "sha256": "3ca6b777e7b4a40302d08e0727aea90c196ea4752e55e7d459d5ce28f4eebfe7"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 105,
+          "sha256": "f265d0ef24b5c6c8f41c5974d213cb31cfa31ad2a0ec9deb7ecfe0ebb4f92ea1"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 118,
+          "sha256": "5f3179d1de010a960db6973cb9c41871aa2d4b39a0229fea757784ed3388e745"
+        }
+      ]
+    },
+    "figure-decoder-hybrid-mixer-schedule": {
+      "overview": [
+        {
+          "tokens": 142,
+          "sha256": "01173305d22132ef73d553f9eb4fc115478c14c17470ad336fde5695584fe398"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 142,
+          "sha256": "6a039192b5b2aca43356ba0408b56187ce053788831cbc59d755a3d83be13bd9"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 150,
+          "sha256": "236ce5dcd97cc68dc2060ca49c58d977a5a834daf0dd82244da3e438707899af"
+        }
+      ]
+    },
+    "figure-deepseek-sparse-attention-shortlist": {
+      "overview": [
+        {
+          "tokens": 145,
+          "sha256": "6b4381f177b382551ca17b91631e241415694f52fa8882285c5d657b7a0788c4"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 146,
+          "sha256": "df116a861d5a01a271c67c18e856d22175ef1b9358c3a3db1743221525c551d1"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 167,
+          "sha256": "619282da170d252fd7bb7ca6bc842985aae2e8eef0b04632bd7ff69f06e79bfe"
+        }
+      ]
+    },
+    "figure-latent-expert-widths": {
+      "overview": [
+        {
+          "tokens": 239,
+          "sha256": "a8b9cb9cd5f5acff445ce61b7aff1851b182e3407901fb054c7adbd77dda57e3"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 240,
+          "sha256": "aba241aee8882c571d6ea91ec4aef1c96cc9e493fd952604a63d0aab6b02ece8"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 240,
+          "sha256": "c6f8492401bea54330391d437ceddc5e89dddf47a0cf8c6eb5405763419a9a88"
+        }
+      ]
+    },
+    "figure-tied-input-output-embeddings": {
+      "overview": [
+        {
+          "tokens": 137,
+          "sha256": "5ba04bcd4141b5382623593a475f71f6eb4a7ea7545952169600bd1f6e3833f6"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 138,
+          "sha256": "9e3325adebfcb66fdae05fda488830d41b2ea0083419b11626eaeebad9009d60"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 152,
+          "sha256": "68e0a673c585fb6dbd5118761820e786987573310c08dd18878ca5eb8f05d3ac"
+        }
+      ]
+    },
+    "figure-parallel-residual-sublayers": {
+      "overview": [
+        {
+          "tokens": 226,
+          "sha256": "3717e5afa878a87bd15e7309231b696bd6befbac630847593409a8aec821ce3d"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 226,
+          "sha256": "97173138fb64606fc53cd0cab49b4eaadf8cd68819d4f96db4e7452290151c4a"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 234,
+          "sha256": "a6e3fa8eaef74c1f96d7f2e2d7e252fabedcb827db1b87d279c8600e2cb7d5e6"
+        }
+      ]
+    },
+    "figure-recurrent-decoder-matrix-memory": {
+      "overview": [
+        {
+          "tokens": 86,
+          "sha256": "d33c433dbceba490317d8b1901097e84cda040e488aaf67b6d9dd4678e4f5704"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 190,
+          "sha256": "d6c9359e0337203ffc9743c20e430543be7472b36836c44b1f1035e96aa88927"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 210,
+          "sha256": "88c70a1fdfe1d44bf9865f4c93865cd1d7233a149ea8008e6ca114c01801be1a"
+        }
+      ]
+    },
+    "figure-decoder-reused-layer-weights": {
+      "overview": [
+        {
+          "tokens": 130,
+          "sha256": "28d21155efa9877c1f73c5463244af1e7bd7c3d0c99471d3bb5fdc74e5b9c28f"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 130,
+          "sha256": "27381fe33cd288e376f9e12aaf9e5de846bd850e48981cc09c40dcb73a1e9795"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 131,
+          "sha256": "ab2125c67dd441feea65089afba04ff224c3d4d3544076328d4f3d0270486139"
+        }
+      ]
+    },
+    "figure-partial-rotary-head-width": {
+      "overview": [
+        {
+          "tokens": 97,
+          "sha256": "f814e7d76e25a6289b8ebd604a5e9ac93c6b022d3561e5a720c84fd5d23d8fdf"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 225,
+          "sha256": "c4d6f995eb15a25ebf066a0a1be61fc9fdb403763dc8239b74a0c80bcadeb34a"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 243,
+          "sha256": "426bb5a56ee2bc8c58728f8f48714c09f3aaca313bfbf7dcd5a137df808bfd4d"
+        }
+      ]
+    },
+    "figure-speculative-prefix-verification": {
+      "overview": [
+        {
+          "tokens": 136,
+          "sha256": "bc6827aa666e2dc66e1014c98862bff9cd3a2c011ff8d8719bd970bb00544b32"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 137,
+          "sha256": "b4bed4ba5c75b6f92c056274c2bfc21682bbbf621f5dc4cbfb08e697d866819a"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 151,
+          "sha256": "c353a1534a58811926106b64c40eeaf0fffb7541e892ccaeebf3489644976d5a"
+        }
+      ]
+    },
+    "figure-decoder-depth-and-width-knobs": {
+      "overview": [
+        {
+          "tokens": 135,
+          "sha256": "476a34bf50bd641706b6158147668f4df93ab89e42afb04a005de83022470708"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 136,
+          "sha256": "638ba7fba3800c3718c42292bbd0d4d793233246a3bc750273a4e880b0313a2c"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 146,
+          "sha256": "476057dd6d71f1e2d545a1d8a1470e8630ad19cff58e762191ff2fd0f33b9e8c"
+        },
+        {
+          "tokens": 127,
+          "sha256": "958685374d49aea3a805543ce3611e5ed373936b25261a8988b16a447d8a1928"
+        }
+      ]
+    },
+    "figure-vocabulary-interface-width": {
+      "overview": [
+        {
+          "tokens": 106,
+          "sha256": "95a6ec08fd171ca6f273b17bad75984edb0a38da7501da681408cb2cf22dc981"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 121,
+          "sha256": "1768e22effc55f68c891b4b608495771f793bc70856204b0513fa70ee1b2e030"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 131,
+          "sha256": "227cfe7899b8ea9d36863c5b1018b662c2cd4593d7d88153847af38a2e3d7845"
+        },
+        {
+          "tokens": 118,
+          "sha256": "b8fab9a6dda1f59f99bd13a8a4f8fa2e44e33e46249819bf40971a525d6a13c7"
+        }
+      ]
+    },
+    "figure-latent-attention-and-expert-bank-knobs": {
+      "overview": [
+        {
+          "tokens": 141,
+          "sha256": "06310cd26cc6bd115c5e17dbc4af5583631afd36b3d7e52f837c8f3bcbb4fb23"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 146,
+          "sha256": "32a9f7d6fbc881debb273f55a4bfc9265f230ff52afe767a31142dbc6ca75561"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 151,
+          "sha256": "8fbe2e1f95070f44724503ee5e3b88a5712dd4db01b8db457105d5b736eb1e0e"
+        }
+      ]
+    },
+    "figure-routed-expert-parameter-split": {
+      "overview": [
+        {
+          "tokens": 166,
+          "sha256": "f4ccc8d098173c3c7b24fede5ec173608b8f707fda750360ca54809bf69d30be"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 171,
+          "sha256": "1d17434e93befe27601f3939df44a59693bdfa430579c9f00ab8082aa2ea0ecc"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 196,
+          "sha256": "b3a0d687171857d28a0296c71d8d769a3fb7a37767fcb3a978194dcdaea48ea7"
+        },
+        {
+          "tokens": 136,
+          "sha256": "6b0dba703a305fd7260b67b90224b9c58eff2df9887e0dd51256a703fbb02ce0"
+        }
+      ]
+    },
+    "figure-layer-local-inputs-and-group-counts": {
+      "overview": [
+        {
+          "tokens": 130,
+          "sha256": "ff9b9eed22635e2e4162036341ae7bec5e055f58008356462e105b4a360c2803"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 133,
+          "sha256": "815d4b195161a52e5aeaa9e9c8626c827d01c08611d9fa48ee82ac106f96afe0"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 140,
+          "sha256": "36fa39d88af85f4c370331879e91ca99bda073ab2c6689424b44632d52a2dcf8"
+        }
+      ]
+    },
+    "figure-shared-decoder-checkpoint-specialization": {
+      "overview": [
+        {
+          "tokens": 125,
+          "sha256": "308f4a1c5648b2f72c07d26d44a5da2e324612193aa043aa72564deec2e99aa8"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 130,
+          "sha256": "8ef4f5cc9a63a87ea77513759690e8fdadef1871fa0dcdd8b87f51bd238aa421"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 133,
+          "sha256": "a95fc276d22d2ff65668fe17ddbc7d93e32d69b9afe126aad4bcd640fb0bbe3a"
+        },
+        {
+          "tokens": 105,
+          "sha256": "e6e5feeb0ae3803747d52fade18c0f576855b029336b892b2bf5d5a418668b34"
+        }
+      ]
+    },
+    "figure-modality-frontends-text-decoder": {
+      "overview": [
+        {
+          "tokens": 191,
+          "sha256": "9bdf3b866c1ca726bda57eb1a6dc39598631ee00c5494620fc60911464295bdd"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 195,
+          "sha256": "ae831e4e1aa4d4720f68fbdc29410a0fb4c463710b7f9b9f8da5991db6f14dde"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 201,
+          "sha256": "a33e0d1b5038682b9b32c990596b2c452fbbbb8d29101f94fe6b4e253e224297"
+        }
+      ]
+    },
+    "figure-learned-and-identity-shortcut": {
+      "overview": [
+        {
+          "tokens": 190,
+          "sha256": "f99e03a9aeab41f9273344c9290df19d7a2195168b66be396d5e766562631592"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 192,
+          "sha256": "26e6dc8147863ac9747020ded96171d6cc17b47f8db636cca011eb64d7e1f8d8"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 213,
+          "sha256": "500c4f2cbcf379b0c43ef8360436055ef5d1b633d115e175b563297130e5e633"
+        },
+        {
+          "tokens": 97,
+          "sha256": "90c7d14cc4f730cbe25daa3c59693a9923000012270a3afc09ae40a5fd5c34eb"
+        }
+      ]
+    },
+    "figure-global-only-position-extension": {
+      "overview": [
+        {
+          "tokens": 99,
+          "sha256": "bb9b963a43e01844b2e1fbbf59e7c3c280b84c19ed87e166311c197caa5ccaec"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 98,
+          "sha256": "a98229f2abf4a2e4b69fd73fdae3b29b607f05c63a036cfa67a268516db0abc5"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 106,
+          "sha256": "a5bfa0585873f37621019411e1b48fe0746bedf6e3d332d494a4f5f36179f114"
+        }
+      ]
+    },
+    "figure-direct-media-token-projection": {
+      "overview": [
+        {
+          "tokens": 133,
+          "sha256": "de0b54755da7ba85aa99bf86fd32b9572aeabecc34556ffe20961bfe7f3995f2"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 135,
+          "sha256": "a63f557f2b75a619caeffe274b1eeac5ffd50a927a358445e054a83bea1d0c2b"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 156,
+          "sha256": "696d971d51fda6b7d1b306c73b45c42f583093d7146a521b68dc508c44e62f17"
+        }
+      ]
+    },
+    "figure-compare-sparse-decoder-family": {
+      "overview": [
+        {
+          "tokens": 168,
+          "sha256": "2339e89aa42e7b13795a833f43f6994ddcbc834634a166cf85b4646d99c6c045"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 170,
+          "sha256": "f4739fd8ad913f98953b2cdf39a49fe9872cf0991d9a98a71f7e0cf7a8e2f30f"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 184,
+          "sha256": "ea202aa106b92cf5dffc44ca37f7c7bea9cf1be0e357de3cb7c51930250b35e2"
+        }
+      ]
+    },
+    "figure-gallery-convolution-before-recurrent-state": {
+      "overview": [
+        {
+          "tokens": 125,
+          "sha256": "6545712045dd42fdd5e1f046f21023db32b8611be5afc801333305067d8299ef"
+        },
+        {
+          "tokens": 123,
+          "sha256": "c27b744fabfadf8ea02b53a8b43894d92668d4d5fd8850570e4e6d9b5d7edd4e"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 129,
+          "sha256": "c9a2bc4a1a48ed35df8f4d3b3d67f93c3d97650694d823c22235303ca54b3dc2"
+        },
+        {
+          "tokens": 123,
+          "sha256": "c27b744fabfadf8ea02b53a8b43894d92668d4d5fd8850570e4e6d9b5d7edd4e"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 151,
+          "sha256": "598a8d9e9019befc5debf8ad67daa69fcc1987a547a84a1c9bb166b61cb2c060"
+        },
+        {
+          "tokens": 128,
+          "sha256": "9fdf9bc0a67f88efabf94ec397582664918dee16d7104c382d3d95583e36b9d2"
+        }
+      ]
+    },
+    "figure-gallery-hybrid-state-and-cache-growth": {
+      "overview": [
+        {
+          "tokens": 120,
+          "sha256": "bcb5204e244dcad1fe9162701a9542a97073d831d970a70afdd54f9ee4af0470"
+        },
+        {
+          "tokens": 159,
+          "sha256": "7236bfaabe7c2d349766c16ed88f29c6cde430effa4351fe79273b7e0bd0699c"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 141,
+          "sha256": "50421b169d97099cf903176077bfc9ec60cd67595d1e480d3a5f1b1422f54194"
+        },
+        {
+          "tokens": 159,
+          "sha256": "7236bfaabe7c2d349766c16ed88f29c6cde430effa4351fe79273b7e0bd0699c"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 153,
+          "sha256": "70673d09c53d3d03f050db7f41cb3be5c0418fa679f892e087cfe04b5fa2c9fa"
+        },
+        {
+          "tokens": 159,
+          "sha256": "7236bfaabe7c2d349766c16ed88f29c6cde430effa4351fe79273b7e0bd0699c"
+        }
+      ]
+    },
+    "figure-gallery-global-tied-key-value-projection": {
+      "overview": [
+        {
+          "tokens": 124,
+          "sha256": "a1c44b6a95dadf9dd6a3337a75718c8e34965bf533153ce87f3711234451a30d"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 188,
+          "sha256": "a056a8602cc34947448e62a617f1001c8ce1c38bda0bac76e3f6ffc3f3dded80"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 194,
+          "sha256": "817acf84f614e24f44e8b70c4e8f40649e3d14207deb33d1b651d14c31440df5"
+        }
+      ]
+    },
+    "figure-gallery-layer-specific-token-lookup": {
+      "overview": [
+        {
+          "tokens": 137,
+          "sha256": "e46b0cc71236a5b3bf850b7fe231c327729746ce13e93f3cd25f768b7987d80e"
+        },
+        {
+          "tokens": 166,
+          "sha256": "a20ac4cc3e8646d4957bc2c0350d55069a4eaac8dafaa03f024972e662037bc8"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 144,
+          "sha256": "5cfad050ce6e065e46e5e89df5da919739d9bd287d0b0147421d4af092789dac"
+        },
+        {
+          "tokens": 166,
+          "sha256": "a20ac4cc3e8646d4957bc2c0350d55069a4eaac8dafaa03f024972e662037bc8"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 150,
+          "sha256": "6c53166efb6fdfdc81a6af514abc6e995e46b6965aee7dcc3096607e58a05746"
+        },
+        {
+          "tokens": 168,
+          "sha256": "8ebb993cd33b580beb6b01dd6c584fa71c235ad973fb7a9f59beea5d7474131c"
+        }
+      ]
+    },
+    "figure-gallery-fine-and-coarse-history-compression": {
+      "overview": [
+        {
+          "tokens": 94,
+          "sha256": "2ff52f433c237405b03a4b62ed2e905bc68bfce6afcc9751d510ec970a4932ec"
+        },
+        {
+          "tokens": 227,
+          "sha256": "76944ca8ab5355285f943273331ff05fbeb4ab390ad3b11d6897b753584f2210"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 101,
+          "sha256": "083a8a36e13946c0890f3b06e9ea7d55042786e6e8199e939b1d1e5b20be0858"
+        },
+        {
+          "tokens": 227,
+          "sha256": "76944ca8ab5355285f943273331ff05fbeb4ab390ad3b11d6897b753584f2210"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 101,
+          "sha256": "083a8a36e13946c0890f3b06e9ea7d55042786e6e8199e939b1d1e5b20be0858"
+        },
+        {
+          "tokens": 224,
+          "sha256": "317161908bb9af50eeace3d186e93db266b8c71c00c4029800f913110a391743"
+        }
+      ]
+    },
+    "ml-architecture-hybrid-routing": {
+      "overview": [
+        {
+          "tokens": 178,
+          "sha256": "dfe406caff4a78c4873ed908a965215c6a9e6db188a590a4c6c627b732b78fb1"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 191,
+          "sha256": "8c1e16c1901d30da7e8fdeddeff5ccd22defac84e4c5231e824aca73ff4e9167"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 190,
+          "sha256": "d4b0defd968b221a9a866d75c29b47b673fd5f1922d3abdd11af6374f3cf177e"
+        }
+      ]
+    },
+    "ml-architecture-parallel-attention-experts": {
+      "overview": [
+        {
+          "tokens": 186,
+          "sha256": "fee82fe09f9e6ec1c2c83a25d7120eaf9f387b42804d8085926deb4974307d10"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 189,
+          "sha256": "055d28637655585bbeb384a64d6b07be013192d66964bec72a4379e79694b1ab"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 219,
+          "sha256": "05bef51c6f54c2489efcfd9dfb151b381e3a6105c75d93e4e84a21e4b2a93260"
+        }
+      ]
+    },
+    "ml-architecture-sparse-index-reuse": {
+      "overview": [
+        {
+          "tokens": 148,
+          "sha256": "688fc9b81939a4a11a0cf7e10af2cd7b6b67d6b280776c079879708feb3ad6bb"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 153,
+          "sha256": "854333bd8b0844f28e9dc1144631b9a5ab4e5698694cd58f26d40a9cf79f8d73"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 183,
+          "sha256": "cfe4f22c6127d40c95c3e1aa0d749d3cc0ecc273e8a244892379f48cf5cb3aa5"
+        }
+      ]
+    },
+    "ml-architecture-shared-core": {
+      "overview": [
+        {
+          "tokens": 120,
+          "sha256": "a5a1582fc19fecd46a712914cdfa3a5007abeb784e7195a872e868845f1d6f60"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 127,
+          "sha256": "a536ab0f7b6f7728b7bd6de370f0b1a1e90ca45d3bb5da5e4b32a89bd86cc7e1"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 137,
+          "sha256": "47e2a65424a2d91e0b72ed974c5561530e33b6429ef0f7ed949bcf670ec35160"
+        }
+      ]
+    },
+    "figure-gallery-window-layer-schedule": {
+      "overview": [
+        {
+          "tokens": 99,
+          "sha256": "8f47d2f326b3e2e338473493119cc7974657f0fe5aebf9e20cbac5d6b34ab7fb"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 103,
+          "sha256": "e294ecb376bfe7928f84f4cacdc435b68e1503c3fa2b46a2a6c33e38d563aebb"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 112,
+          "sha256": "5f96bc626063c182b743ce2772fbc9605c22515c168a2652498d1262e75cfae5"
+        },
+        {
+          "tokens": 118,
+          "sha256": "4e7c00a3d098ad7d695a3ab2e51773236e9e1bd5fccc5262ef54e276102c3a44"
+        }
+      ]
+    },
+    "figure-gallery-dense-to-expert-depth": {
+      "overview": [
+        {
+          "tokens": 115,
+          "sha256": "7b5dfe64481dd2440cefa5faef961cfe2520c723052d2cd23af65e3faeda9bd4"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 116,
+          "sha256": "79bd2e8e58eba836f896b478301da63e484ccd67fb3e192a950a4ab1158da13a"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 123,
+          "sha256": "7aea7a7d93e96a09d934e9c3a1d717530b29e752b6b437fb8ff5a10264d2133d"
+        }
+      ]
+    },
+    "figure-gallery-future-token-head": {
+      "overview": [
+        {
+          "tokens": 193,
+          "sha256": "c37ba95f300da09e87e6b94b4cd0365e9a02601d85fe85be80d89f7e719b99f4"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 192,
+          "sha256": "9bb02fb380a60d3747618627600a5c0c974fc6d56d71be9859b1e5a68b99df75"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 206,
+          "sha256": "579b0c6d264960587db439c1bfa8d58fbeff7a6e19adf01b658c1366ce8e5fd0"
+        }
+      ]
+    },
+    "figure-gallery-convolution-layer-schedule": {
+      "overview": [
+        {
+          "tokens": 146,
+          "sha256": "ce3c8371a19b6d3383fca35dbb5017cd1fce89a16648b0311dd4ec0637934b86"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 148,
+          "sha256": "b574605cea20da87b2c5bf6bbaf98913cf37d89b05af9a8aabb45e4a1d41008b"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 150,
+          "sha256": "a2ee0e7a9392aeedd097bd845ffb48cb5b98ab04f5da3e1b67873d883c9ecbad"
+        },
+        {
+          "tokens": 93,
+          "sha256": "de86db72c99afc1ae90ae36af409d0d71e8c481075b9f98a23f906424557a5af"
+        }
+      ]
+    },
+    "figure-gallery-convolution-relative-bias": {
+      "overview": [
+        {
+          "tokens": 154,
+          "sha256": "fdc14c091ff023b99c5a20ebccda69ddfef63b9f4cb180652669b88394c2a1f5"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 159,
+          "sha256": "40475f6cc5776623aed8059a8fac5f849a22ba5ac259e7ad9796292fc5ee2d46"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 160,
+          "sha256": "da34d6133f824d9f763bc7562a9b4c57f20d802e555954f847d70a02b065eb44"
+        },
+        {
+          "tokens": 188,
+          "sha256": "b94e138c277accde627e43b8e63044977883ad47d93d546e10a57f85b1cd6579"
+        }
+      ]
+    },
+    "figure-gallery-low-rank-adapter": {
+      "overview": [
+        {
+          "tokens": 180,
+          "sha256": "d06c4a0fc71e5c62ba012fdea6cefa36aafae66bbee4d4cfc90a2002600ef424"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 188,
+          "sha256": "8bfbb05c7c56484115fa9d23f9f9b210ce0b900347896349e2b1aa2eb7ef6360"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 220,
+          "sha256": "c9142428ecf29fb135cf73aecbf5bdff452105f92aea819e04a4037d72b03d95"
+        }
+      ]
+    },
+    "figure-gallery-multistream-residual": {
+      "overview": [
+        {
+          "tokens": 224,
+          "sha256": "8015339818bb8877a3dedd15154b4fe71d74c289a7859a0c4c64a01ad8440ace"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 227,
+          "sha256": "29c687720d82847c3aa9a9bba2c0be0ee89a662a4780700ee53358bdf742c757"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 241,
+          "sha256": "77d79264910b52ae164c1b8f1fc86ab1904876e622273839250880a456840c17"
+        },
+        {
+          "tokens": 104,
+          "sha256": "4fb63d8c6e37eb12eaefab9ec9b73ef1df1944749827d62f0e7b7378abc5e49e"
+        }
+      ]
+    },
+    "figure-gallery-depth-attention": {
+      "overview": [
+        {
+          "tokens": 104,
+          "sha256": "b1948f6c53668a185b405800d63f284c04875db1ba5c6a86065d4821c7872494"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 106,
+          "sha256": "741c826bb520e0b95a39f35c2d3748c995f7edcf658905ac55e07a4e85621ecf"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 110,
+          "sha256": "6526011599e2c50123dd2d4f8f3afc54a7b9cde27a8131f328c246ba0a464245"
+        }
+      ]
+    },
+    "figure-gallery-partial-block-mask": {
+      "overview": [
+        {
+          "tokens": 125,
+          "sha256": "1b815b1f3b04bc39d482fa9076b2defe3c72e50ef98a4f1527152126abf167c9"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 123,
+          "sha256": "b258888ccad5b16c60f3d21cce3c8ee89a4f3bc821ce431466eb21ab9c35b126"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 133,
+          "sha256": "39f5d41d96020962014f97280df1e67bdb9d88d9962a926689eda64f500ca2f0"
+        }
+      ]
+    },
+    "figure-gallery-encoder-global-kv": {
+      "overview": [
+        {
+          "tokens": 194,
+          "sha256": "c6849afb2d9266c9ca16755a6fe0fa9e8e48f21532520adb6ed295a3172e79be"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 194,
+          "sha256": "ddd2c4b7897eec889674317ed9a7bc9c6d179db5cb928f4984b47aac1d528d7d"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 197,
+          "sha256": "a894779d49e5562063e716c8478a2dc126f29fb6a0b50f8f90fc802c72c4cc5f"
+        }
+      ]
+    },
+    "figure-gallery-window-vs-index-mask": {
+      "overview": [
+        {
+          "tokens": 114,
+          "sha256": "302697220f15140b15dd6313351bcb9b297861f3e05147fbfb84edae6286c679"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 116,
+          "sha256": "90100cf52dadbf6cedd1cdce94e4294de0b78fbec1997463f2be6625475b64ee"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 132,
+          "sha256": "d5a4c4334f536370bf73f9aab5cb7956eed644d551cbfef5ea2c3edb130f5c06"
+        }
+      ]
+    },
+    "figure-gallery-latent-query-and-kv": {
+      "overview": [
+        {
+          "tokens": 85,
+          "sha256": "3be1acc2e1405bff4839bbddd8ef81d388d295e558f464a285c5fb0d7f82cb37"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 159,
+          "sha256": "f25a0ec981316132e8062e38f0a9f51b2404b17c60cbd1ba87f9b094b4239d53"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 171,
+          "sha256": "d38918b28f97efbcca7db5b067769e481e07deceda0fcdff858436c46ba39def"
+        }
+      ]
+    },
+    "figure-gallery-shared-core-reinjection": {
+      "overview": [
+        {
+          "tokens": 103,
+          "sha256": "86d4eaf664f27b82ae2f593ec28d608e16e4f886c0af7971c244f42fbfbbfdcb"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 106,
+          "sha256": "77e10b603edcae97f268adab5c490fc4e42dac9d8c9eb3343327f7a7717d84aa"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 137,
+          "sha256": "665dd7a7b667157478dc427395bec7a28c9da4decddd0464c9e808907c6e6ae0"
+        }
+      ]
+    },
+    "figure-gallery-learned-sink-weight": {
+      "overview": [
+        {
+          "tokens": 122,
+          "sha256": "a26c0ce9af44ed36940a07c59b47e90e7551b13299d57283206953a3f210ea4b"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 124,
+          "sha256": "aa64340a95f8d3ed86f52406268b230ccee4a4d5bbb9935dbefe3c8a8f58e2f9"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 142,
+          "sha256": "0ae775d12d8233b2b0fef72f196c3c4cfcb0b661b7a86a68119c81ed69c1858a"
+        }
+      ]
+    },
+    "figure-gallery-shared-kv-and-index": {
+      "overview": [
+        {
+          "tokens": 170,
+          "sha256": "6556e841c5a7b7d9fc161e1c509633f801dea684c9894f7c11ab71066a2e5027"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 172,
+          "sha256": "1a9c6a50df5fc882b15352ae6c954c026f11b20a7905c55186253c765269f188"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 197,
+          "sha256": "d8860af2f0bb41dd280269ecf1e9ea6e3297259b94b94cce77205b9c571f87af"
+        }
+      ]
+    },
+    "raschka-context-cap-same-experts": {
+      "overview": [
+        {
+          "tokens": 217,
+          "sha256": "1dcc70b6dd0e438b6e769cc2292ea628b6ad39cf49cca70cca7a6405f80c49e1"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 221,
+          "sha256": "1c57e3a2e2a0975440aa9903e9512066a4a9b8cd89c23a76ef4c92cb43a362c8"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 253,
+          "sha256": "c616975e0bb2dca4ccef81e6d4f65759640c8d211575ad307e09d34a887b6f0a"
+        }
+      ]
+    },
+    "raschka-uneven-mixer-macroblocks": {
+      "overview": [
+        {
+          "tokens": 132,
+          "sha256": "abfe78535e239793f9e7aad6ba339579920edbb681c1c8ea635c59a3683164ef"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 135,
+          "sha256": "5aed1962c0c08b0f1b54e39c0496e17ed15a3aed6c8f471ccf19e90de7068e89"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 144,
+          "sha256": "a580756333c4d29167d5f1b2516cdd4b4d9a393fffa0ce9594aefc9cfc93672d"
+        }
+      ]
+    },
+    "raschka-residual-gain-and-soft-logit-cap": {
+      "overview": [
+        {
+          "tokens": 114,
+          "sha256": "7317f1f6ae56ef59c37f1af6b0ea0931cbf279d8dff22a6bc55d76c7590a15d1"
+        },
+        {
+          "tokens": 137,
+          "sha256": "a090a774880c0ced2e7aa0ebdc4e76b30bfdb2d5c707bc3e5892220135adcadb"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 118,
+          "sha256": "0c0292d3b83f629280e6b83f01f425ba2278a53581c9afc3d23c15fe0e558e83"
+        },
+        {
+          "tokens": 139,
+          "sha256": "35341b3e83ca56a89ac99f47fcaace9772460f2111a398a8fb4df554e29248c4"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 141,
+          "sha256": "554c12c6a00d7ef7a666c856e48e9fb47f44202c57ed973df0f05aad25940d01"
+        },
+        {
+          "tokens": 145,
+          "sha256": "a653b2cc258e72a331353e36b33d921fd09545b6fa0efb3b868eaa9d1fbe04cc"
+        }
+      ]
+    },
+    "raschka-indexed-attention-only-diff": {
+      "overview": [
+        {
+          "tokens": 183,
+          "sha256": "9f8e0389a2be2d03577ebd109bf4247f99cabe280e57254caa0808d68bd3846f"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 192,
+          "sha256": "38f0c85966e5daef1f508d43150ef98265712ddf59c7fb0d8615fbed2d52030c"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 197,
+          "sha256": "67e5f2acde8766ee857ba356b0c4f3420b6bd2ff6981edf5ebd722d36b39fbc1"
+        }
+      ]
+    },
+    "figure-recurrent-channel-decay": {
+      "overview": [
+        {
+          "tokens": 121,
+          "sha256": "5c511267dce651366fce9edc13fc642e97ae8d72945514c86b4e417768608202"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 156,
+          "sha256": "65a8f35e6f75136d7a32743a4848b9593e446f7326df7485a409ed79b71767a9"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 203,
+          "sha256": "5ca6a5993f14b6075d200065d25d033031dfb7de7a4898963fd2e836f3855b75"
+        }
+      ]
+    },
+    "figure-attention-output-gate": {
+      "overview": [
+        {
+          "tokens": 108,
+          "sha256": "a605b426610902425c49bd0b7949748a4338d2badb1b9ef2c83f878d84e249d7"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 107,
+          "sha256": "c3d638be6346156506e4f0d681f5e7b144e11817ff87591e079062cbd71b85bc"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 114,
+          "sha256": "53f3c83fff53974a9c1b2b873b9013850d9fa0ed2161d67b661737212ea57a7a"
+        },
+        {
+          "tokens": 148,
+          "sha256": "a631f43ea7f5d6c59f96584daef084b1c92278128081ca8b7f331d5866656956"
+        }
+      ]
+    },
+    "figure-latent-expert-output-normalization": {
+      "overview": [
+        {
+          "tokens": 240,
+          "sha256": "bc23e16fc3c2e0610098965cb6e154bb2a31c199a2d9d0685645d65e0e31e313"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 244,
+          "sha256": "f1c4ffc5b62557ecc2ebdd41ee336d248efea68f07c48bea006a467b6de53014"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 257,
+          "sha256": "78547729d31cd5d202e8043d0731c8191548f031a44b089722465338f98b8587"
+        },
+        {
+          "tokens": 142,
+          "sha256": "cedebaffdb64ca4ad6d7652832aeba6ca79f3dc5cf64071b18a3dd4e3ac2baf0"
+        }
+      ]
     }
   }
 }

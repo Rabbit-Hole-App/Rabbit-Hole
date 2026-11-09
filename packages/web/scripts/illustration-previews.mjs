@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { batch1FollowupReferences, illustrationReferences, transformerWalkthroughReferences } from '../src/tutor-diagrams/reference-library.js';
 import { figureChapterReferences } from '../src/tutor-diagrams/figure-chapter-references.js';
+import { figureChapterSingleSpecs } from '../src/tutor-diagrams/figure-chapter-single-specs.js';
 import kindGalleryDepths from '../src/tutor-diagrams/kind-gallery-depths.json' with { type: 'json' };
 import { ILLUSTRATION_KINDS } from '../src/tutor-diagrams/illustration-kinds.js';
 import { blockStackNaturalWidth } from '../src/tutor-diagrams/block-stack-layout.js';
@@ -26,6 +27,7 @@ export function* illustrationSpecs() {
       if (detailSpec) yield { id: `${id}-detail`, spec: detailSpec };
     }
   }
+  for (const [id, { spec }] of Object.entries(figureChapterSingleSpecs)) yield { id: `${id}-single`, spec };
   for (const { kind, ...depths } of kindGalleryDepths) {
     if (!ILLUSTRATION_KINDS.includes(kind)) continue;
     for (const [key, spec] of Object.entries(depths)) {

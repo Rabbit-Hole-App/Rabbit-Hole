@@ -632,9 +632,9 @@ Short convolution mixes nearby tokens between layers that can read a wider token
 
 ## Figure 79
 
-A hybrid can keep the same convolution and attention options while replacing later dense feed-forward updates with routed experts.
+Short convolution and grouped attention can both feed a routed per-token update from the start of a decoder.
 
-- **Kinds.** `block-stack` · `flow`
+- **Kinds.** `block-stack` · `matrix`
 - **Elements.** Show the convolution-only opening and later groups that include grouped attention. Expert routing follows both mixer types from the start.
 - **Sequence.** Gallery model card 77; standalone comparison entry
 
@@ -714,8 +714,8 @@ Irregularly grouped state and attention layers can all feed one style of sparse 
 
 A decoder can express position through relative score bias while short convolutions mix nearby tokens inside each block.
 
-- **Kinds.** `block-stack` · `flow`
-- **Elements.** Place one short convolution before attention and another after the expert update. Show a separate convolution feeding the key and value path and a learned relative position bias.
+- **Kinds.** `block-stack` · `matrix`
+- **Elements.** Trace a causal convolution on the keys and values into attention. Add a learned relative offset to the score. Show separate output convolutions on the attention and expert branches.
 - **Sequence.** Gallery model card 87; standalone comparison entry
 
 ## Figure 90
