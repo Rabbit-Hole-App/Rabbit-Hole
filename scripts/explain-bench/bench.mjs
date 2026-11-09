@@ -2,7 +2,7 @@
 // the release baseline, and exits non-zero when a pass criterion on record fails. See README.md.
 // Usage: node scripts/explain-bench/bench.mjs --base http://127.0.0.1:8888 --vars <stack .dev.vars> [--sets regression,baseline,aiml,sequence,content] [--runs N]
 //          [--cap 2.00] [--label "after phase02"] [--log <stack app.log>] [--persist <stack persist dir>] [--tree <stack worktree>] [--judge] [--judges N]
-//          [--judge-cap 1.00] [--judge-only factual,faithful,picture] [--out <results root>] [--against <run dir>] [--baseline <run id>] [--tag-baseline] [--richness-change] [--only id,id] [--gap 1500] [--dry-run]
+//          [--judge-cap 1.00] [--carry-from <a judged run dir>] [--judge-only factual,faithful,picture] [--out <results root>] [--against <run dir>] [--baseline <run id>] [--tag-baseline] [--richness-change] [--only id,id] [--gap 1500] [--dry-run]
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -79,7 +79,7 @@ const { values: a } = parseArgs({ options: {
   base: { type: 'string' }, vars: { type: 'string' }, sets: { type: 'string' }, runs: { type: 'string' }, cap: { type: 'string', default: '2.00' }, label: { type: 'string', default: 'run' },
   log: { type: 'string' }, persist: { type: 'string' }, tree: { type: 'string' }, out: { type: 'string' }, against: { type: 'string' }, baseline: { type: 'string' }, 'tag-baseline': { type: 'boolean' },
   judge: { type: 'boolean' }, judges: { type: 'string', default: '1' }, 'judge-cap': { type: 'string', default: '1.00' }, 'judge-only': { type: 'string' }, 'richness-change': { type: 'boolean' },
-  note: { type: 'string' }, depth: { type: 'string' }, depths: { type: 'string' }, 'dry-run': { type: 'boolean' }, gap: { type: 'string', default: '1500' }, only: { type: 'string' }, 'skip-preflight': { type: 'boolean' } } });
+  note: { type: 'string' }, 'carry-from': { type: 'string' }, depth: { type: 'string' }, depths: { type: 'string' }, 'dry-run': { type: 'boolean' }, gap: { type: 'string', default: '1500' }, only: { type: 'string' }, 'skip-preflight': { type: 'boolean' } } });
 const fail = msg => { console.error(`✗ ${msg}`); process.exit(2); };
 const sets = (a.sets || SET_NAMES.join(',')).split(',').map(s => s.trim()).filter(Boolean);
 for (const s of sets) if (!availableSets().includes(s)) fail(`unknown set ${s}; sets: ${availableSets().join(', ')}`);
@@ -165,7 +165,7 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
 }
 if (a.persist) console.log(await tokensFromPersist(resolve(a.persist), email, rawDir).catch(e => `token counts skipped: ${e.message}`));
 writeFileSync(join(runDir, 'provenance.json'), JSON.stringify({ ...prov, ...(a.note ? { note: a.note } : {}), invocation: { base: BASE, sets: plan.map(p => ({ set: p.name, prompts: p.prompts.length, runs: p.runs, depths: p.depths })), cap, spentUsd: +spent.toFixed(4), cards: sent, stoppedByCap: stopped, user: email } }, null, 1));
-const r = await report({ raw: rawDir, runId, out, label: a.label, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge, judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges, judgeCap: Math.min(judgeCap, Math.max(0, +(cap - spent).toFixed(4))), richnessChange: a['richness-change'] });
+const r = await report({ raw: rawDir, runId, out, label: a.label, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge, carryFrom: a['carry-from'], judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges, judgeCap: Math.min(judgeCap, Math.max(0, +(cap - spent).toFixed(4))), richnessChange: a['richness-change'] });
 for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
 if (r.results.judge) console.log(`judge: ${r.results.judge.calls} calls, ${r.results.judge.cached} cached, US$${r.results.judge.spent} of US$${judgeCap.toFixed(2)}`);
 if (invalid) { console.log(`RESULT INVALID cards=${sent} spent=US$${spent.toFixed(4)} report=${join(r.runDir, 'report.md')}`); process.exit(4); }

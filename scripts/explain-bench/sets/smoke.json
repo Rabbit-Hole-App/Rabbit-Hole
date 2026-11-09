@@ -1,0 +1,3274 @@
+{
+ "name": "smoke",
+ "version": {
+  "prompts": "S1 2026-11-09 (seed smoke-v1; 66 prompts)",
+  "labels": "S1 2026-11-09 (labels copied from each prompt's source set; demo and figure-chapter prompts score by the reference kind)"
+ },
+ "measures": "Tier 1 of the release gate: one run of a fixed, versioned set. Every diagram kind at least once, the fragile groups (matrix/heatmap, formula plots, sequences with self-messages, two-structure prompts), the picture-routing sample and the 13 Lesson 04 demo prompts.",
+ "written": "2026-11-09 by build-smoke-set.mjs from the 117 rerun 3x (reliable = right and drawn in all 3 runs)",
+ "defaultRuns": 1,
+ "estUsdPerCard": 0.0056,
+ "pass": {},
+ "kindCoverage": {
+  "flow": "robot-arm",
+  "sequence": "send-email",
+  "cycle": "four-stroke",
+  "timeline": "roman-empire",
+  "tree": "dfs-vs-bfs",
+  "relationship": "arrays-vs-lists",
+  "transformation": "softmax",
+  "comparison": "plant-animal-cell",
+  "layers": "stack-vs-queue",
+  "matrix": "precision-recall",
+  "coordinate-plot": "sigmoid",
+  "bar-chart": "ml-trees-feature-importance",
+  "histogram": "two-histograms",
+  "box-plot": "ref-box-plot-iqr-fences",
+  "heatmap": "ml-word2vec-signed-embedding-heatmap",
+  "number-line": "ml-word2vec-trait-rescale",
+  "figure": "solar-eclipse",
+  "sample-set": "ml-trees-bootstrap-roots",
+  "argument": "ref-argument-reading",
+  "t-account": "ref-t-account-cash",
+  "waterfall": "ref-waterfall-cash",
+  "tensor": "ml-transformer-qkv-projections",
+  "token-links": "attention-weights",
+  "block-stack": "ml-transformer-encoder-stack"
+ },
+ "prompts": [
+  {
+   "id": "ml-trees-decision-regions",
+   "n": "01",
+   "group": "demo-lesson04",
+   "prompt": "how does a decision tree split a two-feature dataset into regions?",
+   "referenceId": "ml-trees-decision-regions",
+   "referenceKind": "coordinate-plot",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-decision-regions"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: coordinate-plot drawn 3 of 3 cards"
+   }
+  },
+  {
+   "id": "ml-trees-gini-vs-entropy",
+   "n": "02",
+   "group": "demo-lesson04",
+   "prompt": "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?",
+   "referenceId": "ml-trees-gini-vs-entropy",
+   "referenceKind": "coordinate-plot",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-gini-vs-entropy"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: coordinate-plot drawn 2 of 2 cards"
+   }
+  },
+  {
+   "id": "ml-trees-gini-split",
+   "n": "03",
+   "group": "demo-lesson04",
+   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+   "referenceId": "ml-trees-gini-split",
+   "referenceKind": "matrix",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "matrix"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04",
+     "matrix-heatmap"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-gini-split"
+    },
+    "kindsReliable": [
+     "matrix"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: matrix drawn 5 of 9 cards"
+   }
+  },
+  {
+   "id": "ml-trees-threshold-search",
+   "n": "04",
+   "group": "demo-lesson04",
+   "prompt": "how does a decision tree search for the best threshold on one feature?",
+   "referenceId": "ml-trees-threshold-search",
+   "referenceKind": "coordinate-plot",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-threshold-search"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: coordinate-plot drawn 3 of 3 cards"
+   }
+  },
+  {
+   "id": "ml-trees-grown-tree",
+   "n": "05",
+   "group": "demo-lesson04",
+   "prompt": "how does a decision tree trace a new point from the root to a prediction?",
+   "referenceId": "ml-trees-grown-tree",
+   "referenceKind": "tree",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-grown-tree"
+    },
+    "kindsReliable": [
+     "tree"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: tree drawn 4 of 4 cards"
+   }
+  },
+  {
+   "id": "ml-trees-depth-overfit",
+   "n": "06",
+   "group": "demo-lesson04",
+   "prompt": "how does held-out error change as a decision tree grows deeper?",
+   "referenceId": "ml-trees-depth-overfit",
+   "referenceKind": "coordinate-plot",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-depth-overfit"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: coordinate-plot drawn 3 of 3 cards"
+   }
+  },
+  {
+   "id": "ml-trees-cost-complexity-pruning",
+   "n": "07",
+   "group": "demo-lesson04",
+   "prompt": "how does cost-complexity pruning trade tree size against accuracy as alpha increases?",
+   "referenceId": "ml-trees-cost-complexity-pruning",
+   "referenceKind": "coordinate-plot",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-cost-complexity-pruning"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: coordinate-plot drawn 2 of 2 cards"
+   }
+  },
+  {
+   "id": "ml-trees-regression-step-fit",
+   "n": "08",
+   "group": "demo-lesson04",
+   "prompt": "how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?",
+   "referenceId": "ml-trees-regression-step-fit",
+   "referenceKind": "coordinate-plot",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-regression-step-fit"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: coordinate-plot drawn 2 of 2 cards"
+   }
+  },
+  {
+   "id": "ml-trees-bootstrap-roots",
+   "n": "09",
+   "group": "demo-lesson04",
+   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+   "referenceId": "ml-trees-bootstrap-roots",
+   "referenceKind": "sample-set",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "sample-set"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-bootstrap-roots"
+    },
+    "kindsReliable": [
+     "sample-set"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: sample-set drawn 4 of 4 cards"
+   }
+  },
+  {
+   "id": "ml-trees-bootstrap-coverage",
+   "n": "10",
+   "group": "demo-lesson04",
+   "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+   "referenceId": "ml-trees-bootstrap-coverage",
+   "referenceKind": "coordinate-plot",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-bootstrap-coverage"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: coordinate-plot drawn 2 of 2 cards"
+   }
+  },
+  {
+   "id": "ml-trees-majority-vote",
+   "n": "11",
+   "group": "demo-lesson04",
+   "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+   "referenceId": "ml-trees-majority-vote",
+   "referenceKind": "flow",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "flow"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-majority-vote"
+    },
+    "kindsReliable": [
+     "flow"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: flow drawn 3 of 3 cards"
+   }
+  },
+  {
+   "id": "ml-trees-forest-size-accuracy",
+   "n": "12",
+   "group": "demo-lesson04",
+   "prompt": "how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?",
+   "referenceId": "ml-trees-forest-size-accuracy",
+   "referenceKind": "coordinate-plot",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-forest-size-accuracy"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: coordinate-plot drawn 2 of 2 cards"
+   }
+  },
+  {
+   "id": "ml-trees-feature-importance",
+   "n": "13",
+   "group": "demo-lesson04",
+   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+   "referenceId": "ml-trees-feature-importance",
+   "referenceKind": "bar-chart",
+   "askDepths": [
+    "standard"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "bar-chart"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "smoke": {
+    "groups": [
+     "demo-lesson04"
+    ],
+    "source": {
+     "set": "demo-lesson04",
+     "id": "ml-trees-feature-importance"
+    },
+    "kindsReliable": [
+     "bar-chart"
+    ],
+    "unverified": "kind seen in the 2026-11-09 demo runs, not a 117 3x",
+    "observed": "earlier runs: bar-chart drawn 2 of 3 cards"
+   }
+  },
+  {
+   "id": "ml-bert-task-heads",
+   "group": "figure-chapter",
+   "chapter": "BERT",
+   "referenceId": "ml-bert-task-heads",
+   "referenceKind": "matrix",
+   "referenceVariant": null,
+   "prompt": "How does BERT use different outputs for classification, tagging, and question answering?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "matrix"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "want": "matrix",
+   "referenceSpec": {
+    "version": 1,
+    "diagram": {
+     "kind": "matrix",
+     "title": "Which BERT positions does each task head read?",
+     "columns": [
+      "Positions read",
+      "Toy output"
+     ],
+     "rows": [
+      {
+       "heading": "Classify a sentence",
+       "cells": [
+        "CLS state",
+        "Wildlife"
+       ]
+      },
+      {
+       "heading": "Classify a pair",
+       "cells": [
+        "CLS state for the pair",
+        "Both describe animals"
+       ]
+      },
+      {
+       "heading": "Tag each word",
+       "cells": [
+        "One state per token",
+        "“seal” is a noun"
+       ]
+      },
+      {
+       "heading": "Find an answer span",
+       "cells": [
+        "Start and end scores per token",
+        "“a seal”"
+       ]
+      }
+     ],
+     "caption": "The same reading layers return a vector for every position. Different tasks read different positions."
+    }
+   },
+   "smoke": {
+    "groups": [
+     "matrix-heatmap"
+    ],
+    "source": {
+     "set": "figure-chapters",
+     "id": "ml-bert-task-heads"
+    },
+    "kindsReliable": [
+     "matrix"
+    ],
+    "unverified": "figure-chapters reference kind, seen in the 2026-11-09 figure-chapter runs",
+    "observed": "earlier runs: matrix drawn 2 of 7 cards"
+   }
+  },
+  {
+   "id": "ml-stable-diffusion-forward-noise",
+   "group": "figure-chapter",
+   "chapter": "Stable Diffusion",
+   "referenceId": "ml-stable-diffusion-forward-noise",
+   "referenceKind": "heatmap",
+   "referenceVariant": null,
+   "prompt": "Can you show the numbers when forward diffusion adds known noise to a latent?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "heatmap"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "want": "heatmap",
+   "referenceSpec": {
+    "version": 1,
+    "diagram": {
+     "kind": "heatmap",
+     "title": "Forward diffusion with known noise",
+     "caption": "Each cell combines part of the clean value with part of the known noise. The noise is kept as the target.",
+     "columns": [
+      "Clean",
+      "Sampled noise",
+      "Noisy result"
+     ],
+     "rows": [
+      {
+       "label": "Top left",
+       "cells": [
+        0.8,
+        -0.5,
+        0.34
+       ]
+      },
+      {
+       "label": "Top right",
+       "cells": [
+        0.2,
+        0.5,
+        0.46
+       ]
+      },
+      {
+       "label": "Bottom left",
+       "cells": [
+        0.2,
+        -0.25,
+        0.01
+       ]
+      },
+      {
+       "label": "Bottom right",
+       "cells": [
+        0.8,
+        0.25,
+        0.79
+       ]
+      }
+     ],
+     "range": {
+      "min": -1,
+      "max": 1
+     }
+    }
+   },
+   "smoke": {
+    "groups": [
+     "matrix-heatmap"
+    ],
+    "source": {
+     "set": "figure-chapters",
+     "id": "ml-stable-diffusion-forward-noise"
+    },
+    "kindsReliable": [
+     "heatmap"
+    ],
+    "unverified": "figure-chapters reference kind, seen in the 2026-11-09 figure-chapter runs",
+    "observed": "earlier runs: heatmap drawn 0 of 7 cards"
+   }
+  },
+  {
+   "id": "ml-stable-diffusion-image-caption-pairs",
+   "group": "figure-chapter",
+   "chapter": "Stable Diffusion",
+   "referenceId": "ml-stable-diffusion-image-caption-pairs",
+   "referenceKind": "matrix",
+   "referenceVariant": null,
+   "prompt": "What does an image and caption pair look like in CLIP training data?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "matrix"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "want": "matrix",
+   "referenceSpec": {
+    "version": 1,
+    "diagram": {
+     "kind": "matrix",
+     "title": "Paired image-caption training examples",
+     "caption": "Each pattern has a short description. When pairing the examples, keep the matching row identities.",
+     "columns": [
+      "Original toy pattern",
+      "Associated caption"
+     ],
+     "rows": [
+      {
+       "heading": "Pair 1",
+       "cells": [
+        "Diagonal lights",
+        "two bright corners"
+       ]
+      },
+      {
+       "heading": "Pair 2",
+       "cells": [
+        "Lower-left light",
+        "lower left light"
+       ]
+      }
+     ]
+    }
+   },
+   "smoke": {
+    "groups": [
+     "matrix-heatmap"
+    ],
+    "source": {
+     "set": "figure-chapters",
+     "id": "ml-stable-diffusion-image-caption-pairs"
+    },
+    "kindsReliable": [
+     "matrix"
+    ],
+    "unverified": "figure-chapters reference kind, seen in the 2026-11-09 figure-chapter runs",
+    "observed": "earlier runs: matrix drawn 2 of 5 cards"
+   }
+  },
+  {
+   "id": "ml-word2vec-signed-embedding-heatmap",
+   "group": "figure-chapter",
+   "chapter": "Word2vec",
+   "referenceId": "ml-word2vec-signed-embedding-heatmap",
+   "referenceKind": "heatmap",
+   "referenceVariant": null,
+   "prompt": "How do I read the colored cells of a Word2vec embedding heatmap?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "heatmap"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "want": "heatmap",
+   "referenceSpec": {
+    "version": 1,
+    "diagram": {
+     "kind": "heatmap",
+     "title": "One signed scale for word vectors",
+     "caption": "Compare cells in the same column. One shared scale makes opposite signs distinguishable.",
+     "columns": [
+      "First entry",
+      "Second entry",
+      "Third entry"
+     ],
+     "rows": [
+      {
+       "label": "seed",
+       "cells": [
+        0.8,
+        0.1,
+        -0.2
+       ]
+      },
+      {
+       "label": "seeds",
+       "cells": [
+        0.8,
+        0.4,
+        -0.1
+       ]
+      },
+      {
+       "label": "bulb",
+       "cells": [
+        0.6,
+        -0.2,
+        -0.25
+       ]
+      },
+      {
+       "label": "bulbs",
+       "cells": [
+        0.63,
+        0.08,
+        -0.16
+       ]
+      }
+     ],
+     "range": {
+      "min": -1,
+      "max": 1
+     }
+    }
+   },
+   "smoke": {
+    "groups": [
+     "matrix-heatmap"
+    ],
+    "source": {
+     "set": "figure-chapters",
+     "id": "ml-word2vec-signed-embedding-heatmap"
+    },
+    "kindsReliable": [
+     "heatmap"
+    ],
+    "unverified": "figure-chapters reference kind, seen in the 2026-11-09 figure-chapter runs",
+    "observed": "earlier runs: heatmap drawn 7 of 7 cards"
+   }
+  },
+  {
+   "id": "d2l-transformer-encoder-head-weight-grids",
+   "group": "figure-chapter",
+   "chapter": "D2L",
+   "referenceId": "d2l-transformer-encoder-head-weight-grids",
+   "referenceKind": "heatmap",
+   "referenceVariant": null,
+   "prompt": "How can I compare encoder self-attention heatmaps from different heads?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "heatmap"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "want": "heatmap",
+   "referenceSpec": {
+    "version": 1,
+    "diagram": {
+     "kind": "heatmap",
+     "title": "Encoder head A weights",
+     "caption": "Only the first four key slots contain source words.",
+     "range": {
+      "min": 0,
+      "max": 1
+     },
+     "columns": [
+      "1 the",
+      "2 cat",
+      "3 sat",
+      "4 on",
+      "Padding one",
+      "Padding two"
+     ],
+     "rows": [
+      {
+       "label": "1 the",
+       "cells": [
+        0.241,
+        0.254,
+        0.299,
+        0.206,
+        null,
+        null
+       ]
+      },
+      {
+       "label": "2 cat",
+       "cells": [
+        0.042,
+        0.708,
+        0.208,
+        0.042,
+        null,
+        null
+       ]
+      },
+      {
+       "label": "3 sat",
+       "cells": [
+        0.055,
+        0.682,
+        0.201,
+        0.062,
+        null,
+        null
+       ]
+      },
+      {
+       "label": "4 on",
+       "cells": [
+        0.235,
+        0.276,
+        0.23,
+        0.259,
+        null,
+        null
+       ]
+      }
+     ],
+     "rowLabel": "Query",
+     "columnLabel": "Key"
+    }
+   },
+   "smoke": {
+    "groups": [
+     "matrix-heatmap"
+    ],
+    "source": {
+     "set": "figure-chapters",
+     "id": "d2l-transformer-encoder-head-weight-grids"
+    },
+    "kindsReliable": [
+     "heatmap"
+    ],
+    "unverified": "figure-chapters reference kind, seen in the 2026-11-09 figure-chapter runs",
+    "observed": "earlier runs: heatmap drawn 7 of 7 cards"
+   }
+  },
+  {
+   "id": "ml-transformer-one-hot-target",
+   "group": "figure-chapter",
+   "chapter": "Transformer",
+   "referenceId": "ml-transformer-one-hot-target",
+   "referenceKind": "matrix",
+   "referenceVariant": null,
+   "prompt": "How does next-token training compare a probability vector with a one-hot target?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "matrix"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "want": "matrix",
+   "referenceSpec": {
+    "version": 1,
+    "diagram": {
+     "kind": "matrix",
+     "title": "Prediction and target share a vocabulary",
+     "caption": "Every word keeps the same row. The answer column marks just the observed next word.",
+     "columns": [
+      "Predicted share",
+      "One-hot target"
+     ],
+     "rows": [
+      {
+       "heading": "the",
+       "cells": [
+        "0.134",
+        "0"
+       ]
+      },
+      {
+       "heading": "cat",
+       "cells": [
+        "0.073",
+        "0"
+       ]
+      },
+      {
+       "heading": "sat",
+       "cells": [
+        "0.178",
+        "0"
+       ]
+      },
+      {
+       "heading": "on",
+       "cells": [
+        "0.465",
+        "1"
+       ]
+      },
+      {
+       "heading": "mat",
+       "cells": [
+        "0.1",
+        "0"
+       ]
+      },
+      {
+       "heading": "slept",
+       "cells": [
+        "0.05",
+        "0"
+       ]
+      }
+     ]
+    }
+   },
+   "smoke": {
+    "groups": [
+     "matrix-heatmap"
+    ],
+    "source": {
+     "set": "figure-chapters",
+     "id": "ml-transformer-one-hot-target"
+    },
+    "kindsReliable": [
+     "matrix"
+    ],
+    "unverified": "figure-chapters reference kind, seen in the 2026-11-09 figure-chapter runs",
+    "observed": "earlier runs: matrix drawn 4 of 7 cards"
+   }
+  },
+  {
+   "id": "precision-recall",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is the difference between precision and recall?",
+   "kinds": [
+    "matrix",
+    "bar-chart",
+    "comparison"
+   ],
+   "sketch": [
+    "Confusion counts with example numbers: true positives, false positives, false negatives (and true negatives).",
+    "Precision = TP / (TP + FP) and recall = TP / (TP + FN), each computed from those same counts."
+   ],
+   "best": [
+    [
+     "D:matrix|bar-chart|comparison"
+    ],
+    [
+     "D:matrix|bar-chart|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new",
+   "smoke": {
+    "groups": [
+     "matrix-heatmap"
+    ],
+    "source": {
+     "set": "content",
+     "id": "precision-recall"
+    },
+    "kindsReliable": [
+     "matrix"
+    ]
+   }
+  },
+  {
+   "id": "sigmoid",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what does the sigmoid activation function do?",
+   "kinds": [
+    "coordinate-plot"
+   ],
+   "sketch": [
+    "x axis: input z, about -6 to 6; y axis: sigmoid(z) = 1 / (1 + e^-z), an S-curve from 0 to 1.",
+    "It passes 0.5 at z = 0 and flattens near 0 and 1 (saturation)."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|bar-chart|number-line"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new",
+   "smoke": {
+    "groups": [
+     "formula-plot"
+    ],
+    "source": {
+     "set": "content",
+     "id": "sigmoid"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ]
+   }
+  },
+  {
+   "id": "gini",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is gini impurity",
+   "kinds": [
+    "coordinate-plot",
+    "bar-chart"
+   ],
+   "sketch": [
+    "x axis: the share p of one class in a node, 0 to 1; y axis: Gini impurity 1 - (p^2 + (1-p)^2) = 2p(1-p): 0 at p = 0 and 1, peak 0.5 at p = 0.5.",
+    "Or bars of one node's class shares, with the impurity 1 - (sum of squared shares) stated and computed from those bars."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot|bar-chart"
+    ],
+    [
+     "D:coordinate-plot|bar-chart",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|comparison|tree"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new",
+   "smoke": {
+    "groups": [
+     "formula-plot"
+    ],
+    "source": {
+     "set": "content",
+     "id": "gini"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ]
+   }
+  },
+  {
+   "id": "cross-entropy",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is cross entropy",
+   "kinds": [
+    "coordinate-plot",
+    "bar-chart"
+   ],
+   "sketch": [
+    "x axis: predicted probability of the true class, 0 to 1; y axis: loss -ln(p), very large near 0 and 0 at p = 1.",
+    "Or bars of the true distribution next to the predicted one, with H(p, q) = -sum p log q computed from the bar values."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot|bar-chart"
+    ],
+    [
+     "D:coordinate-plot|bar-chart",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|comparison"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new",
+   "smoke": {
+    "groups": [
+     "formula-plot"
+    ],
+    "source": {
+     "set": "content",
+     "id": "cross-entropy"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ]
+   }
+  },
+  {
+   "id": "lr-schedule",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is a learning rate schedule?",
+   "kinds": [
+    "coordinate-plot"
+   ],
+   "sketch": [
+    "x axis: training step or epoch; y axis: learning rate falling over training (step decay, exponential decay or cosine; a warm-up rising first if named).",
+    "The plotted values follow the schedule formula the prose states (for example lr_t = lr_0 * gamma^t)."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|timeline|number-line|flow"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml lr-schedule",
+   "smoke": {
+    "groups": [
+     "formula-plot"
+    ],
+    "source": {
+     "set": "content",
+     "id": "lr-schedule"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ]
+   }
+  },
+  {
+   "id": "gradient-descent",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is gradient descent?",
+   "kinds": [
+    "coordinate-plot",
+    "flow",
+    "cycle"
+   ],
+   "sketch": [
+    "x axis: a parameter w; y axis: the loss L(w), a bowl; steps move downhill toward the minimum.",
+    "Each step is w <- w - eta * dL/dw: the learning rate eta times the slope sets the step size."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot|flow|cycle"
+    ],
+    [
+     "D:coordinate-plot|flow|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|relationship"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml gradient-descent",
+   "smoke": {
+    "groups": [
+     "formula-plot"
+    ],
+    "source": {
+     "set": "content",
+     "id": "gradient-descent"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ]
+   }
+  },
+  {
+   "id": "softmax",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what does softmax do?",
+   "kinds": [
+    "bar-chart",
+    "transformation"
+   ],
+   "sketch": [
+    "Before: raw scores (logits) such as 2.0, 1.0, 0.1; after: probabilities e^z_i / sum_j e^z_j, about 0.66, 0.24, 0.10.",
+    "The outputs are all positive and sum to 1; the largest score keeps the largest share."
+   ],
+   "best": [
+    [
+     "D:bar-chart|transformation"
+    ],
+    [
+     "D:bar-chart|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:coordinate-plot|flow|comparison"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "baseline softmax",
+   "smoke": {
+    "groups": [
+     "formula-plot"
+    ],
+    "source": {
+     "set": "content",
+     "id": "softmax"
+    },
+    "kindsReliable": [
+     "transformation"
+    ]
+   }
+  },
+  {
+   "id": "public-key-encryption",
+   "group": "review",
+   "prompt": "how does public-key encryption work?",
+   "best": [
+    [
+     "D:sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ]
+   ],
+   "badKinds": [],
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "sequence-self-message"
+    ],
+    "source": {
+     "set": "review-batch-01",
+     "id": "public-key-encryption"
+    },
+    "kindsReliable": [
+     "sequence"
+    ],
+    "unverified": "review-batch-01 card 01: its raw spec has a bob-to-bob self-message; not in the 117 set"
+   }
+  },
+  {
+   "id": "send-email",
+   "group": "sequence",
+   "prompt": "what happens when I send an email?",
+   "best": [
+    [
+     "D:sequence"
+    ],
+    [
+     "D:sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "cycle",
+    "timeline",
+    "figure"
+   ],
+   "why": "Your client, your mail server, the recipient server and their client pass the message along: a sequence. Digital: no picture.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "sequence-self-message"
+    ],
+    "source": {
+     "set": "sequence",
+     "id": "send-email"
+    },
+    "kindsReliable": [
+     "sequence"
+    ]
+   }
+  },
+  {
+   "id": "dns-lookup",
+   "group": "sequence",
+   "prompt": "how does a DNS lookup work?",
+   "best": [
+    [
+     "D:sequence"
+    ],
+    [
+     "D:flow"
+    ],
+    [
+     "D:sequence",
+     "D:*"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:tree"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "cycle",
+    "timeline",
+    "figure"
+   ],
+   "why": "Resolver, root, TLD and authoritative servers exchange queries and answers: a sequence.",
+   "flowNeedsDecision": true,
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "sequence-self-message"
+    ],
+    "source": {
+     "set": "sequence",
+     "id": "dns-lookup"
+    },
+    "kindsReliable": [
+     "sequence"
+    ]
+   }
+  },
+  {
+   "id": "stack-vs-queue",
+   "group": "two: two diagrams",
+   "prompt": "compare a stack and a queue",
+   "best": [
+    [
+     "D:layers|sequence|flow|transformation",
+     "D:layers|sequence|flow|transformation|relationship"
+    ],
+    [
+     "D:comparison",
+     "D:layers|sequence|flow|transformation"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "cycle",
+    "timeline",
+    "figure",
+    "bar-chart"
+   ],
+   "why": "Two structures with different orders (LIFO vs FIFO): one diagram each (a stack as layers, a queue as a sequence/flow), or a comparison plus one.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "two-structure"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "stack-vs-queue"
+    },
+    "kindsReliable": [
+     "layers"
+    ]
+   }
+  },
+  {
+   "id": "dfs-vs-bfs",
+   "group": "two: two diagrams",
+   "prompt": "what is the difference between depth-first and breadth-first search?",
+   "best": [
+    [
+     "D:tree|flow",
+     "D:tree|flow|sequence|comparison"
+    ],
+    [
+     "D:comparison",
+     "D:tree|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison"
+    ],
+    [
+     "D:tree|flow"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "cycle",
+    "timeline",
+    "bar-chart",
+    "figure"
+   ],
+   "why": "Two traversal orders over the same tree: two diagrams, or a comparison plus a tree.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "two-structure"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "dfs-vs-bfs"
+    },
+    "kindsReliable": [
+     "tree"
+    ]
+   }
+  },
+  {
+   "id": "arrays-vs-lists",
+   "group": "two: two diagrams",
+   "prompt": "how do arrays and linked lists store data differently?",
+   "best": [
+    [
+     "D:matrix|layers|sequence|relationship|flow",
+     "D:relationship|flow|sequence|matrix"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison"
+    ],
+    [
+     "D:comparison",
+     "D:*"
+    ],
+    [
+     "D:relationship|flow"
+    ]
+   ],
+   "badKinds": [
+    "cycle",
+    "timeline",
+    "tree",
+    "figure",
+    "bar-chart"
+   ],
+   "why": "Contiguous cells vs nodes linked by pointers: one diagram of each.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "two-structure"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "arrays-vs-lists"
+    },
+    "kindsReliable": [
+     "relationship"
+    ]
+   }
+  },
+  {
+   "id": "plant-animal-cell",
+   "group": "two: two appearances",
+   "prompt": "how does a plant cell look different from an animal cell?",
+   "best": [
+    [
+     "P",
+     "P"
+    ],
+    [
+     "D:figure",
+     "P"
+    ],
+    [
+     "D:comparison",
+     "P"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:comparison"
+    ],
+    [
+     "D:figure"
+    ],
+    [
+     "D:figure",
+     "D:comparison"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "flow",
+    "cycle",
+    "timeline"
+   ],
+   "why": "Two appearances (cell wall, chloroplasts, vacuole vs none): two pictures, or the cell figure plus a picture or comparison.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "plant-animal-cell"
+    },
+    "kindsReliable": [
+     "comparison"
+    ]
+   }
+  },
+  {
+   "id": "solar-eclipse",
+   "group": "appearance",
+   "prompt": "how does a solar eclipse happen?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|relationship|flow"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "cycle",
+    "comparison"
+   ],
+   "why": "Spatial geometry (Sun, Moon, Earth in a line, the shadow); no diagram kind draws positions.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "solar-eclipse"
+    },
+    "kindsReliable": [
+     "figure"
+    ]
+   }
+  },
+  {
+   "id": "four-stroke",
+   "group": "two: object+process",
+   "prompt": "how does a four-stroke car engine work?",
+   "best": [
+    [
+     "P",
+     "D:cycle"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:cycle"
+    ],
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:flow|sequence"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "why": "The cylinder and piston are an object to see; intake, compression, power, exhaust is a cycle.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "four-stroke"
+    },
+    "kindsReliable": [
+     "cycle"
+    ]
+   }
+  },
+  {
+   "id": "robot-arm",
+   "group": "picture-worthy",
+   "prompt": "how does a robot arm pick up an object?",
+   "best": [
+    [
+     "P",
+     "D:flow|sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:flow|sequence"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "matrix",
+    "layers",
+    "comparison"
+   ],
+   "why": "A physical machine doing something: picture plus the sense-plan-grip steps.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "aiml",
+     "id": "robot-arm"
+    },
+    "kindsReliable": [
+     "flow"
+    ]
+   }
+  },
+  {
+   "id": "castle",
+   "group": "physical/3D",
+   "prompt": "what are the parts of a medieval castle?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:tree"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "flow",
+    "cycle",
+    "matrix",
+    "timeline"
+   ],
+   "why": "A place: the learner needs to see the walls, keep, gatehouse and moat in one scene. A part tree is a fair second.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "castle"
+    },
+    "kindsReliable": []
+   }
+  },
+  {
+   "id": "leaf-venation",
+   "group": "appearance",
+   "prompt": "explain leaf venation",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:comparison|tree"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "flow",
+    "cycle",
+    "timeline"
+   ],
+   "why": "Vein patterns (net vs parallel) are visual; two pictures or one picture side by side is the answer.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "leaf-venation"
+    },
+    "kindsReliable": []
+   }
+  },
+  {
+   "id": "mesh-3d",
+   "group": "physical/3D",
+   "prompt": "explain a 3D mesh",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:relationship|tree|transformation"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "timeline",
+    "bar-chart"
+   ],
+   "why": "A mesh is a shape: the learner needs to see a wireframe surface of triangles. A vertex/edge/face relationship diagram is a fair second visual; a stack of bands is not what a mesh is.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "mesh-3d"
+    },
+    "kindsReliable": []
+   }
+  },
+  {
+   "id": "volcano",
+   "group": "two: object+process",
+   "prompt": "how does a volcano erupt?",
+   "best": [
+    [
+     "P",
+     "D:flow|sequence|cycle|figure"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:flow|figure"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline",
+    "bar-chart"
+   ],
+   "why": "The volcano and its magma chamber are a place to see; the eruption is a process.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "volcano"
+    },
+    "kindsReliable": [
+     "flow"
+    ]
+   }
+  },
+  {
+   "id": "heart",
+   "group": "physical/3D",
+   "prompt": "how does the human heart pump blood?",
+   "best": [
+    [
+     "P",
+     "D:cycle|flow|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:cycle|flow|relationship"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "why": "Anatomy (a picture of the heart's chambers) plus the blood route (cycle or flow) is the full answer; either alone still teaches part of it.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "heart"
+    },
+    "kindsReliable": [
+     "cycle"
+    ]
+   }
+  },
+  {
+   "id": "suspension-bridge",
+   "group": "physical/3D",
+   "prompt": "how does a suspension bridge hold up its deck?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:figure|relationship|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:figure|relationship|flow"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "timeline",
+    "cycle"
+   ],
+   "why": "A structure to see (towers, main cables, hangers, deck); the load path is a fair diagram second or alone.",
+   "needsPicture": true,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "picture-needed"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "suspension-bridge"
+    },
+    "kindsReliable": [
+     "figure"
+    ]
+   }
+  },
+  {
+   "id": "transformer-block",
+   "group": "content-structure",
+   "category": "structure",
+   "prompt": "what are the parts of a transformer block?",
+   "kinds": [
+    "layers",
+    "flow",
+    "block-stack"
+   ],
+   "sketch": [
+    "Input embeddings -> multi-head self-attention -> add & layer norm -> feed-forward network -> add & layer norm.",
+    "Residual connections skip around the attention and around the feed-forward network."
+   ],
+   "best": [
+    [
+     "D:layers|flow|block-stack"
+    ],
+    [
+     "D:layers|flow|block-stack",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|tree"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new",
+   "relabel": "2026-11-09 owner: the new kinds were built for this prompt (block-stack)",
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "content",
+     "id": "transformer-block"
+    },
+    "kindsReliable": []
+   }
+  },
+  {
+   "id": "attention-weights",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "how are attention weights computed?",
+   "kinds": [
+    "bar-chart",
+    "matrix",
+    "transformation",
+    "flow",
+    "token-links"
+   ],
+   "sketch": [
+    "Scores: the query dotted with every key, divided by sqrt(d_k); softmax turns one query's scores into weights that sum to 1.",
+    "The output is the weighted sum of the value vectors; a larger weight means that token contributes more."
+   ],
+   "best": [
+    [
+     "D:bar-chart|matrix|transformation|flow|token-links"
+    ],
+    [
+     "D:bar-chart|matrix|transformation|flow|token-links",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|coordinate-plot"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new",
+   "relabel": "2026-11-09 owner: the new kinds were built for this prompt (token-links)",
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "content",
+     "id": "attention-weights"
+    },
+    "kindsReliable": [
+     "token-links"
+    ]
+   }
+  },
+  {
+   "id": "hash-table",
+   "group": "algorithm",
+   "prompt": "how does a hash table work?",
+   "best": [
+    [
+     "D:relationship|flow|transformation|matrix"
+    ],
+    [
+     "D:relationship|flow|transformation|matrix",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison|tree"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Keys hashed to buckets: relationship/flow/transformation (or a bucket matrix).",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "hash-table"
+    },
+    "kindsReliable": [
+     "flow"
+    ]
+   }
+  },
+  {
+   "id": "tokenization",
+   "group": "ai-core",
+   "prompt": "how does tokenization work?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle",
+    "layers"
+   ],
+   "why": "Text becomes a list of tokens: transformation, or the steps as a flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "aiml",
+     "id": "tokenization"
+    },
+    "kindsReliable": [
+     "transformation"
+    ]
+   }
+  },
+  {
+   "id": "overfitting",
+   "group": "content-relationship",
+   "category": "relationship",
+   "prompt": "what is overfitting?",
+   "kinds": [
+    "coordinate-plot",
+    "comparison"
+   ],
+   "sketch": [
+    "x axis: model complexity or training time; training error keeps falling while validation error falls, then rises.",
+    "The gap after the turning point is overfitting: the model fits noise in the training data."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot|comparison"
+    ],
+    [
+     "D:coordinate-plot|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|transformation|relationship"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml overfitting",
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "content",
+     "id": "overfitting"
+    },
+    "kindsReliable": [
+     "coordinate-plot"
+    ]
+   }
+  },
+  {
+   "id": "merge-sort",
+   "group": "algorithm",
+   "prompt": "how does merge sort work?",
+   "best": [
+    [
+     "D:tree|transformation|flow"
+    ],
+    [
+     "D:tree|transformation|flow",
+     "D:tree|transformation|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "D:*"
+    ],
+    [
+     "D:sequence"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "cycle",
+    "timeline",
+    "matrix"
+   ],
+   "why": "Split then merge: a tree of halves or a before/after transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "merge-sort"
+    },
+    "kindsReliable": [
+     "tree"
+    ]
+   }
+  },
+  {
+   "id": "rag",
+   "group": "ai-core",
+   "prompt": "how does RAG work?",
+   "best": [
+    [
+     "D:sequence|flow"
+    ],
+    [
+     "D:sequence|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Query -> retriever -> documents -> model -> answer, between named parts: sequence or flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "aiml",
+     "id": "rag"
+    },
+    "kindsReliable": [
+     "flow"
+    ]
+   }
+  },
+  {
+   "id": "backprop",
+   "group": "ai-core",
+   "prompt": "how does backpropagation work?",
+   "best": [
+    [
+     "D:flow|relationship|cycle"
+    ],
+    [
+     "D:flow|relationship|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|layers|sequence"
+    ]
+   ],
+   "badKinds": [
+    "comparison",
+    "timeline",
+    "figure",
+    "matrix"
+   ],
+   "why": "Forward pass, loss, gradients flowing back through the layers, weight update: a flow (or the training loop as a cycle, the chain rule as relationship).",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "aiml",
+     "id": "backprop"
+    },
+    "kindsReliable": [
+     "flow"
+    ]
+   }
+  },
+  {
+   "id": "random-forest",
+   "group": "collision",
+   "prompt": "what is a random forest?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:flow|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "Word collision: many decision trees that vote; never a picture of a forest.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "aiml",
+     "id": "random-forest"
+    },
+    "kindsReliable": [
+     "tree"
+    ]
+   }
+  },
+  {
+   "id": "rlhf",
+   "group": "content-relationship",
+   "category": "relationship",
+   "prompt": "how does RLHF work?",
+   "kinds": [
+    "flow",
+    "cycle",
+    "sequence"
+   ],
+   "sketch": [
+    "People rank model answers -> a reward model learns those preferences -> the policy model is tuned to raise the reward.",
+    "The loop repeats with new answers and rankings; a penalty keeps the policy close to the original model."
+   ],
+   "best": [
+    [
+     "D:flow|cycle|sequence"
+    ],
+    [
+     "D:flow|cycle|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml rlhf",
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "content",
+     "id": "rlhf"
+    },
+    "kindsReliable": [
+     "cycle"
+    ]
+   }
+  },
+  {
+   "id": "tcp-handshake",
+   "group": "process",
+   "prompt": "how does the TCP handshake work?",
+   "best": [
+    [
+     "D:sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow|timeline"
+    ],
+    [
+     "D:sequence",
+     "D:*"
+    ],
+    [
+     "D:sequence",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Messages between two actors in order: sequence. A picture can only be decoration.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "sequence",
+     "id": "tcp-handshake"
+    },
+    "kindsReliable": [
+     "sequence"
+    ]
+   }
+  },
+  {
+   "id": "batchnorm",
+   "group": "ai-core",
+   "prompt": "what is batch normalization?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ],
+    [
+     "D:transformation|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:coordinate-plot|bar-chart|comparison"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Activations re-centred and re-scaled per batch: before/after transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "aiml",
+     "id": "batchnorm"
+    },
+    "kindsReliable": [
+     "transformation"
+    ]
+   }
+  },
+  {
+   "id": "nn-layers",
+   "group": "collision",
+   "prompt": "what are the layers of a neural network?",
+   "best": [
+    [
+     "D:layers|flow|relationship"
+    ],
+    [
+     "D:layers|flow|relationship",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'layers': input, hidden and output layers in order; layers, flow or relationship are all right.",
+   "needsPicture": false,
+   "noPicture": true,
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "aiml",
+     "id": "nn-layers"
+    },
+    "kindsReliable": [
+     "layers"
+    ]
+   }
+  },
+  {
+   "id": "cnn",
+   "group": "content-structure",
+   "category": "structure",
+   "prompt": "what is a convolutional neural network?",
+   "kinds": [
+    "flow",
+    "layers",
+    "transformation"
+   ],
+   "sketch": [
+    "Image -> convolution layers (filters slide over it making feature maps) -> pooling (downsampling) -> fully connected layer -> class scores.",
+    "Early layers find edges; later layers combine them into shapes and objects."
+   ],
+   "best": [
+    [
+     "D:flow|layers|transformation"
+    ],
+    [
+     "D:flow|layers|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|tree"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml cnn",
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "content",
+     "id": "cnn"
+    },
+    "kindsReliable": [
+     "layers"
+    ]
+   }
+  },
+  {
+   "id": "gan",
+   "group": "content-relationship",
+   "category": "relationship",
+   "prompt": "how do the generator and discriminator in a GAN work together?",
+   "kinds": [
+    "relationship",
+    "cycle",
+    "flow"
+   ],
+   "sketch": [
+    "The generator turns random noise into fake samples; the discriminator labels samples real or fake.",
+    "The discriminator's feedback (its gradient) trains the generator to fool it; both improve against each other in a loop."
+   ],
+   "best": [
+    [
+     "D:relationship|cycle|flow"
+    ],
+    [
+     "D:relationship|cycle|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|comparison"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new",
+   "smoke": {
+    "groups": [
+     "picture-none"
+    ],
+    "source": {
+     "set": "content",
+     "id": "gan"
+    },
+    "kindsReliable": [
+     "cycle"
+    ]
+   }
+  },
+  {
+   "id": "roman-empire",
+   "group": "history",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "best": [
+    [
+     "D:timeline"
+    ],
+    [
+     "D:timeline",
+     "P"
+    ],
+    [
+     "D:timeline",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow|relationship|argument"
+    ],
+    [
+     "D:*",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "figure"
+   ],
+   "why": "Events in time: timeline. A picture of Rome is a fair second.",
+   "needsPicture": false,
+   "noPicture": false,
+   "smoke": {
+    "groups": [
+     "kind:timeline"
+    ],
+    "source": {
+     "set": "baseline",
+     "id": "roman-empire"
+    },
+    "kindsReliable": [
+     "timeline"
+    ]
+   }
+  },
+  {
+   "id": "two-histograms",
+   "group": "2a-required-kind",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "references": [
+    "ml-raw-log-distributions--part-1",
+    "ml-raw-log-distributions--part-2"
+   ],
+   "kinds": [
+    "histogram",
+    "comparison"
+   ],
+   "sketch": [
+    "Core: Two histograms of the same observations, one raw and one log-transformed, each with explicit bins; the raw one is right-skewed and the log one is more even; the transform is stated.",
+    "Optional: The transform's valid domain and the paired values."
+   ],
+   "best": [
+    [
+     "D:histogram",
+     "D:histogram"
+    ],
+    [
+     "D:comparison"
+    ],
+    [
+     "D:histogram"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison|histogram",
+     "D:*"
+    ],
+    [
+     "D:bar-chart",
+     "D:bar-chart"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "tree",
+    "flow"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "note": "Required-kind path: a comparison counts as right only when its panels are histograms; a single histogram diagram counts only if it shows both distributions (checked by hand).",
+   "source": {
+    "set": "phase02-batch",
+    "id": "two-histograms"
+   },
+   "smoke": {
+    "groups": [
+     "kind:histogram"
+    ],
+    "source": {
+     "set": "phase02-batch",
+     "id": "two-histograms"
+    },
+    "kindsReliable": [
+     "histogram"
+    ],
+    "unverified": "no 117 prompt draws this kind reliably: covered by a reference prompt"
+   }
+  },
+  {
+   "id": "ref-box-plot-iqr-fences",
+   "group": "kind-reference",
+   "prompt": "Explain quartiles, IQR fences, whiskers and outliers on one scale.",
+   "kinds": [
+    "box-plot"
+   ],
+   "best": [
+    [
+     "D:box-plot"
+    ],
+    [
+     "D:box-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [],
+   "badKinds": [],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": {
+    "set": "reference-library",
+    "id": "reference iqr-fences-and-outliers (release/explain-118 reference-library)"
+   },
+   "smoke": {
+    "groups": [
+     "kind:box-plot"
+    ],
+    "source": {
+     "set": "reference-library",
+     "id": "ref-box-plot-iqr-fences"
+    },
+    "kindsReliable": [
+     "box-plot"
+    ],
+    "unverified": "no 117 prompt draws this kind reliably: covered by a reference prompt"
+   }
+  },
+  {
+   "id": "ml-word2vec-trait-rescale",
+   "group": "figure-chapter",
+   "chapter": "Word2vec",
+   "referenceId": "ml-word2vec-trait-rescale",
+   "referenceKind": "number-line",
+   "referenceVariant": null,
+   "prompt": "How does rescaling a personality score help explain embedding coordinates?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "number-line"
+     ],
+     "acceptableKinds": []
+    }
+   },
+   "want": "number-line",
+   "referenceSpec": {
+    "version": 1,
+    "diagram": {
+     "kind": "number-line",
+     "title": "Center the units of one profile trait",
+     "caption": "On the old scale, Jun scored 80. On the centered scale, the same result sits on the positive side.",
+     "min": -1,
+     "max": 1,
+     "markers": [
+      {
+       "value": 0,
+       "label": "Middle of the original scale"
+      },
+      {
+       "value": 0.6,
+       "label": "Jun’s centered sociability"
+      }
+     ]
+    }
+   },
+   "source": {
+    "set": "figure-chapters",
+    "id": "ml-word2vec-trait-rescale"
+   },
+   "smoke": {
+    "groups": [
+     "kind:number-line"
+    ],
+    "source": {
+     "set": "figure-chapters",
+     "id": "ml-word2vec-trait-rescale"
+    },
+    "kindsReliable": [
+     "number-line"
+    ],
+    "unverified": "no 117 prompt draws this kind reliably: covered by a reference prompt",
+    "observed": "earlier runs: number-line drawn 4 of 7 cards"
+   }
+  },
+  {
+   "id": "ref-argument-reading",
+   "group": "kind-reference",
+   "prompt": "Explain build a reading of a passage",
+   "kinds": [
+    "argument"
+   ],
+   "best": [
+    [
+     "D:argument"
+    ],
+    [
+     "D:argument",
+     "D:*"
+    ]
+   ],
+   "acceptable": [],
+   "badKinds": [],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": {
+    "set": "reference-library",
+    "id": "reference general-argument-7"
+   },
+   "smoke": {
+    "groups": [
+     "kind:argument"
+    ],
+    "source": {
+     "set": "reference-library",
+     "id": "ref-argument-reading"
+    },
+    "kindsReliable": [
+     "argument"
+    ],
+    "unverified": "no 117 prompt draws this kind reliably: covered by a reference prompt"
+   }
+  },
+  {
+   "id": "ref-t-account-cash",
+   "group": "kind-reference",
+   "prompt": "Explain post entries to cash",
+   "kinds": [
+    "t-account"
+   ],
+   "best": [
+    [
+     "D:t-account"
+    ],
+    [
+     "D:t-account",
+     "D:*"
+    ]
+   ],
+   "acceptable": [],
+   "badKinds": [],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": {
+    "set": "reference-library",
+    "id": "reference general-t-account-9"
+   },
+   "smoke": {
+    "groups": [
+     "kind:t-account"
+    ],
+    "source": {
+     "set": "reference-library",
+     "id": "ref-t-account-cash"
+    },
+    "kindsReliable": [
+     "t-account"
+    ],
+    "unverified": "no 117 prompt draws this kind reliably: covered by a reference prompt"
+   }
+  },
+  {
+   "id": "ref-waterfall-cash",
+   "group": "kind-reference",
+   "prompt": "Explain from opening cash to closing cash",
+   "kinds": [
+    "waterfall"
+   ],
+   "best": [
+    [
+     "D:waterfall"
+    ],
+    [
+     "D:waterfall",
+     "D:*"
+    ]
+   ],
+   "acceptable": [],
+   "badKinds": [],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": {
+    "set": "reference-library",
+    "id": "reference general-waterfall-10"
+   },
+   "smoke": {
+    "groups": [
+     "kind:waterfall"
+    ],
+    "source": {
+     "set": "reference-library",
+     "id": "ref-waterfall-cash"
+    },
+    "kindsReliable": [
+     "waterfall"
+    ],
+    "unverified": "no 117 prompt draws this kind reliably: covered by a reference prompt"
+   }
+  },
+  {
+   "id": "ml-transformer-qkv-projections",
+   "group": "illustration",
+   "prompt": "How does a transformer get query, key and value vectors from one token?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "transformation"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "block-stack"
+     ],
+     "sketch": [
+      "Core: One input vector strip feeds three separate learned projections into a query, a key and a value strip; each strip shows its dimension.",
+      "Optional: Cells showing excerpts of the vector values."
+     ]
+    }
+   },
+   "want": "transformation with tensor items",
+   "source": {
+    "set": "illustrations",
+    "id": "ml-transformer-qkv-projections"
+   },
+   "smoke": {
+    "groups": [
+     "kind:tensor"
+    ],
+    "source": {
+     "set": "illustrations",
+     "id": "ml-transformer-qkv-projections"
+    },
+    "kindsReliable": [
+     "tensor"
+    ],
+    "unverified": "no 117 prompt draws this kind reliably: covered by a reference prompt"
+   }
+  },
+  {
+   "id": "ml-transformer-encoder-stack",
+   "group": "illustration",
+   "prompt": "What is inside one transformer encoder layer and why is it repeated?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "standard": {
+     "kinds": [
+      "block-stack"
+     ],
+     "acceptableKinds": [
+      "layers",
+      "flow"
+     ],
+     "sketch": [
+      "Core: One encoder layer opened up as self-attention, add and norm, feed-forward, add and norm, with a repeat count of six.",
+      "Optional: Token embeddings entering the stack."
+     ]
+    }
+   },
+   "smoke": {
+    "groups": [
+     "kind:block-stack"
+    ],
+    "source": {
+     "set": "illustrations",
+     "id": "ml-transformer-encoder-stack"
+    },
+    "kindsReliable": [
+     "block-stack"
+    ]
+   }
+  }
+ ]
+}

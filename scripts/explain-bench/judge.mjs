@@ -88,14 +88,18 @@ const shuffle = (a, random) => { const x = [...a]; for (let i = x.length - 1; i 
 // items: [{ key, rubric: 'factual'|'faithful'|'beyond'|'picture', text }]. judges: independent reviews per item, each judge in its own shuffled order.
 // -> { model, rubrics, judges, calls, cached, spent, stopped, failed, results: { [key]: [review, ...] } }
 // dryRun: no call is made; the result counts the items and estimates their cost.
-export async function judgeItems(items, { judges = 1, cap = 1, call, random = Math.random, cacheFile = null, log = () => {}, dryRun = false }) {
+// The cache IS the carried-verdict store (owner 2026-11-09, judge only what changed): its key is the rubric version plus the hash of the exact text the judge reads, so an unchanged card hits it
+// whatever run it comes from. A hit is "carried" (cachedBy, carriedKeys); a call is "judged" (callsBy). extraCacheFiles: read-only fallbacks (report.mjs --carry-from reads the carried run's own cache).
+export async function judgeItems(items, { judges = 1, cap = 1, call, random = Math.random, cacheFile = null, extraCacheFiles = [], log = () => {}, dryRun = false }) {
   const cache = cacheFile && existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, 'utf8')) : {};
-  const out = { model: JUDGE_MODEL, rubrics: Object.fromEntries(Object.keys(RUBRICS).map(k => [k, { version: RUBRICS[k].version, hash: rubricHash(k) }])), judges, dryRun, items: 0, byRubric: {}, estimate: dryRun ? { inputTokens: 0, low: 0, high: 0 } : undefined, calls: 0, cached: 0, spent: 0, stopped: false, failed: 0, results: {} };
+  const extra = Object.assign({}, ...extraCacheFiles.filter(f => f && existsSync(f)).map(f => JSON.parse(readFileSync(f, 'utf8'))));
+  const out = { model: JUDGE_MODEL, rubrics: Object.fromEntries(Object.keys(RUBRICS).map(k => [k, { version: RUBRICS[k].version, hash: rubricHash(k) }])), judges, dryRun, items: 0, byRubric: {}, estimate: dryRun ? { inputTokens: 0, low: 0, high: 0 } : undefined, calls: 0, cached: 0, cachedBy: {}, callsBy: {}, carriedKeys: [], spent: 0, stopped: false, failed: 0, results: {} };
   for (let j = 1; j <= judges; j++) {
     for (const item of shuffle(items, random)) {
       const def = RUBRICS[item.rubric], ck = `${def.version}|j${j}|${hashOf(item.text)}`;
       out.items++; out.byRubric[item.rubric] = (out.byRubric[item.rubric] || 0) + 1;
-      if (cache[ck]) { (out.results[item.key] ||= []).push(cache[ck]); out.cached++; continue; }
+      const hit = cache[ck] || extra[ck];
+      if (hit) { (out.results[item.key] ||= []).push(hit); out.cached++; out.cachedBy[item.rubric] = (out.cachedBy[item.rubric] || 0) + 1; if (!out.carriedKeys.includes(item.key)) out.carriedKeys.push(item.key); continue; }
       if (dryRun) { const e = estimate(item.rubric, item.text); out.estimate.inputTokens += e.input; out.estimate.low += e.low; out.estimate.high += e.high; continue; }
       if (out.spent + WORST_CALL > cap) { out.stopped = true; continue; }
       let review = null;
@@ -109,7 +113,7 @@ export async function judgeItems(items, { judges = 1, cap = 1, call, random = Ma
         if (!def.valid(input)) throw new Error(def.json ? 'no valid JSON answer' : 'no valid record_review call');
         review = def.review(input);
       } catch (e) { out.failed++; log(`judge ${item.rubric} failed: ${String(e.message).slice(0, 160)}`); continue; }
-      cache[ck] = review; (out.results[item.key] ||= []).push(review);
+      cache[ck] = review; (out.results[item.key] ||= []).push(review); out.callsBy[item.rubric] = (out.callsBy[item.rubric] || 0) + 1;
       if (cacheFile) writeFileSync(cacheFile, JSON.stringify(cache, null, 1));
     }
   }
