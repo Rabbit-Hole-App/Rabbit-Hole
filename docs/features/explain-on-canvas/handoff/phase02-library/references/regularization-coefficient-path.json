@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Coefficient paths versus penalty strength",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Penalty strength",
+      "min": 0.01,
+      "max": 100,
+      "scale": "log"
+    },
+    "y": {
+      "label": "Coefficient",
+      "min": -2,
+      "max": 3
+    },
+    "series": [
+      {
+        "label": "Feature A",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0.01,
+            "y": 3
+          },
+          {
+            "x": 0.1,
+            "y": 2.6
+          },
+          {
+            "x": 1,
+            "y": 1.4
+          },
+          {
+            "x": 10,
+            "y": 0.2
+          },
+          {
+            "x": 100,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "label": "Feature B",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0.01,
+            "y": -2
+          },
+          {
+            "x": 0.1,
+            "y": -1.4
+          },
+          {
+            "x": 1,
+            "y": -0.4
+          },
+          {
+            "x": 10,
+            "y": 0
+          },
+          {
+            "x": 100,
+            "y": 0
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "label": "Zero coefficient",
+        "axis": "y",
+        "value": 0
+      }
+    ]
+  }
+}

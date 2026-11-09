@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "From opening cash to closing cash",
+    "kind": "waterfall",
+    "opening": 1000,
+    "unit": "USD",
+    "changes": [
+      {
+        "label": "Receipts",
+        "amount": 350.25
+      },
+      {
+        "label": "Supplies",
+        "amount": -80.05
+      }
+    ]
+  }
+}

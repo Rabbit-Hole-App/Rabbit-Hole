@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Fit preprocessing only on training data",
+    "kind": "relationship",
+    "layout": "graph",
+    "nodes": [
+      {
+        "id": "train",
+        "label": "Raw training rows"
+      },
+      {
+        "id": "valid",
+        "label": "Raw validation rows"
+      },
+      {
+        "id": "fitted",
+        "label": "Frozen transformer"
+      },
+      {
+        "id": "trainX",
+        "label": "Transformed training rows"
+      },
+      {
+        "id": "validX",
+        "label": "Transformed validation rows"
+      },
+      {
+        "id": "model",
+        "label": "Fitted model"
+      },
+      {
+        "id": "score",
+        "label": "Validation score"
+      }
+    ],
+    "edges": [
+      {
+        "from": "train",
+        "to": "fitted",
+        "label": "Fit preprocessing parameters"
+      },
+      {
+        "from": "fitted",
+        "to": "trainX",
+        "label": "Transform training rows"
+      },
+      {
+        "from": "fitted",
+        "to": "validX",
+        "label": "Reuse fitted parameters"
+      },
+      {
+        "from": "valid",
+        "to": "validX",
+        "label": "Transform without fitting"
+      },
+      {
+        "from": "trainX",
+        "to": "model",
+        "label": "Fit model"
+      },
+      {
+        "from": "model",
+        "to": "score",
+        "label": "Predict"
+      },
+      {
+        "from": "validX",
+        "to": "score",
+        "label": "Evaluate held-out rows"
+      }
+    ]
+  }
+}

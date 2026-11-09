@@ -94,8 +94,8 @@ test('the Tutor reads a diagram as the library\'s plain description, never the J
 const card = block => B.renderToStaticMarkup(B.createElement(B.LearningBlockBody, { block, onChange() {}, onChangeQuiet() {}, onFile() {}, appName: 'x', selected: true }));
 const specOf = sample => sample.spec ?? sample;
 
-test('19 examples: each draws from a saved block after a JSON round trip, in the card body and in a More section, with no code fallback', () => {
-  assert.equal(EXAMPLES.length, 19);
+test('22 examples: each draws from a saved block after a JSON round trip, in the card body and in a More section, with no code fallback', () => {
+  assert.equal(EXAMPLES.length, 22); // owner E2 2026-11-08: plus a binary tree, a highlighted search path and maths in labels
   for (const [i, sample] of EXAMPLES.entries()) {
     const spec = specOf(sample), kind = spec.diagram.kind, name = `${i + 1}. ${kind}`;
     const block = { type: 'explanation', title: 'T', body: `Intro.\n\n${fence(spec)}\n\nEnd.`, more: [{ label: 'L', text: fence(spec) }] };

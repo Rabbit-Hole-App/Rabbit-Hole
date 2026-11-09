@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Zero linear covariance can hide a nonlinear rule",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Input x",
+      "min": -2,
+      "max": 2,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Output x squared",
+      "min": 0,
+      "max": 4
+    },
+    "series": [
+      {
+        "label": "Deterministic samples",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": -2,
+            "y": 4
+          },
+          {
+            "x": -1,
+            "y": 1
+          },
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 2,
+            "y": 4
+          }
+        ]
+      }
+    ],
+    "annotations": []
+  }
+}

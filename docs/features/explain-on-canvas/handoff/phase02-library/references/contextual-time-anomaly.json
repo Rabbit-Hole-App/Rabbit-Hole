@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "An observation can violate its local context",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Time",
+      "min": 1,
+      "max": 8,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Value",
+      "min": 0,
+      "max": 10
+    },
+    "series": [
+      {
+        "label": "Expected seasonal pattern",
+        "kind": "line",
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          },
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 3,
+            "y": 2
+          },
+          {
+            "x": 4,
+            "y": 8
+          },
+          {
+            "x": 5,
+            "y": 2
+          },
+          {
+            "x": 6,
+            "y": 8
+          },
+          {
+            "x": 7,
+            "y": 2
+          },
+          {
+            "x": 8,
+            "y": 8
+          }
+        ]
+      },
+      {
+        "label": "Observed",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          },
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 3,
+            "y": 2
+          },
+          {
+            "x": 4,
+            "y": 8
+          },
+          {
+            "x": 5,
+            "y": 8
+          },
+          {
+            "x": 6,
+            "y": 8
+          },
+          {
+            "x": 7,
+            "y": 2
+          },
+          {
+            "x": 8,
+            "y": 8
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "label": "Value 8 is unusual at this phase",
+        "x": 5,
+        "y": 8
+      }
+    ]
+  }
+}

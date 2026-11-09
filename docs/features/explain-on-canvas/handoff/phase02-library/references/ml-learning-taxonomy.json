@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Learning tasks",
+    "kind": "tree",
+    "layout": "hierarchy",
+    "nodes": [
+      {
+        "id": "ml",
+        "label": "Machine learning"
+      },
+      {
+        "id": "supervised",
+        "label": "Supervised",
+        "parent": "ml",
+        "detail": "Learn from labelled examples"
+      },
+      {
+        "id": "unsupervised",
+        "label": "Unsupervised",
+        "parent": "ml",
+        "detail": "Find structure without targets"
+      },
+      {
+        "id": "reinforcement",
+        "label": "Reinforcement",
+        "parent": "ml",
+        "detail": "Learn actions from reward"
+      },
+      {
+        "id": "regression",
+        "label": "Regression",
+        "parent": "supervised"
+      },
+      {
+        "id": "classification",
+        "label": "Classification",
+        "parent": "supervised"
+      },
+      {
+        "id": "clustering",
+        "label": "Clustering",
+        "parent": "unsupervised"
+      }
+    ]
+  }
+}

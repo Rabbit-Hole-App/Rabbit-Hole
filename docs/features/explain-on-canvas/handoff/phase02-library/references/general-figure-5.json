@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Forces on a balanced block",
+    "kind": "figure",
+    "figure": "free-body",
+    "unit": "N",
+    "callouts": [
+      {
+        "anchor": "body",
+        "label": "Block"
+      },
+      {
+        "anchor": "up",
+        "label": "Upward force"
+      },
+      {
+        "anchor": "down",
+        "label": "Downward force"
+      }
+    ],
+    "vectors": [
+      {
+        "direction": "up",
+        "magnitude": 10,
+        "label": "Normal force"
+      },
+      {
+        "direction": "down",
+        "magnitude": 10,
+        "label": "Weight"
+      }
+    ]
+  }
+}

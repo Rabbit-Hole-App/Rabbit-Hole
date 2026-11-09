@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Parts of an animal cell",
+    "caption": "Simplified schematic",
+    "kind": "figure",
+    "figure": "cell",
+    "callouts": [
+      {
+        "anchor": "membrane",
+        "label": "Cell membrane",
+        "detail": "Boundary of the cell"
+      },
+      {
+        "anchor": "nucleus",
+        "label": "Nucleus"
+      },
+      {
+        "anchor": "cytoplasm",
+        "label": "Cytoplasm"
+      },
+      {
+        "anchor": "mitochondrion",
+        "label": "Mitochondrion"
+      }
+    ]
+  }
+}

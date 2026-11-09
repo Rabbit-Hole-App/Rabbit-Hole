@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { EXPLANATION_PROFILE_SETTING, EXPLANATION_REGISTRY, explanationProfileBinding, explanationProfileFor, resolveExplanationProfile } from '../src/explanation-models.js';
-import { CHAIN_ENDPOINTS, FALLBACK_SETTING, stepRequest, withoutBounds } from '../src/explanation-fast-chain.js';
-import { generateArtifact } from '../src/learn-artifact.js';
+import { CHAIN_ENDPOINTS, FALLBACK_SETTING, forGemini, stepRequest, withoutBounds } from '../src/explanation-fast-chain.js';
+import { generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
+import { CORE_KINDS } from '../src/explanation-references.js';
 import { EXPLANATION_GUIDANCE, artifactBlock, explanationProblem, settleExplanationBody } from '../src/learn-primitives.js';
 import { explanationTarget } from '../src/chat-depth.js';
 import { INTERACTION_GUIDANCE, INTERACTIONS_SETTING } from '../src/explanation-interactions.js';
@@ -160,7 +161,11 @@ test('an exclusive oneOf is sent as anyOf; a non-exclusive one is refused, not w
 // invalid argument.") while its response schema held any maxItems (Gemini's state-machine limit, https://aistudio.google.com/docs/structured-output), and
 // accepted once they were dropped. The stand-in refuses that shape the way Gemini did, so the fallback path runs in CI.
 const hasMaxItems = o => (Array.isArray(o) ? o.some(hasMaxItems) : !!o && typeof o === 'object' && Object.entries(o).some(([k, v]) => (k === 'maxItems' && typeof v === 'number') || hasMaxItems(v)));
-const geminiRefuses = body => body.model !== 'gemini-3.5-flash-lite' || body.response_format?.type !== 'json_schema' || hasMaxItems(body.response_format.json_schema?.schema);
+// Phase 02 (2026-11-08, real calls): Gemini also refused the schema by its structure, accepted at 362 properties and refused at 368, so the stand-in refuses past 362.
+const propertyCount = o => (Array.isArray(o) ? o.reduce((n, s) => n + propertyCount(s), 0) : o && typeof o === 'object'
+  ? Object.entries(o).reduce((n, [k, v]) => n + (k === 'properties' && v && typeof v === 'object' ? Object.keys(v).length + Object.values(v).reduce((m, s) => m + propertyCount(s), 0) : propertyCount(v)), 0) : 0);
+const geminiRefuses = body => body.model !== 'gemini-3.5-flash-lite' || body.response_format?.type !== 'json_schema' || hasMaxItems(body.response_format.json_schema?.schema) || propertyCount(body.response_format.json_schema?.schema) > 362;
+const diagramOf = body => body.response_format.json_schema.schema.properties.visuals.items.anyOf.find(v => v.properties.spec).properties.spec.properties.diagram;
 const GEMINI_400 = { error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } };
 const GEMINI_FIXTURE = JSON.parse(readFileSync(new URL('./fixtures/explanation-gemini-request.json', import.meta.url), 'utf8'));
 const shapeOf = ({ messages, ...rest }) => rest;
@@ -175,17 +180,30 @@ test('the Gemini step request: array and numeric bounds dropped from its schema 
   await ask(offline('fireworks-low', { GEMINI_API_KEY: '' }), 'how does the human heart pump blood?', {}).catch(() => null);
   const [gemini, fireworks] = sent.map(s => s.body);
   assert.deepEqual(sent.map(s => s.provider), ['google', 'fireworks']);
-  // Keep the recorded request intact. This comparison pins the two new fields offline.
-  const expected = structuredClone(GEMINI_FIXTURE.sent);
-  const visuals = expected.response_format.json_schema.schema.properties.visuals;
-  const diagram = visuals.items.anyOf.find(visual => visual.properties.spec).properties.spec.properties.diagram;
-  const tree = diagram.anyOf.find(kind => kind.properties.kind.const === 'tree');
-  tree.properties.layout = { type: 'string', const: 'binary' };
-  tree.properties.nodes.items.properties.side = { type: 'string', enum: ['left', 'right'] };
+  // Keep the recorded request intact. Phase 02 (2026-11-08) replaced the diagram union, so it is compared with the reduction below; the rest keeps the recorded shape.
+  const expected = structuredClone(GEMINI_FIXTURE.sent), actual = structuredClone(shapeOf(gemini));
+  delete diagramOf(expected).anyOf; delete diagramOf(actual).anyOf;
   expected.temperature = 0; // item 47: the author samples at 0; Gemini documents no seed, so none is sent
-  assert.deepEqual(shapeOf(gemini), expected, 'the Gemini request must match the recorded shape plus binary tree fields and the author temperature');
+  assert.deepEqual(actual, expected, 'outside the diagram union the Gemini request must match the recorded shape plus the author temperature');
   assert.ok(hasMaxItems(fireworks.response_format.json_schema.schema), 'the Fireworks step still sends the bounded schema');
-  assert.deepEqual(withoutBounds(fireworks.response_format), gemini.response_format, 'the bounds are the only difference');
+  // Owner A1 (2026-11-08): a fast-chain request with no steering carries the CORE bundle, list forms only.
+  const kindsOf = body => diagramOf(body).anyOf.map(branch => branch.properties.kind.const).sort();
+  assert.deepEqual(kindsOf(fireworks), [...CORE_KINDS].sort());
+  assert.ok(!JSON.stringify(fireworks.response_format).includes('"panels"'));
+  assert.deepEqual(forGemini(withoutBounds(fireworks.response_format)), gemini.response_format, 'bounds are the only difference for the core bundle');
+  // The largest bundle (every flag) is the whole schema: refused by Gemini without forGemini, accepted with it.
+  const full = prepareArtifactAuthorRequest({ SMALL_ENV: 'test' }, { command: 'explanation', args: 'x' }).body.tools.find(t => t.name === 'make_explanation').input_schema;
+  const whole = stepRequest({ provider: 'fireworks', model: FW }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }], messages: [{ role: 'user', content: '{}' }] });
+  assert.equal(kindsOf(whole).length, 21);
+  assert.ok(geminiRefuses({ ...gemini, response_format: withoutBounds(whole.response_format) }), 'the whole Phase 02 schema without bounds is the one Gemini refused');
+  const plain = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }], messages: [{ role: 'user', content: '{}' }] });
+  assert.equal(kindsOf(plain).length, 17, 'every kind but the four new ones');
+  assert.ok(!JSON.stringify(plain.response_format).includes('"panels"') && diagramOf(plain).anyOf.find(b => b.properties.kind.const === 'tree').properties.highlightPath && !geminiRefuses(plain));
+  // A request that names a new kind keeps it, list forms still.
+  const named = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }],
+    messages: [{ role: 'user', content: JSON.stringify({ request: 'x', requiredVisuals: [{ id: 'vr-1', kind: 'diagram', diagramKind: 'heatmap', purpose: 'x' }] }) }] });
+  assert.deepEqual(kindsOf(named).filter(k => !kindsOf(plain).includes(k)), ['heatmap']);
+  assert.ok(!geminiRefuses(named));
   // A property NAMED like a bound is a field, not a keyword: it is kept.
   assert.deepEqual(withoutBounds({ type: 'object', properties: { maxItems: { type: 'number', maximum: 3 } }, minItems: 1 }), { type: 'object', properties: { maxItems: { type: 'number' } } });
 });

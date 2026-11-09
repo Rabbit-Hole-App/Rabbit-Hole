@@ -104,7 +104,7 @@ test('the written command makes a card directly: no job, the Explanation primiti
   assert.equal(started.length, 0, 'no explain job');
   const request = posts.find(([path]) => path === '/api/learn/artifact')[1];
   assert.deepEqual([request.command, request.args, request.context], ['explanation', 'how a heap keeps its order', 'a tree']);
-  assert.ok(out.notice, 'it answers with a notice, not a prompt to the chat');
+  assert.deepEqual([out.notice, out.prompt], [null, undefined], 'no "Added an explanation" notice (owner 2026-11-08) and no prompt to the chat');
   assert.deepEqual(posts.filter(([path]) => path !== '/api/learn/artifact').map(entry => entry[0]), ['inserted'], 'the card is inserted by the same canvas hook');
 });
 

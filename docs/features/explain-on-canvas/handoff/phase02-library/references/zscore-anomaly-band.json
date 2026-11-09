@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A z-score threshold marks unusual observations",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Observation",
+      "min": 1,
+      "max": 7,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Z-score",
+      "min": -4,
+      "max": 4
+    },
+    "series": [
+      {
+        "label": "Standardized value",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 1,
+            "y": -0.8
+          },
+          {
+            "x": 2,
+            "y": 0.3
+          },
+          {
+            "x": 3,
+            "y": 1.1
+          },
+          {
+            "x": 4,
+            "y": 3.5
+          },
+          {
+            "x": 5,
+            "y": -0.4
+          },
+          {
+            "x": 6,
+            "y": -3.2
+          },
+          {
+            "x": 7,
+            "y": 0.7
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "band",
+        "label": "Inside the ±3 threshold",
+        "axis": "y",
+        "from": -3,
+        "to": 3
+      }
+    ]
+  }
+}

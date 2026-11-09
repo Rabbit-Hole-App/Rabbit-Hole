@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Pairwise kernel similarities",
+    "kind": "heatmap",
+    "columns": [
+      "A",
+      "B",
+      "C"
+    ],
+    "rows": [
+      {
+        "label": "A",
+        "cells": [
+          1,
+          0.8,
+          0.1
+        ]
+      },
+      {
+        "label": "B",
+        "cells": [
+          0.8,
+          1,
+          0.2
+        ]
+      },
+      {
+        "label": "C",
+        "cells": [
+          0.1,
+          0.2,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    }
+  }
+}

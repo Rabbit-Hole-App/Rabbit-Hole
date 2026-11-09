@@ -328,7 +328,7 @@ test('a card command reserves before the request and its card takes that slot', 
   const { did, run } = slotHarness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'T', body: 'B' } });
   const out = await run('/explain why a token id is only an index'); // the written command (id explanation)
   assert.deepEqual(did, [['reserve', { label: 'Creating /explain', card: 'explanation' }], ['post', true], ['block', 'explanation', { into: 'slot:1', fit: true }]], 'the card keeps its typed line; the prompt is hidden until asked for, so the slot reserves no row (owner brief 2026-10-23)');
-  assert.equal(out.notice.blockId, 'card-1');
+  assert.equal(out.notice, null, 'a written /explain says nothing on success (owner 2026-11-08): its card and chip are the answer');
   // Sized as the command's own card: /graph as a graph, /quiz as a quiz.
   const graph = slotHarness({ result: 'clarification', question: 'Which function?' });
   await graph.run('/graph');
@@ -604,7 +604,7 @@ test('Ask in a new card: the written /explain inserts its card with the parent l
   };
   const linked = await run({ id: 'card-1', title: 'Why trees', text: 'The card text', explanation: { revision: 'r1-abc', actionId: 'act-1' }, parentLink: { revision: 'r1-abc', actionId: 'act-1' } });
   assert.deepEqual(linked.did, [{ into: 'slot:1', fit: true, parent: { id: 'card-1', revision: 'r1-abc', actionId: 'act-1' } }]);
-  assert.equal(linked.out.notice.blockId, 'child-1');
+  assert.equal(linked.out.notice, null, 'no Added notice (owner 2026-11-08)');
   const plain = await run({ id: 'card-1', title: 'Why trees', text: 'The card text' });
   assert.deepEqual(plain.did, [{ into: 'slot:1', fit: true }], 'a selected card alone adds no link; the new Explanation is shown whole (fit)');
 });

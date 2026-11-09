@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Project folders",
+    "kind": "tree",
+    "layout": "hierarchy",
+    "nodes": [
+      {
+        "id": "project",
+        "label": "Project"
+      },
+      {
+        "id": "data",
+        "label": "data",
+        "parent": "project"
+      },
+      {
+        "id": "models",
+        "label": "models",
+        "parent": "project"
+      },
+      {
+        "id": "reports",
+        "label": "reports",
+        "parent": "project"
+      },
+      {
+        "id": "raw",
+        "label": "raw",
+        "parent": "data"
+      },
+      {
+        "id": "clean",
+        "label": "clean",
+        "parent": "data"
+      }
+    ]
+  }
+}

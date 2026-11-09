@@ -146,8 +146,9 @@ async function pass(theme) {
   const before = await blocks();
   await composer().fill('/explain how binary search works');
   await composer().press('Enter');
-  await notice.getByText('Added an explanation.').waitFor({ timeout: 15000 });
-  ok(`${theme}: typed /explain creates an explanation card`, await blocks() === before + 1 && artifacts.at(-1) === 'explanation' && await page.getByText('How binary search works').count() > 0);
+  // Owner 2026-11-08: a written /explain shows no "Added an explanation" notice; the card itself is the answer.
+  await page.getByText('How binary search works').first().waitFor({ timeout: 15000 });
+  ok(`${theme}: typed /explain creates an explanation card, with no Added notice`, await blocks() === before + 1 && artifacts.at(-1) === 'explanation' && await notice.getByText('Added an explanation.').count() === 0);
   await shot('04-explain-card');
   await composer().fill('/photos Mount Fuji');
   await composer().press('Enter');

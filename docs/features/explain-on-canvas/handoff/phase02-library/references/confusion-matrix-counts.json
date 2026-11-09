@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Actual and predicted classes",
+    "caption": "The highlighted 20 are actual positives predicted negative.",
+    "kind": "heatmap",
+    "rowLabel": "Actual",
+    "columnLabel": "Predicted",
+    "columns": [
+      "Negative",
+      "Positive"
+    ],
+    "rows": [
+      {
+        "label": "Negative",
+        "cells": [
+          90,
+          10
+        ]
+      },
+      {
+        "label": "Positive",
+        "cells": [
+          20,
+          80
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "highlights": [
+      {
+        "row": 1,
+        "column": 0
+      }
+    ]
+  }
+}

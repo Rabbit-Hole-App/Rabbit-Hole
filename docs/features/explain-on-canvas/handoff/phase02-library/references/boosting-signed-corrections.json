@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Boosting adds signed prediction corrections",
+    "caption": "Illustrative values; compare categories on the shared scale.",
+    "kind": "bar-chart",
+    "variant": "stacked",
+    "categories": [
+      "Sample A",
+      "Sample B",
+      "Sample C"
+    ],
+    "series": [
+      {
+        "label": "Initial prediction",
+        "values": [
+          3,
+          3,
+          3
+        ]
+      },
+      {
+        "label": "First correction",
+        "values": [
+          2,
+          -1,
+          0.5
+        ]
+      },
+      {
+        "label": "Second correction",
+        "values": [
+          -0.5,
+          -0.5,
+          0.25
+        ]
+      }
+    ]
+  }
+}
