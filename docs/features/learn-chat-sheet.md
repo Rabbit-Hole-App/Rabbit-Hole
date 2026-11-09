@@ -91,3 +91,11 @@ still while the answer streams. Cards inserted any other way (Insert menu,
   Isolated upload failed Cloudflare validation for `node:crypto`; no deployment
   or real-model success is claimed. Final evidence belongs in the external
   answer-routing lane receipt before integration.
+
+## Chat model (release 117, owner 2026-11-08)
+
+- **On Gemini 3.5 Flash Lite, medium reasoning** (same model, endpoint and key as the explain cards, `GEMINI_API_KEY`): every chat answer, that is Ask, Auto and Tutor chat, Continue convo, sheet asks, chat-answered slash commands, app and repository chat, the shared-canvas ask. Auto, no pick, an unknown key and a saved `opus-5` all resolve to Gemini; the picker no longer offers Opus 5.
+- **Stays on Anthropic:** a Sonnet 5 or Haiku 4.5 pick; any call that carries a PDF (an attachment, or a paper the research tool read) runs on Sonnet 5 because the Gemini path sends text and images only; cards, the whiteboard and grading stay on Opus 5 (their own `ASK_MODELS.auto` pin); the background tutor jobs keep their configured models; an org with its own provider keeps it; subscription mode never leaves its bridge.
+- **Switch back:** `CHAT_MODEL_PROFILE=anthropic` puts Auto back on Opus. There is no fallback from Gemini to Opus: a Gemini 4xx/5xx shows "Learn answer unavailable (model HTTP <status>: <reason>)", and a missing key shows "AI answers aren't configured on this preview."
+- **Delivery:** the finished answer is replayed as the stream the chat already reads, so the first word waits for the whole answer. **Follow-up (owner): real token streaming**, reusing the explain chain's Gemini streaming.
+- **Verified with real calls (2026-11-08):** a tool loop (search tool call, then the tool result, then the answer); the assistant tool call must go back with its thought signature (without it Gemini answers 400, and the research loop replays `result.content` unchanged); all 14 chat tool schemas are accepted as written, so nothing is stripped; an image attachment is converted to an `image_url` data part and described.
