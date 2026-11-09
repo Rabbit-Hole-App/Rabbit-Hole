@@ -30,20 +30,20 @@ const KIND = {
   'box-plot': 'Quartiles, median, whiskers, outliers of one or more groups.',
   heatmap: 'A numeric grid coloured by value, with an explicit scale.',
   'number-line': 'Values and intervals on one axis.',
-  figure: 'A labelled schematic of a cell, a free-body force diagram, or a layered cross-section only.',
+  figure: 'A labelled schematic of a cell, a free-body force diagram, or a layered cross-section only; a device or machine (a lens, an engine, a camera) is a flow or sequence of what it does, not a figure.',
   'sample-set': 'Identifiable samples and their group membership, replacement or weights (bootstrap, folds).',
   argument: 'A claim with supporting and opposing evidence and a conclusion.',
   't-account': 'Debits and credits.',
   waterfall: 'An opening value changed by signed steps to a closing value.',
 };
 export const QUESTIONS = {
-  visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only.",
+  visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both: a 'how does X work' question about a physical object is both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only: a neural network, a data structure, a protocol or a comparison of two technologies is a diagram even when the question says 'look like'.",
     criteria: { picture: 'A drawn illustration of a physical thing, place, organism or natural event.', diagram: 'A schematic: process, relationship, comparison, structure, quantity or formula.', both: 'A physical thing that also has a mechanism to explain (volcano erupting, engine, eclipse).' } },
   kind: { type: 'choice', instructions: 'If a diagram is used, which kind best teaches the answer? Judge by the shape of the answer, not by words in the question.', criteria: KIND },
   depthTreatment: { type: 'choice', instructions: 'How technical should the explanation and its visual be for this depth? Overview: plain words, no formulas or jargon, the simplest visual with plain labels. Standard: the mechanism with its proper terms; a plot or chart if a quantity is central. Deep: precise terms, the formula or exact relationship in the labels, the quantitative view.',
     criteria: { plain: 'No formulas, no jargon, plain-word labels.', mechanism: 'Proper terms, the mechanism; a plot if a quantity is central.', quantitative: 'Formula and exact relationships in labels; plot or chart where a quantity is involved.' } },
   needsPlot: { type: 'noul', instructions: 'Is this a question about a formula, a metric, a loss, an activation function, a schedule, or how one quantity changes with another?' },
-  isPhysical: { type: 'noul', instructions: 'Is the subject a physical object, place, organism, 3D shape, repeating structure (molecule, lattice, gear train) or natural event?' },
+  isPhysical: { type: 'noul', instructions: 'Is the subject a physical object, place, organism, 3D shape, repeating structure (molecule, lattice, gear train, mesh) or natural event? Software, algorithms, neural networks, protocols, a CPU versus a GPU and other digital or mathematical subjects are not physical.' },
   needsWorkedExample: { type: 'noul', instructions: 'Would a small worked numeric example (computed from the formula the explanation states) make the answer clearer?' },
 };
 

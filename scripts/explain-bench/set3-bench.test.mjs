@@ -55,3 +55,8 @@ test('planner replay rejects duplicate and mismatched captured cases', () => {
   assert.throws(() => scorePlannerReplay(cases, [{ ...saved[0], prompt: 'Something else' }], scoring), /prompt/i);
   assert.throws(() => scorePlannerReplay(cases, [{ ...saved[0], depth: 'deep' }], scoring), /unknown/i);
 });
+
+test('the planner bench asks exactly the questions production asks (QUESTIONS parity)', async () => {
+  const bench = await import('./planner.mjs'), production = await import('../../packages/control-plane/src/explanation-planner.js');
+  assert.deepEqual(bench.QUESTIONS, production.QUESTIONS);
+});
