@@ -290,7 +290,7 @@ test('the guidance carries the parties-send-things sequence rule, the structure-
 test('the guidance keeps digital, abstract and procedural subjects to diagrams, beside the unchanged positive picture rule', () => {
   const g = EXPLANATION_GUIDANCE;
   assert.ok(g.includes('Digital, abstract or procedural subjects — email, DNS, network protocols, algorithms, software, data structures, mathematics — never get a picture. They get a diagram only.'));
-  assert.ok(g.includes('1) Type: objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them; a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram; processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams; never use a picture for a data structure, an algorithm or numbers.'));
+  assert.ok(g.includes('1) Type: objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them; a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram; processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams; never use a picture for a data structure, an algorithm or numbers; a 3D object or a repeating structure — a molecule, a crystal lattice, a gear train, a mesh — is a picture, never a tree, figure or layers.'));
 });
 
 const meshPicture = illustrationFence({ id: 'pic-1', prompt: 'A 3D mesh of a teapot drawn as small triangles', alt: 'A teapot mesh made of triangles', caption: 'A 3D mesh is many small triangles' });
@@ -336,4 +336,8 @@ test('fix 6a: a branchless flow becomes a cycle of the same steps in order when 
   assert.equal(chainsAsCycles(long), long);
   for (const q of ['How do the phases of the Moon repeat?', 'why does it loop again', 'recurring seasons', 'one round of the game', 'the cell cycle']) assert.ok(repeats(q), q);
   for (const q of ['How does a request reach the database?', 'explain bicycle gears', 'what goes around the sun']) assert.equal(repeats(q), false, q);
+});
+
+test('rule 1 makes a 3D object or a repeating structure a picture (owner G3, 2026-11-08: crystal lattice drew a tree on Gemini)', () => {
+  assert.match(EXPLANATION_GUIDANCE, /a 3D object or a repeating structure — a molecule, a crystal lattice, a gear train, a mesh — is a picture, never a tree, figure or layers/);
 });
