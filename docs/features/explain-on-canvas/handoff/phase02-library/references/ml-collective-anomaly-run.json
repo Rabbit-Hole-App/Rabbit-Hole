@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A collective anomaly in failed logins",
+    "caption": "Here, counts from 0 to 5 are normal in isolation. Flag at minute 12 after 6 consecutive minutes with 5 failures each.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Minute",
+      "min": 1,
+      "max": 12
+    },
+    "y": {
+      "label": "Failed logins per minute",
+      "min": 0,
+      "max": 6
+    },
+    "series": [
+      {
+        "label": "Failed logins",
+        "kind": "line",
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          },
+          {
+            "x": 2,
+            "y": 5
+          },
+          {
+            "x": 3,
+            "y": 4
+          },
+          {
+            "x": 4,
+            "y": 2
+          },
+          {
+            "x": 5,
+            "y": 5
+          },
+          {
+            "x": 6,
+            "y": 3
+          },
+          {
+            "x": 7,
+            "y": 5
+          },
+          {
+            "x": 8,
+            "y": 5
+          },
+          {
+            "x": 9,
+            "y": 5
+          },
+          {
+            "x": 10,
+            "y": 5
+          },
+          {
+            "x": 11,
+            "y": 5
+          },
+          {
+            "x": 12,
+            "y": 5
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "band",
+        "label": "Six consecutive high minutes",
+        "axis": "x",
+        "from": 7,
+        "to": 12
+      },
+      {
+        "kind": "point",
+        "label": "Flag at minute 12",
+        "x": 12,
+        "y": 5
+      }
+    ]
+  }
+}

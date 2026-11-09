@@ -1041,6 +1041,21 @@
       "width": 720,
       "height": 597
     },
+    "ml-collective-anomaly-run/320": {
+      "sha256": "c10060c969f0ca29ac3bc13a42131b4b4b6ef0df22e6439a0e9526d43b710b36",
+      "width": 420,
+      "height": 565
+    },
+    "ml-collective-anomaly-run/408": {
+      "sha256": "c10060c969f0ca29ac3bc13a42131b4b4b6ef0df22e6439a0e9526d43b710b36",
+      "width": 420,
+      "height": 565
+    },
+    "ml-collective-anomaly-run/720": {
+      "sha256": "0eb4b8f1fd526f20c99510a574209775c1c1584794a9e43d3da06ff9b690107f",
+      "width": 720,
+      "height": 548
+    },
     "ml-computational-graph/320": {
       "sha256": "714d503c16567caa713b4e627ec418a816bdb3beba7cc3617c21d6ab79f3e0a0",
       "width": 320,
@@ -1371,6 +1386,21 @@
       "width": 720,
       "height": 299
     },
+    "ml-local-outlier-factor/320": {
+      "sha256": "97b0afea05fbd175325f4296e12a56c8457662df38069c587d72b920e6103096",
+      "width": 420,
+      "height": 660
+    },
+    "ml-local-outlier-factor/408": {
+      "sha256": "97b0afea05fbd175325f4296e12a56c8457662df38069c587d72b920e6103096",
+      "width": 420,
+      "height": 660
+    },
+    "ml-local-outlier-factor/720": {
+      "sha256": "a358050858916496a0082bbdead54186326b6d874b52aa823bd45b7c3edf1e16",
+      "width": 720,
+      "height": 624
+    },
     "ml-majority-undersampling/320": {
       "sha256": "d5743bdbb4ccc8241baed91fdb655ed02ad104a843fc0bf571525b795b3dbb29",
       "width": 320,
@@ -1505,6 +1535,21 @@
       "sha256": "46d10269b4aa0c23b8ae2e06d306cc4f4db8744045fb69ae66afe45e03f89687",
       "width": 720,
       "height": 452
+    },
+    "ml-ranked-anomaly-scores/320": {
+      "sha256": "5fc7fcd327eaaecdfed7408c1a099a638d89f713db9400ddf7841b038b8dd6f6",
+      "width": 320,
+      "height": 369
+    },
+    "ml-ranked-anomaly-scores/408": {
+      "sha256": "d817a355ba27fdf505805f1898140a87a0c690e2a1299f4f18f88707ed8da104",
+      "width": 408,
+      "height": 330
+    },
+    "ml-ranked-anomaly-scores/720": {
+      "sha256": "09f2ab8af81f895112c3c49ae375b8918a671a15805a62baba3206327ba22ecb",
+      "width": 720,
+      "height": 313
     },
     "ml-raw-log-distributions/320": {
       "sha256": "1796f874daa78f207e32abe4d23ae6af49280c3e65dea5f2a6dcb420811c8d52",
@@ -1775,6 +1820,21 @@
       "sha256": "d6e54262b5d296c661aa0d6efbe259b869335cb971c078a0e75772059662e60f",
       "width": 720,
       "height": 675
+    },
+    "ml-zscore-distribution-tails/320": {
+      "sha256": "2b1797bf45ca353337e869c37bd575dd96b8c9271e9159ec01209b8a9ff47df4",
+      "width": 420,
+      "height": 565
+    },
+    "ml-zscore-distribution-tails/408": {
+      "sha256": "2b1797bf45ca353337e869c37bd575dd96b8c9271e9159ec01209b8a9ff47df4",
+      "width": 420,
+      "height": 565
+    },
+    "ml-zscore-distribution-tails/720": {
+      "sha256": "60dc8a27c5b7cc3a75c98430f27f205d33b0195b6e35979c7c84b2b883e95ab8",
+      "width": 720,
+      "height": 548
     },
     "nearest-centroid-boundary/320": {
       "sha256": "7f895e5a79baef541ae2039df39f57062f07e593b47b2e2f98836e56ad84162a",

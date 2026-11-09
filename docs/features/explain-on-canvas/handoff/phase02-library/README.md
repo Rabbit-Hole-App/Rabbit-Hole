@@ -6,7 +6,11 @@ Task: `96d13bbb-6cd1-45be-b27a-95820d3495b0` · branch: `chatgpt/explain-phase02
 
 Four new diagram kinds and nine additive extensions are implemented in the **written `/explain`** path. The model receives relevant, valid JSON examples; Rabbit Hole renders the resulting semantic JSON using the existing SVG component. These are reusable layouts and reference data, not fixed lesson cards returned in place of generation. The `/interact` fixtures and `/animation` renderer are separate and unchanged.
 
-There are **130 registered references**, with every one of the 21 Phase 02 lessons mapped to concrete IDs. They cover all 21 currently supported kinds. Reference datasets are explicitly illustrative; generated cards must respect their own source values. The author remains free to produce a new example within the schema.
+The branch author registry has **154 references**, including four Lesson 16 additions after the rebase. The offline catalogue has **178 references** and the kind gallery has 21 neutral shapes. The per-lesson audit tracks the requested scenes that are still open. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Rebase verification](svg-offline.md#rebase-onto-correct-svg) · [Coverage audit](coverage-audit.md)
+
+The batch handoffs record the prompts, expected math and dev acceptance steps. Batch 1 covers ten references for Lessons 04–07. Batch 2 covers all 16 planned references across Lessons 08–12, 17–18 and 20. Batch 3A covers four time-series gaps in Lesson 15. Batch 3B covers four anomaly-detection gaps in Lesson 16. [Batch 1](batch-1.md) · [Batch 2A](batch-2a.md) · [Batch 2B](batch-2b.md) · [Batch 2C](batch-2c.md) · [Batch 3A](batch-3a.md) · [Batch 3B](batch-3b.md)
+
+The latest handoff covers the 14 AI/ML additions, kind gallery, content contracts, standalone formula sampler, renderer diffs, correction corpus and SVG snapshots. It records the original selector benchmark and the additional paraphrase replay. [Offline SVG handoff](svg-offline.md)
 
 ## Implemented scope
 
@@ -26,7 +30,7 @@ There are **130 registered references**, with every one of the 21 Phase 02 lesso
 | Comparison | Two/three actual child diagrams, shared-domain validation, narrow-width stacking | [Fit quality](references/ml-fit-quality-comparison.svg) |
 | Transformation | Before/after diagrams with preserved/mapped sample identity | [Scaling](references/ml-feature-scaling-transformation.svg) |
 
-See [all reference JSON/SVG pairs and per-lesson mapping](references/README.md). Open [the self-contained gallery](references/index.html) to inspect formula styling as well as geometry. Individual SVGs are raw renderer output; KaTeX foreignObjects require the host stylesheet that the gallery and app provide.
+The reference index lists all JSON/SVG pairs and their lesson mapping. The archived self-contained gallery shows the earlier examples with formula styling. The export command in the Batch 3B handoff generates a fresh gallery from the current catalogue. [Reference index](references/README.md) · [Archived gallery](references/index.html) · [Gallery export](batch-3b.md#local-verification)
 
 ## Where the implementation lives
 
@@ -38,13 +42,14 @@ See [all reference JSON/SVG pairs and per-lesson mapping](references/README.md).
 | Domain geometry | `packages/web/src/tutor-diagrams/ml-*-layouts.js` |
 | Exact approved palette | `packages/web/src/tutor-diagrams/teaching-theme.js` |
 | Actual author examples and all lesson mappings | `packages/web/src/tutor-diagrams/reference-library.js`, `ml-*-references.js` |
+| Neutral spec for each diagram kind | `packages/web/src/tutor-diagrams/kind-gallery.json` |
 | Bounded selection and author instructions | `packages/control-plane/src/explanation-references.js` |
 | Real author / repair context integration | `packages/control-plane/src/learn-artifact.js` |
 | Server requirement recognition and traced tree validation | `packages/control-plane/src/explanation-visuals.js`, `learn-primitives.js` |
 | Reproducible actual-renderer SVGs and gallery | `packages/web/scripts/export-explanation-references.mjs` |
 | Extension instructions / constraints | `packages/web/src/tutor-diagrams/README.md` |
 
-The selector adds **at most two** complete JSON examples and at most 14,000 characters of example context. This is a reference-context bound, not the card's visual count. It uses learner words before source context, filters explicit required kinds, and emits no unrelated examples when no topic matches. Ordinary hierarchies cannot fall through to the first binary-operation examples. Repairs retain the same references. Other commands receive none. It makes no extra model call.
+The selector adds **at most two** complete JSON examples and at most 14,000 characters of example context. It uses learner words before source context and filters explicit required kinds. When a required kind matches a leaf inside a composition, it can supply that valid leaf as a standalone example. If no topic matches and a kind is known, it supplies the neutral gallery shape for that kind. An unfamiliar ordinary hierarchy can use `shape-tree`, which uses the hierarchy layout. Repairs retain the same references. Other commands receive none. It makes no extra model call.
 
 The JSON Schema is nonrecursive and serializable; its size is recorded in the execution receipt below. Runtime checks enforce additional invariants that JSON Schema cannot express. The schema still uses `version: 1` and retains the existing 16,384-character whole-diagram limit. Old specs preserve their existing render treatment; unknown new kinds need the coordinated new reader.
 
@@ -61,7 +66,7 @@ The JSON Schema is nonrecursive and serializable; its size is recorded in the ex
 From the repository root:
 
 ```sh
-node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-references.test.js packages/control-plane/test/explanation-diagram-kinds.test.js packages/control-plane/test/explanation-visuals.test.js packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/learn-artifact.test.js
+node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-reference-batch*.test.js packages/control-plane/test/explanation-references.test.js packages/control-plane/test/explanation-diagram-kinds.test.js packages/control-plane/test/explanation-visuals.test.js packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/learn-artifact.test.js
 npm run build --workspace=packages/web
 node packages/web/scripts/export-explanation-references.mjs
 ```
