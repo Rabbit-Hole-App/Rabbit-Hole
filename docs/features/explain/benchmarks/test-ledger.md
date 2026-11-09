@@ -127,3 +127,11 @@ Batch-1 conditions added by the owner (2026-11-08):
 - The worked values (Gini 0.375, gain 0.125, GMM 0.8808/0.1192) are values from a selected reference, labelled illustrative: within N1.
 - Report: right/acceptable/wrong, judge faithfulness, repair rate, input tokens and bundle, output tokens, model-call and whole-card p50/p90, cost per card.
 - If panels cards are consistently over 4 s, the owner decides; the prepared alternative (not built) is two separate visuals instead of one panels comparison: same content, core bundle, loses shared-axis alignment only.
+
+## Scope cut: critical path only (owner, 2026-11-08)
+
+Keep, in order: (1) G3 re-test -> model decision; (2) merge Phase 02 + A1 + cleanup + pictures-async (after one browser check), with N1, reference block at the end, unknown-key strip, panels cap 2; (3) bench baseline, 3 runs; (4) relationship graph-by-default, the only renderer change; (5) the one prompt change: per-kind content contracts, formula -> plot, picture `p` contract, then a bench delta; (6) Recraft no-text check: done 2026-11-08, V4.1 Flash has no style, negative prompt or `no_text` (see "Pictures: Recraft controls"), so the no-text clause lives in `p` and ships with step 5.
+
+Parked (not cancelled) until the gates say otherwise: arrow gap, curve markers, axis ticks (after step 5 shows plots are produced); examples.json additions; the depth bench row and depth prompt line (product question first); reference-selection coverage report (only if step 5 shows formulas still ignored); fix-A root shapes except "attention in a transformer" (3/3 reproducible); batch-1 cherry-pick (after the gates pass); server-sampled curves (only if step 5 recomputation error > 1 in 10); bare-maths and duplicate-label smells stay log lines only, no repair, no report.
+
+Rules: one change per bench run; report the delta table and stop; a delta inside the noise band is not iterated on, the next step starts; no new fix-list items until the three gates are measured post-merge.
