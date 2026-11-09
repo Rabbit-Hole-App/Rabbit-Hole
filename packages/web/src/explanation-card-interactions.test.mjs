@@ -476,3 +476,38 @@ test('real Markdown renders align with the canonical text: bold, a list, a table
   assert.equal(pills['t-3'].parentElement.tagName, 'TD', 'the table cell, not the list item');
   assert.match(pills['t-4'].parentElement.textContent, /^The gap shrinks/, 'rate #2: after "the rate." and the code line');
 });
+
+// Owner 2026-11-08 (batch 2a/2b acceptance): a suggested question holding maths ($\alpha$, \(\kappa\)) is typeset like the card's prose, never shown as raw $ text.
+test('suggested questions go through the maths renderer: no raw $ or \( in a question that holds maths', async () => {
+  const card = await envelope();
+  card.interactions.questions[0] = { id: 'q-1', text: 'Why does $\alpha$ grow as the error falls?' };
+  card.interactions.questions[1] = { id: 'q-2', text: 'What is \(\kappa\) in the acquisition?' };
+  await mount(card, { host: { ask: async () => false } });
+  const rows = $$('[data-explanation-suggestion]');
+  for (const row of rows.slice(0, 2)) {
+    assert.ok(!/\$|\\(|\\)/.test(row.querySelector('span').textContent.replace(/​/g, '')) || row.querySelector('.katex, [data-math], math, mjx-container, annotation'), `maths typeset: ${row.textContent}`);
+  }
+  assert.ok(rows[0].querySelector('.katex, [data-math], math, annotation, mjx-container') || !rows[0].textContent.includes('$'), 'the first question shows no raw dollar text');
+  assert.equal(rows[2].textContent, card.interactions.questions[2].text, 'a question without maths is unchanged');
+});
+
+// Owner 2026-11-08: pills and Highlight were dead on every card holding a plot, histogram or graph-layout diagram: the drawing's own text (axis ticks, graph badges) is not the words
+// the card's canonical text holds for it, so alignment failed for the whole field. The diagram wrapper now carries those words and they are what align.
+test('a card with a plot or a graph-layout diagram still has pills and Highlight (the drawing\'s own ticks and badges are not compared)', async () => {
+  const fence = '`'.repeat(3);
+  const PLOT = { version: 1, diagram: { kind: 'coordinate-plot', title: 'Loss against probability', x: { label: 'Predicted probability', min: 0, max: 1 }, y: { label: 'Loss', min: 0, max: 5 },
+    series: [{ label: 'Loss', kind: 'line', points: [{ x: 0.1, y: 2.3 }, { x: 0.5, y: 0.69 }, { x: 0.9, y: 0.1 }] }] } };
+  const GRAPH = { version: 1, diagram: { kind: 'relationship', layout: 'graph', title: 'Cross entropy relationship', nodes: [{ id: 'a', label: 'True distribution' }, { id: 'b', label: 'Model distribution' }, { id: 'c', label: 'Cross entropy' }],
+    edges: [{ from: 'a', to: 'c', label: 'is measured against' }, { from: 'b', to: 'c', label: 'is scored by' }] } };
+  const body = `A decision tree asks questions.\n\n${fence}rh-diagram\n${JSON.stringify(PLOT)}\n${fence}\n\nThe last leaf decides.\n\n${fence}rh-diagram\n${JSON.stringify(GRAPH)}\n${fence}\n\nThe leaf is the end.`;
+  const block = { ...base, body, more: [] };
+  const revision = await contentRevision(block), text = fieldText(block, 'body');
+  const term = (id, label, occurrence) => { const start = cpStart(text, label, occurrence); return { id, label, definition: `${label} means something.`, anchor: { field: 'body', quote: label, occurrence, start, end: start + label.length } }; };
+  const card = { ...block, interactions: { version: 1, displayTextVersion: 1, contentRevision: revision, questions: [{ id: 'q-1', text: 'A?' }, { id: 'q-2', text: 'B?' }, { id: 'q-3', text: 'C?' }], terms: [term('t-1', 'decision tree', 0), term('t-2', 'leaf', 0)] } };
+  await mount(card, { host: { ask: async () => true, note: () => 'n', dig: () => {} }, chat: { addToChat() {} } });
+  assert.equal($$('[data-tutor-diagram]').length, 2, 'both drawings are on the card');
+  assert.deepEqual($$('[data-term-id]').map(p => p.textContent), ['decision tree', 'leaf'], 'the pills are drawn around the plot and the graph');
+  const paragraphs = $$('[data-explanation-field="body"] p'), last = textNodes(paragraphs.at(-1));
+  await selection(last[0], 0, last[0], 4, 'The ');
+  assert.equal($('[data-explanation-selection-toolbar] [aria-label="Highlight"]').disabled, false, 'Highlight works on prose after the diagrams');
+});
