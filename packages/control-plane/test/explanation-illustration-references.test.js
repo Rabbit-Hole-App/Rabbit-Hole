@@ -143,3 +143,20 @@ test('positional encoding questions select the token-embeddings reference first 
     'explain sinusoidal position embeddings', 'how does a transformer represent word order?', 'how do word embeddings get position added in a transformer?'];
   for (const depth of ['balanced', 'detailed']) for (const prompt of prompts) assert.equal(selectDiagramReferences({ prompt, depth })[0]?.id, 'ml-transformer-token-embeddings', `${depth}: ${prompt}`);
 });
+
+test('an invalid detail marker is stripped and the card delivers (transformer-block, content run 3)', () => {
+  const prompt = 'what are the parts of a transformer block?';
+  const block = (id, label, role, extra = {}) => ({ id, label, role, detail: 1, ...extra });
+  const spec = { version: 1, diagram: { title: 'Transformer block stack', caption: 'Shows each sub\u2011layer in order from input to output', kind: 'block-stack', orientation: 'vertical', blocks: [
+    block('emb', 'Embedding', 'embedding'), block('norm1', 'LayerNorm 1', 'norm'), block('attn', 'Self\u2011Attention', 'attention', { inputs: [{ label: 'Q' }, { label: 'K,V' }] }),
+    block('norm2', 'LayerNorm 2', 'norm'), block('ff', 'Feed\u2011Forward', 'feedforward'), block('out', 'Residual Output', 'output')] } };
+  const body = composeVisuals('A transformer block has attention and a feed-forward network.\n\n[[visual:1]]\n\nEach sub-layer is normalised, then its output is added back to its input.', [{ k: 'diagram', spec }]);
+  assert.match(explanationLayoutProblem({ body }, prompt), /explanation_bad_detail/); // the validator is unchanged
+  const logs = []; const log = console.log; console.log = line => logs.push(line);
+  let settled; try { settled = settleExplanationBody(body); } finally { console.log = log; }
+  assert.doesNotMatch(settled, /"detail"/);
+  assert.equal(logs.filter(line => line.includes('explanation_diagram_dropped_element')).length, 6);
+  assert.equal(explanationLayoutProblem({ body: settled }, prompt), null);
+  assert.match(settled, /Transformer block stack/);
+  assert.equal(settleExplanationBody(settled), settled);
+});
