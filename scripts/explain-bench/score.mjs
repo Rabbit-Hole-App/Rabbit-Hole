@@ -55,6 +55,10 @@ export const proseOf = body => String(body || '').replace(FENCE, ' ');
 const tokenOk = (pat, got) => pat === got || (pat.startsWith('D:') && got.startsWith('D:') && (pat === 'D:*' || pat.slice(2).split('|').includes(got.slice(2))));
 const perms = a => (a.length <= 1 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map(r => [x, ...r])));
 export const matches = (pattern, mix) => pattern.length === mix.length && perms(mix).some(m => m.every((t, i) => tokenOk(pattern[i], t)));
+// Visual-mix matrix (owner 2026-11-08): a mix by what it holds, not which kinds: svg, pic, svg-svg, svg-pic, pic-pic (none = nothing delivered).
+export const mixName = m => (m.length ? [...m.filter(t => t !== 'P').map(() => 'svg'), ...m.filter(t => t === 'P').map(() => 'pic')].join('-') : 'none');
+// The expected row is the label's best mix; a label that lists best mixes of several shapes puts the card on the shape it made when that is one of them, else on the first.
+export const expectedMix = (best, made) => { const shapes = [...new Set((best || []).map(mixName))]; return shapes.includes(made) ? made : shapes[0] || 'none'; };
 const mixClass = m => m.map(t => (t === 'P' ? 'pic' : 'svg')).sort().join('-');
 // One rule: right = matches a best mix including the diagram kind; acceptable = matches an acceptable mix; else wrong.
 export function scoreMix(p, vis) {
@@ -262,6 +266,7 @@ export function scoreCard(p, rec, opts = {}) {
   return {
     set: rec.set, run: rec.run, depth: rec.depth || null, plotRule, plotWrong, deepPlot: !!p.deepPlot, id: p.id, prompt: p.prompt, group: p.group, category: p.category || null, sketch: p.sketch || null, regressionKind: p.regressionKind || null,
     delivered: !!block, failure: rec.failure || null, title: block?.title || null, mix, score,
+    expectedMix: expectedMix(p.best, mixName(mix)), madeMix: block ? mixName(mix) : 'none', expectedShapes: [...new Set((p.best || []).map(mixName))],
     mixRight: !!block && p.best.some(b => mixClass(b) === mixClass(mix)), badKinds: mix.filter(t => t.startsWith('D:') && (p.badKinds || []).includes(t.slice(2))).map(t => t.slice(2)),
     needsPicture: !!p.needsPicture, noPicture: !!p.noPicture, hasPicture: mix.includes('P'), pictures: vis.filter(v => v.type === 'picture').map(({ type, id, ...v }) => v),
     diagrams, quantKind: diagrams.some(d => QUANT_KINDS.includes(d.kind)),
@@ -287,6 +292,19 @@ export const quantile = (a, p) => { const s = a.filter(Number.isFinite).sort((x,
 const timing = xs => ({ n: xs.length, p50: quantile(xs, 0.5), p90: quantile(xs, 0.9) });
 const tally = (xs, key) => xs.reduce((o, x) => ((o[key(x)] = (o[key(x)] || 0) + 1), o), {});
 
+const MIX_ORDER = ['svg', 'pic', 'svg-svg', 'svg-pic', 'pic-pic'];
+// rows = expected mix, columns = what the card got; off-diagonal cells list their cards so the missing mixes (a 'X vs Y' that got one comparison) are findable.
+export function mixMatrix(cards) {
+  const sent = cards.filter(c => c.expectedMix), rows = [...new Set([...MIX_ORDER, ...sent.map(c => c.expectedMix)])].filter(r => sent.some(c => c.expectedMix === r));
+  const colsAll = [...new Set([...MIX_ORDER, ...sent.map(c => c.madeMix)])].filter(m => MIX_ORDER.includes(m) || sent.some(c => c.madeMix === m)), cols = [...colsAll.filter(m => m !== 'none'), ...(colsAll.includes('none') || sent.some(c => c.madeMix === 'none') ? ['none'] : [])];
+  const cell = (r, m) => sent.filter(c => c.expectedMix === r && c.madeMix === m), two = m => m.split('-').length === 2;
+  const key = c => `${c.set}/${c.id}${c.depth ? '@' + c.depth : ''}#r${c.run}`;
+  const expTwo = sent.filter(c => two(c.expectedMix)), madeTwo = sent.filter(c => two(c.madeMix));
+  return { cards: sent.length, rows, cols, counts: Object.fromEntries(rows.map(r => [r, Object.fromEntries(cols.map(m => [m, cell(r, m).length]))])),
+    off: rows.flatMap(r => cols.filter(m => m !== r).flatMap(m => (cell(r, m).length ? [{ expected: r, made: m, cards: cell(r, m).map(key) }] : []))),
+    twoVisuals: { expected: expTwo.length, madeTwoOfExpected: expTwo.filter(c => two(c.madeMix)).length, madeTwo: madeTwo.length, madeTwoNotExpected: madeTwo.filter(c => !two(c.expectedMix)).length } };
+}
+
 // Every metric of a group of scored cards (counts with their denominators).
 export function summarize(cards) {
   const D = cards.filter(c => c.delivered), dg = D.flatMap(c => c.diagrams.map(d => ({ ...d, at: cardKey(c) }))), graph = dg.filter(d => GRAPH_KINDS.includes(d.kind));
@@ -310,6 +328,7 @@ export function summarize(cards) {
     choice: { right: n(c => c.score === 'right'), acceptable: n(c => c.score === 'acceptable'), wrong: n(c => c.score === 'wrong'), of: D.length,
       rightMixWrongKind: D.filter(c => c.mixRight && c.score !== 'right').map(c => `${at(c)}: ${c.mix.join('+')} (${c.score})`), badKindUsed: D.filter(c => c.badKinds.length).map(c => `${at(c)}: ${c.badKinds.join(', ')}`),
       wrongList: D.filter(c => c.score === 'wrong').map(c => `${at(c)}: ${c.mix.join('+') || 'no visual'}`), kinds: tally(D.flatMap(c => c.mix), k => k) },
+    mixMatrix: mixMatrix(cards),
     regression: regression && { prompts: regression.length, pass: regression.filter(r => r.hits === r.runs).length, list: regression },
     pictures: { needed: need.length, given: need.filter(c => c.hasPicture).length, missing: need.filter(c => !c.hasPicture).map(c => `${at(c)}: ${c.mix.join('+')}`),
       noPictureSubjects: none.length, violations: none.filter(c => c.hasPicture).map(c => `${at(c)}: ${c.mix.join('+')}`),

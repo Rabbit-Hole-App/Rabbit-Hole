@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, useSpecTree, visuals, planOf, kindStatus, SET_NAMES } from './explain-bench/score.mjs';
+import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, mixName, expectedMix, mixMatrix, useSpecTree, visuals, planOf, kindStatus, SET_NAMES } from './explain-bench/score.mjs';
 import { delta, g3CardText, rankArms, richnessVerdict, run } from './explain-bench/report.mjs';
 import { combine, judgeItems, JUDGE_MODEL, requestBody, useRubrics, RUBRICS, RUBRIC_VERSIONS } from './explain-bench/judge.mjs';
 // Answers every rubric's request shape: no tools = the JSON text of factual-v2, else a record_review call (verdict = the first enum value unless `pick` says otherwise).
@@ -419,4 +419,18 @@ test('keep checks (owner 2026-11-08): right kind at Standard and Deep vs the com
   assert.equal(k.pass, false); assert.equal(k.p50, 7400);
   assert.deepEqual(k.rows.find(x => x.check === 'repairs').limit, '<= 2 (compared run 0 + 2)');
   assert.match(readFileSync(join(b.runDir, 'report.md'), 'utf8'), /\*\*Keep checks\*\* against `a`: right kind at Standard 1 \(>= 1\) PASS; right kind at Deep 1 \(>= 1\) PASS; repairs 2\/2 \(<= 2 \(compared run 0 \+ 2\)\) PASS; p90 ms 7400 \(<= 7000\) FAIL; p50 7400 ms \(reported\)\. \*\*DO NOT KEEP\*\*/);
+});
+
+test('visual-mix matrix (owner 2026-11-08): rows = expected mix, columns = made; the alternative-shape label lands on the made shape; off-diagonal cards listed; two expected / two made', () => {
+  assert.deepEqual(['P', 'D:flow'].map(t => mixName([t])), ['pic', 'svg']);
+  assert.equal(mixName(['D:tree', 'P']), 'svg-pic');
+  assert.equal(mixName([]), 'none');
+  assert.equal(expectedMix([['D:a'], ['D:a', 'D:b']], 'svg-svg'), 'svg-svg');
+  assert.equal(expectedMix([['D:a'], ['D:a', 'D:b']], 'pic'), 'svg');
+  const c = (expected, made, id) => ({ set: 's', run: 1, id, depth: null, expectedMix: expected, madeMix: made });
+  const m = mixMatrix([c('svg-svg', 'svg-svg', 'a'), c('svg-svg', 'svg', 'b'), c('svg', 'svg', 'c'), c('svg-pic', 'none', 'd')]);
+  assert.equal(m.counts['svg-svg']['svg'], 1);
+  assert.equal(m.counts['svg-svg']['svg-svg'], 1);
+  assert.deepEqual(m.off.map(o => o.cards), [['s/b#r1'], ['s/d#r1']]);
+  assert.deepEqual(m.twoVisuals, { expected: 3, madeTwoOfExpected: 1, madeTwo: 1, madeTwoNotExpected: 0 });
 });
