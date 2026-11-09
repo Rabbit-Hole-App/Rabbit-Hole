@@ -68,3 +68,19 @@ Owner rule: either model is fine if the cards are factual, fast, and the diagram
 - **Speed**: whole-card p50 inside 1-4 s and p90 not above A's.
 - **Visuals**: pictures 19/19 where needed and 0/12 where not, on all 3 runs; kind regression at least 5/6; noun-box share not above A's 14%; two visuals on caterpillar and butterfly in at least 2 of 3 runs.
 All pass -> Gemini primary, gpt-oss low fallback, tested end to end (one card forced through the fallback, checked by hand). Any fails -> stay on gpt-oss low (G1), the failing item recorded here; revisit only when it is fixed. No partial switches, no per-prompt routing.
+
+## Definition of done and stopping rules (owner, 2026-11-08; written before the next change)
+
+**Done = all three gates pass on one 3-run bench, on the same model arm.**
+- **Factual**: cards with any factual error (blind Sonnet judge, versioned rubric) at or below 10%. (gpt-oss was 26% in test 2; both arms are re-measured with the same judge and rubric before either number is relied on.)
+- **Speed**: whole-card p50 inside 1-4 s and p90 under 4 s, split as now (no repair / picture / repaired). Needs pictures off the critical path and repairs under about 10%.
+- **Visuals**: pictures present where needed and absent where not on 3 of 3 runs; right kind at or above 80% against the pre-written labels; formula/quantity prompts get a coordinate-plot or bar-chart on at least 5 of 6; noun-box diagrams under 5%; judge faithfulness (diagram matches the pre-written content sketch) not lower than the baseline run.
+When all three hold: ship, tag that bench run as the release baseline, and stop. After that a new benchmark row is added only for a real learner card that came out wrong (one row per real failure, not per idea).
+
+**Do not build a change if:** (1) it adds a second model call on the main path; (2) it fixes a single prompt (a rule that moves one card memorises the test, e.g. the TCP handshake: four prompt variants, 0/9 each); (3) its expected gain is smaller than the bench's 3-run spread for that metric; (4) it contradicts a rule already in the prompt (fix contradictions by deletion); (5) it adds more than about 500 input tokens to the prompt or schema without a measured reason (warm-call budget 2.75 s at about 6k tokens); (6) it adds a renderer component or diagram kind no benchmark prompt set needs.
+
+**Pause and ship what exists when:** two consecutive bench runs have every delta inside the noise band; a change's purpose is to undo an earlier change (the one-branch-decision correction stripping richness: fix it once, then stop); expected results are relabelled to make a run pass more than once in the same area; two agents edit the same prompt text at the same time.
+
+**Left on the diagram side after the merge and the first bench baseline, exactly two planned changes:** (1) renderer defaults: relationship graph by default, narrower arrow gap, curve markers only at labelled points, 3-5 ticks; (2) one prompt change: content contracts per kind plus the formula -> plot branch under the single number rule, with the offline recomputation check in the bench. If those move visuals past the gate, the diagram work is finished and the effort moves to the factual gate; if not, the next step is the model-arm decision, not another prompt rule.
+
+**One definition of passing:** the Gemini re-test (G3) is judged on these three gates (factual, speed, visuals), not on the earlier five criteria. The G3 switch thresholds recorded above (C not worse than A on each gate) decide which arm becomes primary; the absolute thresholds here decide when that arm is done and ships.
