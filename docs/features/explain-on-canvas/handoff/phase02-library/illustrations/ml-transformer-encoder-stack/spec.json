@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Original Transformer encoder",
+    "blocks": [
+      {
+        "id": "emb",
+        "label": "Token embeddings"
+      },
+      {
+        "id": "layer",
+        "label": "Encoder layer",
+        "repeat": 6,
+        "diagram": {
+          "kind": "flow",
+          "steps": [
+            "Mix tokens with self-attention",
+            "Add attention and normalize",
+            "Apply feed-forward",
+            "Add FFN output and normalize"
+          ]
+        }
+      }
+    ],
+    "caption": "Each layer refines the token representations produced by the previous layer."
+  }
+}

@@ -4,9 +4,9 @@ import { tokenizeMath } from '../math-tokens.js';
 // Authored display text in the v1 shapes. Structural strings and numeric data stay out of the check.
 const TEXT_FIELDS = new Set([
   'title', 'caption', 'label', 'edgeLabel', 'heading', 'detail', 'source', 'unit', 'time', 'operation', 'claim',
-  'conclusion', 'class', 'rowLabel', 'columnLabel', 'xLabel', 'note', 'account',
+  'conclusion', 'class', 'rowLabel', 'columnLabel', 'xLabel', 'note', 'account', 'name', 'dims', 'dimensions',
 ]);
-const TEXT_LISTS = new Set(['items', 'columns', 'cells', 'steps', 'categories']);
+const TEXT_LISTS = new Set(['items', 'columns', 'cells', 'steps', 'categories', 'source', 'target']);
 const normalized = value => value.normalize('NFC').trim().replace(/\s+/gu, ' ');
 
 const PLACEHOLDER_EDGE = /^(?:then|next(?: step)?|continue|proceed|go(?: to)?|goes to|link|connects to|(?:is )?related to|relates to|edge(?: label)?|arrow|label|step|placeholder(?: text)?|tbd|todo)(?: \d+)?$/iu;
@@ -52,6 +52,9 @@ const MATH_NOTATION = [
 const FRACTION = /(?<![\p{L}\d/])\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?(?![\p{L}\d/])|(?<![\p{L}\d])[a-z]\s*\/\s*[a-z\d](?![\p{L}\d])/u;
 
 function needsMathDelimiters(value, field) {
+  // A tensor's dimension label and a block's dimension note are literal shape metadata.
+  if (field === 'dimensions' && /^\d+(?:\s*[×x]\s*\d+)+$/u.test(value)) return false;
+  if (field === 'dims' && /^[A-Za-z]\s*=\s*[\d,]+$/u.test(value)) return false;
   const { source, math } = tokenizeMath(value);
   if (math.some(({ raw }) => !raw.startsWith('$') || raw.startsWith('$$'))) return true;
   // Keep a neutral operand in place of each valid token to catch expressions like "$x$ + 1".
@@ -96,19 +99,21 @@ function lintEdges(diagram, path, report) {
 }
 
 function lintNodes(diagram, path, report) {
-  const list = diagram.kind === 'sequence' ? 'actors' : 'nodes';
+  const list = diagram.kind === 'sequence' ? 'actors' : diagram.kind === 'block-stack' ? 'blocks'
+    : diagram.kind === 'flow' && diagram.steps ? 'steps' : 'nodes';
   const seen = new Map();
   (diagram[list] ?? []).forEach((node, index) => {
-    if (typeof node.label !== 'string') return;
-    const label = normalized(node.label);
-    const labelPath = [...path, list, index, 'label'];
+    const raw = typeof node === 'string' ? node : node.label;
+    if (typeof raw !== 'string') return;
+    const label = normalized(raw);
+    const labelPath = typeof node === 'string' ? [...path, list, index] : [...path, list, index, 'label'];
     if (seen.has(label)) report('duplicate-node-label', labelPath,
-      `This label repeats ${list}[${seen.get(label)}]. Name the distinction between the two nodes.`, node.label);
+      `This label repeats ${list}[${seen.get(label)}]. Name the distinction between the two nodes.`, raw);
     else seen.set(label, index);
     if (diagram.kind === 'flow') {
       const first = label.match(/^[a-z]+(?:-[a-z]+)*/iu)?.[0]?.toLowerCase();
       if (!FLOW_VERBS.has(first) || FLOW_NOUN_PHRASE.test(label)) report('flow-label-verb-first', labelPath,
-        'Start with the action or the verb of a decision question.', node.label);
+        'Start with the action or the verb of a decision question.', raw);
     }
   });
 }

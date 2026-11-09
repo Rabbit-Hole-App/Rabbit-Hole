@@ -30,6 +30,9 @@ const KIND = {
   argument: 'A claim with supporting and opposing evidence and a conclusion.',
   't-account': 'Debits and credits.',
   waterfall: 'An opening value changed by signed steps to a closing value.',
+  tensor: 'The cells and dimensions of a vector or a small matrix.',
+  'token-links': 'One token distributes attention across a row of tokens, with weighted links.',
+  'block-stack': 'An architecture with repeated or nested blocks, residual paths, and callouts.',
 };
 export const QUESTIONS = {
   visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only.",

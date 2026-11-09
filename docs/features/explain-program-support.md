@@ -7,6 +7,34 @@ receipts; "not released" means not on `main`.
 
 ## Note for Claude Code
 
+### Static SVG illustrations for written `/explain`
+
+The branch adds `tensor`, `token-links` and `block-stack`, with seven reference topics. The handoff links the 23 JSON examples and their SVG exports at 408 px, natural width and 960 px. It also links the 320 px Gemma minimized view. Start live dev acceptance with Detailed Gemma and check that its FFN is the separate second visual. [Illustration primitives handoff](explain-on-canvas/handoff/phase02-library/illustration-primitives.md)
+
+### Fourteen AI/ML references and offline SVG checks
+
+The pinned AI/ML request is implemented in the written `/explain` registry. The original selector bench passed on the content-only patch. AI/ML coverage rose from 11/28 to 25/28, with all 14 new picks of a best kind and every other `aiml` and `correct-svg` pick preserved. The handoff includes the exact bench results, patch, gallery, audit, standalone sampler, renderer diffs, correction pairs and snapshot update command. [Offline SVG handoff](explain-on-canvas/handoff/phase02-library/svg-offline.md)
+
+### Batch 3A · Four written Explanation references for time series
+
+Batch 3A added the aligned additive components, ACF/PACF comparison, prior-three-day rolling feature and recursive/direct forecast comparison, bringing the registry to 160 references at that point. The handoff records the natural prompts, numeric targets and live dev acceptance steps. [Batch 3A handoff](explain-on-canvas/handoff/phase02-library/batch-3a.md)
+
+### Batch 2C · Final four written Explanation references in Batch 2
+
+The accuracy trap, majority undersampling, recursive feature elimination and worked PSI calculation are registered in the actual author path and use the existing SVG components and palette. The library has 156 references. The handoff includes the dev acceptance prompts, expected results and the undersampling selection check. [Batch 2C handoff](explain-on-canvas/handoff/phase02-library/batch-2c.md)
+
+### Batch 2B · Six written Explanation references for Lessons 10–12
+
+Batch 2B added repeated fits, soft voting, an AdaBoost weight update, out-of-fold stacking, Bayesian acquisition and successive halving. The six are registered in the actual author path and use the existing SVG components and palette. Follow the handoff for live generation and save/reopen acceptance. [Batch 2B handoff](explain-on-canvas/handoff/phase02-library/batch-2b.md)
+
+### 2026-11-09: Six feature-engineering and evaluation references
+
+[Batch 2A handoff](explain-on-canvas/handoff/phase02-library/batch-2a.md) adds ordinal encoding, bin membership, a product interaction, matched raw/log histograms, confusion-matrix denominators and MAE/RMSE from shared residuals. All six use existing written `/explain` renderers and the approved palette. The registry now has 146 references. The actual author-request test also exposed and fixed selection for an explicitly required histogram inside a comparison: provide the matching leaf examples without relaxing kind validation. Local focused checks pass 452/452 and the web build passes. Live generated-card/browser acceptance remains for Claude; ten further batch-2 references remain open.
+
+### 2026-11-09: Ten further written Explanation references
+
+[Batch 1 handoff](explain-on-canvas/handoff/phase02-library/batch-1.md) adds the ten missing worked references for lessons 04–07: tree impurity, SVM C/mapping, four KNN/KD mechanisms, and three clustering mechanisms. They use the existing palette and semantic renderers and are registered in the actual author path. Live generated-card acceptance is a separate next step for Claude. The other gaps in the coverage audit remain open.
+
 ### 2026-11-08: Phase 02 written Explanation library
 
 The approved **four new kinds and nine existing-kind extensions are implemented** on `chatgpt/explain-phase02-library`, based on `748e561eda37a269e277d913cdc1f9099fe9bf94`. This addition concerns written `/explain` and its `tutor-diagrams` JSON→SVG path; the `/interact` program/SDK sections below describe a separate renderer and remain unchanged.

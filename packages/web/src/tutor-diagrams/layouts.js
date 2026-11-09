@@ -9,6 +9,10 @@ import { layoutFigure } from './figure-layout.js';
 import { box, connector, dot, label, lineHeight, wrap } from './primitives.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
 import { teachingLayouts } from './teaching-layouts.js';
+import { usesTensorItems } from './illustration-kinds.js';
+import { layoutTensor, layoutTensorTransformation } from './tensor-layout.js';
+import { layoutTokenLinks } from './token-links-layout.js';
+import { layoutBlockStack } from './block-stack-layout.js';
 
 const PAD = 12;
 const TEXT = 14;
@@ -202,6 +206,8 @@ function cycle(diagram, width) {
 const legacy = Object.freeze({
   flow: layoutFlow, comparison, timeline, sequence, matrix, layers, cycle, figure: layoutFigure,
   ...teachingLayouts, ...quantitativeLayouts, ...balanceLayouts,
+  transformation: (diagram, width) => usesTensorItems(diagram)
+    ? layoutTensorTransformation(diagram, width) : teachingLayouts.transformation(diagram, width),
 });
 
 const renderChild = (diagram, width) => layouts[diagram.kind](diagram, width);
@@ -212,4 +218,7 @@ export const layouts = Object.freeze({
   ...topologyLayouts({ legacy, renderChild }),
   ...dataLayouts({ legacy, renderChild }),
   ...compositionLayouts({ legacy, renderChild }),
+  tensor: layoutTensor,
+  'token-links': layoutTokenLinks,
+  'block-stack': (diagram, width) => layoutBlockStack(diagram, width, renderChild),
 });

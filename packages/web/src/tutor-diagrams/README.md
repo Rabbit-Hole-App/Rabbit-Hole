@@ -9,7 +9,7 @@ This is a static SVG renderer for the written Explanation card. It takes a versi
 - `TutorDiagram.js` exports the default React component. Use `<TutorDiagram spec={value} fallback={existingContent} />`. The spec can be an object or a JSON string. Invalid specs use the caller's fallback. The component measures its container and keeps the text at native size when a dense diagram needs horizontal scrolling.
 - `renderTutorDiagram(value, width)` in the same module returns `{ element, width, height }` for deterministic static rendering and geometry tests. It throws on invalid input.
 - `spec.js` exports `parseTutorDiagram(value)` for backend validation and `tutorDiagramJsonSchema` for a structured-output request. The runtime parser is authoritative for topology, references, distinct branch labels, and matrix row lengths. `describeTutorDiagram(parsedSpec)` produces the readable diagram text for context, copying, and accessibility.
-- `examples.json` retains the original saved-spec fixtures. `reference-library.js` is the current author/reference registry: 150 examples (Phase 02 batches 2a, 2b, 2c and 3a included; batch 1 queued), all 21 kinds and all 21 Phase 02 lessons. Its `ml-*-references.js` sources contain complete JSON plus natural prompts and selection keywords.
+- `examples.json` retains the original saved-spec fixtures. `reference-library.js` is the current author/reference registry: 168 examples across 24 kinds and all 21 Phase 02 lessons. Its `ml-*-references.js` sources contain complete JSON plus natural prompts and selection keywords.
 - `packages/control-plane/src/explanation-references.js` selects at most two relevant examples and supplies them to the **actual** `prepareArtifactAuthorRequest` system context in `learn-artifact.js`. Repairs reuse that context. Required kinds filter examples; they never justify an unrelated example. When the required kind matches a comparison/visual-transformation leaf, selection can excerpt that leaf as a standalone valid spec, with a deterministic part ID and its source reference ID. Ordinary conceptual requests retain the full composition. Required-kind validation remains strict. Unknown topics can receive no example and still use the schema.
 - [Phase 02 handoff](../../../../docs/features/explain-on-canvas/handoff/phase02-library/README.md) records the implementation, acceptance limits and exact sources. [Generated gallery](../../../../docs/features/explain-on-canvas/handoff/phase02-library/references/index.html) renders the same reference objects.
 
@@ -46,7 +46,7 @@ Any label, title, caption, heading or item may hold maths in the card prose's de
 
 ## Phase 02 extensions (2026-11-08)
 
-The runtime supports **21 kinds**: the original 17 above plus the four new kinds below. Nine original kinds have additive variants. Old version-1 JSON without the new fields keeps its existing rendering.
+This batch added four kinds to the original 17. Nine original kinds have additive variants. Old version-1 JSON without the new fields keeps its existing rendering.
 
 | Kind | New supported fields / variant | Primary source |
 | --- | --- | --- |
@@ -69,6 +69,16 @@ The runtime supports **21 kinds**: the original 17 above plus the four new kinds
 Plots accept point, segment, vector, reference-line, rectangle, polygon, circle, ellipse and band annotations. Coordinates are **data values** inside declared domains, never authored pixels. Circles/ellipses are axis-aligned data geometry; nonlinear axes can change their apparent shape. Large teaching diagrams retain native text and scroll using the existing component, rather than shrinking labels. A three-panel comparison stacks at narrow widths and can be tall.
 
 A highlighted tree path is root-to-descendant, not an arbitrary traversal order. Inorder traversal uses visit annotations on the actual structure. A family descendant hierarchy has one root and one parent per child; a multiple-parent pedigree needs a relationship graph.
+
+## Static illustration kinds
+
+| Kind | Schema and layout modules | Supported structure |
+| --- | --- | --- |
+| `tensor` | `tensor-spec.js`, `tensor-layout.js` | Up to eight visible cells, optional numbers, name and dimension label. The payload also works in flow, relationship, transformation and block stacks. |
+| `token-links` | `token-links-spec.js`, `token-links-layout.js` | Weighted links between two token rows, with a separate panel for each query. |
+| `block-stack` | `block-stack-spec.js`, `block-stack-layout.js` | Inset flows, tensors or layers, residual arrows, repeat groups, add and multiply joins, side inputs, callouts and detail indices. A comparison can use two of these stacks and highlight changed blocks. |
+
+The registry includes their reference prompts and keywords. `explanation-references.js` adds the matching fields to the fast-author bundle. The natural-width renderer uses the existing scroll viewport. [Previews, JSON and test receipts](../../../../docs/features/explain-on-canvas/handoff/phase02-library/illustration-primitives.md)
 
 ## Approved visual treatment
 

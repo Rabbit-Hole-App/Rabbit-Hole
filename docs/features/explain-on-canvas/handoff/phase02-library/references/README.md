@@ -2,7 +2,7 @@
 
 These SVGs are produced by the production `renderTutorDiagram` renderer from the adjacent JSON. They are checked teaching examples, not outputs from a live model call. The author receives a relevant bounded subset of the same reference objects.
 
-The archived gallery embeds the fonts and KaTeX styling. Individual SVG files are raw renderer output and their formula foreignObjects use the host KaTeX stylesheet. The Batch 3B handoff includes the command to export the current gallery with those styles. [Archived gallery](index.html) · [Current gallery export](../batch-3b.md#local-verification)
+The archived gallery embeds the fonts and KaTeX styling. Individual SVG files are raw renderer output and their formula foreignObjects use the host KaTeX stylesheet. The Batch 3B handoff includes the command to export the current gallery with those styles. [Archived gallery](index.html) · [Current gallery export](../batch-3b.md#local-verification) · [Illustration primitives and three-width previews](../illustration-primitives.md)
 
 Palette source: the approved `tree-splits-and-impurity.svg` at Rabbit-Hole commit `012d4ae3dfd9b20ef14156bea89c2632b844cc46`. The shared `teaching-theme.js` owns those exact tokens; legacy layouts retain their saved treatment.
 

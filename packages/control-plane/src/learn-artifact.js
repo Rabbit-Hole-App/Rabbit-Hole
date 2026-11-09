@@ -130,7 +130,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const topicalReferences = ready.includes('explanation') ? preferSingleVariants(selectDiagramReferences({
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
-    requiredKinds, shapeFallback: !!input.planned && !input.plan,
+    requiredKinds, shapeFallback: !!input.planned && !input.plan, depth: input.depth,
   }), { plannedKind: input.plan?.kind, requiredKinds }) : [];
   // Planner prototype: the gallery example of the planned kind, at the card's depth, goes first, before any topical reference.
   const shape = input.plan ? planShape(input.plan, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;

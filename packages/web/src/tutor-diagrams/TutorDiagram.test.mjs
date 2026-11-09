@@ -6,9 +6,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import TutorDiagram, { renderTutorDiagram } from './TutorDiagram.js';
 import { tutorDiagramJsonSchema } from './spec.js';
+import { ILLUSTRATION_KINDS } from './illustration-kinds.js';
+import kindGallery from './kind-gallery.json' with { type: 'json' };
 
 const fixtures = JSON.parse(readFileSync(new URL('./examples.json', import.meta.url), 'utf8'));
 for (const kind of ['heatmap', 'sample-set', 'histogram', 'box-plot']) fixtures.push(diagramReferences.find(r => r.spec.diagram.kind === kind).spec);
+
+fixtures.push(...kindGallery.filter(spec => ILLUSTRATION_KINDS.includes(spec.diagram.kind)));
 
 test('every fixture renders deterministically, with a readable SVG and the shared surface', () => {
   const shapes = tutorDiagramJsonSchema.properties.diagram;

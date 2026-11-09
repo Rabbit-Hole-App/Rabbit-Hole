@@ -3,6 +3,10 @@ import * as plot from './ml-plot-spec.js';
 import * as topology from './ml-topology-spec.js';
 import * as data from './ml-data-spec.js';
 import * as composition from './ml-composition-spec.js';
+import { createTensorPayload, createTensorShape, tensorText, validateTensor } from './tensor-spec.js';
+import { createTokenLinksShape, describeTokenLinks, tokenLinksText, validateTokenLinks } from './token-links-spec.js';
+import { createBlockStackShape, describeBlockStack, blockStackText, validateBlockStack } from './block-stack-spec.js';
+import { flowPathShape, flowPaths, validateFlowPaths } from './flow-paths.js';
 import { z } from 'zod';
 import { formatMinor, sumMinor, toMinor } from './balance-values.js';
 import { tokenizeMath } from '../math-tokens.js';
@@ -26,8 +30,11 @@ const endpoint = { from: id, to: id };
 const numeric = z.number().min(-1e9).max(1e9);
 const unit = text(12).optional();
 const node = { id, label: text(60) };
+const tensorPayload = createTensorPayload({ z, text, numeric });
+const tensorNode = { id, label: text(60).optional(), tensor: tensorPayload.optional() };
 const axes = z.strictObject({ label: text(36), min: numeric, max: numeric, unit });
-const itemList = z.strictObject({ label: text(40), items: z.array(text(70)).min(1).max(5) });
+const tensorItem = z.strictObject({ label: text(70).optional(), tensor: tensorPayload });
+const itemList = z.strictObject({ label: text(40), items: z.array(z.union([text(70), tensorItem])).min(1).max(5) });
 const evidence = z.strictObject({ label: text(100), source: text(65).optional() });
 const entry = z.strictObject({ label: text(60), amount: numeric });
 const directions = ['up', 'down', 'left', 'right'];
@@ -120,7 +127,7 @@ const baseDiagramShapes = [
   }),
 
 ];
-const helpers = { z, titled, text, id, numeric, unit, axes, node, itemList };
+const helpers = { z, titled, text, id, numeric, unit, axes, node, itemList, tensorNode, tensorPayload, flowPath: flowPathShape({ z, id }) };
 const domains = [statistical, plot, topology, data, composition];
 const shapeMap = new Map(baseDiagramShapes.map(schema => [schema.shape.kind.value, schema]));
 for (const domain of domains.slice(0, -1)) {
@@ -129,8 +136,12 @@ for (const domain of domains.slice(0, -1)) {
 // Deliberately nonrecursive. A comparison/transform can contain these teaching
 // leaves, never another comparison/transform. No raw JSON escape hatch.
 const leafKinds = new Set(['tree', 'coordinate-plot', 'bar-chart', 'matrix', 'timeline', 'heatmap', 'sample-set', 'histogram', 'box-plot']);
-const leafDiagram = z.discriminatedUnion('kind', [...shapeMap].filter(([kind]) => leafKinds.has(kind)).map(([, schema]) => schema));
-for (const schema of composition.createShapes({ ...helpers, leafDiagram })) shapeMap.set(schema.shape.kind.value, schema);
+const leafShapes = [...shapeMap].filter(([kind]) => leafKinds.has(kind)).map(([, schema]) => schema);
+const blockStack = createBlockStackShape(helpers);
+const leafDiagram = z.discriminatedUnion('kind', leafShapes);
+const panelDiagram = z.discriminatedUnion('kind', [...leafShapes, blockStack]);
+for (const schema of composition.createShapes({ ...helpers, leafDiagram, panelDiagram })) shapeMap.set(schema.shape.kind.value, schema);
+for (const schema of [createTensorShape(helpers), createTokenLinksShape(helpers), blockStack]) shapeMap.set(schema.shape.kind.value, schema);
 const diagramShape = z.discriminatedUnion('kind', [...shapeMap.values()]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
 
@@ -141,7 +152,8 @@ function childDiagrams(diagram) {
 }
 
 
-function checkFlow({ nodes, edges, highlightPath }, issue) {
+function checkFlow(diagram, issue) {
+  const { nodes, edges } = diagram;
   const outgoing = new Map(nodes.map(node => [node.id, []]));
   if (outgoing.size !== nodes.length) return issue(['nodes'], 'Flow nodes need unique IDs');
   const incoming = new Map(nodes.map(node => [node.id, 0]));
@@ -175,17 +187,7 @@ function checkFlow({ nodes, edges, highlightPath }, issue) {
     }
   }
   if (ordered.length !== nodes.length) return issue(['edges'], 'A flow cannot contain a cycle or unreachable nodes');
-  if (!highlightPath) return;
-  // The worked route: at least two distinct, known nodes, every step an existing directed edge, from the one start node to a node with no outgoing edge.
-  const at = ['highlightPath'];
-  if (new Set(highlightPath).size !== highlightPath.length) return issue(at, 'A highlighted path cannot repeat a node');
-  const unknown = highlightPath.findIndex(step => !nodes.some(node => node.id === step));
-  if (unknown >= 0) return issue([...at, unknown], 'The highlighted path names an unknown node');
-  for (let i = 1; i < highlightPath.length; i++) {
-    if (!edges.some(edge => edge.from === highlightPath[i - 1] && edge.to === highlightPath[i])) return issue([...at, i], 'The highlighted path must follow existing edges in their direction');
-  }
-  if (edges.some(edge => edge.to === highlightPath[0])) return issue([...at, 0], 'The highlighted path must start at the start node of the flow');
-  if (edges.some(edge => edge.from === highlightPath.at(-1))) return issue([...at, highlightPath.length - 1], 'The highlighted path must end at a node with no outgoing edge');
+  validateFlowPaths(diagram, issue);
 }
 
 function checkSequence({ actors, messages }, issue) {
@@ -290,9 +292,18 @@ function checkAmount(value, path, issue, nonnegative = false) {
   if (nonnegative && value < 0) issue(path, 'Debit and credit amounts must be nonnegative');
 }
 
+const atPath = (issue, prefix) => (path, message) => issue([...prefix, ...path], message);
+
+function checkTensorNodes({ nodes }, issue) {
+  nodes.forEach((node, index) => {
+    if (node.tensor) validateTensor(node.tensor, atPath(issue, ['nodes', index, 'tensor']));
+    else if (!node.label) issue(['nodes', index, 'label'], 'A node needs a label or a tensor');
+  });
+}
+
 function validateDiagram(diagram, issue) {
   switch (diagram.kind) {
-    case 'flow': checkFlow(diagram, issue); break;
+    case 'flow': checkFlow(diagram, issue); checkTensorNodes(diagram, issue); break;
     case 'sequence': checkSequence(diagram, issue); break;
     case 'matrix':
       diagram.rows.forEach(({ cells }, index) => {
@@ -301,11 +312,17 @@ function validateDiagram(diagram, issue) {
       break;
     case 'figure': checkFigure(diagram, issue); break;
     case 'tree': checkTree(diagram, issue); break;
-    case 'relationship': checkRelationships(diagram, issue); break;
+    case 'relationship': checkRelationships(diagram, issue); checkTensorNodes(diagram, issue); break;
+    case 'tensor': validateTensor(diagram.tensor, atPath(issue, ['tensor'])); break;
+    case 'token-links': validateTokenLinks(diagram, issue); break;
+    case 'block-stack': validateBlockStack(diagram, issue, validateTensor); break;
     case 'transformation':
       // The composition validator reports a mixed representation. Do not read
       // list fields on a visual state before it can return that useful error.
       if (diagram.variant === 'visual' || !diagram.before.items || !diagram.after.items) break;
+      for (const side of ['before', 'after']) diagram[side].items.forEach((item, index) => {
+        if (typeof item !== 'string') validateTensor(item.tensor, atPath(issue, [side, 'items', index, 'tensor']));
+      });
       diagram.links?.forEach(({ from, to }, index) => {
         if (from >= diagram.before.items.length || to >= diagram.after.items.length) {
           issue(['links', index], 'Mapping indices must refer to existing items');
@@ -350,8 +367,12 @@ export function parseTutorDiagram(value) {
   return tutorDiagramSchema.parse(value);
 }
 
+const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
+const itemText = item => typeof item === 'string' ? [item] : [item.label, ...tensorText(item.tensor)].filter(Boolean);
+const describeTensors = nodes => nodes.flatMap(node => node.tensor ? [tensorText(node.tensor).join(', ')] : []);
+
 function describeConnections(nodes, edges) {
-  const names = new Map(nodes.map(({ id, label }) => [id, label]));
+  const names = new Map(nodes.map(node => [node.id, nodeName(node)]));
   return edges.map(({ from, to, label }) => `${names.get(from)}${label ? ` — ${label}` : ''} → ${names.get(to)}`);
 }
 
@@ -364,7 +385,8 @@ function describeContent(diagram) {
     if (description !== null && description !== undefined) return [...description, ...childDiagrams(diagram).flatMap(child => [child.diagram.title, ...describeContent(child.diagram), child.diagram.caption].filter(Boolean))];
   }
   switch (diagram.kind) {
-    case 'flow': return [...describeConnections(diagram.nodes, diagram.edges), ...(diagram.highlightPath ? [`Highlighted path: ${diagram.highlightPath.map(step => diagram.nodes.find(node => node.id === step).label).join(' → ')}`] : [])];
+    case 'flow': return [...describeConnections(diagram.nodes, diagram.edges), ...describeTensors(diagram.nodes),
+      ...flowPaths(diagram.highlightPath).map(path => `Highlighted path: ${path.map(step => nodeName(diagram.nodes.find(node => node.id === step))).join(' → ')}`)];
     case 'comparison': return diagram.columns.map(({ heading, items }) => `${heading}: ${items.join('; ')}`);
     case 'timeline': return diagram.events.map(({ time, label, detail }) => `${time}: ${[label, detail].filter(Boolean).join(' — ')}`);
     case 'sequence': return [diagram.actors.map(actor => actor.label).join(', '), ...describeConnections(diagram.actors, diagram.messages)];
@@ -385,13 +407,16 @@ function describeContent(diagram) {
         return `${labels.get(parent)} → ${label}`;
       });
     }
-    case 'relationship': return describeConnections(diagram.nodes, diagram.edges);
+    case 'relationship': return [...describeConnections(diagram.nodes, diagram.edges), ...describeTensors(diagram.nodes)];
+    case 'tensor': return tensorText(diagram.tensor);
+    case 'token-links': return describeTokenLinks(diagram);
+    case 'block-stack': return describeBlockStack(diagram, tensorText);
     case 'transformation':
       return [
-        `${diagram.before.label}: ${diagram.before.items.join('; ')}`, diagram.operation,
-        `${diagram.after.label}: ${diagram.after.items.join('; ')}`,
+        `${diagram.before.label}: ${diagram.before.items.map(item => itemText(item).join(', ')).join('; ')}`, diagram.operation,
+        `${diagram.after.label}: ${diagram.after.items.map(item => itemText(item).join(', ')).join('; ')}`,
         ...(diagram.links ?? []).map(({ from, to, label }) =>
-          `${diagram.before.items[from]} → ${diagram.after.items[to]}${label ? `: ${label}` : ''}`),
+          `${itemText(diagram.before.items[from]).join(', ')} → ${itemText(diagram.after.items[to]).join(', ')}${label ? `: ${label}` : ''}`),
       ];
     case 'argument':
       return [
@@ -450,7 +475,11 @@ export function tutorDiagramVisibleText({ diagram: d }) {
   const own = [d.title, d.caption];
   const labels = list => list.map(item => item.label);
   switch (d.kind) {
-    case 'flow': case 'relationship': return [...own, ...labels(d.nodes), ...labels(d.edges)];
+    case 'flow': case 'relationship': return [...own, ...labels(d.nodes), ...labels(d.edges),
+      ...d.nodes.flatMap(node => node.tensor ? tensorText(node.tensor) : [])];
+    case 'tensor': return [...own, ...tensorText(d.tensor)];
+    case 'token-links': return tokenLinksText(d);
+    case 'block-stack': return blockStackText(d, tensorText);
     case 'comparison': return [...own, ...d.columns.flatMap(c => [c.heading, ...c.items])];
     case 'timeline': return [...own, ...d.events.flatMap(e => [e.time, e.label, e.detail])];
     case 'sequence': return [...own, ...labels(d.actors), ...labels(d.messages)];
@@ -459,7 +488,7 @@ export function tutorDiagramVisibleText({ diagram: d }) {
     case 'cycle': return [...own, ...d.steps];
     case 'figure': return [...own, d.unit, ...d.callouts.flatMap(c => [c.label, c.detail]), ...(d.vectors ?? []).map(v => v.label)];
     case 'tree': return [...own, ...labels(d.nodes)];
-    case 'transformation': return [...own, d.before.label, ...d.before.items, d.after.label, ...d.after.items, d.operation, ...(d.links ?? []).map(l => l.label)];
+    case 'transformation': return [...own, d.before.label, ...d.before.items.flatMap(itemText), d.after.label, ...d.after.items.flatMap(itemText), d.operation, ...(d.links ?? []).map(l => l.label)];
     case 'argument': return [...own, d.claim, ...[...d.support, ...d.objections].flatMap(e => [e.label, e.source]), d.conclusion];
     case 'number-line': return [...own, ...labels(d.markers), ...labels(d.intervals ?? [])];
     case 'coordinate-plot': return [...own, d.x.label, d.x.unit, d.y.label, d.y.unit, ...labels(d.series)];

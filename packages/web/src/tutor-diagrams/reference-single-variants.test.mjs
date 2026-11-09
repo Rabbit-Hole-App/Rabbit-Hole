@@ -13,7 +13,7 @@ const parents = diagramReferences.filter(({ spec: { diagram } }) =>
 );
 
 test('all two-panel references have exactly one linked single-diagram variant', () => {
-  assert.equal(parents.length, 20); // 30 with Phase 02 batch 1, whose ten panel references are not on this tree
+  assert.equal(parents.length, 21); // 31 with Phase 02 batch 1, whose ten panel references are not on this tree
   assert.deepEqual(singleDiagramReferences.map(r => r.panelReferenceId).sort(), parents.map(r => r.id).sort());
   for (const single of singleDiagramReferences) {
     const panel = parents.find(r => r.id === single.panelReferenceId);

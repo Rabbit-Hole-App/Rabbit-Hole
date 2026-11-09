@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Gated FFN",
+    "blocks": [
+      {
+        "id": "gate",
+        "label": "Hidden state",
+        "merge": "multiply",
+        "inputs": [
+          {
+            "label": "Linear then GELU"
+          },
+          {
+            "label": "Linear"
+          }
+        ]
+      },
+      {
+        "id": "out",
+        "label": "Linear"
+      }
+    ]
+  }
+}
