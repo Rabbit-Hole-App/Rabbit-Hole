@@ -64,7 +64,7 @@ test('the saved reference passes content lint and draws the two distinguishable 
     assert.equal(svg, renderToStaticMarkup(renderTutorDiagram(spec, width).element));
     assert.doesNotMatch(svg, /NaN|Infinity|undefined|katex-error/);
     assert.equal(svg.match(/data-tutor-plot-area=""/g)?.length, 1);
-    const lines = svg.match(/<polyline [^>]*data-tutor-plot-series="[^"\n]+"[^>]*>/g);
+    const lines = svg.match(/<path [^>]*data-tutor-plot-series="[^"\n]+"[^>]*>/g);
     assert.equal(lines?.length, 2);
     assert.doesNotMatch(lines[0], /stroke-dasharray/);
     assert.match(lines[1], /stroke-dasharray/);

@@ -95,13 +95,13 @@ test('the saved additive comparison keeps the three Day 4 guides aligned at 320,
     assert.ok(renderedWidth >= width);
     const panels = elements.filter(element => element.props['data-tutor-composition-child'] !== undefined);
     assert.equal(panels.length, 3);
-    const aligned = panels.map(panel => {
+    const aligned = panels.map((panel, i) => {
       const marks = children(panel);
       const area = marks.find(element => element.props['data-tutor-plot-area'] !== undefined);
       const guide = marks.find(element => element.props['data-tutor-plot-reference'] === 'x:4');
       assert.ok(area && guide, 'each panel renders its day axis and Day 4 guide');
       assert.equal(marks.filter(element => element.props['data-tutor-coordinate-point']).length,
-        panel === panels[0] ? 16 : 8);
+        [4, 2, 8][i]);
       const [, offset] = panel.props.transform.match(/^translate\(([^ ]+) /);
       return [Number(offset) + area.props.x, area.props.width, Number(offset) + guide.props.x1];
     });

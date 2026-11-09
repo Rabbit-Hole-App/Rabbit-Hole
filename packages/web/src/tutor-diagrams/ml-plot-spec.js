@@ -18,7 +18,7 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const axis = axes.extend({ scale: z.enum(['linear', 'log']).optional() });
   return [
     z.strictObject({ ...titled, kind: z.literal('coordinate-plot'), x: axis, y: axis,
-      series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']),
+      series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(),
         points: z.array(z.strictObject({ x: numeric, y: numeric, id: id.optional(), label: text(60).optional(),
           low: numeric.optional(), high: numeric.optional() })).min(1).max(24),
       })).min(1).max(3),

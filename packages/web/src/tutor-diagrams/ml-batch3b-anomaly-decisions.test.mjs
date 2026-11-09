@@ -94,13 +94,13 @@ test('the run band and flag align with the observed counts at all three widths',
   for (const width of widths) {
     const marks = renderMarks(runId, width);
     const observations = marks.filter(mark => mark.props['data-tutor-coordinate-point']);
-    assert.equal(observations.length, 12);
-    const start = observations.find(mark => mark.props['data-tutor-coordinate-point'] === '7,5');
-    const end = observations.find(mark => mark.props['data-tutor-coordinate-point'] === '12,5');
+    assert.deepEqual(observations.map(mark => mark.props['data-tutor-coordinate-point']), ['1,2', '12,5']);
+    const [first, end] = observations;
+    const runStart = first.props.cx + (end.props.cx - first.props.cx) * (6 / 11);
     const band = marks.find(mark => mark.props['data-tutor-plot-band']);
     const flag = marks.find(mark => mark.props['data-tutor-plot-point'] === '12,5');
-    assert.equal(band.props.x, start.props.cx);
-    assert.equal(band.props.width, end.props.cx - start.props.cx);
+    assert.ok(Math.abs(band.props.x - runStart) < 1e-9);
+    assert.equal(band.props.width, end.props.cx - band.props.x);
     assert.deepEqual([flag.props.cx, flag.props.cy], [end.props.cx, end.props.cy]);
   }
 });
