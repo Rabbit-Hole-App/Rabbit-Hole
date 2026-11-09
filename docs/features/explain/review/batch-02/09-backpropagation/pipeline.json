@@ -1,0 +1,218 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "choose": [
+     "layers",
+     "flow"
+    ]
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "layers",
+  "fixed": false,
+  "confidence": {
+   "kind": 0.42,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.5,
+   "isPhysical": 0.08,
+   "needsWorkedExample": 0.83
+  },
+  "ms": 125
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "choose": [
+       "layers",
+       "flow"
+      ]
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "layers",
+    "fixed": false,
+    "confidence": {
+     "kind": 0.42,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.5,
+     "isPhysical": 0.08,
+     "needsWorkedExample": 0.83
+    },
+    "ms": 125
+   },
+   "references": [
+    "shape-layers",
+    "ml-backpropagation"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Backpropagation carries the loss gradient backward",
+       "caption": "The backward pass reuses saved activations. At each layer, multiply the incoming loss gradient by local derivatives.",
+       "kind": "flow",
+       "nodes": [
+        {
+         "id": "input",
+         "label": "Read input $x$",
+         "role": "process"
+        },
+        {
+         "id": "hidden",
+         "label": "Compute hidden activations $h$",
+         "role": "process"
+        },
+        {
+         "id": "output",
+         "label": "Compute prediction $\\hat y$",
+         "role": "process"
+        },
+        {
+         "id": "loss",
+         "label": "Evaluate loss $L$",
+         "role": "process"
+        },
+        {
+         "id": "seed",
+         "label": "Differentiate loss at prediction",
+         "role": "process"
+        },
+        {
+         "id": "outputGrad",
+         "label": "Apply chain rule at output layer",
+         "role": "process"
+        },
+        {
+         "id": "hiddenGrad",
+         "label": "Apply chain rule at hidden layer",
+         "role": "process"
+        },
+        {
+         "id": "update",
+         "label": "Update weights $w\\gets w-\\eta\\nabla_w L$",
+         "role": "outcome"
+        }
+       ],
+       "edges": [
+        {
+         "from": "input",
+         "to": "hidden"
+        },
+        {
+         "from": "hidden",
+         "to": "output"
+        },
+        {
+         "from": "output",
+         "to": "loss"
+        },
+        {
+         "from": "loss",
+         "to": "seed",
+         "label": "Start backward pass"
+        },
+        {
+         "from": "seed",
+         "to": "outputGrad",
+         "label": "$\\partial L/\\partial \\hat y$"
+        },
+        {
+         "from": "outputGrad",
+         "to": "hiddenGrad",
+         "label": "$\\partial L/\\partial h$"
+        },
+        {
+         "from": "hiddenGrad",
+         "to": "update",
+         "label": "Gradients for both layers"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "flow"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "layers",
+    "flow"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "google",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "u20N_Lf8u1g9",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 3183
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3829,
+   "output_tokens": 966,
+   "cost_micros": 3564
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 3364,
+ "usd": 0.003564
+}

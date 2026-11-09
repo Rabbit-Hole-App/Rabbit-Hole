@@ -1,0 +1,254 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "coordinate-plot"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "coordinate-plot",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.83,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.66,
+   "isPhysical": 0.08,
+   "needsWorkedExample": 0.82
+  },
+  "ms": 197
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "coordinate-plot"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "coordinate-plot",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.83,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.66,
+     "isPhysical": 0.08,
+     "needsWorkedExample": 0.82
+    },
+    "ms": 197
+   },
+   "references": [
+    "shape-coordinate-plot",
+    "gradient-descent-contours"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "A descent path on a quadratic loss",
+       "caption": "Illustrative values; the geometry shows the stated relationship.",
+       "kind": "coordinate-plot",
+       "x": {
+        "label": "Weight 1",
+        "min": -3,
+        "max": 3,
+        "scale": "linear"
+       },
+       "y": {
+        "label": "Weight 2",
+        "min": -3,
+        "max": 3
+       },
+       "series": [
+        {
+         "label": "Outer loss contour",
+         "kind": "line",
+         "points": [
+          {
+           "x": -2,
+           "y": 0
+          },
+          {
+           "x": -1.4,
+           "y": 1.4
+          },
+          {
+           "x": 0,
+           "y": 2
+          },
+          {
+           "x": 1.4,
+           "y": 1.4
+          },
+          {
+           "x": 2,
+           "y": 0
+          },
+          {
+           "x": 1.4,
+           "y": -1.4
+          },
+          {
+           "x": 0,
+           "y": -2
+          },
+          {
+           "x": -1.4,
+           "y": -1.4
+          },
+          {
+           "x": -2,
+           "y": 0
+          }
+         ]
+        },
+        {
+         "label": "Inner loss contour",
+         "kind": "line",
+         "points": [
+          {
+           "x": -1,
+           "y": 0
+          },
+          {
+           "x": 0,
+           "y": 1
+          },
+          {
+           "x": 1,
+           "y": 0
+          },
+          {
+           "x": 0,
+           "y": -1
+          },
+          {
+           "x": -1,
+           "y": 0
+          }
+         ]
+        }
+       ],
+       "annotations": [
+        {
+         "kind": "vector",
+         "label": "Step 1",
+         "from": {
+          "x": 2.5,
+          "y": 2
+         },
+         "to": {
+          "x": 1.4,
+          "y": 1.1
+         }
+        },
+        {
+         "kind": "vector",
+         "label": "Step 2",
+         "from": {
+          "x": 1.4,
+          "y": 1.1
+         },
+         "to": {
+          "x": 0.6,
+          "y": 0.5
+         }
+        },
+        {
+         "kind": "vector",
+         "label": "Step 3",
+         "from": {
+          "x": 0.6,
+          "y": 0.5
+         },
+         "to": {
+          "x": 0,
+          "y": 0
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "coordinate-plot"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "coordinate-plot"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "google",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "Tyl0t6rnD4yO",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 3399
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3983,
+   "output_tokens": 766,
+   "cost_micros": 3110
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 3640,
+ "usd": 0.00311
+}

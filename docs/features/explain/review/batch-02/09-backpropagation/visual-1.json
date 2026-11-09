@@ -1,0 +1,84 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Backpropagation carries the loss gradient backward",
+  "caption": "The backward pass reuses saved activations. At each layer, multiply the incoming loss gradient by local derivatives.",
+  "kind": "flow",
+  "nodes": [
+   {
+    "id": "input",
+    "label": "Read input $x$",
+    "role": "process"
+   },
+   {
+    "id": "hidden",
+    "label": "Compute hidden activations $h$",
+    "role": "process"
+   },
+   {
+    "id": "output",
+    "label": "Compute prediction $\\hat y$",
+    "role": "process"
+   },
+   {
+    "id": "loss",
+    "label": "Evaluate loss $L$",
+    "role": "process"
+   },
+   {
+    "id": "seed",
+    "label": "Differentiate loss at prediction",
+    "role": "process"
+   },
+   {
+    "id": "outputGrad",
+    "label": "Apply chain rule at output layer",
+    "role": "process"
+   },
+   {
+    "id": "hiddenGrad",
+    "label": "Apply chain rule at hidden layer",
+    "role": "process"
+   },
+   {
+    "id": "update",
+    "label": "Update weights $w\\gets w-\\eta\\nabla_w L$",
+    "role": "outcome"
+   }
+  ],
+  "edges": [
+   {
+    "from": "input",
+    "to": "hidden"
+   },
+   {
+    "from": "hidden",
+    "to": "output"
+   },
+   {
+    "from": "output",
+    "to": "loss"
+   },
+   {
+    "from": "loss",
+    "to": "seed",
+    "label": "Start backward pass"
+   },
+   {
+    "from": "seed",
+    "to": "outputGrad",
+    "label": "$\\partial L/\\partial \\hat y$"
+   },
+   {
+    "from": "outputGrad",
+    "to": "hiddenGrad",
+    "label": "$\\partial L/\\partial h$"
+   },
+   {
+    "from": "hiddenGrad",
+    "to": "update",
+    "label": "Gradients for both layers"
+   }
+  ]
+ }
+}

@@ -1,0 +1,196 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "coordinate-plot"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "coordinate-plot",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.94,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.25,
+   "isPhysical": 0.08,
+   "needsWorkedExample": 0.8
+  },
+  "ms": 172
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "coordinate-plot"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "coordinate-plot",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.94,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.25,
+     "isPhysical": 0.08,
+     "needsWorkedExample": 0.8
+    },
+    "ms": 172
+   },
+   "references": [
+    "shape-coordinate-plot"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Likelihood function for parameter \\(\\theta\\)",
+       "kind": "coordinate-plot",
+       "x": {
+        "label": "Parameter \\(\\theta\\)",
+        "min": 0,
+        "max": 10
+       },
+       "y": {
+        "label": "Likelihood \\(L(\\theta)\\)",
+        "min": 0,
+        "max": 25
+       },
+       "series": [
+        {
+         "label": "Likelihood",
+         "kind": "line",
+         "points": [
+          {
+           "x": 0,
+           "y": 0
+          },
+          {
+           "x": 1,
+           "y": 5
+          },
+          {
+           "x": 2,
+           "y": 12
+          },
+          {
+           "x": 3,
+           "y": 18
+          },
+          {
+           "x": 4,
+           "y": 22
+          },
+          {
+           "x": 5,
+           "y": 24,
+           "label": "MLE \\(\\hat{\\theta}\\)"
+          },
+          {
+           "x": 6,
+           "y": 22
+          },
+          {
+           "x": 7,
+           "y": 18
+          },
+          {
+           "x": 8,
+           "y": 12
+          },
+          {
+           "x": 9,
+           "y": 5
+          },
+          {
+           "x": 10,
+           "y": 0
+          }
+         ]
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "coordinate-plot"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "coordinate-plot"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "google",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "Cc735TvPkGOr",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 3226
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3597,
+   "output_tokens": 612,
+   "cost_micros": 2610
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 3442,
+ "usd": 0.00261
+}

@@ -1,0 +1,206 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "coordinate-plot"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "coordinate-plot",
+  "fixed": true,
+  "confidence": {
+   "kind": 1,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.93,
+   "isPhysical": 0.08,
+   "needsWorkedExample": 0.74
+  },
+  "ms": 152
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "coordinate-plot"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "coordinate-plot",
+    "fixed": true,
+    "confidence": {
+     "kind": 1,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.93,
+     "isPhysical": 0.08,
+     "needsWorkedExample": 0.74
+    },
+    "ms": 152
+   },
+   "references": [
+    "shape-coordinate-plot",
+    "learning-rate-schedules"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Learning-rate schedules",
+       "caption": "Illustrative values; the geometry shows the stated relationship.",
+       "kind": "coordinate-plot",
+       "x": {
+        "label": "Epoch",
+        "min": 0,
+        "max": 6,
+        "scale": "linear"
+       },
+       "y": {
+        "label": "Learning rate",
+        "min": 0.001,
+        "max": 0.1,
+        "scale": "log"
+       },
+       "series": [
+        {
+         "label": "Step decay",
+         "kind": "step",
+         "points": [
+          {
+           "x": 0,
+           "y": 0.1
+          },
+          {
+           "x": 2,
+           "y": 0.03
+          },
+          {
+           "x": 4,
+           "y": 0.01
+          },
+          {
+           "x": 6,
+           "y": 0.01
+          }
+         ]
+        },
+        {
+         "label": "Exponential decay",
+         "kind": "line",
+         "points": [
+          {
+           "x": 0,
+           "y": 0.1
+          },
+          {
+           "x": 1,
+           "y": 0.05
+          },
+          {
+           "x": 2,
+           "y": 0.025
+          },
+          {
+           "x": 3,
+           "y": 0.0125
+          },
+          {
+           "x": 4,
+           "y": 0.00625
+          },
+          {
+           "x": 5,
+           "y": 0.003125
+          },
+          {
+           "x": 6,
+           "y": 0.0015625
+          }
+         ]
+        }
+       ],
+       "annotations": []
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "coordinate-plot"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "coordinate-plot"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "google",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "0L457rpNaBwr",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 3482
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3873,
+   "output_tokens": 828,
+   "cost_micros": 3232
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 3681,
+ "usd": 0.003232
+}

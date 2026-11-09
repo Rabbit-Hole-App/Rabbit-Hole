@@ -1,0 +1,120 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "A simple fit versus an overfit curve",
+  "caption": "Illustrative fits. The overfit curve passes through every training point but misses the held-out point; the simple fit stays close to it.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Input x",
+   "min": 0,
+   "max": 4
+  },
+  "y": {
+   "label": "Target y",
+   "min": 0,
+   "max": 10
+  },
+  "series": [
+   {
+    "label": "Observed points",
+    "kind": "scatter",
+    "points": [
+     {
+      "x": 0,
+      "y": 1
+     },
+     {
+      "x": 1,
+      "y": 2.2
+     },
+     {
+      "x": 2,
+      "y": 4.8
+     },
+     {
+      "x": 3,
+      "y": 7.2
+     },
+     {
+      "x": 4,
+      "y": 9
+     },
+     {
+      "x": 1.5,
+      "y": 3.5,
+      "id": "held",
+      "label": "Held-out point"
+     }
+    ]
+   },
+   {
+    "label": "Simple fit",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0.8
+     },
+     {
+      "x": 1,
+      "y": 2.4
+     },
+     {
+      "x": 2,
+      "y": 4.7
+     },
+     {
+      "x": 3,
+      "y": 7
+     },
+     {
+      "x": 4,
+      "y": 9.1
+     }
+    ]
+   },
+   {
+    "label": "Overfit curve",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 1
+     },
+     {
+      "x": 0.5,
+      "y": 4
+     },
+     {
+      "x": 1,
+      "y": 2.2
+     },
+     {
+      "x": 1.5,
+      "y": 1
+     },
+     {
+      "x": 2,
+      "y": 4.8
+     },
+     {
+      "x": 2.5,
+      "y": 9
+     },
+     {
+      "x": 3,
+      "y": 7.2
+     },
+     {
+      "x": 3.5,
+      "y": 5
+     },
+     {
+      "x": 4,
+      "y": 9
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,18 @@
+# Review batch 02
+
+Ten prompts from the AI/ML misses and the owner's cards, Balanced depth, one run each, on the 117 candidate (7f1d0f562586e1bb358387085c0c073cb3bd1ea8). Nothing edited: what is here is what the pipeline produced.
+
+| # | Prompt | Expected shape | Planned -> drawn | References | Repairs / corrections | Time, tokens (in/out), card size |
+|---|---|---|---|---|---|---|
+| 01 | [what is overfitting?](01-what-is-overfitting/card.md) | coordinate-plot: observed points once as scatter, a simple-fit line, an overfit line, one annotated held-out point (reference ml-fit-quality-comparison); caption says what to notice | coordinate-plot -> coordinate-plot | shape-coordinate-plot,ml-fit-quality-comparison-single | clean | 3857 ms (model 3665), 4009/1038 tok, 440x1157 px |
+| 02 | [what is maximum likelihood estimation?](02-maximum-likelihood/card.md) | coordinate-plot: likelihood against the parameter with the maximum marked and labelled; or a flow data -> likelihood -> maximise -> estimate | coordinate-plot -> coordinate-plot | shape-coordinate-plot | clean | 3442 ms (model 3226), 3597/612 tok, 440x1012 px |
+| 03 | [how does cross-validation detect overfitting?](03-cross-validation-overfitting/card.md) | grouped bar-chart: training versus validation error per fold with a steady gap; never a trend line over folds | bar-chart -> bar-chart | shape-bar-chart | clean | 2885 ms (model 2674), 3489/477 tok, 440x795 px |
+| 04 | [how does gradient descent work?](04-gradient-descent/card.md) | coordinate-plot: loss against the parameter with the step path downhill; or a cycle compute gradient -> step -> repeat (no setup step in the cycle) | coordinate-plot -> coordinate-plot | shape-coordinate-plot,gradient-descent-contours | clean | 3640 ms (model 3399), 3983/766 tok, 440x1191 px |
+| 05 | [what is a learning-rate schedule?](05-learning-rate-schedule/card.md) | coordinate-plot: learning rate against epoch for step decay and exponential decay, 7-12 points or smoothed curves | coordinate-plot -> coordinate-plot | shape-coordinate-plot,learning-rate-schedules | clean | 3681 ms (model 3482), 3873/828 tok, 440x1067 px |
+| 06 | [how does k-means clustering work?](06-k-means/card.md) | coordinate-plot scatter: points, centroids, one re-assignment step; a cycle without the initialise step is acceptable | coordinate-plot -> coordinate-plot | shape-coordinate-plot,kmeans-centroid-update,clustering-elbow-silhouette | clean | 3297 ms (model 3127), 4013/852 tok, 440x1134 px |
+| 07 | [how does positional encoding work in a transformer?](07-positional-encoding/card.md) | the walkthrough step-1 block-stack row or a coordinate-plot of two or three sinusoids over position; maths in $...$ | coordinate-plot -> coordinate-plot | shape-coordinate-plot | clean | 3074 ms (model 2881), 3603/698 tok, 440x933 px |
+| 08 | [how are attention weights computed?](08-attention-weights/card.md) | token-links: the heaviest weight's value on its link and a caption saying the weights sum to one; or a bar-chart of one query's weights | token-links -> token-links | shape-token-links | clean | 2967 ms (model 2718), 3496/446 tok, 440x912 px |
+| 09 | [how does backpropagation work?](09-backpropagation/card.md) | flow or cycle: forward pass, loss, backward gradients, update; layers accepted | layers|flow (offered layers|flow) -> flow | shape-layers,ml-backpropagation | clean | 3364 ms (model 3183), 3829/966 tok, 440x1453 px |
+| 10 | [how does the call stack work during recursion?](10-call-stack/card.md) | layers or horizontal block-stack: frames pushed and popped, the base case marked | layers -> layers | shape-layers,recursion-factorial-unwind | clean | 2704 ms (model 2559), 3757/671 tok, 440x1115 px |
+
+Total cost US$0.0297. Pictures: 0 of 10.

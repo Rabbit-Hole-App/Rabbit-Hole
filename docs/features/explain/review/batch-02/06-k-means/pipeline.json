@@ -1,0 +1,194 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "coordinate-plot"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "coordinate-plot",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.83,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.17,
+   "isPhysical": 0.08,
+   "needsWorkedExample": 0.83
+  },
+  "ms": 119
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "coordinate-plot"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "coordinate-plot",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.83,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.17,
+     "isPhysical": 0.08,
+     "needsWorkedExample": 0.83
+    },
+    "ms": 119
+   },
+   "references": [
+    "shape-coordinate-plot",
+    "kmeans-centroid-update",
+    "clustering-elbow-silhouette"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "A K-means centroid moves to the assigned mean",
+       "caption": "Illustrative values; the geometry shows the stated relationship.",
+       "kind": "coordinate-plot",
+       "x": {
+        "label": "Feature 1",
+        "min": 0,
+        "max": 8,
+        "scale": "linear"
+       },
+       "y": {
+        "label": "Feature 2",
+        "min": 0,
+        "max": 6,
+        "scale": "linear"
+       },
+       "series": [
+        {
+         "label": "Assigned cluster",
+         "kind": "scatter",
+         "points": [
+          {
+           "x": 2,
+           "y": 2
+          },
+          {
+           "x": 3,
+           "y": 4
+          },
+          {
+           "x": 4,
+           "y": 3
+          }
+         ]
+        }
+       ],
+       "annotations": [
+        {
+         "kind": "point",
+         "label": "Old centroid",
+         "x": 1,
+         "y": 1
+        },
+        {
+         "kind": "point",
+         "label": "New mean at 3 on both axes",
+         "x": 3,
+         "y": 3
+        },
+        {
+         "kind": "vector",
+         "label": "Centroid update",
+         "from": {
+          "x": 1,
+          "y": 1
+         },
+         "to": {
+          "x": 3,
+          "y": 3
+         }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "coordinate-plot"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "coordinate-plot"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "google",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "Oy3W1ID9AzTT",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 3127
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 4013,
+   "output_tokens": 852,
+   "cost_micros": 3334
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 3297,
+ "usd": 0.003334
+}

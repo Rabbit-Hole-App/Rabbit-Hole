@@ -1,0 +1,70 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Likelihood function for parameter \\(\\theta\\)",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Parameter \\(\\theta\\)",
+   "min": 0,
+   "max": 10
+  },
+  "y": {
+   "label": "Likelihood \\(L(\\theta)\\)",
+   "min": 0,
+   "max": 25
+  },
+  "series": [
+   {
+    "label": "Likelihood",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0
+     },
+     {
+      "x": 1,
+      "y": 5
+     },
+     {
+      "x": 2,
+      "y": 12
+     },
+     {
+      "x": 3,
+      "y": 18
+     },
+     {
+      "x": 4,
+      "y": 22
+     },
+     {
+      "x": 5,
+      "y": 24,
+      "label": "MLE \\(\\hat{\\theta}\\)"
+     },
+     {
+      "x": 6,
+      "y": 22
+     },
+     {
+      "x": 7,
+      "y": 18
+     },
+     {
+      "x": 8,
+      "y": 12
+     },
+     {
+      "x": 9,
+      "y": 5
+     },
+     {
+      "x": 10,
+      "y": 0
+     }
+    ]
+   }
+  ]
+ }
+}

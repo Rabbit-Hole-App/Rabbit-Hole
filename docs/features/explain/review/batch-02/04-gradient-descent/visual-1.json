@@ -1,0 +1,127 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "A descent path on a quadratic loss",
+  "caption": "Illustrative values; the geometry shows the stated relationship.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Weight 1",
+   "min": -3,
+   "max": 3,
+   "scale": "linear"
+  },
+  "y": {
+   "label": "Weight 2",
+   "min": -3,
+   "max": 3
+  },
+  "series": [
+   {
+    "label": "Outer loss contour",
+    "kind": "line",
+    "points": [
+     {
+      "x": -2,
+      "y": 0
+     },
+     {
+      "x": -1.4,
+      "y": 1.4
+     },
+     {
+      "x": 0,
+      "y": 2
+     },
+     {
+      "x": 1.4,
+      "y": 1.4
+     },
+     {
+      "x": 2,
+      "y": 0
+     },
+     {
+      "x": 1.4,
+      "y": -1.4
+     },
+     {
+      "x": 0,
+      "y": -2
+     },
+     {
+      "x": -1.4,
+      "y": -1.4
+     },
+     {
+      "x": -2,
+      "y": 0
+     }
+    ]
+   },
+   {
+    "label": "Inner loss contour",
+    "kind": "line",
+    "points": [
+     {
+      "x": -1,
+      "y": 0
+     },
+     {
+      "x": 0,
+      "y": 1
+     },
+     {
+      "x": 1,
+      "y": 0
+     },
+     {
+      "x": 0,
+      "y": -1
+     },
+     {
+      "x": -1,
+      "y": 0
+     }
+    ]
+   }
+  ],
+  "annotations": [
+   {
+    "kind": "vector",
+    "label": "Step 1",
+    "from": {
+     "x": 2.5,
+     "y": 2
+    },
+    "to": {
+     "x": 1.4,
+     "y": 1.1
+    }
+   },
+   {
+    "kind": "vector",
+    "label": "Step 2",
+    "from": {
+     "x": 1.4,
+     "y": 1.1
+    },
+    "to": {
+     "x": 0.6,
+     "y": 0.5
+    }
+   },
+   {
+    "kind": "vector",
+    "label": "Step 3",
+    "from": {
+     "x": 0.6,
+     "y": 0.5
+    },
+    "to": {
+     "x": 0,
+     "y": 0
+    }
+   }
+  ]
+ }
+}

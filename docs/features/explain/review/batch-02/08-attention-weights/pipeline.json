@@ -1,0 +1,151 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "token-links"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "token-links",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.79,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.81,
+   "isPhysical": 0.09,
+   "needsWorkedExample": 0.85
+  },
+  "ms": 211
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "token-links"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "token-links",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.79,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.81,
+     "isPhysical": 0.09,
+     "needsWorkedExample": 0.85
+    },
+    "ms": 211
+   },
+   "references": [
+    "shape-token-links"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Weights on words",
+       "kind": "token-links",
+       "source": [
+        "red",
+        "kite"
+       ],
+       "target": [
+        "red",
+        "kite"
+       ],
+       "queries": [
+        {
+         "index": 1,
+         "weights": [
+          0.25,
+          0.75
+         ]
+        }
+       ],
+       "normalized": true
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "token-links"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "token-links"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "google",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "svcA1iHbil47",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 2718
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3496,
+   "output_tokens": 446,
+   "cost_micros": 2164
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 2967,
+ "usd": 0.002164
+}
