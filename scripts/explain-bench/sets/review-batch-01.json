@@ -4,7 +4,8 @@
   "measures": "The ten batch-01 prompts plus three paraphrases each for the three cards whose kind followed the wording and not the data: 03 positional encoding, 04 k-means, 08 call stack. Planner bench only (no author call).",
   "notation": "As aiml.json: D:<kind> = diagram (D:a|b either). best = the kind the review expects; acceptable = a kind the review accepted as drawn. Anything else is wrong (a collateral flip).",
   "prompts": [
-    { "id": "public-key-encryption", "group": "review", "prompt": "how does public-key encryption work?", "best": [["D:sequence"]], "acceptable": [["D:flow"]], "badKinds": [], "needsPicture": false, "noPicture": true },
+    { "id": "public-key-encryption", "group": "review", "prompt": "how does public-key encryption work?",
+    "note": "Expected shape (owner 2026-11-09, Codex 586d565b): a sequence between Alice and Bob whose FINAL message is the self-message Decrypt with private key on Bob, drawn as a loop on his lifeline (the schema now accepts a first or last self-message and the server no longer folds it).", "best": [["D:sequence"]], "acceptable": [["D:flow"]], "badKinds": [], "needsPicture": false, "noPicture": true },
     { "id": "hash-table", "group": "review", "prompt": "how does a hash table work?", "best": [["D:flow"]], "acceptable": [["D:transformation"]], "badKinds": [], "needsPicture": false, "noPicture": true },
     { "id": "positional-encoding", "group": "review", "prompt": "how does positional encoding work in a transformer?", "best": [["D:coordinate-plot"]], "acceptable": [], "badKinds": ["transformation"], "needsPicture": false, "noPicture": true, "reviewTarget": true },
     { "id": "positional-encoding-p1", "group": "review", "prompt": "how do transformers know the order of the words in a sentence?", "best": [["D:coordinate-plot"]], "acceptable": [], "badKinds": ["transformation"], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "positional-encoding" },

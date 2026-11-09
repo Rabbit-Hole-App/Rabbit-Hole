@@ -37,7 +37,8 @@ const publicKey = spec('sequence', 'Key exchange and message flow', {
   actors: [{ id: 'alice', label: 'Alice' }, { id: 'bob', label: 'Bob' }],
   messages: [
     { from: 'bob', to: 'alice', label: 'Share public key' },
-    { from: 'alice', to: 'bob', label: 'Encrypt with public key -> Decrypt with private key' },
+    { from: 'alice', to: 'bob', label: 'Encrypt with public key' },
+    { from: 'bob', to: 'bob', label: 'Decrypt with private key' }, // card 01 as the model wrote it: a self-message LAST, accepted since Codex 586d565b
   ],
 });
 const publicKeyWords = ['Alice', 'Bob', 'Share public key', 'Encrypt with public key', 'Decrypt with private key'];
@@ -125,10 +126,10 @@ export const additionalCorrections = [
     d.messages[0].from = 'worker';
   }, retryWords, retryMessage),
 
-  // Batch-1 review card 01 (public-key encryption), as the model wrote it: Bob's own step is a message from bob to bob.
-  pair('sequence-self-step-decrypt', publicKey, ['messages', 2], /self-message.*ordinary/, d => {
-    d.messages[1].label = 'Encrypt with public key';
-    d.messages.push({ from: 'bob', to: 'bob', label: 'Decrypt with private key' });
+  // Batch-1 review card 01 (public-key encryption): Bob's own step is a message from bob to bob, LAST. The schema accepts it now (Codex 586d565b), so card 01 itself is the valid form and needs no correction;
+  // the case that still needs one is a second self-step in a row, which the server folds into a label or the caption instead of deleting.
+  pair('sequence-self-step-decrypt', publicKey, ['messages', 3], /Consecutive self-messages/, d => {
+    d.messages.push({ from: 'bob', to: 'bob', label: 'Read the message' });
   }, publicKeyWords, [[['messages', 0, 'label'], 'Share public key']]),
 
   pair('figure-free-body-without-vectors', fallingObject, ['vectors'], /needs force vectors/, d => {
