@@ -138,10 +138,11 @@ for (const domain of domains.slice(0, -1)) {
 const leafKinds = new Set(['tree', 'coordinate-plot', 'bar-chart', 'matrix', 'timeline', 'heatmap', 'sample-set', 'histogram', 'box-plot']);
 const leafShapes = [...shapeMap].filter(([kind]) => leafKinds.has(kind)).map(([, schema]) => schema);
 const blockStack = createBlockStackShape(helpers);
+const tokenLinks = createTokenLinksShape(helpers);
 const leafDiagram = z.discriminatedUnion('kind', leafShapes);
-const panelDiagram = z.discriminatedUnion('kind', [...leafShapes, blockStack]);
+const panelDiagram = z.discriminatedUnion('kind', [...leafShapes, blockStack, tokenLinks]);
 for (const schema of composition.createShapes({ ...helpers, leafDiagram, panelDiagram })) shapeMap.set(schema.shape.kind.value, schema);
-for (const schema of [createTensorShape(helpers), createTokenLinksShape(helpers), blockStack]) shapeMap.set(schema.shape.kind.value, schema);
+for (const schema of [createTensorShape(helpers), tokenLinks, blockStack]) shapeMap.set(schema.shape.kind.value, schema);
 const diagramShape = z.discriminatedUnion('kind', [...shapeMap.values()]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
 
@@ -195,7 +196,12 @@ function checkSequence({ actors, messages }, issue) {
   if (ids.size !== actors.length) return issue(['actors'], 'Sequence actors need unique IDs');
   for (const [index, { from, to }] of messages.entries()) {
     if (!ids.has(from) || !ids.has(to)) issue(['messages', index], 'Message refers to an unknown actor');
-    else if (from === to) issue(['messages', index], 'An actor cannot send a message to itself');
+    else if (from === to) {
+      const previous = messages[index - 1], next = messages[index + 1];
+      if (!previous || !next || previous.from === previous.to || next.from === next.to) {
+        issue(['messages', index], 'A self-message needs an ordinary message immediately before and after it');
+      }
+    }
   }
 }
 

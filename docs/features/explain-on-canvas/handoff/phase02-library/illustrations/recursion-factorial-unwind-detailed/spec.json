@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "layers",
+    "title": "Factorial of 3 on the call stack",
+    "caption": "For $n>1$, $F(n)=nF(n-1)$. The base case $F(1)=1$ starts the returns in the reverse order of the calls.",
+    "layers": [
+      {
+        "label": "1. Push the frame for factorial of 3",
+        "detail": "Suspend $F(3)$ until $F(2)$ returns."
+      },
+      {
+        "label": "2. Push the frame for factorial of 2",
+        "detail": "Suspend $F(2)$ until $F(1)$ returns."
+      },
+      {
+        "label": "3. Push the base case for factorial of 1",
+        "detail": "Base case $F(1)=1$. No recursive call."
+      },
+      {
+        "label": "4. Pop the frame for 1 and return 1",
+        "detail": "Resume $F(2)$ with the value 1."
+      },
+      {
+        "label": "5. Pop the frame for 2 and return 2",
+        "detail": "Compute $F(2)=2\\times 1=2$ and resume $F(3)$."
+      },
+      {
+        "label": "6. Pop the frame for 3 and return 6",
+        "detail": "Compute $F(3)=3\\times 2=6$ and return to the caller."
+      }
+    ]
+  }
+}

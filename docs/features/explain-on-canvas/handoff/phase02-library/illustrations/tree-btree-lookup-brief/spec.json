@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "tree",
+    "title": "Finding 32 in a B-tree",
+    "layout": "hierarchy",
+    "caption": "A scan may read every row. The index narrows the search to one group of keys at each level.",
+    "highlightPath": [
+      "root",
+      "mid"
+    ],
+    "nodes": [
+      {
+        "id": "root",
+        "label": "20, 40",
+        "detail": "Up to 4 child groups"
+      },
+      {
+        "id": "low",
+        "label": "4, 12",
+        "parent": "root",
+        "edgeLabel": "Below 20"
+      },
+      {
+        "id": "mid",
+        "label": "27, 32",
+        "parent": "root",
+        "edgeLabel": "Between 20 and 40",
+        "detail": "32 is here"
+      },
+      {
+        "id": "high",
+        "label": "48, 55",
+        "parent": "root",
+        "edgeLabel": "Above 40"
+      }
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 import { createElement as h } from 'react';
 import { fitCaption, label, layoutCaption, lineHeight, wrap } from './primitives.js';
+import { sharedPlotLabelSpace } from './ml-plot-layouts.js';
 import { teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
 
 const PAD = 12;
@@ -19,14 +20,16 @@ function content(text, width, size = TEXT) {
 
 function panelScenes(panels, width, renderChild, sharedAxes) {
   const requested = Math.max(MIN_CHILD_WIDTH, (width - PAD * 2 - GAP * (panels.length - 1)) / panels.length);
-  // Explicit scales select the teaching plot layout, whose fixed plot gutters
-  // align panels even when an unshared axis has different tick-label lengths.
+  // Shared plots use the teaching layout with matched gutters.
   const children = panels.map(panel => sharedAxes?.length ? {
     ...panel.diagram,
     x: { ...panel.diagram.x, scale: panel.diagram.x.scale ?? 'linear' },
     y: { ...panel.diagram.y, scale: panel.diagram.y.scale ?? 'linear' },
   } : panel.diagram);
-  const sceneFor = (child, childWidth) => fitCaption(renderChild(child, childWidth), child.caption, 2 * PAD, SMALL);
+  const sharedLabelSpace = sharedAxes?.length ? sharedPlotLabelSpace(children) : undefined;
+  const sceneFor = (child, childWidth) => fitCaption(renderChild(child, childWidth, {
+    compact: child.kind === 'token-links', sharedLabelSpace,
+  }), child.caption, 2 * PAD, SMALL);
   let scenes = children.map(child => sceneFor(child, requested));
   const stacked = PAD * 2 + GAP * (panels.length - 1) + scenes.reduce((sum, scene) => sum + scene.width, 0) > width;
   if (stacked) scenes = children.map(child => sceneFor(child, Math.max(MIN_CHILD_WIDTH, width - PAD * 2)));

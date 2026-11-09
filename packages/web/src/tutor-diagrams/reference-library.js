@@ -1,4 +1,5 @@
 import originalExamples from './examples.json' with { type: 'json' };
+import { references as batch1Followups } from './batch-1-followup-references.js';
 import { references as statistical } from './ml-statistical-references.js';
 import { references as plot } from './ml-plot-references.js';
 import { references as topology } from './ml-topology-references.js';
@@ -42,6 +43,8 @@ export const illustrationReferences = Object.freeze([
   ...tensorReferences, ...tokenLinksReferences, ...architectureReferences, ...moeReferences,
 ]);
 
+export const batch1FollowupReferences = Object.freeze(batch1Followups);
+
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
 const unchanged = new Set(['cycle', 'sequence', 'layers', 'number-line', 'argument', 'figure', 't-account', 'waterfall']);
@@ -61,6 +64,7 @@ export const diagramReferences = Object.freeze([
   ...batch3cFlow, ...batch3cServing,
   ...batch4aPrediction, ...batch4aLogistic, ...illustrationReferences, ...generic,
   ...transformerWalkthroughReferences.filter(ref => !illustrationReferences.includes(ref)),
+  ...batch1FollowupReferences,
 ]);
 
 export const PHASE02_SOURCE = Object.freeze({

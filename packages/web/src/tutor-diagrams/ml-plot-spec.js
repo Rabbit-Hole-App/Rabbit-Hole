@@ -19,9 +19,10 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   return [
     z.strictObject({ ...titled, kind: z.literal('coordinate-plot'), x: axis, y: axis,
       series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(),
+        endLabel: z.boolean().optional(),
         points: z.array(z.strictObject({ x: numeric, y: numeric, id: id.optional(), label: text(60).optional(),
           low: numeric.optional(), high: numeric.optional() })).min(1).max(24),
-      })).min(1).max(3),
+      })).min(1).max(5),
       annotations: z.array(annotation).max(16).optional(),
     }),
     z.strictObject({ ...titled, kind: z.literal('bar-chart'), unit,
@@ -34,8 +35,9 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
 }
 
 export const isExtendedPlot = d => d.kind === 'coordinate-plot' &&
-  (d.x.scale !== undefined || d.y.scale !== undefined || d.annotations !== undefined || d.series.some(s =>
-    !['line', 'scatter'].includes(s.kind) || s.points.some(p => p.label !== undefined || p.id !== undefined || p.low !== undefined || p.high !== undefined)));
+  (d.series.length > 3 || d.x.scale !== undefined || d.y.scale !== undefined || d.annotations !== undefined || d.series.some(s =>
+    s.endLabel || !['line', 'scatter'].includes(s.kind) ||
+    s.points.some(p => p.label !== undefined || p.id !== undefined || p.low !== undefined || p.high !== undefined)));
 
 function inAxis(value, axis) {
   return Number.isFinite(value) && value >= axis.min && value <= axis.max && (axis.scale !== 'log' || value > 0);
@@ -52,6 +54,9 @@ function checkPlot(d, issue) {
     const path = ['series', i];
     if (['line', 'step'].includes(s.kind) && s.points.length < 2) issue([...path, 'points'], 'A line or step needs at least two points');
     if (s.kind === 'stem' && !inAxis(0, d.y)) issue(path, 'Stem series require a linear y domain containing zero');
+    if (s.endLabel && (s.kind !== 'line' || s.points.at(-1)?.x !== d.x.max)) {
+      issue([...path, 'endLabel'], 'A right-edge label requires a line ending at the x-axis maximum');
+    }
     const uncertainty = s.points.some(p => p.low !== undefined || p.high !== undefined);
     const ids = new Set();
     s.points.forEach((p, j) => {

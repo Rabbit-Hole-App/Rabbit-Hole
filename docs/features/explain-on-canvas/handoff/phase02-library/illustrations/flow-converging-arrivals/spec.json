@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "flow",
+    "title": "Approval branches",
+    "nodes": [
+      {
+        "id": "review",
+        "label": "Check the approval stage",
+        "role": "decision"
+      },
+      {
+        "id": "house",
+        "label": "Did the House agree?",
+        "role": "decision"
+      },
+      {
+        "id": "senate",
+        "label": "Did the Senate agree?",
+        "role": "decision"
+      },
+      {
+        "id": "sign",
+        "label": "Was the bill signed?",
+        "role": "decision"
+      },
+      {
+        "id": "passed",
+        "label": "Advance the bill",
+        "role": "outcome"
+      },
+      {
+        "id": "dies",
+        "label": "Bill dies",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "review",
+        "to": "house",
+        "label": "House"
+      },
+      {
+        "from": "house",
+        "to": "dies",
+        "label": "No"
+      },
+      {
+        "from": "house",
+        "to": "passed",
+        "label": "Yes"
+      },
+      {
+        "from": "review",
+        "to": "senate",
+        "label": "Senate"
+      },
+      {
+        "from": "senate",
+        "to": "dies",
+        "label": "No"
+      },
+      {
+        "from": "senate",
+        "to": "passed",
+        "label": "Yes"
+      },
+      {
+        "from": "review",
+        "to": "sign",
+        "label": "Signature"
+      },
+      {
+        "from": "sign",
+        "to": "dies",
+        "label": "No"
+      },
+      {
+        "from": "sign",
+        "to": "passed",
+        "label": "Yes"
+      }
+    ]
+  }
+}

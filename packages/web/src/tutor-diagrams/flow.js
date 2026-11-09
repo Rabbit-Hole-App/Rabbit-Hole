@@ -27,10 +27,14 @@ function layersFor(nodes, incoming) {
   return { rows, ranks };
 }
 
-function port(node, edges, edge, bottom) {
+function portOffset(node, edges, edge) {
   const normalSpread = Math.min(20, node.width * 0.18);
   const spread = Math.min(node.width / 2 - 12, Math.max(normalSpread, (edges.length - 1) * 5));
-  const dx = edges.length > 1 ? (2 * edges.indexOf(edge) / (edges.length - 1) - 1) * spread : 0;
+  return edges.length > 1 ? (2 * edges.indexOf(edge) / (edges.length - 1) - 1) * spread : 0;
+}
+
+function port(node, edges, edge, bottom) {
+  const dx = portOffset(node, edges, edge);
   let inset = 0;
   if (node.role === 'decision') inset = Math.abs(dx) * node.height / node.width;
   if (node.role === 'outcome' && !node.tensor) {
@@ -152,8 +156,7 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
   // Inside lanes turn toward a shared target before the outside lanes arrive.
   for (const edge of skips) gaps[ranks.get(edge.to) - 1].push(routeByEdge.get(edge).arrive);
 
-  let y = PAD;
-  rows.forEach((row, rank) => {
+  const placedRows = rows.map((row, rank) => {
     const share = (inner - rowMinimums[rank]) / row.length;
     const widths = metrics[rank].map(({ min }) => Math.min(Math.max(NODE_MAX, min), min + share));
     const extra = (inner - widths.reduce((sum, w) => sum + w, 0) - (row.length - 1) * NODE_GAP) / row.length;
@@ -173,10 +176,43 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
         : { height: Math.max(38, lines.length * lineHeight() + 14), offset: 0 };
       return { ...node, width: w, height, cx, lines, offset };
     });
-    const height = Math.max(...rowNodes.map(node => node.height));
-    for (const node of rowNodes) placements.set(node.id, { ...node, y: y + (height - node.height) / 2 });
+    for (const node of rowNodes) placements.set(node.id, node);
+    return rowNodes;
+  });
+
+  // Port order follows where the wire actually runs, including right-side skips.
+  const skipX = edge => skipLaneX(PAD + inner, skipOrder.get(edge));
+  const exitX = edge => skipOrder.has(edge) ? skipX(edge) : placements.get(edge.to).cx;
+  const entryOrder = edge => skipOrder.has(edge) ? width + skipOrder.get(edge) : placements.get(edge.from).cx;
+  for (const group of outgoing.values()) group.sort((a, b) => exitX(a) - exitX(b));
+  for (const [id, group] of incoming) {
+    group.sort((a, b) => entryOrder(a) - entryOrder(b));
+    if (group.length < 3) continue;
+    const target = placements.get(id);
+    const left = [], right = [];
+    for (const edge of group) {
+      const { depart, arrive } = routeByEdge.get(edge);
+      if (arrive) continue;
+      const source = placements.get(edge.from);
+      const fromX = source.cx + portOffset(source, outgoing.get(edge.from), edge);
+      const toX = target.cx + portOffset(target, group, edge);
+      (fromX < toX ? left : right).push(depart);
+    }
+    // Nearer approaches turn first on each side, so an outer wire never crosses
+    // an inner arrival. Reuse the existing gap slots to keep nearby routes in order.
+    const gap = gaps[ranks.get(id) - 1];
+    for (const lanes of [left.reverse(), right]) {
+      const slots = lanes.map(lane => gap.indexOf(lane)).sort((a, b) => a - b);
+      slots.forEach((slot, index) => { gap[slot] = lanes[index]; });
+    }
+  }
+
+  let y = PAD;
+  placedRows.forEach((row, rank) => {
+    const height = Math.max(...row.map(node => node.height));
+    for (const node of row) node.y = y + (height - node.height) / 2;
     y += height;
-    if (rank === rows.length - 1) return;
+    if (rank === placedRows.length - 1) return;
     y += 10;
     for (const lane of gaps[rank]) {
       lane.y = y + lane.height / 2;
@@ -185,12 +221,6 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
     y += 10;
   });
 
-  // Port order follows where the wire actually runs, including right-side skips.
-  const skipX = edge => skipLaneX(PAD + inner, skipOrder.get(edge));
-  const exitX = edge => skipOrder.has(edge) ? skipX(edge) : placements.get(edge.to).cx;
-  const entryOrder = edge => skipOrder.has(edge) ? width + routeByEdge.get(edge).arrive.y : placements.get(edge.from).cx;
-  for (const group of outgoing.values()) group.sort((a, b) => exitX(a) - exitX(b));
-  for (const group of incoming.values()) group.sort((a, b) => entryOrder(a) - entryOrder(b));
   const routed = routes.map(route => {
     const { edge, depart, arrive } = route;
     const from = port(placements.get(edge.from), outgoing.get(edge.from), edge, true);

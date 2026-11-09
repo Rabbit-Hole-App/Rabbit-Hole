@@ -126,7 +126,7 @@ export const architectureReferences = [
       'gemma 3 decoder', 'gemma 3 27b decoder', 'gemma 3 text decoder', 'gemma 3 27b text decoder',
       'decoder in gemma 3', 'gemma 3 27b architecture', 'gemma 3 feed-forward', 'gemma 3 attention schedule',
     ],
-    useWhen: 'Use RMSNorm before and after attention and the feed-forward network. SWA means sliding-window attention. In Detailed put the gate in a separate visual. Config https://huggingface.co/mlx-community/gemma-3-27b-it-qat-3bit/blob/main/config.json',
+    useWhen: 'RMSNorm surrounds attention and the FFN. At Detailed depth, when asked what happens inside the FFN or how its gate works, show the decoder as Visual 1 and the gated GELU detailSpec as Visual 2. Show the GELU and linear branches multiplying before the output projection. Keep the FFN detail index 2 when both visuals are present. Config https://huggingface.co/mlx-community/gemma-3-27b-it-qat-3bit/blob/main/config.json',
     spec: gemmaSpec({
       ...gemmaAttention, label: 'Grouped-query attention (shared key and value heads)', role: 'attention',
     }, {

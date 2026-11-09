@@ -32,6 +32,25 @@ const points = tag => tag.match(/ points="([^"]+)"/)[1].split(' ').map(pair => p
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
 const errors = d => schema.safeParse(d).error?.issues.map(i => i.message).join('; ') || '';
 
+test('five line series use distinct strokes and right-edge labels keep clear of each other', () => {
+  const d = plot();
+  d.series = Array.from({ length: 5 }, (_, i) => ({
+    kind: 'line', label: `Growth ${i + 1}`, endLabel: true,
+    points: [{ x: 0, y: i }, { x: 5, y: 8 }, { x: 10, y: 10 }],
+  }));
+  const { svg, plotBounds } = render(d, 408);
+  const paths = marks(svg, 'data-tutor-plot-series');
+  const labels = marks(svg, 'data-tutor-plot-end-label');
+  assert.equal(paths.length, 5);
+  assert.equal(new Set(paths.map(({ tag }) => tag.match(/ stroke="([^"]+)"/)[1])).size, 5);
+  assert.equal(labels.length, 5);
+  assert.ok(labels.every(({ tag }) => number(tag, 'x') > plotBounds.right));
+  const positions = labels.map(({ tag }) => number(tag, 'y'));
+  assert.ok(positions.every((y, i) => i === 0 || y - positions[i - 1] >= 16));
+  d.series.push({ ...d.series[0], label: 'Sixth line' });
+  assert.notEqual(errors(d), '');
+});
+
 test('unchanged plots and bars delegate to the legacy layouts exactly', () => {
   for (const d of [plot(), { kind: 'bar-chart', title: 'Bars', bars: [{ label: 'A', value: -1 }, { label: 'B', value: 2 }] }]) {
     const old = quantitativeLayouts[d.kind](d, 320);

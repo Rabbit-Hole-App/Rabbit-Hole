@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { sequenceSelfMessage } from '../../scripts/batch-1-followup-fixtures.mjs';
 import { layouts } from './layouts.js';
+import { parseTutorDiagram } from './spec.js';
 
 const cases = {
   comparison: {
@@ -48,6 +50,23 @@ const cases = {
 function render(layout) {
   return renderToStaticMarkup(h('svg', { viewBox: `0 0 ${layout.width} ${layout.height}` }, ...layout.elements));
 }
+
+test('a sequence self-message leaves and returns to the same lifeline between messages', () => {
+  const { diagram } = parseTutorDiagram(sequenceSelfMessage);
+  for (const width of [320, 408, 960]) {
+    const layout = layouts.sequence(diagram, width);
+    const wires = layout.elements.filter(element => element.type === 'g').map(element =>
+      element.props.children[0].props.points.split(' ').map(point => point.split(',').map(Number)));
+    const [send, loop, reply] = wires;
+    assert.equal(wires.length, 3);
+    assert.equal(loop.length, 4);
+    assert.equal(loop[0][0], send.at(-1)[0]);
+    assert.equal(loop.at(-1)[0], reply[0][0]);
+    assert.ok(loop[1][0] < loop[0][0] && loop[1][0] > send[0][0]);
+    assert.ok(send[0][1] < loop[0][1] && loop[0][1] < loop.at(-1)[1] && loop.at(-1)[1] < reply[0][1]);
+    assert.match(render(layout).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' '), /Decrypt with private key/);
+  }
+});
 
 for (const [kind, { diagram, labels }] of Object.entries(cases)) {
   test(`${kind} keeps its content and valid bounds at narrow and wide widths`, () => {

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "layers",
+    "title": "How factorial of 3 returns 6",
+    "caption": "Put each new call on top. Remove the top call when it returns, so the older calls finish in reverse order.",
+    "layers": [
+      {
+        "label": "1. Push the frame for factorial of 3",
+        "detail": "Ask for the answer for 2."
+      },
+      {
+        "label": "2. Push the frame for factorial of 2",
+        "detail": "Ask for the answer for 1."
+      },
+      {
+        "label": "3. Push the base case for factorial of 1",
+        "detail": "Base case. No more calls."
+      },
+      {
+        "label": "4. Pop the frame for 1 and return 1",
+        "detail": "The answer for 1 goes back to 2."
+      },
+      {
+        "label": "5. Pop the frame for 2 and return 2",
+        "detail": "Two times one gives two. Send it back to 3."
+      },
+      {
+        "label": "6. Pop the frame for 3 and return 6",
+        "detail": "Three times two gives six."
+      }
+    ]
+  }
+}

@@ -7,6 +7,8 @@ import { lintDiagramContent } from '../../scripts/explanation-content-contract.m
 import { createTokenLinksShape, validateTokenLinks, tokenLinksText, describeTokenLinks } from './token-links-spec.js';
 import { layoutTokenLinks, tokenLinksNaturalWidth } from './token-links-layout.js';
 import { tokenLinksReferences } from './illustration-token-links-reference.js';
+import { layouts } from './layouts.js';
+import { tutorDiagramSchema } from './spec.js';
 
 const text = limit => z.string().min(1).max(limit);
 const schema = createTokenLinksShape({ z, titled: { title: text(90), caption: text(140).optional() }, text, numeric: z.number() })
@@ -136,4 +138,63 @@ test('natural token widths keep the full rows and bound long labels at 960 px', 
   const boxes = target.map(element => element.props.children[0].props);
   assert.ok(boxes.every((box, index) => box.x >= 0 && box.x + box.width <= 960 &&
     (index === 0 || boxes[index - 1].x + boxes[index - 1].width < box.x)));
+});
+
+function sixTokenComparison() {
+  const [{ spec: { diagram } }] = tokenLinksReferences;
+  const { caption, ...head } = diagram;
+  return { kind: 'comparison', title: 'Two attention heads', variant: 'panels', panels: [
+    { heading: 'Head A', diagram: { ...head, title: 'Head A' } },
+    { heading: 'Head B', diagram: { ...head, title: 'Head B', queries: [{ index: 2, weights: [0.4, 0.15, 0.2, 0.1, 0.05, 0.1] }] } },
+  ] };
+}
+
+const comparisonChildren = scene => scene.elements.filter(element => 'data-tutor-composition-child' in element.props);
+const translation = child => child.props.transform.match(/translate\(([-.\d]+) ([-.\d]+)\)/).slice(1).map(Number);
+const tokensInChild = child => [child.props.children].flat()[0].props.children.filter(element => element?.props['data-tutor-token']);
+
+test('six-token head panels fit in a row from 912 px and keep at least 56 px token boxes', () => {
+  const comparison = sixTokenComparison();
+  for (const width of [408, 911, 912, 959, 960]) {
+    const scene = layouts.comparison(comparison, width);
+    const children = comparisonChildren(scene);
+    assert.equal(children.length, 2);
+    const [[x1, y1], [x2, y2]] = children.map(translation);
+    if (width < 912) {
+      assert.equal(x1, x2);
+      assert.ok(y2 > y1);
+    } else {
+      assert.equal(y1, y2, `${width}px keeps the heads side by side`);
+      assert.ok(x2 > x1);
+      assert.ok(scene.width <= width);
+    }
+    for (const child of children) {
+      const tokens = tokensInChild(child);
+      assert.equal(tokens.length, 12);
+      assert.ok(tokens.every(token => token.props.children[0].props.width >= 56));
+    }
+  }
+  assert.equal(tokenLinksNaturalWidth(comparison.panels[0].diagram, { compact: true }), 434);
+});
+
+test('compact head panels wrap long labels at the native font size', () => {
+  const comparison = sixTokenComparison();
+  comparison.panels[0].diagram.target = ['long text here', ...comparison.panels[0].diagram.target.slice(1)];
+  const [first, second] = comparisonChildren(layouts.comparison(comparison, 960));
+  assert.equal(translation(first)[1], translation(second)[1]);
+  const token = tokensInChild(first).find(element => element.props['data-tutor-token'] === 'target:0');
+  const name = token.props.children[1];
+  assert.equal(name.type, 'text');
+  assert.equal(name.props.fontSize, 14);
+  assert.ok(name.props.children.length > 1);
+  assert.equal(name.props.children.map(span => span.props.children).join(' '), 'long text here');
+});
+
+test('token link children retain normalization validation inside a comparison', () => {
+  const comparison = sixTokenComparison();
+  assert.ok(tutorDiagramSchema.safeParse({ version: 1, diagram: comparison }).success);
+  comparison.panels[1].diagram.queries[0].weights[0] = 0;
+  const invalid = tutorDiagramSchema.safeParse({ version: 1, diagram: comparison });
+  assert.equal(invalid.success, false);
+  assert.ok(invalid.error.issues.some(issue => issue.path.join('.') === 'diagram.panels.1.diagram.queries.0.weights'));
 });

@@ -109,6 +109,18 @@ function sequence(diagram, width) {
   for (const message of messages) {
     const from = centers.get(message.from);
     const to = centers.get(message.to);
+    if (from === to) {
+      const direction = from === centers.get(actors.at(-1).id) ? -1 : 1;
+      const lines = wrap(message.label, Math.min(210, grid.cell + 2), SMALL);
+      const textHeight = lines.length * lineHeight(SMALL);
+      const loopX = from + 36 * direction;
+      const arrowY = y + textHeight + 5;
+      elements.push(label(lines, from + 7 * direction, y + textHeight / 2,
+        { size: SMALL, anchor: direction === 1 ? 'start' : 'end' }));
+      elements.push(connector([[from, arrowY], [loopX, arrowY], [loopX, arrowY + 20], [from, arrowY + 20]]));
+      y = arrowY + 36;
+      continue;
+    }
     const lines = wrap(message.label, Math.abs(to - from) - 14, SMALL);
     const textHeight = lines.length * lineHeight(SMALL);
     const arrowY = y + textHeight + 5;
@@ -210,7 +222,7 @@ const legacy = Object.freeze({
     ? layoutTensorTransformation(diagram, width) : teachingLayouts.transformation(diagram, width),
 });
 
-const renderChild = (diagram, width) => layouts[diagram.kind](diagram, width);
+const renderChild = (diagram, width, options) => layouts[diagram.kind](diagram, width, options);
 export const layouts = Object.freeze({
   ...legacy,
   ...statisticalLayouts({ legacy, renderChild }),

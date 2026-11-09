@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "tree",
+    "title": "Order-4 B-tree lookup of 32",
+    "layout": "hierarchy",
+    "caption": "A scan may read $N$ rows. A fixed-order B-tree visits $O(\\log N)$ nodes and checks at most three keys per node.",
+    "highlightPath": [
+      "root",
+      "mid"
+    ],
+    "nodes": [
+      {
+        "id": "root",
+        "label": "20, 40",
+        "detail": "Up to 3 keys and 4 children"
+      },
+      {
+        "id": "low",
+        "label": "4, 12",
+        "parent": "root",
+        "edgeLabel": "$k<20$"
+      },
+      {
+        "id": "mid",
+        "label": "27, 32",
+        "parent": "root",
+        "edgeLabel": "$20<k<40$",
+        "detail": "Match $k=32$"
+      },
+      {
+        "id": "high",
+        "label": "48, 55",
+        "parent": "root",
+        "edgeLabel": "$k>40$"
+      }
+    ]
+  }
+}

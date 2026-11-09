@@ -715,22 +715,22 @@
     }
   },
   "ml-transformer-parallel-attention-heads": {
-    "kind": "token-links",
+    "kind": "comparison",
     "renders": {
       "408": {
         "requested": 408,
-        "width": 526,
-        "height": 569
+        "width": 458,
+        "height": 791
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 650
+        "height": 432
       },
       "natural": {
-        "requested": 526,
-        "width": 526,
-        "height": 569
+        "requested": 912,
+        "width": 912,
+        "height": 432
       }
     }
   },
@@ -755,22 +755,22 @@
     }
   },
   "ml-transformer-parallel-attention-heads-brief": {
-    "kind": "token-links",
+    "kind": "comparison",
     "renders": {
       "408": {
         "requested": 408,
-        "width": 526,
-        "height": 569
+        "width": 458,
+        "height": 791
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 650
+        "height": 432
       },
       "natural": {
-        "requested": 526,
-        "width": 526,
-        "height": 569
+        "requested": 912,
+        "width": 912,
+        "height": 432
       }
     }
   },
@@ -795,22 +795,22 @@
     }
   },
   "ml-transformer-parallel-attention-heads-detailed": {
-    "kind": "token-links",
+    "kind": "comparison",
     "renders": {
       "408": {
         "requested": 408,
-        "width": 526,
-        "height": 586
+        "width": 458,
+        "height": 808
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 667
+        "height": 449
       },
       "natural": {
-        "requested": 526,
-        "width": 526,
-        "height": 586
+        "requested": 912,
+        "width": 912,
+        "height": 449
       }
     }
   },
@@ -1129,6 +1129,186 @@
       }
     }
   },
+  "tree-btree-lookup": {
+    "kind": "tree",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 270
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 253
+      },
+      "natural": {
+        "requested": 328,
+        "width": 328,
+        "height": 287
+      }
+    }
+  },
+  "tree-btree-lookup-brief": {
+    "kind": "tree",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 304
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 304
+      },
+      "natural": {
+        "requested": 329,
+        "width": 329,
+        "height": 321
+      }
+    }
+  },
+  "tree-btree-lookup-detailed": {
+    "kind": "tree",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 304
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 287
+      },
+      "natural": {
+        "requested": 352,
+        "width": 352,
+        "height": 304
+      }
+    }
+  },
+  "recursion-factorial-unwind": {
+    "kind": "layers",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 555
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 482
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 663
+      }
+    }
+  },
+  "recursion-factorial-unwind-brief": {
+    "kind": "layers",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 499
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 482
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 646
+      }
+    }
+  },
+  "recursion-factorial-unwind-detailed": {
+    "kind": "layers",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 516
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 482
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 697
+      }
+    }
+  },
+  "big-o-growth-rates": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 601
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 584
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 601
+      }
+    }
+  },
+  "big-o-growth-rates-brief": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 425,
+        "height": 601
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 584
+      },
+      "natural": {
+        "requested": 425,
+        "width": 425,
+        "height": 601
+      }
+    }
+  },
+  "big-o-growth-rates-detailed": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 629
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 612
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 629
+      }
+    }
+  },
   "shape-tensor-brief": {
     "kind": "tensor",
     "renders": {
@@ -1306,6 +1486,46 @@
         "requested": 320,
         "width": 320,
         "height": 328
+      }
+    }
+  },
+  "flow-converging-arrivals": {
+    "kind": "flow",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 636
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 571
+      },
+      "natural": {
+        "requested": 382,
+        "width": 382,
+        "height": 632
+      }
+    }
+  },
+  "sequence-self-message": {
+    "kind": "sequence",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 277
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 243
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 277
       }
     }
   }

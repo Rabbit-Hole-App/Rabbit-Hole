@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "sequence",
+    "title": "Read an encrypted message",
+    "actors": [
+      {
+        "id": "sender",
+        "label": "Sender"
+      },
+      {
+        "id": "receiver",
+        "label": "Receiver"
+      }
+    ],
+    "messages": [
+      {
+        "from": "sender",
+        "to": "receiver",
+        "label": "Send encrypted message"
+      },
+      {
+        "from": "receiver",
+        "to": "receiver",
+        "label": "Decrypt with private key"
+      },
+      {
+        "from": "receiver",
+        "to": "sender",
+        "label": "Confirm receipt"
+      }
+    ]
+  }
+}
