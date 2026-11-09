@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Factorial of 3 calls down and returns up",
+  "caption": "Push each call onto the stack. The base case returns 1, then each earlier frame pops as it finishes.",
+  "kind": "layers",
+  "layers": [
+   {
+    "label": "1. Push the frame for factorial of 3",
+    "detail": "Wait for factorial of 2."
+   },
+   {
+    "label": "2. Pushed the frame for factorial of 2",
+    "detail": "Wait for factorial of 1."
+   },
+   {
+    "label": "3. Pushed the base case for factorial of 1",
+    "detail": "Base case. No smaller call."
+   },
+   {
+    "label": "4. Pop the frame for 1 and return 1",
+    "detail": "Send 1 back to the call for 2."
+   },
+   {
+    "label": "5. Pop the frame for 2 and return 2",
+    "detail": "Multiply $2\\times 1=2$ and send 2 back to the call for 3."
+   },
+   {
+    "label": "6. Pop the frame for 3 and return 6",
+    "detail": "Multiply $3\\times 2=6$ and return the final result."
+   }
+  ]
+ }
+}

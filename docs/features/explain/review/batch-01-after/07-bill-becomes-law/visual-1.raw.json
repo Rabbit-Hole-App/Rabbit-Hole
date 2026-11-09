@@ -1,0 +1,70 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Legislative Path",
+  "kind": "flow",
+  "nodes": [
+   {
+    "id": "draft",
+    "label": "Draft the bill",
+    "role": "process"
+   },
+   {
+    "id": "committee",
+    "label": "Review in committee",
+    "role": "process"
+   },
+   {
+    "id": "floor",
+    "label": "Vote on the floor",
+    "role": "decision"
+   },
+   {
+    "id": "pass",
+    "label": "Pass both chambers",
+    "role": "process"
+   },
+   {
+    "id": "president",
+    "label": "Send to the president",
+    "role": "process"
+   },
+   {
+    "id": "law",
+    "label": "Become law",
+    "role": "outcome"
+   }
+  ],
+  "edges": [
+   {
+    "from": "draft",
+    "to": "committee"
+   },
+   {
+    "from": "committee",
+    "to": "floor"
+   },
+   {
+    "from": "floor",
+    "to": "pass",
+    "label": "Yes"
+   },
+   {
+    "from": "pass",
+    "to": "president"
+   },
+   {
+    "from": "president",
+    "to": "law"
+   }
+  ],
+  "highlightPath": [
+   "draft",
+   "committee",
+   "floor",
+   "pass",
+   "president",
+   "law"
+  ]
+ }
+}

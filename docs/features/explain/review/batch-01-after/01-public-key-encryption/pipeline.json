@@ -1,0 +1,160 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "sequence"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "sequence",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.86,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.06,
+   "isPhysical": 0.08,
+   "needsWorkedExample": 0.78
+  },
+  "ms": 265
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "sequence"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "sequence",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.86,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.06,
+     "isPhysical": 0.08,
+     "needsWorkedExample": 0.78
+    },
+    "ms": 265
+   },
+   "references": [
+    "shape-sequence"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "RSA Encryption and Decryption Flow",
+       "kind": "sequence",
+       "actors": [
+        {
+         "id": "alice",
+         "label": "Alice"
+        },
+        {
+         "id": "bob",
+         "label": "Bob"
+        }
+       ],
+       "messages": [
+        {
+         "from": "bob",
+         "to": "alice",
+         "label": "Send public key"
+        },
+        {
+         "from": "alice",
+         "to": "bob",
+         "label": "Encrypt message with public key"
+        },
+        {
+         "from": "bob",
+         "to": "bob",
+         "label": "Decrypt ciphertext with private key"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "sequence"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "sequence"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "google",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "QAJyjtBNBalY",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 2186
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3512,
+   "output_tokens": 493,
+   "cost_micros": 2287
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 2483,
+ "usd": 0.002287
+}

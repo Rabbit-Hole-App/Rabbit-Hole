@@ -1,0 +1,201 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "flow"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "flow",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.99,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.03,
+   "isPhysical": 0.08,
+   "needsWorkedExample": 0.16
+  },
+  "ms": 353
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "flow"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "flow",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.99,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.03,
+     "isPhysical": 0.08,
+     "needsWorkedExample": 0.16
+    },
+    "ms": 353
+   },
+   "references": [
+    "shape-flow"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Legislative Path",
+       "kind": "flow",
+       "nodes": [
+        {
+         "id": "draft",
+         "label": "Draft the bill",
+         "role": "process"
+        },
+        {
+         "id": "committee",
+         "label": "Review in committee",
+         "role": "process"
+        },
+        {
+         "id": "floor",
+         "label": "Vote on the floor",
+         "role": "decision"
+        },
+        {
+         "id": "pass",
+         "label": "Pass both chambers",
+         "role": "process"
+        },
+        {
+         "id": "president",
+         "label": "Send to the president",
+         "role": "process"
+        },
+        {
+         "id": "law",
+         "label": "Become law",
+         "role": "outcome"
+        }
+       ],
+       "edges": [
+        {
+         "from": "draft",
+         "to": "committee"
+        },
+        {
+         "from": "committee",
+         "to": "floor"
+        },
+        {
+         "from": "floor",
+         "to": "pass",
+         "label": "Yes"
+        },
+        {
+         "from": "pass",
+         "to": "president"
+        },
+        {
+         "from": "president",
+         "to": "law"
+        }
+       ],
+       "highlightPath": [
+        "draft",
+        "committee",
+        "floor",
+        "pass",
+        "president",
+        "law"
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "flow"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "flow"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [
+  {
+   "event": "explanation_diagram_corrected",
+   "kind": "one_branch_decision"
+  }
+ ],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "google",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "s6TLPiZqZt66",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 2504
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3531,
+   "output_tokens": 648,
+   "cost_micros": 2680
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 2904,
+ "usd": 0.00268
+}

@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "RSA Encryption and Decryption Flow",
+  "kind": "sequence",
+  "actors": [
+   {
+    "id": "alice",
+    "label": "Alice"
+   },
+   {
+    "id": "bob",
+    "label": "Bob"
+   }
+  ],
+  "messages": [
+   {
+    "from": "bob",
+    "to": "alice",
+    "label": "Send public key"
+   },
+   {
+    "from": "alice",
+    "to": "bob",
+    "label": "Encrypt message with public key"
+   },
+   {
+    "from": "bob",
+    "to": "bob",
+    "label": "Decrypt ciphertext with private key"
+   }
+  ]
+ }
+}

@@ -1,0 +1,43 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Hash Table Lookup",
+  "kind": "flow",
+  "nodes": [
+   {
+    "id": "key",
+    "label": "Receive key string",
+    "role": "process"
+   },
+   {
+    "id": "hash",
+    "label": "Compute hash code",
+    "role": "process"
+   },
+   {
+    "id": "index",
+    "label": "Map to array index",
+    "role": "process"
+   },
+   {
+    "id": "fetch",
+    "label": "Retrieve value",
+    "role": "outcome"
+   }
+  ],
+  "edges": [
+   {
+    "from": "key",
+    "to": "hash"
+   },
+   {
+    "from": "hash",
+    "to": "index"
+   },
+   {
+    "from": "index",
+    "to": "fetch"
+   }
+  ]
+ }
+}

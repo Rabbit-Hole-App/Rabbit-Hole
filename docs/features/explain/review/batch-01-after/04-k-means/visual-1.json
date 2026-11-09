@@ -1,0 +1,66 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "A K-means centroid moves to the assigned mean",
+  "caption": "Illustrative values; the geometry shows the stated relationship.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Feature 1",
+   "min": 0,
+   "max": 8,
+   "scale": "linear"
+  },
+  "y": {
+   "label": "Feature 2",
+   "min": 0,
+   "max": 6,
+   "scale": "linear"
+  },
+  "series": [
+   {
+    "label": "Assigned cluster",
+    "kind": "scatter",
+    "points": [
+     {
+      "x": 2,
+      "y": 2
+     },
+     {
+      "x": 3,
+      "y": 4
+     },
+     {
+      "x": 4,
+      "y": 3
+     }
+    ]
+   }
+  ],
+  "annotations": [
+   {
+    "kind": "point",
+    "label": "Old centroid",
+    "x": 1,
+    "y": 1
+   },
+   {
+    "kind": "point",
+    "label": "New mean at 3 on both axes",
+    "x": 3,
+    "y": 3
+   },
+   {
+    "kind": "vector",
+    "label": "Centroid update",
+    "from": {
+     "x": 1,
+     "y": 1
+    },
+    "to": {
+     "x": 3,
+     "y": 3
+    }
+   }
+  ]
+ }
+}

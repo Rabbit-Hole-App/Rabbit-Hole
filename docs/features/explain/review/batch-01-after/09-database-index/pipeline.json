@@ -1,0 +1,166 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "tree"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "tree",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.81,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.11,
+   "isPhysical": 0.09,
+   "needsWorkedExample": 0.63
+  },
+  "ms": 112
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "tree"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "tree",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.81,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.11,
+     "isPhysical": 0.09,
+     "needsWorkedExample": 0.63
+    },
+    "ms": 112
+   },
+   "references": [
+    "shape-tree",
+    "tree-btree-lookup"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "B-tree lookup of 32",
+       "caption": "A scan reads $N$ rows, while a fixed-order B-tree visits $O(\\log N)$ nodes for a key lookup.",
+       "kind": "tree",
+       "layout": "hierarchy",
+       "nodes": [
+        {
+         "id": "root",
+         "label": "20, 40",
+         "detail": "Order 4"
+        },
+        {
+         "id": "low",
+         "label": "4, 12",
+         "parent": "root",
+         "edgeLabel": "$k<20$"
+        },
+        {
+         "id": "mid",
+         "label": "27, 32",
+         "parent": "root",
+         "edgeLabel": "$20<k<40$",
+         "detail": "Found 32"
+        },
+        {
+         "id": "high",
+         "label": "48, 55",
+         "parent": "root",
+         "edgeLabel": "$k>40$"
+        }
+       ],
+       "highlightPath": [
+        "root",
+        "mid"
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "tree"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "tree"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "google",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "alW_GFQINdrm",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 2744
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3734,
+   "output_tokens": 679,
+   "cost_micros": 2818
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 2893,
+ "usd": 0.002818
+}

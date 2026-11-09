@@ -1,0 +1,70 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Positional Encoding Waveforms",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Position index",
+   "min": 0,
+   "max": 10
+  },
+  "y": {
+   "label": "Encoding value",
+   "min": -1,
+   "max": 1
+  },
+  "series": [
+   {
+    "label": "sin(pos / 10000^(2i/d))",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0
+     },
+     {
+      "x": 1,
+      "y": 0.84
+     },
+     {
+      "x": 2,
+      "y": 0.91
+     },
+     {
+      "x": 3,
+      "y": 0.14
+     },
+     {
+      "x": 4,
+      "y": -0.76
+     },
+     {
+      "x": 5,
+      "y": -0.96
+     },
+     {
+      "x": 6,
+      "y": -0.28
+     },
+     {
+      "x": 7,
+      "y": 0.66
+     },
+     {
+      "x": 8,
+      "y": 0.99
+     },
+     {
+      "x": 9,
+      "y": 0.41
+     },
+     {
+      "x": 10,
+      "y": -0.54,
+      "label": "pos=10"
+     }
+    ]
+   }
+  ]
+ }
+}
