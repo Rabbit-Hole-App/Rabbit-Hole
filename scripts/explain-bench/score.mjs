@@ -98,7 +98,7 @@ const decimals = y => (String(y).split('.')[1] || '').length;
 // Every plotted point recomputed from the first one-variable formula ($...$) in the prose; an error = off by more than 0.01 after rounding to the plotted precision.
 export function arithmetic(d, prose) {
   const points = d.kind === 'coordinate-plot' ? (d.series || []).flatMap(s => s.points || []).map(p => [p.x, p.y])
-    : d.kind === 'bar-chart' && (d.bars || []).every(b => String(b.label).trim() !== '' && Number.isFinite(Number(b.label))) ? d.bars.map(b => [Number(b.label), b.value]) : null;
+    : d.kind === 'bar-chart' && (d.bars || []).length && d.bars.every(b => String(b.label).trim() !== '' && Number.isFinite(Number(b.label))) ? d.bars.map(b => [Number(b.label), b.value]) : null;
   if (!points) return { checked: false, reason: 'bars are not numeric inputs' };
   for (const m of String(prose).matchAll(/\$([^$]+)\$/g)) {
     for (const rhs of m[1].split('=').slice(1)) {
@@ -130,7 +130,7 @@ export function diagramScore(d, prose, kinds = null) {
     case 'matrix': add(d.columns || [], (d.rows || []).flatMap(r => [r.heading, ...(r.cells || [])])); break;
     case 'transformation': add(d.before?.items || [], d.after?.items || [], d.operation); edges.push(...(d.links || [])); break;
     case 'argument': add(d.claim, (d.support || []).map(s => s.label), (d.objections || []).map(s => s.label), d.conclusion); break;
-    case 'bar-chart': add((d.bars || []).map(b => b.label)); break;
+    case 'bar-chart': add((d.bars || []).map(b => b.label), d.categories || [], (d.series || []).map(s => s.label)); break; // grouped variant: categories x series
     case 'coordinate-plot': add((d.series || []).flatMap(s => [s.label, ...(s.points || []).map(p => `${p.x},${p.y}`)])); break;
     case 'number-line': add((d.markers || []).map(m => m.label), (d.intervals || []).map(i => i.label)); break;
     case 'figure': add((d.callouts || []).map(c => c.label)); break;
