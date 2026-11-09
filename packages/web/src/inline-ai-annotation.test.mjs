@@ -65,6 +65,7 @@ test('annotation: Dive and the owned Tutor outline do not read links at all', ()
 // listed here after its annotation handling is reviewed. Matches that are not a board's links say so.
 const READERS = {
   'web/src/inline-image-replacement.js': 'refuses all incident connectors including annotations before replacement; writes only validated new links',
+  'control-plane/src/explanation-references.js': 'prompt text and bundle steering name the token-links diagram kind ("For token-links, show..."), not board links',
   'control-plane/src/inline-image-replacement.js': 'refuses frozen incident connectors including annotations; no structural inference',
   'web/src/inline-source-readings.js': 'stamps source-page provenance on newly derived transaction links; does not interpret board structure',
   'web/src/inline-compute-result.js': 'stamps provenance on newly created transaction links only; never interprets board structure',
