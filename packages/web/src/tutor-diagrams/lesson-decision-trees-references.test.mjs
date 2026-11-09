@@ -12,7 +12,7 @@ import budgets from './lesson-decision-trees-token-budgets.json' with { type: 'j
 const depths = ['overview', 'standard', 'deep'];
 const value = ([numerator, denominator]) => numerator / denominator;
 const rounded = score => Number(value(score).toFixed(4));
-const visual = (ref, depth) => ref.depths[depth]?.spec ?? ref.spec;
+const visual = (ref, depth) => depth === 'standard' ? ref.spec : ref.depths[depth].spec;
 const diagram = (name, depth) => visual(references.find(ref => ref.id === `ml-trees-${name}`), depth).diagram;
 const size = counts => counts.reduce((sum, count) => sum + count, 0);
 const rule = (split, right = false) => `${split.feature} ${right ? 'above' : 'at most'} ${split.threshold}`;
@@ -50,14 +50,13 @@ test('the pilot and demo have fifteen measured figures with no stale budget entr
   assert.deepEqual(Object.keys(budgets.refs), references.map(ref => ref.id));
 });
 
-test('the walkthrough publishes the same ten data rows and a preview for each authored variant', () => {
+test('the walkthrough publishes the same ten data rows and three previews per reference', () => {
   const document = new URL('../../../../docs/features/explain-on-canvas/handoff/phase02-library/lesson-walkthroughs/04-decision-trees.md', import.meta.url);
   const markdown = readFileSync(document, 'utf8');
   const rows = markdown.match(/^\| [A-Z] \| .*$/gm);
   assert.deepEqual(rows, lesson.rows.map(row => `| ${row.id} | ${row.x} | ${row.y} | ${row.label} | ${lesson.train.includes(row) ? 'Training' : 'Held out'} |`));
   for (const ref of references) {
-    for (const [depth, suffix] of [['overview', '-brief'], ['standard', ''], ['deep', '-detailed']]) {
-      if (depth !== 'standard' && !ref.depths[depth]) continue;
+    for (const suffix of ['-brief', '', '-detailed']) {
       const path = `../illustrations/${ref.id}${suffix}/408.svg`;
       assert.ok(markdown.includes(`(${path})`), path);
       assert.match(readFileSync(new URL(path, document), 'utf8'), /^<svg /);

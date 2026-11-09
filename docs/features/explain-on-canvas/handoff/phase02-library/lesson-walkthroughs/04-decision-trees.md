@@ -155,31 +155,51 @@ These five `coordinate-plot` references answer related questions from the lesson
 
 Both scores are zero for a pure node and peak when the classes are equally frequent. Gini peaks at 0.5 and binary entropy at 1 bit. The plot samples the formulas at 11 equally spaced class fractions.
 
-`ml-trees-gini-vs-entropy` · [Balanced 408 px SVG](../illustrations/ml-trees-gini-vs-entropy/408.svg)
+`ml-trees-gini-vs-entropy` · `coordinate-plot`
+
+- **Brief** — Reads the two peaks at the same class fraction. [408 px SVG](../illustrations/ml-trees-gini-vs-entropy-brief/408.svg)
+- **Balanced** — Compares the two formulas at 11 equally spaced class fractions. [408 px SVG](../illustrations/ml-trees-gini-vs-entropy/408.svg)
+- **Detailed** — Gives the limit that sets entropy to zero at the endpoints. [408 px SVG](../illustrations/ml-trees-gini-vs-entropy-detailed/408.svg)
 
 ### Measure bootstrap coverage
 
 Each of the n draws misses a given row with probability `1 − 1/n`. The probability that all n draws miss it approaches `1/e`, so the expected share of distinct rows drawn approaches 63.2%.
 
-`ml-trees-bootstrap-coverage` · [Balanced 408 px SVG](../illustrations/ml-trees-bootstrap-coverage/408.svg)
+`ml-trees-bootstrap-coverage` · `coordinate-plot`
+
+- **Brief** — Reads expected coverage from the omission limit. [408 px SVG](../illustrations/ml-trees-bootstrap-coverage-brief/408.svg)
+- **Balanced** — Explains the formula for n replacement draws and shows n from 1 to 20. [408 px SVG](../illustrations/ml-trees-bootstrap-coverage/408.svg)
+- **Detailed** — Evaluates the omission probability for the eight training rows in the worked example. [408 px SVG](../illustrations/ml-trees-bootstrap-coverage-detailed/408.svg)
 
 ### Choose a pruning penalty
 
 At the marked penalty α = 0.01, the tree has six leaves and retains 90% held-out accuracy. The log axis shows equal ratios in α. Leaf count is shown as a share of the initial ten leaves so both curves use a percent scale.
 
-`ml-trees-cost-complexity-pruning` · [Balanced 408 px SVG](../illustrations/ml-trees-cost-complexity-pruning/408.svg)
+`ml-trees-cost-complexity-pruning` · `coordinate-plot`
+
+- **Brief** — Shows where the tree shrinks and accuracy stays flat. [408 px SVG](../illustrations/ml-trees-cost-complexity-pruning-brief/408.svg)
+- **Balanced** — Marks the smallest tree on the best held-out accuracy plateau. [408 px SVG](../illustrations/ml-trees-cost-complexity-pruning/408.svg)
+- **Detailed** — States the exact leaf count and accuracy at the chosen penalty. [408 px SVG](../illustrations/ml-trees-cost-complexity-pruning-detailed/408.svg)
 
 ### Compare forest sizes
 
 In this illustrative run, increasing the forest from one tree to 50 raises test accuracy from 78% to 92%. The next 150 trees add half a percentage point. The log axis shows equal ratios in tree count.
 
-`ml-trees-forest-size-accuracy` · [Balanced 408 px SVG](../illustrations/ml-trees-forest-size-accuracy/408.svg)
+`ml-trees-forest-size-accuracy` · `coordinate-plot`
+
+- **Brief** — Shows how the accuracy curve levels off. [408 px SVG](../illustrations/ml-trees-forest-size-accuracy-brief/408.svg)
+- **Balanced** — Labels the observed accuracy at all five illustrative forest sizes. [408 px SVG](../illustrations/ml-trees-forest-size-accuracy/408.svg)
+- **Detailed** — Quantifies the gain from 50 to 200 trees on the same test split. [408 px SVG](../illustrations/ml-trees-forest-size-accuracy-detailed/408.svg)
 
 ### Fit sine with regression trees
 
-Both trees fit the same 25 equally spaced samples from 0 through 2π. The plotted x coordinates count units of π/24. The fits choose midpoint cuts by squared-error reduction, with limits of four leaves at depth two and sixteen at depth five. Each step is the mean of the rounded samples in its leaf.
+Both trees fit the same 25 equally spaced samples from 0 through 2π. The plotted x coordinates count units of π/24, or 7.5 degrees. The fits choose midpoint cuts by squared-error reduction, with limits of four leaves at depth two and sixteen at depth five. Each step is the mean of the rounded samples in its leaf.
 
-`ml-trees-regression-step-fit` · [Balanced 408 px SVG](../illustrations/ml-trees-regression-step-fit/408.svg)
+`ml-trees-regression-step-fit` · `coordinate-plot`
+
+- **Brief** — Shows how a leaf's mean gives a flat step. [408 px SVG](../illustrations/ml-trees-regression-step-fit-brief/408.svg)
+- **Balanced** — Compares the four-leaf and sixteen-leaf fits with the same sine curve. [408 px SVG](../illustrations/ml-trees-regression-step-fit/408.svg)
+- **Detailed** — Labels the four depth-two leaf means. [408 px SVG](../illustrations/ml-trees-regression-step-fit-detailed/408.svg)
 
 ## Pilot choices
 

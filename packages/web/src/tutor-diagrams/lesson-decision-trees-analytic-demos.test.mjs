@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { lessonDecisionTreesAnalyticDemos as demos } from './lesson-decision-trees-analytic-demos.js';
+import { decisionTreesLesson } from './lesson-decision-trees-data.js';
 
 const depths = ['standard', 'overview', 'deep'];
 
@@ -70,7 +71,9 @@ test('bootstrap omission follows exact finite-size probabilities and the rounded
     assert.match(plot.caption, /\$1-0\.368=0\.632\$/);
     if (depth === 'deep') {
       const highlighted = plot.annotations.find(mark => mark.kind === 'point');
-      assert.deepEqual([highlighted.x, highlighted.y], curve[7]);
+      const n = decisionTreesLesson.train.length;
+      assert.deepEqual([highlighted.x, highlighted.y], curve[n - 1]);
+      assert.ok(plot.caption.includes(`$(${n - 1}/${n})^${n}$`));
     }
   }
 });

@@ -74,7 +74,8 @@ function reference(name, prompt, paraphrase, phrase, useWhen, atDepth) {
 function demoReference({ name, prompt, paraphrase, keywords, useWhen, diagramAt }) {
   return {
     id: `ml-trees-${name}`, lessons: ['04'], prompts: [prompt, paraphrase], paraphrases: [paraphrase],
-    keywords, shortKeywords: keywords, useWhen, spec: spec(diagramAt('standard')), depths: {},
+    keywords, shortKeywords: keywords, useWhen, spec: spec(diagramAt('standard')),
+    depths: { overview: { spec: spec(diagramAt('overview')) }, deep: { spec: spec(diagramAt('deep')) } },
   };
 }
 

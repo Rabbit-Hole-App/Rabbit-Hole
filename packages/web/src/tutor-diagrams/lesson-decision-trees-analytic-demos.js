@@ -1,3 +1,5 @@
+import { decisionTreesLesson } from './lesson-decision-trees-data.js';
+
 const thousandths = 1000;
 
 function sampledLine(label, x, count, calculate) {
@@ -24,14 +26,16 @@ function impurityPlot(depth) {
       { kind: 'point', x: 0.5, y: 0.5, label: 'Gini peak' },
       { kind: 'point', x: 0.5, y: 1, label: 'Entropy peak' },
     ],
-    caption: 'Worked example. $G(p)=2p(1-p)$ and $H(p)=-p\\log_2 p-(1-p)\\log_2(1-p)$. Samples rounded to 3 decimals.' +
-      (depth === 'deep' ? ' Endpoints use limiting values.' : ''),
+    caption: 'Worked example. $G(p)=2p(1-p)$ and $H(p)=-p\\log_2 p-(1-p)\\log_2(1-p)$.' +
+      (depth === 'overview' ? ' Rounded samples.' : depth === 'deep' ?
+        ' Rounded samples. Use $\\lim_{p\\to0^+}p\\log_2 p=0$ at the endpoints.' : ' Samples rounded to 3 decimals.'),
   };
 }
 
 function bootstrapCoveragePlot(depth) {
   const omission = sampledLine('Omission after n draws', { start: 1, step: 1 }, 20, n => (1 - 1 / n) ** n);
   const limit = Math.round(thousandths / Math.E) / thousandths;
+  const n = decisionTreesLesson.train.length;
   return {
     kind: 'coordinate-plot',
     title: depth === 'overview' ? 'Why about 63% appear' : 'Bootstrap omission by training set size',
@@ -40,9 +44,11 @@ function bootstrapCoveragePlot(depth) {
     series: [omission],
     annotations: [
       { kind: 'reference-line', axis: 'y', value: limit, label: 'Omission limit' },
-      ...(depth === 'deep' ? [{ kind: 'point', x: 8, y: omission.samples.y[7] / thousandths, label: 'Eight training rows' }] : []),
+      ...(depth === 'deep' ? [{ kind: 'point', x: n, y: omission.samples.y[n - 1] / thousandths, label: 'Toy training set' }] : []),
     ],
-    caption: 'Worked example. Omission with replacement is $(1-1/n)^n$. Samples rounded. Limit $1/e≈0.368$ gives expected coverage $1-0.368=0.632$.',
+    caption: depth === 'overview' ? 'Worked example. Rounded limit $1/e≈0.368$ gives expected coverage $1-0.368=0.632$.' :
+      depth === 'deep' ? `Worked example. Rounded $(1-1/n)^n$. At ${n} draws use $(${n - 1}/${n})^${n}$. Limit $1/e≈0.368$, so coverage tends to $1-0.368=0.632$.` :
+        'Worked example. Omission with replacement is $(1-1/n)^n$. Samples rounded. Limit $1/e≈0.368$ gives expected coverage $1-0.368=0.632$.',
   };
 }
 

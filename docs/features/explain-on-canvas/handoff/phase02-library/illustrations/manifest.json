@@ -2008,5 +2008,205 @@
         "height": 539
       }
     }
+  },
+  "ml-trees-gini-vs-entropy-brief": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 593
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 576
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 593
+      }
+    }
+  },
+  "ml-trees-gini-vs-entropy-detailed": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 610
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 576
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 610
+      }
+    }
+  },
+  "ml-trees-bootstrap-coverage-brief": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 524
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 507
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 524
+      }
+    }
+  },
+  "ml-trees-bootstrap-coverage-detailed": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 587
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 548
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 587
+      }
+    }
+  },
+  "ml-trees-cost-complexity-pruning-brief": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 552
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 535
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 552
+      }
+    }
+  },
+  "ml-trees-cost-complexity-pruning-detailed": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 552
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 552
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 552
+      }
+    }
+  },
+  "ml-trees-forest-size-accuracy-brief": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 603
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 603
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 603
+      }
+    }
+  },
+  "ml-trees-forest-size-accuracy-detailed": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 637
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 620
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 637
+      }
+    }
+  },
+  "ml-trees-regression-step-fit-brief": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 556
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 539
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 556
+      }
+    }
+  },
+  "ml-trees-regression-step-fit-detailed": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 652
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 635
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 652
+      }
+    }
   }
 }
