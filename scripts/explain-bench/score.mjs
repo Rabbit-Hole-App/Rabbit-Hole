@@ -1,0 +1,272 @@
+// /explain card benchmark: scoring (owner 2026-11-08). Pure functions over saved cards, no network. Rules reused from the 2026-11-08 visual-choice study
+// (C:/s/spec/benchmarks/explain-visual-choice-2026-11-08: score.mjs mix matching, richness.mjs richness, report5d.mjs repair causes and timing).
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describeTutorDiagram, tutorDiagramVisibleText } from '../../packages/web/src/tutor-diagrams/spec.js';
+
+export const SETS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'sets');
+export const SET_NAMES = ['regression', 'baseline', 'aiml', 'sequence', 'content'];
+export const loadSet = (name, dir = SETS_DIR) => JSON.parse(readFileSync(join(dir, `${name}.json`), 'utf8'));
+export const availableSets = (dir = SETS_DIR) => readdirSync(dir).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5));
+
+const FENCE = /^\s*```\s*(rh-diagram|rh-illustration)[^\n]*\n([\s\S]*?)^\s*```/gim;
+export const QUANT_KINDS = ['coordinate-plot', 'bar-chart', 'number-line', 'waterfall'];
+export const PLOT_KINDS = ['coordinate-plot', 'bar-chart'];
+const NODE_KINDS = ['flow', 'tree', 'relationship', 'layers', 'cycle'];
+export const GRAPH_KINDS = ['flow', 'tree', 'relationship', 'cycle'];
+// Content-flag rules (owner 2026-11-08), written here and in README.md.
+export const PLACEHOLDER_EDGE_LABELS = new Set(['input', 'output', 'compare', 'comparison', 'link', 'links', 'relates', 'relation', 'uses', 'connects', '→', '->']);
+export const VERBS = new Set(('add apply ask assign average backpropagate break build calculate call check choose close collect combine compare compute convert copy create ' +
+  'decode delete divide drop emit encode evaluate execute expand extend fall feed fetch filter find fit flow forward generate get grow initialise initialize insert ' +
+  'learn look lookup make map mask measure merge minimise minimize mix move multiply normalise normalize open pass pick pool pop predict propagate push query rank ' +
+  'read receive reduce remove repeat reply request resolve retrieve return rise rotate route run sample scale score search select send set sort split start stop ' +
+  'store subtract sum swap take test train transform traverse tune update use visit vote weight write ' +
+  'absorb arrive attach bind carry condense contract cool deliver detach enter evaporate exit form freeze heat leave melt precipitate produce pump reach relax release replicate transcribe translate').split(' '));
+
+// The visuals of a saved card in body order: diagrams as their parsed spec, pictures as their fence.
+export function visuals(block) {
+  const out = [];
+  for (const m of String(block?.body || '').matchAll(FENCE)) {
+    if (m[1].toLowerCase() === 'rh-diagram') {
+      let d = null; try { d = JSON.parse(m[2]).diagram; } catch { /* an unreadable spec is a diagram of no kind */ }
+      out.push(d?.kind ? { type: 'diagram', kind: d.kind, diagram: d } : { type: 'diagram', kind: null });
+    } else {
+      let s = null; try { s = JSON.parse(m[2]); } catch { /* unreadable */ }
+      // The prose paragraphs either side of the picture (where its visual marker was placed), for the picture-content judge.
+      const body = String(block.body), paras = t => t.replace(FENCE, '\n\n').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+      out.push({ type: 'picture', id: s?.id ?? null, prompt: s?.prompt ?? null, alt: s?.alt ?? null, caption: s?.caption ?? null, status: (s && block.figures?.[s.id]?.status) || null,
+        before: paras(body.slice(0, m.index)).at(-1) ?? null, after: paras(body.slice(m.index + m[0].length))[0] ?? null });
+    }
+  }
+  return out;
+}
+export const mixOf = vis => vis.map(v => (v.type === 'picture' ? 'P' : `D:${v.kind}`));
+export const proseOf = body => String(body || '').replace(FENCE, ' ');
+
+// A mix matches a pattern in any order; D:a|b = either kind, D:* = any diagram.
+const tokenOk = (pat, got) => pat === got || (pat.startsWith('D:') && got.startsWith('D:') && (pat === 'D:*' || pat.slice(2).split('|').includes(got.slice(2))));
+const perms = a => (a.length <= 1 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map(r => [x, ...r])));
+export const matches = (pattern, mix) => pattern.length === mix.length && perms(mix).some(m => m.every((t, i) => tokenOk(pattern[i], t)));
+const mixClass = m => m.map(t => (t === 'P' ? 'pic' : 'svg')).sort().join('-');
+// One rule: right = matches a best mix including the diagram kind; acceptable = matches an acceptable mix; else wrong.
+export function scoreMix(p, vis) {
+  const mix = mixOf(vis), of = m => (p.best.some(b => matches(b, m)) ? 'right' : p.acceptable.some(a => matches(a, m)) ? 'acceptable' : 'wrong');
+  const score = of(mix);
+  // Owner relabel 2026-11-08 (DNS lookup, decision tree): a flow counts toward "right" only with a decision node; a decision-free flow stays acceptable.
+  if (score === 'right' && p.flowNeedsDecision) {
+    const plain = vis.map((v, i) => (mix[i] === 'D:flow' && !(v.diagram?.nodes || []).some(n => n.role === 'decision') ? 'D:flow-without-decision' : mix[i]));
+    if (of(plain) !== 'right') return 'acceptable';
+  }
+  return score;
+}
+
+// LaTeX-lite formula -> a one-variable function, or null. Numbers, one variable (a letter or a Greek name), + - * / ^, \frac, \sqrt, \exp, \ln, \log, e, \pi.
+const FUNCS = { exp: 'Math.exp', ln: 'Math.log', log: 'Math.log', sqrt: 'Math.sqrt', sin: 'Math.sin', cos: 'Math.cos', tanh: 'Math.tanh' };
+const GREEK = new Set(['alpha', 'beta', 'gamma', 'delta', 'eta', 'theta', 'lambda', 'mu', 'sigma', 'tau', 'omega', 'epsilon']);
+export function compileFormula(tex) {
+  let s = String(tex).replace(/\\left|\\right|\\[,;!]|\\displaystyle/g, '').replace(/\\(?:cdot|times)/g, '*').replace(/\\[dt]frac/g, '\\frac');
+  // Innermost groups first, so a fraction may hold an exponent: \frac{1}{1+e^{-z}}.
+  for (let i = 0, was = null; i < 20 && was !== s; i++) { was = s; s = s.replace(/\^\s*\{([^{}]*)\}/g, '^($1)').replace(/\\sqrt\s*\{([^{}]*)\}/g, '\\sqrt($1)').replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '(($1)/($2))'); }
+  if (s.includes('\\frac')) return null;
+  s = s.replace(/\{/g, '(').replace(/\}/g, ')');
+  const tokens = s.match(/\d+(?:\.\d+)?|\.\d+|\\[a-zA-Z]+|[a-zA-Z]|\S/g) || [];
+  let out = '', prev = null, last = null; const vars = new Set();
+  for (const t of tokens) {
+    let kind, js;
+    if (/^[\d.]/.test(t)) [kind, js] = ['val', t];
+    else if (t[0] === '\\' || /^[a-zA-Z]$/.test(t)) {
+      const name = t.replace('\\', '');
+      if (FUNCS[name]) [kind, js] = ['fn', FUNCS[name]];
+      else if (name === 'e') [kind, js] = ['val', 'Math.E'];
+      else if (name === 'pi') [kind, js] = ['val', 'Math.PI'];
+      else if (t[0] === '\\' && !GREEK.has(name)) return null;
+      else { [kind, js] = ['val', `v_${name}`]; vars.add(name); }
+    } else if (t === '(' || t === ')') [kind, js] = [t === '(' ? 'open' : 'close', t];
+    else if ('+-*/^'.includes(t)) [kind, js] = ['op', t === '^' ? '**' : t];
+    else return null; // a subscript, a sum, anything else: not checkable
+    if (prev === 'fn' && kind !== 'open') return null;
+    if ((t === '-' || t === '+') && (prev === null || prev === 'op' || prev === 'open')) { if (last === '^') return null; if (t === '-') out += '(-1)*'; prev = 'op'; last = t; continue; }
+    if ((prev === 'val' || prev === 'close') && (kind === 'val' || kind === 'open' || kind === 'fn')) out += '*';
+    out += js; prev = kind; last = t;
+  }
+  if (vars.size !== 1 || !out) return null;
+  const [v] = vars;
+  try { const f = new Function('Math', `return (v_${v}) => (${out});`)(Math); f(1); return { variable: v, f }; } catch { return null; }
+}
+const decimals = y => (String(y).split('.')[1] || '').length;
+// Every plotted point recomputed from the first one-variable formula ($...$) in the prose; an error = off by more than 0.01 after rounding to the plotted precision.
+export function arithmetic(d, prose) {
+  const points = d.kind === 'coordinate-plot' ? (d.series || []).flatMap(s => s.points || []).map(p => [p.x, p.y])
+    : d.kind === 'bar-chart' && (d.bars || []).every(b => String(b.label).trim() !== '' && Number.isFinite(Number(b.label))) ? d.bars.map(b => [Number(b.label), b.value]) : null;
+  if (!points) return { checked: false, reason: 'bars are not numeric inputs' };
+  for (const m of String(prose).matchAll(/\$([^$]+)\$/g)) {
+    for (const rhs of m[1].split('=').slice(1)) {
+      const c = compileFormula(rhs); if (!c) continue;
+      const checked = points.map(([x, y]) => { const e = c.f(x); return Number.isFinite(e) ? Math.abs(y - +e.toFixed(decimals(y))) > 0.01 : null; }).filter(e => e !== null);
+      if (!checked.length) continue;
+      return { checked: true, formula: rhs.trim(), variable: c.variable, points: checked.length, errors: checked.filter(Boolean).length };
+    }
+  }
+  return { checked: false, reason: 'no one-variable formula in the prose' };
+}
+
+const verbStart = label => {
+  const w = String(label).trim().toLowerCase().replace(/^[^a-z]+/, '').split(/[^a-z]/)[0] || '';
+  return [w, w.replace(/s$/, ''), w.replace(/es$/, ''), w.replace(/ed$/, ''), w.replace(/ed$/, 'e'), w.replace(/ing$/, ''), w.replace(/ing$/, 'e')].some(x => VERBS.has(x));
+};
+const norm = s => String(s ?? '').trim().toLowerCase();
+// One diagram's richness and content columns (never blended into one score).
+export function diagramScore(d, prose, kinds = null) {
+  const L = [], edges = [];
+  const add = (...xs) => xs.flat().filter(x => typeof x === 'string' && x.trim()).forEach(x => L.push(x));
+  switch (d.kind) {
+    case 'flow': case 'tree': case 'relationship': add((d.nodes || []).map(n => n.label)); edges.push(...(d.kind === 'tree' ? [] : d.edges || [])); break;
+    case 'cycle': add(d.steps || []); break;
+    case 'sequence': add((d.actors || []).map(a => a.label), (d.messages || []).map(m => m.label)); edges.push(...(d.messages || [])); break;
+    case 'timeline': add((d.events || []).flatMap(e => [e.time, e.label])); break;
+    case 'layers': add((d.layers || []).map(l => l.label)); break;
+    case 'comparison': add((d.columns || []).flatMap(c => [c.heading, ...(c.items || [])])); break;
+    case 'matrix': add(d.columns || [], (d.rows || []).flatMap(r => [r.heading, ...(r.cells || [])])); break;
+    case 'transformation': add(d.before?.items || [], d.after?.items || [], d.operation); edges.push(...(d.links || [])); break;
+    case 'argument': add(d.claim, (d.support || []).map(s => s.label), (d.objections || []).map(s => s.label), d.conclusion); break;
+    case 'bar-chart': add((d.bars || []).map(b => b.label)); break;
+    case 'coordinate-plot': add((d.series || []).flatMap(s => [s.label, ...(s.points || []).map(p => `${p.x},${p.y}`)])); break;
+    case 'number-line': add((d.markers || []).map(m => m.label), (d.intervals || []).map(i => i.label)); break;
+    case 'figure': add((d.callouts || []).map(c => c.label)); break;
+    default: break;
+  }
+  const units = d.kind === 'sequence' ? (d.messages || []).length : d.kind === 'coordinate-plot' ? (d.series || []).reduce((s, x) => s + (x.points || []).length, 0) : d.kind === 'timeline' ? (d.events || []).length
+    : d.kind === 'comparison' ? (d.columns || []).reduce((s, c) => s + (c.items || []).length, 0) : d.kind === 'matrix' ? (d.rows || []).length * (d.columns || []).length : L.length;
+  const json = JSON.stringify(d);
+  const optional = [d.caption ? 'caption' : null, /"detail":/.test(json) ? 'detail' : null, d.highlightPath ? 'highlightPath' : null, /"units?":/.test(json) ? 'units' : null,
+    (d.series || []).some(s => (s.points || []).some(p => p.label)) || (d.markers || []).length ? 'point labels' : null].filter(Boolean);
+  const labelled = edges.filter(e => typeof e.label === 'string' && e.label.trim()).length;
+  const nodeLabels = d.kind === 'cycle' ? d.steps || [] : d.kind === 'layers' ? (d.layers || []).map(l => l.label) : NODE_KINDS.includes(d.kind) ? (d.nodes || []).map(n => n.label) : [];
+  const p = String(prose).toLowerCase(), labelSet = new Set(nodeLabels.map(norm));
+  const edgeLabels = (['flow', 'relationship'].includes(d.kind) ? d.edges || [] : d.kind === 'transformation' ? d.links || [] : []).map(e => e.label).filter(l => typeof l === 'string' && l.trim());
+  const seen = new Set(), duplicateLabels = [...new Set(nodeLabels.map(norm).filter(l => (seen.has(l) ? true : (seen.add(l), false))))];
+  const degree = {}; if (d.kind === 'relationship') (d.edges || []).forEach(e => [e.from, e.to].forEach(id => (degree[id] = (degree[id] || 0) + 1)));
+  const flags = {
+    placeholderEdge: edgeLabels.filter(l => PLACEHOLDER_EDGE_LABELS.has(norm(l)) || labelSet.has(norm(l))),
+    duplicateLabels,
+    nounBoxFlow: d.kind === 'flow' && !(d.nodes || []).some(n => n.role === 'decision') && !(d.nodes || []).some(n => verbStart(n.label)),
+    bareMaths: (() => { let t = []; try { t = tutorDiagramVisibleText({ diagram: d }); } catch { t = L; } return t.filter(x => typeof x === 'string' && /[_^\\]/.test(x.replace(/\$[^$]*\$/g, ''))); })(),
+  };
+  let describe = null; try { describe = describeTutorDiagram({ diagram: d }); } catch { /* an unexpected shape: no description */ }
+  return {
+    kind: d.kind, kindRight: kinds ? kinds.includes(d.kind) : null, units, edges: edges.length, labelledEdges: labelled, optional,
+    numericLabels: L.filter(x => /\$[^$]+\$|\d/.test(x)).length, labels: L.length,
+    // 2026-11-08 study rule: every node label <= 4 words, found verbatim in the prose, and no edge label.
+    proseNounBox: NODE_KINDS.includes(d.kind) && nodeLabels.length > 0 && nodeLabels.every(l => l.trim().split(/\s+/).length <= 4 && p.includes(l.trim().toLowerCase())) && labelled === 0,
+    flags, flagged: flags.placeholderEdge.length > 0 || flags.duplicateLabels.length > 0 || flags.nounBoxFlow,
+    // The relationship layout (teaching-layouts.js) draws one row per edge, so a node in 2+ edges is drawn as 2+ boxes.
+    duplicatedRelationshipNodes: Object.entries(degree).filter(([, n]) => n >= 2).map(([id]) => (d.nodes || []).find(n => n.id === id)?.label ?? id),
+    arithmetic: PLOT_KINDS.includes(d.kind) ? arithmetic(d, prose) : null,
+    describe, spec: d,
+  };
+}
+
+const CAUSES = [[/over_budget/, 'length / over budget'], [/decision needs/, 'decision with too few branches'], [/exactly one root|needs one root/, 'two roots'], [/cannot contain a cycle|unreachable/, 'loop or unreachable node in a flow'],
+  [/connect a node to itself/, 'edge from a node to itself'], [/at most one outgoing edge/, 'process with two outgoing edges'], [/outcome cannot have outgoing/, 'outcome with an outgoing edge'], [/repeat the same directed/, 'repeated edge'],
+  [/Use at most \d+ characters/, 'label too long'], [/explanation_layout|marker|missing_visual/, 'visual marker / layout'], [/required_visual_missing/, 'required visual missing']];
+export const repairCause = e => CAUSES.find(([re]) => re.test(e))?.[1] ?? `other: ${String(e).slice(0, 100)}`;
+
+// One saved card -> its scored row. rec: { set, run, id, delivered, failure, block, totalMs, repaired, repairCauses, diagramCorrections, visualFallback, costUsd, costSource, tokens, raw, unknownKeysStripped }
+export function scoreCard(p, rec) {
+  const block = rec.delivered ? rec.block : null, vis = block ? visuals(block) : [], mix = mixOf(vis), prose = block ? proseOf(block.body) : '';
+  const diagrams = vis.filter(v => v.diagram).map(v => diagramScore(v.diagram, prose, p.kinds || null));
+  const score = block ? scoreMix(p, vis) : 'failed', it = block?.interactions;
+  return {
+    set: rec.set, run: rec.run, id: p.id, prompt: p.prompt, group: p.group, category: p.category || null, sketch: p.sketch || null, regressionKind: p.regressionKind || null,
+    delivered: !!block, failure: rec.failure || null, title: block?.title || null, mix, score,
+    mixRight: !!block && p.best.some(b => mixClass(b) === mixClass(mix)), badKinds: mix.filter(t => t.startsWith('D:') && (p.badKinds || []).includes(t.slice(2))).map(t => t.slice(2)),
+    needsPicture: !!p.needsPicture, noPicture: !!p.noPicture, hasPicture: mix.includes('P'), pictures: vis.filter(v => v.type === 'picture').map(({ type, id, ...v }) => v),
+    diagrams, quantKind: diagrams.some(d => QUANT_KINDS.includes(d.kind)),
+    formulaPlotOk: diagrams.some(d => PLOT_KINDS.includes(d.kind)) && !diagrams.some(d => d.arithmetic?.errors > 0),
+    repaired: !!rec.repaired || (rec.repairCauses || []).length > 0, repairCauses: (rec.repairCauses || []).map(c => ({ attempt: c.attempt, cause: repairCause(c.error), error: String(c.error).slice(0, 240) })),
+    corrections: rec.diagramCorrections || block?.diagramCorrections || null, visualFallback: rec.visualFallback || block?.visualFallback || null,
+    unknownKeysStripped: rec.unknownKeysStripped ?? null, raw: rec.raw ?? null,
+    proseLists: block?.proseLists ?? null,
+    output: block ? { title: (block.title || '').length, visuals: [...String(block.body).matchAll(FENCE)].reduce((s, m) => s + m[2].trim().length, 0), body: prose.trim().length,
+      questions: (it?.questions || []).reduce((s, x) => s + String(x.text || '').length, 0), terms: (it?.terms || []).reduce((s, x) => s + String(x.label || '').length + String(x.definition || '').length, 0) } : null,
+    totalMs: rec.totalMs ?? null, costUsd: rec.costUsd ?? null, costSource: rec.costSource || null, tokens: rec.tokens || null, judge: rec.judge || null,
+  };
+}
+
+export const quantile = (a, p) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(s.length * p))] : null; };
+const timing = xs => ({ n: xs.length, p50: quantile(xs, 0.5), p90: quantile(xs, 0.9) });
+const tally = (xs, key) => xs.reduce((o, x) => ((o[key(x)] = (o[key(x)] || 0) + 1), o), {});
+
+// Every metric of a group of scored cards (counts with their denominators).
+export function summarize(cards) {
+  const D = cards.filter(c => c.delivered), dg = D.flatMap(c => c.diagrams.map(d => ({ ...d, at: `${c.set}/r${c.run}/${c.id}` }))), graph = dg.filter(d => GRAPH_KINDS.includes(d.kind));
+  const n = f => D.filter(f).length, at = c => `${c.set}/r${c.run}/${c.id}`;
+  const regCards = cards.filter(c => c.regressionKind);
+  const regression = regCards.length ? Object.entries(regCards.reduce((o, c) => ((o[c.id] ||= []).push(c), o), {}))
+    .map(([id, cs]) => ({ id, kind: cs[0].regressionKind, hits: cs.filter(c => c.mix.includes(`D:${cs[0].regressionKind}`)).length, runs: cs.length })) : null;
+  const need = D.filter(c => c.needsPicture), none = D.filter(c => c.noPicture), labelled = D.filter(c => c.category), formula = cards.filter(c => c.category === 'formula');
+  const withKinds = dg.filter(d => d.kindRight !== null), plots = dg.filter(d => d.arithmetic?.checked), judgedF = dg.filter(d => d.faithful);
+  const rep = cards.filter(c => c.repaired), clean = cards.filter(c => !c.repaired), byCause = {}, corr = {};
+  rep.forEach(c => [...new Set(c.repairCauses.filter(x => x.attempt === 0).map(x => x.cause))].forEach(k => (byCause[k] = (byCause[k] || 0) + 1)));
+  if (rep.some(c => !c.repairCauses.length)) byCause['cause not logged (no --log)'] = rep.filter(c => !c.repairCauses.length).length;
+  cards.forEach(c => Object.entries(c.corrections || {}).forEach(([k, v]) => (corr[k] = (corr[k] || 0) + v)));
+  const tok = D.filter(c => Number.isFinite(c.tokens?.output)), byKind = {};
+  for (const c of tok) for (const k of new Set(c.diagrams.length ? c.diagrams.map(d => d.kind) : [c.hasPicture ? 'picture only' : 'no visual'])) (byKind[k] ||= []).push(c);
+  const mean = (xs, f) => (xs.length ? +(xs.reduce((s, x) => s + f(x), 0) / xs.length).toFixed(2) : null);
+  const slow = cards.filter(c => Number.isFinite(c.totalMs)).reduce((a, c) => (!a || c.totalMs > a.totalMs ? c : a), null);
+  const costed = cards.filter(c => Number.isFinite(c.costUsd)), judged = D.filter(c => c.judge?.factual);
+  return {
+    cards: { sent: cards.length, delivered: D.length, failed: cards.length - D.length, failures: cards.filter(c => !c.delivered).map(c => `${at(c)}: ${c.failure}`) },
+    choice: { right: n(c => c.score === 'right'), acceptable: n(c => c.score === 'acceptable'), wrong: n(c => c.score === 'wrong'), of: D.length,
+      rightMixWrongKind: D.filter(c => c.mixRight && c.score !== 'right').map(c => `${at(c)}: ${c.mix.join('+')} (${c.score})`), badKindUsed: D.filter(c => c.badKinds.length).map(c => `${at(c)}: ${c.badKinds.join(', ')}`),
+      wrongList: D.filter(c => c.score === 'wrong').map(c => `${at(c)}: ${c.mix.join('+') || 'no visual'}`), kinds: tally(D.flatMap(c => c.mix), k => k) },
+    regression: regression && { prompts: regression.length, pass: regression.filter(r => r.hits === r.runs).length, list: regression },
+    pictures: { needed: need.length, given: need.filter(c => c.hasPicture).length, missing: need.filter(c => !c.hasPicture).map(c => `${at(c)}: ${c.mix.join('+')}`),
+      noPictureSubjects: none.length, violations: none.filter(c => c.hasPicture).map(c => `${at(c)}: ${c.mix.join('+')}`),
+      content: (j => (j.length ? { judged: j.length, no: j.filter(x => x.content.verdict === 'no').length, list: j.filter(x => x.content.verdict === 'no').map(x => `${x.at}: "${x.caption}" (${x.content.reason})`) } : null))(D.flatMap(c => c.pictures.filter(x => x.content).map(x => ({ ...x, at: at(c) })))) },
+    richness: { diagrams: dg.length, sizeMedian: quantile(dg.map(d => d.units), 0.5), graphDiagrams: graph.length, graphOutside3to8: graph.filter(d => d.units < 3 || d.units > 8).length,
+      edges: dg.reduce((s, d) => s + d.edges, 0), labelledEdges: dg.reduce((s, d) => s + d.labelledEdges, 0),
+      fieldUse: Object.fromEntries(['caption', 'detail', 'highlightPath', 'units', 'point labels'].map(k => [k, dg.filter(d => d.optional.includes(k)).length])),
+      labels: dg.reduce((s, d) => s + d.labels, 0), numericLabels: dg.reduce((s, d) => s + d.numericLabels, 0), proseNounBox: dg.filter(d => d.proseNounBox).length,
+      quant: { labelled: labelled.length, used: labelled.filter(c => c.quantKind).length, list: labelled.map(c => `${at(c)}: ${c.diagrams.map(d => d.kind).join('+') || 'no diagram'}`) } },
+    content: { diagrams: dg.length, flagged: dg.filter(d => d.flagged).length, placeholderEdge: dg.filter(d => d.flags.placeholderEdge.length).length, duplicateLabels: dg.filter(d => d.flags.duplicateLabels.length).length,
+      nounBoxFlow: dg.filter(d => d.flags.nounBoxFlow).length, bareMaths: dg.filter(d => d.flags.bareMaths.length).length,
+      relationships: dg.filter(d => d.kind === 'relationship').length, duplicatedRelationshipNodes: dg.filter(d => d.duplicatedRelationshipNodes.length).length,
+      flaggedList: dg.filter(d => d.flagged || d.flags.bareMaths.length || d.duplicatedRelationshipNodes.length).map(d => `${d.at} ${d.kind}: ${[d.flags.placeholderEdge.length ? `placeholder edge ${d.flags.placeholderEdge.map(l => JSON.stringify(l)).join(', ')}` : '', d.flags.duplicateLabels.length ? `duplicate labels ${d.flags.duplicateLabels.join(', ')}` : '', d.flags.nounBoxFlow ? 'noun-box flow' : '', d.flags.bareMaths.length ? `bare maths ${d.flags.bareMaths.map(l => JSON.stringify(l)).join(', ')}` : '', d.duplicatedRelationshipNodes.length ? `duplicated boxes ${d.duplicatedRelationshipNodes.join(', ')}` : ''].filter(Boolean).join('; ')}`),
+      kindRight: withKinds.filter(d => d.kindRight).length, kindJudged: withKinds.length,
+      formulaPrompts: formula.length, formulaPlotOk: formula.filter(c => c.formulaPlotOk).length, formulaWithPlot: formula.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length,
+      plots: dg.filter(d => PLOT_KINDS.includes(d.kind)).length, plotsChecked: plots.length, points: plots.reduce((s, d) => s + d.arithmetic.points, 0), pointErrors: plots.reduce((s, d) => s + d.arithmetic.errors, 0),
+      arithmeticList: dg.filter(d => d.arithmetic).map(d => `${d.at} ${d.kind}: ${d.arithmetic.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off, formula $${d.arithmetic.formula}$` : `not checked (${d.arithmetic.reason})`}`),
+      faithful: judgedF.length ? { judged: judgedF.length, yes: judgedF.filter(d => d.faithful.verdict === 'yes').length, partly: judgedF.filter(d => d.faithful.verdict === 'partly').length, no: judgedF.filter(d => d.faithful.verdict === 'no').length,
+        list: judgedF.filter(d => d.faithful.verdict !== 'yes').map(d => `${d.at} ${d.kind}: ${d.faithful.verdict} (${d.faithful.reason})`) } : null },
+    repairs: { repaired: rep.length, of: cards.length, byCause, corrections: corr, correctionTotal: Object.values(corr).reduce((s, v) => s + v, 0),
+      visualFallback: cards.filter(c => c.visualFallback).map(c => `${at(c)}: ${c.visualFallback}`),
+      unknownKeysStripped: cards.some(c => c.unknownKeysStripped) ? { events: cards.reduce((s, c) => s + (c.unknownKeysStripped?.events || 0), 0), keys: cards.reduce((s, c) => s + (c.unknownKeysStripped?.keys || 0), 0), cards: cards.filter(c => c.unknownKeysStripped?.events).length } : null,
+      rawLogged: cards.filter(c => Array.isArray(c.raw)).length },
+    speed: { all: timing(cards.map(c => c.totalMs)), cleanNoPicture: timing(clean.filter(c => !c.hasPicture).map(c => c.totalMs)), cleanPicture: timing(clean.filter(c => c.hasPicture).map(c => c.totalMs)),
+      repaired: timing(rep.map(c => c.totalMs)), within4s: cards.filter(c => c.totalMs <= 4000).length, of: cards.length,
+      slowest: slow && { at: at(slow), ms: slow.totalMs, repaired: slow.repaired, pictures: slow.pictures.length, causes: slow.repairCauses.map(x => x.cause) } },
+    output: { cardsWithLists: n(c => (c.proseLists || 0) > 0), proseListsTotal: D.reduce((s, c) => s + (c.proseLists || 0), 0),
+      fields: Object.fromEntries(['title', 'visuals', 'body', 'questions', 'terms'].map(k => [k, mean(D, c => c.output[k])])) },
+    tokens: tok.length ? { cards: tok.length, inputMean: mean(tok, c => c.tokens.input), outputMean: mean(tok, c => c.tokens.output), outputP90: quantile(tok.map(c => c.tokens.output), 0.9),
+      byKind: Object.fromEntries(Object.entries(byKind).map(([k, cs]) => [k, { cards: cs.length, outputMean: mean(cs, c => c.tokens.output), outputP90: quantile(cs.map(c => c.tokens.output), 0.9), msP50: quantile(cs.map(c => c.totalMs), 0.5), msP90: quantile(cs.map(c => c.totalMs), 0.9) }])) } : null,
+    cost: { cards: costed.length, total: +costed.reduce((s, c) => s + c.costUsd, 0).toFixed(4), perCard: costed.length ? +(costed.reduce((s, c) => s + c.costUsd, 0) / costed.length).toFixed(5) : null, sources: tally(costed, c => c.costSource || 'unknown') },
+    factual: judged.length ? { judged: judged.length, mean: mean(judged, c => c.judge.factual.score), withErrors: judged.filter(c => c.judge.factual.errors.length).length,
+      list: judged.filter(c => c.judge.factual.errors.length).map(c => `${at(c)} (${c.judge.factual.score}): ${c.judge.factual.errors.map(e => e.claim).join(' | ')}`) } : null,
+  };
+}
+
+// Pass criteria on record (each set file's "pass"). -> [{ set, rule, ok, detail }]
+export function criteria(setDef, cards) {
+  const p = setDef.pass || {}, out = [], s = summarize(cards), runs = [...new Set(cards.map(c => c.run))].sort((a, b) => a - b);
+  const add = (rule, ok, detail) => out.push({ set: setDef.name, rule, ok, detail });
+  if (p.kindEveryRun && s.regression) add('best kind in every run', s.regression.pass === s.regression.prompts, s.regression.list.map(r => `${r.id} ${r.kind} ${r.hits}/${r.runs}`).join(', '));
+  if (p.rightShare) for (const [id, share] of Object.entries(p.rightShare)) { const cs = cards.filter(c => c.id === id), r = cs.filter(c => c.score === 'right').length; add(`${id} right in >= ${share} of runs`, cs.length > 0 && r / cs.length >= share, `${r}/${cs.length}`); }
+  if (p.maxNoPictureViolations !== undefined) add(`picture where none belongs <= ${p.maxNoPictureViolations}`, s.pictures.violations.length <= p.maxNoPictureViolations, `${s.pictures.violations.length}/${s.pictures.noPictureSubjects}`);
+  if (p.maxFlaggedPer60Diagrams !== undefined) add(`noun-box or placeholder labels on <= ${p.maxFlaggedPer60Diagrams} of 60 diagrams`, s.content.flagged * 60 <= p.maxFlaggedPer60Diagrams * s.content.diagrams, `${s.content.flagged}/${s.content.diagrams}`);
+  if (p.minFormulaPlotsPerRun !== undefined) { const per = runs.map(r => { const f = cards.filter(c => c.run === r && c.category === 'formula'); return [f.filter(c => c.formulaPlotOk).length, f.length]; });
+    add(`coordinate-plot or bar-chart with values that recompute on >= ${p.minFormulaPlotsPerRun} of the 8 formula prompts, every run`, per.length > 0 && per.every(([ok, of]) => of === 8 && ok >= p.minFormulaPlotsPerRun), per.map(([ok, of], i) => `r${runs[i]} ${ok}/${of}`).join(', ')); }
+  if (p.maxDuplicatedRelationshipNodes !== undefined) add('no duplicated node in any relationship', s.content.duplicatedRelationshipNodes <= p.maxDuplicatedRelationshipNodes, `${s.content.duplicatedRelationshipNodes}/${s.content.relationships} relationship diagrams`);
+  return out;
+}

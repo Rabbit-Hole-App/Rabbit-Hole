@@ -1,0 +1,807 @@
+{
+ "name": "content",
+ "version": {
+  "prompts": "P1 2026-11-08 (owner plan C6)",
+  "labels": "L1 2026-11-08 kinds and sketches written before any card"
+ },
+ "measures": "Diagram CONTENT on 20 AI/ML prompts (8 formula, 4 relationship/feedback, 4 structure, 4 process): kind right, faithful to a pre-written sketch (judge), content flags, maths, plotted values recomputed from the stated formula.",
+ "written": "2026-11-08, before any content card was sent",
+ "notation": "A mix is a list of visuals: P = a Recraft picture, D:<kind> = a TutorDiagram of that kind (D:a|b = either kind, D:* = any kind). best = the mixes judged right; acceptable = a weaker mix that still teaches; anything else is wrong. badKinds = diagram kinds that cannot draw this subject (flagged wherever they appear, even beside a picture). kinds = the right kinds for the card's diagram; sketch = what its nodes, axes and edges must say.",
+ "defaultRuns": 3,
+ "estUsdPerCard": 0.0115,
+ "pass": {
+  "maxFlaggedPer60Diagrams": 2,
+  "minFormulaPlotsPerRun": 6,
+  "maxDuplicatedRelationshipNodes": 0
+ },
+ "prompts": [
+  {
+   "id": "gini",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is gini impurity",
+   "kinds": [
+    "coordinate-plot",
+    "bar-chart"
+   ],
+   "sketch": [
+    "x axis: the share p of one class in a node, 0 to 1; y axis: Gini impurity 1 - (p^2 + (1-p)^2) = 2p(1-p): 0 at p = 0 and 1, peak 0.5 at p = 0.5.",
+    "Or bars of one node's class shares, with the impurity 1 - (sum of squared shares) stated and computed from those bars."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot|bar-chart"
+    ],
+    [
+     "D:coordinate-plot|bar-chart",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|comparison|tree"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new"
+  },
+  {
+   "id": "cross-entropy",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is cross entropy",
+   "kinds": [
+    "coordinate-plot",
+    "bar-chart"
+   ],
+   "sketch": [
+    "x axis: predicted probability of the true class, 0 to 1; y axis: loss -ln(p), very large near 0 and 0 at p = 1.",
+    "Or bars of the true distribution next to the predicted one, with H(p, q) = -sum p log q computed from the bar values."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot|bar-chart"
+    ],
+    [
+     "D:coordinate-plot|bar-chart",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|comparison"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new"
+  },
+  {
+   "id": "softmax",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what does softmax do?",
+   "kinds": [
+    "bar-chart",
+    "transformation"
+   ],
+   "sketch": [
+    "Before: raw scores (logits) such as 2.0, 1.0, 0.1; after: probabilities e^z_i / sum_j e^z_j, about 0.66, 0.24, 0.10.",
+    "The outputs are all positive and sum to 1; the largest score keeps the largest share."
+   ],
+   "best": [
+    [
+     "D:bar-chart|transformation"
+    ],
+    [
+     "D:bar-chart|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:coordinate-plot|flow|comparison"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "baseline softmax"
+  },
+  {
+   "id": "sigmoid",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what does the sigmoid activation function do?",
+   "kinds": [
+    "coordinate-plot"
+   ],
+   "sketch": [
+    "x axis: input z, about -6 to 6; y axis: sigmoid(z) = 1 / (1 + e^-z), an S-curve from 0 to 1.",
+    "It passes 0.5 at z = 0 and flattens near 0 and 1 (saturation)."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|bar-chart|number-line"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new"
+  },
+  {
+   "id": "lr-schedule",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is a learning rate schedule?",
+   "kinds": [
+    "coordinate-plot"
+   ],
+   "sketch": [
+    "x axis: training step or epoch; y axis: learning rate falling over training (step decay, exponential decay or cosine; a warm-up rising first if named).",
+    "The plotted values follow the schedule formula the prose states (for example lr_t = lr_0 * gamma^t)."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|timeline|number-line|flow"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml lr-schedule"
+  },
+  {
+   "id": "gradient-descent",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is gradient descent?",
+   "kinds": [
+    "coordinate-plot",
+    "flow",
+    "cycle"
+   ],
+   "sketch": [
+    "x axis: a parameter w; y axis: the loss L(w), a bowl; steps move downhill toward the minimum.",
+    "Each step is w <- w - eta * dL/dw: the learning rate eta times the slope sets the step size."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot|flow|cycle"
+    ],
+    [
+     "D:coordinate-plot|flow|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|relationship"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml gradient-descent"
+  },
+  {
+   "id": "attention-weights",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "how are attention weights computed?",
+   "kinds": [
+    "bar-chart",
+    "matrix",
+    "transformation",
+    "flow"
+   ],
+   "sketch": [
+    "Scores: the query dotted with every key, divided by sqrt(d_k); softmax turns one query's scores into weights that sum to 1.",
+    "The output is the weighted sum of the value vectors; a larger weight means that token contributes more."
+   ],
+   "best": [
+    [
+     "D:bar-chart|matrix|transformation|flow"
+    ],
+    [
+     "D:bar-chart|matrix|transformation|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|coordinate-plot"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new"
+  },
+  {
+   "id": "precision-recall",
+   "group": "content-formula",
+   "category": "formula",
+   "prompt": "what is the difference between precision and recall?",
+   "kinds": [
+    "matrix",
+    "bar-chart",
+    "comparison"
+   ],
+   "sketch": [
+    "Confusion counts with example numbers: true positives, false positives, false negatives (and true negatives).",
+    "Precision = TP / (TP + FP) and recall = TP / (TP + FN), each computed from those same counts."
+   ],
+   "best": [
+    [
+     "D:matrix|bar-chart|comparison"
+    ],
+    [
+     "D:matrix|bar-chart|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new"
+  },
+  {
+   "id": "rlhf",
+   "group": "content-relationship",
+   "category": "relationship",
+   "prompt": "how does RLHF work?",
+   "kinds": [
+    "flow",
+    "cycle",
+    "sequence"
+   ],
+   "sketch": [
+    "People rank model answers -> a reward model learns those preferences -> the policy model is tuned to raise the reward.",
+    "The loop repeats with new answers and rankings; a penalty keeps the policy close to the original model."
+   ],
+   "best": [
+    [
+     "D:flow|cycle|sequence"
+    ],
+    [
+     "D:flow|cycle|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml rlhf"
+  },
+  {
+   "id": "comp-graph",
+   "group": "content-relationship",
+   "category": "relationship",
+   "prompt": "what is a computational graph?",
+   "kinds": [
+    "relationship",
+    "flow",
+    "tree"
+   ],
+   "sketch": [
+    "Nodes are values and operations (inputs x and w, multiply, add b, output); edges carry each result to the next operation.",
+    "Backward, gradients flow along the same edges in reverse (the chain rule)."
+   ],
+   "best": [
+    [
+     "D:relationship|flow|tree"
+    ],
+    [
+     "D:relationship|flow|tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|sequence"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml comp-graph"
+  },
+  {
+   "id": "overfitting",
+   "group": "content-relationship",
+   "category": "relationship",
+   "prompt": "what is overfitting?",
+   "kinds": [
+    "coordinate-plot",
+    "comparison"
+   ],
+   "sketch": [
+    "x axis: model complexity or training time; training error keeps falling while validation error falls, then rises.",
+    "The gap after the turning point is overfitting: the model fits noise in the training data."
+   ],
+   "best": [
+    [
+     "D:coordinate-plot|comparison"
+    ],
+    [
+     "D:coordinate-plot|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|transformation|relationship"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml overfitting"
+  },
+  {
+   "id": "gan",
+   "group": "content-relationship",
+   "category": "relationship",
+   "prompt": "how do the generator and discriminator in a GAN work together?",
+   "kinds": [
+    "relationship",
+    "cycle",
+    "flow"
+   ],
+   "sketch": [
+    "The generator turns random noise into fake samples; the discriminator labels samples real or fake.",
+    "The discriminator's feedback (its gradient) trains the generator to fool it; both improve against each other in a loop."
+   ],
+   "best": [
+    [
+     "D:relationship|cycle|flow"
+    ],
+    [
+     "D:relationship|cycle|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|comparison"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new"
+  },
+  {
+   "id": "nn-layers",
+   "group": "content-structure",
+   "category": "structure",
+   "prompt": "what are the layers of a neural network?",
+   "kinds": [
+    "layers",
+    "flow",
+    "relationship"
+   ],
+   "sketch": [
+    "Input layer (one unit per feature) -> hidden layers (weighted sums plus an activation) -> output layer (the predictions).",
+    "Each layer feeds the next; the weights sit on the connections between layers."
+   ],
+   "best": [
+    [
+     "D:layers|flow|relationship"
+    ],
+    [
+     "D:layers|flow|relationship",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:tree|comparison"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml nn-layers"
+  },
+  {
+   "id": "cnn",
+   "group": "content-structure",
+   "category": "structure",
+   "prompt": "what is a convolutional neural network?",
+   "kinds": [
+    "flow",
+    "layers",
+    "transformation"
+   ],
+   "sketch": [
+    "Image -> convolution layers (filters slide over it making feature maps) -> pooling (downsampling) -> fully connected layer -> class scores.",
+    "Early layers find edges; later layers combine them into shapes and objects."
+   ],
+   "best": [
+    [
+     "D:flow|layers|transformation"
+    ],
+    [
+     "D:flow|layers|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|tree"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml cnn"
+  },
+  {
+   "id": "random-forest",
+   "group": "content-structure",
+   "category": "structure",
+   "prompt": "what is a random forest?",
+   "kinds": [
+    "tree",
+    "flow",
+    "relationship"
+   ],
+   "sketch": [
+    "Many decision trees, each trained on a random sample of the rows and features.",
+    "Each tree votes (classification) or the predictions are averaged (regression); the majority or the mean is the answer."
+   ],
+   "best": [
+    [
+     "D:tree|flow|relationship"
+    ],
+    [
+     "D:tree|flow|relationship",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison|layers"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml random-forest"
+  },
+  {
+   "id": "transformer-block",
+   "group": "content-structure",
+   "category": "structure",
+   "prompt": "what are the parts of a transformer block?",
+   "kinds": [
+    "layers",
+    "flow"
+   ],
+   "sketch": [
+    "Input embeddings -> multi-head self-attention -> add & layer norm -> feed-forward network -> add & layer norm.",
+    "Residual connections skip around the attention and around the feed-forward network."
+   ],
+   "best": [
+    [
+     "D:layers|flow"
+    ],
+    [
+     "D:layers|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|tree"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "new"
+  },
+  {
+   "id": "backprop",
+   "group": "content-process",
+   "category": "process",
+   "prompt": "how does backpropagation work?",
+   "kinds": [
+    "flow",
+    "relationship",
+    "cycle"
+   ],
+   "sketch": [
+    "Forward pass makes a prediction -> the loss compares it with the label -> gradients flow backward layer by layer (chain rule).",
+    "Each weight moves opposite its gradient (w - eta * gradient); this repeats for every batch."
+   ],
+   "best": [
+    [
+     "D:flow|relationship|cycle"
+    ],
+    [
+     "D:flow|relationship|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|layers|sequence"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml backprop"
+  },
+  {
+   "id": "rag",
+   "group": "content-process",
+   "category": "process",
+   "prompt": "how does RAG work?",
+   "kinds": [
+    "sequence",
+    "flow"
+   ],
+   "sketch": [
+    "The question is embedded -> the closest document chunks are retrieved from a vector store.",
+    "The chunks are added to the prompt -> the language model answers from them."
+   ],
+   "best": [
+    [
+     "D:sequence|flow"
+    ],
+    [
+     "D:sequence|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml rag"
+  },
+  {
+   "id": "tokenization",
+   "group": "content-process",
+   "category": "process",
+   "prompt": "how does tokenization work?",
+   "kinds": [
+    "transformation",
+    "flow"
+   ],
+   "sketch": [
+    "Before: a text string; after: a list of tokens (whole words and sub-word pieces) with their integer ids.",
+    "Rare words split into several pieces; the model reads the ids, not the letters."
+   ],
+   "best": [
+    [
+     "D:transformation|flow"
+    ],
+    [
+     "D:transformation|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|comparison"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml tokenization"
+  },
+  {
+   "id": "beam-search",
+   "group": "content-process",
+   "category": "process",
+   "prompt": "how does beam search work?",
+   "kinds": [
+    "tree"
+   ],
+   "sketch": [
+    "From the start, each step extends every kept sequence by its next-token options and scores them (summed log probabilities).",
+    "Only the top k (the beam width) survive each step; the best finished sequence is returned."
+   ],
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "needsPicture": false,
+   "noPicture": true,
+   "source": "aiml beam-search"
+  }
+ ]
+}

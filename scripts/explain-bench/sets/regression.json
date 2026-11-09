@@ -1,0 +1,236 @@
+{
+ "name": "regression",
+ "version": {
+  "prompts": "P1 2026-11-08 15:12 PT",
+  "labels": "L2 2026-11-08 16:20 PT (owner relabels: entropy, DNS, decision tree)"
+ },
+ "measures": "Six prompts, each with one known-right diagram kind (regressionKind); a regression is any run without that kind.",
+ "source": "C:/s/spec/benchmarks/explain-visual-choice-2026-11-08/prompts-A.json",
+ "written": "2026-11-08 15:12 PT, the kind regression set (owner): pass = best kind in 3 of 3",
+ "relabels": [
+  "2026-11-08 ~16:20 PT owner relabel (applied before scoring 5e, 5d re-scored): entropy: transformation = right, relationship = acceptable"
+ ],
+ "notation": "A mix is a list of visuals: P = a Recraft picture, D:<kind> = a TutorDiagram of that kind (D:a|b = either kind, D:* = any kind). best = the mixes judged right; acceptable = a weaker mix that still teaches; anything else is wrong. badKinds = diagram kinds that cannot draw this subject (flagged wherever they appear, even beside a picture).",
+ "defaultRuns": 1,
+ "estUsdPerCard": 0.008,
+ "pass": {
+  "kindEveryRun": true
+ },
+ "prompts": [
+  {
+   "id": "water-cycle",
+   "group": "process",
+   "prompt": "how does the water cycle work?",
+   "best": [
+    [
+     "D:cycle"
+    ],
+    [
+     "D:cycle",
+     "P"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow|relationship"
+    ],
+    [
+     "D:flow|relationship",
+     "P"
+    ],
+    [
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "why": "A repeating process: cycle. A landscape picture is a fair second.",
+   "needsPicture": false,
+   "noPicture": false,
+   "regressionKind": "cycle"
+  },
+  {
+   "id": "tcp-handshake",
+   "group": "process",
+   "prompt": "how does the TCP handshake work?",
+   "best": [
+    [
+     "D:sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow|timeline"
+    ],
+    [
+     "D:sequence",
+     "D:*"
+    ],
+    [
+     "D:sequence",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Messages between two actors in order: sequence. A picture can only be decoration.",
+   "needsPicture": false,
+   "noPicture": true,
+   "regressionKind": "sequence"
+  },
+  {
+   "id": "atmosphere",
+   "group": "structure",
+   "prompt": "how is Earth's atmosphere structured?",
+   "best": [
+    [
+     "D:layers"
+    ],
+    [
+     "D:layers",
+     "P"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:comparison|matrix"
+    ]
+   ],
+   "badKinds": [
+    "flow",
+    "cycle",
+    "tree",
+    "timeline"
+   ],
+   "why": "A real stack: the one case where layers is the right kind.",
+   "needsPicture": false,
+   "noPicture": false,
+   "regressionKind": "layers"
+  },
+  {
+   "id": "bst",
+   "group": "algorithm",
+   "prompt": "how does a binary search tree work?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "timeline"
+   ],
+   "why": "A hierarchy (tree), optionally the search path (flow). A picture cannot carry the key labels (no text in pictures).",
+   "needsPicture": false,
+   "noPicture": true,
+   "regressionKind": "tree"
+  },
+  {
+   "id": "roman-empire",
+   "group": "history",
+   "prompt": "how did the Roman Empire rise and fall?",
+   "best": [
+    [
+     "D:timeline"
+    ],
+    [
+     "D:timeline",
+     "P"
+    ],
+    [
+     "D:timeline",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow|relationship|argument"
+    ],
+    [
+     "D:*",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "figure"
+   ],
+   "why": "Events in time: timeline. A picture of Rome is a fair second.",
+   "needsPicture": false,
+   "noPicture": false,
+   "regressionKind": "timeline"
+  },
+  {
+   "id": "entropy",
+   "group": "abstract",
+   "prompt": "what is entropy?",
+   "best": [
+    [
+     "D:transformation"
+    ],
+    [
+     "D:transformation",
+     "P"
+    ],
+    [
+     "P"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship"
+    ],
+    [
+     "D:comparison|bar-chart|coordinate-plot"
+    ],
+    [
+     "P",
+     "P"
+    ],
+    [
+     "D:*",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "why": "Ordered to disordered: a before/after transformation, or a picture of ice melting / gas spreading.",
+   "needsPicture": false,
+   "noPicture": false,
+   "regressionKind": "transformation"
+  }
+ ]
+}

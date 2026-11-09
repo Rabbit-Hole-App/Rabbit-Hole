@@ -1,0 +1,243 @@
+// /explain card benchmark: scores a run's saved cards, optionally judges them, writes results.json, metrics.json and report.md with the delta against the
+// previous run and the release baseline, and exits non-zero when a pass criterion on record fails.
+// Usage: node scripts/explain-bench/report.mjs --raw <dir of set-run folders> [--label "..."] [--out <results root>] [--against <run dir>] [--baseline <run id>]
+//          [--tag-baseline] [--judge] [--judges N] [--judge-cap 1.00] [--richness-change]
+// A raw dir holds <set>-r<run>/results.jsonl + cards/<id>.json (+ tokens.json), as bench.mjs writes and as the 2026-11-08 study's 5d folders are laid out.
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
+import { availableSets, criteria, loadSet, proseOf, scoreCard, summarize } from './score.mjs';
+import { RUBRICS, combine, judgeItems, keyTransport } from './judge.mjs';
+
+export const DEFAULT_OUT = 'C:/s/spec/benchmarks/explain-bench';
+// The 2026-11-08 study's folder letters (5d, 5e): A regression, B baseline, C AI/ML, D sequence.
+const LEGACY = { A: 'regression', B: 'baseline', C: 'aiml', D: 'sequence' };
+const rd = f => (existsSync(f) ? readFileSync(f, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : []);
+const json = f => JSON.parse(readFileSync(f, 'utf8'));
+
+// PT wall clock, sortable: 2026-11-08T1712-label
+export const runDirName = (label, now = new Date()) => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(x => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}${p.minute}${p.second}-${String(label || 'run').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)}`;
+};
+
+export function loadRaw(rawDir) {
+  const recs = [], notes = [];
+  for (const dir of readdirSync(rawDir, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort()) {
+    const m = /^(.+?)(?:-r(\d+))?$/.exec(dir), set = LEGACY[m[1]] || m[1], run = Number(m[2] || 1);
+    if (!availableSets().includes(set)) { notes.push(`skipped folder ${dir}: no set named ${set}`); continue; }
+    const base = join(rawDir, dir), tokens = existsSync(join(base, 'tokens.json')) ? json(join(base, 'tokens.json')).cards : [];
+    for (const row of rd(join(base, 'results.jsonl'))) {
+      const card = existsSync(join(base, 'cards', `${row.id}.json`)) ? json(join(base, 'cards', `${row.id}.json`)) : null, t = tokens.find(x => x.id === row.id);
+      recs.push({ set, run, id: row.id, delivered: !!row.delivered && !!card?.response?.block, failure: row.failure, block: card?.response?.block || null, totalMs: row.totalMs, repaired: row.repaired,
+        repairCauses: row.repairCauses || [], diagramCorrections: row.diagramCorrections, visualFallback: row.visualFallback, costUsd: row.costUsd,
+        costSource: row.costSource || (row.ledgerUsd > 0 ? 'ledger' : 'estimate'), tokens: t ? { input: t.input, output: t.output, authorUsd: t.authorUsd, pictureUsd: t.pictureUsd } : null,
+        raw: row.raw ?? null, unknownKeysStripped: row.unknownKeysStripped ?? null, startedAt: row.startedAt });
+    }
+  }
+  return { recs, notes };
+}
+
+// Every metric shown in the tables and the deltas: [label, value(summary) -> [count, of] | number | null, better: 'up' | 'down' | null]
+const pair = (a, b) => (b ? [a, b] : null);
+export const METRICS = [
+  ['cards delivered', s => pair(s.cards.delivered, s.cards.sent), 'up'],
+  ['kind/mix right', s => pair(s.choice.right, s.choice.of), 'up'],
+  ['kind/mix acceptable', s => pair(s.choice.acceptable, s.choice.of), null],
+  ['kind/mix wrong', s => pair(s.choice.wrong, s.choice.of), 'down'],
+  ['right mix, wrong kind', s => pair(s.choice.rightMixWrongKind.length, s.choice.of), 'down'],
+  ['kind regression pass (best kind every run)', s => s.regression && pair(s.regression.pass, s.regression.prompts), 'up'],
+  ['picture given where needed', s => pair(s.pictures.given, s.pictures.needed), 'up'],
+  ['picture where none belongs', s => pair(s.pictures.violations.length, s.pictures.noPictureSubjects), 'down'],
+  ['diagrams', s => s.richness.diagrams, null],
+  ['size: median items per diagram', s => s.richness.sizeMedian, null],
+  ['size: graph diagrams outside 3-8 items', s => pair(s.richness.graphOutside3to8, s.richness.graphDiagrams), 'down'],
+  ['fields: edges labelled', s => pair(s.richness.labelledEdges, s.richness.edges), 'up'],
+  ...['caption', 'detail', 'highlightPath', 'units', 'point labels'].map(k => [`fields: ${k} used`, s => pair(s.richness.fieldUse[k], s.richness.diagrams), 'up']),
+  ['labels with maths or numbers', s => pair(s.richness.numericLabels, s.richness.labels), 'up'],
+  ['prose noun-box diagrams (study rule)', s => pair(s.richness.proseNounBox, s.richness.diagrams), 'down'],
+  ['quantitative kind on formula/metric/quantity prompts', s => pair(s.richness.quant.used, s.richness.quant.labelled), 'up'],
+  ['content flags: noun-box or placeholder labels', s => pair(s.content.flagged, s.content.diagrams), 'down'],
+  ['content flags: placeholder edge label', s => pair(s.content.placeholderEdge, s.content.diagrams), 'down'],
+  ['content flags: duplicate node labels', s => pair(s.content.duplicateLabels, s.content.diagrams), 'down'],
+  ['content flags: noun-box flow', s => pair(s.content.nounBoxFlow, s.content.diagrams), 'down'],
+  ['content flags: bare maths', s => pair(s.content.bareMaths, s.content.diagrams), 'down'],
+  ['renderer: relationship with duplicated boxes', s => pair(s.content.duplicatedRelationshipNodes, s.content.relationships), 'down'],
+  ['content: diagram kind right', s => pair(s.content.kindRight, s.content.kindJudged), 'up'],
+  ['content: formula prompts with a plot that recomputes', s => pair(s.content.formulaPlotOk, s.content.formulaPrompts), 'up'],
+  ['arithmetic: plotted points off', s => pair(s.content.pointErrors, s.content.points), 'down'],
+  ['faithful to the sketch: yes', s => s.content.faithful && pair(s.content.faithful.yes, s.content.faithful.judged), 'up'],
+  ['faithful to the sketch: no', s => s.content.faithful && pair(s.content.faithful.no, s.content.faithful.judged), 'down'],
+  ['picture shows what the question asks: no (judge)', s => s.pictures.content && pair(s.pictures.content.no, s.pictures.content.judged), 'down'],
+  ['factual score (judge mean, 1-5)', s => s.factual?.mean ?? null, 'up'],
+  ['cards with a factual error', s => s.factual && pair(s.factual.withErrors, s.factual.judged), 'down'],
+  ['repaired', s => pair(s.repairs.repaired, s.repairs.of), 'down'],
+  ['server diagram corrections', s => s.repairs.correctionTotal, 'down'],
+  ['visual fallback', s => pair(s.repairs.visualFallback.length, s.cards.sent), 'down'],
+  ['unknown keys stripped (events)', s => s.repairs.unknownKeysStripped?.events ?? null, 'down'],
+  ['speed p50 ms, all', s => s.speed.all.p50, 'down'],
+  ['speed p90 ms, all', s => s.speed.all.p90, 'down'],
+  ['speed p50 ms, no repair no picture', s => s.speed.cleanNoPicture.p50, 'down'],
+  ['speed p90 ms, no repair no picture', s => s.speed.cleanNoPicture.p90, 'down'],
+  ['speed p50 ms, no repair with picture', s => s.speed.cleanPicture.p50, 'down'],
+  ['speed p90 ms, no repair with picture', s => s.speed.cleanPicture.p90, 'down'],
+  ['speed p50 ms, repaired', s => s.speed.repaired.p50, 'down'],
+  ['speed p90 ms, repaired', s => s.speed.repaired.p90, 'down'],
+  ['cards within 4 s', s => pair(s.speed.within4s, s.speed.of), 'up'],
+  ['cards with prose lists', s => pair(s.output.cardsWithLists, s.cards.delivered), 'down'],
+  ['output chars per card: body', s => s.output.fields.body, null],
+  ['output chars per card: visuals', s => s.output.fields.visuals, null],
+  ['output chars per card: questions', s => s.output.fields.questions, null],
+  ['output chars per card: terms', s => s.output.fields.terms, null],
+  ['output tokens per card (mean)', s => s.tokens?.outputMean ?? null, 'down'],
+  ['output tokens per card (p90)', s => s.tokens?.outputP90 ?? null, 'down'],
+  ['cost per card US$', s => s.cost.perCard, 'down'],
+  ['cost total US$', s => s.cost.total, null],
+];
+const value = v => (Array.isArray(v) ? (v[1] ? v[0] / v[1] : null) : v);
+export const show = v => (v === null || v === undefined ? '-' : Array.isArray(v) ? `${v[0]}/${v[1]}` : String(v));
+// before/after summaries -> [{ label, before, after, change }] for every metric both runs have.
+export function delta(before, after) {
+  const rows = [];
+  for (const [label, get, better] of METRICS) {
+    const b = before ? get(before) : null, a = after ? get(after) : null, vb = value(b), va = value(a);
+    if (vb === null || va === null || vb === undefined || va === undefined) continue;
+    const d = va - vb, same = Math.abs(d) < 1e-9;
+    rows.push({ label, before: show(b), after: show(a), change: same ? '= same' : `${d > 0 ? '↑' : '↓'}${better ? ((d > 0) === (better === 'up') ? ' better' : ' worse') : ''}` });
+  }
+  return rows;
+}
+// Owner pass rule for a richness change: content flags down, quantitative use up on labelled prompts, faithfulness not down; else revert.
+export function richnessVerdict(before, after) {
+  if (!before || !after) return { verdict: 'no comparison run', reasons: [] };
+  const r = (s, f) => value(f(s)), flags = [r(before, s => pair(s.content.flagged, s.content.diagrams)), r(after, s => pair(s.content.flagged, s.content.diagrams))];
+  const quant = [r(before, s => pair(s.richness.quant.used, s.richness.quant.labelled)), r(after, s => pair(s.richness.quant.used, s.richness.quant.labelled))];
+  const faith = [r(before, s => s.content.faithful && pair(s.content.faithful.yes, s.content.faithful.judged)), r(after, s => s.content.faithful && pair(s.content.faithful.yes, s.content.faithful.judged))];
+  const reasons = [];
+  if (!(flags[1] < flags[0])) reasons.push('content flags not down');
+  if (!(quant[1] > quant[0])) reasons.push('quantitative use not up');
+  if (faith.some(x => x === null || x === undefined)) reasons.push('faithfulness not judged on both runs');
+  else if (faith[1] < faith[0]) reasons.push('faithfulness down');
+  return { verdict: reasons.length ? 'REVERT' : 'KEEP', reasons };
+}
+
+const runsOf = cards => [...new Set(cards.map(c => c.run))].sort((a, b) => a - b);
+function summaries(cards, setNames) {
+  const sets = Object.fromEntries(setNames.map(n => [n, summarize(cards.filter(c => c.set === n))]));
+  const spread = Object.fromEntries(setNames.filter(n => runsOf(cards.filter(c => c.set === n)).length > 1).map(n => {
+    const per = runsOf(cards.filter(c => c.set === n)).map(r => [r, summarize(cards.filter(c => c.set === n && c.run === r))]);
+    return [n, METRICS.map(([label, get]) => { const vs = per.map(([, s]) => get(s)); const nums = vs.map(v => (Array.isArray(v) ? v[0] : v)).filter(x => x !== null && x !== undefined); // counts, not rates (owner: report counts per run)
+      return nums.length ? { label, runs: per.map(([r]) => r), values: vs.map(show), min: Math.min(...nums), max: Math.max(...nums) } : null; }).filter(Boolean)];
+  }));
+  const judgedByRun = runsOf(cards).map(r => { const s = summarize(cards.filter(c => c.run === r)), pc = s.pictures.content, f = s.content.faithful;
+    return { run: r, picture: pc ? [pc.no, pc.judged] : null, faithful: f ? [f.no, f.judged] : null }; });
+  return { overall: summarize(cards), sets, spread, judgedByRun };
+}
+
+const previousRun = (root, exclude) => (existsSync(root) ? readdirSync(root).filter(d => d !== exclude && existsSync(join(root, d, 'results.json'))).sort().at(-1) : undefined);
+const baselineRun = (root, exclude) => (existsSync(root) ? readdirSync(root).filter(d => d !== exclude && existsSync(join(root, d, 'results.json'))).sort().reverse().find(d => json(join(root, d, 'results.json')).meta?.baseline) : undefined);
+
+const table = (head, rows) => [`| ${head.join(' | ')} |`, `|${head.map(() => '---').join('|')}|`, ...rows.map(r => `| ${r.join(' | ')} |`)].join('\n');
+const list = (title, xs) => (xs?.length ? `\n**${title}** (${xs.length})\n\n${xs.map(x => `- ${x}`).join('\n')}\n` : '');
+const pct = v => (v === null || v === undefined ? '-' : Array.isArray(v) ? `${v[0]}/${v[1]}` : v);
+
+export function markdown(r) {
+  const { meta, summary: S, criteria: C, deltas, judge, provenance: P } = r, setNames = Object.keys(S.sets), cols = ['overall', ...setNames], at = n => (n === 'overall' ? S.overall : S.sets[n]);
+  const out = [`# /explain card benchmark: ${meta.label}`, '', `Run \`${meta.runId}\`, scored ${meta.scored} (PT). Sets: ${setNames.map(n => `${n} (${meta.sets[n].prompts} prompts x ${meta.sets[n].runs} run${meta.sets[n].runs > 1 ? 's' : ''}, ${meta.sets[n].version.prompts} / ${meta.sets[n].version.labels})`).join('; ')}.${meta.baseline ? ' **Tagged as the release baseline.**' : ''}`, ''];
+  out.push('## Provenance', '', P ? table(['field', 'value'], Object.entries(P).map(([k, v]) => [k, typeof v === 'object' ? `\`${JSON.stringify(v)}\`` : String(v)])) : 'Not recorded for this run (imported from saved cards: no stack commit, prompt hash or model profile was captured when they were made).', '');
+  if (judge) out.push('## Judge', '', judge.dryRun ? `**Dry run: no call made.** ${judge.items} items (${Object.entries(judge.byRubric).map(([k, v]) => `${k} ${v}`).join(', ')}), ${judge.cached} already cached; a real pass would cost about US$${judge.estimate.low}-${judge.estimate.high} (${judge.estimate.inputTokens} input tokens estimated from characters, 150-600 output tokens a call) with ${judge.model}.`
+    : `Model ${judge.model}, ${judge.judges} judge(s) per item, ${judge.calls} calls + ${judge.cached} cached, US$${judge.spent} spent of the US$${judge.cap} judge cap${judge.stopped ? ' (cap reached: some items unjudged)' : ''}${judge.failed ? `, ${judge.failed} failed calls` : ''}${judge.only ? `; rubrics run: ${judge.only.join(', ')}` : ''}.`,
+  '', ...Object.entries(RUBRICS).map(([k, v]) => `- **${k}** \`${v.version}\` (hash \`${judge.rubrics[k]?.hash}\`): ${v.text}`), '');
+  else out.push('## Judge', '', 'Not run (no --judge): factual, faithfulness and picture-content rows are empty.', '');
+  if (S.judgedByRun.some(x => x.picture || x.faithful)) out.push('### Picture content and diagram faithfulness ("no" counts)', '', table(['run', 'picture shows what the question asks: no', 'share', 'diagram faithful to the sketch: no', 'share'],
+    [...S.judgedByRun.map(x => [`r${x.run}`, ...[x.picture, x.faithful].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]),
+      ['all runs', ...[S.overall.pictures.content && [S.overall.pictures.content.no, S.overall.pictures.content.judged], S.overall.content.faithful && [S.overall.content.faithful.no, S.overall.content.faithful.judged]].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]]), '');
+  out.push('## Pass criteria on record', '', C.length ? table(['set', 'criterion', 'result', 'detail'], C.map(c => [c.set, c.rule, c.ok ? 'PASS' : '**FAIL**', c.detail])) : 'None for these sets.', '');
+  if (r.richness) out.push(`Richness change rule (content flags down, quantitative use up, faithfulness not down) against ${r.richness.against}: **${r.richness.verdict}**${r.richness.reasons.length ? ` (${r.richness.reasons.join('; ')})` : ''}.`, '');
+  for (const [title, d] of [['Delta against the previous run', deltas.previous], ['Delta against the release baseline', deltas.baseline]]) {
+    out.push(`## ${title}`, '', d ? `Against \`${d.against}\`${d.comparable ? '' : ` (**not like for like**: ${d.comparable === false ? d.why : ''})`}.` : 'No such run in the results folder.', '');
+    if (d) out.push(d.rows.length ? table(['metric', 'before', 'after', 'change'], d.rows.map(x => [x.label, x.before, x.after, x.change])) : 'No metric in common.', '');
+  }
+  out.push('## All metrics (counts are count/denominator)', '', table(['metric', ...cols], METRICS.map(([label, get]) => [label, ...cols.map(n => pct(get(at(n))))]).filter(row => row.slice(1).some(v => v !== '-'))), '');
+  for (const [n, rows] of Object.entries(S.spread)) out.push(`### Spread over runs: ${n}`, '', table(['metric', ...rows[0].runs.map(r => `r${r}`), 'min-max'], rows.map(x => [x.label, ...x.values, `${x.min}-${x.max}`])), '');
+  const O = S.overall;
+  out.push('## Output tokens by diagram kind', '', O.tokens ? table(['kind in card', 'cards', 'output tokens mean', 'output tokens p90', 'ms p50', 'ms p90'], Object.entries(O.tokens.byKind).sort((a, b) => b[1].outputMean - a[1].outputMean).map(([k, v]) => [k, v.cards, v.outputMean, v.outputP90, v.msP50, v.msP90])) : 'No token counts (run bench.mjs with --persist <stack persist dir>).', '');
+  out.push('## Repairs', '', table(['cause (first attempt)', 'cards'], Object.entries(O.repairs.byCause).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, v])), '',
+    `Server corrections: ${Object.entries(O.repairs.corrections).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}. Unknown keys stripped: ${O.repairs.unknownKeysStripped ? `${O.repairs.unknownKeysStripped.events} events, ${O.repairs.unknownKeysStripped.keys} keys, on ${O.repairs.unknownKeysStripped.cards} cards` : 'not logged'}. Raw pre-correction specs: ${O.repairs.rawLogged ? `logged for ${O.repairs.rawLogged}/${O.cards.sent} cards` : 'raw: not logged (no explanation_author_raw event in the app log)'}.`, '');
+  out.push(`Slowest card: ${O.speed.slowest ? `${O.speed.slowest.at} ${O.speed.slowest.ms} ms, ${O.speed.slowest.repaired ? `repaired (${O.speed.slowest.causes.join(', ')})` : 'not repaired'}, ${O.speed.slowest.pictures} picture(s)` : '-'}.`, '');
+  out.push('## Lists', ...[list('Failed sends', O.cards.failures), list('Wrong mix', O.choice.wrongList), list('Right mix, wrong kind', O.choice.rightMixWrongKind), list('Bad kind used', O.choice.badKindUsed),
+    list('Picture missing where needed', O.pictures.missing), list('Picture where none belongs', O.pictures.violations), list('Quantitative-kind prompts', O.richness.quant.list),
+    list('Content flags', O.content.flaggedList), list('Plotted values', O.content.arithmeticList), list('Not faithful to the sketch', O.content.faithful?.list), list('Factual errors (judge)', O.factual?.list), list('Visual fallback', O.repairs.visualFallback)].filter(Boolean));
+  out.push('## Cards', '', table(['set', 'run', 'id', 'mix', 'score', 'ms', 'repaired', 'US$', 'visuals (diagram kind: items, flags; picture check)'], r.cards.map(c => [c.set, c.run, c.id, c.mix.join(' + ') || '-', c.score, c.totalMs ?? '-', c.repaired ? 'yes' : '', c.costUsd ?? '-',
+    c.diagrams.map(d => `${d.kind}: ${d.units}${d.flagged ? ' FLAG' : ''}${d.arithmetic?.errors ? ` ${d.arithmetic.errors} pts off` : ''}${d.faithful ? ` faithful=${d.faithful.verdict}` : ''}`).concat(c.pictures.map(p => `picture${p.content ? `: shows the question=${p.content.verdict}` : ''}`)).join('; ')])), '');
+  return out.join('\n');
+}
+
+const itemText = {
+  factual: (c, block) => [`Learner's question: ${c.prompt}`, `Card title: ${block.title || ''}`, String(block.body || ''),
+    (block.interactions?.terms || []).length ? `Key terms:\n${block.interactions.terms.map(t => `- ${t.label}: ${t.definition}`).join('\n')}` : '',
+    (block.interactions?.questions || []).length ? `Follow-up questions:\n${block.interactions.questions.map(q => `- ${q.text}`).join('\n')}` : ''].filter(Boolean).join('\n\n'),
+  faithful: (c, block, d) => [`Content sketch, written in advance:\n${c.sketch.map(l => `- ${l}`).join('\n')}`, `The diagram, as the renderer describes it:\n${d.describe}`, `The card's prose:\n${proseOf(block.body).trim()}`].join('\n\n'),
+  picture: (c, block, p) => [`Learner's question: ${c.prompt}`, `Card prose next to the picture:\n${[p.before, p.after].filter(Boolean).join('\n\n') || '(none)'}`,
+    `The picture, as described:\nprompt: ${p.prompt ?? ''}\nalt text: ${p.alt ?? ''}\ncaption: ${p.caption ?? ''}`].join('\n\n'),
+};
+
+// The whole pipeline over a raw dir. -> { code, runDir, results }
+export async function run(o) {
+  const out = resolve(o.out || DEFAULT_OUT), runId = o.runId || runDirName(o.label), runDir = join(out, runId);
+  mkdirSync(runDir, { recursive: true });
+  const { recs, notes } = loadRaw(o.raw), setNames = [...new Set(recs.map(r => r.set))].sort((a, b) => availableSets().indexOf(a) - availableSets().indexOf(b));
+  const defs = Object.fromEntries(setNames.map(n => [n, loadSet(n)])), blocks = new Map(), cards = [];
+  for (const rec of recs) {
+    const p = defs[rec.set].prompts.find(x => x.id === rec.id);
+    if (!p) { notes.push(`skipped ${rec.set}/r${rec.run}/${rec.id}: not in the current ${rec.set} set`); continue; }
+    const c = scoreCard(p, rec); cards.push(c); blocks.set(c, rec.block);
+  }
+  let judge = null;
+  if (o.judge) {
+    const items = [], ref = new Map(), want = r => !o.judgeOnly?.length || o.judgeOnly.includes(r);
+    const push = (key, rubric, text, target) => { if (want(rubric)) { items.push({ key, rubric, text }); ref.set(key, [rubric, target]); } };
+    for (const c of cards.filter(x => x.delivered)) {
+      const key = `${c.set}/r${c.run}/${c.id}`, b = blocks.get(c);
+      push(key, 'factual', itemText.factual(c, b), c);
+      if (c.sketch) c.diagrams.forEach((d, i) => { if (d.describe) push(`${key}#d${i}`, 'faithful', itemText.faithful(c, b, d), d); });
+      c.pictures.forEach((p, i) => push(`${key}#p${i}`, 'picture', itemText.picture(c, b, p), p));
+    }
+    judge = await judgeItems(items, { judges: o.judges || 1, cap: o.judgeCap ?? 1, call: o.call || keyTransport(), cacheFile: join(out, 'judge-cache.json'), log: o.log || console.log, dryRun: !!o.judgeDryRun });
+    for (const [key, [rubric, target]] of ref) { const v = combine(rubric, judge.results[key]); if (!v) continue; if (rubric === 'factual') target.judge = { factual: v }; else if (rubric === 'faithful') target.faithful = v; else target.content = v; }
+    if (o.judgeDryRun) writeFileSync(join(runDir, 'judge-items.json'), JSON.stringify(items, null, 1)); // exactly what a real pass would send, for inspection
+    judge = { ...judge, cap: o.judgeCap ?? 1, only: o.judgeOnly?.length ? o.judgeOnly : null, results: undefined };
+  }
+  const summary = summaries(cards, setNames), crit = setNames.flatMap(n => criteria(defs[n], cards.filter(c => c.set === n)));
+  const meta = { runId, label: o.label || 'run', scored: runDirName('').slice(0, 17), raw: resolve(o.raw), baseline: !!o.tagBaseline, notes,
+    sets: Object.fromEntries(setNames.map(n => [n, { prompts: defs[n].prompts.length, runs: runsOf(cards.filter(c => c.set === n)).length, version: defs[n].version }])) };
+  const recorded = existsSync(join(runDir, 'provenance.json')) ? json(join(runDir, 'provenance.json')) : null;
+  const provenance = judge ? { ...(recorded || { stack: 'not recorded for this run (imported saved cards)' }), judgeRubrics: judge.rubrics } : recorded;
+  const like = (other) => { const why = setNames.filter(n => !other.meta.sets?.[n] || other.meta.sets[n].prompts !== meta.sets[n].prompts || other.meta.sets[n].runs !== meta.sets[n].runs || JSON.stringify(other.meta.sets[n].version) !== JSON.stringify(meta.sets[n].version)); return { comparable: why.length === 0, why: `sets differ: ${why.join(', ')}` }; };
+  const cmp = dir => { if (!dir) return null; const prev = json(join(dir, 'results.json')); return { against: prev.meta.runId, ...like(prev), rows: delta(prev.summary.overall, summary.overall), summary: prev.summary.overall }; };
+  const prevDir = o.against ? resolve(o.against) : (p => p && join(out, p))(previousRun(out, runId)), baseDir = o.baseline ? join(out, o.baseline) : (b => b && join(out, b))(baselineRun(out, runId));
+  const deltas = { previous: cmp(prevDir), baseline: cmp(baseDir) };
+  const against = deltas.baseline || deltas.previous, richness = { against: against?.against ?? 'none', ...richnessVerdict(against?.summary, summary.overall) };
+  for (const d of Object.values(deltas)) if (d) delete d.summary;
+  const results = { meta, provenance, judge, criteria: crit, richness, deltas, summary, cards };
+  writeFileSync(join(runDir, 'results.json'), JSON.stringify(results, null, 1));
+  writeFileSync(join(runDir, 'metrics.json'), JSON.stringify({ meta, provenance, criteria: crit, richness, deltas, summary }, null, 1));
+  writeFileSync(join(runDir, 'report.md'), markdown(results));
+  const failed = crit.filter(c => !c.ok).length + (o.richnessChange && richness.verdict !== 'KEEP' ? 1 : 0);
+  return { code: failed ? 1 : 0, runDir, results };
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  const { values: a } = parseArgs({ options: { raw: { type: 'string' }, label: { type: 'string' }, out: { type: 'string' }, against: { type: 'string' }, baseline: { type: 'string' }, 'tag-baseline': { type: 'boolean' },
+    judge: { type: 'boolean' }, judges: { type: 'string' }, 'judge-cap': { type: 'string' }, 'judge-only': { type: 'string' }, 'judge-dry-run': { type: 'boolean' }, 'richness-change': { type: 'boolean' } } });
+  if (!a.raw) { console.error('usage: node scripts/explain-bench/report.mjs --raw <dir> [--label ...] [--out ...] [--against <dir>] [--baseline <run id>] [--tag-baseline] [--judge [--judge-dry-run] [--judge-only factual,faithful,picture] [--judges N] [--judge-cap 1.00]] [--richness-change]'); process.exit(2); }
+  const r = await run({ raw: a.raw, label: a.label, out: a.out, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge || a['judge-dry-run'], judgeDryRun: a['judge-dry-run'],
+    judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges: Number(a.judges || 1), judgeCap: Number(a['judge-cap'] || 1), richnessChange: a['richness-change'] });
+  for (const n of r.results.meta.notes) console.log(`note: ${n}`);
+  for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
+  const J = r.results.judge;
+  if (J) console.log(J.dryRun ? `judge dry run: ${J.items} items (${Object.entries(J.byRubric).map(([k, v]) => `${k} ${v}`).join(', ')}), ${J.cached} cached, estimate US$${J.estimate.low}-${J.estimate.high}, nothing sent` : `judge: ${J.calls} calls, ${J.cached} cached, US$${J.spent}`);
+  console.log(`RESULT ${r.code ? 'FAIL' : 'PASS'} report=${join(r.runDir, 'report.md')}`);
+  process.exit(r.code);
+}
