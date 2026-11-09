@@ -126,7 +126,7 @@ export const additionalCorrections = [
   }, retryWords, retryMessage),
 
   // Batch-1 review card 01 (public-key encryption), as the model wrote it: Bob's own step is a message from bob to bob.
-  pair('sequence-self-step-decrypt', publicKey, ['messages', 2], /cannot send a message to itself/, d => {
+  pair('sequence-self-step-decrypt', publicKey, ['messages', 2], /self-message.*ordinary/, d => {
     d.messages[1].label = 'Encrypt with public key';
     d.messages.push({ from: 'bob', to: 'bob', label: 'Decrypt with private key' });
   }, publicKeyWords, [[['messages', 0, 'label'], 'Share public key']]),
