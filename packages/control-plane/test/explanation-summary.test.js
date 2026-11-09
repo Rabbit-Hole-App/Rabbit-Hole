@@ -11,7 +11,9 @@ const PATH = '/api/learn/explanation-summary';
 const KEYS = { SMALL_ENV: 'test', FIREWORKS_API_KEY: 'fw-synthetic', GEMINI_API_KEY: 'gm-synthetic' };
 const access = { org: 'org-1', user_id: 'user-1', email: 'owner@example.com' };
 const BODY = { app: 'canvas-1', title: 'Why coffee cools', body: 'A hot cup loses heat faster because the gap to the room is larger.\n\n```rh-diagram\n{"kind":"flow"}\n```\n\nAs it nears room temperature the gap shrinks.' };
-const call = (body, env = KEYS, deps = { authorize: async () => access }, init = {}) => explanationSummaryRoute(PATH, new Request(`https://x.test${PATH}`, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body), ...init }), env, deps);
+let cardNumber = 0; // each call is a new card unless the test names its id: the route answers one model call per (canvas, card id)
+const withId = body => (body && typeof body === 'object' && !Array.isArray(body) && !('id' in body) ? { ...body, id: `card-${++cardNumber}` } : body);
+const call = (body, env = KEYS, deps = { authorize: async () => access }, init = {}) => explanationSummaryRoute(PATH, new Request(`https://x.test${PATH}`, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(withId(body)), ...init }), env, deps);
 const reply = (summary, usage = { prompt_tokens: 120, completion_tokens: 60 }) => ({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ summary }) } }], usage });
 
 // Global fetch for one test; answers are given in order (the last repeats): an object is a 200 body, a number an HTTP status.
@@ -118,4 +120,48 @@ test('the route is a usage feature of its own, so its spend is admitted for the 
   assert.equal(usageFeature('GET', PATH), null);
   assert.ok(FEATURES.includes('explanation_summary'));
   assert.match(readFileSync(new URL('../src/learn-usage.js', import.meta.url), 'utf8'), /const FREE_FEATURES = new Set\([^)]*'explanation_summary'/);
+});
+
+test('one model call per card id (owner 2026-11-08): a second request for the same canvas and card returns the stored summary, a different card or canvas asks again, a failed call stores nothing', async t => {
+  const seen = providers(t, reply('The first and only summary of this card.'), reply('The summary of the other card.'));
+  const same = { ...BODY, id: 'once-card' };
+  assert.deepEqual(await (await call(same)).json(), { summary: 'The first and only summary of this card.' });
+  assert.deepEqual(await (await call({ ...same, title: 'A different title', body: 'Different prose now.' })).json(), { summary: 'The first and only summary of this card.' }, 'stored text, whatever the body says');
+  assert.equal(seen.sent.length, 1, 'the second request made no model call');
+  assert.equal(seen.events().at(-1).outcome, 'stored');
+  assert.deepEqual(await (await call({ ...same, id: 'other-card' })).json(), { summary: 'The summary of the other card.' });
+  assert.equal(seen.sent.length, 2);
+  const failing = providers(t, 500);
+  assert.equal((await (await call({ ...BODY, id: 'failed-card' })).json()).summary, null);
+  const retry = failing.sent.length;
+  await call({ ...BODY, id: 'failed-card' });
+  assert.ok(failing.sent.length > retry, 'a failed call stored nothing, so the card may ask again');
+});
+
+test('two requests in flight for one card share one model call; the card id is required and plain', async t => {
+  const seen = providers(t, reply('Shared by both requests.'));
+  const [a, b] = await Promise.all([call({ ...BODY, id: 'racing' }), call({ ...BODY, id: 'racing' })]);
+  assert.deepEqual([await a.json(), await b.json()], [{ summary: 'Shared by both requests.' }, { summary: 'Shared by both requests.' }]);
+  assert.equal(seen.sent.length, 1);
+  for (const id of [undefined, '', 'a b', 'x'.repeat(65), 7]) assert.equal((await call({ ...BODY, id })).status, 400, String(id));
+});
+
+test('only the canvas owner is answered: the route asks the board authorizer for the canvas named in the request, and a refusal (403/404) reaches the caller before any model call', async t => {
+  const seen = providers(t, reply('Never written.'));
+  const asked = [];
+  for (const status of [403, 404]) {
+    const answer = await call({ ...BODY, id: 'not-mine' }, KEYS, { authorize: async (req, env, app) => { asked.push(app); return Response.json({ error: 'No access' }, { status }); } });
+    assert.equal(answer.status, status);
+  }
+  assert.deepEqual(asked, ['canvas-1', 'canvas-1']);
+  assert.equal(seen.sent.length, 0, 'no model call, nothing stored');
+  const owner = await call({ ...BODY, id: 'not-mine' });
+  assert.equal(owner.status, 200, 'the same card id is still unanswered for the real owner');
+  assert.equal(seen.sent.length, 1);
+});
+
+test('a summary is never billed to the learner: the feature is FREE_FEATURES, the model call is still admitted and recorded under its own category', () => {
+  const source = readFileSync(new URL('../src/learn-usage.js', import.meta.url), 'utf8'), free = source.match(/const FREE_FEATURES = new Set\(([^)]*)\)/)?.[1] ?? '';
+  assert.ok(free.includes("'explanation_summary'"), 'billing default off until the owner says otherwise');
+  assert.match(readFileSync(new URL('../src/explanation-summary.js', import.meta.url), 'utf8'), /category: 'explanation_summary'/);
 });

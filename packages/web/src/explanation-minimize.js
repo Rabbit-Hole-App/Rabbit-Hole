@@ -46,7 +46,7 @@ export async function requestSummary(post, { app, block }) {
   const input = summaryInput(block);
   if (!input || !app) return null;
   try {
-    const answer = await post('/api/learn/explanation-summary', { method: 'POST', body: JSON.stringify({ app, ...input }) });
+    const answer = await post('/api/learn/explanation-summary', { method: 'POST', body: JSON.stringify({ app, id: String(block.id), ...input }) });
     return typeof answer?.summary === 'string' && answer.summary.trim() ? capSummary(answer.summary) : null;
   } catch { return null; }
 }
