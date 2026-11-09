@@ -28,10 +28,10 @@ function attentionWeights(title, caption) {
 
 function valuesStack(title, dimensions) {
   return spec({
-    kind: 'block-stack', title,
+    kind: 'block-stack', orientation: 'horizontal', title,
     blocks: sentence.map((word, i) => ({
       id: String.fromCharCode(97 + i),
-      label: `${word}${sentence.indexOf(word) === i ? '' : ' again'} at ${weights[i]}`,
+      label: `${word}${sentence.indexOf(word) === i ? '' : ' again'} ${weights[i]}`,
       diagram: {
         kind: 'tensor',
         tensor: { rows: 1, columns: shownHeadWidth, dimensions, values: head.values[i] },
@@ -110,7 +110,7 @@ export const transformerAttentionReferences = [
       'weighted sum of the value vectors',
     ],
     useWhen: 'The first head multiplies each value vector by its weight and adds corresponding entries. Show the result as the second visual.',
-    spec: valuesStack('Add weighted values for sat', String(headWidth)),
+    spec: valuesStack('Weighted values for sat', String(headWidth)),
     detailSpec: outputStrip('Weighted value output', String(headWidth),
       `Multiply each strip by its weight and add corresponding entries. Each strip shows two of ${headWidth} entries.`),
     depths: {
@@ -120,7 +120,7 @@ export const transformerAttentionReferences = [
           'Give each pair its share and add the first entries together, then the second entries together.'),
       },
       deep: {
-        spec: valuesStack('Add weighted values for sat', String(headWidth)),
+        spec: valuesStack('Weighted values for sat', String(headWidth)),
         detailSpec: outputStrip('First head output for sat', String(headWidth),
           String.raw`Sum $z=\sum_j a_j v_j$ using the displayed weights and value entries. Two entries are shown out of ${headWidth}.`),
       },

@@ -2,11 +2,12 @@
   "version": 1,
   "diagram": {
     "kind": "block-stack",
+    "orientation": "horizontal",
     "title": "Mix values for sat",
     "blocks": [
       {
         "id": "a",
-        "label": "the at 0.052",
+        "label": "the 0.052",
         "diagram": {
           "kind": "tensor",
           "tensor": {
@@ -22,7 +23,7 @@
       },
       {
         "id": "b",
-        "label": "cat at 0.65",
+        "label": "cat 0.65",
         "diagram": {
           "kind": "tensor",
           "tensor": {
@@ -38,7 +39,7 @@
       },
       {
         "id": "c",
-        "label": "sat at 0.192",
+        "label": "sat 0.192",
         "diagram": {
           "kind": "tensor",
           "tensor": {
@@ -54,7 +55,7 @@
       },
       {
         "id": "d",
-        "label": "on at 0.059",
+        "label": "on 0.059",
         "diagram": {
           "kind": "tensor",
           "tensor": {
@@ -70,7 +71,7 @@
       },
       {
         "id": "e",
-        "label": "the again at 0.02",
+        "label": "the again 0.02",
         "diagram": {
           "kind": "tensor",
           "tensor": {
@@ -86,7 +87,7 @@
       },
       {
         "id": "f",
-        "label": "mat at 0.027",
+        "label": "mat 0.027",
         "diagram": {
           "kind": "tensor",
           "tensor": {

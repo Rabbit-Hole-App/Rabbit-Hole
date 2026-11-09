@@ -21,21 +21,22 @@ The QKV and attention values illustrate the mechanisms. The Gemma dimensions com
 - `tensor` shows up to eight visible cells and a dimension label of up to 12 characters. Supply values for every visible cell or omit them for a shape-only strip. The same payload can appear in flow nodes, relationship nodes, transformation items, and block stacks.
 - `token-links` accepts two to eight tokens in each row and up to three query panels. The parser checks weights in `[0, 1]` and checks the sum against `1 ± 0.02` when normalized. The largest arrow carries a numeric badge.
 - `block-stack` accepts two to six blocks, bounded inset flows, tensors or layers, and renderer-owned skip lanes. `variant`, `dims`, `repeat` and `repeatTo` describe the block. Up to two inputs can feed a block, and add or multiply glyphs mark joins. Comparison children can mark FFN blocks `changed`.
+- `orientation: "horizontal"` puts two to six independent label or tensor blocks in one left-to-right row. The existing viewport scrolls when the row exceeds the card width. Residuals, merge operators, side inputs, callouts, spanning repeat groups, and flow or layer children use the vertical layout.
 - `callouts` attach up to four notes to block IDs. At 320 px the notes become a numbered list. A `detail` value names a separate visual by its one-based reading order. If the server drops a visual, remaining detail markers keep their target or disappear with it.
 
 The [preview manifest](illustrations/manifest.json) lists each request width, actual SVG width and height. The 408 px exports preserve native text in the existing scroll viewport when the diagram needs more room. Gemma uses margin notes at 408, its 598 px natural width, and 960. [408 px](illustrations/ml-gemma-decoder-stack-detailed/408.svg) · [960 px](illustrations/ml-gemma-decoder-stack-detailed/960.svg) · [320 px minimized tile](illustrations/ml-gemma-decoder-stack-detailed/320.svg)
 
 | Schema surface | Serialized characters | Change |
 | --- | ---: | ---: |
-| Full TutorDiagram | 97,307 | +10,888 |
-| Full explanation author tool | 98,002 | +10,888 |
+| Full TutorDiagram | 97,437 | +11,018 |
+| Full explanation author tool | 98,132 | +11,018 |
 | Unsteered fast-author core | 10,526 | 0 |
 | Legacy visual panels bundle | 29,594 | 0 |
 | Legacy visual states bundle | 48,862 | 0 |
 | QKV transformation bundle | 11,856 | +1,330 vs core |
 | Token links bundle | 11,359 | +833 vs core |
-| Block stack bundle | 13,912 | +3,386 vs core |
-| Architecture comparison bundle | 32,980 | +3,386 vs legacy panels |
+| Block stack bundle | 13,977 | +3,451 vs core |
+| Architecture comparison bundle | 33,045 | +3,451 vs legacy panels |
 | MoE flow bundle | 10,701 | +175 vs core |
 
 All 16 legacy fast-author flag combinations serialize identically to the base.
@@ -49,12 +50,12 @@ These counts come from the JSON request built for `gemini-3.5-flash-lite` throug
 | Core with no illustration reference or requirement | 129 | No | No | No |
 | Explicit tensor | 139 | Yes | No | No |
 | Weighted token links | 138 | No | Yes | No |
-| Encoder, Llama, or Gemma stack | 170 | No | No | Yes |
-| All three explicitly requested | 189 | Yes | Yes | Yes |
+| Encoder, Llama, or Gemma stack | 171 | No | No | Yes |
+| All three explicitly requested | 190 | Yes | Yes | Yes |
 | QKV transformation on its own | 145 | No | No | No |
 | Dense vs MoE comparison on its own | 129 | No | No | No |
 
-The QKV bundle exposes the inline tensor payload inside transformation items. Gemini reduces comparison and visual transformation to their list forms, which removes nested block-stacks from the dense-vs-MoE example. A broad schema that exceeds the limit is reduced again, keeping new standalone kinds only when the request explicitly requires them. Measured against the full tool schema, the reduced request has 296 properties with no named new kinds and 356 with all three named. These are offline schema checks.
+The QKV bundle exposes the inline tensor payload inside transformation items. Gemini reduces comparison and visual transformation to their list forms, which removes nested block-stacks from the dense-vs-MoE example. A broad schema that exceeds the limit is reduced again, keeping new standalone kinds only when the request explicitly requires them. Measured against the full tool schema, the reduced request has 296 properties with no named new kinds and 357 with all three named. These are offline schema checks.
 
 The [walkthrough handoff](illustrated-transformer-walkthrough.md) records the causal-mask heatmap constraint and the ten teaching examples.
 
@@ -78,15 +79,16 @@ The gallery now has 24 kinds. All three new shapes have Brief, Balanced and Deta
 
 Set `role` on a block or on an inset flow step written as `{ label, role }`. Norm uses the neutral inset, attention uses blue, feed-forward uses warm, and embedding and output use green. Output has a stronger green outline. `changed` uses the established blue emphasis. Omitted block roles and string steps retain their previous paint.
 
-Component labels are noun phrases, including role-tagged steps in an inset. Untagged inset flow steps and ordinary flows use verb-first action labels. Captions wrap, and captions with maths have an SVG text fallback for viewers without XHTML support.
+Component labels are noun phrases, including role-tagged steps in an inset. Untagged inset flow steps and ordinary flows use verb-first action labels. Captions wrap. Viewers without XHTML support can display the full caption as SVG text, including the formula source.
 
 Detailed Gemma names the four pre/post RMSNorm stages, the sliding-window and GQA attention schedule, and the gated GELU FFN. Detailed Llama names its two pre-RMSNorm stages, causal grouped-query attention, and SwiGLU FFN. Balanced puts short plain-language glosses beside the component names.
 
 ## Offline verification
 
 - All 14 learner prompts and paraphrases select their intended first reference in the prepared fast-author request. The existing 42 originals and 210 paraphrases return the same selector results as the base.
-- The tracked set has 808 fingerprints. Compared with `9c56c7307`, 120 were added, 28 changed, and 660 matched. The content-only comparison changed 19 existing fingerprints. The role pass changed 31 against those content renders, with identical dimensions in all 31. Those role changes cover nine encoder renders, nine Llama renders, and 13 Gemma renders, including the 320 px ledger.
-- The focused suite covers schema bounds, content contracts, renderer paint, and detail indices after visual removal. The preview exports include 63 specs and 190 SVGs.
+- Compared with `b269c371`, 214 existing fingerprints changed and 594 matched. The component and caption pass changed 199. The row pass changed 27 against the content-only renders and added nine 320 px captures. The tracked set has 817 fingerprints.
+- The preview exports include 63 specs and 199 SVGs. The exact Gemma name fits the 320 px ledger. Inkscape renders the entire mixed text and formula caption at the original 320 px embedding width. All 1,020 focused tests and the web build passed.
+
 
 Regenerate the preview set with `node packages/web/scripts/illustration-previews.mjs /tmp/rh-illustrations`. Update intended fingerprint changes with `UPDATE_TUTOR_SVG_SNAPSHOTS=1 node --test packages/web/src/tutor-diagrams/svg-snapshots.test.mjs`.
 

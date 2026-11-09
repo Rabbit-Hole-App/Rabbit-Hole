@@ -6,24 +6,24 @@
     "blocks": [
       {
         "id": "an",
-        "label": "Pre-RMSNorm 1 (rescale input)",
+        "label": "Pre-RMSNorm 1 (input scaling)",
         "role": "norm",
         "repeat": 32,
         "repeatTo": "ff"
       },
       {
         "id": "att",
-        "label": "Causal grouped-query attention (share key and value heads)",
+        "label": "Causal grouped-query attention (shared key and value heads)",
         "role": "attention"
       },
       {
         "id": "fn",
-        "label": "Pre-RMSNorm 2 (rescale before feed-forward)",
+        "label": "Pre-RMSNorm 2 (feed-forward input scaling)",
         "role": "norm"
       },
       {
         "id": "ff",
-        "label": "SwiGLU FFN (update each token)",
+        "label": "SwiGLU FFN (per-token update)",
         "role": "feedforward"
       }
     ],

@@ -37,6 +37,13 @@ const architecture = {
   edges: [{ kind: 'residual', from: 'attention', to: 'attention' }, { kind: 'residual', from: 'attention', to: 'mlp', merge: 'multiply' }],
   callouts: [{ node: 'attention', label: 'Attention heads', value: '8' }],
 };
+const tokenRow = {
+  kind: 'block-stack', orientation: 'horizontal', title: 'Token embeddings',
+  blocks: ['the', 'cat', 'sat', 'on', 'the', 'mat'].map((word, index) => ({
+    id: `token-${index}`, label: word,
+    diagram: { kind: 'tensor', tensor: { rows: 1, columns: 4, dimensions: '512' } },
+  })),
+};
 
 function draw(diagram, requestedWidth) {
   const scene = layoutBlockStack(shape.parse(diagram), requestedWidth, (child, width) =>
@@ -201,6 +208,55 @@ test('a simple block-stack can fit in each half of a 408-pixel comparison', () =
   assert.ok(blockStackNaturalWidth(architecture) > 320 && blockStackNaturalWidth(architecture) <= 960);
 });
 
+test('horizontal token blocks keep reading order and native cell size at every width', () => {
+  const natural = blockStackNaturalWidth(shape.parse(tokenRow));
+  assert.ok(natural > 408 && natural <= 960);
+  for (const requested of [320, 408, natural, 960]) {
+    const scene = draw(tokenRow, requested);
+    assert.equal(scene.width, Math.max(requested, natural));
+    const blocks = findAll(scene.elements, 'data-block-stack-node');
+    assert.deepEqual(blocks.map(block => block.props['data-block-stack-node']), tokenRow.blocks.map(block => block.id));
+    const rects = blocks.map(block => block.props.children[0].props);
+    for (const [index, rect] of rects.entries()) {
+      assert.equal(rect.y, rects[0].y);
+      assert.ok(rect.x >= 0 && rect.x + rect.width <= scene.width);
+      if (index) assert.ok(rect.x > rects[index - 1].x + rects[index - 1].width);
+    }
+    const cells = findAll(scene.elements, 'data-tutor-tensor-cell');
+    assert.equal(cells.length, 24);
+    assert.ok(cells.every(cell => cell.props.width >= 24));
+    assert.doesNotMatch(scene.svg, /<polyline|data-tutor-arrowhead/);
+  }
+  assert.equal(describeBlockStack(tokenRow)[0], 'the · cat · sat · on · the · mat');
+  const weighted = { ...tokenRow, blocks: tokenRow.blocks.map((block, index) => index === 2
+    ? { ...block, label: 'sat at weight 0.17' } : block) };
+  const children = findAll(draw(weighted, 320).elements, 'data-block-stack-child');
+  const starts = children.map(child => child.props.transform.match(/[\d.]+/g).map(Number)[1]);
+  assert.ok(starts.every(y => y === starts[0]), 'wrapped labels share a heading height above the tensor strips');
+});
+
+test('horizontal block stacks reject vertical topology and retain an oversized native width', () => {
+  const { blocks } = tokenRow;
+  for (const [diagram, path] of [
+    [{ edges: [{ kind: 'residual', from: 'token-0', to: 'token-0' }] }, ['edges']],
+    [{ callouts: [{ node: 'token-0', label: 'Token' }] }, ['callouts']],
+    ...[
+      [{ merge: 'add' }, 'merge'],
+      [{ inputs: [{ label: 'Side input' }] }, 'inputs'],
+      [{ repeat: 2, repeatTo: 'token-1' }, 'repeatTo'],
+      [{ diagram: { kind: 'flow', steps: ['First', 'Second'] } }, 'diagram'],
+    ].map(([fields, key]) => [{ blocks: [{ ...blocks[0], ...fields }, ...blocks.slice(1)] }, ['blocks', 0, key]]),
+  ]) {
+    const result = shape.safeParse({ ...tokenRow, ...diagram });
+    assert.ok(result.error?.issues.some(issue => JSON.stringify(issue.path) === JSON.stringify(path)), JSON.stringify(path));
+  }
+  const oversized = { ...tokenRow, blocks: blocks.map(block => ({ ...block, diagram: { kind: 'tensor',
+    tensor: { rows: 1, columns: 8, dimensions: '512', values: Array(8).fill(123456.789) },
+  } })) };
+  const natural = blockStackNaturalWidth(oversized);
+  assert.ok(natural > 960);
+  assert.equal(draw(oversized, 960).width, natural);
+});
 
 test('a compact tensor is drawn inside its block without shrinking cells', () => {
   const tensor = { rows: 1, columns: 4, dimensions: '1 × 4', name: 'Query vector', values: [1, -2, 3, 4], role: 'input' };

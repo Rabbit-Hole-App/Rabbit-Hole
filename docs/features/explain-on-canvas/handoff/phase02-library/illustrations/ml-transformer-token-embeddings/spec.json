@@ -2,6 +2,7 @@
   "version": 1,
   "diagram": {
     "kind": "block-stack",
+    "orientation": "horizontal",
     "title": "Token embeddings for the cat sat on the mat",
     "blocks": [
       {
@@ -12,13 +13,7 @@
           "tensor": {
             "rows": 1,
             "columns": 4,
-            "dimensions": "512",
-            "values": [
-              0.1,
-              0.2,
-              0.2,
-              0.4
-            ]
+            "dimensions": "512"
           }
         }
       },
@@ -42,13 +37,7 @@
           "tensor": {
             "rows": 1,
             "columns": 4,
-            "dimensions": "512",
-            "values": [
-              0.2,
-              -0.1,
-              0.7,
-              0.4
-            ]
+            "dimensions": "512"
           }
         }
       },
@@ -72,13 +61,7 @@
           "tensor": {
             "rows": 1,
             "columns": 4,
-            "dimensions": "512",
-            "values": [
-              0.1,
-              0.2,
-              0.2,
-              0.4
-            ]
+            "dimensions": "512"
           }
         }
       },
@@ -95,6 +78,6 @@
         }
       }
     ],
-    "caption": "Four entries shown. Both “the” tokens start with the same row."
+    "caption": "Four cells show the shape of each embedding. Both “the” tokens start with the same embedding."
   }
 }

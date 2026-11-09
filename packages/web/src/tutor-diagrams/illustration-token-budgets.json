@@ -114,23 +114,23 @@
     },
     "ml-transformer-token-embeddings": {
       "balanced": {
-        "tokens": 243,
-        "sha256": "b1fa2aa7eb1761558d98196288eb6d302af3e4404a6aa3ae46371717e73da03d",
-        "authorPacketTokens": 297
+        "tokens": 247,
+        "sha256": "ddff613fdebf919bf29fa2103169b11f4d082faee95802d0b12b71dc7abb9ac4",
+        "authorPacketTokens": 301
       },
       "brief": {
-        "tokens": 243,
-        "sha256": "5d0cafa48a7894f1e4bd5a77bb521d156faedaa53a5508b1ef03d593c8aba959",
-        "authorPacketTokens": 297
+        "tokens": 247,
+        "sha256": "f754bcc1804bb8fb80f21458761405828d2049a9276d399ae12d8ec233f85b86",
+        "authorPacketTokens": 301
       },
       "detailed": {
-        "tokens": 504,
-        "sha256": "b64dd5905c08bdbb1467731cf4e1181b8ad935a8caae7b3f1fb421df19667111",
-        "authorPacketTokens": 558,
+        "tokens": 508,
+        "sha256": "99b3dceddf78f46389ac29d058a87b40b2a52b95a503cad286249a2967a56a76",
+        "authorPacketTokens": 562,
         "visuals": [
           {
-            "tokens": 242,
-            "sha256": "a22509b109f70ec14d359e060a09edf767f8a1142bff54e3141c84e5281f4bce"
+            "tokens": 246,
+            "sha256": "1ea2e6f29d13b17605ea38e8b7fa93115338775728ec1de0211c0930f820de54"
           },
           {
             "tokens": 260,
@@ -175,13 +175,13 @@
     },
     "ml-transformer-weighted-values": {
       "balanced": {
-        "tokens": 369,
-        "sha256": "46efced2d06f13ca926aeec9f035e924d1384a16757ca2ca36cb5855e925db2a",
-        "authorPacketTokens": 410,
+        "tokens": 367,
+        "sha256": "74ff1c7888fa096dd8c1a01bf4c372a7b9be5ec7561aa1fb05c545cf0e717065",
+        "authorPacketTokens": 408,
         "visuals": [
           {
-            "tokens": 299,
-            "sha256": "7fb64bcdd4c10e143b713b836f7eba929c9d499a4dedbce1f28538788e01ce21"
+            "tokens": 297,
+            "sha256": "350f2133f27a19ad81c6d49b2847f76742f58a730621fad424499af7bba3afb0"
           },
           {
             "tokens": 70,
@@ -190,13 +190,13 @@
         ]
       },
       "brief": {
-        "tokens": 366,
-        "sha256": "45f2aa2da860c4e55098ec6ad4dda15158b67136e6f97857f124fc5dce9e6940",
-        "authorPacketTokens": 407,
+        "tokens": 364,
+        "sha256": "240775efc4cc41737ceabe0a13fa5560e6e3e1ccc17ee683960884ffafa8dc4d",
+        "authorPacketTokens": 405,
         "visuals": [
           {
-            "tokens": 298,
-            "sha256": "c55e73b1548d120dec0c21613206d511fb4f0ebeeb55498f244fe029b2213836"
+            "tokens": 296,
+            "sha256": "48d42c445226cb5ee01aaa16d58a33688a25526264293dbcb7e01b347f7bbc91"
           },
           {
             "tokens": 68,
@@ -205,13 +205,13 @@
         ]
       },
       "detailed": {
-        "tokens": 379,
-        "sha256": "5875f8e508465b84cb417a026c4d1f939a6316d79ff6692e84fa7a08f82a434d",
-        "authorPacketTokens": 420,
+        "tokens": 377,
+        "sha256": "e428279753d1f480838cf43a78a509f1d1a74f736ae5d6e84fe62766917d0eaf",
+        "authorPacketTokens": 418,
         "visuals": [
           {
-            "tokens": 299,
-            "sha256": "7fb64bcdd4c10e143b713b836f7eba929c9d499a4dedbce1f28538788e01ce21"
+            "tokens": 297,
+            "sha256": "350f2133f27a19ad81c6d49b2847f76742f58a730621fad424499af7bba3afb0"
           },
           {
             "tokens": 80,
@@ -333,37 +333,37 @@
     },
     "ml-transformer-vocabulary-softmax": {
       "balanced": {
-        "tokens": 207,
-        "sha256": "7eebef8665f96686f674bee5388e4a8b2f2bc6253c283f72f184356a1edc9150",
-        "authorPacketTokens": 256,
+        "tokens": 379,
+        "sha256": "355a2f5005ccc6a583f807df17044d7f5eb13b3d66d196c52c23c764f87287cb",
+        "authorPacketTokens": 435,
         "visuals": [
           {
             "tokens": 104,
             "sha256": "a79fef3886d5fccbcdf5188859f5a3e71ccd08b9c108c25947e421a383eabca8"
           },
           {
-            "tokens": 101,
-            "sha256": "ec7793961417c90e2c3f6cee1ced6967df10b2692388739ad42fdeeb3e631cdd"
+            "tokens": 273,
+            "sha256": "0944da21e91fa0412abdaf721ef63f3123f6f6c97136e64d561c8486ee523d81"
           }
         ]
       },
       "brief": {
-        "tokens": 108,
-        "sha256": "d318e6e6109f3a57a0aed9d1b757c30ab40c2d2b1c37fb807f8cb3542181f6df",
-        "authorPacketTokens": 156
+        "tokens": 273,
+        "sha256": "6c8f39c6c6590ad6fa74f32eb01e7c8524b311d32ac7008a56fffd066e38f866",
+        "authorPacketTokens": 328
       },
       "detailed": {
-        "tokens": 253,
-        "sha256": "e086ff492b4414c0617b098b76e0cb33890c662fa1b9f57eb2fa906d315372e7",
-        "authorPacketTokens": 302,
+        "tokens": 414,
+        "sha256": "46f5902e7ea01ae41a3bd15dda89493121306585e215e31c966e7be7c20b9093",
+        "authorPacketTokens": 470,
         "visuals": [
           {
             "tokens": 114,
             "sha256": "c6215916833048ae837f8ddb68d52876383685c6abc18c0a549d9c569c5c1c34"
           },
           {
-            "tokens": 137,
-            "sha256": "449838875b9e8918ce00fb5945fec9940eceddc713645df2f07bb0491c7c41ac"
+            "tokens": 298,
+            "sha256": "fc5de154ad5e41eb02b8ce2b5566a6d85c20a6a6ba44bbd7e2452eff18c0df1c"
           }
         ]
       }

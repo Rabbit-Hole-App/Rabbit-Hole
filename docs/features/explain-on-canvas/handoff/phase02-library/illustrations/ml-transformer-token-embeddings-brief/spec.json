@@ -2,7 +2,8 @@
   "version": 1,
   "diagram": {
     "kind": "block-stack",
-    "title": "A row of numbers for each word",
+    "orientation": "horizontal",
+    "title": "One strip for each word",
     "blocks": [
       {
         "id": "t0",

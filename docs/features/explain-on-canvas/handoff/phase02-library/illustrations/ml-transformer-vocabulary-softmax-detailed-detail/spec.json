@@ -1,33 +1,101 @@
 {
   "version": 1,
   "diagram": {
-    "kind": "bar-chart",
-    "title": "Softmax over the toy vocabulary",
-    "caption": "$p_i=e^{z_i}/\\sum_{j=1}^{6}e^{z_j}$. The winner is on, with $\\log p_{\\mathrm{on}}\\approx -0.766$.",
-    "bars": [
+    "kind": "block-stack",
+    "orientation": "horizontal",
+    "title": "Vocabulary probabilities",
+    "caption": "$p_i=e^{z_i}/\\sum_j e^{z_j}$. “on” wins. $\\log p_{\\mathrm{on}}\\approx -0.766$.",
+    "blocks": [
       {
+        "id": "the",
         "label": "the",
-        "value": 0.134
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Probability",
+            "values": [
+              0.134
+            ]
+          }
+        }
       },
       {
+        "id": "cat",
         "label": "cat",
-        "value": 0.073
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Probability",
+            "values": [
+              0.073
+            ]
+          }
+        }
       },
       {
+        "id": "sat",
         "label": "sat",
-        "value": 0.178
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Probability",
+            "values": [
+              0.178
+            ]
+          }
+        }
       },
       {
+        "id": "on",
         "label": "on",
-        "value": 0.465
+        "role": "output",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Probability",
+            "values": [
+              0.465
+            ]
+          }
+        }
       },
       {
+        "id": "mat",
         "label": "mat",
-        "value": 0.1
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Probability",
+            "values": [
+              0.1
+            ]
+          }
+        }
       },
       {
+        "id": "slept",
         "label": "slept",
-        "value": 0.05
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Probability",
+            "values": [
+              0.05
+            ]
+          }
+        }
       }
     ]
   }

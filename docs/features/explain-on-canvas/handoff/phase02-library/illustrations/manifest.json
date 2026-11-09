@@ -145,17 +145,17 @@
       "408": {
         "requested": 408,
         "width": 408,
-        "height": 505
+        "height": 523
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 488
+        "height": 506
       },
       "natural": {
         "requested": 331,
         "width": 331,
-        "height": 505
+        "height": 523
       }
     }
   },
@@ -165,17 +165,17 @@
       "408": {
         "requested": 408,
         "width": 408,
-        "height": 456
+        "height": 488
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 422
+        "height": 454
       },
       "natural": {
         "requested": 331,
         "width": 331,
-        "height": 456
+        "height": 488
       }
     }
   },
@@ -285,17 +285,17 @@
       "408": {
         "requested": 408,
         "width": 408,
-        "height": 367
+        "height": 351
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 367
+        "height": 351
       },
       "natural": {
         "requested": 320,
         "width": 320,
-        "height": 367
+        "height": 351
       }
     }
   },
@@ -305,22 +305,22 @@
       "320": {
         "requested": 320,
         "width": 320,
-        "height": 1468
+        "height": 1401
       },
       "408": {
         "requested": 408,
         "width": 598,
-        "height": 996
+        "height": 930
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 996
+        "height": 930
       },
       "natural": {
         "requested": 598,
         "width": 598,
-        "height": 996
+        "height": 930
       }
     }
   },
@@ -367,60 +367,75 @@
   "ml-transformer-token-embeddings": {
     "kind": "block-stack",
     "renders": {
+      "320": {
+        "requested": 320,
+        "width": 822,
+        "height": 196
+      },
       "408": {
         "requested": 408,
-        "width": 408,
-        "height": 835
+        "width": 822,
+        "height": 196
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 796
+        "height": 196
       },
       "natural": {
-        "requested": 320,
-        "width": 320,
-        "height": 835
+        "requested": 822,
+        "width": 822,
+        "height": 196
       }
     }
   },
   "ml-transformer-token-embeddings-brief": {
     "kind": "block-stack",
     "renders": {
+      "320": {
+        "requested": 320,
+        "width": 822,
+        "height": 196
+      },
       "408": {
         "requested": 408,
-        "width": 408,
-        "height": 813
+        "width": 822,
+        "height": 196
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 796
+        "height": 196
       },
       "natural": {
-        "requested": 320,
-        "width": 320,
-        "height": 852
+        "requested": 822,
+        "width": 822,
+        "height": 196
       }
     }
   },
   "ml-transformer-token-embeddings-detailed": {
     "kind": "block-stack",
     "renders": {
+      "320": {
+        "requested": 320,
+        "width": 822,
+        "height": 196
+      },
       "408": {
         "requested": 408,
-        "width": 408,
-        "height": 835
+        "width": 822,
+        "height": 196
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 796
+        "height": 196
       },
       "natural": {
-        "requested": 320,
-        "width": 320,
-        "height": 835
+        "requested": 822,
+        "width": 822,
+        "height": 196
       }
     }
   },
@@ -567,20 +582,25 @@
   "ml-transformer-weighted-values": {
     "kind": "block-stack",
     "renders": {
+      "320": {
+        "requested": 320,
+        "width": 786,
+        "height": 183
+      },
       "408": {
         "requested": 408,
-        "width": 408,
-        "height": 765
+        "width": 786,
+        "height": 183
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 765
+        "height": 183
       },
       "natural": {
-        "requested": 320,
-        "width": 320,
-        "height": 765
+        "requested": 786,
+        "width": 786,
+        "height": 183
       }
     }
   },
@@ -607,20 +627,25 @@
   "ml-transformer-weighted-values-brief": {
     "kind": "block-stack",
     "renders": {
+      "320": {
+        "requested": 320,
+        "width": 786,
+        "height": 183
+      },
       "408": {
         "requested": 408,
-        "width": 408,
-        "height": 765
+        "width": 786,
+        "height": 183
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 765
+        "height": 183
       },
       "natural": {
-        "requested": 320,
-        "width": 320,
-        "height": 765
+        "requested": 786,
+        "width": 786,
+        "height": 183
       }
     }
   },
@@ -647,20 +672,25 @@
   "ml-transformer-weighted-values-detailed": {
     "kind": "block-stack",
     "renders": {
+      "320": {
+        "requested": 320,
+        "width": 786,
+        "height": 183
+      },
       "408": {
         "requested": 408,
-        "width": 408,
-        "height": 765
+        "width": 786,
+        "height": 183
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 765
+        "height": 183
       },
       "natural": {
-        "requested": 320,
-        "width": 320,
-        "height": 765
+        "requested": 786,
+        "width": 786,
+        "height": 183
       }
     }
   },
@@ -770,17 +800,17 @@
       "408": {
         "requested": 408,
         "width": 526,
-        "height": 569
+        "height": 586
       },
       "960": {
         "requested": 960,
         "width": 960,
-        "height": 650
+        "height": 667
       },
       "natural": {
         "requested": 526,
         "width": 526,
-        "height": 569
+        "height": 586
       }
     }
   },
@@ -790,7 +820,7 @@
       "408": {
         "requested": 408,
         "width": 752,
-        "height": 249
+        "height": 266
       },
       "960": {
         "requested": 960,
@@ -800,7 +830,7 @@
       "natural": {
         "requested": 752,
         "width": 752,
-        "height": 249
+        "height": 266
       }
     }
   },
@@ -1005,42 +1035,52 @@
     }
   },
   "ml-transformer-vocabulary-softmax-detail": {
-    "kind": "bar-chart",
+    "kind": "block-stack",
     "renders": {
+      "320": {
+        "requested": 320,
+        "width": 720,
+        "height": 196
+      },
       "408": {
         "requested": 408,
-        "width": 408,
-        "height": 349
+        "width": 720,
+        "height": 196
       },
       "960": {
         "requested": 960,
-        "width": 720,
-        "height": 332
+        "width": 960,
+        "height": 196
       },
       "natural": {
-        "requested": 320,
-        "width": 320,
-        "height": 371
+        "requested": 720,
+        "width": 720,
+        "height": 196
       }
     }
   },
   "ml-transformer-vocabulary-softmax-brief": {
-    "kind": "bar-chart",
+    "kind": "block-stack",
     "renders": {
+      "320": {
+        "requested": 320,
+        "width": 548,
+        "height": 196
+      },
       "408": {
         "requested": 408,
-        "width": 408,
-        "height": 349
+        "width": 548,
+        "height": 196
       },
       "960": {
         "requested": 960,
-        "width": 720,
-        "height": 349
+        "width": 960,
+        "height": 196
       },
       "natural": {
-        "requested": 320,
-        "width": 320,
-        "height": 388
+        "requested": 548,
+        "width": 548,
+        "height": 196
       }
     }
   },
@@ -1065,22 +1105,27 @@
     }
   },
   "ml-transformer-vocabulary-softmax-detailed-detail": {
-    "kind": "bar-chart",
+    "kind": "block-stack",
     "renders": {
+      "320": {
+        "requested": 320,
+        "width": 720,
+        "height": 196
+      },
       "408": {
         "requested": 408,
-        "width": 408,
-        "height": 349
+        "width": 720,
+        "height": 196
       },
       "960": {
         "requested": 960,
-        "width": 720,
-        "height": 332
+        "width": 960,
+        "height": 196
       },
       "natural": {
-        "requested": 320,
-        "width": 320,
-        "height": 371
+        "requested": 720,
+        "width": 720,
+        "height": 196
       }
     }
   },
