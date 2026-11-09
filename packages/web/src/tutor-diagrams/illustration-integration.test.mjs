@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { lintDiagramContent } from '../../scripts/explanation-content-contract.mjs';
 import { parseTutorDiagram, tutorDiagramVisibleText } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
-import { illustrationReferences } from './reference-library.js';
+import { illustrationReferences, transformerWalkthroughReferences } from './reference-library.js';
 import budgets from './illustration-token-budgets.json' with { type: 'json' };
 
 const tensor = { rows: 1, columns: 2, dimensions: 'Two cells', name: 'Input values', values: [1, 2] };
@@ -50,11 +50,12 @@ test('nested payloads and architecture panels keep semantic validation and fixed
   assert.throws(() => parseTutorDiagram(doc({ ...relationship, nodes: [{ id: 'a', tensor: invalidTensor }, relationship.nodes[1]] })));
 });
 
-test('the seven references and their depth variants pass the content contract and compact token budget', () => {
+test('illustration and walkthrough references pass the content contract and per-visual token budget', () => {
   assert.equal(illustrationReferences.length, 7);
+  assert.equal(transformerWalkthroughReferences.length, 10);
   assert.equal(budgets.encoding, 'cl100k_base');
   assert.equal(budgets.maxSpecTokens, 300);
-  for (const ref of illustrationReferences) {
+  for (const ref of new Set([...illustrationReferences, ...transformerWalkthroughReferences])) {
     const variants = { balanced: ref, brief: ref.depths?.overview, detailed: ref.depths?.deep };
     for (const [depth, variant] of Object.entries(variants)) {
       if (!variant) continue;
@@ -67,7 +68,12 @@ test('the seven references and their depth variants pass the content contract an
       const measured = budgets.refs[ref.id][depth];
       const json = JSON.stringify(detailSpec ? visuals : spec);
       assert.equal(measured.sha256, createHash('sha256').update(json).digest('hex'), ref.id);
-      assert.ok(measured.tokens > 0 && measured.tokens <= 300, ref.id);
+      const entries = detailSpec ? measured.visuals : [measured];
+      assert.equal(entries.length, visuals.length, ref.id);
+      for (const [index, entry] of entries.entries()) {
+        assert.equal(entry.sha256, createHash('sha256').update(JSON.stringify(visuals[index])).digest('hex'), ref.id);
+        assert.ok(entry.tokens > 0 && entry.tokens <= budgets.maxSpecTokens, ref.id);
+      }
     }
   }
 });

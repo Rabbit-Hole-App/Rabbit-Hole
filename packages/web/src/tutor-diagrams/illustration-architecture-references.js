@@ -1,3 +1,5 @@
+import { transformerEncoderReference } from './transformer-encoder-reference.js';
+
 const versioned = diagram => ({ version: 1, diagram });
 const stack = (title, blocks, notes = {}) => ({ kind: 'block-stack', title, blocks, ...notes });
 const flow = (...steps) => ({ kind: 'flow', steps });
@@ -13,12 +15,11 @@ const preNormDecoder = [
   { id: 'att', label: 'Causal GQA' },
   { id: 'fn', label: 'Pre-FFN RMSNorm' },
 ];
-const llamaDecoder = [
-  { ...preNormDecoder[0], label: 'Pre-attention norm', variant: 'RMSNorm' },
-  { ...preNormDecoder[1], label: 'Causal attention', variant: 'GQA' },
-  { ...preNormDecoder[2], label: 'Pre-FFN norm', variant: 'RMSNorm' },
+const llamaBalanced = [
+  { id: 'an', label: 'Pre-RMSNorm 1 (rescale input)' },
+  { id: 'att', label: 'Causal grouped-query attention (share key and value heads)' },
+  { id: 'fn', label: 'Pre-RMSNorm 2 (rescale before feed-forward)' },
 ];
-const swiglu = { label: 'Feed-forward', variant: 'SwiGLU' };
 const decoderResiduals = [residual('an', 'att'), residual('fn', 'ff')];
 
 function llamaSpec(title, [attentionNorm, attention, feedForwardNorm], feedForward, caption) {
@@ -58,24 +59,7 @@ function gemmaSpec(attention, feedForward, notes) {
 }
 
 export const architectureReferences = [
-  {
-    id: 'ml-transformer-encoder-stack',
-    lessons: [],
-    prompts: ['What is inside one transformer encoder layer and why is it repeated?'],
-    keywords: [
-      'transformer encoder layer', 'transformer encoder block', 'transformer encoder stack',
-      'original transformer encoder', 'encoder in the original transformer', 'encoder layers in a transformer',
-      'stack encoder layers',
-    ],
-    useWhen: 'Show the original Transformer encoder. The layers have separate weights. Self-attention mixes context across tokens and the feed-forward network updates each token.',
-    spec: versioned(stack('Original Transformer encoder', [
-      { id: 'emb', label: 'Token embeddings' },
-      { id: 'layer', label: 'Encoder layer', repeat: 6, diagram: flow(
-        'Mix tokens with self-attention', 'Add attention and normalize',
-        'Apply feed-forward', 'Add FFN output and normalize',
-      ) },
-    ], { caption: 'Each layer refines the token representations produced by the previous layer.' })),
-  },
+  transformerEncoderReference,
   {
     id: 'ml-llama-decoder-block',
     lessons: [],
@@ -85,8 +69,8 @@ export const architectureReferences = [
       'llama block', 'llama 3 decoder', 'llama 3 8b decoder', 'llama 3.1 8b decoder',
     ],
     useWhen: 'Use Llama 3.1 8B for the example dimensions and count. Both sublayers add their output to the stream they received before normalization.',
-    spec: llamaSpec('Llama-style decoder block', llamaDecoder, swiglu,
-      'Grouped-query attention shares key/value heads. The feed-forward network updates each token separately.'),
+    spec: llamaSpec('Llama-style decoder block', llamaBalanced, { label: 'SwiGLU FFN (update each token)' },
+      'Each sublayer adds its result to the token stream.'),
     depths: {
       overview: {
         spec: llamaSpec('Llama-style decoder block', briefDecoder, { label: 'Update token features' },
@@ -94,10 +78,10 @@ export const architectureReferences = [
       },
       deep: {
         spec: llamaSpec('Llama 3.1 8B decoder block', [
-          { ...llamaDecoder[0], dims: '$d=4096$' },
-          { ...llamaDecoder[1], inputs: [{ label: 'RoPE' }] },
-          llamaDecoder[2],
-        ], swiglu, 'Four query heads share each key/value head pair.'),
+          { id: 'an', label: 'Pre-RMSNorm 1', dims: '$d=4096$' },
+          { id: 'att', label: 'Causal grouped-query attention', inputs: [{ label: 'RoPE' }] },
+          { id: 'fn', label: 'Pre-RMSNorm 2' },
+        ], { label: 'SwiGLU FFN' }, 'Four query heads share each key/value head pair.'),
       },
     },
   },
@@ -138,7 +122,11 @@ export const architectureReferences = [
       'decoder in gemma 3', 'gemma 3 27b architecture', 'gemma 3 feed-forward', 'gemma 3 attention schedule',
     ],
     useWhen: 'Use RMSNorm before and after attention and the feed-forward network. SWA means sliding-window attention. In Detailed put the gate in a separate visual. Config https://huggingface.co/mlx-community/gemma-3-27b-it-qat-3bit/blob/main/config.json',
-    spec: gemmaSpec(gemmaAttention, gemmaFeedForward, {
+    spec: gemmaSpec({
+      ...gemmaAttention, label: 'Grouped-query attention (share key and value heads)',
+    }, {
+      ...gemmaFeedForward, label: 'Gated GELU FFN (update each token)',
+    }, {
       caption: 'Five sliding-window layers precede each global layer. RMSNorm surrounds both sublayers.',
     }),
     depths: {
@@ -154,12 +142,12 @@ export const architectureReferences = [
       deep: {
         spec: gemmaSpec({
           ...gemmaAttention,
-          label: 'GQA',
+          label: 'Attention',
           inputs: [{ label: 'QK-Norm' }, { label: 'RoPE' }],
-          diagram: flow('Normalize input', 'Use 5:1 SWA/global', 'Normalize output'),
+          diagram: flow('Apply Pre-RMSNorm 1', 'Use sliding-window and GQA attention (5:1 local to global)', 'Apply Post-RMSNorm 1'),
         }, {
           ...gemmaFeedForward, label: 'FFN', detail: 2,
-          diagram: flow('Normalize input', 'Transform token', 'Normalize output'),
+          diagram: flow('Apply Pre-RMSNorm 2', 'Run Gated GELU FFN', 'Apply Post-RMSNorm 2'),
         }, {
           title: 'Gemma 3 27B',
           callouts: [

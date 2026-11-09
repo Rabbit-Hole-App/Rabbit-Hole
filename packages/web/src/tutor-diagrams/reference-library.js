@@ -29,6 +29,17 @@ import { tokenLinksReferences } from './illustration-token-links-reference.js';
 import { architectureReferences } from './illustration-architecture-references.js';
 import { moeReferences } from './illustration-moe-reference.js';
 
+import { transformerEmbeddingReference } from './transformer-embedding-reference.js';
+import { transformerAttentionReferences } from './transformer-attention-references.js';
+import { transformerMultiheadReference } from './transformer-multihead-reference.js';
+import { transformerEncoderReference } from './transformer-encoder-reference.js';
+import { transformerDecoderReferences } from './transformer-decoder-references.js';
+
+export const transformerWalkthroughReferences = Object.freeze([
+  transformerEmbeddingReference, ...tensorReferences, ...transformerAttentionReferences,
+  transformerMultiheadReference, transformerEncoderReference, ...transformerDecoderReferences,
+]);
+
 export const illustrationReferences = Object.freeze([
   ...tensorReferences, ...tokenLinksReferences, ...architectureReferences, ...moeReferences,
 ]);
@@ -52,6 +63,7 @@ export const diagramReferences = Object.freeze([
   ...batch3bDensity, ...batch3bDecisions,
   ...batch3cFlow, ...batch3cServing,
   ...batch4aPrediction, ...batch4aLogistic, ...illustrationReferences, ...generic,
+  ...transformerWalkthroughReferences.filter(ref => !illustrationReferences.includes(ref)),
 ]);
 
 export const PHASE02_SOURCE = Object.freeze({

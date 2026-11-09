@@ -129,7 +129,7 @@ export function diagramReferenceContext(references) {
   const heading = '\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
   let out = heading;
   if (references.some(ref => ref.detailSpec)) {
-    out += 'If you use a detailSpec, write it as a separate visual and set the block detail index to that visual’s position on the card.\n';
+    out += 'If you use a detailSpec, write it as a separate visual. If a block points to it, set that block’s detail index to the visual’s position on the card.\n';
   }
   for (const ref of references.slice(0, MAX_REFERENCES + 1)) { // the planner's shape example may come first (explanation-planner.js), then at most two topical ones
     const line = JSON.stringify({ id: ref.id, useWhen: ref.useWhen, spec: ref.spec,

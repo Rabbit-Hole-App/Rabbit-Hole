@@ -6,7 +6,7 @@ Written `/explain` now supports tensor strips, weighted links between tokens, an
 
 | Learner prompt | What to check | Natural-width SVG and JSON |
 | --- | --- | --- |
-| How does a transformer get query, key and value vectors from one token? | One input strip feeds three separate learned projections. Four strips fit on one row at 524 px. Cells show excerpts of the labelled vector dimensions. | [SVG](illustrations/ml-transformer-qkv-projections/natural.svg) · [JSON](illustrations/ml-transformer-qkv-projections/spec.json) |
+| How does a transformer get query, key and value vectors from one token? | One input strip feeds three separate learned projections. Four strips fit on one row at their natural width. Cells show excerpts of the labelled vector dimensions. | [SVG](illustrations/ml-transformer-qkv-projections/natural.svg) · [JSON](illustrations/ml-transformer-qkv-projections/spec.json) |
 | When the word sat attends to the sentence the cat sat on the mat, which words matter most? | The repeated words keep separate positions. The six weights sum to 1 and the arrow to `cat` carries the visible maximum of 0.45. | [SVG](illustrations/ml-self-attention-token-links/natural.svg) · [JSON](illustrations/ml-self-attention-token-links/spec.json) |
 | What is inside one transformer encoder layer and why is it repeated? | One inset flow shows self-attention, add and norm, feed-forward, and add and norm. The encoder layer repeats six times. | [SVG](illustrations/ml-transformer-encoder-stack/natural.svg) · [JSON](illustrations/ml-transformer-encoder-stack/spec.json) |
 | What happens inside one Llama-style decoder block? | Pre-normalization, grouped-query attention and SwiGLU have two residual adds and a ×32 bracket. Detailed includes the dimension note. | [SVG](illustrations/ml-llama-decoder-block-detailed/natural.svg) · [JSON](illustrations/ml-llama-decoder-block-detailed/spec.json) |
@@ -38,23 +38,41 @@ The [preview manifest](illustrations/manifest.json) lists each request width, ac
 | Architecture comparison bundle | 32,669 | +3,075 vs legacy panels |
 | MoE flow bundle | 10,701 | +175 vs core |
 
-All 16 legacy fast-author flag combinations serialize identically to the base. The Gemini fallback keeps scoped illustration schemas that fit its recorded property limit. Its existing list-only reduction still applies to comparison panels.
+All 16 legacy fast-author flag combinations serialize identically to the base.
+
+### Gemini-compatible bundles
+
+These counts come from the JSON request built for `gemini-3.5-flash-lite` through `stepRequest`. The recorded compatibility limit is 362 schema properties.
+
+| Scoped Gemini bundle | Properties | Standalone `tensor` | `token-links` | `block-stack` |
+| --- | ---: | --- | --- | --- |
+| Core with no illustration reference or requirement | 129 | No | No | No |
+| Explicit tensor | 139 | Yes | No | No |
+| Weighted token links | 138 | No | Yes | No |
+| Encoder, Llama, or Gemma stack | 168 | No | No | Yes |
+| All three explicitly requested | 187 | Yes | Yes | Yes |
+| QKV transformation on its own | 145 | No | No | No |
+| Dense vs MoE comparison on its own | 129 | No | No | No |
+
+The QKV bundle exposes the inline tensor payload inside transformation items. Gemini reduces comparison and visual transformation to their list forms, which removes nested block-stacks from the dense-vs-MoE example. A broad schema that exceeds the limit is reduced again, keeping new standalone kinds only when the request explicitly requires them. Measured against the full tool schema, the reduced request has 296 properties with no named new kinds and 354 with all three named. These are offline schema checks.
+
+The [walkthrough handoff](illustrated-transformer-walkthrough.md) records the causal-mask heatmap constraint and the ten teaching examples.
 
 ## Token budgets
 
-Counts use `cl100k_base` on compact JSON. Each cell gives diagram tokens, then the complete author packet including `id`, `useWhen` and `detailSpec` where present. The 300-token compact spec ceiling includes both Detailed Gemma visuals together. [Token measurements](../../../../../packages/web/src/tutor-diagrams/illustration-token-budgets.json)
+Counts use `cl100k_base` on compact JSON. Each cell gives diagram tokens, then the complete author packet including `id`, `useWhen` and `detailSpec` where present. The 300-token ceiling applies to each visual. The first number is the combined compact count for references with two visuals. [Token measurements](../../../../../packages/web/src/tutor-diagrams/illustration-token-budgets.json)
 
 | Reference | Brief | Balanced | Detailed |
 | --- | ---: | ---: | ---: |
-| QKV projections | — | 218 / 251 | — |
+| QKV projections | 201 / 251 | 259 / 309 | 285 / 335 |
 | Self-attention links | — | 119 / 183 | — |
-| Encoder stack | — | 93 / 135 | — |
-| Llama-style decoder | 126 / 172 | 149 / 195 | 165 / 211 |
+| Encoder stack | 146 / 187 | 145 / 186 | 173 / 214 |
+| Llama-style decoder | 126 / 172 | 150 / 196 | 150 / 196 |
 | Dense vs MoE | 247 / 270 | 265 / 288 | 286 / 309 |
-| Gemma decoder | 88 / 160 | 135 / 207 | 300 / 374 |
+| Gemma decoder | 88 / 160 | 149 / 221 | 331 / 405 |
 | Top-two MoE routing | — | 300 / 335 | — |
 
-The gallery now has 24 kinds. All three new shapes have Brief, Balanced and Detailed specs. The saved depth keys remain `overview`, `standard` and `deep`. The 23 exported JSON files include gallery variants and both Gemma visuals. The dense-vs-MoE comparison also has a linked single-matrix alternative in the offline catalogue of variants.
+The gallery now has 24 kinds. All three new shapes have Brief, Balanced and Detailed specs. The saved depth keys remain `overview`, `standard` and `deep`. The preview manifest includes gallery variants, walkthrough examples, and both Gemma visuals. The dense-vs-MoE comparison also has a linked single-matrix alternative in the offline catalogue of variants.
 
 ## Offline verification
 

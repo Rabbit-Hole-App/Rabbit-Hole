@@ -9,8 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { diagramReferences } from '../src/tutor-diagrams/reference-library.js';
 import kindGallery from '../src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { renderTutorDiagram } from '../src/tutor-diagrams/TutorDiagram.js';
-import { usesIllustrations } from '../src/tutor-diagrams/illustration-kinds.js';
-import { illustrationCases } from './illustration-previews.mjs';
+import { illustrationCases, illustrationSpecs } from './illustration-previews.mjs';
 
 const WIDTHS = Object.freeze([320, 408, 720]);
 const VERSION = 1;
@@ -18,8 +17,9 @@ const VERSION = 1;
 function* diagramCases() {
   const gallery = kindGallery.map(spec => ({ id: `shape-${spec.diagram.kind}`, spec }));
   const specs = new Map();
+  const illustrated = new Set([...illustrationSpecs()].map(({ id }) => id));
   for (const { id, spec } of [...diagramReferences, ...gallery]) {
-    if (usesIllustrations(spec.diagram)) continue;
+    if (illustrated.has(id)) continue;
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) throw new Error(`Invalid SVG export ID ${id}`);
     if (specs.has(id)) throw new Error(`Duplicate SVG export ID ${id}`);
     specs.set(id, spec);
