@@ -141,6 +141,9 @@ export function cameraForWords(words, win, view, area, { max = CAMERA_ZOOM_MAX, 
   return next;
 }
 
+// Where rects (surface pixels, drawn under camera `from`) will stand once the camera has glided to `to`: the window is placed against these once, so it never moves when the glide ends.
+export const settleRects = (rects, from, to) => rects.map(r => ({ left: (r.left - from.x) / from.z * to.z + to.x, top: (r.top - from.y) / from.z * to.z + to.y, width: r.width / from.z * to.z, height: r.height / from.z * to.z }));
+
 // A scrim over `size` that leaves the given rects (plus `pad`) undimmed: one even-odd path (the outer box, then one hole per rect).
 export function scrimPath(size, rects, pad = 3) {
   const holes = rects.map(r => `M${Math.round(r.left - pad)} ${Math.round(r.top - pad)}h${Math.round(r.width + pad * 2)}v${Math.round(r.height + pad * 2)}h${-Math.round(r.width + pad * 2)}z`).join('');

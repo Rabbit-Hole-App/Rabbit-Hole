@@ -1,4 +1,4 @@
-// E2 selection toolbar on a v2 Explanation card (EXP-13 layout): Highlight, Create note and Ask in chat must leave the card drawing as it was.
+// E2 selection toolbar on a v2 Explanation card (EXP-13 layout): Highlight, Create note and Ctrl+K must leave the card drawing as it was.
 // LearningBlockBody mounted ONCE with react-dom in linkedom and re-rendered in place with what it saved, as the canvas does (the other card tests remount).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -65,8 +65,8 @@ test.after(async () => { console.error = realError; if (root) await B.act(async 
 let current = null, saved = [];
 const draw = (block, { readOnly = false } = {}) => B.act(async () => root.render(B.createElement(B.ExplanationHost.Provider, { value: host }, B.createElement(B.ChatWorkspace.Provider, { value: chat },
   B.createElement(B.LearningBlockBody, { block, readOnly, onChange: next => { saved.push(next); current = next; }, onChangeQuiet: next => { saved.push(next); current = next; }, onFile() {}, appName: 'demo', selected: true, onExpandHeight() {} })))));
-const notes = [], added = [], explores = [];
-const host = { ask: async request => { if (request.destination === 'explore') explores.push(request); return true; }, note: request => { notes.push(request); return 'note-1'; } };
+const notes = [], asked = [], explores = [];
+const host = { ask: async request => { if (request.destination === 'explore') explores.push(request); return true; }, note: request => { notes.push(request); return 'note-1'; }, quickAsk: () => { asked.push(1); return true; } };
 const chat = { addToChat: ref => { added.push(ref); }, ask() {}, composer: { focus() {}, prepare() {} } };
 async function mountInPlace(block) {
   if (root) await B.act(async () => root.unmount());
@@ -118,16 +118,15 @@ test('Highlight on a v2 card (diagram, maths, picture) adds only the mark: the s
   assert.equal(current.highlights.length, 2);
 });
 
-test('Create note and Ask in chat on a v2 card leave the card as it is', async () => {
+test('Create note and Ctrl+K on a v2 card leave the card as it is', async () => {
   const card = await v2Card();
   await mountInPlace(card);
   let nodes = firstSentence();
   await select(nodes[0], 0, nodes[0], 'Heat leaves the cup'.length, 'Heat leaves the cup');
-  await click($('[data-explanation-selection-toolbar] [aria-label="Ask in chat"]'));
-  assert.equal(added.length, 1);
-  assert.equal(added[0].range.quote, 'Heat leaves the cup');
+  await click($('[data-explanation-selection-toolbar] [aria-label="Ctrl+K"]'));
+  assert.equal(asked.length, 1);
   await settle();
-  assertDrawn('after Ask in chat');
+  assertDrawn('after Ctrl+K');
   nodes = firstSentence();
   await select(nodes[0], 0, nodes[0], 'Heat leaves the cup'.length, 'Heat leaves the cup');
   await click($('[data-explanation-selection-toolbar] [aria-label="Create note"]'));
