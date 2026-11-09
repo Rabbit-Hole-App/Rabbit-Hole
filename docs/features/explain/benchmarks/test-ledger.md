@@ -203,3 +203,13 @@ Batch-2a conditions (owner, 2026-11-08), added to the held entry above:
 2. The selector change goes through the selector bench first (scripts/explain-bench/selector.mjs, offline): the production-parity test must pass on the 42 correct-svg + AI/ML prompts, then the request "Show two histograms comparing raw and log-transformed values." (must receive the histogram leaf panels) and the handoff's binary-tree and folder negative controls. Only then the real run.
 3. The 7 handoff prompts (6 + the two-histogram request) join the 10 batch-1 prompts in one bench set `phase02-batch`, kinds and content sketches written before the run. The handoff's manual checks (arithmetic, formula rendering, save/reopen) are a one-time pass per card, recorded pass/fail.
 4. All 6 batch-2a references are composed (5 comparison panels, 1 visual transformation), so they steer the panels bundle (~1k output tokens): expect slow cards and report speed separately; the "two separate visuals instead of panels" alternative stays unbuilt unless the speed numbers force it.
+
+## Next session plan for /explain (owner, 2026-11-08 night; in this order, nothing added)
+
+Sketch verdicts (9 yes / 25 partly / 2 no): fix the yardstick, not the cards.
+1. Ledger push confirmed (bdef43f7d on explain/card-layout and explain/correct-svg). Rerun the control-plane suite on the clean commit.
+2. Rewrite the correct-svg sketches to what a 450-character card must show at each depth; extras become "optional" and do not count against "fully". Overview level mismatches are not double-counted (the precedence clause covers them). Add a judge flag, its own yes/no: "does the diagram state anything the prose does not?", reported next to the factual error rate (factual gate: the no-invented-specifics rule applied to diagram labels).
+3. Relabels: atmosphere picture acceptable at Overview; Roman Empire picture acceptable at Deep; entropy sketch to the relabelled kind; precision-recall accepts formulas without counts at Standard (counts are the Deep version); Roman split accepts 285 or 395; gradient-descent sketch names the descent path. Prompt: the rule-2 precedence clause ("A formula, metric or quantity question gets its plot or chart at Standard and Deep; at Overview use the simplest diagram with plain-word labels instead.") and the coordinate-plot catalogue phrase "step for schedules and piecewise-constant values".
+4. One 42-card run, then freeze. Report fully / partly / not with the new sketches and the new flag: the number carried forward.
+5. Pictures-async, then the model decision (baseline on both arms).
+Parked: shape-example fallback (explain/shape-fallback, offline slot only); batch-1 + batch-2a (one cherry-pick after the freeze and baseline).
