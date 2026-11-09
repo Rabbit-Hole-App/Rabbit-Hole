@@ -1,8 +1,8 @@
 {
-  "standalone_previews": 57,
+  "standalone_previews": 59,
   "result": "PASS",
-  "components": 108,
-  "javascript_files": 55,
+  "components": 109,
+  "javascript_files": 57,
   "errors": [],
   "warnings": [
     "navigation/home-empty: script ID library-filter is dynamic or absent",

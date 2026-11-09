@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="brief" viewBox="0 0 24 24"><path d="M6 18v-4"/></symbol>
+  <symbol id="balanced" viewBox="0 0 24 24"><path d="M6 18v-4m6 4v-8"/></symbol>
+  <symbol id="detailed" viewBox="0 0 24 24"><path d="M6 18v-4m6 4v-8m6 8V6"/></symbol>
+</svg>

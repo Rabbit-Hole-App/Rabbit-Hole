@@ -1,6 +1,6 @@
 # Component to app mapping
 
-108 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
+109 searchable component and behavior entries. These are candidate integration landmarks. Path existence is checked against the pinned branch tree; full app integration is not claimed. The historical `InteractCardContent.jsx` starting point is absent from this branch; see UI-10.
 
 | ID | Preview | Status | App landmarks |
 | --- | --- | --- | --- |
@@ -106,7 +106,8 @@
 | `sources/source-picker-tabs` | [Source picker tabs](components/sources/source-picker-tabs/preview.html) | Reusable template / browser review pending | `packages/web/src/StartDialog.jsx`, `packages/web/src/ui.jsx` |
 | `sources/start-rabbit-hole` | [Start a rabbit hole](components/sources/start-rabbit-hole/preview.html) | Reusable template / browser review pending | `packages/web/src/StartDialog.jsx`, `packages/web/src/ui.jsx` |
 | `tutor/chat-panel` | [Chat panel](components/tutor/chat-panel/preview.html) | reference | `packages/web/src/ChatComposer.jsx` |
-| `tutor/composer` | [Chat composer](components/tutor/composer/preview.html) | reference | `packages/web/src/ChatComposer.jsx` |
+| `tutor/chat-slash-picker` | [Slash commands](components/tutor/chat-slash-picker/preview.html) | reference | `packages/web/src/LearnSlash.jsx`, `packages/web/src/CommandList.jsx`, `packages/web/src/learn-slash.js`, `packages/web/src/agent/slash.js`, `packages/web/src/SlashCommandsSheet.jsx` |
+| `tutor/composer` | [Chat composer](components/tutor/composer/preview.html) | reference | `packages/web/src/ChatComposer.jsx`, `packages/web/src/DepthMenu.jsx`, `packages/web/src/ContextChips.jsx`, `packages/web/src/ask.jsx`, `packages/web/src/LearnSlash.jsx` |
 | `tutor/empty-error-retry` | [Empty, error and recovery](components/tutor/empty-error-retry/preview.html) | reference | `packages/web/src/SlotCard.jsx` |
 | `tutor/loading-skeleton` | [Skeleton and generation states](components/tutor/loading-skeleton/preview.html) | reference | `packages/web/src/SlotCard.jsx` |
 | `tutor/progress` | [Learning progress meter](components/tutor/progress/preview.html) | reference | `packages/web/src/LearnProgress.jsx` |

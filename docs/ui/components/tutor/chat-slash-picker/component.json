@@ -1,0 +1,40 @@
+{
+  "id": "tutor/chat-slash-picker",
+  "title": "Slash commands",
+  "category": "tutor",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3e06ad769bf950f1ba6de90587efe2e0e15748d2/packages/web/src/LearnSlash.jsx",
+  "source_file": "LearnSlash.jsx",
+  "status": "reference",
+  "styles": [
+    "standards",
+    "source-headers",
+    "review-corrections",
+    "chat-slash-picker"
+  ],
+  "scripts": [
+    "chat-slash-picker"
+  ],
+  "implementation": [
+    "packages/web/src/LearnSlash.jsx",
+    "packages/web/src/CommandList.jsx",
+    "packages/web/src/learn-slash.js",
+    "packages/web/src/agent/slash.js",
+    "packages/web/src/SlashCommandsSheet.jsx"
+  ],
+  "notes": "Commands is the picker heading. The shared pill and typed command sit in a fixed left column, with descriptions aligned beside them. The square-slash button opens the example prompts.",
+  "issues": [],
+  "templates": [],
+  "includes": [
+    "chat-slash-picker"
+  ],
+  "keywords": [
+    "slash",
+    "commands",
+    "learn",
+    "create",
+    "search",
+    "palette"
+  ],
+  "path": "components/tutor/chat-slash-picker",
+  "paletteRole": "shared"
+}

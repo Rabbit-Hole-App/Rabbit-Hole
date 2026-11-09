@@ -61,12 +61,19 @@ EXPORTS=[
  ('54-creator-profile-error','navigation/creator-profile-error'),
  ('55-creator-profile-not-found','navigation/creator-profile-not-found'),
  ('56-creator-profile-owner','navigation/creator-profile-owner'),
- ('57-creator-profile-signed-out','navigation/creator-profile-signed-out')]
+ ('57-creator-profile-signed-out','navigation/creator-profile-signed-out'),
+ ('60-chat-answer-detail','tutor/composer'),
+ ('61-slash-commands','tutor/chat-slash-picker')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:
   folder=ROOT/'components'/ident;c=json.loads((folder/'component.json').read_text())
   markup=read_markup(folder)
+  title=c['title']
+  if filename=='60-chat-answer-detail':
+   title='Chat composer · Answer detail'
+   markup=markup.replace('<div class="rh-composer-example">','<div class="rh-composer-example" data-open-menu="depth">',1)
+   markup=markup.replace('data-composer-menu="depth">','data-composer-menu="depth" open>',1)
   templates='\n'.join((ROOT/'templates'/(t+'.html')).read_text() for t in c['templates'])
   styles='\n'.join((ROOT/'styles'/(s+'.css')).read_text() for s in c['styles'])+'\n'+(ROOT/'foundations/palette.css').read_text()
   scripts='\n'.join((ROOT/'scripts'/(s+'.js')).read_text() for s in c['scripts'])
@@ -106,7 +113,7 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
    extra_notice=ROOT/'icons'/(sprite+'-NOTICE.txt')
    if extra_notice.exists():notice+='\n'+extra_notice.read_text()
   output=f'''<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(c['title'])}</title><style>{styles}\n{extra}</style></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title><style>{styles}\n{extra}</style></head>
 <body data-ui-palette="{c.get('paletteRole','shared')}">
 <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">{symbols}</svg>
 <main class="clean-stage">{markup}</main>{templates}

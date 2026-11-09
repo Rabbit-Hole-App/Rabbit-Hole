@@ -4,21 +4,25 @@ Stable ID: `tutor/composer` · Status: **reference**
 
 [Open preview](preview.html) · [Markup](markup.html) · [Metadata](component.json) · [Original source](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html) · [Collection review](../../../REVIEW.md)
 
-Owner screenshot correction: one enclosing composer with borderless prompt, context chip and inline toolbar inside. Compact custom dropdowns replace boxed native selects. Green toggle; blue circular Send/Stop. Multiline scroll and keyboard/pointer resize retained. Model list, attachment and voice are preview-only.
+The composer grows vertically with the draft and scrolls long drafts. More reasoning starts selected and the detail trigger shows the current level and its icon. The slash picker preserves the draft when inserting a command.
 
 Palette role: **shared**. [Current blue/red balance](../../../foundations/PALETTE.md) supersedes the all-blue experiment controls in aa2cfb1. Flow previews use the current palette; linked archived sources preserve their original styling. Original shared CSS is retained for review; the explicit semantic overlay is `foundations/palette.css`.
 
 ## Edit and find
 
-Edit `markup.html` and `component.json` here. Shared styles: `styles/source-headers.css`, `styles/composer.css`, `styles/review-corrections.css`. Behavior: `scripts/resize.js`, `scripts/composer.js`, `scripts/review-corrections.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
+Edit `markup.html` and `component.json` here. Shared styles: `styles/standards.css`, `styles/source-headers.css`, `styles/review-corrections.css`, `styles/chat-composer.css`, `styles/chat-slash-picker.css`. Behavior: `scripts/chat-slash-picker.js`, `scripts/chat-composer.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
-Template dependencies: none.
+Template dependencies: `templates/chat-composer.html`, `templates/chat-slash-picker.html`.
 
 ## App mapping candidates
 
 These are existing integration landmarks, not proof this reference is implemented. Resolve the latest integrated implementation before changing the app; the audit snapshot is `aa2cfb1`.
 
 - [packages/web/src/ChatComposer.jsx](../../../../../packages/web/src/ChatComposer.jsx)
+- [packages/web/src/DepthMenu.jsx](../../../../../packages/web/src/DepthMenu.jsx)
+- [packages/web/src/ContextChips.jsx](../../../../../packages/web/src/ContextChips.jsx)
+- [packages/web/src/ask.jsx](../../../../../packages/web/src/ask.jsx)
+- [packages/web/src/LearnSlash.jsx](../../../../../packages/web/src/LearnSlash.jsx)
 
 ## Acceptance and gaps
 

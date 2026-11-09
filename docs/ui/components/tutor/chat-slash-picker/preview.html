@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slash commands · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/standards.css">
+<link rel="stylesheet" href="../../../styles/source-headers.css">
+<link rel="stylesheet" href="../../../styles/review-corrections.css">
+<link rel="stylesheet" href="../../../styles/chat-slash-picker.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3e06ad769bf950f1ba6de90587efe2e0e15748d2/packages/web/src/LearnSlash.jsx">Source</a><p>reference — Commands is the picker heading. The shared pill and typed command sit in a fixed left column, with descriptions aligned beside them. The square-slash button opens the example prompts.</p></div>
+<div class="catalog-preview"><section class="rh-slash-standalone" aria-label="Slash command picker">
+  <div class="rh-slash-picker" id="rh-command-picker" data-slash-picker>
+  <div class="rh-command-header">
+    <h2 class="rh-command-title" id="rh-command-title">Commands</h2>
+    <button type="button" class="icon-button quiet compact" data-open-command-guide aria-label="Open command examples" title="Open command examples" aria-haspopup="dialog" aria-controls="rh-command-guide">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 15 6-6"/></svg>
+    </button>
+  </div>
+  <label class="rh-command-search">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/sidebar.svg#sidebar-search"/></svg>
+    <input type="search" role="combobox" autocomplete="off" aria-autocomplete="list" aria-expanded="true" aria-controls="rh-command-results" aria-activedescendant="rh-command-explain" aria-label="Search commands" placeholder="Search commands">
+  </label>
+  <div class="rh-command-results" id="rh-command-results" role="listbox" aria-labelledby="rh-command-title">
+    <div class="rh-command-group" role="group" aria-label="Learn">
+      <button type="button" class="rh-command-option" id="rh-command-explain" role="option" tabindex="-1" aria-selected="true" data-command="/explain" data-command-example="/explain how a hot coffee cools in a cold room, and let me change the room temperature" data-command-title="Explanation">
+        <span class="rh-command-top command-group"><span class="pill command">Explanation</span><code>/explain</code></span>
+        <span class="rh-command-copy">Explain an idea in text or with an interactive visual.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-practice" role="option" tabindex="-1" aria-selected="false" data-command="/practice" data-command-example="/practice explain it back: why the sky is blue" data-command-title="Practice">
+        <span class="rh-command-top command-group"><span class="pill command">Practice</span><code>/practice</code></span>
+        <span class="rh-command-copy">Try a task or explain an idea and get feedback.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-quiz" role="option" tabindex="-1" aria-selected="false" data-command="/quiz" data-command-example="/quiz Newton&#x27;s second law" data-command-title="Quiz">
+        <span class="rh-command-top command-group"><span class="pill command">Quiz</span><code>/quiz</code></span>
+        <span class="rh-command-copy">Answer a multiple-choice question and get feedback.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-flashcards" role="option" tabindex="-1" aria-selected="false" data-command="/flashcards" data-command-example="/flashcards Spanish verbs for travel" data-command-title="Flashcards">
+        <span class="rh-command-top command-group"><span class="pill command">Flashcards</span><code>/flashcards</code></span>
+        <span class="rh-command-copy">Review a topic with question-and-answer cards.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-goal" role="option" tabindex="-1" aria-selected="false" data-command="/goal" data-command-example="/goal read a balance sheet with confidence" data-command-title="Learning goal">
+        <span class="rh-command-top command-group"><span class="pill command">Goal</span><code>/goal</code></span>
+        <span class="rh-command-copy">Add or manage a learning goal.</span>
+      </button>
+    </div>
+    <div class="rh-command-group" role="group" aria-labelledby="rh-commands-create">
+      <p id="rh-commands-create">Create</p>
+      <button type="button" class="rh-command-option" id="rh-command-code" role="option" tabindex="-1" aria-selected="false" data-command="/code" data-command-example="/code a function that reverses a linked list" data-command-title="Code example">
+        <span class="rh-command-top command-group"><span class="pill command">Code</span><code>/code</code></span>
+        <span class="rh-command-copy">See a Python example for a task.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-graph" role="option" tabindex="-1" aria-selected="false" data-command="/graph" data-command-example="/graph y = sin(x) and y = cos(x)" data-command-title="Graph">
+        <span class="rh-command-top command-group"><span class="pill command">Graph</span><code>/graph</code></span>
+        <span class="rh-command-copy">Plot a function or data.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-diagram" role="option" tabindex="-1" aria-selected="false" data-command="/diagram" data-command-example="/diagram an HTTP request from browser to server" data-command-title="Diagram">
+        <span class="rh-command-top command-group"><span class="pill command">Diagram</span><code>/diagram</code></span>
+        <span class="rh-command-copy">Show steps or relationships in a process.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-notebook" role="option" tabindex="-1" aria-selected="false" data-command="/notebook" data-command-example="/notebook" data-command-title="Notebook">
+        <span class="rh-command-top command-group"><span class="pill command">Notebook</span><code>/notebook</code></span>
+        <span class="rh-command-copy">Add a notebook for code and calculations.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-cad" role="option" tabindex="-1" aria-selected="false" data-command="/cad" data-command-example="/cad a 60 x 40 x 5 mm plate with four 4 mm through holes and a centred 20 x 10 mm pocket, 3 mm deep" data-command-title="CAD model">
+        <span class="rh-command-top command-group"><span class="pill command">CAD</span><code>/cad</code></span>
+        <span class="rh-command-copy">Review a dimensioned part before generating a model.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-animation" role="option" tabindex="-1" aria-selected="false" data-command="/animation" data-command-example="/animation Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number." data-command-title="3D animation">
+        <span class="rh-command-top command-group"><span class="pill command">Animation</span><code>/animation</code></span>
+        <span class="rh-command-copy">Create a live 3D scene you can play and adjust.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-3d" role="option" tabindex="-1" aria-selected="false" data-command="/3d" data-command-example="/3d perspective projection: a camera frustum with a cube inside it and a ray" data-command-title="3D scene">
+        <span class="rh-command-top command-group"><span class="pill command">3D</span><code>/3d</code></span>
+        <span class="rh-command-copy">Explore an idea in a 3D scene.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-browser" role="option" tabindex="-1" aria-selected="false" data-command="/browser" data-command-example="/browser https://jalammar.github.io/illustrated-transformer/" data-command-title="Browser">
+        <span class="rh-command-top command-group"><span class="pill command">Browser</span><code>/browser</code></span>
+        <span class="rh-command-copy">Add a webpage to your canvas.</span>
+      </button>
+    </div>
+    <div class="rh-command-group" role="group" aria-labelledby="rh-commands-search">
+      <p id="rh-commands-search">Search</p>
+      <button type="button" class="rh-command-option" id="rh-command-photos" role="option" tabindex="-1" aria-selected="false" data-command="/photos" data-command-example="/photos cat" data-command-title="Photo search" data-command-aliases="photo">
+        <span class="rh-command-top command-group"><span class="pill command search">Photos</span><code>/photos</code></span>
+        <span class="rh-command-copy">Find an existing photo with credit.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-youtube" role="option" tabindex="-1" aria-selected="false" data-command="/youtube" data-command-example="/youtube attention in transformers step by step 3blue1brown" data-command-title="YouTube search">
+        <span class="rh-command-top command-group"><span class="pill command search">YouTube</span><code>/youtube</code></span>
+        <span class="rh-command-copy">Find a YouTube video.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-arxiv" role="option" tabindex="-1" aria-selected="false" data-command="/arxiv" data-command-example="/arxiv 1706.03762" data-command-title="arXiv search">
+        <span class="rh-command-top command-group"><span class="pill command search">arXiv</span><code>/arxiv</code></span>
+        <span class="rh-command-copy">Find a research paper.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-wikipedia" role="option" tabindex="-1" aria-selected="false" data-command="/wikipedia" data-command-example="/wikipedia https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)" data-command-title="Wikipedia search">
+        <span class="rh-command-top command-group"><span class="pill command search">Wikipedia</span><code>/wikipedia</code></span>
+        <span class="rh-command-copy">Find a Wikipedia article.</span>
+      </button>
+    </div>
+  </div>
+  <p class="rh-command-empty" role="status" hidden>No commands match</p>
+  <dialog class="dialog rh-command-guide" id="rh-command-guide" aria-labelledby="rh-command-guide-title">
+    <div class="rh-command-guide-header">
+      <h2 id="rh-command-guide-title">Slash Commands</h2>
+      <button type="button" class="icon-button quiet compact" data-close-command-guide aria-label="Close command examples" title="Close command examples" autofocus>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"/></svg>
+      </button>
+    </div>
+    <dl class="rh-command-examples"></dl>
+  </dialog>
+</div>
+
+</section>
+</div>
+
+<script src="../../../scripts/chat-slash-picker.js"></script>
+</body></html>

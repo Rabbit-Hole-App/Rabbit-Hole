@@ -1,32 +1,180 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chat composer · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/standards.css">
 <link rel="stylesheet" href="../../../styles/source-headers.css">
-<link rel="stylesheet" href="../../../styles/composer.css">
 <link rel="stylesheet" href="../../../styles/review-corrections.css">
+<link rel="stylesheet" href="../../../styles/chat-composer.css">
+<link rel="stylesheet" href="../../../styles/chat-slash-picker.css">
 <link rel="stylesheet" href="../../../foundations/palette.css">
 <link rel="stylesheet" href="../../../styles/preview.css"></head>
-<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html">Source</a><p>reference — Owner screenshot correction: one enclosing composer with borderless prompt, context chip and inline toolbar inside. Compact custom dropdowns replace boxed native selects. Green toggle; blue circular Send/Stop. Multiline scroll and keyboard/pointer resize retained. Model list, attachment and voice are preview-only.</p></div>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/aa2cfb19a2ca551f2c99aad5cbbacf968c7b9f56/docs/features/explain-on-canvas/handoff/ui/templates/rabbit-hole-source-header-and-chat-composer.html">Source</a><p>reference — The composer grows vertically with the draft and scrolls long drafts. More reasoning starts selected and the detail trigger shows the current level and its icon. The slash picker preserves the draft when inserting a command.</p></div>
 <div class="catalog-preview"><div class="rh-composer-example">
-<article class="rh-composer teaching-card" id="rh-composer" aria-label="Chat composer">
-<form class="rh-form" id="rh-composer-form">
-<div class="rh-draft"><label class="rh-sr-only" for="rh-message">Message</label><textarea id="rh-message" rows="2" placeholder="Ask about this canvas"></textarea></div>
-<div class="rh-context"><button type="button" class="rh-context-chip" data-rh-demo="This canvas is included as context."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-FileText"/></svg>This canvas</button></div>
-<div class="rh-footer"><div class="rh-actions" role="group" aria-label="Composer controls">
-<details class="rh-menu"><summary aria-label="Add context" title="Add context"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Plus"/></svg></summary><div class="rh-options"><button type="button" data-rh-demo="Choose project preview.">Choose project</button><button type="button" data-rh-demo="Attach files preview.">Files</button><button type="button" data-rh-demo="Plugins preview.">Plugins</button></div></details>
-<details class="rh-menu"><summary aria-label="Model: Auto"><span>Auto</span><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="rh-options"><button type="button" aria-current="true" data-rh-demo="Automatic model selection.">Auto <span aria-hidden="true">✓</span></button><button type="button" disabled>Choose model…</button></div></details>
-<button type="button" class="rh-toggle" id="rh-toggle" role="switch" aria-checked="true" aria-label="Tutor enabled"><span class="rh-track" aria-hidden="true"></span><span data-toggle-label>On</span></button>
-<details class="rh-menu"><summary aria-label="Explanation depth: Standard" id="rh-depth"><svg class="rh-depth-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 15v-3m5 3V8m5 7V4"/></svg><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="rh-options"><button type="button" data-depth="Overview">Overview</button><button type="button" data-depth="Standard" aria-current="true">Standard</button><button type="button" data-depth="Deep">Deep</button></div></details>
-<details class="rh-menu"><summary aria-label="Slash commands" title="Slash commands">/</summary><div class="rh-options"><button type="button" data-command="/explain">/explain</button><button type="button" data-command="/interactive">/interactive</button><button type="button" data-command="/quiz">/quiz</button></div></details>
-<button type="button" class="rh-icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice input preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Mic"/></svg></button>
-<button type="submit" class="rh-send" id="rh-send" aria-label="Send" title="Send" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-ArrowUp"/></svg></button>
-</div></div>
-<p id="rh-composer-status" class="rh-sr-only" role="status"></p>
-<button type="button" class="resize-handle" aria-label="Resize chat composer" aria-describedby="rh-resize-guide"><svg width="10" height="10" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
-<p id="rh-resize-guide" class="rh-sr-only">Drag the grip or use arrow keys to resize. Hold Shift for larger steps.</p>
-</form></article></div></div>
+  <article class="rh-composer" id="rh-composer" aria-label="Chat composer">
+    <form class="rh-form" id="rh-composer-form">
+  <div class="rh-draft">
+    <label class="rh-sr-only" for="rh-message">Message</label>
+    <textarea id="rh-message" rows="2" placeholder="Ask about this canvas"></textarea>
+  </div>
+  <div class="rh-context" aria-label="Chat context">
+    <span class="rh-context-chip" tabindex="0" title="An overview of this canvas goes with each message">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Shapes"/></svg>This canvas
+    </span>
+  </div>
+  <div class="rh-footer">
+    <div class="rh-actions" role="group" aria-label="Composer controls">
+      <details class="rh-menu">
+        <summary aria-label="Add context" title="Add context"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Plus"/></svg></summary>
+        <div class="rh-options">
+          <button type="button" data-rh-demo="Upload Context"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Upload"/></svg>Upload Context</button>
+          <button type="button" data-rh-demo="Mention a canvas"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Shapes"/></svg>Mention a canvas</button>
+        </div>
+      </details>
+      <button type="button" class="rh-reasoning" data-reason-more aria-pressed="true" aria-label="More reasoning" title="Spend more time thinking through the answer">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Lightbulb"/></svg><span>More reasoning</span>
+      </button>
+      <details class="rh-menu rh-choice-menu" data-composer-menu="depth">
+        <summary aria-label="Answer detail: Balanced" title="Answer detail: Balanced" aria-haspopup="menu" aria-controls="rh-depth-options">
+          <svg class="icon rh-depth-glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/chat-detail.svg#balanced"/></svg><span data-depth-label>Balanced</span><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+        </summary>
+        <div class="rh-options" id="rh-depth-options" role="menu" aria-labelledby="rh-depth-heading">
+          <p class="rh-options-heading" id="rh-depth-heading" role="presentation">Answer detail</p>
+          <button type="button" role="menuitemradio" tabindex="-1" aria-checked="false" data-depth="Brief">
+            <svg class="icon rh-depth-glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/chat-detail.svg#brief"/></svg>
+            <span class="rh-choice-label">Brief<span class="rh-choice-hint">The takeaway in a few lines.</span></span>
+            <svg class="icon rh-choice-check" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"/></svg>
+          </button>
+          <button type="button" role="menuitemradio" tabindex="-1" aria-checked="true" data-depth="Balanced">
+            <svg class="icon rh-depth-glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/chat-detail.svg#balanced"/></svg>
+            <span class="rh-choice-label">Balanced<span class="rh-choice-hint">How it works and why it matters.</span></span>
+            <svg class="icon rh-choice-check" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"/></svg>
+          </button>
+          <button type="button" role="menuitemradio" tabindex="-1" aria-checked="false" data-depth="Detailed">
+            <svg class="icon rh-depth-glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/chat-detail.svg#detailed"/></svg>
+            <span class="rh-choice-label">Detailed<span class="rh-choice-hint">An example, key assumptions, and edge cases.</span></span>
+            <svg class="icon rh-choice-check" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"/></svg>
+          </button>
+        </div>
+      </details>
+      <details class="rh-menu rh-slash-menu" data-composer-menu="slash">
+        <summary aria-label="Slash commands" title="Slash commands" aria-controls="rh-command-picker"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Slash"/></svg></summary>
+        <div class="rh-slash-picker" id="rh-command-picker" data-slash-picker>
+  <div class="rh-command-header">
+    <h2 class="rh-command-title" id="rh-command-title">Commands</h2>
+    <button type="button" class="icon-button quiet compact" data-open-command-guide aria-label="Open command examples" title="Open command examples" aria-haspopup="dialog" aria-controls="rh-command-guide">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 15 6-6"/></svg>
+    </button>
+  </div>
+  <label class="rh-command-search">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/sidebar.svg#sidebar-search"/></svg>
+    <input type="search" role="combobox" autocomplete="off" aria-autocomplete="list" aria-expanded="true" aria-controls="rh-command-results" aria-activedescendant="rh-command-explain" aria-label="Search commands" placeholder="Search commands">
+  </label>
+  <div class="rh-command-results" id="rh-command-results" role="listbox" aria-labelledby="rh-command-title">
+    <div class="rh-command-group" role="group" aria-label="Learn">
+      <button type="button" class="rh-command-option" id="rh-command-explain" role="option" tabindex="-1" aria-selected="true" data-command="/explain" data-command-example="/explain how a hot coffee cools in a cold room, and let me change the room temperature" data-command-title="Explanation">
+        <span class="rh-command-top command-group"><span class="pill command">Explanation</span><code>/explain</code></span>
+        <span class="rh-command-copy">Explain an idea in text or with an interactive visual.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-practice" role="option" tabindex="-1" aria-selected="false" data-command="/practice" data-command-example="/practice explain it back: why the sky is blue" data-command-title="Practice">
+        <span class="rh-command-top command-group"><span class="pill command">Practice</span><code>/practice</code></span>
+        <span class="rh-command-copy">Try a task or explain an idea and get feedback.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-quiz" role="option" tabindex="-1" aria-selected="false" data-command="/quiz" data-command-example="/quiz Newton&#x27;s second law" data-command-title="Quiz">
+        <span class="rh-command-top command-group"><span class="pill command">Quiz</span><code>/quiz</code></span>
+        <span class="rh-command-copy">Answer a multiple-choice question and get feedback.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-flashcards" role="option" tabindex="-1" aria-selected="false" data-command="/flashcards" data-command-example="/flashcards Spanish verbs for travel" data-command-title="Flashcards">
+        <span class="rh-command-top command-group"><span class="pill command">Flashcards</span><code>/flashcards</code></span>
+        <span class="rh-command-copy">Review a topic with question-and-answer cards.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-goal" role="option" tabindex="-1" aria-selected="false" data-command="/goal" data-command-example="/goal read a balance sheet with confidence" data-command-title="Learning goal">
+        <span class="rh-command-top command-group"><span class="pill command">Goal</span><code>/goal</code></span>
+        <span class="rh-command-copy">Add or manage a learning goal.</span>
+      </button>
+    </div>
+    <div class="rh-command-group" role="group" aria-labelledby="rh-commands-create">
+      <p id="rh-commands-create">Create</p>
+      <button type="button" class="rh-command-option" id="rh-command-code" role="option" tabindex="-1" aria-selected="false" data-command="/code" data-command-example="/code a function that reverses a linked list" data-command-title="Code example">
+        <span class="rh-command-top command-group"><span class="pill command">Code</span><code>/code</code></span>
+        <span class="rh-command-copy">See a Python example for a task.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-graph" role="option" tabindex="-1" aria-selected="false" data-command="/graph" data-command-example="/graph y = sin(x) and y = cos(x)" data-command-title="Graph">
+        <span class="rh-command-top command-group"><span class="pill command">Graph</span><code>/graph</code></span>
+        <span class="rh-command-copy">Plot a function or data.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-diagram" role="option" tabindex="-1" aria-selected="false" data-command="/diagram" data-command-example="/diagram an HTTP request from browser to server" data-command-title="Diagram">
+        <span class="rh-command-top command-group"><span class="pill command">Diagram</span><code>/diagram</code></span>
+        <span class="rh-command-copy">Show steps or relationships in a process.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-notebook" role="option" tabindex="-1" aria-selected="false" data-command="/notebook" data-command-example="/notebook" data-command-title="Notebook">
+        <span class="rh-command-top command-group"><span class="pill command">Notebook</span><code>/notebook</code></span>
+        <span class="rh-command-copy">Add a notebook for code and calculations.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-cad" role="option" tabindex="-1" aria-selected="false" data-command="/cad" data-command-example="/cad a 60 x 40 x 5 mm plate with four 4 mm through holes and a centred 20 x 10 mm pocket, 3 mm deep" data-command-title="CAD model">
+        <span class="rh-command-top command-group"><span class="pill command">CAD</span><code>/cad</code></span>
+        <span class="rh-command-copy">Review a dimensioned part before generating a model.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-animation" role="option" tabindex="-1" aria-selected="false" data-command="/animation" data-command-example="/animation Let me change the length of a pendulum from 0.5 to 3 metres and see how its period changes, with the period shown as a number." data-command-title="3D animation">
+        <span class="rh-command-top command-group"><span class="pill command">Animation</span><code>/animation</code></span>
+        <span class="rh-command-copy">Create a live 3D scene you can play and adjust.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-3d" role="option" tabindex="-1" aria-selected="false" data-command="/3d" data-command-example="/3d perspective projection: a camera frustum with a cube inside it and a ray" data-command-title="3D scene">
+        <span class="rh-command-top command-group"><span class="pill command">3D</span><code>/3d</code></span>
+        <span class="rh-command-copy">Explore an idea in a 3D scene.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-browser" role="option" tabindex="-1" aria-selected="false" data-command="/browser" data-command-example="/browser https://jalammar.github.io/illustrated-transformer/" data-command-title="Browser">
+        <span class="rh-command-top command-group"><span class="pill command">Browser</span><code>/browser</code></span>
+        <span class="rh-command-copy">Add a webpage to your canvas.</span>
+      </button>
+    </div>
+    <div class="rh-command-group" role="group" aria-labelledby="rh-commands-search">
+      <p id="rh-commands-search">Search</p>
+      <button type="button" class="rh-command-option" id="rh-command-photos" role="option" tabindex="-1" aria-selected="false" data-command="/photos" data-command-example="/photos cat" data-command-title="Photo search" data-command-aliases="photo">
+        <span class="rh-command-top command-group"><span class="pill command search">Photos</span><code>/photos</code></span>
+        <span class="rh-command-copy">Find an existing photo with credit.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-youtube" role="option" tabindex="-1" aria-selected="false" data-command="/youtube" data-command-example="/youtube attention in transformers step by step 3blue1brown" data-command-title="YouTube search">
+        <span class="rh-command-top command-group"><span class="pill command search">YouTube</span><code>/youtube</code></span>
+        <span class="rh-command-copy">Find a YouTube video.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-arxiv" role="option" tabindex="-1" aria-selected="false" data-command="/arxiv" data-command-example="/arxiv 1706.03762" data-command-title="arXiv search">
+        <span class="rh-command-top command-group"><span class="pill command search">arXiv</span><code>/arxiv</code></span>
+        <span class="rh-command-copy">Find a research paper.</span>
+      </button>
+      <button type="button" class="rh-command-option" id="rh-command-wikipedia" role="option" tabindex="-1" aria-selected="false" data-command="/wikipedia" data-command-example="/wikipedia https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)" data-command-title="Wikipedia search">
+        <span class="rh-command-top command-group"><span class="pill command search">Wikipedia</span><code>/wikipedia</code></span>
+        <span class="rh-command-copy">Find a Wikipedia article.</span>
+      </button>
+    </div>
+  </div>
+  <p class="rh-command-empty" role="status" hidden>No commands match</p>
+  <dialog class="dialog rh-command-guide" id="rh-command-guide" aria-labelledby="rh-command-guide-title">
+    <div class="rh-command-guide-header">
+      <h2 id="rh-command-guide-title">Slash Commands</h2>
+      <button type="button" class="icon-button quiet compact" data-close-command-guide aria-label="Close command examples" title="Close command examples" autofocus>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"/></svg>
+      </button>
+    </div>
+    <dl class="rh-command-examples"></dl>
+  </dialog>
+</div>
 
-<script src="../../../scripts/resize.js"></script>
-<script src="../../../scripts/composer.js"></script>
-<script src="../../../scripts/review-corrections.js"></script>
+      </details>
+      <button type="button" class="rh-icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice input">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Mic"/></svg>
+      </button>
+      <button type="submit" class="rh-send" id="rh-send" aria-label="Send" title="Send" disabled>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-ArrowUp"/></svg>
+      </button>
+    </div>
+  </div>
+  <p id="rh-composer-status" class="rh-sr-only" role="status"></p>
+</form>
+
+  </article>
+</div>
+</div>
+
+<script src="../../../scripts/chat-slash-picker.js"></script>
+<script src="../../../scripts/chat-composer.js"></script>
 </body></html>

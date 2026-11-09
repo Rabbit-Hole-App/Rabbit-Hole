@@ -4504,6 +4504,46 @@
       "paletteRole": "shared"
     },
     {
+      "id": "tutor/chat-slash-picker",
+      "title": "Slash commands",
+      "category": "tutor",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/3e06ad769bf950f1ba6de90587efe2e0e15748d2/packages/web/src/LearnSlash.jsx",
+      "source_file": "LearnSlash.jsx",
+      "status": "reference",
+      "styles": [
+        "standards",
+        "source-headers",
+        "review-corrections",
+        "chat-slash-picker"
+      ],
+      "scripts": [
+        "chat-slash-picker"
+      ],
+      "implementation": [
+        "packages/web/src/LearnSlash.jsx",
+        "packages/web/src/CommandList.jsx",
+        "packages/web/src/learn-slash.js",
+        "packages/web/src/agent/slash.js",
+        "packages/web/src/SlashCommandsSheet.jsx"
+      ],
+      "notes": "Commands is the picker heading. The shared pill and typed command sit in a fixed left column, with descriptions aligned beside them. The square-slash button opens the example prompts.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "chat-slash-picker"
+      ],
+      "keywords": [
+        "slash",
+        "commands",
+        "learn",
+        "create",
+        "search",
+        "palette"
+      ],
+      "path": "components/tutor/chat-slash-picker",
+      "paletteRole": "shared"
+    },
+    {
       "id": "tutor/composer",
       "title": "Chat composer",
       "category": "tutor",
@@ -4511,33 +4551,44 @@
       "source_file": "rabbit-hole-source-header-and-chat-composer.html",
       "status": "reference",
       "styles": [
+        "standards",
         "source-headers",
-        "composer",
-        "review-corrections"
+        "review-corrections",
+        "chat-composer",
+        "chat-slash-picker"
       ],
       "scripts": [
-        "resize",
-        "composer",
-        "review-corrections"
+        "chat-slash-picker",
+        "chat-composer"
       ],
       "implementation": [
-        "packages/web/src/ChatComposer.jsx"
+        "packages/web/src/ChatComposer.jsx",
+        "packages/web/src/DepthMenu.jsx",
+        "packages/web/src/ContextChips.jsx",
+        "packages/web/src/ask.jsx",
+        "packages/web/src/LearnSlash.jsx"
       ],
-      "notes": "Owner screenshot correction: one enclosing composer with borderless prompt, context chip and inline toolbar inside. Compact custom dropdowns replace boxed native selects. Green toggle; blue circular Send/Stop. Multiline scroll and keyboard/pointer resize retained. Model list, attachment and voice are preview-only.",
+      "notes": "The composer grows vertically with the draft and scrolls long drafts. More reasoning starts selected and the detail trigger shows the current level and its icon. The slash picker preserves the draft when inserting a command.",
       "issues": [],
       "templates": [],
       "keywords": [
         "message",
         "send",
         "stop",
-        "resize",
         "multiline",
         "draft",
         "context",
-        "depth"
+        "depth",
+        "more reasoning",
+        "answer detail",
+        "command search"
       ],
       "path": "components/tutor/composer",
-      "paletteRole": "shared"
+      "paletteRole": "shared",
+      "includes": [
+        "chat-composer",
+        "chat-slash-picker"
+      ]
     },
     {
       "id": "tutor/empty-error-retry",

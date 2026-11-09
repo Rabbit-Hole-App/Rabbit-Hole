@@ -10,7 +10,7 @@ This folder organizes the supplied card and interface references into **62 compo
 
 ## Separate HTML for feedback
 
-The [clean folder](clean/) contains eleven self-contained HTML files: six teaching cards, the composer, separate Markdown and PDF headers, the green toggle, and the full chat panel. Each opens directly without a server or neighboring assets. Edit the component sources, then run `python docs/ui/scripts/export_clean.py` to refresh these exports. They omit catalog headings and review notes.
+The [clean folder](clean/) contains self-contained HTML previews. The [chat handoff](CHAT-PANEL.md) links to the composer, answer detail and slash commands. Each opens directly without a server or neighboring assets. Edit the component sources, then run `python docs/ui/scripts/export_clean.py` to refresh these exports. They omit catalog headings and review notes.
 
 The four original kit compositions now use the shared resizable shell, preserving their scene and control nodes. This is an explicit composition change; original historical fixtures remain intact.
 
@@ -20,7 +20,7 @@ Open [the self-contained component library](rabbit-hole-component-library.html) 
 
 ## Current design decisions
 
-The latest owner correction selects the original `ca0affe` kit as the blue/Claude-red balance reference. [Palette roles and exact states](foundations/PALETTE.md) supersede the all-blue experiment controls in `aed6ce7`/`aa2cfb1`. Blue is for app actions, shared selection and playback. Warm red distinguishes experiment parameters/actions and Interactive identity. Most surfaces remain neutral. Accept stays blue and rectangular; Cancel stays secondary. Toggles are green when on and neutral when off, including experiment toggles. Preserve the latest typography and growing composer with its persistent footer and resize grip.
+The latest owner correction selects the original `ca0affe` kit as the blue/Claude-red balance reference. [Palette roles and exact states](foundations/PALETTE.md) supersede the all-blue experiment controls in `aed6ce7`/`aa2cfb1`. Blue is for app actions, shared selection and playback. Warm red distinguishes experiment parameters/actions and Interactive identity. Most surfaces remain neutral. Accept stays blue and rectangular; Cancel stays secondary. Toggles are green when on and neutral when off, including experiment toggles. Preserve the latest typography and growing composer with its persistent footer.
 
 Precedence: latest owner decision → `foundations/PALETTE.md` and `tokens.json` → current component contract → preserved source. Historical examples preserve behavior and provenance; their styling is not automatically approved. All unresolved discrepancies are explicit in `REVIEW.md`.
 

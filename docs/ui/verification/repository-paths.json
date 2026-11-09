@@ -13,13 +13,17 @@
     "packages/web/src/CardFeedback.jsx",
     "packages/web/src/CardStar.jsx",
     "packages/web/src/ChatComposer.jsx",
+    "packages/web/src/CommandList.jsx",
+    "packages/web/src/ContextChips.jsx",
     "packages/web/src/CreatorProfile.jsx",
+    "packages/web/src/DepthMenu.jsx",
     "packages/web/src/FeedbackButton.jsx",
     "packages/web/src/FileDocCard.jsx",
     "packages/web/src/FileDocMarkdown.jsx",
     "packages/web/src/ForkButton.jsx",
     "packages/web/src/Home.jsx",
     "packages/web/src/LearnProgress.jsx",
+    "packages/web/src/LearnSlash.jsx",
     "packages/web/src/LearningBlocks.jsx",
     "packages/web/src/LibraryFolders.jsx",
     "packages/web/src/LibraryViews.jsx",
@@ -37,6 +41,7 @@
     "packages/web/src/TableOfContents.jsx",
     "packages/web/src/UsageGauge.jsx",
     "packages/web/src/agent/slash.js",
+    "packages/web/src/ask.jsx",
     "packages/web/src/comments/CommentInbox.jsx",
     "packages/web/src/comments/CommentsPanel.jsx",
     "packages/web/src/explain-program/ProgramScene.jsx",
@@ -51,6 +56,7 @@
     "packages/web/src/home/explore-find.js",
     "packages/web/src/home/weekly-top.js",
     "packages/web/src/index.css",
+    "packages/web/src/learn-slash.js",
     "packages/web/src/library-filter.js",
     "packages/web/src/library-folders.js",
     "packages/web/src/session-display.js",
@@ -121,6 +127,20 @@
       "packages/web/src/home/explore-find.js",
       "packages/web/src/home/weekly-top.js",
       "packages/web/src/library-filter.js"
+    ]
+  },
+  "chatComposerAudit": {
+    "ref": "3e06ad769bf950f1ba6de90587efe2e0e15748d2",
+    "verified_paths": [
+      "packages/web/src/ChatComposer.jsx",
+      "packages/web/src/CommandList.jsx",
+      "packages/web/src/ContextChips.jsx",
+      "packages/web/src/DepthMenu.jsx",
+      "packages/web/src/LearnSlash.jsx",
+      "packages/web/src/SlashCommandsSheet.jsx",
+      "packages/web/src/agent/slash.js",
+      "packages/web/src/ask.jsx",
+      "packages/web/src/learn-slash.js"
     ]
   }
 }

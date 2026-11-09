@@ -1,18 +1,5 @@
 <div class="rh-composer-example">
-<article class="rh-composer teaching-card" id="rh-composer" aria-label="Chat composer">
-<form class="rh-form" id="rh-composer-form">
-<div class="rh-draft"><label class="rh-sr-only" for="rh-message">Message</label><textarea id="rh-message" rows="2" placeholder="Ask about this canvas"></textarea></div>
-<div class="rh-context"><button type="button" class="rh-context-chip" data-rh-demo="This canvas is included as context."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-FileText"/></svg>This canvas</button></div>
-<div class="rh-footer"><div class="rh-actions" role="group" aria-label="Composer controls">
-<details class="rh-menu"><summary aria-label="Add context" title="Add context"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Plus"/></svg></summary><div class="rh-options"><button type="button" data-rh-demo="Choose project preview.">Choose project</button><button type="button" data-rh-demo="Attach files preview.">Files</button><button type="button" data-rh-demo="Plugins preview.">Plugins</button></div></details>
-<details class="rh-menu"><summary aria-label="Model: Auto"><span>Auto</span><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="rh-options"><button type="button" aria-current="true" data-rh-demo="Automatic model selection.">Auto <span aria-hidden="true">✓</span></button><button type="button" disabled>Choose model…</button></div></details>
-<button type="button" class="rh-toggle" id="rh-toggle" role="switch" aria-checked="true" aria-label="Tutor enabled"><span class="rh-track" aria-hidden="true"></span><span data-toggle-label>On</span></button>
-<details class="rh-menu"><summary aria-label="Explanation depth: Standard" id="rh-depth"><svg class="rh-depth-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 15v-3m5 3V8m5 7V4"/></svg><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="rh-options"><button type="button" data-depth="Overview">Overview</button><button type="button" data-depth="Standard" aria-current="true">Standard</button><button type="button" data-depth="Deep">Deep</button></div></details>
-<details class="rh-menu"><summary aria-label="Slash commands" title="Slash commands">/</summary><div class="rh-options"><button type="button" data-command="/explain">/explain</button><button type="button" data-command="/interactive">/interactive</button><button type="button" data-command="/quiz">/quiz</button></div></details>
-<button type="button" class="rh-icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice input preview."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Mic"/></svg></button>
-<button type="submit" class="rh-send" id="rh-send" aria-label="Send" title="Send" disabled><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-ArrowUp"/></svg></button>
-</div></div>
-<p id="rh-composer-status" class="rh-sr-only" role="status"></p>
-<button type="button" class="resize-handle" aria-label="Resize chat composer" aria-describedby="rh-resize-guide"><svg width="10" height="10" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 12 12 3M8 12 12 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
-<p id="rh-resize-guide" class="rh-sr-only">Drag the grip or use arrow keys to resize. Hold Shift for larger steps.</p>
-</form></article></div>
+  <article class="rh-composer" id="rh-composer" aria-label="Chat composer">
+    <!-- ui:include chat-composer -->
+  </article>
+</div>

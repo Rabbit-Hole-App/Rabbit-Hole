@@ -1,0 +1,59 @@
+<form class="rh-form" id="rh-composer-form">
+  <div class="rh-draft">
+    <label class="rh-sr-only" for="rh-message">Message</label>
+    <textarea id="rh-message" rows="2" placeholder="Ask about this canvas"></textarea>
+  </div>
+  <div class="rh-context" aria-label="Chat context">
+    <span class="rh-context-chip" tabindex="0" title="An overview of this canvas goes with each message">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Shapes"/></svg>This canvas
+    </span>
+  </div>
+  <div class="rh-footer">
+    <div class="rh-actions" role="group" aria-label="Composer controls">
+      <details class="rh-menu">
+        <summary aria-label="Add context" title="Add context"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Plus"/></svg></summary>
+        <div class="rh-options">
+          <button type="button" data-rh-demo="Upload Context"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Upload"/></svg>Upload Context</button>
+          <button type="button" data-rh-demo="Mention a canvas"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Shapes"/></svg>Mention a canvas</button>
+        </div>
+      </details>
+      <button type="button" class="rh-reasoning" data-reason-more aria-pressed="true" aria-label="More reasoning" title="Spend more time thinking through the answer">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Lightbulb"/></svg><span>More reasoning</span>
+      </button>
+      <details class="rh-menu rh-choice-menu" data-composer-menu="depth">
+        <summary aria-label="Answer detail: Balanced" title="Answer detail: Balanced" aria-haspopup="menu" aria-controls="rh-depth-options">
+          <svg class="icon rh-depth-glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/chat-detail.svg#balanced"/></svg><span data-depth-label>Balanced</span><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+        </summary>
+        <div class="rh-options" id="rh-depth-options" role="menu" aria-labelledby="rh-depth-heading">
+          <p class="rh-options-heading" id="rh-depth-heading" role="presentation">Answer detail</p>
+          <button type="button" role="menuitemradio" tabindex="-1" aria-checked="false" data-depth="Brief">
+            <svg class="icon rh-depth-glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/chat-detail.svg#brief"/></svg>
+            <span class="rh-choice-label">Brief<span class="rh-choice-hint">The takeaway in a few lines.</span></span>
+            <svg class="icon rh-choice-check" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"/></svg>
+          </button>
+          <button type="button" role="menuitemradio" tabindex="-1" aria-checked="true" data-depth="Balanced">
+            <svg class="icon rh-depth-glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/chat-detail.svg#balanced"/></svg>
+            <span class="rh-choice-label">Balanced<span class="rh-choice-hint">How it works and why it matters.</span></span>
+            <svg class="icon rh-choice-check" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"/></svg>
+          </button>
+          <button type="button" role="menuitemradio" tabindex="-1" aria-checked="false" data-depth="Detailed">
+            <svg class="icon rh-depth-glyph" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/chat-detail.svg#detailed"/></svg>
+            <span class="rh-choice-label">Detailed<span class="rh-choice-hint">An example, key assumptions, and edge cases.</span></span>
+            <svg class="icon rh-choice-check" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"/></svg>
+          </button>
+        </div>
+      </details>
+      <details class="rh-menu rh-slash-menu" data-composer-menu="slash">
+        <summary aria-label="Slash commands" title="Slash commands" aria-controls="rh-command-picker"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Slash"/></svg></summary>
+        <!-- ui:include chat-slash-picker -->
+      </details>
+      <button type="button" class="rh-icon-button" aria-label="Voice input" title="Voice input" data-rh-demo="Voice input">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-Mic"/></svg>
+      </button>
+      <button type="submit" class="rh-send" id="rh-send" aria-label="Send" title="Send" disabled>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/source-headers.svg#i-ArrowUp"/></svg>
+      </button>
+    </div>
+  </div>
+  <p id="rh-composer-status" class="rh-sr-only" role="status"></p>
+</form>

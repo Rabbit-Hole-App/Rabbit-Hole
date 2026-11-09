@@ -32,3 +32,7 @@ Browser rendering, computed styles, visual balance, long-label overflow, native 
 The rebuild contains 66 component entries, 41 JavaScript files and 15 standalone previews. Structural checks pass with zero errors. The shared source widget script checks for its optional demo roots; its absent-root warnings are expected in the isolated tabs, upload, row and complete-dialog specimens. The four historical lifecycle warnings above remain. These are parser checks only, not visual or browser interaction evidence.
 
 The one-repository constraint remains in local draft behavior, but its persistent helper sentence is removed as requested. Start and the blank-canvas action keep their established placement. Button labels cannot break and buttons cannot shrink; inputs receive the remaining width. Browser confirmation of computed layout remains pending.
+
+## Canvas Chat composer and commands
+
+The approved composer, detail and slash picker exports match the reviewed HTML byte for byte. Offline fixtures cover draft growth, the selected detail controls, slash search and insertion, and the registered example prompts. The structural check covers 59 standalone previews. Browser layout remains pending.
