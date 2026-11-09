@@ -1,4 +1,5 @@
 import originalExamples from './examples.json' with { type: 'json' };
+import learnerKeywords from './reference-learner-keywords.json' with { type: 'json' };
 import { references as batch1Followups } from './batch-1-followup-references.js';
 import { references as statistical } from './ml-statistical-references.js';
 import { references as plot } from './ml-plot-references.js';
@@ -78,7 +79,15 @@ export const diagramReferences = Object.freeze([
   ...figureChapterReferences,
   ...lessonDecisionTreesReferences,
   ...estimationEvaluationReferences,
-]);
+].map(ref => {
+  const topics = learnerKeywords[ref.id];
+  if (!topics) return ref;
+  return {
+    ...ref,
+    keywords: [...ref.keywords, ...topics],
+    shortKeywords: [...(ref.shortKeywords ?? []), ...topics],
+  };
+}));
 
 export const PHASE02_SOURCE = Object.freeze({
   repository: 'rohitg00/ai-engineering-from-scratch',
