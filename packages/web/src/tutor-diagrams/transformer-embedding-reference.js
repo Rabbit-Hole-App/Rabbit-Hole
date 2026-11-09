@@ -55,6 +55,12 @@ export const transformerEmbeddingReference = {
     'words in a sentence into embeddings',
     'word become a row of numbers before attention',
     'add position after looking up a word embedding',
+    'positional encoding',
+    'position embedding',
+    'word order',
+    'order of words',
+    'position information',
+    'position added',
   ],
   useWhen: 'Show one shape-only strip per token in sentence order, starting at position zero. Repeated tokens share an embedding. At Detailed, the second visual shows the position signal that is added to each embedding.',
   spec: embeddingSpec({

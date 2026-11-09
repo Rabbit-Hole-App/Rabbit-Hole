@@ -136,3 +136,10 @@ test('a dropped visual preserves the remaining detail target in reading order', 
   assert.doesNotMatch(missing.body, /"detail":/);
   assert.equal(explanationLayoutProblem(missing), null);
 });
+
+// Owner 2026-11-09 (batch-1 card 03, review): positional-encoding questions select the walkthrough's step-1 reference (its Detailed variant adds the position signal), first, at Balanced and Detailed.
+test('positional encoding questions select the token-embeddings reference first (its Detailed variant adds the position signals)', () => {
+  const prompts = ['how does positional encoding work in a transformer?', 'how do transformers know the order of words?', 'what is positional encoding?', 'why does a transformer add position information to word embeddings?',
+    'explain sinusoidal position embeddings', 'how does a transformer represent word order?', 'how do word embeddings get position added in a transformer?'];
+  for (const depth of ['balanced', 'detailed']) for (const prompt of prompts) assert.equal(selectDiagramReferences({ prompt, depth })[0]?.id, 'ml-transformer-token-embeddings', `${depth}: ${prompt}`);
+});
