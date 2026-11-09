@@ -26,6 +26,7 @@ const steerText = (s, short) => (s === null || s === undefined ? 'not logged' : 
 const yn = v => (v === null || v === undefined ? 'not logged' : v ? 'yes' : 'no');
 
 export async function pack(o) {
+  const only = o.only?.length ? new Set(o.only.map(x => x.replace(/^ml-trees-/, '')).map(x => `ml-trees-${x}`)) : null; // --only: rewrite just these card folders and index.md, keep REVIEW.md and the other folders
   const set = loadSet('demo-lesson04'), root = o.tree ? resolve(o.tree) : REPO, out = resolve(o.out);
   // Latest run wins per (prompt id, depth).
   const got = new Map();
@@ -61,11 +62,11 @@ export async function pack(o) {
   if (!o.runs.length) { for (const r of rows) console.log(`${r.name.padEnd(36)} ${r.dep.padEnd(8)} expects ${r.refId} (${r.wantKind}); reference ${r.refSvg ? 'found' : 'NOT FOUND'}`); return { rows, written: false }; }
 
   mkdirSync(out, { recursive: true });
-  for (const d of readdirSync(out, { withFileTypes: true })) if (d.isDirectory() && /^[0-9][0-9]-/.test(d.name)) rmSync(join(out, d.name), { recursive: true, force: true }); // a new run replaces the old cards
+  if (!only) for (const d of readdirSync(out, { withFileTypes: true })) if (d.isDirectory() && /^[0-9][0-9]-/.test(d.name)) rmSync(join(out, d.name), { recursive: true, force: true }); // a new run replaces the old cards
   const stack = !o.noPng && o.base && o.vars ? await openStack(o, root) : null;
   const shot = !o.noPng ? await (async () => { const { chromium } = createRequire('C:/Users/cyudhist/Desktop/workspace/tutor-r6/package.json')('playwright'); return chromium.launch({ headless: true }); })() : null;
-  for (const r of rows.filter(x => x.c)) {
-    const dir = join(out, r.name); mkdirSync(dir, { recursive: true });
+  for (const r of rows.filter(x => x.c && (!only || only.has(x.p.id)))) {
+    const dir = join(out, r.name), previous = replaceFolder(dir);
     const { c, b, row } = r, vis = []; let body = '', last = 0, m;
     FENCE.lastIndex = 0;
     while (b && (m = FENCE.exec(b.body))) { const n = vis.length + 1; let spec = null; try { spec = JSON.parse(m[2]); } catch { /* kept as text */ } vis.push({ n, type: m[1] === 'rh-diagram' ? 'diagram' : 'picture', spec }); body += b.body.slice(last, m.index) + `[[visual:${n}]]`; last = m.index + m[0].length; }
@@ -99,11 +100,12 @@ export async function pack(o) {
       '| model (440 px) | reference (408 px) |', '|---|---|', `| ${vis.filter(v => v.type === 'diagram' && v.spec).map(v => `![visual ${v.n}](visual-${v.n}.svg)`).join(' ') || 'no diagram'} | ${r.refSvg ? '![reference](reference-408.svg)' : 'reference not available'} |`, '',
       '## Body (as saved, visual markers in place)', '', body.trim(), '',
       '## Visuals', '', ...vis.map(v => (v.type === 'diagram' ? `- [[visual:${v.n}]] diagram, kind **${v.spec?.diagram?.kind}**, title "${v.spec?.diagram?.title ?? ''}", caption "${v.spec?.diagram?.caption ?? ''}" ([spec](visual-${v.n}.json), [svg](visual-${v.n}.svg), [png](visual-${v.n}.png))` : `- [[visual:${v.n}]] PICTURE: caption "${v.spec?.caption ?? ''}", prompt "${v.spec?.prompt ?? ''}" ([spec](visual-${v.n}.json))`)), '',
+      ...(previous ? ['## Previous run (replaced on regeneration)', '', previous, ''] : []),
       '## Follow-up questions', '', ...(b?.interactions?.questions || []).map((q, i) => `${i + 1}. ${q.text}`), ''].join('\n'));
     console.log(`${r.name} ${r.dep} kind ${r.modelKind} (expected ${r.wantKind}) hit ${yn(r.hit)} first ${yn(r.first)} visuals ${vis.length}${cardPng ? ' card.png' : ''}`);
   }
   if (shot) await shot.close();
-  for (const r of rows.filter(x => !x.c && x.refSvg)) { const dir = join(out, r.name); mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'reference-408.svg'), r.refSvg); }
+  if (!only) for (const r of rows.filter(x => !x.c && x.refSvg)) { const dir = join(out, r.name); mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'reference-408.svg'), r.refSvg); }
 
   const ran = rows.filter(r => r.c), known = ran.filter(r => r.kindMatch !== null), judged = ran.filter(r => r.factual), pc = (n, d) => (d ? `${n}/${d}` : '-');
   const cell = r => (r.c ? [r.modelKind, yn(r.hit), yn(r.first), (r.ids || []).join(' ') || '-', r.planKind ?? '-', steerText(r.steer, true), r.factual ? `${r.factual.score}${r.factualError ? ' ERROR: ' + (r.factual.notes || []).join(' ') : ''}` : '-', r.c.repaired ? `yes: ${(r.c.repairCauses || []).map(x => x.error).join(' | ').slice(0, 200)}` : 'no', `${r.c.totalMs} ms`] : ['not run', '', '', '', '', '', '', '', '']);
@@ -112,15 +114,24 @@ export async function pack(o) {
     '| # | Prompt | Depth | Expected reference | Expected kind | Model kind | Intended reference sent | First sent | References sent (order) | Planner kind | Steer | Factual (1-5, flags) | Repaired (cause) | Time |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
     ...rows.map(r => { const k = cell(r); return `| ${r.p.n} | ${r.c ? `[${r.p.prompt}](${r.name}/card.md)` : r.p.prompt} | ${r.dep === 'deep' ? 'Detailed' : 'Balanced'} | ${r.refId} | ${r.wantKind} | ${k[0]} | ${k[1]} | ${k[2]} | ${k[3]} | ${k[4]} | ${k[5]} | ${k[6]} | ${k[7]} | ${k[8]} |`; }), '',
     `Cards run ${ran.length} of ${rows.length}; delivered ${pc(ran.filter(r => r.c.delivered).length, ran.length)}; intended reference sent ${pc(ran.filter(r => r.hit).length, ran.filter(r => r.hit !== null).length)}; first sent ${pc(ran.filter(r => r.first).length, ran.filter(r => r.first !== null).length)}; model kind = expected ${pc(known.filter(r => r.kindMatch).length, known.length)} (cards with a known expected kind); factual error ${pc(judged.filter(r => r.factualError).length, judged.length)}; steer fired ${ran.filter(r => r.steer?.length).length}; repaired ${ran.filter(r => r.c.repaired).length}; planner routed to picture ${ran.filter(r => r.c.plan?.pictures > 0).length}; cost US$${ran.reduce((s, r) => s + (r.c.costUsd || 0), 0).toFixed(4)}.`, ''].join('\n'));
-  writeFileSync(join(out, 'REVIEW.md'), ['# Review of demo-lesson04', '', 'To be filled by the lead after reading every card.md and visual. Columns: **kind** = the drawn kind against the expected one; **complete** = what the reference shows is on the visual; **labels** = placeholders, duplicates, maths outside `$...$`; **numbers** = values on the visual against the prose; **points** = the prose tells the reader what to look for.', '',
+  if (!only) writeFileSync(join(out, 'REVIEW.md'), ['# Review of demo-lesson04', '', 'To be filled by the lead after reading every card.md and visual. Columns: **kind** = the drawn kind against the expected one; **complete** = what the reference shows is on the visual; **labels** = placeholders, duplicates, maths outside `$...$`; **numbers** = values on the visual against the prose; **points** = the prose tells the reader what to look for.', '',
     '| # | Card | Kind | Complete | Labels | Numbers | Points at visual |', '|---|---|---|---|---|---|---|', ...rows.map(r => `| ${r.p.n}${r.dep === 'deep' ? ' D' : ''} | ${r.c ? `[${r.p.referenceId}](${r.name}/card.md)` : r.p.referenceId} | | | | | |`), '', '## Notes under the body (not the visual)', '', '- 09 bootstrap-roots: body contradicts the visual the model had just written: prose says 6 rows and names C, E, G, H as omitted while the diagram shows them drawn; same defect class as batch-02 card 06; author-prompt rule #8c, separate measured run.', ''].join('\n'));
   // A card whose intended reference was not sent, or whose kind differs from the reference's, prints its pipeline lines at once (planner raw plan, references sent, author raw visuals).
-  for (const r of ran.filter(x => x.hit === false || x.kindMatch === false)) { const a0 = (r.c.raw || [])[0]; console.log(`MISS ${r.name}: intended sent ${yn(r.hit)}, model kind ${r.modelKind} vs ${r.wantKind}
+  for (const r of ran.filter(x => (!only || only.has(x.p.id)) && (x.hit === false || x.kindMatch === false))) { const a0 = (r.c.raw || [])[0]; console.log(`MISS ${r.name}: intended sent ${yn(r.hit)}, model kind ${r.modelKind} vs ${r.wantKind}
   plan ${JSON.stringify(a0?.plan ?? r.c.plan)}
   references ${JSON.stringify(r.ids)}
   steer ${steerText(r.steer)}
   author raw visuals ${JSON.stringify(a0?.visuals ?? null)}`); }
   return { rows, written: true };
+}
+
+// A card folder being replaced keeps its old header lines (planner, kinds, references, steer, repair, time, factual) as text and its old pipeline.json as previous-pipeline.json; everything else is cleared.
+function replaceFolder(dir) {
+  if (!existsSync(join(dir, 'card.md'))) { mkdirSync(dir, { recursive: true }); return null; }
+  const lines = readFileSync(join(dir, 'card.md'), 'utf8').split('\n').slice(2), end = lines.findIndex(l => !l.startsWith('- ')), head = lines.slice(0, end < 0 ? lines.length : end).join('\n');
+  const prevPipeline = existsSync(join(dir, 'previous-pipeline.json')) ? readFileSync(join(dir, 'previous-pipeline.json'), 'utf8') : readFileSync(join(dir, 'pipeline.json'), 'utf8');
+  rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'previous-pipeline.json'), prevPipeline);
+  return head;
 }
 
 async function pngOf(browser, svg, file) {
@@ -156,7 +167,7 @@ async function cardShot(s, browser, b, prompt, file) {
 }
 
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('demo-lesson04-pack.mjs')) {
-  const { values: a } = parseArgs({ options: { run: { type: 'string', multiple: true }, out: { type: 'string' }, tree: { type: 'string' }, base: { type: 'string' }, vars: { type: 'string' }, 'no-png': { type: 'boolean' }, 'refs-dir': { type: 'string' }, 'refs-ref': { type: 'string' }, 'dry-run': { type: 'boolean' } } });
-  const r = await pack({ runs: a['dry-run'] ? [] : a.run || [], out: a.out || join(REPO, 'docs/features/explain/review/demo-lesson04'), tree: a.tree, base: a.base, vars: a.vars, noPng: a['no-png'], refsDir: a['refs-dir'], refsRef: a['refs-ref'] || 'rabbit-hole/chatgpt/explain-phase02-library' });
+  const { values: a } = parseArgs({ options: { run: { type: 'string', multiple: true }, out: { type: 'string' }, tree: { type: 'string' }, base: { type: 'string' }, vars: { type: 'string' }, 'no-png': { type: 'boolean' }, 'refs-dir': { type: 'string' }, 'refs-ref': { type: 'string' }, 'dry-run': { type: 'boolean' }, only: { type: 'string' } } });
+  const r = await pack({ runs: a['dry-run'] ? [] : a.run || [], out: a.out || join(REPO, 'docs/features/explain/review/demo-lesson04'), tree: a.tree, base: a.base, vars: a.vars, noPng: a['no-png'], only: (a.only || '').split(',').filter(Boolean), refsDir: a['refs-dir'], refsRef: a['refs-ref'] || 'rabbit-hole/chatgpt/explain-phase02-library' });
   console.log(r.written ? `pack written: ${r.rows.filter(x => x.c).length} cards` : 'dry run: nothing written');
 }

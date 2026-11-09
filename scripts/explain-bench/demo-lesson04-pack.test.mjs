@@ -39,4 +39,9 @@ test('pack writes the per-card folder from a fixture bench run', async () => {
   assert.match(readFileSync(join(out, 'index.md'), 'utf8'), /sent bare, as the owner types it/);
   mkdirSync(join(out, '99-stale')); await pack({ runs: [run], out, refsDir: refs, noPng: true });
   assert.ok(!existsSync(join(out, '99-stale')), 'a new pack replaces old card folders');
+  mkdirSync(join(out, '98-keep')); writeFileSync(join(out, 'REVIEW.md'), 'lead text');
+  await pack({ runs: [run], out, refsDir: refs, noPng: true, only: ['majority-vote'] });
+  assert.ok(existsSync(join(out, '98-keep')) && readFileSync(join(out, 'REVIEW.md'), 'utf8') === 'lead text', '--only keeps other folders and REVIEW.md');
+  assert.match(readFileSync(join(out, '11-majority-vote', 'card.md'), 'utf8'), /## Previous run[^]*Steer .*plannerKind flow/);
+  assert.ok(existsSync(join(out, '11-majority-vote', 'previous-pipeline.json')));
 });

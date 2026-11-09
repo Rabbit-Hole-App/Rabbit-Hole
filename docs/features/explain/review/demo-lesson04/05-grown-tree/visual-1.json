@@ -2,7 +2,7 @@
  "version": 1,
  "diagram": {
   "title": "A prediction follows tested conditions",
-  "caption": "Illustrative counts. For x_1 <= 4, follow the route to Class A.",
+  "caption": "Illustrative counts. For x_1 equals 2 and x_2 equals 1, follow the blue route to Class A.",
   "kind": "tree",
   "nodes": [
    {
@@ -31,7 +31,7 @@
     "id": "a",
     "label": "Class A",
     "parent": "left",
-    "edgeLabel": "x_2 <= 2",
+    "edgeLabel": "$x_2\\le 2$",
     "count": 4,
     "detail": "4 A, 0 B"
    },
@@ -39,7 +39,7 @@
     "id": "b",
     "label": "Class B after two tests",
     "parent": "left",
-    "edgeLabel": "x_2 > 2",
+    "edgeLabel": "$x_2>2$",
     "count": 3,
     "detail": "0 A, 3 B"
    }

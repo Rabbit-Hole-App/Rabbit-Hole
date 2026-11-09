@@ -1,5 +1,21 @@
 # Review of demo-lesson04
 
+## Reviewer audit (owner's reviewer, 2026-11-09)
+
+Audit of the first pack on the 118 merge stack 98e3d9726 (13 bare Balanced cards). Recorded as given.
+
+- **SHIP:** 01, 02, 03, 04, 06, 07, 10, 11, 12, 13.
+- **REGENERATE 05** (ml-trees-grown-tree): the author drew `ml-tree-split-path` as an outline instead of `ml-trees-grown-tree`.
+- **REGENERATE 09** (ml-trees-bootstrap-roots): label-rebuilt card, 6-draw sample.
+- **08** (ml-trees-regression-step-fit): the card is the reference copied, but the reference labels 16 leaves as depth 5 (that is depth 4). Codex is relabelling: pull his commit and redeploy the preview when it lands, no other change.
+
+Findings for the ledger, no action today:
+
+- (a) When two topical references of the same kind are sent (05: `ml-trees-grown-tree` and `ml-tree-split-path`) the author can take the wrong one. On an exact-prompt steer, consider sending only the steered reference plus the shape example (to be measured later, NOT in 118).
+- (b) A reference's label defects propagate verbatim (11 inherited "Parallel:" / "Merge:").
+
+The skeleton below is for the lead to fill.
+
 To be filled by the lead after reading every card.md and visual. Columns: **kind** = the drawn kind against the expected one; **complete** = what the reference shows is on the visual; **labels** = placeholders, duplicates, maths outside `$...$`; **numbers** = values on the visual against the prose; **points** = the prose tells the reader what to look for.
 
 | # | Card | Kind | Complete | Labels | Numbers | Points at visual |

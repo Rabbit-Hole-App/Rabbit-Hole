@@ -1,8 +1,8 @@
 {
- "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
+ "run": "2026-11-09T122905-demo-lesson04-regen-05-09",
  "plan": {
   "planner": "jev",
-  "ms": 116,
+  "ms": 54,
   "kind": "sample-set",
   "fixed": true,
   "offered": null,
@@ -31,11 +31,11 @@
      "visualType": 1
     },
     "flags": {
-     "needsPlot": 0.13,
+     "needsPlot": 0.12,
      "isPhysical": 0.1,
-     "needsWorkedExample": 0.81
+     "needsWorkedExample": 0.82
     },
-    "ms": 116
+    "ms": 54
    },
    "references": [
     "shape-sample-set",
@@ -48,16 +48,12 @@
      "spec": {
       "version": 1,
       "diagram": {
-       "title": "Bootstrap sample with replacement",
-       "caption": "Six draws contain four unique examples; c and e were never drawn.",
+       "title": "Bootstrap sample from training rows",
+       "caption": "Six draws contain four unique examples; rows c and e were never drawn.",
        "kind": "sample-set",
-       "steps": [
-        "samples",
-        "groups",
-        "replacement",
-        "omitted",
-        "outOfBagFor"
-       ]
+       "nodes": [],
+       "edges": [],
+       "highlightPath": []
       }
      }
     }
@@ -83,11 +79,11 @@
      "visualType": 1
     },
     "flags": {
-     "needsPlot": 0.13,
+     "needsPlot": 0.12,
      "isPhysical": 0.1,
-     "needsWorkedExample": 0.81
+     "needsWorkedExample": 0.82
     },
-    "ms": 116
+    "ms": 54
    },
    "references": [
     "shape-sample-set",
@@ -100,16 +96,12 @@
      "spec": {
       "version": 1,
       "diagram": {
-       "title": "One bootstrap draw",
-       "caption": "Six draws contain four unique examples; c and e were never drawn.",
+       "title": "Bootstrap sample from training rows",
+       "caption": "Six draws contain four unique examples; rows c and e were never drawn.",
        "kind": "sample-set",
-       "domain": {
-        "min": 0,
-        "max": 1,
-        "unit": "unit"
-       },
-       "lanes": [],
-       "cutoffs": []
+       "nodes": [],
+       "edges": [],
+       "highlightPath": []
       }
      }
     }
@@ -135,11 +127,11 @@
      "visualType": 1
     },
     "flags": {
-     "needsPlot": 0.13,
+     "needsPlot": 0.12,
      "isPhysical": 0.1,
-     "needsWorkedExample": 0.81
+     "needsWorkedExample": 0.82
     },
-    "ms": 116
+    "ms": 54
    },
    "references": [
     "shape-sample-set",
@@ -225,10 +217,10 @@
   "run": 1,
   "depth": "standard",
   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
-  "canvas": "canvas-cb32e28b",
-  "startedAt": "2026-11-09T19:49:05.350Z",
+  "canvas": "canvas-06da8d9b",
+  "startedAt": "2026-11-09T20:29:10.873Z",
   "http": 200,
-  "totalMs": 11630,
+  "totalMs": 10522,
   "delivered": true,
   "failure": null,
   "authoredBy": {
@@ -255,9 +247,9 @@
   ],
   "authorCalls": 2,
   "pictures": 0,
-  "ledgerUsd": 0.005722,
+  "ledgerUsd": 0.006343,
   "estUsd": 0.016,
-  "costUsd": 0.005722,
+  "costUsd": 0.006343,
   "costSource": "ledger",
   "steer": [],
   "repairCauses": [
@@ -275,8 +267,8 @@
   "visualFallback": null,
   "proseLists": 0,
   "unknownKeysStripped": {
-   "events": 4,
-   "keys": 4
+   "events": 6,
+   "keys": 6
   },
   "picturesDropped": [],
   "raw": [
@@ -297,11 +289,11 @@
       "visualType": 1
      },
      "flags": {
-      "needsPlot": 0.13,
+      "needsPlot": 0.12,
       "isPhysical": 0.1,
-      "needsWorkedExample": 0.81
+      "needsWorkedExample": 0.82
      },
-     "ms": 116
+     "ms": 54
     },
     "references": [
      "shape-sample-set",
@@ -314,16 +306,12 @@
       "spec": {
        "version": 1,
        "diagram": {
-        "title": "Bootstrap sample with replacement",
-        "caption": "Six draws contain four unique examples; c and e were never drawn.",
+        "title": "Bootstrap sample from training rows",
+        "caption": "Six draws contain four unique examples; rows c and e were never drawn.",
         "kind": "sample-set",
-        "steps": [
-         "samples",
-         "groups",
-         "replacement",
-         "omitted",
-         "outOfBagFor"
-        ]
+        "nodes": [],
+        "edges": [],
+        "highlightPath": []
        }
       }
      }
@@ -349,11 +337,11 @@
       "visualType": 1
      },
      "flags": {
-      "needsPlot": 0.13,
+      "needsPlot": 0.12,
       "isPhysical": 0.1,
-      "needsWorkedExample": 0.81
+      "needsWorkedExample": 0.82
      },
-     "ms": 116
+     "ms": 54
     },
     "references": [
      "shape-sample-set",
@@ -366,16 +354,12 @@
       "spec": {
        "version": 1,
        "diagram": {
-        "title": "One bootstrap draw",
-        "caption": "Six draws contain four unique examples; c and e were never drawn.",
+        "title": "Bootstrap sample from training rows",
+        "caption": "Six draws contain four unique examples; rows c and e were never drawn.",
         "kind": "sample-set",
-        "domain": {
-         "min": 0,
-         "max": 1,
-         "unit": "unit"
-        },
-        "lanes": [],
-        "cutoffs": []
+        "nodes": [],
+        "edges": [],
+        "highlightPath": []
        }
       }
      }
@@ -401,11 +385,11 @@
       "visualType": 1
      },
      "flags": {
-      "needsPlot": 0.13,
+      "needsPlot": 0.12,
       "isPhysical": 0.1,
-      "needsWorkedExample": 0.81
+      "needsWorkedExample": 0.82
      },
-     "ms": 116
+     "ms": 54
     },
     "references": [
      "shape-sample-set",
@@ -491,21 +475,21 @@
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 1999
+    "ms": 2331
    },
    {
     "served": "gemini-3.5-flash-lite",
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 1665
+    "ms": 1858
    },
    {
     "served": "accounts/fireworks/models/gpt-oss-120b",
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 7413
+    "ms": 6156
    }
   ]
  },
@@ -530,11 +514,11 @@
   "repaired": true
  },
  "tokens": {
-  "input": 16923,
-  "output": 1149,
-  "authorUsd": 0.005722,
+  "input": 16991,
+  "output": 1389,
+  "authorUsd": 0.006343,
   "pictureUsd": 0
  },
- "totalMs": 11630,
- "costUsd": 0.005722
+ "totalMs": 10522,
+ "costUsd": 0.006343
 }
