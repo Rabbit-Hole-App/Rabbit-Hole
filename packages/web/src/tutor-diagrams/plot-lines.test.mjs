@@ -166,6 +166,28 @@ test('a closed plot line joins the last vertex to the first and only marks label
   assert.deepEqual([...svg.matchAll(/data-tutor-coordinate-point="([^"]+)"/g)].map(match => match[1]), ['0,1']);
 });
 
+test('smooth closed lines have matching cubic tangents at every sample including the seam', () => {
+  const { smooth, ...periodic } = contour;
+  const path = series => {
+    const svg = renderToStaticMarkup(renderTutorDiagram(contourPlot(series), 408).element);
+    return svg.match(/<path[^>]*data-tutor-plot-series="Loss level"[^>]*>/)[0].match(/\bd="([^"]+)"/)[1];
+  };
+  const geometry = path(periodic);
+  assert.match(geometry, /^M[^L]+Z$/);
+  const cubics = segments(geometry.slice(0, -1));
+  assert.equal(cubics.length, periodic.points.length);
+  for (const [i, [start, control]] of cubics.entries()) {
+    const [, , previousControl, previousEnd] = cubics.at(i - 1);
+    assert.deepEqual(previousEnd, start);
+    const outgoing = start.map((value, axis) => control[axis] - value);
+    const incoming = start.map((value, axis) => value - previousControl[axis]);
+    assert.ok(Math.hypot(...outgoing) > 0);
+    assert.ok(outgoing.every((value, axis) => Math.abs(value - incoming[axis]) < 1e-9));
+  }
+  const { x, y } = periodic.points[0];
+  assert.equal(path({ ...periodic, points: [...periodic.points, { x, y }] }), geometry);
+});
+
 test('closed lines reject ambiguous geometry and the explicit false option keeps an open line', () => {
   for (const changes of [
     { kind: 'step' }, { kind: 'scatter' }, { kind: 'stem' }, { endLabel: true },

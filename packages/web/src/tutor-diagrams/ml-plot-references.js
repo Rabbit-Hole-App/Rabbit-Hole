@@ -15,6 +15,21 @@ const circle = (x, y, radius, label) => ({ kind: 'circle', center: { x, y }, rad
 const ref = (id, lessons, prompt, keywords, useWhen, diagram) => ({ id, lessons, prompts: [prompt], keywords, useWhen,
   spec: { version: 1, diagram } });
 
+function closedEllipse(label, radiusX, radiusY) {
+  const divisor = 1000;
+  const points = Array.from({ length: 24 }, (_, i) => {
+    const angle = i * Math.PI / 12;
+    return [
+      Math.round(radiusX * Math.cos(angle) * divisor) || 0,
+      Math.round(radiusY * Math.sin(angle) * divisor) || 0,
+    ];
+  });
+  return {
+    label, kind: 'line', closed: true,
+    samples: { x: { values: points.map(([x]) => x), divisor }, y: points.map(([, y]) => y), divisor },
+  };
+}
+
 export const references = [
   ref('nearest-centroid-boundary', ['01'], 'How does a nearest-centroid classifier draw its boundary?', ['centroid', 'classification', 'boundary'],
     'Show labelled clusters, their centers and a perpendicular equal-distance boundary.',
@@ -36,11 +51,8 @@ export const references = [
   ref('gradient-descent-contours', ['02'], 'How does gradient descent move through a loss contour map?', ['gradient descent', 'contour', 'optimization'],
     'Use closed loss contours and mark the sequence of decreasing-loss steps.',
     plot('A descent path on a quadratic loss', axis('Weight 1', -3, 3), axis('Weight 2', -3, 3), [
-      { label: 'Outer loss contour', kind: 'line', closed: true, samples: {
-        x: { values: [-20, -14, 0, 14, 20, 14, 0, -14], divisor: 10 },
-        y: [0, 14, 20, 14, 0, -14, -20, -14], divisor: 10,
-      } },
-      { label: 'Inner loss contour', kind: 'line', closed: true, samples: { x: [-1, 0, 1, 0], y: [0, 1, 0, -1] } },
+      closedEllipse('Outer loss contour', 2, 2),
+      closedEllipse('Inner loss contour', 1, 1),
     ], [vector([2.5, 2], [1.4, 1.1], 'Step 1'), vector([1.4, 1.1], [0.6, 0.5], 'Step 2'), vector([0.6, 0.5], [0, 0], 'Step 3')])),
   ref('polynomial-regression-curve', ['02'], 'How can a linear model in polynomial features fit a curve?', ['polynomial', 'regression', 'nonlinear'],
     'Compare a fixed quadratic curve with observed targets.',
