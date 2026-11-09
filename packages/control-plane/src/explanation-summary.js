@@ -49,7 +49,7 @@ export async function writeSummary(env, input, org, identity = {}) {
           return Response.json({ model, usage });
         } finally { clearTimeout(timer); }
       }, { provider: step.provider, category: 'explanation_summary', ...identity });
-      if (!response.ok) { outcome = `http_${response.status}`; continue; }
+      if (!response.ok) { outcome = (await response.clone().json().catch(() => null))?.code || `http_${response.status}`; continue; } // our own admission refusals carry a code
       let text = null;
       try { text = JSON.parse(seen)?.summary; } catch { /* an unreadable answer is a failed step */ }
       const summary = typeof text === 'string' ? capSummary(text) : '';

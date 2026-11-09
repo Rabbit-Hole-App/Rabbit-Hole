@@ -1,6 +1,7 @@
 // The collapsed Explanation card's summary route (explanation-summary.js). Offline: global fetch is a provider double, spend enforcement is off (SMALL_ENV=test), and
 // authorization is injected; no provider is contacted, nothing is paid.
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { CHAIN_ENDPOINTS } from '../src/explanation-fast-chain.js';
 import { SUMMARY_INSTRUCTION, SUMMARY_MAX_TOKENS, explanationSummaryRoute, summaryRequest } from '../src/explanation-summary.js';
@@ -109,4 +110,12 @@ test('summaryRequest is the same shape for both providers apart from the tempera
   const fireworks = summaryRequest({ provider: 'fireworks', model: 'm' }, input), google = summaryRequest({ provider: 'google', model: 'g' }, input);
   assert.equal(fireworks.temperature, 0);
   assert.deepEqual({ ...fireworks, model: 'g', temperature: undefined }, { ...google, temperature: undefined });
+});
+
+test('the route is a usage feature of its own, so its spend is admitted for the signed-in payer and recorded (never charged: FREE_FEATURES)', async () => {
+  const { FEATURES, usageFeature } = await import('../src/learn-usage.js');
+  assert.equal(usageFeature('POST', PATH), 'explanation_summary');
+  assert.equal(usageFeature('GET', PATH), null);
+  assert.ok(FEATURES.includes('explanation_summary'));
+  assert.match(readFileSync(new URL('../src/learn-usage.js', import.meta.url), 'utf8'), /const FREE_FEATURES = new Set\([^)]*'explanation_summary'/);
 });
