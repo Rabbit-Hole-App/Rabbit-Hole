@@ -6150,7 +6150,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // latest render through hostRef. A control whose capability is absent (no Chat, a view-only board, no Rabbit Hole here) gets no function and the card omits it.
   const hostRef = useRef(null);
   hostRef.current = {
-    dig: ({ id, term, revision }) => divePortals.open(id, term, 'explain_term', { label: term, revision }),
     note: ({ id, quote, revision }) => addCardNote(id, { quote, revision }),
     ask: async ({ id, revision, question, destination, actionId }, { onAdmitted } = {}) => {
       const card = blocksRef.current.find(entry => entry.id === id);
@@ -6158,21 +6157,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       chatWorkspace.panels?.openChat?.();
       const text = [card.title, card.body, ...(card.more || []).map(section => section.text)].filter(Boolean).join('\n\n').slice(0, 8000);
       // The card is the turn's subject, captured now. parentLink asks the written /explain to join its child card to this one (learn-slash.js insertBlock parent).
-      const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}) };
+      const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}) }; // 'explore' (a term's new /explain card) runs the same /explain with no parentLink, so no connector joins it (owner 2026-11-09)
       // Admission is what the Chat or the command dispatcher reports (ask.jsx: the stream opened; LearnSlash: the command ran without an error notice), never the
       // promise's value, which for a Chat reply only settles when the whole answer is in.
       let admitted = false;
       const told = () => { admitted = true; onAdmitted?.(); };
-      const taken = destination === 'card' ? await chatWorkspace.ask({ line: `/explain ${question}`, about: { selection }, onAdmitted: told }) : await chatWorkspace.ask({ prompt: question, about: { selection }, onAdmitted: told });
+      const taken = destination === 'card' || destination === 'explore' ? await chatWorkspace.ask({ line: `/explain ${question}`, about: { selection }, onAdmitted: told }) : await chatWorkspace.ask({ prompt: question, about: { selection }, onAdmitted: told });
       return taken !== false && admitted;
     },
   };
-  const canDig = !!(divePortals?.open && !visiting), canAsk = !!chatWorkspace?.ask && !visiting, canNote = !readOnly && !localCopy;
+  const canAsk = !!chatWorkspace?.ask && !visiting, canNote = !readOnly && !localCopy;
   const explanationHost = useMemo(() => ({
-    ...(canDig ? { dig: request => hostRef.current.dig(request) } : {}),
     ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
     ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
-  }), [canDig, canAsk, canNote]);
+  }), [canAsk, canNote]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
   // An Explanation card has Minimize in the toolbar where other cards have Focus (its Focus is in its context menu); a minimized one has neither.
   const soleFocus = soleObject && !minimizable(soleObject) ? adapterFor(soleObject, { view, readOnly }) : null;
