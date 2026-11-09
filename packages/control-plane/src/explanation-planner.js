@@ -32,7 +32,7 @@ const KIND = {
   waterfall: 'An opening value changed by signed steps to a closing value.',
   tensor: 'The shape or values of a vector or matrix: an embedding, a projection, a weight matrix, a batch of activations.',
   'token-links': 'Attention or any weighted relation between two rows of tokens: which words a word attends to, and how strongly.',
-  'block-stack': 'A layered architecture of blocks, often repeated, with skip connections: a transformer layer, an encoder or decoder stack, mixture-of-experts feed-forward; also a sequence of tokens or items read left to right, one strip per item.',
+  'block-stack': 'A layered architecture of blocks, often repeated, with skip connections: a transformer layer, an encoder or decoder stack, mixture-of-experts feed-forward; also a row of tokens, words or values read left to right (embeddings of a sentence, weighted values), drawn as one horizontal strip per item, not a vertical stack of layers.',
 };
 export const QUESTIONS = {
   visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only.",
