@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Causal masking before softmax",
+    "caption": "Across six positions, add $M_{ij}=-\\infty$ when $j>i$ and $0$ otherwise. Gray cells show the blocked scores.",
+    "rowLabel": "Query position",
+    "columnLabel": "Key position",
+    "columns": [
+      "the 1",
+      "cat 2",
+      "sat 3",
+      "on 4",
+      "the 5",
+      "mat 6"
+    ],
+    "rows": [
+      {
+        "label": "the 1",
+        "cells": [
+          1.209,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "label": "cat 2",
+        "cells": [
+          0.496,
+          3.33,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "label": "sat 3",
+        "cells": [
+          -0.381,
+          2.145,
+          0.923,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "label": "on 4",
+        "cells": [
+          -0.685,
+          -0.528,
+          -0.706,
+          -0.588,
+          null,
+          null
+        ]
+      },
+      {
+        "label": "the 5",
+        "cells": [
+          -0.479,
+          -0.893,
+          -0.776,
+          -0.427,
+          -0.255,
+          null
+        ]
+      },
+      {
+        "label": "mat 6",
+        "cells": [
+          0.387,
+          0.396,
+          0.452,
+          0.335,
+          0.338,
+          0.208
+        ]
+      }
+    ],
+    "range": {
+      "min": -4,
+      "max": 4
+    }
+  }
+}

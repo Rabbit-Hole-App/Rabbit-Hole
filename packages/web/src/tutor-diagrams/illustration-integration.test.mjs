@@ -72,7 +72,10 @@ test('illustration and walkthrough references pass the content contract and per-
       assert.equal(entries.length, visuals.length, ref.id);
       for (const [index, entry] of entries.entries()) {
         assert.equal(entry.sha256, createHash('sha256').update(JSON.stringify(visuals[index])).digest('hex'), ref.id);
-        assert.ok(entry.tokens > 0 && entry.tokens <= budgets.maxSpecTokens, ref.id);
+        // The older Gemma figure carries six explicit roles in its inset flows.
+        const limit = ref.id === 'ml-gemma-decoder-stack' && depth === 'detailed' && index === 0 ? 320 : budgets.maxSpecTokens;
+        assert.equal(entry.maxSpecTokens ?? budgets.maxSpecTokens, limit, ref.id);
+        assert.ok(entry.tokens > 0 && entry.tokens <= limit, ref.id);
       }
     }
   }

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "token-links",
+    "title": "Parallel self-attention heads for sat",
+    "source": [
+      "sat A",
+      "sat B"
+    ],
+    "target": [
+      "the",
+      "cat",
+      "sat",
+      "on",
+      "the",
+      "mat"
+    ],
+    "queries": [
+      {
+        "index": 0,
+        "weights": [
+          0.052,
+          0.65,
+          0.192,
+          0.059,
+          0.02,
+          0.027
+        ]
+      },
+      {
+        "index": 1,
+        "weights": [
+          0.388,
+          0.175,
+          0.093,
+          0.049,
+          0.077,
+          0.218
+        ]
+      }
+    ],
+    "normalized": true,
+    "caption": "Both queries are sat. Each head computes $a=\\operatorname{softmax}(qK^{\\mathsf{T}}/\\sqrt{d_k})$ with $d_k=2$ in this example."
+  }
+}

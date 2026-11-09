@@ -28,36 +28,36 @@
     },
     "ml-transformer-encoder-stack": {
       "balanced": {
-        "tokens": 145,
-        "sha256": "ba181bf8ba12dd6c23d8bf8e1ee33d314701b33b86d3f041405422b194d604f2",
-        "authorPacketTokens": 186
+        "tokens": 166,
+        "sha256": "40ca40359b62d9a53b84037c0693b2b3e4b74f982a3e29ee5f12b97bc155b7c9",
+        "authorPacketTokens": 207
       },
       "brief": {
-        "tokens": 146,
-        "sha256": "b453ad2e3fe6b49d37b0cb75295043b8f6bebdaff344613a1d27753a3b855311",
-        "authorPacketTokens": 187
+        "tokens": 167,
+        "sha256": "581eb9ea957ef83385a415a65e00cb5b6a34304af92ab70a191303d3a6634d20",
+        "authorPacketTokens": 208
       },
       "detailed": {
-        "tokens": 173,
-        "sha256": "ee50310edc944cedf4d47def31c9230886a9fcd414f5daf8211eaeb7f147cd11",
-        "authorPacketTokens": 214
+        "tokens": 194,
+        "sha256": "0bf014a85cf0fe09d59144c3c82c076862e646ac1756fe5af9fa25a13e63bd9c",
+        "authorPacketTokens": 235
       }
     },
     "ml-llama-decoder-block": {
       "balanced": {
-        "tokens": 150,
-        "sha256": "b8c0519c5f4ffbb5164bfec2cb47a3c67c82c56304344ebab8b7e69ff3ef6879",
-        "authorPacketTokens": 196
+        "tokens": 164,
+        "sha256": "71c212ab2b6f83e6c75685c88d310b866420934745b3c9d0d0f960e5e2106a8b",
+        "authorPacketTokens": 210
       },
       "brief": {
-        "tokens": 126,
-        "sha256": "2d8a0f4961bc238cc04d2dc727822d162fad03a94384c9ec5d05c29b93e80f82",
-        "authorPacketTokens": 172
+        "tokens": 143,
+        "sha256": "99f40a9ce194c4632c8f0bc1e5fd4fb2951f9aec52e461bcb26cc57c64e3fe66",
+        "authorPacketTokens": 189
       },
       "detailed": {
-        "tokens": 150,
-        "sha256": "9b9c9db4317e1d070e37d12024b64fd30f90598df0ca0f83b4930e046f57aaf4",
-        "authorPacketTokens": 196
+        "tokens": 166,
+        "sha256": "c0c1d3a7db68a42c3b301928e8f72aee381e4b5d44f4ff4588cd0fd493d98dbe",
+        "authorPacketTokens": 213
       }
     },
     "ml-dense-vs-moe-architecture": {
@@ -79,27 +79,28 @@
     },
     "ml-gemma-decoder-stack": {
       "balanced": {
-        "tokens": 149,
-        "sha256": "5a14fceaac136c474315b34811ae395c66c38e4de93cda472c1f1f786ecd7ce6",
-        "authorPacketTokens": 221
+        "tokens": 169,
+        "sha256": "4bea70d17dbe000d6dc29786bd26afff95f429f5a90daf6e84ed8fda6e487f05",
+        "authorPacketTokens": 241
       },
       "brief": {
-        "tokens": 88,
-        "sha256": "2ce9827d4942444f6cfdaba24b59194d050ddd3683b89d155aaff9f3ace640ae",
-        "authorPacketTokens": 160
+        "tokens": 109,
+        "sha256": "e3e84057fe1c9369bed2588b81ee0a5a2da9e964f555df13f771aaf9e3ab28a6",
+        "authorPacketTokens": 181
       },
       "detailed": {
-        "tokens": 331,
-        "sha256": "b262c82accc3260d90be3fc791e45b1901c4b1fa05d93ee5436fe43a63598ef9",
-        "authorPacketTokens": 405,
+        "tokens": 391,
+        "sha256": "d57e2d89bd25410291d2bbfc04780514ebdd7e7c3d8f26e864b6486272c86c06",
+        "authorPacketTokens": 465,
         "visuals": [
           {
-            "tokens": 269,
-            "sha256": "58fc6650438deaede4bdb53d3497eeae7dd6be8a2527654824377232b892ab79"
+            "tokens": 320,
+            "sha256": "1905c630da945da117b2c90845980940e9abc4a21338dfd53d57e4016656bc95",
+            "maxSpecTokens": 320
           },
           {
-            "tokens": 61,
-            "sha256": "d154514e0a67eaad8f67051e90a3c1bc34e2d8ea3b92115244b7c2892463ff04"
+            "tokens": 70,
+            "sha256": "2fb16c665528db50681111497c40e7dca8c59fa769f4beb1eb8235a857f04fa3"
           }
         ]
       }

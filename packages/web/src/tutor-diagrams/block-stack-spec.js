@@ -1,7 +1,9 @@
 export function createBlockStackShape({ z, titled, text, id, tensorPayload }) {
   const merge = z.enum(['add', 'multiply']).optional();
+  const role = z.enum(['norm', 'attention', 'feedforward', 'embedding', 'output', 'changed']);
+  const step = z.union([text(60), z.strictObject({ label: text(60), role })]);
   const child = z.discriminatedUnion('kind', [
-    z.strictObject({ kind: z.literal('flow'), steps: z.array(text(60)).min(2).max(5) }),
+    z.strictObject({ kind: z.literal('flow'), steps: z.array(step).min(2).max(5) }),
     z.strictObject({ kind: z.literal('tensor'), tensor: tensorPayload }),
     z.strictObject({ kind: z.literal('layers'), layers: z.array(z.strictObject({
       label: text(50), detail: text(80).optional(),
@@ -11,7 +13,7 @@ export function createBlockStackShape({ z, titled, text, id, tensorPayload }) {
     ...titled, kind: z.literal('block-stack'),
     blocks: z.array(z.strictObject({
       id, label: text(60), repeat: z.int().min(2).max(999).optional(), repeatTo: id.optional(),
-      variant: text(14).optional(), dims: text(18).optional(), role: z.literal('changed').optional(), merge,
+      variant: text(14).optional(), dims: text(18).optional(), role: role.optional(), merge,
       inputs: z.array(z.strictObject({ label: text(24) })).max(2).optional(),
       detail: z.int().min(1).max(3).optional(), diagram: child.optional(),
     })).min(2).max(6),
@@ -51,8 +53,10 @@ export function validateBlockStack({ blocks, edges, callouts }, issue, validateT
   }
 }
 
+export const blockStackStepLabel = step => typeof step === 'string' ? step : step.label;
+
 function childText(diagram, tensorText) {
-  if (diagram?.kind === 'flow') return diagram.steps;
+  if (diagram?.kind === 'flow') return diagram.steps.map(blockStackStepLabel);
   if (diagram?.kind === 'layers') return diagram.layers.flatMap(({ label, detail }) => [label, detail]);
   if (diagram?.kind === 'tensor') return tensorText?.(diagram.tensor) ?? [];
   return [];
@@ -74,7 +78,7 @@ export function describeBlockStack({ blocks, edges, callouts }, describeTensor) 
       ...(inputs ?? []).map(input => `${input.label} → ${merge ? `${label} ${merge} join` : label}`),
       merge ? `${label} uses a ${merge} join` : undefined,
       detail ? `${label} detail in Visual ${detail}` : undefined,
-      diagram?.kind === 'flow' ? diagram.steps.join(' → ') : undefined,
+      diagram?.kind === 'flow' ? diagram.steps.map(blockStackStepLabel).join(' → ') : undefined,
       ...(diagram?.kind === 'layers' ? diagram.layers.map(layer => [layer.label, layer.detail].filter(Boolean).join(' · ')) : []),
       ...(diagram?.kind === 'tensor' ? describeTensor?.(diagram.tensor) ?? [] : []),
     ]),
