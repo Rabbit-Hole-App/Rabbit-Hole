@@ -102,28 +102,67 @@ export function compileFormula(tex) {
   try { const f = new Function('Math', `return (v_${v}) => (${out});`)(Math); f(1); return { variable: v, f }; } catch { return null; }
 }
 const decimals = y => (String(y).split('.')[1] || '').length;
-// Every plotted point recomputed from the first one-variable formula ($...$) in the prose; an error = off by more than 0.01 after rounding to the plotted precision.
-// mode 'strict' (default, owner 2026-11-08): the plot is compared with EVERY one-variable formula the prose states and judged against the best fit; a plot that matches fewer than
-// half its points on every stated formula is a different function (the derivative in a second plot, say): not checked. Any remaining wrong point is an error. mode 'legacy': the first formula only (runs scored before 2026-11-08).
-export function arithmetic(d, prose, mode = 'strict') {
-  const points = d.kind === 'coordinate-plot' ? (d.series || []).flatMap(s => s.points || []).map(p => [p.x, p.y])
-    : d.kind === 'bar-chart' && (d.bars || []).length && d.bars.every(b => String(b.label).trim() !== '' && Number.isFinite(Number(b.label))) ? d.bars.map(b => [Number(b.label), b.value]) : null;
-  if (!points) return { checked: false, reason: 'bars are not numeric inputs' };
-  if (mode === 'strict') {
-    let best = null;
-    for (const m of String(prose).matchAll(/\$([^$]+)\$/g)) for (const rhs of m[1].split('=').slice(1)) {
-      const c = compileFormula(rhs); if (!c) continue;
-      const bad = points.map(([x, y]) => { const e = c.f(x); return Number.isFinite(e) ? Math.abs(y - +e.toFixed(decimals(y))) > 0.01 : null; }).filter(e => e !== null);
-      if (bad.length && (!best || bad.filter(Boolean).length / bad.length < best.errors / best.points)) best = { checked: true, formula: rhs.trim(), variable: c.variable, points: bad.length, errors: bad.filter(Boolean).length };
+// Every plotted point recomputed from the formula the prose states; an error = off by more than 0.01 after rounding to the plotted precision.
+// mode 'strict' (default, owner 2026-11-08, per series): EACH series is checked against the formula the prose states for it. Functions the prose defines ($f(x) = ...$, $f'(x) = ...$) are
+// expanded, so a derivative series is checked against the derivative and the base series against the base function: each series takes the stated formula that fits its points best, and a series
+// that fits no stated formula on half its points is not checked (nothing was stated for it). Any remaining wrong point is an error; a plot with one is wrong.
+// mode 'legacy': every point of the plot against the FIRST stated formula (runs scored before 2026-11-08; the 'strict-first' plot rule uses it too).
+const NAME_LHS = /^\s*(\\[a-zA-Z]+|[a-zA-Z])('?)\s*\(\s*([a-zA-Z])\s*\)\s*$/;
+function definitions(prose) {
+  const defs = new Map();
+  for (const m of String(prose).matchAll(/\$([^$]+)\$/g)) { const parts = m[1].split('='); const l = parts.length > 1 && NAME_LHS.exec(parts[0]); if (l) defs.set(l[1] + l[2], { param: l[3], rhs: parts[1] }); }
+  return defs;
+}
+const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Replace each call name(arg) in tex by the definition's right side with its parameter set to (arg); the formula being defined is not expanded into itself.
+function expandCalls(tex, defs, own) {
+  let out = String(tex);
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (const [name, def] of [...defs].sort((a, b) => b[0].length - a[0].length)) {
+      if (name === own) continue;
+      const re = new RegExp((name.startsWith('\\') ? '' : '(?<![a-zA-Z\\\\])') + esc(name) + '\\s*\\(', 'g');
+      let m;
+      while ((m = re.exec(out))) {
+        let depth = 1, k = m.index + m[0].length;
+        while (k < out.length && depth) { depth += out[k] === '(' ? 1 : out[k] === ')' ? -1 : 0; k++; }
+        if (depth) break;
+        const arg = out.slice(m.index + m[0].length, k - 1), body = def.rhs.replace(new RegExp('(?<![a-zA-Z\\\\])' + esc(def.param) + '(?![a-zA-Z])', 'g'), () => '(' + arg + ')');
+        out = out.slice(0, m.index) + '(' + body + ')' + out.slice(k); changed = true; re.lastIndex = m.index;
+      }
     }
-    if (!best) return { checked: false, reason: 'no one-variable formula in the prose' };
-    if (best.errors / best.points > 0.5) return { checked: false, reason: `no stated formula fits half the points (best: ${best.formula}, ${best.errors}/${best.points} off): a different function` };
-    return best;
+    if (!changed) break;
   }
+  return out;
+}
+const offBy = (c, pts) => pts.map(([x, y]) => { const e = c.f(x); return Number.isFinite(e) ? Math.abs(y - +e.toFixed(decimals(y))) > 0.01 : null; }).filter(e => e !== null);
+export function arithmetic(d, prose, mode = 'strict') {
+  const series = d.kind === 'coordinate-plot' ? (d.series || []).map(s => ({ label: s.label || 'series', points: (s.points || []).map(p => [p.x, p.y]) }))
+    : d.kind === 'bar-chart' && (d.bars || []).length && d.bars.every(b => String(b.label).trim() !== '' && Number.isFinite(Number(b.label))) ? [{ label: 'bars', points: d.bars.map(b => [Number(b.label), b.value]) }] : null;
+  if (!series) return { checked: false, reason: 'bars are not numeric inputs' };
+  if (mode === 'strict') {
+    const defs = definitions(prose), cands = [];
+    for (const m of String(prose).matchAll(/\$([^$]+)\$/g)) {
+      const parts = m[1].split('='), l = NAME_LHS.exec(parts[0] || '');
+      for (let k = 1; k < parts.length; k++) { const c = compileFormula(expandCalls(parts[k], defs, l ? l[1] + l[2] : null)); if (c) cands.push({ formula: parts[k].trim(), ...c }); }
+    }
+    if (!cands.length) return { checked: false, reason: 'no one-variable formula in the prose', series: series.map(s => ({ label: s.label, checked: false, reason: 'no one-variable formula in the prose' })) };
+    const per = series.map(s => {
+      let best = null;
+      for (const c of cands) { const bad = offBy(c, s.points); if (bad.length && (!best || bad.filter(Boolean).length / bad.length < best.errors / best.points)) best = { formula: c.formula, points: bad.length, errors: bad.filter(Boolean).length }; }
+      if (!best) return { label: s.label, checked: false, reason: 'no stated formula evaluates at its points' };
+      if (best.errors / best.points > 0.5) return { label: s.label, checked: false, reason: `no stated formula fits half the points (best: ${best.formula}, ${best.errors}/${best.points} off): a different function` };
+      return { label: s.label, checked: true, ...best };
+    });
+    const ok = per.filter(x => x.checked);
+    if (!ok.length) return { checked: false, reason: per.map(x => `${x.label}: ${x.reason}`).join('; '), series: per };
+    return { checked: true, formula: [...new Set(ok.map(x => x.formula))].join(' ; '), points: ok.reduce((t, x) => t + x.points, 0), errors: ok.reduce((t, x) => t + x.errors, 0), series: per };
+  }
+  const points = series.flatMap(s => s.points);
   for (const m of String(prose).matchAll(/\$([^$]+)\$/g)) {
     for (const rhs of m[1].split('=').slice(1)) {
       const c = compileFormula(rhs); if (!c) continue;
-      const checked = points.map(([x, y]) => { const e = c.f(x); return Number.isFinite(e) ? Math.abs(y - +e.toFixed(decimals(y))) > 0.01 : null; }).filter(e => e !== null);
+      const checked = offBy(c, points);
       if (!checked.length) continue;
       return { checked: true, formula: rhs.trim(), variable: c.variable, points: checked.length, errors: checked.filter(Boolean).length };
     }
@@ -292,7 +331,7 @@ export function summarize(cards) {
       formulaLabelCards: n(c => c.diagrams.some(d => d.flags.formulaLabels.length)),
       formulaPrompts: formula.length, formulaPlotOk: formula.filter(c => c.formulaPlotOk).length, formulaWithPlot: formula.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length,
       plotChecks: (ps => ({ plots: ps.length, checked: ps.filter(d => d.arithmetic.checked).length, unchecked: ps.filter(d => !d.arithmetic.checked).length, points: ps.reduce((s, d) => s + (d.arithmetic.points || 0), 0), errors: ps.reduce((s, d) => s + (d.arithmetic.errors || 0), 0),
-        list: ps.map(d => `${d.at} ${d.kind}: ${d.arithmetic.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off (${d.arithmetic.formula})` : `not checked (${d.arithmetic.reason})`}`) }))(dg.filter(d => d.arithmetic)),
+        list: ps.map(d => `${d.at} ${d.kind}: ${d.arithmetic.series?.length > 1 ? d.arithmetic.series.map(x => (x.checked ? `${x.label}: ${x.errors}/${x.points} off (${x.formula})` : `${x.label}: not checked (${x.reason})`)).join('; ') : d.arithmetic.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off (${d.arithmetic.formula})` : `not checked (${d.arithmetic.reason})`}`) }))(dg.filter(d => d.arithmetic)),
       plots: dg.filter(d => PLOT_KINDS.includes(d.kind)).length, plotsChecked: plots.length, points: plots.reduce((s, d) => s + d.arithmetic.points, 0), pointErrors: plots.reduce((s, d) => s + d.arithmetic.errors, 0),
       arithmeticList: dg.filter(d => d.arithmetic).map(d => `${d.at} ${d.kind}: ${d.arithmetic.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off, formula $${d.arithmetic.formula}$` : `not checked (${d.arithmetic.reason})`}`),
       // Verdicts fully / partly / not (faithful-v2, Core line only); faithful-v1 verdicts yes / no are counted as fully / not.

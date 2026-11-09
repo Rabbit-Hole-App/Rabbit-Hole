@@ -69,7 +69,9 @@ test('plotted values are recomputed from the one-variable formula in the prose',
   assert.equal(compileFormula('P(1+r)^t'), null, 'more than one variable is not checkable');
   assert.equal(compileFormula('\\sum_i p_i'), null);
   const prose = 'The sigmoid is $\\sigma(z) = \\frac{1}{1+e^{-z}}$.';
-  assert.deepEqual(arithmetic(sigmoidPlot([0.12, 0.5, 0.88]), prose), { checked: true, formula: '\\frac{1}{1+e^{-z}}', variable: 'z', points: 3, errors: 0 });
+  const { series: _s, ...checkedPlot } = arithmetic(sigmoidPlot([0.12, 0.5, 0.88]), prose);
+  assert.deepEqual(checkedPlot, { checked: true, formula: '\\frac{1}{1+e^{-z}}', points: 3, errors: 0 });
+  assert.deepEqual(arithmetic(sigmoidPlot([0.12, 0.5, 0.88]), prose, 'legacy'), { checked: true, formula: '\\frac{1}{1+e^{-z}}', variable: 'z', points: 3, errors: 0 });
   assert.equal(arithmetic(sigmoidPlot([0.12, 0.6, 0.88]), prose).errors, 1);
   assert.equal(arithmetic(sigmoidPlot([0.12, 0.5, 0.88]), 'no formula here').checked, false);
 });
@@ -356,8 +358,12 @@ test('plot rule (owner 2026-11-08): any wrong point makes the card wrong; every 
   const good = sigmoidPlot([0.12, 0.5, 0.88]), oneWrong = sigmoidPlot([0.12, 0.6, 0.88]), derivative = sigmoidPlot([0.1049, 0.25, 0.1049]);
   assert.equal(arithmetic(good, prose).errors, 0);
   assert.equal(arithmetic(oneWrong, prose).errors, 1);
-  assert.deepEqual([arithmetic(derivative, prose).checked, arithmetic(derivative, prose, 'legacy').errors], [false, 3]); // strict: a different function, not checked; legacy: first formula only
-  assert.match(arithmetic(derivative, prose).reason, /different function/);
+  assert.deepEqual([arithmetic(derivative, prose).errors, arithmetic(derivative, prose, 'legacy').errors], [0, 3]); // per series: the derivative is checked against the derivative the prose states; legacy: first formula only
+  assert.equal(arithmetic(sigmoidPlot([0.1049, 0.5, 0.1049]), prose).errors, 1, 'a wrong derivative point is still wrong');
+  const two = { ...good, series: [good.series[0], { ...derivative.series[0], label: 'derivative' }] };
+  assert.deepEqual(arithmetic(two, prose).series.map(x => [x.label, x.checked, x.errors]), [['s', true, 0], ['derivative', true, 0]], 'each series against its own formula');
+  assert.equal(arithmetic(sigmoidPlot([0.9, 0.9, 0.9]), prose).checked, false, 'a series that fits no stated formula is not checked');
+  assert.match(arithmetic(sigmoidPlot([0.9, 0.9, 0.9]), prose).reason, /different function/);
   const sig = loadSet('correct-svg').prompts.find(p => p.id === 'sigmoid');
   const card = (rule, ...plots) => scoreCard(sig, { set: 'correct-svg', run: 1, depth: 'deep', id: 'sigmoid', delivered: true, block: block(prose, ...plots.map(fence)), totalMs: 1 }, { plotRule: rule });
   assert.deepEqual([card('strict', good).score, card('strict', good).plotWrong], ['right', false]);
@@ -378,8 +384,8 @@ test('plot rule (owner 2026-11-08): any wrong point makes the card wrong; every 
   writeFileSync(join(dir, 'cards', 'sigmoid.json'), JSON.stringify({ row, response: { result: 'artifact', block: block(prose, fence(good), fence(derivative)) } })); writeFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n');
   const r = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'pr' });
   const md = readFileSync(join(r.runDir, 'report.md'), 'utf8');
-  assert.match(md, /Plot point errors \(rule: strict;[^)]*\): 2 plots drawn, 1 checked \(3 points, 0 wrong\), 1 not checked\./);
-  assert.match(md, /- correct-svg\/r1\/deep\/sigmoid coordinate-plot: not checked \(no stated formula fits half the points/);
+  assert.match(md, /Plot point errors \(rule: strict;[^)]*\): 2 plots drawn, 2 checked \(6 points, 0 wrong\), 0 not checked\./);
+  assert.match(md, /- correct-svg\/r1\/deep\/sigmoid coordinate-plot: 0\/3 points off/);
   assert.equal(r.results.meta.plotRule, 'strict'); assert.equal(r.results.summary.byDepth.deep.quantityPlotsCorrect, 1);
   const legacy = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'pr-legacy', plotRule: 'legacy' });
   assert.match(readFileSync(join(legacy.runDir, 'report.md'), 'utf8'), /rule: legacy; points reported, the score unchanged/);
@@ -398,4 +404,19 @@ test('planner bench v2: no second-visual question, one diagram unless the type i
   assert.deepEqual(benchPlan(a('picture', { cycle: 0.9, flow: 0.1 })).mixes, [['P']]);
   const noOverride = benchPlan(a('diagram', { flow: 0.9, cycle: 0.1 }, { needsPlot: 0.95 }));
   assert.deepEqual([noOverride.kind, noOverride.overridden], ['flow', false], 'a high needsPlot no longer turns the kind into a plot');
+});
+
+test('keep checks (owner 2026-11-08): right kind at Standard and Deep vs the compared run, repairs <= compared + 2, p90 <= 7 s, p50 reported', async () => {
+  const prose = 'The sigmoid squashes any number into 0 to 1.', root = mkdtempSync(join(tmpdir(), 'bench-keep-'));
+  const mk = (raw, depth, ms, repaired) => { const dir = join(raw, `correct-svg-r1-${depth}`); mkdirSync(join(dir, 'cards'), { recursive: true });
+    const row = { id: 'sigmoid', delivered: true, totalMs: ms, repaired, repairCauses: repaired ? [{ attempt: 0, error: 'label too long: Use at most 55 characters' }] : [], costUsd: 0.01, ledgerUsd: 0.01 };
+    writeFileSync(join(dir, 'cards', 'sigmoid.json'), JSON.stringify({ row, response: { result: 'artifact', block: block(prose, fence(sigmoidPlot([0.12, 0.5, 0.88]))) } })); writeFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n'); };
+  for (const d of ['standard', 'deep']) { mk(join(root, 'a'), d, 3000, false); mk(join(root, 'b'), d, 7400, true); }
+  const a = await run({ raw: join(root, 'a'), out: join(root, 'results'), runId: 'a' });
+  const b = await run({ raw: join(root, 'b'), out: join(root, 'results'), runId: 'b', against: a.runDir });
+  const k = b.results.keepChecks;
+  assert.deepEqual(k.rows.map(x => [x.check, x.ok]), [['right kind at Standard', true], ['right kind at Deep', true], ['repairs', true], ['p90 ms', false]]);
+  assert.equal(k.pass, false); assert.equal(k.p50, 7400);
+  assert.deepEqual(k.rows.find(x => x.check === 'repairs').limit, '<= 2 (compared run 0 + 2)');
+  assert.match(readFileSync(join(b.runDir, 'report.md'), 'utf8'), /\*\*Keep checks\*\* against `a`: right kind at Standard 1 \(>= 1\) PASS; right kind at Deep 1 \(>= 1\) PASS; repairs 2\/2 \(<= 2 \(compared run 0 \+ 2\)\) PASS; p90 ms 7400 \(<= 7000\) FAIL; p50 7400 ms \(reported\)\. \*\*DO NOT KEEP\*\*/);
 });

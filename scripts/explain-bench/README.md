@@ -117,9 +117,17 @@ prompts, plus 4 + 4 + 4.
 - **Renderer problem**: a relationship whose node is in 2+ edges; the relationship layout
   (`packages/web/src/tutor-diagrams/teaching-layouts.js`) draws one row per edge, so that node is drawn twice.
 - **Quantitative use**: a coordinate-plot, bar-chart, number-line or waterfall on prompts labelled formula/quantity.
-- **Arithmetic**: for coordinate-plot and bar-chart (numeric bar labels only), every plotted point is recomputed from
-  the first one-variable formula in the prose's `$...$`; a point off by more than 0.01 after rounding to the plotted
-  precision is an error. Formulas with a subscript, a sum or more than one variable are reported as not checked.
+- **Arithmetic** (plot rule, owner 2026-11-08): for coordinate-plot and bar-chart (numeric bar labels only), every plotted
+  point is recomputed from the formula the prose states FOR ITS SERIES: functions the prose defines (`$f(x) = ...$`,
+  `$f'(x) = ...$`) are expanded, so a derivative series is checked against the derivative and the base series against
+  the base function; each series takes the stated formula that fits its points best, and a series that fits none on half
+  its points is not checked. A point off by more than 0.01 after rounding to the plotted precision is an error, and a
+  plot with any wrong point makes its card "wrong" (`--plot-rule strict`, the default). `strict-first` checks every
+  point against the first stated formula only; `legacy` reports the points and leaves the score unchanged. Formulas with
+  a subscript, a sum or more than one variable are reported as not checked; the pass-line header lists every plot, which
+  were checked and which were not.
+- **Keep checks** (header of the report, when compared with a run): right kind at Standard and Deep not below the
+  compared run, repairs at most the compared run's plus 2, p90 at most 7 s with p50 reported.
 - **Faithfulness** (judge, sketched sets; `faithful-v2`): fully / partly / not, judged on the sketch's Core line only
   (the Optional line never lowers it), from the sketch, `describeTutorDiagram` text and the prose.
 - **Claims beyond the prose** (judge, every diagram; `beyond-v2`): yes / no, "does the diagram state any NAMED fact that

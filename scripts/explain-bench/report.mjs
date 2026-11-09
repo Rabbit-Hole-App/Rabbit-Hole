@@ -191,6 +191,7 @@ const pct = v => (v === null || v === undefined ? '-' : Array.isArray(v) ? `${v[
 export function markdown(r) {
   const { meta, summary: S, criteria: C, deltas, judge, provenance: P } = r, setNames = Object.keys(S.sets), cols = ['overall', ...setNames], at = n => (n === 'overall' ? S.overall : S.sets[n]);
   const out = [`# /explain card benchmark: ${meta.label}`, '', `Run \`${meta.runId}\`, scored ${meta.scored} (PT). Sets: ${setNames.map(n => `${n} (${meta.sets[n].prompts} prompts x ${meta.sets[n].runs} run${meta.sets[n].runs > 1 ? 's' : ''}, ${meta.sets[n].version.prompts} / ${meta.sets[n].version.labels})`).join('; ')}.${meta.baseline ? ' **Tagged as the release baseline.**' : ''}`, ''];
+  if (r.keepChecks) out.push(`**Keep checks** against \`${r.keepChecks.against}\`: ${r.keepChecks.rows.map(x => `${x.check} ${x.value} (${x.limit}) ${x.ok ? 'PASS' : 'FAIL'}`).join('; ')}; p50 ${r.keepChecks.p50} ms (reported). **${r.keepChecks.pass ? 'KEEP' : 'DO NOT KEEP'}**`, '');
   out.push('## Provenance', '', P ? table(['field', 'value'], Object.entries(P).map(([k, v]) => [k, typeof v === 'object' ? `\`${JSON.stringify(v)}\`` : String(v)])) : 'Not recorded for this run (imported from saved cards: no stack commit, prompt hash or model profile was captured when they were made).', '');
   if (judge) out.push('## Judge', '', judge.dryRun ? `**Dry run: no call made.** ${judge.items} items (${Object.entries(judge.byRubric).map(([k, v]) => `${k} ${v}`).join(', ')}), ${judge.cached} already cached; a real pass would cost about US$${judge.estimate.low}-${judge.estimate.high} (${judge.estimate.inputTokens} input tokens estimated from characters, 150-600 output tokens a call) with ${judge.model}.`
     : `Model ${judge.model}, ${judge.judges} judge(s) per item, ${judge.calls} calls + ${judge.cached} cached, US$${judge.spent} spent of the US$${judge.cap} judge cap${judge.stopped ? ' (cap reached: some items unjudged)' : ''}${judge.failed ? `, ${judge.failed} failed calls` : ''}${judge.only ? `; rubrics run: ${judge.only.join(', ')}` : ''}.`,
@@ -304,15 +305,21 @@ export async function run(o) {
   const recorded = existsSync(join(runDir, 'provenance.json')) ? json(join(runDir, 'provenance.json')) : null;
   const provenance = judge ? { ...(recorded || { stack: 'not recorded for this run (imported saved cards)' }), judgeRubrics: judge.rubrics } : recorded;
   const like = (other) => { const why = setNames.filter(n => !other.meta.sets?.[n] || other.meta.sets[n].prompts !== meta.sets[n].prompts || other.meta.sets[n].runs !== meta.sets[n].runs || JSON.stringify(other.meta.sets[n].version) !== JSON.stringify(meta.sets[n].version)); return { comparable: why.length === 0, why: `sets differ: ${why.join(', ')}` }; };
-  const cmp = dir => { if (!dir) return null; const prev = json(join(dir, 'results.json')); return { against: prev.meta.runId, ...like(prev), rows: delta(prev.summary.overall, summary.overall), summary: prev.summary.overall }; };
+  const cmp = dir => { if (!dir) return null; const prev = json(join(dir, 'results.json')); return { against: prev.meta.runId, ...like(prev), rows: delta(prev.summary.overall, summary.overall), summary: prev.summary.overall, byDepth: prev.summary.byDepth }; };
   const prevDir = o.against ? resolve(o.against) : (p => p && join(out, p))(previousRun(out, runId)), baseDir = o.baseline ? join(out, o.baseline) : (b => b && join(out, b))(baselineRun(out, runId));
   const deltas = { previous: cmp(prevDir), baseline: cmp(baseDir) };
-  const against = deltas.baseline || deltas.previous, richness = { against: against?.against ?? 'none', ...richnessVerdict(against?.summary, summary.overall) };
+  const against = deltas.baseline || deltas.previous;
+  const keepChecks = (a => { const A = a?.byDepth, B = summary.byDepth; if (!A?.standard || !B?.standard || !A?.deep || !B?.deep) return null;
+    const rep = [summary.overall.repairs.repaired, a.summary.repairs.repaired, summary.overall.repairs.of], p = summary.overall.speed.all;
+    const rows = [{ check: 'right kind at Standard', value: B.standard.right, limit: `>= ${A.standard.right}`, ok: B.standard.right >= A.standard.right }, { check: 'right kind at Deep', value: B.deep.right, limit: `>= ${A.deep.right}`, ok: B.deep.right >= A.deep.right },
+      { check: 'repairs', value: `${rep[0]}/${rep[2]}`, limit: `<= ${rep[1] + 2} (compared run ${rep[1]} + 2)`, ok: rep[0] <= rep[1] + 2 }, { check: 'p90 ms', value: p.p90, limit: '<= 7000', ok: p.p90 !== null && p.p90 <= 7000 }];
+    return { against: a.against, rows, p50: p.p50, pass: rows.every(x => x.ok) }; })(against);
+  const richness = { against: against?.against ?? 'none', ...richnessVerdict(against?.summary, summary.overall) };
   const abAgainst = deltas.previous; // the run to compare the examples A/B with: --against <5d run dir>, else the previous run
   const referencesAB = summary.refs ? { against: abAgainst?.against ?? null, rows: METRICS.map(([label, get]) => [label, show(get(summary.refs.none)), show(get(summary.refs.some)), abAgainst ? show(get(abAgainst.summary)) : '-']).filter(row => row.slice(1).some(v => v !== '-')) } : null;
-  for (const d of Object.values(deltas)) if (d) delete d.summary;
+  for (const d of Object.values(deltas)) if (d) { delete d.summary; delete d.byDepth; }
   const pe = provenance?.plannerInputTokensEstimate, plannerCost = pe && summary.overall.planner ? { tokens: pe, perCard: +(pe * 0.042 / 1e6).toFixed(6), cards: summary.overall.planner.cards } : null;
-  const results = { plannerCost, meta, provenance, judge, criteria: crit, gates: gates(summary.overall, summary.byRun), richness, referencesAB, deltas, summary, cards };
+  const results = { keepChecks, plannerCost, meta, provenance, judge, criteria: crit, gates: gates(summary.overall, summary.byRun), richness, referencesAB, deltas, summary, cards };
   writeFileSync(join(runDir, 'results.json'), JSON.stringify(results, null, 1));
   writeFileSync(join(runDir, 'metrics.json'), JSON.stringify({ meta, provenance, criteria: crit, richness, deltas, summary }, null, 1));
   writeFileSync(join(runDir, 'report.md'), markdown(results));
