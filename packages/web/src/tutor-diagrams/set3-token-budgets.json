@@ -671,6 +671,86 @@
         "tokens": 147,
         "sha256": "2f7a963fcbc25469be5d46815a60d653048b5b4d52e19cb583738b9cb05db96e"
       }
+    },
+    "ml-word2vec-right-context-clue": {
+      "panel": {
+        "tokens": 106,
+        "sha256": "e5876d86022478850ebda0a484cd83db9a1664de3ec7a4056f9569c057fdda85"
+      },
+      "single": {
+        "tokens": 122,
+        "sha256": "c297f4663367bbc2ef3eae90f42d5314e8e17f520222128f455a6709636cfd85"
+      }
+    },
+    "ml-word2vec-vocabulary-versus-pair": {
+      "panel": {
+        "tokens": 92,
+        "sha256": "5fa2c6d071e7ad6d823fb9ef91958043eef5485b396c8429e991e62fd01bbe52"
+      },
+      "single": {
+        "tokens": 124,
+        "sha256": "4c1f0915d724607afa70247757a715ed0b1d4dbf9c26d770a0e6c00943ffe45e"
+      }
+    },
+    "ml-stable-diffusion-denoiser-inputs": {
+      "panel": {
+        "tokens": 102,
+        "sha256": "a57a9ada6507d876ff1c25ece41b4a4bd0ef2f17c12ef9ed6964d6a9d8a49ed9"
+      },
+      "single": {
+        "tokens": 133,
+        "sha256": "2a6f01b1874e96e250990ebca3bafd5e37a4a8fa062a4d8154d82f1080f58c27"
+      }
+    },
+    "ml-stable-diffusion-training-versus-generation": {
+      "panel": {
+        "tokens": 104,
+        "sha256": "303a59dd5533a00252799dbfe9aca33652bf97a59b567b55e0cbd7e404f97e8e"
+      },
+      "single": {
+        "tokens": 138,
+        "sha256": "92ea095782c33d244a8d020781bb687cc8bbb9a7fe14a79a884441b1e304ecc3"
+      }
+    },
+    "figure-retro-fact-versus-pattern": {
+      "panel": {
+        "tokens": 101,
+        "sha256": "79a4bc4c51b05e98f428cc2171e23fc166a67e0e8a150fa1d80f87a209de3834"
+      },
+      "single": {
+        "tokens": 113,
+        "sha256": "7275c13f99df06a7dc5fdd0825e36053e9a575a9599b17a39784603ccca1aa1a"
+      }
+    },
+    "d2l-convolution-filter-maps": {
+      "panel": {
+        "tokens": 208,
+        "sha256": "537231473cd5665e6687c5d99d4f703a171d778c1f82c1fc6f812b000780b460"
+      },
+      "single": {
+        "tokens": 157,
+        "sha256": "c326c394d5517a0318ef4d8325f66c8046daad90efd0e4c2c70db8cc9e1e2d05"
+      }
+    },
+    "raschka-context-cap-same-experts": {
+      "panel": {
+        "tokens": 221,
+        "sha256": "1c57e3a2e2a0975440aa9903e9512066a4a9b8cd89c23a76ef4c92cb43a362c8"
+      },
+      "single": {
+        "tokens": 187,
+        "sha256": "2ca2d098e2d1b151e64c66dcb775ebbc6c5b061fabd3c4f1d499c128f84a62ad"
+      }
+    },
+    "raschka-indexed-attention-only-diff": {
+      "panel": {
+        "tokens": 192,
+        "sha256": "38f0c85966e5daef1f508d43150ef98265712ddf59c7fb0d8615fbed2d52030c"
+      },
+      "single": {
+        "tokens": 129,
+        "sha256": "9cab5a5abe822092cc43547035f358936c7e498c5b1b60f1f45bcd7d04310630"
+      }
     }
   }
 }
