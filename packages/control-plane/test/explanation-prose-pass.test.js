@@ -65,3 +65,10 @@ test('item 2: the kind question carries no Brief sentence (it leaked to the othe
   assert.equal(BENCH_QUESTIONS.kind.instructions, QUESTIONS.kind.instructions);
   assert.ok(EXPLANATION_DEPTH_LINES.brief.endsWith('If a sentence uses a term, that same sentence says what it is in plain words.'));
 });
+
+const card = () => EXPLANATION_GUIDANCE.slice(EXPLANATION_GUIDANCE.indexOf('# Card layout'), EXPLANATION_GUIDANCE.indexOf('# Numbers and maths'));
+test('item 3: one line under # Card layout - the sentence immediately before each visual says what to look for in it', () => {
+  const s = 'The sentence immediately before each visual says what to look for in it.';
+  assert.equal(card().split(s).length, 2);
+  assert.ok(card().indexOf(s) < card().indexOf('Every visual has a title or caption'));
+});
