@@ -52,7 +52,7 @@ export const references = [
         { id: 'oob', label: 'Out-of-bag evaluation', outOfBagFor: 'boot', members: ['c', 'e'] }],
       caption: 'Six draws contain four unique examples; c and e were never drawn.' }),
   ref('class-imbalance-resampling', ['17'],
-    ['Show minority-class oversampling without losing sample identities.'], ['class imbalance', 'oversampling', 'undersampling', 'resampling'],
+    ['Show minority-class oversampling without losing sample identities.'], ['class imbalance', 'oversampling', 'resampling'],
     'Use to distinguish copied examples from new synthetic examples. Replacement copies retain their original sample ID.',
     { kind: 'sample-set', title: 'Oversampling repeats minority examples', samples: labelled,
       groups: [{ id: 'original', label: 'Original: 4 negative, 2 positive', members: ['a', 'b', 'c', 'd', 'e', 'f'] },
