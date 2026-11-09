@@ -26,13 +26,14 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
     ]),
     y: sampleValues, divisor, showValues: z.boolean().optional(),
   });
+  const circleSamples = z.strictObject({ radius: numeric.positive(), count: z.number().int().min(3).max(25) });
   return [
     z.strictObject({ ...titled, kind: z.literal('coordinate-plot'), x: axis, y: axis,
       series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(),
         endLabel: z.boolean().optional(), closed: z.boolean().optional(),
         points: z.array(z.strictObject({ x: numeric, y: numeric, id: id.optional(), label: text(60).optional(),
           low: numeric.optional(), high: numeric.optional() })).min(1).max(24).optional(),
-        samples: samples.optional(),
+        samples: z.union([samples, circleSamples]).optional(),
       })).min(1).max(5),
       annotations: z.array(annotation).max(16).optional(),
     }),
@@ -50,6 +51,17 @@ const explicitSampleX = x => Array.isArray(x) ? x : x.values;
 
 export function plotSeriesPoints(series) {
   if (!series.samples) return series.points ?? [];
+  if ('radius' in series.samples) {
+    const { radius, count } = series.samples;
+    // Round the unit-circle coordinates to keep the SVG and accessible coordinates stable.
+    return Array.from({ length: count }, (_, i) => {
+      const angle = i * 2 * Math.PI / count;
+      return {
+        x: (Math.round(Math.cos(angle) * 1000) / 1000) * radius,
+        y: (Math.round(Math.sin(angle) * 1000) / 1000) * radius,
+      };
+    });
+  }
   const { x, y, divisor = 1, showValues } = series.samples;
   const values = explicitSampleX(x);
   return y.map((sample, index) => {
@@ -82,13 +94,15 @@ function checkPlot(d, issue) {
   };
   d.series.forEach((s, i) => {
     const path = ['series', i];
-    if (Boolean(s.points) === Boolean(s.samples)) return issue(path, 'Provide either points or compact samples');
-    const values = s.samples && explicitSampleX(s.samples.x);
-    if (values && values.length !== s.samples.y.length) {
-      return issue([...path, 'samples'], 'Compact samples need one x coordinate per y value');
+    const { samples } = s;
+    if (Boolean(s.points) === Boolean(samples)) return issue(path, 'Provide either points or compact samples');
+    const coordinatePath = [...path, samples ? 'samples' : 'points'];
+    if (samples && 'radius' in samples && !s.closed) return issue(coordinatePath, 'Circle samples require a closed line');
+    const values = samples && 'x' in samples && explicitSampleX(samples.x);
+    if (values && values.length !== samples.y.length) {
+      return issue(coordinatePath, 'Compact samples need one x coordinate per y value');
     }
     const points = plotSeriesPoints(s);
-    const coordinatePath = [...path, s.samples ? 'samples' : 'points'];
     if (['line', 'step'].includes(s.kind) && points.length < 2) issue(coordinatePath, 'A line or step needs at least two points');
     if (s.kind === 'stem' && !inAxis(0, d.y)) issue(path, 'Stem series require a linear y domain containing zero');
     if (s.endLabel && (s.kind !== 'line' || points.at(-1)?.x !== d.x.max)) {
