@@ -22,7 +22,8 @@
   "templates": [],
   "includes": [
     "folders",
-    "folder-overlays"
+    "folder-overlays",
+    "folder-tiles"
   ],
   "keywords": [
     "folders",

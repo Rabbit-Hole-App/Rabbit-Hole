@@ -1,0 +1,66 @@
+/* Library layout reuses Home, sidebar, card, folder and shared control primitives. */
+.library-header {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  gap:12px 20px; margin-bottom:20px;
+}
+.library-header h1 {
+  font-size:clamp(1.8rem,4vw,2.5rem); font-weight:700; line-height:1.2;
+  letter-spacing:-.01em; color:var(--ink); margin:0; overflow-wrap:anywhere;
+}
+.library-title-group{display:flex;align-items:center;gap:12px;min-width:0}
+.library-title-group>.icon{width:32px;height:32px}
+.library-folder-glyph{fill:currentColor;fill-opacity:.12}
+.library-header-actions {
+  display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;
+  gap:10px; margin-inline-start:auto; max-width:100%;
+}
+
+.library-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.library-filter-controls{display:flex;align-items:center;gap:10px;flex:1 1 260px;min-width:0;flex-wrap:wrap}
+.library-search{display:flex;align-items:center;gap:8px;flex:1 1 140px;min-width:min(100%,140px)}
+.library-search>.icon{color:var(--muted);pointer-events:none}
+.library-search>.control{flex:1}
+.library-view-controls {
+  display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;
+  gap:12px; min-width:0; max-width:100%; margin-inline-start:auto;
+}
+.library-header-actions .button,.library-toolbar .button{white-space:nowrap}
+
+.library-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.library-chips:empty{display:none}
+.library-chip{display:inline-flex;align-items:center;gap:6px}
+.library-chip .icon-button{width:22px;height:22px;min-height:22px;border-radius:var(--control-radius);padding:3px}
+.library-chip .icon{width:12px;height:12px}
+.library-folders{margin-bottom:32px}
+.library-folders .home-section-title{font-size:15px;color:var(--ink)}
+#folder-total{font-weight:400;color:var(--muted)}
+
+.library-menu{position:fixed;z-index:50;width:240px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:auto}
+.library-menu .menu-label{flex:1}
+.library-menu .icon{width:16px;height:16px;stroke-width:1.5}
+.library-menu [aria-checked]>.icon:last-child{visibility:hidden}
+.library-menu [aria-checked=true]>.icon:last-child{visibility:visible;color:var(--primary)}
+.library-menu .library-menu-heading{font-size:13px;text-transform:none;letter-spacing:0;font-weight:650;padding:8px 8px 3px;margin:0;color:var(--muted)}
+
+.library-breadcrumb{display:flex;align-items:center;gap:6px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+.library-breadcrumb .link{border:0;background:none;padding:0;font-size:inherit;color:inherit;text-decoration:none}
+.library-breadcrumb .link:hover{color:var(--ink)}
+.library-breadcrumb .icon{width:14px;height:14px}
+#library-folder-crumb{color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.library-group+.library-group{margin-top:28px}
+.library-group-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.library-group-heading h2{font-size:15px;font-weight:650;margin:0}
+.library-group-heading .button{font-size:13px}
+
+/* The app's EmptyState sits directly on the page surface. */
+.library-empty{display:grid;justify-items:center;text-align:center;gap:8px;padding:48px 12px;font-size:15px;color:var(--muted)}
+.library-empty>.icon{width:20px;height:20px;stroke-width:1.5}
+.library-empty p{margin:0}
+@media(max-width:700px){
+  .library-header-actions{gap:8px}
+  .library-filter-controls,.library-view-controls{flex-basis:100%}
+  .library-view-controls{justify-content:space-between}
+  .library-view-controls .home-size{margin-inline-start:auto}
+  .library-chip .icon-button{min-width:32px;min-height:32px}
+  .library-folder .icon-button{min-width:44px;min-height:44px}
+}

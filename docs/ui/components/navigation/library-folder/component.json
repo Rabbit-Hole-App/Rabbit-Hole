@@ -1,0 +1,70 @@
+{
+  "id": "navigation/library-folder",
+  "title": "Library folder",
+  "category": "navigation",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/LIBRARY.md",
+  "source_file": "library.html",
+  "status": "Draft for owner review; browser and runtime verification pending",
+  "styles": [
+    "standards",
+    "review-corrections",
+    "sidebar",
+    "canvas-card",
+    "source-picker",
+    "start-rabbit-hole",
+    "home",
+    "folders",
+    "library"
+  ],
+  "scripts": [
+    "home-mount",
+    "sidebar",
+    "sidebar-panels",
+    "source-widgets",
+    "resize",
+    "home-start",
+    "folders",
+    "library-folder",
+    "library",
+    "home"
+  ],
+  "implementation": [
+    "packages/web/src/App.jsx",
+    "packages/web/src/LibraryViews.jsx",
+    "packages/web/src/library-filter.js",
+    "packages/web/src/home/card-sort.js",
+    "packages/web/src/LibraryFolders.jsx",
+    "packages/web/src/library-folders.js",
+    "packages/web/src/home/LearningCard.jsx",
+    "packages/web/src/home/CardMenu.jsx"
+  ],
+  "notes": "Populated folder view of the shared Library composition. See LIBRARY.md for scope, empty state, actions and integration limits.",
+  "issues": [],
+  "templates": [],
+  "includes": [
+    "library",
+    "library-main",
+    "library-menus",
+    "sidebar",
+    "home-overlays",
+    "home-fixtures",
+    "folder-overlays",
+    "folder-tiles",
+    "canvas-card"
+  ],
+  "keywords": [
+    "library",
+    "search",
+    "sort",
+    "filter",
+    "archived",
+    "mine",
+    "folders",
+    "card size",
+    "folder contents",
+    "breadcrumb"
+  ],
+  "path": "components/navigation/library-folder",
+  "paletteRole": "shared",
+  "catalogVisible": true
+}

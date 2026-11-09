@@ -12,7 +12,7 @@ Palette role: **shared**. [Current blue/red balance](../../../foundations/PALETT
 
 Edit `markup.html` and `component.json` here. Shared styles: `styles/standards.css`, `styles/review-corrections.css`, `styles/folders.css`. Behavior: `scripts/folders.js`. Paths are relative to `docs/ui/`. Run `python docs/ui/scripts/build.py` from the repository root after editing. `preview.html`, this README, the index and registry are generated; do not edit those outputs directly.
 
-Template dependencies: `templates/folders.html`, `templates/folder-overlays.html`.
+Template dependencies: `templates/folders.html`, `templates/folder-overlays.html`, `templates/folder-tiles.html`.
 
 ## App mapping candidates
 

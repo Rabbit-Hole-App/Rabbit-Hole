@@ -23,7 +23,7 @@ The new work is the Home layout composition (`templates/home*.html`, `styles/hom
 ## Layout and behavior
 
 - **Owner decision: no top-level Stars button on Home.** Remove its toolbar action and the specimen-only Stars view. Keep the star actions on individual canvas cards. This supersedes the screenshot and the current `Home.jsx` toolbar; it does not remove the Library stars feature.
-- Use the top-right Size and Start toolbar, Continue learning, then Recent. Use the shared warm page palette; do not reproduce the old blue page grid.
+- Keep the pane stretched beside the sidebar so the header starts at the same top inset in every data state. The populated toolbar has Card size and Start on the right, followed by Continue learning and Recent. Use the shared warm page palette.
 - Label the slider **Card size** and show the current preset beside it. Remember it across reloads; default to Large only when no valid saved value exists. The standalone reference uses `rabbit-hole.ui-preview.cardSize` to avoid touching an account setting. App integration must reuse `home/card-size.js` and `small.cardSize`. Blocked storage must not break resizing.
 - Continue has a visible Continue action. Exclude its canvas ID from Recent; hide Recent when nothing remains. Do not guess the Continue canvas from list order. Use the explicit continuation record.
 - Show **Last explored: <topic>** only when the continuation record supplies nonblank text. Do not infer it from a title or document. The specimen includes an explicit fixture topic, not a claim about this user’s activity; `RH_HOME_DATA` can supply real items and `continueId`. The no-topic specimen shows omission.
@@ -50,7 +50,7 @@ Canvas opening, Sidebar Library/Explore/account destinations, Start completion a
 - [Ready](clean/37-home.html)
 - [Loading](clean/38-home-loading.html): shared spacious skeleton and shimmer; no visible loading prose or active card actions.
 - [Error and Retry](clean/39-home-error.html): concise error, existing secondary Retry; retry goes through loading, then returns focus to an available card.
-- [Empty](clean/40-home-empty.html): “No canvases yet.” with the existing Start action; no irrelevant size control.
+- [Empty](clean/40-home-empty.html) places “No canvases yet.” on the left of the shared header and Start in its usual top-right position. Hide Card size, the empty card sections, and the fixture's Recent sidebar section.
 - [Missing last topic](clean/41-home-no-topic.html): no fallback filler or reserved topic gap.
 
 The state previews use fixtures; Retry simulates recovery locally. Production must bind the existing Home load request and report real failures. Do not convert unavailable data into the empty state.
@@ -58,3 +58,13 @@ The state previews use fixtures; Retry simulates recovery locally. Production mu
 ## Verification
 
 Run the existing build, clean export, portable library export and structural checks under `docs/ui/scripts`. See [Home verification](verification/home-verification.md) for the executed DOM checks and exact browser limitations. Browser verification remains pending: responsive grid/overflow, hover and touch options, native-dialog focus return and the screenshot composition require visual acceptance. Dark-theme tokens remain deferred. Update this handoff and the master index in the same push when the owner approves the draft.
+
+## Empty and populated screen coverage
+
+| Screen | Empty | With canvases |
+| --- | --- | --- |
+| Home | [40-home-empty.html](clean/40-home-empty.html) | [37-home.html](clean/37-home.html) |
+| Library | [45-library-empty.html](clean/45-library-empty.html) | [43-library.html](clean/43-library.html) |
+| Open folder | [46-library-folder-empty.html](clean/46-library-folder-empty.html) | [44-library-folder.html](clean/44-library-folder.html) |
+
+The empty and populated previews share a page pane and header. See [LIBRARY.md](LIBRARY.md) for the Library and folder layouts. DOM checks cover the header structure and state changes. Browser layout verification is pending.

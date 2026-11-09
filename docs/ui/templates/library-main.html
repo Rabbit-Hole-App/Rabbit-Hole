@@ -1,0 +1,53 @@
+<template id="home-main-template">
+  <main class="home-main library-main" id="home-main" aria-label="Library">
+    <div class="home-content library-content">
+      <nav class="library-breadcrumb" id="library-breadcrumb" aria-label="Breadcrumb" hidden>
+        <button class="link" id="library-back" type="button">Library</button>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/home.svg#home-chevron-right"></use></svg>
+        <svg class="icon library-folder-glyph" id="library-crumb-icon" viewBox="0 0 24 24" aria-hidden="true" hidden><use href="../../../icons/home.svg#home-folder"></use></svg>
+        <span id="library-folder-crumb"></span>
+      </nav>
+      <header class="library-header">
+        <div class="library-title-group">
+          <svg class="icon library-folder-glyph" id="library-folder-icon" viewBox="0 0 24 24" aria-hidden="true" hidden><use href="../../../icons/home.svg#home-folder"></use></svg>
+          <h1 id="library-title" tabindex="-1">Library</h1>
+        </div>
+        <div class="library-header-actions">
+          <button class="button secondary" id="folder-create" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/home.svg#home-folder-plus"></use></svg>New folder</button>
+          <button class="icon-button secondary" id="library-folder-more" type="button" aria-label="Folder options" aria-haspopup="menu" aria-expanded="false" aria-controls="folder-menu" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Ellipsis"></use></svg></button>
+          <button class="button primary" type="button" id="home-start"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-plus"></use></svg>Start a rabbit hole</button>
+        </div>
+      </header>
+      <div class="library-toolbar">
+        <div class="library-filter-controls">
+          <label class="library-search" id="library-search-wrap">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-search"></use></svg>
+            <input class="control" id="library-search" type="search" aria-label="Search by name" placeholder="Search by name">
+          </label>
+          <button class="button secondary" id="library-filter" type="button" aria-haspopup="menu" aria-controls="library-filter-menu" aria-expanded="false">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-list-filter"></use></svg><span id="library-filter-label">Filters</span>
+          </button>
+        </div>
+        <div class="library-view-controls" id="library-view-controls">
+          <button class="button secondary" id="library-sort" type="button" aria-haspopup="menu" aria-controls="library-sort-menu" aria-expanded="false">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-arrow-down-up"></use></svg><span id="library-sort-label">Sort: Last updated</span>
+          </button>
+          <label class="home-size" for="home-size">Card size<input id="home-size" type="range" min="0" max="3" step="1" value="3" aria-label="Card size" aria-valuetext="Large"><output id="home-size-value" for="home-size">Large</output></label>
+        </div>
+      </div>
+      <div class="library-chips" id="library-chips" aria-label="Active filters"></div>
+      <div id="home-loading" role="status" hidden><span class="sr-only">Loading Library</span><div class="skeleton spacious" aria-hidden="true"><span class="skeleton-line" style="width:58%;height:22px"></span><span class="skeleton-line" style="width:82%"></span><div class="skeleton-visual"></div></div></div>
+      <div id="home-error" class="home-recovery" hidden><p role="alert">Couldn't load your Library.</p><button class="button secondary" id="home-retry" type="button">Retry</button></div>
+      <div id="home-sections">
+        <section class="library-folders" id="library-folders" aria-labelledby="library-folders-title"><h2 class="home-section-title" id="library-folders-title">Folders <span id="folder-total"></span></h2><!-- ui:include folder-tiles --></section>
+        <div id="library-results"></div>
+        <div class="library-empty" id="home-empty" hidden>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use id="library-empty-glyph" href="../../../icons/sidebar.svg#sidebar-library"></use></svg>
+          <p id="library-empty-copy">Your library is empty.</p>
+          <button class="button secondary" type="button" id="library-clear" hidden>Clear filters</button>
+        </div>
+      </div>
+      <div class="sr-only" role="status" id="library-result-status"></div>
+    </div>
+  </main>
+</template>

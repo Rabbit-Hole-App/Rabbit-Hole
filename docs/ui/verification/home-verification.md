@@ -2,7 +2,7 @@
 
 Executed: canonical export structural checks, JavaScript syntax checks, and a LinkeDOM fixture using the actual exported markup and behavior scripts.
 
-Passed scenarios: Continue/Recent deduplicate by explicit ID; missing last topic omitted; valid saved size restored; live preset readout; loading/error/empty surfaces; Retry loading-to-ready and focus return; Recent Open action present; card menu arrow/Home/End/Escape behavior and focus return; Move to folder expansion/return/assignment; folder colour-group keyboard handling and Rename.
+Passed scenarios include Continue/Recent deduplication, optional last topic, persisted size, the live preset readout, loading/error/empty surfaces, Retry recovery and focus return, Recent Open, card menu keyboard behavior, Move to folder, and folder Colour and Rename. The empty Home check also verifies that its message shares the header with Start, Card size is hidden, and the empty fixture has no Recent sidebar section.
 
 DOM test invocation (test dependency only; no app package changes):
 

@@ -46,7 +46,11 @@ EXPORTS=[
  ('39-home-error','navigation/home-error'),
  ('40-home-empty','navigation/home-empty'),
  ('41-home-no-topic','navigation/home-no-topic'),
- ('42-folders','navigation/folders')]
+ ('42-folders','navigation/folders'),
+ ('43-library','navigation/library'),
+ ('44-library-folder','navigation/library-folder'),
+ ('45-library-empty','navigation/library-empty'),
+ ('46-library-folder-empty','navigation/library-folder-empty')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:
@@ -81,7 +85,7 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
 #resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 @media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
 '''
-  if ident.startswith(('navigation/sidebar','navigation/settings','navigation/home')) or ident in ['cards/canvas-summary','navigation/home']:
+  if ident.startswith(('navigation/sidebar','navigation/settings','navigation/home','navigation/library')) or ident in ['cards/canvas-summary','navigation/home']:
    extra+='\nmain.clean-stage{max-width:none;margin:0;padding:0;}\n'
   if ident=='controls/toggle':
    # A single switch with its label, without availability and usage documentation.

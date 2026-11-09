@@ -11,12 +11,10 @@ This document routes work to the detailed screen handoffs and shared component l
 | Start a rabbit hole | [START-DIALOG.md](START-DIALOG.md) | [12-start-rabbit-hole.html](clean/12-start-rabbit-hole.html) | Templates and source mapping pushed; runtime integration and browser verification pending |
 | Sidebar, Search, Trash, Notifications and Feedback | [SIDEBAR.md](SIDEBAR.md) | [16-sidebar.html](clean/16-sidebar.html) | Owner-reviewed reference; runtime integration and browser verification pending |
 | Settings and account states | [SETTINGS.md](SETTINGS.md) | [21-settings.html](clean/21-settings.html) | Async states and API contract tested; browser verification and runtime integration pending |
-
 | Canvas summary cards: Home, Library and Explore | [CANVAS-CARD.md](CANVAS-CARD.md) | [36-canvas-card.html](clean/36-canvas-card.html) | Four sizes and description states; zero-star count hidden; browser verification and runtime integration pending |
-
 | Home: Continue learning and Recent | [HOME.md](HOME.md) | [37-home.html](clean/37-home.html) | Deduplicated cards, remembered size, state previews and keyboard DOM checks; browser/runtime verification pending |
-
 | Folder tiles, options and assignment | [FOLDERS.md](FOLDERS.md) | [42-folders.html](clean/42-folders.html) | Rename, Colour, Delete and New folder with Folder-plus icon; local state only |
+| Library: search, filters, sort and folders | [LIBRARY.md](LIBRARY.md) | [43-library.html](clean/43-library.html), [44-library-folder.html](clean/44-library-folder.html) | DOM checks passed for empty and populated states. Browser and runtime verification pending |
 
 **For Start a rabbit hole, read START-DIALOG.md in full.** It maps every visible element to its canonical template, component, CSS selector, behavior script and icon. It distinguishes existing primitives from the four newly authorized templates and records the latest copy, button, resize and focus corrections.
 
@@ -28,6 +26,8 @@ This document routes work to the detailed screen handoffs and shared component l
 
 **For Home, read HOME.md in full.** Home has no top-level Stars button; per-card stars remain. It composes the existing sidebar, canvas summaries and Start dialog, with deduplication, remembered Card size, genuine continuation metadata, loading/error/empty references and the hover/focus Open action. It lists missing card-management templates and local-only behavior. Read FOLDERS.md for the shared folder menu and assignment patterns.
 
+**For Library, read LIBRARY.md in full.** It records the code-derived filter and sort choices, leading icons for every sort option, populated/empty folder views, folder/search behavior, shared component sources, and remaining integration gaps.
+
 Add future screen-specific handoffs to this table as they are prepared. A component appearing in the library does not by itself establish that its full screen flow has been reviewed or integrated.
 
 ## Required reading order
@@ -38,6 +38,17 @@ Add future screen-specific handoffs to this table as they are prepared. A compon
 4. Inspect the latest integrated app component and its callers before editing. The handoff's app paths are mapping landmarks, not a frozen implementation to overwrite.
 
 The latest explicit owner decision takes precedence over older references. Within this library, follow the [current review corrections](REVIEW-UPDATES.md), [palette roles](foundations/PALETTE.md), [design tokens](foundations/tokens.json) and the selected screen's specific contract. Flag unresolved conflicts instead of silently choosing a new design. Historical/hidden Flow examples are not current styling targets.
+
+
+## Empty and populated screen coverage
+
+| Screen | Empty | With canvases |
+| --- | --- | --- |
+| Home | [40-home-empty.html](clean/40-home-empty.html) | [37-home.html](clean/37-home.html) |
+| Library | [45-library-empty.html](clean/45-library-empty.html) | [43-library.html](clean/43-library.html) |
+| Open folder | [46-library-folder-empty.html](clean/46-library-folder-empty.html) | [44-library-folder.html](clean/44-library-folder.html) |
+
+Keep the page top-aligned beside the sidebar in both data states. Empty Home has its message on the left and Start at the top right. Empty Library and folder views retain the title actions and toolbar. Inside a folder, the breadcrumb stays above the title and Folder options sits beside Start. The empty icon and copy sit on the page below the toolbar. See [HOME.md](HOME.md) and [LIBRARY.md](LIBRARY.md) for the component mappings and fixture rules.
 
 ## Shared library entry points
 

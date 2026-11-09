@@ -60,5 +60,5 @@
   ],
   "path": "components/navigation/home-empty",
   "paletteRole": "shared",
-  "catalogVisible": false
+  "catalogVisible": true
 }

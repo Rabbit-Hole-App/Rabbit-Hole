@@ -3,6 +3,7 @@
   "paths": [
     "packages/control-plane/src/profile.js",
     "packages/web/src/AdaptiveCanvas.jsx",
+    "packages/web/src/App.jsx",
     "packages/web/src/BuyCreditsDialog.jsx",
     "packages/web/src/CanvasMenubar.jsx",
     "packages/web/src/CardFeedback.jsx",
@@ -36,7 +37,9 @@
     "packages/web/src/home/LearningCard.jsx",
     "packages/web/src/home/card-menu-items.js",
     "packages/web/src/home/card-size.js",
+    "packages/web/src/home/card-sort.js",
     "packages/web/src/index.css",
+    "packages/web/src/library-filter.js",
     "packages/web/src/library-folders.js",
     "packages/web/src/session-display.js",
     "packages/web/src/settings-model.js",
@@ -64,14 +67,17 @@
       "packages/web/src/Home.jsx"
     ],
     "25b7c61a037054675f888a71d18cc6d4b8cba084": [
+      "packages/web/src/App.jsx",
+      "packages/web/src/CardStar.jsx",
       "packages/web/src/Home.jsx",
+      "packages/web/src/Sidebar.jsx",
+      "packages/web/src/StartDialog.jsx",
+      "packages/web/src/home/CardMenu.jsx",
       "packages/web/src/home/CardSize.jsx",
       "packages/web/src/home/LearningCard.jsx",
-      "packages/web/src/home/CardMenu.jsx",
       "packages/web/src/home/card-menu-items.js",
-      "packages/web/src/CardStar.jsx",
-      "packages/web/src/Sidebar.jsx",
-      "packages/web/src/StartDialog.jsx"
+      "packages/web/src/home/card-sort.js",
+      "packages/web/src/library-filter.js"
     ]
   }
 }
