@@ -39,3 +39,24 @@ test('the flow and cycle contracts carry the batch-1 audit clauses once each, in
   for (const clause of [FLOW, CYCLE]) assert.equal(kinds.split(clause).length, 2, clause.slice(0, 40));
   assert.ok(kinds.indexOf(FLOW) < kinds.indexOf('comparison for items across') && kinds.indexOf('cycle for a repeating process') < kinds.indexOf(CYCLE) && kinds.indexOf(CYCLE) < kinds.indexOf('figure for a labeled drawing'), 'each clause sits in its own kind entry');
 });
+
+import { readFileSync } from 'node:fs';
+import { keptInteractions } from '../src/explanation-interactions.js';
+
+const block = { type: 'explanation', title: 'How a Bill Becomes Law', body: 'A federal law starts as a bill.\n\nThe committee reviews it.' };
+
+test('follow-up questions lose a leading comma and other stray punctuation (card 07 of batch 1 stored all three as ",What...")', () => {
+  const { questions: raw } = JSON.parse(readFileSync(new URL('./fixtures/explanation-leading-comma-questions.json', import.meta.url), 'utf8'));
+  assert.ok(raw.every(q => q.startsWith(',')), 'the fixture holds the bug');
+  const kept = keptInteractions(block, { questions: raw, terms: [] }).questions;
+  assert.deepEqual(kept, [
+    'What happens if the House and Senate pass different versions of a bill?',
+    'How many votes are required to override a presidential veto?',
+    'What is a pocket veto and how does it occur?',
+  ]);
+});
+
+test('other leading marks go too; a clean question and the three-question cap stay as they were; a question that is only punctuation is dropped as blank', () => {
+  const kept = keptInteractions(block, { questions: ['  - Why does it matter?', '• How is it counted?', ';: ', 'What is a veto?', 'Why a fourth?'], terms: [] }).questions;
+  assert.deepEqual(kept, ['Why does it matter?', 'How is it counted?', 'What is a veto?']);
+});

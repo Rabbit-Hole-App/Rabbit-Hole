@@ -63,7 +63,8 @@ export const contentRevision = async block => `r${DISPLAY_TEXT_VERSION}-${(await
 export function keptInteractions(block, meta) {
   const questions = [], seen = new Set();
   for (const q of Array.isArray(meta?.questions) ? meta.questions : []) {
-    const t = String(q ?? '').replace(/\s+/g, ' ').trim();
+    // Batch-1 review (card 07): the author sometimes starts a question with a stray comma, quote or bullet; the first letter is where a question starts.
+    const t = String(q ?? '').replace(/\s+/g, ' ').trim().replace(/^[\s,;:\-\u2013\u2014\u2022\u00b7*>"'\u201c\u201d\u2018\u2019]+/u, '');
     if (t && len(t) <= INTERACTION_LIMITS.question && !seen.has(t.toLowerCase()) && questions.length < INTERACTION_LIMITS.questions) { seen.add(t.toLowerCase()); questions.push(t); }
   }
   const field = fieldText(block, 'body') ?? '', prose = explanationFieldProse(block?.body), chars = cp(field);
