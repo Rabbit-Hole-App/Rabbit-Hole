@@ -24,6 +24,9 @@ import { cardEditSelectionReason } from './inline-card-edit.js';
 import { explainEditProblem } from './explain-client.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
+import { CHIP, CHIP_ICON_BUTTON } from './ContextChips.jsx';
+import { firstWords, scrimPath } from './inline-highlight.js';
+import { cardText } from './canvas-semantics.js';
 import { composerKey } from './composer-keys.js';
 import DepthMenu from './DepthMenu.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -97,8 +100,15 @@ export function CardEditPreview({ fields, proposedOnly = false }) {
     </section>)}
   </div>;
 }
-export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, preset = null, onClose }) {
+export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, preset = null, highlight = null, onClearHighlight = null, onClose }) {
   const board = canvas.board;
+  // Owner 2026-11-09: the highlighted words stay marked while the window is open (the native selection collapses when the prompt field takes the focus): the live Range under a CSS custom
+  // highlight (index.css ::highlight(inline-target)), a mark for this request only, never a saved Highlight; it goes when the window closes or the chip is cleared.
+  useEffect(() => {
+    if (!highlight?.live || typeof CSS === 'undefined' || !CSS.highlights || typeof Highlight === 'undefined') return undefined;
+    CSS.highlights.set('inline-target', new Highlight(highlight.live));
+    return () => { CSS.highlights.delete('inline-target'); };
+  }, [highlight]);
   // The board's Depth (the Chat composer's own setting, one value for both): null on a page with no Chat workspace..
   const depthSettings = useChatWorkspace()?.settings ?? null;
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
@@ -363,7 +373,11 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       const objects = target.creation ? [] : (prepare(selectionOnly, out.handoff.line).context?.target?.objects || []);
       const words = objects.map(entry => String(entry.range?.text ?? entry.text ?? '').trim()).filter(Boolean).join('\n').slice(0, 8000);
       const title = selectionTitle({ target: { objects } }, board()?.blocks || []).slice(0, 100) || null;
-      const selection = target.ids?.length ? { id: target.ids[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title, text: words } : null;
+      // Owner 2026-11-09: /explain from Ctrl+K carries the question, the highlighted words AND the card they are in (its title and text), and the new card stands beside the source level with the
+      // highlighted line (beside + alignY, learn-slash.js hold -> canvas.reserve).
+      const source = highlight && (board()?.blocks || []).find(block => block.id === highlight.id);
+      const selection = target.ids?.length ? { id: target.ids[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title: source?.title ? String(source.title).slice(0, 200) : title, text: highlight ? highlight.text.slice(0, 8000) : words,
+        ...(source ? { card: { title: String(source.title || '').slice(0, 200), body: cardText(source).slice(0, 6000) }, beside: true, alignY: highlight.alignY } : {}) } : null;
       setHandoffError('');
       if (await config.handoff(out.handoff.line, { selection, concept: title })) { onClose(); return; }
       setHandoffError(HANDOFF_REFUSED);
@@ -645,7 +659,20 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
 
   // Where the popover goes: beside the target, never over it, inside the canvas surface (§10).
   const surface = canvas.surfaceSize();
+  // Owner 2026-11-09: over highlighted words the window stands beside THOSE words (the live Range's rects, so it follows a pan), never over them; the overlay's own origin turns client
+  // rects into canvas coordinates.
+  const overlay = useRef(null);
+  const marked = (() => {
+    const origin = overlay.current?.getBoundingClientRect();
+    if (!highlight || !origin) return null;
+    let rects = []; try { rects = [...highlight.live.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0); } catch { rects = []; }
+    if (!rects.length) rects = highlight.rects.map(rect => ({ ...rect, right: rect.left + rect.width, bottom: rect.top + rect.height }));
+    return rects.map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
+  })();
+  const [, tick] = useState(0);
+  useLayoutEffect(() => { if (highlight && !marked) tick(n => n + 1); }, [highlight, marked]);
   const targetScreen = (() => {
+    if (marked?.length) { const x = Math.min(...marked.map(r => r.left)), y = Math.min(...marked.map(r => r.top)); return { x, y, w: Math.max(...marked.map(r => r.left + r.width)) - x, h: Math.max(...marked.map(r => r.top + r.height)) - y }; }
     // A creation is placed by its insertion anchor, as a selection is by its box.
     const world = target.creation ? { x: target.anchor.x - 1, y: target.anchor.y - 1, w: 2, h: 2 } : unionBox(target.ids.map(boxOfTarget));
     if (!world) return null;
@@ -693,7 +720,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       {/* The overlay: the frozen target's outline and the ghost of what Accept adds (A7). Never in the board, the undo
           history, the thumbnail (data-thumbnail-hide) or an export; only the ghost itself takes the pointer, so nothing
           under it is clicked by mistake. */}
-      <div data-inline-ai-overlay data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+      <div ref={overlay} data-inline-ai-overlay data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+        {/* Owner 2026-11-09: the canvas dims behind the window, leaving the highlighted words and the window in focus (an even-odd hole per line of the words); it never takes the pointer. */}
+        {marked?.length > 0 && <div data-inline-scrim className="absolute inset-0 bg-black/40 transition-opacity motion-reduce:transition-none" style={{ clipPath: scrimPath(surface, marked) }} />}
         {/* The target is purple while the editor is open (owner 2026-10-13): its own canvas selection marks take --color-ai;
             every other selection stays blue. */}
         <style data-inline-target-color>{`${[...target.ids.flatMap(id => ['shape-id', 'item-id', 'block-id', 'link-for'].map(key => `[data-${key}="${CSS.escape(id)}"]`)),
@@ -822,6 +851,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {/* The chosen command (CommandPill, shared with Chat): removing it keeps the words, the selection and the context. */}
         {showsPill(command) && <div className="mb-1.5 flex pr-7"><CommandPill name={command} disabled={busy(status)} onRemove={() => { setCommand(null); focusField(); }}
           className="h-6 gap-0.5 rounded-md pr-0.5 pl-1.5 text-xs" removeClassName="h-5 w-5" /></div>}
+        {highlight && <span data-inline-chip title={highlight.text} className={`${CHIP} mb-1.5 w-fit pl-2`}>
+          <span data-inline-chip-text className="min-w-0 truncate">{firstWords(highlight.text)}</span>
+          <button type="button" data-inline-chip-clear aria-label="Remove the highlighted text" title="Remove the highlighted text" onClick={() => onClearHighlight?.()} className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
+        </span>}
         <textarea ref={field} rows={2} value={prompt} onChange={event => typing(event.target.value)} onKeyDown={fieldKey} data-inline-prompt
           aria-activedescendant={pickerOpen && matches.length ? `inline-command-${matches[Math.min(active, matches.length - 1)].name}` : undefined}
           aria-label={preview ? 'Refine the request' : mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}

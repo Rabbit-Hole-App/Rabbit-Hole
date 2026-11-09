@@ -836,6 +836,8 @@ tr.cursor-pointer:active > td {
 /* Learner highlights on a Wikipedia card (learn-wiki-highlights.js). The
    Custom Highlight API paints ranges without touching the article's DOM. Dark
    text on the yellow in both themes, or dark mode's light text would vanish. */
+/* Ctrl+K over highlighted words (owner 2026-11-09): the words stay marked in the Highlight colour (the card Highlight is bg-yellow-300/40) while the window is open; never saved. */
+::highlight(inline-target) { background-color: color-mix(in oklab, var(--color-yellow-300, #fde047) 40%, transparent); }
 ::highlight(wiki-highlight) {
   background-color: #fde047;
   color: #1f1f1f;

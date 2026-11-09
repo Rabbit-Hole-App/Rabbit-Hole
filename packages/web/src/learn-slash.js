@@ -3,6 +3,7 @@
 // smart-home); this file is the Learn side: which commands the picker offers
 // here, and what running one does. Pure apart from the injected post/canvas,
 // so it is tested without a browser.
+import { explainContext } from './inline-highlight.js';
 import { reviewRequired } from './proposal-capabilities.js';
 import { LEARN_MENU, MENU_TITLES, commandsFor, descFor, imageGenerationLive, learnRequest, resolveCommand, idOfTyped, toolOf, typedOf, unavailableCommand } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
@@ -298,7 +299,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // sized as the command's first card; anything but a card (a question, a proposal, an error, a request
   // that never answers) gives it up. A skeleton means a card is committed: a command that can end in a paid
   // proposal holds no place until the learner confirms it (generate, below).
-  const hold = () => canvas.reserve?.({ label: `Creating /${typed}`, card: cardsFor(name)[0]?.card ?? null, ...((name === 'explain' || name === 'explanation') && target?.beside && target.id ? { beside: target.id } : {}) }); // a card from a card (Ask in a new card, Explore) stands beside its source
+  const hold = () => canvas.reserve?.({ label: `Creating /${typed}`, card: cardsFor(name)[0]?.card ?? null, ...((name === 'explain' || name === 'explanation') && target?.beside && target.id ? { beside: target.id, ...(Number.isFinite(target.alignY) ? { besideDy: target.alignY } : {}) } : {}) }); // a card from a card (Ask in a new card, Explore, Ctrl+K) stands beside its source, level with the highlighted line when there is one
   // /explain with an image: the target's own (a region crop or an image card, uploaded) first, else the composer's attached
   // image, as ask.jsx picks one for a question. The words say what to show; an image alone asks. A crop whose upload has not
   // landed is waited for, never dropped.
@@ -329,7 +330,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   }
   const slot = mayConfirmPaid(name) ? null : hold();
   let result;
-  try { result = await generateCommand(name, name === 'explain' ? args || explainWords : args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, image, sourceRef, post }); }
+  try { result = await generateCommand(name, name === 'explain' ? args || explainWords : args, { app, selection, context: explainContext(target), image, sourceRef, post }); }
   catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${typed} took too long. Try again.` } }; throw error; }
   finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // fit: a new written Explanation opens at its full length and the camera frames it (AdaptiveCanvas insertBlock, owner 2026-11-08).

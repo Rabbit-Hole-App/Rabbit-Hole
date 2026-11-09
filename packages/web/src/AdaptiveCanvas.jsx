@@ -76,6 +76,7 @@ import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.j
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { besideSpot } from './beside-placement.js';
+import { pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
@@ -2390,11 +2391,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0 }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
-        const source = beside ? boundsRef.current[beside] : null, spot = !given && source ? besideSpot(source, size, boardObstacles([beside])) : null, at = given || spot;
+        const source = beside ? boundsRef.current[beside] : null, spot = !given && source ? besideSpot(source, size, boardObstacles([beside]), { dy: besideDy }) : null, at = given || spot;
         if (spot) size = { ...size, h: Math.round(source.h) };
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
@@ -3717,8 +3718,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     const held = document.activeElement;
     if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[data-toc-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"],[data-player]'))) return null;
-    const target = freezeTarget(board, selectedRef.current);
-    if (target) return { target };
+    // Owner 2026-11-09: highlighted words inside a card are the request's subject (a text range of that card), marked while the window is open (inline-highlight.js).
+    const picked = pickedHighlight(shell.current, board.blocks, viewRef.current.z);
+    const target = picked ? freezeTarget(board, [picked.id], picked.range ? { range: picked.range } : {}) : freezeTarget(board, selectedRef.current);
+    if (target) return picked ? { target, highlight: picked.highlight } : { target };
     // Nothing selected (a populated canvas is not a blank one): the same editor, to add. From the keyboard only while the
     // canvas has the focus - never from a field, a dialog or a menu (checked above) or another part of the page.
     if (selectedRef.current.length || readOnly || (fromKey && held && held !== document.body && !shell.current?.contains(held))) return null;
@@ -6285,7 +6288,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <button type="submit" disabled={!isWebUrl(webpageAsk.trim())} className="h-7 rounded-md bg-accent px-2 text-xs text-white disabled:opacity-40">Add webpage</button>
           </div>
         </form>}
-        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset}
+        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset} highlight={inline.highlight || null}
+          onClearHighlight={() => setInline(open => (open && open.highlight ? { ...open, highlight: null, target: freezeTarget(inlineBoard(), open.target.ids) || open.target } : open))}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
         {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (

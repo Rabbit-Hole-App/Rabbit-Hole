@@ -49,11 +49,11 @@ test('the card is placed clear of the source and of every obstacle: no overlap a
 test('wiring: Ask in a new card and Explore ask for a card beside the source with no connector; the slot is as tall as the source; an anchored slot puts the card on its place; reload keeps dx, dy', () => {
   const canvas = src('./AdaptiveCanvas.jsx'), slash = src('./learn-slash.js');
   assert.match(canvas, /\.\.\.\(destination === 'card' \|\| destination === 'follow-up' \|\| destination === 'explore' \? \{ beside: true \} : \{\}\)/);
-  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[beside\]\)\)/);
+  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[beside\]\), \{ dy: besideDy \}\)/);
   assert.match(canvas, /if \(spot\) size = \{ \.\.\.size, h: Math\.round\(source\.h\) \}/);
   assert.match(canvas, /if \(slot\?\.at\) pendingAt\.current\.set\(block\.id, slot\.at\)/);
   assert.match(canvas, /if \(link && parent\?\.id &&/);
-  assert.match(slash, /target\?\.beside && target\.id \? \{ beside: target\.id \}/);
+  assert.match(slash, /target\?\.beside && target\.id \? \{ beside: target\.id, /);
   assert.match(slash, /\.\.\.\(target\?\.beside \? \{ link: false \} : \{\}\)/);
   // the offsets are the block's own dx, dy: the saved board already stores them (a dragged card), so a reload keeps the place without a migration
   assert.match(canvas, /moves\.set\(id, \{ dx: Math\.round\(at\.x - \(box\.x - \(owner\.dx \|\| 0\)\)\), dy: Math\.round\(at\.y - \(box\.y - \(owner\.dy \|\| 0\)\)\) \}\)/);
