@@ -254,12 +254,3 @@ for (const [name, spec, labels] of [
     });
   }
 }
-
-// Item 47 (2026-11-08): a label the server trimmed keeps its full text as the node's title, drawn as an SVG <title> tooltip; a node without one draws none.
-test('a node title is drawn as its SVG <title>, never as visible text', () => {
-  const titled = { ...cache, nodes: cache.nodes.map(n => (n.id === 'miss' ? { ...n, title: 'Read the database row for this key and keep it' } : n)) };
-  const svg = render(layoutFlow(titled, 408));
-  assert.match(svg, /<g data-tutor-node="miss"><title>Read the database row for this key and keep it<\/title>/);
-  assert.equal((svg.match(/<title>/g) || []).length, 1);
-  assert.doesNotMatch(render(layoutFlow(cache, 408)), /<title>/);
-});

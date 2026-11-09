@@ -14,8 +14,8 @@ const WORDS = {
   },
   // An explanation card (brief and author): how much to plan and draw, inside the limits and catalogue given.
   card: {
-    overview: 'Depth: Overview. For someone new to the subject: plain words, no formulas or jargon; one simple visual with plain-word labels. Never go below what the request needs to be correct. The limits and catalogue given still apply.', // owner 2026-11-08: Depth is the technical level, not the amount
-    deep: 'Depth: Deep. For someone who knows the basics: precise terms, the formula or exact relationship, the quantitative view — maths in diagram labels, a plot or chart where a quantity is involved. Same length. The limits and catalogue given still apply; never add anything the sources and request do not support.',
+    overview: 'Depth: Overview. Plan and draw the short version: the central idea only, with as few components and steps as make it clear, and no side topics. Never go below what the request needs to be correct. The limits and catalogue given still apply.',
+    deep: 'Depth: Deep. Plan and draw the thorough version: the reasoning behind the idea, step by step, with a worked example and the usual misconception, using more components and steps where they teach something. The limits and catalogue given still apply; never add anything the sources and request do not support.',
   },
 };
 
@@ -40,4 +40,4 @@ export const EXPLANATION_OBJECTIVES = Object.freeze({
   standard: 'Depth: Standard. Explain how and why the mechanism works, with enough reasoning to apply it to another case.',
   deep: 'Depth: Deep. Develop the reasoning and relevant assumptions, limitations or connections. Work through a calculation or consequence when it helps.',
 });
-export const explanationTarget = depth => { const d = validDepth(depth) || DEFAULT_DEPTH; return `${EXPLANATION_OBJECTIVES[d]} Budget: at most ${EXPLANATION_CAPS[d].toLocaleString('en-US')} characters of prose (paragraph, heading and list text); the title, tables, diagrams and illustrations do not count. Layout: prose, a visual, prose, and optionally a second and a third visual, each followed by prose.`; };
+export const explanationTarget = depth => { const d = validDepth(depth) || DEFAULT_DEPTH; return `${EXPLANATION_OBJECTIVES[d]} Budget: at most ${EXPLANATION_CAPS[d].toLocaleString('en-US')} characters of prose (paragraph, heading and list text); the title, tables, diagrams and illustrations do not count. Layout: prose, a visual, prose, and optionally a second visual and prose.`; };

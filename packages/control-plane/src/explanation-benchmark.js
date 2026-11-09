@@ -5,8 +5,8 @@
 // Pure: every file goes through the injected store (explanation-benchmark-io.js); the clock, the wall clock and the provider are injected too.
 import { EXPLANATION_CANDIDATES, EXPLANATION_REGISTRY, EXPLANATION_ROLES, explanationProfileBinding, resolveExplanationProfile } from './explanation-models.js';
 import { generateArtifact, prepareArtifactAuthorRequest } from './learn-artifact.js';
-import { assembledSystem } from './explanation-fast-chain.js';
-import { PRIMITIVES } from './learn-primitives.js';
+import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
+import { EXPLANATION_GUIDANCE, PRIMITIVES } from './learn-primitives.js';
 import { ARTIFACT_REPAIRS } from './learn-models.js';
 import { VISUAL_REQUIREMENTS_VERSION, deriveVisualRequirements, requirementText } from './explanation-visuals.js';
 import { DEFAULT_DEPTH } from './chat-depth.js';
@@ -237,10 +237,6 @@ const LIMITATIONS = {
   dry: ['A dry run generates nothing: there are no results to rank.'],
 };
 
-// Owner M2 (2026-11-08): the prompt hash covers the final system text the fast chain sends for every corpus case (system prompt, tool guidance,
-// references, answer format: explanation-fast-chain.js assembledSystem), so a reordering or a reference change shows as a prompt change.
-const PROMPT_ENV = { SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'prompt-hash-only' };
-export const assembledPrompts = corpus => corpus.cases.map(c => { try { const p = prepareArtifactAuthorRequest(PROMPT_ENV, authorInput(c)); return p.body ? assembledSystem(p.body) : ''; } catch { return ''; } }).join('\n---\n');
 // ---- the run ---------------------------------------------------------------------------------------------------------------------------------------
 export async function runBenchmark(o) {
   if (o.mode === 'live') throw new LiveRefusedError();
@@ -253,7 +249,7 @@ export async function runBenchmark(o) {
   const manifest = {
     schemaVersion: BENCHMARK_SCHEMA_VERSION, runId, type: o.mode, evidenceClass: o.mode, status: 'running', codeSha: o.codeSha ?? 'unknown', codeDirty: !!o.codeDirty,
     corpus: { id: corpus.id, version: corpus.version, hash: corpus.hash }, expectedFactsHash: corpus.expectedFactsHash, thresholds: corpus.thresholds,
-    versions: { harness: HARNESS_VERSION, promptHash: (await hashOf(assembledPrompts(corpus))).slice(0, 16), schemaHash: (await hashOf(PRIMITIVES.explanation.schema)).slice(0, 16), visualRequirements: VISUAL_REQUIREMENTS_VERSION },
+    versions: { harness: HARNESS_VERSION, promptHash: (await hashOf(ARTIFACT_SYSTEM + EXPLANATION_GUIDANCE)).slice(0, 16), schemaHash: (await hashOf(PRIMITIVES.explanation.schema)).slice(0, 16), visualRequirements: VISUAL_REQUIREMENTS_VERSION },
     profiles: matrix.map(({ profile, binding }) => ({ ...binding, roles: profile.roles })), evaluator: { id: evaluator.id, kind: evaluator.kind, modelCalls: evaluator.modelCalls, profile: evaluator.profile },
     order: { seed, trials, concurrency: 1, interleave: 'per trial: cases shuffled, then profiles shuffled within each case (seeded)', cachePolicy: 'none: every fixture call is an uncached scripted reply (cache=miss)' },
     timeoutMs, authorizedCapUsd: null, plan: { attemptCount: plan.attemptCount, calibrationCount: plan.calibrationCount, spend: plan.spend }, startedAt: wall().toISOString(), endedAt: null,

@@ -9,10 +9,9 @@ import { artifactFetch, generateArtifact, prepareArtifactAuthorRequest } from '.
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
 import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
 import { cycleSpec, diagramFence, illustrationFence } from './explanation-layout-fixture.js';
-import { tutorDiagramJsonSchema } from '../../web/src/tutor-diagrams/spec.js';
 
 const EX01 = 'Why does coffee cool faster at first? Include a small table comparing early and late cooling.';
-const FLOW_REQUEST = 'Show a flowchart for this toy rule: if age is under 30, check whether income is over $50,000; yes means Approve and no means Deny. Otherwise, Check credit score. Trace a 25-year-old earning $60,000.';
+const EX07 = 'Show a decision-tree diagram for this toy rule: if age is under 30, check whether income is over $50,000; yes means Approve and no means Deny. Otherwise, Check credit score. Trace a 25-year-old earning $60,000.';
 
 const TABLE = '| Phase | Gap to the room | Cooling rate |\n| --- | --- | --- |\n| Early | Large | Fast |\n| Late | Small | Slow |';
 const prose = 'A hot cup loses heat faster at first because the gap between the coffee and the room is largest then; the gap shrinks as it cools, so the rate falls.';
@@ -35,9 +34,9 @@ const generate = async (text, inputs, over = {}) => { const m = scripted(...inpu
   const out = await generateArtifact({}, { command: 'explanation', args: text, ...(requirements.items?.length ? { visualRequirements: requirements } : {}), ...over }, { callModel: m.callModel }); return { out, m }; };
 const quiet = async fn => { const log = console.log; console.log = () => {}; try { return await fn(); } finally { console.log = log; } };
 
-test('EX-01 and the explicit flowchart variant produce their required records, with variations, and not-a-request wording produces none', () => {
+test('the exact EX-01 and EX-07 requests produce their required records, with variations, and not-a-request wording produces none', () => {
   assert.deepEqual(deriveVisualRequirements(EX01).items.map(i => [i.id, i.kind]), [['vr-1', 'table']]);
-  const ex07 = deriveVisualRequirements(FLOW_REQUEST);
+  const ex07 = deriveVisualRequirements(EX07);
   assert.deepEqual(ex07.items.map(i => [i.kind, i.diagramKind]), [['diagram', 'flow']]);
   assert.equal(ex07.version, 1);
   for (const q of ['Compare bubble sort and merge sort in a table', 'Put the planets in a table form, please', 'Give me a truth table for XOR and explain it', 'Explain gradient descent and tabulate the learning rates']) assert.equal(deriveVisualRequirements(q).items[0]?.kind, 'table', q);
@@ -98,36 +97,36 @@ test('over-budget output fails exactly one code point over the 700 hard limit; t
   assert.match(over.out.error, /explanation_over_budget/);
 });
 
-test('EX-07 explicit flowchart variant: a valid flow with Yes/No branches and outcomes is delivered and saved; omitted, invalid, wrong-kind or Yes/No-less diagrams fail', async () => {
-  const ok = await generate(FLOW_REQUEST, [withFlow]);
+test('EX-07: a valid flow with Yes/No branches and outcomes is delivered and saved; omitted, invalid, wrong-kind or Yes/No-less diagrams fail', async () => {
+  const ok = await generate(EX07, [withFlow]);
   assert.equal(ok.out.result, 'artifact');
   assert.deepEqual(ok.out.block.visualRequirements.items.map(i => [i.kind, i.diagramKind, i.satisfied]), [['diagram', 'flow', true]]);
   assert.deepEqual(JSON.parse(JSON.stringify(ok.out.block)), ok.out.block, 'the saved block survives a save/read round trip unchanged');
   // An illustration is a visual but not a diagram: the card has its visual, the learner's diagram is still missing.
-  const missing = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `The 25-year-old is approved.\n\n${illustrationFence({ caption: 'The 25-year-old approved', alt: 'An approved applicant' })}\n\nThat is the result.` }]));
+  const missing = await quiet(() => generate(EX07, [{ title: 'T', body: `The 25-year-old is approved.\n\n${illustrationFence({ caption: 'The 25-year-old approved', alt: 'An approved applicant' })}\n\nThat is the result.` }]));
   assert.match(missing.out.error, /required_visual_missing:/); // the picture is not the asked mix, so the server drops it (owner review 2026-11-08)
-  const unclosed = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.\n\n\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: flowSpec })}` }]));
+  const unclosed = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: flowSpec })}` }]));
   assert.equal(unclosed.out.result, 'validation_error');
   assert.match(unclosed.out.error, /required_visual_invalid:/);
-  const badTopology = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.\n\n${diagram({ ...flowSpec, edges: [{ from: 'age', to: 'nowhere', label: 'Yes' }] })}` }]));
+  const badTopology = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n${diagram({ ...flowSpec, edges: [{ from: 'age', to: 'nowhere', label: 'Yes' }] })}` }]));
   assert.equal(badTopology.out.result, 'validation_error');
   assert.match(badTopology.out.error, /required_visual_invalid:/, 'an invalid required diagram is never silently dropped');
-  const wrongKind = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'timeline', title: 'Steps', events: [{ time: 'Now', label: 'Check age' }, { time: 'Then', label: 'Check income' }] })}` }]));
+  const wrongKind = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'timeline', title: 'Steps', events: [{ time: 'Now', label: 'Check age' }, { time: 'Then', label: 'Check income' }] })}` }]));
   assert.match(wrongKind.out.error, /asked for a flow diagram.*is a timeline/);
-  const noBranches = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'flow', title: 'Steps', nodes: [{ id: 'a', label: 'Start', role: 'process' }, { id: 'b', label: 'Approve', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }], highlightPath: ['a', 'b'] })}` }]));
+  const noBranches = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.\n\n${diagram({ kind: 'flow', title: 'Steps', nodes: [{ id: 'a', label: 'Start', role: 'process' }, { id: 'b', label: 'Approve', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }], highlightPath: ['a', 'b'] })}` }]));
   assert.match(noBranches.out.error, /Yes and No branches/);
   // E3: the request says "Trace ...", so a caption alone is not enough: the flow needs its validated highlightPath.
   const { highlightPath: _route, ...unmarked } = flowSpec;
-  const noRoute = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.
+  const noRoute = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.
 
 ${diagram(unmarked)}
 
 So the rule approves.` }]));
   assert.equal(noRoute.out.result, 'validation_error');
   assert.match(noRoute.out.error, /^required_visual_invalid: .*highlightPath/);
-  assert.deepEqual(deriveVisualRequirements(FLOW_REQUEST).items[0].trace, true);
+  assert.deepEqual(deriveVisualRequirements(EX07).items[0].trace, true);
   assert.equal(deriveVisualRequirements('Show a flowchart of how a request is handled').items[0].trace, undefined, 'no trace wording, no route required');
-  const badRoute = await quiet(() => generate(FLOW_REQUEST, [{ title: 'T', body: `Approved.
+  const badRoute = await quiet(() => generate(EX07, [{ title: 'T', body: `Approved.
 
 ${diagram({ ...flowSpec, highlightPath: ['age', 'ok'] })}
 
@@ -135,41 +134,14 @@ So the rule approves.` }]));
   assert.match(badRoute.out.error, /required_visual_invalid:/, 'a route that is not on existing edges is an invalid diagram');
   // Standard EX-07 with a Tutor-style zero repair is one call and the same refusal.
   const m = scripted({ title: 'T', body: 'Approved.' });
-  const zero = await quiet(() => generateArtifact({}, { command: 'explanation', args: FLOW_REQUEST, visualRequirements: deriveVisualRequirements(FLOW_REQUEST) }, { callModel: m.callModel, repairs: 0 }));
+  const zero = await quiet(() => generateArtifact({}, { command: 'explanation', args: EX07, visualRequirements: deriveVisualRequirements(EX07) }, { callModel: m.callModel, repairs: 0 }));
   assert.deepEqual([zero.result, m.seen.length], ['validation_error', 1]);
-});
-
-test('tree-diagram wording of the EX-07 rule requires an actual tree with labelled branches and its traced route', async () => {
-  const request = FLOW_REQUEST.replace('flowchart', 'tree diagram');
-  const spec = { kind: 'tree', layout: 'binary', title: flowSpec.title, caption: flowSpec.caption,
-    nodes: [
-      { id: 'age', label: 'Age under 30?' },
-      { id: 'inc', label: 'Income over $50k?', parent: 'age', side: 'left', edgeLabel: 'Yes' },
-      { id: 'cs', label: 'Check credit score', parent: 'age', side: 'right', edgeLabel: 'No' },
-      { id: 'ok', label: 'Approve', parent: 'inc', side: 'left', edgeLabel: 'Yes' },
-      { id: 'no', label: 'Deny', parent: 'inc', side: 'right', edgeLabel: 'No' },
-    ], highlightPath: ['age', 'inc', 'ok'] };
-  const card = value => ({ ...withFlow, body: withFlow.body.replace(diagram(flowSpec), diagram(value)) });
-  const requirement = deriveVisualRequirements(request);
-  assert.equal(requirement.items[0].diagramKind, 'tree');
-  assert.equal(requirement.items[0].trace, true);
-  const accepted = await generate(request, [card(spec)]);
-  assert.equal(accepted.out.result, 'artifact');
-  assert.equal(accepted.out.block.visualRequirements.items[0].satisfied, true);
-  assert.equal(markdownVisuals(accepted.out.block.body).diagrams[0].kind, 'tree');
-  assert.match(requiredVisualProblem(withFlow, requirement), /asked for a tree diagram.*is a flow/);
-  const { highlightPath: _, ...untraced } = spec;
-  assert.match(requiredVisualProblem(card(untraced), requirement), /highlightPath/);
-  const unlabelled = { ...spec, nodes: spec.nodes.map(({ edgeLabel, ...node }) => node) };
-  assert.match(requiredVisualProblem(card(unlabelled), requirement), /Yes and No branches/);
-  const broken = { ...spec, highlightPath: ['age', 'ok'] };
-  assert.match(requiredVisualProblem(card(broken), requirement), /required_visual_invalid/);
 });
 
 test('optional diagram degradation: a valid required diagram beside an invalid optional one delivers the required one and records the drop; a dangling pointer fails', async () => {
   const optionalBad = `\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: { kind: 'flow', title: 'Extra', nodes: [{ id: 'a', label: 'A', role: 'process' }], edges: [{ from: 'a', to: 'zz' }] } })}\n\`\`\``;
   const both = { title: 'T', body: `The 25-year-old is approved.\n\n${diagram(flowSpec)}\n\nA second view of the rule.\n\n${optionalBad}\n\nThat is the rule.` };
-  const r = await quiet(() => generate(FLOW_REQUEST, [both, both]));
+  const r = await quiet(() => generate(EX07, [both, both]));
   assert.equal(r.out.result, 'artifact');
   assert.equal(r.out.diagramsDropped, 1, 'the degradation is recorded in the result');
   assert.deepEqual(markdownVisuals(r.out.block.body).diagrams.map(d => d.ok), [true], 'only the required diagram is left');
@@ -191,15 +163,14 @@ test('optional diagram degradation: a valid required diagram beside an invalid o
   assert.equal(danglingFigureProblem({ body: 'Softmax is a function.' }), null);
   // The invalid REQUIRED diagram with a separate valid optional one is not "fixed" by dropping the required one.
   const reqBad = { title: 'T', body: `Approved.\n\n${optionalBad}\n\nThe rule checks age first.\n\n${diagram(flowSpec)}\n\nSo the rule approves.` };
-  const wrongOne = await quiet(() => generate(FLOW_REQUEST, [reqBad, reqBad]));
+  const wrongOne = await quiet(() => generate(EX07, [reqBad, reqBad]));
   assert.equal(wrongOne.out.result, 'artifact', 'a valid diagram remains for the one requirement, so the invalid extra is the optional one');
   assert.equal(wrongOne.out.diagramsDropped, 1);
 });
 
 test('owner 2026-11-08, a card should not fail: the only diagram still invalid after the repair becomes a straight flow of its own labels, no model call', async () => {
-  // The heart's loop drawn as a flow has no start node, which a flow refuses ("A flow needs exactly one root"). With 8 steps it is over the cycle's 7, so
-  // the server cannot turn it into a cycle (item 47); a loop of up to 7 is, below.
-  const labels = ['Right atrium', 'Right ventricle', 'Lungs', 'Left atrium', 'Left ventricle', 'Aorta', 'Body', 'Veins'];
+  // The heart's loop drawn as a flow has no start node, which a flow refuses ("A flow needs exactly one root").
+  const labels = ['Right atrium', 'Right ventricle', 'Lungs', 'Left atrium', 'Left ventricle', 'Body'];
   const loop = { kind: 'flow', title: 'Blood through the heart', caption: 'Blood loops through the heart twice.', nodes: labels.map((label, i) => ({ id: `s${i}`, label, role: 'process' })),
     edges: labels.map((_, i) => ({ from: `s${i}`, to: `s${(i + 1) % labels.length}` })) };
   const card = { title: 'How the heart pumps', body: `The heart is two pumps side by side, moving blood from the body to the lungs and back.\n\n${diagram(loop)}\n\nEach beat squeezes the atria first, then the ventricles.` };
@@ -208,8 +179,7 @@ test('owner 2026-11-08, a card should not fail: the only diagram still invalid a
   const [drawn] = markdownVisuals(out.block.body).diagrams;
   assert.deepEqual([drawn.ok, drawn.kind], [true, 'flow']);
   const spec = JSON.parse(out.block.body.match(/```rh-diagram\n(.*)\n```/)[1]).diagram;
-  assert.deepEqual([spec.title, spec.caption, spec.nodes.map(n => n.label), spec.nodes.map(n => n.role).at(-1), spec.edges.length], [loop.title, loop.caption, labels, 'outcome', 7]);
-  assert.deepEqual(out.block.diagramCorrections, { simplified_flow: 1 }, 'counted on the card (item 47)');
+  assert.deepEqual([spec.title, spec.caption, spec.nodes.map(n => n.label), spec.nodes.map(n => n.role).at(-1), spec.edges.length], [loop.title, loop.caption, labels, 'outcome', 5]);
   assert.ok(out.block.body.startsWith('The heart is two pumps') && out.block.body.endsWith('then the ventricles.'), 'the prose around it is kept');
   // With a repair left, nothing is simplified: the validator's words go to the model first.
   assert.match(m.seen[1].messages.at(-1).content[0].content, /exactly one root/);
@@ -280,7 +250,7 @@ test('requiredVisualProblem is null without a requirement, and counts one table 
 
 test('a topic word alone is not a request for a picture: a decision tree, a timeline or a t-account question stays prose-only', () => {
   for (const q of ['Explain how a decision tree works', 'What is the timeline of the French Revolution?', 'How does a t-account record a sale?', 'Explain the number line']) assert.deepEqual(deriveVisualRequirements(q).items, [], q);
-  assert.equal(deriveVisualRequirements('Draw a decision tree diagram for loan approval').items[0].diagramKind, 'flow', 'a decision tree stays a flow (EX-07 and the frozen benchmark corpus)');
+  assert.equal(deriveVisualRequirements('Draw a decision tree diagram for loan approval').items[0].diagramKind, 'flow');
   assert.equal(deriveVisualRequirements('Show a timeline diagram of the French Revolution').items[0].diagramKind, 'timeline');
 });
 
@@ -289,7 +259,7 @@ test('the guidance leads its visual choice with the firm type rule, then the kin
   const g = EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
   const order = ['objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them',
     'processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams', 'never use a picture for a data structure, an algorithm or numbers',
-    'cycle when the last step feeds the first', 'sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response)', 'timeline for dates or eras', 'transformation for inputs becoming outputs',
+    'cycle when the last step feeds the first', 'sequence for messages between actors', 'timeline for dates or eras', 'transformation for inputs becoming outputs',
     'tree for splits, sub-parts or sub-calls', 'relationship for causes', 'layers only for a real ordered stack', 'flow otherwise, a straight chain included',
     'Layers, matrix, comparison, flow, tree and figure cannot draw a shape, object, place or appearance', 'figure is only for a cell, a free-body diagram or a layered cross-section',
     'comparison is for 2-4 separate items, never the parts of one thing',
@@ -297,30 +267,6 @@ test('the guidance leads its visual choice with the firm type rule, then the kin
   assert.deepEqual(order, [...order].sort((a, b) => a - b), 'in the owner\'s order');
   assert.ok(at('Choose visuals in this order') < at('Kinds: flow'), 'the choice comes before the kind catalogue');
   assert.equal(g.includes('a diagram cannot draw'), false, 'the old negative rule is gone');
-});
-
-// Owner 2026-11-08 (study evidence: TCP handshake drawn as a flow 3 of 3; tree operations drawn as a step flow with no tree; volcano, eclipse and engine
-// questions got only a flow): three guidance sentences, nothing new in the diagram schema.
-test('the guidance carries the parties-send-things sequence rule, the structure-first rule for tree operations and the picture for how a physical thing works', () => {
-  const g = EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
-  at('sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response);');
-  assert.ok(at('For an operation on a binary tree or BST (traversal, insertion, search, deletion) the first visual is the tree itself, showing the operation in its node labels (the visit order, as 1st, 2nd, or the new key marked as 7 (new)) or as two tree visuals, before and after; a flow with a highlightPath for the steps may follow it but never replaces it; a tree highlightPath is only a root-to-descendant route along parent-to-child edges, such as the search path an insertion or search follows, never a visit order.') > at('For binary trees use kind "tree" with layout "binary".'));
-  at('Three visuals are a maximum, not a target.');
-  at('a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram;');
-  // Owner 2026-11-08: the catalogue's sequence entry says the same as the choice rule (wording only; the order of kinds is unchanged).
-  assert.ok(at('sequence for two or more named parties that send things to each other (client and server, sender and receiver, a protocol, request and response; actors [{id,label}] 2-4, messages [{from,to,label}] between different actors)') > at('Kinds: flow'), 'the catalogue says the same as the choice rule');
-  assert.equal(g.includes('messages between actors'), false, 'the old catalogue wording is gone');
-  // Supported means only (Phase 02): a tree's one route field is highlightPath; no node field holds a visit order, so inorder order stays in the node labels.
-  const tree = (tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf).find(s => s.properties.kind.const === 'tree');
-  assert.ok(tree.properties.highlightPath, 'a tree takes a root-to-descendant highlightPath');
-  assert.deepEqual(Object.keys(tree.properties.nodes.items.properties).filter(k => /order|visit|step|rank/i.test(k)), [], 'no traversal-order field on a tree node');
-});
-
-// Owner 2026-11-08: digital, abstract or procedural subjects get no picture, a separate line; the positive picture rule (51 of 54 in the study) is unchanged.
-test('the guidance keeps digital, abstract and procedural subjects to diagrams, beside the unchanged positive picture rule', () => {
-  const g = EXPLANATION_GUIDANCE;
-  assert.ok(g.includes('Digital, abstract or procedural subjects — email, DNS, network protocols, algorithms, software, data structures, mathematics — never get a picture. They get a diagram only.'));
-  assert.ok(g.includes('1) Type: objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them; a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram; processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams; never use a picture for a data structure, an algorithm or numbers; a 3D object or a repeating structure — a molecule, a crystal lattice, a gear train, a mesh — is a picture, never a tree, figure or layers.'));
 });
 
 const meshPicture = illustrationFence({ id: 'pic-1', prompt: 'A 3D mesh of a teapot drawn as small triangles', alt: 'A teapot mesh made of triangles', caption: 'A 3D mesh is many small triangles' });
@@ -366,8 +312,4 @@ test('fix 6a: a branchless flow becomes a cycle of the same steps in order when 
   assert.equal(chainsAsCycles(long), long);
   for (const q of ['How do the phases of the Moon repeat?', 'why does it loop again', 'recurring seasons', 'one round of the game', 'the cell cycle']) assert.ok(repeats(q), q);
   for (const q of ['How does a request reach the database?', 'explain bicycle gears', 'what goes around the sun']) assert.equal(repeats(q), false, q);
-});
-
-test('rule 1 makes a 3D object or a repeating structure a picture (owner G3, 2026-11-08: crystal lattice drew a tree on Gemini)', () => {
-  assert.match(EXPLANATION_GUIDANCE, /a 3D object or a repeating structure — a molecule, a crystal lattice, a gear train, a mesh — is a picture, never a tree, figure or layers/);
 });

@@ -17,7 +17,6 @@ import { authorPicture, parseIllustration } from './learn-primitives.js';
 import { spendTransport } from './learn-spend.js';
 import { exclusiveOneOfToAnyOf } from './interact-model-adapters.js';
 import { chainSteps } from './explanation-models.js';
-import { NEW_KINDS, REFERENCE_MARK, listForm } from './explanation-references.js';
 
 export const FALLBACK_SETTING = 'EXPLANATION_FALLBACK';
 export const STREAM_SETTING = 'EXPLANATION_STREAM';
@@ -36,7 +35,7 @@ export const CHAIN_ENDPOINTS = Object.freeze({
 });
 const TOOL = 'make_explanation';
 const ADDENDUM = `
-Answer format for this request (it replaces the tool call): reply with exactly one JSON object, the ${TOOL} input described above, matching the response schema.`;
+Answer format for this request (it replaces the tool call): reply with exactly one JSON object, the ${TOOL} input described above, matching the response schema. Write body as Markdown, with any fenced block the guidance asks for written inside the body string where it belongs.`;
 
 const failure = (name, code, message, extra = {}) => Object.assign(new Error(message), { name, code, ...extra });
 export const providerBusy = () => failure('ProviderBusyError', 'provider_busy', 'The explanation model is busy right now, so nothing was added and no credits were used. Try again in a few seconds.', { retryable: true });
@@ -62,49 +61,17 @@ const BOUNDS = new Set(['minItems', 'maxItems', 'minimum', 'maximum', 'exclusive
 // names: o is a properties map (its keys are field names, never keywords).
 export const withoutBounds = (o, names = false) => (Array.isArray(o) ? o.map(s => withoutBounds(s)) : o && typeof o === 'object'
   ? Object.fromEntries(Object.entries(o).filter(([k]) => names || !BOUNDS.has(k)).map(([k, v]) => [k, withoutBounds(v, !names && k === 'properties')])) : o);
-// Phase 02 diagram library (2026-11-08): the 21-kind schema is refused again with the same HTTP 400, bounds dropped or not. Bisected with real calls that day:
-// the refusal follows the schema's structure, not its characters or string constraints (accepted at 362 properties, refused at 368 even with every pattern
-// and length removed), and the child diagrams inside comparison panels and visual transformations are two thirds of it. So the Gemini step also gets
-// comparison and transformation in their list forms only, and the four new kinds only when the learner's request names one (its requiredVisuals): 303
-// properties, accepted. Every step already gets its request's schema bundle (learn-artifact.js, explanation-references.js bundledAuthorSchema); this
-// reduction comes on top for Gemini only, because the largest bundle without it is past that limit. The validator accepts every kind from any step.
-const NEW = new Set(NEW_KINDS);
-const requiredKinds = body => { const first = [].concat(body.messages?.[0]?.content ?? []).map(p => (typeof p === 'string' ? p : p?.text)).filter(Boolean).at(-1);
-  try { return new Set((JSON.parse(first).requiredVisuals ?? []).map(v => v.diagramKind).filter(Boolean)); } catch { return new Set(); } };
-export const forGemini = (o, keep = new Set()) => {
-  if (Array.isArray(o)) return o.filter(b => !NEW.has(b?.properties?.kind?.const) || keep.has(b.properties.kind.const)).map(s => forGemini(s, keep));
-  if (!o || typeof o !== 'object') return o;
-  if (['comparison', 'transformation'].includes(o.properties?.kind?.const)) return listForm(o);
-  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
-};
 
-// Sampling (owner item 47, 2026-11-08): the author call is greedy, temperature 0, so the same request gives the same card. A fixed seed is sent only where the
-// provider documents it: Fireworks ("Random seed for deterministic sampling", https://docs.fireworks.ai/api-reference/post-chatcompletions) and Cerebras ("make a
-// best effort to sample deterministically", https://inference-docs.cerebras.ai/api-reference/chat-completions); Gemini's OpenAI-compatible page
-// (https://aistudio.google.com/docs/openai) lists no seed, so none is sent there. All read 2026-11-08. The repair's input already differs (it carries the
-// validator's problem in a tool_result), and it samples at 0.3 with no seed anyway, so a repeat of a wrong answer cannot be forced by the sampler: low enough
-// to stay on the corrected task, not greedy.
-export const AUTHOR_TEMPERATURE = 0, REPAIR_TEMPERATURE = 0.3, AUTHOR_SEED = 7;
-const SEEDED = new Set(['fireworks', 'cerebras']);
-const isRepair = body => body.messages.some(m => Array.isArray(m.content) && m.content.some(part => part.type === 'tool_result'));
-// The system message a fast-chain step sends (owner M2, 2026-11-08): the system prompt, the tool guidance, then the diagram references (they differ per
-// question, so they come last and the rest stays one cached prefix), then the answer format. The benchmark's promptHash hashes this same text.
-export function assembledSystem(body, tool = body.tools?.find(t => t.name === TOOL)) {
-  const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
-  const at = system.indexOf(REFERENCE_MARK), head = at < 0 ? system : system.slice(0, at), refs = at < 0 ? '' : system.slice(at).trim();
-  return `${head}\n\n${tool?.description ?? ''}${refs ? `\n${refs}` : ''}\n${ADDENDUM}`;
-}
 export function stepRequest(step, effort, body, stream = false) {
   const tool = body.tools?.find(t => t.name === TOOL);
   if (!tool) throw final('tool_unsupported', `The fast explanation chain makes only ${TOOL}.`);
   // ponytail: ask_clarifying_question is not offered in json_schema mode; the author always writes the card.
-  const system = assembledSystem(body, tool);
+  const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
   const options = stream && CHAIN_ENDPOINTS[step.provider]?.streamOptions;
   const schema = exclusiveOneOfToAnyOf(tool.input_schema);
-  const sampling = isRepair(body) ? { temperature: REPAIR_TEMPERATURE } : { temperature: AUTHOR_TEMPERATURE, ...(SEEDED.has(step.provider) ? { seed: AUTHOR_SEED } : {}) };
-  return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort, ...sampling,
-    messages: [{ role: 'system', content: system }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
-    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? forGemini(withoutBounds(schema), requiredKinds(body)) : schema } } };
+  return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort,
+    messages: [{ role: 'system', content: `${system}\n\n${tool.description}\n${ADDENDUM}` }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
+    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? withoutBounds(schema) : schema } } };
 }
 
 // OpenAI-shaped reply -> the Anthropic shape generateArtifact and spend settlement read. An unreadable answer is an empty input: the validator names what
@@ -208,9 +175,7 @@ export async function generateWithFallbacks(env, input, options, generate) {
   let last = null;
   // Fix 3: one starter for the whole chain, so a later step or a repair that keeps a picture's prompt reuses its picture.
   const early = options.figures && streaming(env) ? figureStarter(env, options.figures) : null;
-  // Only a picture the server will keep starts: among the first three visuals and the first two pictures (learn-primitives.js settleExplanationBody).
-  let pictures = 0;
-  const onVisual = early ? (item, i) => { if (i === 0) pictures = 0; /* each streamed answer counts its own */ const spec = i < 3 && pictures < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) { pictures++; early.start(spec); } } : null;
+  const onVisual = early ? (item, i) => { const spec = i < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) early.start(spec); } : null;
   try { return await runSteps(); } finally { await early?.settled(); } // every started picture is settled, card or not, before the request ends
   async function runSteps() {
   for (const step of steps) {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { describeTutorDiagram, parseTutorDiagram, tutorDiagramJsonSchema, tutorDiagramSchema, tutorDiagramVisibleText } from './spec.js';
+import { describeTutorDiagram, parseTutorDiagram, tutorDiagramJsonSchema, tutorDiagramSchema } from './spec.js';
 
 const flow = {
   version: 1,
@@ -34,20 +34,6 @@ const other = [
 const versioned = diagram => ({ version: 1, diagram });
 const changeFlow = change => {
   const { diagram } = structuredClone(flow);
-  change(diagram);
-  return versioned(diagram);
-};
-const binaryTree = versioned({
-  kind: 'tree', layout: 'binary', title: 'Binary search tree', caption: 'Compare each child with its parent.',
-  nodes: [
-    { id: 'root', label: '8' },
-    { id: 'high', label: '12', parent: 'root', side: 'right' },
-    { id: 'low', label: '4', parent: 'root', side: 'left' },
-    { id: 'leaf', label: '14', parent: 'high', side: 'right' },
-  ],
-});
-const changeBinaryTree = change => {
-  const { diagram } = structuredClone(binaryTree);
   change(diagram);
   return versioned(diagram);
 };
@@ -119,41 +105,6 @@ test('rejects sequence self messages, missing actors, duplicate actor IDs, and r
   assert.throws(() => parseTutorDiagram(versioned(matrix)), /cells.*columns/i);
 });
 
-test('accepts an explicit binary tree with a lone right child', () => {
-  assert.deepEqual(parseTutorDiagram(JSON.stringify(binaryTree)), binaryTree);
-});
-
-test('still accepts legacy hierarchies with more than two children', () => {
-  const legacy = versioned({
-    kind: 'tree', title: 'Documents', nodes: [
-      { id: 'folder', label: 'Folder' },
-      { id: 'notes', label: 'Notes', parent: 'folder' },
-      { id: 'tasks', label: 'Tasks', parent: 'folder' },
-      { id: 'drafts', label: 'Drafts', parent: 'folder' },
-    ],
-  });
-  assert.deepEqual(parseTutorDiagram(legacy), legacy);
-  assert.match(describeTutorDiagram(legacy), /Folder → Drafts/);
-});
-
-test('requires sides only on non-root nodes in a binary layout', () => {
-  assert.throws(() => parseTutorDiagram(changeBinaryTree(d => { d.nodes[0].side = 'left'; })), /root.*side/i);
-  assert.throws(() => parseTutorDiagram(changeBinaryTree(d => { delete d.nodes[3].side; })), /child.*side/i);
-  assert.throws(() => parseTutorDiagram(changeBinaryTree(d => { delete d.layout; })), /side.*binary/i);
-});
-
-test('rejects two binary children on the same side of a parent', () => {
-  assert.throws(() => parseTutorDiagram(changeBinaryTree(d => { d.nodes[2].side = 'right'; })), /one.*right.*child/i);
-  assert.throws(() => parseTutorDiagram(changeBinaryTree(d => { d.nodes[1].side = 'left'; })), /one.*left.*child/i);
-});
-
-test('keeps tree topology checks for binary layouts', () => {
-  assert.throws(() => parseTutorDiagram(changeBinaryTree(d => { d.nodes[3].id = 'low'; })), /unique/i);
-  assert.throws(() => parseTutorDiagram(changeBinaryTree(d => { delete d.nodes[3].parent; })), /one root/i);
-  assert.throws(() => parseTutorDiagram(changeBinaryTree(d => { d.nodes[3].parent = 'missing'; })), /unknown/i);
-  assert.throws(() => parseTutorDiagram(changeBinaryTree(d => { d.nodes[1].parent = 'leaf'; })), /cycle/i);
-});
-
 test('exports a strict, serializable JSON Schema and keeps the original seven kinds', () => {
   const schema = JSON.parse(JSON.stringify(tutorDiagramJsonSchema));
   assert.equal(schema.type, 'object');
@@ -164,26 +115,6 @@ test('exports a strict, serializable JSON Schema and keeps the original seven ki
   const kinds = new Set(shapes.map(shape => shape.properties.kind.const));
   for (const kind of ['flow', ...other.map(d => d.kind)]) assert.ok(kinds.has(kind), kind);
   assert.ok(shapes.every(shape => shape.additionalProperties === false));
-});
-
-test('exports the optional binary layout and child sides in the provider tree schema', () => {
-  const shapes = tutorDiagramJsonSchema.properties.diagram;
-  const tree = (shapes.anyOf ?? shapes.oneOf).find(shape => shape.properties.kind.const === 'tree');
-  assert.deepEqual(tree.properties.layout.enum, ['binary', 'hierarchy', 'dendrogram']);
-  assert.ok(!tree.required.includes('layout'));
-  const node = tree.properties.nodes.items;
-  assert.deepEqual(node.properties.side.enum, ['left', 'right']);
-  assert.ok(!node.required.includes('side'));
-});
-
-test('describes binary tree positions without adding to the visible words', () => {
-  const spec = parseTutorDiagram(binaryTree);
-  const description = describeTutorDiagram(spec);
-  assert.match(description, /Root: 8/);
-  assert.match(description, /4.*left child of 8/);
-  assert.match(description, /12.*right child of 8/);
-  assert.match(description, /14.*right child of 12/);
-  assert.deepEqual(tutorDiagramVisibleText(spec), ['Binary search tree', 'Compare each child with its parent.', '8', '12', '4', '14']);
 });
 
 test('descriptions include titles, captions, all visible labels and directed relationships', () => {
@@ -204,13 +135,4 @@ test('descriptions include titles, captions, all visible labels and directed rel
     const result = describeTutorDiagram(versioned(diagram));
     for (const value of expected[index]) assert.ok(result.includes(value), result);
   }
-});
-
-// Item 47 (2026-11-08): a flow node may carry the server's title (a trimmed label's full text); the author's JSON schema never asks for it.
-test('a flow node title parses, within its limit, and is not in the author schema', () => {
-  const flow = title => ({ version: 1, diagram: { kind: 'flow', title: 'T', nodes: [{ id: 'a', label: 'Go', role: 'process', ...(title === undefined ? {} : { title }) }, { id: 'b', label: 'Stop', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] } });
-  assert.equal(parseTutorDiagram(flow('Go all the way')).diagram.nodes[0].title, 'Go all the way');
-  assert.throws(() => parseTutorDiagram(flow('x'.repeat(241))));
-  const shapes = tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf;
-  assert.deepEqual(Object.keys(shapes.find(s => s.properties.kind.const === 'flow').properties.nodes.items.properties), ['id', 'label', 'role']);
 });

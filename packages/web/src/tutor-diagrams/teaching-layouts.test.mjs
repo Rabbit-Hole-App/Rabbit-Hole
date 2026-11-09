@@ -1,8 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createElement as h } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import TutorDiagram, { renderTutorDiagram } from './TutorDiagram.js';
 import { textWidth } from './primitives.js';
 import { teachingLayouts } from './teaching-layouts.js';
 
@@ -36,18 +33,9 @@ const argument = {
 
 const walk = elements => elements.flatMap(e => typeof e === 'object' && e !== null ? [e, ...walk([e.props.children].flat())] : []);
 const tags = (scene, type) => walk(scene.elements).filter(e => e.type === type);
-const spans = props => [props.children].flat();
-const labelText = props => spans(props).map(span => span.props.children).join(' ');
-const texts = scene => tags(scene, 'text').map(e => labelText(e.props));
+const texts = scene => tags(scene, 'text').map(e => [e.props.children].flat().map(span => span.props.children).join(' '));
 const arrows = scene => tags(scene, 'polygon').filter(e => Object.hasOwn(e.props, 'data-tutor-arrowhead'));
 const points = value => value.split(' ').map(point => point.split(',').map(Number));
-const center = rect => rect.x + rect.width / 2;
-const binarySpec = nodes => ({ version: 1, diagram: { ...tree, layout: 'binary', nodes } });
-function binary(nodes) {
-  const { element, width, height } = renderTutorDiagram(binarySpec(nodes), 320);
-  const drawing = element.props.children.find(child => child?.props.transform);
-  return { width, height: height - Number(drawing.props.transform.match(/\d+/)[0]), elements: drawing.props.children };
-}
 
 function fits(scene) {
   const { width, height } = scene;
@@ -82,77 +70,6 @@ test('tree leaves room to wrap labels at the maximum nesting depth', () => {
     parent: index ? 'n' + (index - 1) : root.id, label: '跨越层级测试'.repeat(10) }))];
   const scene = teachingLayouts.tree({ ...tree, nodes }, 320);
   assert.equal(arrows(scene).length, 11);
-  fits(scene);
-});
-
-test('binary tree puts both branches below their parent in side order, even when input is unordered', () => {
-  const nodes = [
-    { id: 'east', label: 'East', parent: 'root', side: 'right' }, root,
-    { id: 'south', label: 'South', parent: 'east', side: 'left' },
-    { id: 'west', label: 'West', parent: 'root', side: 'left' },
-    { id: 'north', label: 'North', parent: 'west', side: 'right' },
-  ];
-  const scene = binary(nodes);
-  assert.deepEqual(texts(scene), nodes.map(node => node.label), 'node text remains in authored reading order');
-  const rectangles = tags(scene, 'rect').map(e => e.props);
-  const byLabel = label => rectangles.find(rect => tags(scene, 'text').some(({ props }) =>
-    props.x === center(rect) && props.y > rect.y && props.y < rect.y + rect.height && labelText(props) === label));
-  const [parent, left, right, leftOnly, rightOnly] = ['Operating system', 'West', 'East', 'South', 'North'].map(byLabel);
-  assert.ok([parent, left, right, leftOnly, rightOnly].every(Boolean), 'every node has a centered label');
-  assert.ok(center(left) < center(parent) && center(parent) < center(right));
-  assert.equal(left.y, right.y);
-  assert.ok(center(leftOnly) < center(right) && center(rightOnly) > center(left));
-
-  const wires = tags(scene, 'polyline').map(({ props }) => points(props.points));
-  assert.equal(wires.length, 4);
-  for (const [from, to] of [[parent, left], [parent, right], [left, rightOnly], [right, leftOnly]]) {
-    assert.ok(to.y > from.y + from.height);
-    const wire = wires.find(points => points[0][0] === center(from) && points[0][1] === from.y + from.height &&
-      points.at(-1)[0] === center(to) && points.at(-1)[1] === to.y);
-    assert.ok(wire?.some(([x], index) => index > 0 && x !== wire[index - 1][0]), 'the wire turns toward its child');
-    assert.ok(wire.every(([x, y], index) => index === 0 || x === wire[index - 1][0] || y === wire[index - 1][1]));
-  }
-  fits(scene);
-});
-
-test('a wide, uneven binary tree preserves readable wrapped cards without overlaps', () => {
-  const nodes = [{ ...root, label: 'Root' }, ...Array.from({ length: 11 }, (_, index) => ({ id: `n${index}`,
-    parent: index < 2 ? root.id : `n${Math.floor((index - 2) / 2)}`, side: index % 2 ? 'right' : 'left',
-    label: '跨越层级测试'.repeat(10),
-  }))];
-  const scene = binary(nodes);
-  assert.ok(scene.width > 320, 'the scene widens');
-  const markup = renderToStaticMarkup(h(TutorDiagram, { spec: binarySpec(nodes) }));
-  assert.match(markup, /overflow-x:auto[^>]*tabindex="0"[^>]*aria-label="Scrollable diagram"/);
-  const rects = tags(scene, 'rect').map(e => e.props);
-  const labels = tags(scene, 'text').map(e => e.props);
-  assert.equal(rects.length, 12);
-  assert.equal(labels.filter(p => spans(p).length > 1).length, 11);
-  for (const rect of rects) {
-    for (const other of rects) {
-      if (rect === other) continue;
-      assert.ok(rect.x + rect.width <= other.x || other.x + other.width <= rect.x ||
-        rect.y + rect.height <= other.y || other.y + other.height <= rect.y, 'node cards do not overlap');
-    }
-    const label = labels.find(p => p.x === center(rect) && p.y > rect.y && p.y < rect.y + rect.height);
-    assert.ok(spans(label).every(({ props: span }) => textWidth(span.children, label.fontSize) <= rect.width &&
-      span.y > rect.y && span.y < rect.y + rect.height), 'wrapped text stays inside its card');
-  }
-  fits(scene);
-});
-
-test('a binary tree keeps the left or right turn at every level of a 12-node chain', () => {
-  const nodes = [root, ...Array.from({ length: 11 }, (_, index) => ({ id: `n${index}`,
-    parent: index ? `n${index - 1}` : root.id, side: index < 5 ? 'left' : 'right', label: `Depth ${index + 1}`,
-  }))];
-  const scene = binary(nodes);
-  const rects = tags(scene, 'rect').map(e => e.props).sort((a, b) => a.y - b.y);
-  assert.equal(rects.length, 12);
-  assert.equal(tags(scene, 'polyline').length, 11);
-  for (const [index, rect] of rects.slice(1).entries()) {
-    assert.ok(rect.y > rects[index].y + rects[index].height);
-    assert.equal(center(rect) < center(rects[index]), nodes[index + 1].side === 'left');
-  }
   fits(scene);
 });
 

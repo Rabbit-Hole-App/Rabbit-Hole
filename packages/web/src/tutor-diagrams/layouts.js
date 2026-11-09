@@ -1,9 +1,3 @@
-import { layoutFlow } from './flow.js';
-import { createLayouts as statisticalLayouts } from './ml-statistical-layouts.js';
-import { createLayouts as plotLayouts } from './ml-plot-layouts.js';
-import { createLayouts as topologyLayouts } from './ml-topology-layouts.js';
-import { createLayouts as dataLayouts } from './ml-data-layouts.js';
-import { createLayouts as compositionLayouts } from './ml-composition-layouts.js';
 import { balanceLayouts } from './balance-layouts.js';
 import { layoutFigure } from './figure-layout.js';
 import { box, connector, dot, label, lineHeight, wrap } from './primitives.js';
@@ -199,17 +193,7 @@ function cycle(diagram, width) {
   return { width, height: y - 20 + PAD, elements };
 }
 
-const legacy = Object.freeze({
-  flow: layoutFlow, comparison, timeline, sequence, matrix, layers, cycle, figure: layoutFigure,
-  ...teachingLayouts, ...quantitativeLayouts, ...balanceLayouts,
-});
-
-const renderChild = (diagram, width) => layouts[diagram.kind](diagram, width);
 export const layouts = Object.freeze({
-  ...legacy,
-  ...statisticalLayouts({ legacy, renderChild }),
-  ...plotLayouts({ legacy, renderChild }),
-  ...topologyLayouts({ legacy, renderChild }),
-  ...dataLayouts({ legacy, renderChild }),
-  ...compositionLayouts({ legacy, renderChild }),
+  comparison, timeline, sequence, matrix, layers, cycle, figure: layoutFigure,
+  ...teachingLayouts, ...quantitativeLayouts, ...balanceLayouts,
 });

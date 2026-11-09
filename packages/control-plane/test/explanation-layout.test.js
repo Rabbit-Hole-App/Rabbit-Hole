@@ -1,4 +1,4 @@
-// EXP-13 card layout v2 (docs/features/explain.md "Card layout v2", owner decisions 2026-11-08): prose, visual, prose (optionally visual, prose, up to three); one to three
+// EXP-13 card layout v2 (docs/features/explain.md "Card layout v2", owner decisions 2026-11-08): prose, visual, prose (optionally visual, prose); one or two
 // visuals, each related to the question or the prose around it; a budget of prose only (asked for 600, refused above 700); no folded sections on new cards;
 // rh-illustration fences made with Recraft before the card is returned (three attempts; a picture that still fails loses its fence, never the card),
 // priced and settled on the real ledger. Saved cards keep reading as before. The image provider is a double: nothing is sent or paid.
@@ -43,12 +43,10 @@ test('every visual needs prose before and after it (explanation_layout); a table
   assert.equal(explanationLayoutProblem(card(`${ICE}\n\n${fence}\n\nIce is lighter.\n\n${PIC}\n\nSo ice floats.`)), null, 'prose, diagram, prose, illustration, prose');
 });
 
-test('three visuals pass (owner 2026-11-08); four visuals, or three pictures, are refused (explanation_too_many_visuals)', () => {
+test('three visuals are refused (explanation_too_many_visuals)', () => {
   const fence = diagramFence(cycleSpec('Ice floats'));
-  const three = `${ICE}\n\n${fence}\n\nIce one.\n\n${fence}\n\nIce two.\n\n${PIC}\n\nIce three.`;
-  assert.equal(explanationLayoutProblem(card(three)), null, 'diagram, diagram, picture');
-  assert.match(explanationLayoutProblem(card(`${three}\n\n${fence}\n\nIce four.`)) || '', /^explanation_too_many_visuals: the card has 4 visuals/);
-  assert.match(explanationLayoutProblem(card(`${ICE}\n\n${PIC}\n\nIce one.\n\n${PIC}\n\nIce two.\n\n${PIC}\n\nIce three.`)) || '', /^explanation_too_many_visuals: the card has 3 pictures; keep at most two/);
+  const body = `${ICE}\n\n${fence}\n\nIce one.\n\n${fence}\n\nIce two.\n\n${fence}\n\nIce three.`;
+  assert.match(explanationLayoutProblem(card(body)) || '', /^explanation_too_many_visuals: the card has 3 visuals/);
 });
 
 test('a new card has no folded sections: `more` is refused by the schema, so the one repair sees it', async () => {
@@ -205,9 +203,9 @@ const viaRoadmap = (block, deps = {}) => { const m = scripted(['make_explanation
 
 test('the roadmap path applies the same rules: missing visual, a layout with no valid order, relevance and the prose budget are terminal after one call', async () => {
   const fence = diagramFence(cycleSpec('Ice floats'));
-  // Owner 2026-11-08: up to three visuals; a fourth is dropped by the server (the first three kept), so it never fails the card.
-  const four = await viaRoadmap(card(`${ICE}\n\n${fence}\n\nIce one.\n\n${fence}\n\nIce two.\n\n${fence}\n\nIce three.\n\n${fence}\n\nIce four.`));
-  assert.deepEqual([four.out.outcome, markdownVisuals(four.out.block.body).diagrams.length, four.m.seen.length], ['ok', 3, 1]);
+  // Owner review 2026-11-08: a third visual is dropped by the server (the first two kept), so it no longer fails the card.
+  const three = await viaRoadmap(card(`${ICE}\n\n${fence}\n\nIce one.\n\n${fence}\n\nIce two.\n\n${fence}\n\nIce three.`));
+  assert.deepEqual([three.out.outcome, markdownVisuals(three.out.block.body).diagrams.length, three.m.seen.length], ['ok', 2, 1]);
   for (const [body, code] of [[ICE, 'explanation_missing_visual'], [`${fence}\n\n${ICE}`, 'explanation_layout'],
     [`${ICE}\n\n${diagramFence(cycleSpec('Stock market'))}\n\nSo it floats.`, 'explanation_visual_unrelated'], [withVisual(`Ice ${'é'.repeat(800)}`), 'explanation_over_budget']]) {
     const { out, m } = await viaRoadmap(card(body));

@@ -1,4 +1,3 @@
-import { selectDiagramReferences, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -15,12 +14,12 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, dropInvalidDiagrams, markdownIllustrations, markdownVisuals, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
 import { INTERACTION_GUIDANCE, INTERACTION_PROPERTIES, bindInteractions, interactionsEnabled, keptInteractions } from './explanation-interactions.js';
-import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, fallbackKind, repeats, requiredMix, requiredVisualProblem, requirementText } from './explanation-visuals.js';
+import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, repeats, requiredMix, requiredVisualProblem, requirementText } from './explanation-visuals.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
@@ -37,11 +36,11 @@ const toolName = id => `make_${id}`;
 // E2 (explanation-interactions.js): while EXPLANATION_INTERACTIONS is on, the written Explanation tool also takes the three questions and the anchored terms. They are validated
 // apart from the card (the card's own schema stays the one that was), then bound to the final text with server-assigned ids and revision.
 const interactiveSchema = schema => ({ ...schema, required: [...schema.required, 'questions'], properties: { ...schema.properties, ...INTERACTION_PROPERTIES } });
-// EXP-13 fix 2: the author is always asked for one to three visuals as fields (owner 2026-11-08: three, so a list can become a comparison) (every property required, as a strict json_schema needs); the validator also
+// EXP-13 fix 2: the author is always asked for one or two visuals as fields (every property required, as a strict json_schema needs); the validator also
 // reads a body that holds its fences already, and more visuals, whose extras it drops (learn-primitives.js PRIMITIVES.explanation).
 const authorSchema = env => {
   const { schema } = PRIMITIVES.explanation;
-  const s = { ...schema, required: Object.keys(schema.properties), properties: { ...schema.properties, visuals: { ...schema.properties.visuals, maxItems: 3 } } };
+  const s = { ...schema, required: Object.keys(schema.properties), properties: { ...schema.properties, visuals: { ...schema.properties.visuals, maxItems: 2 } } };
   return interactionsEnabled(env) ? interactiveSchema(s) : s;
 };
 const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
@@ -50,7 +49,7 @@ const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
-import { ARTIFACT_SYSTEM, artifactSystem } from './agents/learn-artifact.js';
+import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
 // Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
 // authoring contract (appended to its tool description) and its gates, which run the existing scene validators on the block
 // the shared adapter built. A gate's first problem goes to the model as the one repair; a scene that still fails is no card.
@@ -107,7 +106,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   if (ready.length === 1 && ready[0] === 'explanation') { try { bound = profile ?? explanationProfileFor(env); } catch (error) { return { result: 'unsupported', message: error.message }; } }
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${PHASE02_DIAGRAM_GUIDANCE} ${explanationTarget(input.depth)}${interactionsEnabled(env) ? ` ${INTERACTION_GUIDANCE}` : ''}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
+    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${explanationTarget(input.depth)}${interactionsEnabled(env) ? ` ${INTERACTION_GUIDANCE}` : ''}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
     input_schema: id === 'explanation' ? authorSchema(env) : PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Standard sends nothing.
@@ -121,17 +120,8 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
   const maxTokens = Math.max(bound ? bound.roles.author.maxOutputTokens : LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
-  const diagramReferences = ready.includes('explanation') ? selectDiagramReferences({
-    prompt: input.args || request.prompt,
-    context: { selection: request.selection, context: input.context, documents: input.documents },
-    requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind),
-  }) : [];
-  // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
-  // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
-  if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind) })); }
-  const base = artifactSystem(bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools'); // A3: no tool paragraph where no tool is offered
-  const system = (input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '') + diagramReferenceContext(diagramReferences);
-  return { request, ready, messages, diagramReferences, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
+  const system = (input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '');
+  return { request, ready, messages, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
 export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null } = {}) {
@@ -173,21 +163,6 @@ export async function generateArtifact(env, input, { callModel: injected = null,
     try {
       if (result.stop_reason === 'max_tokens') throw new Error('The artifact was cut off before it was complete');
       if (!id) throw new Error('The clarifying question was empty');
-      // Owner 2026-11-08, DEV ONLY (SMALL_ENV dev or test, as auth.js testMode; never production): the author's visuals exactly as returned, before any server
-      // step, so a benchmark can keep the model's own diagram specs. One line per answer: attempt 0 is the first answer, 1 the repair.
-      if (id === 'explanation' && (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test')) {
-        const visuals = call.input?.visuals ?? null;
-        // references: the ids of the worked examples this request carried (0-2), so the bench can split results by them (owner 2026-11-08).
-        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
-      }
-      // Owner M3 (2026-11-08): keys the schema does not declare are removed from the visuals before the card is read, logged and counted, never a repair.
-      let keysStripped = 0;
-      if (id === 'explanation' && Array.isArray(call.input?.visuals)) {
-        const clean = stripUnknownKeys(call.input.visuals);
-        for (const { kind, key } of clean.stripped) console.log(JSON.stringify({ event: 'explanation_unknown_key_stripped', kind, key }));
-        keysStripped = clean.stripped.length;
-        if (keysStripped) call = { ...call, input: { ...call.input, visuals: clean.visuals } };
-      }
       let block, extraction, diagramsDropped = 0, diagramsSimplified = 0, questions, terms;
       if (input.imageSource) {
         const checked = checkImageExtraction(call.input, content => ({ result: artifactBlock(id, content) }), input.imageSource);
@@ -207,36 +182,24 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         const settled = settleExplanationBody(block.body, requiredMix(wanted));
         diagramsDropped = markdownVisuals(block.body).diagrams.length - markdownVisuals(settled).diagrams.length; // recorded with the result, as a dropped invalid diagram is
         block = { ...block, body: settled };
-        // Item 47: flow rules the server can fix (a one-branch decision, separate starts, a closed loop, an over-long label) are fixed here, before any repair.
-        const fixed = correctDiagrams(block.body), corrections = { ...fixed.corrections };
-        block = { ...block, body: fixed.md };
         // EXP-13 fix 6a: repeat words in the question turn a branchless flow into a cycle (no call), unless the learner named another diagram kind.
         if (repeats(input.args) && [undefined, 'cycle'].includes(requiredMix(wanted)?.diagramKind)) block = { ...block, body: chainsAsCycles(block.body) };
-        // Owner 2026-11-08: a straight flow whose every step is a message between 2-4 parties is drawn as a sequence (no call), unless the learner named another kind.
-        if ([undefined, 'sequence'].includes(requiredMix(wanted)?.diagramKind)) {
-          const seq = flowsAsSequences(block.body);
-          if (seq.count) { block = { ...block, body: seq.md }; corrections.flow_to_sequence = seq.count; }
-        }
-        block = { ...block, body: plainTreesUnlessBinary(block.body, input.args) }; // owner check 2026-11-08: binary layout only for binary/heap/BST questions
-        block = { ...block, body: relationshipsAsGraphs(block.body) }; // owner C1.1 2026-11-08: each relationship node drawn once
         if (attempt >= repairs) {
           let trimmed = dropInvalidDiagrams(block), fallback = null;
           // Owner 2026-11-08, a card should not fail: when dropping would leave the card no visual, each invalid diagram becomes a simpler valid one built from
           // its own labels (no model call); if none can be built the prose card is delivered without a visual. Recorded on the card as visualFallback
           // ('simplified' | 'dropped') for the benchmark; the learner sees no error.
           if (trimmed.dropped && !markdownVisuals(trimmed.block.body).diagrams.length && !markdownIllustrations(trimmed.block.body).length) {
-            // Item 47: its kind from the learner's words (cycle, sequence, else flow); a diagram kind the learner named wins, so the required check still holds.
-            const named = requiredMix(wanted)?.diagramKind;
-            const simple = dropInvalidDiagrams(block, { simplify: true, prefer: ['flow', 'cycle', 'sequence'].includes(named) ? named : fallbackKind(input.args) });
+            const simple = dropInvalidDiagrams(block, { simplify: true });
             // The simpler diagram must pass the card's own checks too (it may name nothing the prose names); if not, the prose card goes without it.
-            if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args)) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';          }
+            if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args)) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';
+          }
           // E1: only an OPTIONAL diagram may be dropped. With a required one, the drop stands only if the card still holds a valid diagram for each requirement
           // and no text points at the dropped figure; otherwise the card keeps its invalid diagram and fails the checks below, truthfully.
           if (trimmed.dropped && !requiredVisualProblem(trimmed.block, wanted)) {
             if (trimmed.dropped > trimmed.simplified) { const dangling = danglingFigureProblem(trimmed.block); if (dangling) throw new Error(dangling); }
             block = { ...trimmed.block, ...(fallback ? { visualFallback: fallback } : {}) }; diagramsDropped += trimmed.dropped - trimmed.simplified;
             if (trimmed.simplified) diagramsSimplified = trimmed.simplified;
-            for (const kind of trimmed.kinds) corrections[`simplified_${kind}`] = (corrections[`simplified_${kind}`] || 0) + 1;
           }
         }
         // E2 + fix 1b: the questions and term anchors are read against the FINAL text (accepted title applied, diagrams settled); what is not valid is dropped, never repaired.
@@ -245,15 +208,6 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         const problem = [explanationProblem(block, input.depth, input.args), requiredVisualProblem(block, wanted)].filter(Boolean).join(' '); if (problem) throw new Error(problem);
         if (wanted) block = { ...block, visualRequirements: boundRequirements(wanted) }; // saved provenance: what was asked for and that the card holds it
         block = { ...block, depth: validDepth(input.depth) || DEFAULT_DEPTH }; // E3: the budget this card was written to, so a later illustration caption is checked against it
-        block = { ...block, proseLists: proseListCount(block.body) }; // owner 2026-11-08: lists are asked against, never checked; this counts them for measurement
-        // Item 47: one log line per server correction this card's diagrams got, and their count on the card, so a rising count shows after a prompt change.
-        for (const [kind, n] of Object.entries(corrections)) for (let i = 0; i < n; i++) console.log(JSON.stringify({ event: 'explanation_diagram_corrected', kind }));
-        if (Object.keys(corrections).length) block = { ...block, diagramCorrections: corrections };
-        if (keysStripped) block = { ...block, unknownKeysStripped: keysStripped };
-        // Owner E3 (2026-11-08), log only: diagram text with bare maths (_, ^ or \ outside $...$), one line each and the count on the card; no repair yet.
-        const smells = diagramSmells(block.body);
-        for (const label of smells) console.log(JSON.stringify({ event: 'explanation_diagram_smell', kind: 'bare_maths', label: label.slice(0, 200) }));
-        if (smells.length) block = { ...block, diagramSmells: { bare_maths: smells.length } };
         // EXP-13: the pictures, made before the card is returned and saved; one that cannot be made loses its fence, never the card. It shows no text, so the anchors checked above still hold.
         block = await illustrateExplanation(env, block, { ...(figures || {}), early });
         if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };

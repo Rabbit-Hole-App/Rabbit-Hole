@@ -190,13 +190,12 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
   }
 
   const shapes = Array.from(placements.values(), node => {
-    const { id, cx, y, width, height, role, lines, offset, title } = node;
+    const { id, cx, y, width, height, role, lines, offset } = node;
     const x = cx - width / 2;
     const shape = role === 'decision'
       ? diamond(x, y, width, height, { active: onPath.has(id) })
       : box(x, y, width, height, { role, radius: role === 'outcome' ? height / 2 : 7, active: onPath.has(id) });
-    // title: the full label when the server trimmed it to fit (item 47), shown as the node's tooltip.
-    return h('g', { 'data-tutor-node': id, ...(onPath.has(id) ? { 'data-tutor-path': '' } : {}) }, ...(title ? [h('title', null, title)] : []), shape, label(lines, cx, y + height / 2 + offset, { tone: 'onFill' }));
+    return h('g', { 'data-tutor-node': id, ...(onPath.has(id) ? { 'data-tutor-path': '' } : {}) }, shape, label(lines, cx, y + height / 2 + offset, { tone: 'onFill' }));
   });
   return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes] };
 }

@@ -1,5 +1,5 @@
-import { TEACHING_STYLE } from './teaching-theme.js';
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react';
+import { layoutFlow } from './flow.js';
 import { layouts } from './layouts.js';
 import { label, lineHeight, SURFACE, wrap } from './primitives.js';
 import { describeTutorDiagram, parseTutorDiagram } from './spec.js';
@@ -13,8 +13,7 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   const { diagram } = document;
   const requested = Number.isFinite(availableWidth) ? Math.round(availableWidth) : DEFAULT_WIDTH;
   const preferredWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, requested));
-  const layout = layouts[diagram.kind](diagram, preferredWidth);
-  const teaching = isTeachingDiagram(diagram);
+  const layout = (diagram.kind === 'flow' ? layoutFlow : layouts[diagram.kind])(diagram, preferredWidth);
   const { width } = layout;
   const title = wrap(diagram.title, width - 32, 17);
   const titleHeight = title.length * lineHeight(17) + 17;
@@ -24,8 +23,8 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   const element = h('svg', {
     xmlns: 'http://www.w3.org/2000/svg', width, height, viewBox: `0 0 ${width} ${height}`, role: 'img',
     'aria-label': describeTutorDiagram(document),
-    fontFamily: teaching ? 'Inter, Liberation Sans, Arial, sans-serif' : 'Arial, Liberation Sans, sans-serif',
-    style: { display: 'block', maxWidth: 'none', marginInline: 'auto', ...(teaching ? TEACHING_STYLE : {}) },
+    fontFamily: 'Arial, Liberation Sans, sans-serif',
+    style: { display: 'block', maxWidth: 'none', marginInline: 'auto' },
     'data-tutor-diagram': diagram.kind,
   },
   h('title', null, diagram.title),
@@ -63,14 +62,4 @@ export default function TutorDiagram({ spec, fallback = null }) {
     tabIndex: scrolls ? 0 : undefined, role: scrolls ? 'region' : undefined,
     'aria-label': scrolls ? 'Scrollable diagram' : undefined,
   }, rendered.element);
-}
-
-function isTeachingDiagram(d) {
-  if (['heatmap', 'sample-set', 'histogram', 'box-plot'].includes(d.kind)) return true;
-  if (['panels', 'visual', 'grouped', 'stacked'].includes(d.variant)) return true;
-  if (['scaled-lanes', 'teaching', 'hierarchy', 'dendrogram', 'graph'].includes(d.layout)) return true;
-  if (d.kind === 'tree') return d.highlightPath || d.nodes.some(n => n.edgeLabel || n.detail || n.count !== undefined || n.pruned);
-  if (d.kind === 'flow') return d.nodes.some(n => n.role === 'fork' || n.role === 'merge');
-  if (d.kind === 'coordinate-plot') return d.annotations || d.x.scale || d.y.scale || d.series.some(s => !['line', 'scatter'].includes(s.kind) || s.points.some(p => p.id || p.label || p.low !== undefined));
-  return false;
 }

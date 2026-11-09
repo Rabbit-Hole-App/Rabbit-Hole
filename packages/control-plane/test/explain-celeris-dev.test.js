@@ -39,7 +39,7 @@ test('json_schema mode: title, body and a separate diagram object in one call; R
     assert.deepEqual(sent.response_format.json_schema.schema.required, ['title', 'body', 'diagram']);
     assert.ok(sent.response_format.json_schema.schema.properties.diagram.anyOf, 'optional when not asked for');
     assert.equal(sent.tools, undefined);
-    assert.match(sent.messages[0].content, /every visual has paragraph text both before and after it/, 'the make_explanation guidance, unchanged');
+    assert.match(sent.messages[0].content, /every visual has paragraph or list text both before and after it/, 'the make_explanation guidance, unchanged');
     assert.match(sent.messages[0].content, /Only the body's prose .* counts toward the budget above.*Do not pad it/); // EXP-13, owner 2026-11-08: prose-only budget
     assert.deepEqual(route.served(), { requested: 'celeris-1', models: ['celeris-1'], calls: 1, inTokens: 10, outTokens: 5, attempts: [{ required: false, diagram: 'valid', chars: 'How a cache answers'.length + 'A cache keeps recent answers.\n\nSo a repeat request skips the slow source.'.length } /* the answer's own title and body */] });
   });
@@ -79,10 +79,10 @@ test('an explicit diagram request makes the field required; an invalid diagram t
 test('oneOf is rewritten to anyOf only where its branches are mutually exclusive; the real diagram schema qualifies and what comes back is still checked by the original RH parser', () => {
   const rewritten = exclusiveOneOfToAnyOf(tutorDiagramJsonSchema);
   const text = JSON.stringify(rewritten);
-  assert.ok(!text.includes('"oneOf"') && rewritten.properties.diagram.anyOf.length === 21, 'the 21 kind branches become anyOf');
+  assert.ok(!text.includes('"oneOf"') && rewritten.properties.diagram.anyOf.length === 17, 'the 17 kind branches become anyOf');
   assert.ok(JSON.stringify(tutorDiagramJsonSchema).includes('"oneOf"'), 'the original is untouched');
   const kinds = rewritten.properties.diagram.anyOf.map(branch => branch.properties.kind.const);
-  assert.equal(new Set(kinds).size, 21, 'each branch is pinned to its own kind');
+  assert.equal(new Set(kinds).size, 17, 'each branch is pinned to its own kind');
   assert.throws(() => exclusiveOneOfToAnyOf({ oneOf: [{ type: 'object', properties: { kind: { const: 'a' } } }, { type: 'object', properties: { kind: { const: 'a' } } }] }), /not mutually exclusive/, 'two branches with one kind');
   assert.throws(() => exclusiveOneOfToAnyOf({ oneOf: [{ type: 'string' }, { type: 'number' }] }), /not mutually exclusive/, 'no discriminator');
   assert.throws(() => parseTutorDiagram({ version: 1, diagram: { kind: 'flow', title: 'x', nodes: [], edges: [] } }), undefined, 'the original RH parser still rejects what the rewritten schema would let through');

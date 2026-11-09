@@ -85,7 +85,7 @@ test('8. typed /explain keeps its full family; the legacy path is the same witho
   await generateArtifact({}, { command: 'explain', args: 'how softmax works' }, { callModel: m.callModel });
   const names = offered(m.seen[0].body);
   for (const id of ['explanation', 'table', 'animation']) assert.ok(names.includes(`make_${id}`), id);
-  assert.equal(m.seen[0].body.system.split('\nApproved diagram references')[0], ARTIFACT_SYSTEM, 'no suffix without the trusted option (Phase 02 diagram references may follow)');
+  assert.equal(m.seen[0].body.system, ARTIFACT_SYSTEM, 'no suffix without the trusted option');
   const narrow = scripted(['ask_clarifying_question', { question: 'Which?' }]);
   await generateArtifact({}, { command: 'explain', args: 'an interactive simulator of softmax' }, { callModel: narrow.callModel });
   assert.deepEqual(offered(narrow.seen[0].body), ['make_animation', 'ask_clarifying_question']);

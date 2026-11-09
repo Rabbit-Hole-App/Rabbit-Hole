@@ -69,26 +69,13 @@ for (const [name, build] of Object.entries(SHAPES)) {
 
 const BAD = {
   cycle: { ...SPEC, diagram: { ...SPEC.diagram, edges: [...SPEC.diagram.edges, { from: 'c', to: 'a' }] } },
+  'decision with one branch': { ...SPEC, diagram: { ...SPEC.diagram, edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c', label: 'Yes' }], nodes: SPEC.diagram.nodes.slice(0, 3) } },
   'unknown edge endpoint': { ...SPEC, diagram: { ...SPEC.diagram, edges: [...SPEC.diagram.edges, { from: 'b', to: 'zzz', label: 'Maybe' }] } },
   'process with two outgoing edges': { ...SPEC, diagram: { ...SPEC.diagram, edges: [{ from: 'a', to: 'b' }, { from: 'a', to: 'c' }, { from: 'b', to: 'd', label: 'x' }, { from: 'b', to: 'c', label: 'y' }] } },
+  'over-long node label': { ...SPEC, diagram: { ...SPEC.diagram, nodes: [{ id: 'a', label: 'x'.repeat(61), role: 'process' }, ...SPEC.diagram.nodes.slice(1)] } },
   'unknown kind': { version: 1, diagram: { kind: 'venn', title: 'T' } },
   'not JSON': 'this is not json',
 };
-
-// Item 47 (owner 2026-11-08): these the server fixes itself before any check (learn-primitives.js correctDiagrams), so they are no longer repair cases.
-const SERVER_FIXED = {
-  one_branch_decision: { ...SPEC, diagram: { ...SPEC.diagram, edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c', label: 'Yes' }], nodes: SPEC.diagram.nodes.slice(0, 3) } },
-  label_trimmed: { ...SPEC, diagram: { ...SPEC.diagram, nodes: [{ id: 'a', label: 'Go and then go a little further along the road until this long label runs over', role: 'process' }, ...SPEC.diagram.nodes.slice(1)] } },
-};
-test('item 47: a one-branch decision and an over-long label are fixed by the server in the one call and counted on the card; no repair', async () => {
-  for (const [kind, spec] of Object.entries(SERVER_FIXED)) {
-    const body = GOOD + '\n\nGo on.\n\n' + fence(spec) + '\n\nGo end.';
-    assert.match(diagramProblem(body) || '', /^explanation_bad_diagram/, `${kind}: invalid as written`);
-    const d = await viaDirect('standard', { title: 'T', body });
-    assert.deepEqual([d.out.result, d.m.seen.length, d.out.diagramsDropped, d.out.block.diagramCorrections], ['artifact', 1, undefined, { [kind]: 1 }], kind);
-    assert.equal(diagramProblem(d.out.block.body), null, `${kind}: the delivered diagram is valid`);
-  }
-});
 
 // EXP-13: a card needs a visual, so a bad diagram is dropped when another valid visual remains (prose, good, prose, bad, prose); as the only visual it is simplified or, failing that, dropped with the card marked (owner 2026-11-08).
 const GOOD = 'Go first.\n\n' + fence();
@@ -110,7 +97,8 @@ test('a valid rh-diagram is delivered unchanged; every invalid spec is checked b
     // the only visual is bad (owner 2026-11-08, a card should not fail; replaces "the card fails truthfully"): it becomes a straight flow of its own labels
     // when it has two or more, else the prose card is delivered without it
     const only = await viaRoadmap('standard', { title: 'T', body: 'Go first.\n\n' + fence(spec) + '\n\nGo on.' });
-    const fallback = ['unknown kind', 'not JSON'].includes(name) ? 'dropped' : 'simplified';
+    // ('over-long node label': its straight flow names nothing the prose names, so it fails the relevance check and is not used either)
+    const fallback = ['unknown kind', 'not JSON', 'over-long node label'].includes(name) ? 'dropped' : 'simplified';
     assert.deepEqual([only.out.outcome, only.out.block?.visualFallback, markdownVisuals(only.out.block?.body).diagrams.map(v => v.ok)], ['ok', fallback, fallback === 'simplified' ? [true] : []], 'only visual ' + name);
   }
   const unclosed = await viaRoadmap('standard', { title: 'T', body: GOOD + '\n\nGo on.\n\n```rh-diagram\n' + JSON.stringify(SPEC) });
@@ -155,7 +143,7 @@ test('the server reads a fence the way the card does: the renderer\'s own open a
 });
 
 test('one card over its prose budget AND with an invalid diagram: both problems reach the single repair request, with the measured length, the limit and the diagram errors', async () => {
-  const bad = BAD['unknown edge endpoint'];
+  const bad = BAD['decision with one branch'];
   const block = { title: 'T', body: 'Go ' + 'é'.repeat(1100) + '\n\n' + fence(bad) + '\n\nGo on.' };
   const used = explanationProseChars(block);
   assert.ok(used > EXPLANATION_BUDGET.hard, 'the card is over budget');
@@ -167,6 +155,6 @@ test('one card over its prose budget AND with an invalid diagram: both problems 
   const feedback = m.seen[1].messages.at(-1).content[0];
   assert.equal(feedback.is_error, true);
   assert.match(feedback.content, new RegExp(`explanation_over_budget: the card has ${used} characters of prose .*the limit is ${EXPLANATION_BUDGET.hard}`), 'the measured length and the limit');
-  assert.match(feedback.content, /explanation_bad_diagram: the rh-diagram spec is not valid \(.*unknown node/i, 'and the specific diagram error, in the same message');
+  assert.match(feedback.content, /explanation_bad_diagram: the rh-diagram spec is not valid \(.*decision/i, 'and the specific diagram error, in the same message');
   assert.deepEqual([out.result, out.repaired, out.block.body.includes('rh-diagram')], ['artifact', true, true], 'the repaired card keeps its now-valid diagram');
 });

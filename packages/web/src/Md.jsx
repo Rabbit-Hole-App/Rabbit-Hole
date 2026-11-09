@@ -227,12 +227,9 @@ function lines(ls, ctx, first) {
 }
 
 // Unclosed $$ or \[ makes no math token (tokenizeMath), so it stays plain text until it closes.
-// A single backslash ending a line outside code is Markdown's hard line break, never text (owner 2026-11-08: "$$...$$\" showed a stray "\").
-// Math is already tokenized out here, so a LaTeX "\\" inside a formula is untouched; fenced code keeps its backslashes.
-const hardBreaks = rows => { let code = false; return rows.map(l => { if (/^\s*```/.test(l)) { code = !code; return l; } return code ? l : l.replace(/(^|[^\\])\\$/, '$1'); }); };
 const Block = memo(function Block({ src, first, ...ctx }) {
   const { source, math } = tokenizeMath(src);
-  return lines(hardBreaks(source.split('\n')), { ...ctx, math }, first);
+  return lines(source.split('\n'), { ...ctx, math }, first);
 });
 
 // Math-aware text for a span, label, button or paragraph that Md's block wrapper would break: the same tokenizer and inline renderer,
