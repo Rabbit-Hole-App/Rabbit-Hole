@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Binning maps each value to one interval",
+    "caption": "Bins are left-closed, right-open, except the final bin includes 40. Bin codes run from 0 to 3 in interval order.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Assign each sample",
+        "diagram": {
+          "title": "Value to bin code",
+          "caption": "20 goes in 20–30 (bin 2); 40 goes in the last bin, 30–40 (bin 3). Each row keeps its sample ID.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Value",
+            "Bin"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "heading": "A",
+              "cells": [
+                "5",
+                "0"
+              ]
+            },
+            {
+              "id": "b",
+              "heading": "B",
+              "cells": [
+                "12",
+                "1"
+              ]
+            },
+            {
+              "id": "c",
+              "heading": "C",
+              "cells": [
+                "19",
+                "1"
+              ]
+            },
+            {
+              "id": "d",
+              "heading": "D",
+              "cells": [
+                "20",
+                "2"
+              ]
+            },
+            {
+              "id": "e",
+              "heading": "E",
+              "cells": [
+                "26",
+                "2"
+              ]
+            },
+            {
+              "id": "f",
+              "heading": "F",
+              "cells": [
+                "39",
+                "3"
+              ]
+            },
+            {
+              "id": "g",
+              "heading": "G",
+              "cells": [
+                "40",
+                "3"
+              ]
+            }
+          ],
+          "emphasis": {
+            "rows": [
+              "d",
+              "g"
+            ]
+          }
+        }
+      },
+      {
+        "heading": "Count the same seven values",
+        "diagram": {
+          "title": "Count the same seven values",
+          "caption": "The counts sum to seven. A boundary value enters the bin starting there; the rightmost endpoint stays in the last bin.",
+          "kind": "histogram",
+          "xLabel": "Value",
+          "binEdges": [
+            0,
+            10,
+            20,
+            30,
+            40
+          ],
+          "measure": "count",
+          "series": [
+            {
+              "label": "Samples",
+              "values": [
+                1,
+                2,
+                2,
+                2
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

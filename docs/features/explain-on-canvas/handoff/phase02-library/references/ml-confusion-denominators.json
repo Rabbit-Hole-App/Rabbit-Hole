@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Each rate asks about a different group",
+    "caption": "Precision asks whether positive predictions were right. Recall asks how many positives were found. Specificity asks about negatives.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Start with the same 200 cases",
+        "diagram": {
+          "title": "Actual rows, predicted columns",
+          "caption": "There are 100 actual negatives and 100 actual positives. The highlighted 20 are missed positives.",
+          "kind": "heatmap",
+          "rowLabel": "Actual",
+          "columnLabel": "Predicted",
+          "columns": [
+            "Negative",
+            "Positive"
+          ],
+          "rows": [
+            {
+              "label": "Negative",
+              "cells": [
+                90,
+                10
+              ]
+            },
+            {
+              "label": "Positive",
+              "cells": [
+                20,
+                80
+              ]
+            }
+          ],
+          "range": {
+            "min": 0,
+            "max": 100
+          },
+          "highlights": [
+            {
+              "row": 1,
+              "column": 0
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Choose the denominator",
+        "diagram": {
+          "title": "Correct cases out of the relevant group",
+          "caption": "Precision uses predicted positives; recall uses actual positives; specificity uses actual negatives. Percentages are rounded.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Ratio",
+            "Rate"
+          ],
+          "rows": [
+            {
+              "id": "precision",
+              "heading": "Precision",
+              "cells": [
+                "$\\frac{80}{90}$",
+                "88.89%"
+              ]
+            },
+            {
+              "id": "recall",
+              "heading": "Recall",
+              "cells": [
+                "$\\frac{80}{100}$",
+                "80%"
+              ]
+            },
+            {
+              "id": "specificity",
+              "heading": "Specificity",
+              "cells": [
+                "$\\frac{90}{100}$",
+                "90%"
+              ]
+            }
+          ],
+          "emphasis": {
+            "columns": [
+              1
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

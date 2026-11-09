@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "MAE and RMSE on the same errors",
+    "caption": "The largest miss supplies half the total absolute error and three quarters of the total squared error. Squaring gives it more influence.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Keep the predictions fixed",
+        "diagram": {
+          "title": "Three small misses and a larger one",
+          "caption": "Prediction is $\\hat y=x+1$. A residual is actual minus predicted: $e=y-\\hat y$. The line is the same for all four samples.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Input",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Target",
+            "min": 0,
+            "max": 9
+          },
+          "series": [
+            {
+              "label": "Prediction",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 1
+                },
+                {
+                  "x": 4,
+                  "y": 5
+                }
+              ]
+            },
+            {
+              "label": "Observed",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 3,
+                  "id": "s1",
+                  "label": "S1"
+                },
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "s2",
+                  "label": "S2"
+                },
+                {
+                  "x": 3,
+                  "y": 5,
+                  "id": "s3",
+                  "label": "S3"
+                },
+                {
+                  "x": 4,
+                  "y": 8,
+                  "id": "s4",
+                  "label": "S4"
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "segment",
+              "label": "$e_1=1$",
+              "from": {
+                "x": 1,
+                "y": 2
+              },
+              "to": {
+                "x": 1,
+                "y": 3
+              }
+            },
+            {
+              "kind": "segment",
+              "label": "$e_2=-1$",
+              "from": {
+                "x": 2,
+                "y": 3
+              },
+              "to": {
+                "x": 2,
+                "y": 2
+              }
+            },
+            {
+              "kind": "segment",
+              "label": "$e_3=1$",
+              "from": {
+                "x": 3,
+                "y": 4
+              },
+              "to": {
+                "x": 3,
+                "y": 5
+              }
+            },
+            {
+              "kind": "segment",
+              "label": "$e_4=3$",
+              "from": {
+                "x": 4,
+                "y": 5
+              },
+              "to": {
+                "x": 4,
+                "y": 8
+              }
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Measure each miss",
+        "diagram": {
+          "title": "One row per residual",
+          "caption": "Absolute errors total 6. Squared errors total 12. Taking magnitudes or squares prevents opposite signs from cancelling.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Error",
+            "Abs.",
+            "Square"
+          ],
+          "rows": [
+            {
+              "id": "s1",
+              "heading": "S1",
+              "cells": [
+                "1",
+                "1",
+                "1"
+              ]
+            },
+            {
+              "id": "s2",
+              "heading": "S2",
+              "cells": [
+                "-1",
+                "1",
+                "1"
+              ]
+            },
+            {
+              "id": "s3",
+              "heading": "S3",
+              "cells": [
+                "1",
+                "1",
+                "1"
+              ]
+            },
+            {
+              "id": "s4",
+              "heading": "S4",
+              "cells": [
+                "3",
+                "3",
+                "9"
+              ]
+            }
+          ],
+          "emphasis": {
+            "rows": [
+              "s4"
+            ]
+          }
+        }
+      },
+      {
+        "heading": "Aggregate the same four errors",
+        "diagram": {
+          "title": "Average over all four samples",
+          "caption": "MAE and RMSE use target units; MSE uses squared units. Every sample has equal weight. Displayed results are rounded.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Calculation",
+            "Result"
+          ],
+          "rows": [
+            {
+              "id": "mae",
+              "heading": "MAE",
+              "cells": [
+                "$6/4$",
+                "1.500"
+              ]
+            },
+            {
+              "id": "mse",
+              "heading": "MSE",
+              "cells": [
+                "$12/4$",
+                "3.000"
+              ]
+            },
+            {
+              "id": "rmse",
+              "heading": "RMSE",
+              "cells": [
+                "$\\sqrt{12/4}$",
+                "1.732"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

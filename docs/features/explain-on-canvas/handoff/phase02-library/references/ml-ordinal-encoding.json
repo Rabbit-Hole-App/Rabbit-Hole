@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Ordinal encoding preserves a real order",
+    "caption": "Keep this codebook for later rows. Do not impose an order on nominal categories such as colors.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Choose the codebook",
+        "diagram": {
+          "title": "Low, then Medium, then High",
+          "caption": "The levels have a known ranking before encoding. Codes show rank, not measured equal spacing.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Level",
+            "Code"
+          ],
+          "rows": [
+            {
+              "id": "low",
+              "heading": "1st",
+              "cells": [
+                "Low",
+                "0"
+              ]
+            },
+            {
+              "id": "medium",
+              "heading": "2nd",
+              "cells": [
+                "Medium",
+                "1"
+              ]
+            },
+            {
+              "id": "high",
+              "heading": "3rd",
+              "cells": [
+                "High",
+                "2"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Encode six sample rows",
+        "diagram": {
+          "title": "Apply one codebook to every row",
+          "caption": "A through F stay in the same order; repeated levels receive the same code.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Level",
+            "Code"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "heading": "A",
+              "cells": [
+                "Low",
+                "0"
+              ]
+            },
+            {
+              "id": "b",
+              "heading": "B",
+              "cells": [
+                "High",
+                "2"
+              ]
+            },
+            {
+              "id": "c",
+              "heading": "C",
+              "cells": [
+                "Medium",
+                "1"
+              ]
+            },
+            {
+              "id": "d",
+              "heading": "D",
+              "cells": [
+                "Medium",
+                "1"
+              ]
+            },
+            {
+              "id": "e",
+              "heading": "E",
+              "cells": [
+                "Low",
+                "0"
+              ]
+            },
+            {
+              "id": "f",
+              "heading": "F",
+              "cells": [
+                "High",
+                "2"
+              ]
+            }
+          ],
+          "emphasis": {
+            "columns": [
+              1
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

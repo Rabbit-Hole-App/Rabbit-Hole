@@ -1750,6 +1750,86 @@
       "height": 1275
     },
     {
+      "id": "ml-ordinal-encoding",
+      "lessons": [
+        "08"
+      ],
+      "prompts": [
+        "How do I turn low, medium, and high categories into numbers without losing their order?"
+      ],
+      "useWhen": "Map categories with a meaningful order through an explicit codebook, then encode the same identifiable sample rows. Explain that ordinal codes do not measure equal spacing and should not impose a ranking on nominal categories.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 938
+    },
+    {
+      "id": "ml-value-binning",
+      "lessons": [
+        "08"
+      ],
+      "prompts": [
+        "Can you show which bins contain these values, including values exactly on an edge?"
+      ],
+      "useWhen": "Assign raw numeric values to ordered intervals and show the matching counts. State the left-closed, right-open convention and the inclusive final endpoint, so values exactly on an edge have unambiguous membership.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 1089
+    },
+    {
+      "id": "ml-feature-interaction",
+      "lessons": [
+        "08"
+      ],
+      "prompts": [
+        "Explain feature interactions with a width-times-length feature.",
+        "Show why the effect of width on area depends on length."
+      ],
+      "useWhen": "Derive an actual product column while preserving both original features and sample IDs; show how one input changes the effect of the other.",
+      "kind": "transformation",
+      "width": 408,
+      "height": 969
+    },
+    {
+      "id": "ml-raw-log-distributions",
+      "lessons": [
+        "08"
+      ],
+      "prompts": [
+        "Show raw and log-transformed histograms for the same skewed sample.",
+        "Compare a feature distribution before and after a log transform, including the data pairs."
+      ],
+      "useWhen": "Compare the same visible observations before and after an exact log transform, with explicit domain and independently counted bins in each coordinate.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 1571
+    },
+    {
+      "id": "ml-confusion-denominators",
+      "lessons": [
+        "09"
+      ],
+      "prompts": [
+        "Why do precision and recall divide by different totals?"
+      ],
+      "useWhen": "Calculate precision, recall and specificity from one labelled confusion matrix. State which population each denominator counts.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 883
+    },
+    {
+      "id": "ml-regression-error-metrics",
+      "lessons": [
+        "09"
+      ],
+      "prompts": [
+        "Why is RMSE bigger than MAE when one prediction is far off?"
+      ],
+      "useWhen": "Compute signed residuals, absolute and squared errors, and all three aggregates on the same predictions. Keep units and rounding explicit.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1643
+    },
+    {
       "id": "general-sequence-1",
       "lessons": [],
       "prompts": [
@@ -1969,7 +2049,11 @@
         "tf-idf-weight-matrix",
         "ml-feature-scaling-transformation",
         "ml-one-hot-encoding-transformation",
-        "ml-imputation-transformation"
+        "ml-imputation-transformation",
+        "ml-ordinal-encoding",
+        "ml-value-binning",
+        "ml-feature-interaction",
+        "ml-raw-log-distributions"
       ]
     },
     {
@@ -1986,7 +2070,9 @@
         "train-validation-test-split",
         "stratified-fold-counts",
         "nested-cross-validation-folds",
-        "walk-forward-validation-gaps"
+        "walk-forward-validation-gaps",
+        "ml-confusion-denominators",
+        "ml-regression-error-metrics"
       ]
     },
     {

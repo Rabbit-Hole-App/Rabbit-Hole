@@ -6,11 +6,11 @@ Task: `96d13bbb-6cd1-45be-b27a-95820d3495b0` · branch: `chatgpt/explain-phase02
 
 Four new diagram kinds and nine additive extensions are implemented in the **written `/explain`** path. The model receives relevant, valid JSON examples; Rabbit Hole renders the resulting semantic JSON using the existing SVG component. These are reusable layouts and reference data, not fixed lesson cards returned in place of generation. The `/interact` fixtures and `/animation` renderer are separate and unchanged.
 
-There are **140 registered references: 126 with Phase 02 lesson tags and 14 general examples**, with every one of the 21 Phase 02 lessons mapped to concrete IDs. **That is lesson-level presence, not completion of every scene in the owner’s coverage table.** See the [per-lesson coverage audit and remaining reference work](coverage-audit.md). They cover all 21 currently supported kinds. Reference datasets are explicitly illustrative; generated cards must respect their own source values. The author remains free to produce a new example within the schema.
+There are **146 registered references: 132 with Phase 02 lesson tags and 14 general examples**, with every one of the 21 Phase 02 lessons mapped to concrete IDs. **That is lesson-level presence, not completion of every scene in the owner’s coverage table.** See the [per-lesson coverage audit and remaining reference work](coverage-audit.md). They cover all 21 currently supported kinds. Reference datasets are explicitly illustrative; generated cards must respect their own source values. The author remains free to produce a new example within the schema.
 
-The next ten worked references for lessons 04–07 are in [batch 1](batch-1.md), with exact prompts, mathematical expectations and separate dev acceptance instructions.
+The ten worked references for lessons 04–07 are in [batch 1](batch-1.md). The next six for lessons 08–09 are in [batch 2A](batch-2a.md), with exact prompts, mathematical expectations and separate dev acceptance instructions. Ten items in the approved batch-2 list remain open.
 
-Latest local batch verification: **421 focused tests passed**, web build passed, all ten new scenes statically inspected and all 140 JSON/SVG pairs re-exported. See the batch receipt for the formula/browser and live-model limitations; the original 373-test receipt below describes the earlier implementation snapshot.
+Latest local batch verification: **452 focused tests passed**, web build passed, all six new scenes statically inspected and all 146 JSON/SVG pairs re-exported. See the batch-2A receipt for formula/browser and live-model limitations. The original 373-test receipt below and the batch-1 421-test receipt describe earlier implementation snapshots.
 
 ## Implemented scope
 
@@ -48,7 +48,7 @@ See [all reference JSON/SVG pairs and per-lesson mapping](references/README.md).
 | Reproducible actual-renderer SVGs and gallery | `packages/web/scripts/export-explanation-references.mjs` |
 | Extension instructions / constraints | `packages/web/src/tutor-diagrams/README.md` |
 
-The selector adds **at most two** complete JSON examples and at most 14,000 characters of example context. This is a reference-context bound, not the card's visual count. It uses learner words before source context, filters explicit required kinds, and emits no unrelated examples when no topic matches. Ordinary hierarchies cannot fall through to the first binary-operation examples. Repairs retain the same references. Other commands receive none. It makes no extra model call.
+The selector adds **at most two** complete JSON examples and at most 14,000 characters of example context. This is a reference-context bound, not the card's visual count. It uses learner words before source context, filters explicit required kinds, and emits no unrelated examples when no topic matches. When an explicit kind matches a leaf inside a comparison or visual transformation, it can supply that valid leaf as a standalone example; a comparison wrapper is not accepted in place of a required histogram. Ordinary hierarchies cannot fall through to the first binary-operation examples. Repairs retain the same references. Other commands receive none. It makes no extra model call.
 
 The JSON Schema is nonrecursive and serializable; its size is recorded in the execution receipt below. Runtime checks enforce additional invariants that JSON Schema cannot express. The schema still uses `version: 1` and retains the existing 16,384-character whole-diagram limit. Old specs preserve their existing render treatment; unknown new kinds need the coordinated new reader.
 
@@ -65,7 +65,7 @@ The JSON Schema is nonrecursive and serializable; its size is recorded in the ex
 From the repository root:
 
 ```sh
-node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-references.test.js packages/control-plane/test/explanation-diagram-kinds.test.js packages/control-plane/test/explanation-visuals.test.js packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/learn-artifact.test.js
+node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-reference-batch*.test.js packages/control-plane/test/explanation-references.test.js packages/control-plane/test/explanation-diagram-kinds.test.js packages/control-plane/test/explanation-visuals.test.js packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/learn-artifact.test.js
 npm run build --workspace=packages/web
 node packages/web/scripts/export-explanation-references.mjs
 ```

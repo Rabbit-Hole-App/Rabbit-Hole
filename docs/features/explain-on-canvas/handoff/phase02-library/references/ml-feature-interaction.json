@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A product captures a feature interaction",
+    "caption": "The new feature lets a model use area while keeping width and length separately.",
+    "kind": "transformation",
+    "variant": "visual",
+    "before": {
+      "label": "Two input features",
+      "diagram": {
+        "title": "Width and length",
+        "caption": "$x_1$ is width; $x_2$ is length. Area is their product.",
+        "kind": "matrix",
+        "layout": "teaching",
+        "columns": [
+          "$x_1$",
+          "$x_2$"
+        ],
+        "rows": [
+          {
+            "id": "a",
+            "heading": "A",
+            "cells": [
+              "1",
+              "1"
+            ]
+          },
+          {
+            "id": "b",
+            "heading": "B",
+            "cells": [
+              "1",
+              "2"
+            ]
+          },
+          {
+            "id": "c",
+            "heading": "C",
+            "cells": [
+              "2",
+              "1"
+            ]
+          },
+          {
+            "id": "d",
+            "heading": "D",
+            "cells": [
+              "2",
+              "2"
+            ]
+          }
+        ]
+      }
+    },
+    "after": {
+      "label": "Keep inputs, add area",
+      "diagram": {
+        "title": "The derived product",
+        "caption": "When $x_1$ rises from 1 to 2, area rises by $x_2$: by 1 at $x_2=1$, by 2 at $x_2=2$.",
+        "kind": "matrix",
+        "layout": "teaching",
+        "columns": [
+          "$x_1$",
+          "$x_2$",
+          "$x_1 x_2$"
+        ],
+        "rows": [
+          {
+            "id": "a",
+            "heading": "A",
+            "cells": [
+              "1",
+              "1",
+              "1"
+            ]
+          },
+          {
+            "id": "b",
+            "heading": "B",
+            "cells": [
+              "1",
+              "2",
+              "2"
+            ]
+          },
+          {
+            "id": "c",
+            "heading": "C",
+            "cells": [
+              "2",
+              "1",
+              "2"
+            ]
+          },
+          {
+            "id": "d",
+            "heading": "D",
+            "cells": [
+              "2",
+              "2",
+              "4"
+            ]
+          }
+        ],
+        "emphasis": {
+          "columns": [
+            2
+          ]
+        }
+      }
+    },
+    "operation": "Add an interaction: $x_3 = x_1 x_2$",
+    "identity": {
+      "mode": "preserved",
+      "note": "Rows A–D and both inputs stay fixed; the added column is area."
+    }
+  }
+}

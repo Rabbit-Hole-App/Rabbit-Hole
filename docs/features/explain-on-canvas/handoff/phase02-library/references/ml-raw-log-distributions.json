@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "The same observations on raw and log scales",
+    "caption": "Both panels count the same eight samples in different x units. Logs compress this right tail; they do not ensure normality.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Raw values",
+        "diagram": {
+          "title": "Original scale",
+          "caption": "Raw values: 0, 1, 3, 7, 15, 31, 63, 127. Six of eight values lie below 32.",
+          "kind": "histogram",
+          "xLabel": "$x$",
+          "binEdges": [
+            0,
+            32,
+            64,
+            96,
+            128
+          ],
+          "measure": "count",
+          "series": [
+            {
+              "label": "Eight observations",
+              "values": [
+                6,
+                1,
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Log values",
+        "diagram": {
+          "title": "Log scale",
+          "caption": "Transformed values are 0 through 7. The largest gaps shrink; these log values are evenly spaced.",
+          "kind": "histogram",
+          "xLabel": "$z = \\log_2(1+x)$",
+          "binEdges": [
+            0,
+            2,
+            4,
+            6,
+            8
+          ],
+          "measure": "count",
+          "series": [
+            {
+              "label": "Eight observations",
+              "values": [
+                2,
+                2,
+                2,
+                2
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Same eight observations",
+        "diagram": {
+          "title": "Same eight observations",
+          "caption": "$z=\\log_2(1+x)$ is defined for $x>-1$; every raw value here is nonnegative.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Raw $x$",
+            "$z$"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "heading": "A",
+              "cells": [
+                "0",
+                "0"
+              ]
+            },
+            {
+              "id": "b",
+              "heading": "B",
+              "cells": [
+                "1",
+                "1"
+              ]
+            },
+            {
+              "id": "c",
+              "heading": "C",
+              "cells": [
+                "3",
+                "2"
+              ]
+            },
+            {
+              "id": "d",
+              "heading": "D",
+              "cells": [
+                "7",
+                "3"
+              ]
+            },
+            {
+              "id": "e",
+              "heading": "E",
+              "cells": [
+                "15",
+                "4"
+              ]
+            },
+            {
+              "id": "f",
+              "heading": "F",
+              "cells": [
+                "31",
+                "5"
+              ]
+            },
+            {
+              "id": "g",
+              "heading": "G",
+              "cells": [
+                "63",
+                "6"
+              ]
+            },
+            {
+              "id": "h",
+              "heading": "H",
+              "cells": [
+                "127",
+                "7"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

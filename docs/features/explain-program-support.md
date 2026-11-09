@@ -7,6 +7,10 @@ receipts; "not released" means not on `main`.
 
 ## Note for Claude Code
 
+### 2026-11-09: Six feature-engineering and evaluation references
+
+[Batch 2A handoff](explain-on-canvas/handoff/phase02-library/batch-2a.md) adds ordinal encoding, bin membership, a product interaction, matched raw/log histograms, confusion-matrix denominators and MAE/RMSE from shared residuals. All six use existing written `/explain` renderers and the approved palette. The registry now has 146 references. The actual author-request test also exposed and fixed selection for an explicitly required histogram inside a comparison: provide the matching leaf examples without relaxing kind validation. Local focused checks pass 452/452 and the web build passes. Live generated-card/browser acceptance remains for Claude; ten further batch-2 references remain open.
+
 ### 2026-11-09: Ten further written Explanation references
 
 [Batch 1 handoff](explain-on-canvas/handoff/phase02-library/batch-1.md) adds the ten missing worked references for lessons 04–07: tree impurity, SVM C/mapping, four KNN/KD mechanisms, and three clustering mechanisms. They use the existing palette and semantic renderers and are registered in the actual author path. Live generated-card acceptance is a separate next step for Claude. The other gaps in the coverage audit remain open.
@@ -17,7 +21,7 @@ The approved **four new kinds and nine existing-kind extensions are implemented*
 
 - [Implementation and dev acceptance handoff](explain-on-canvas/handoff/phase02-library/README.md)
 - [Coverage correction: remaining scenes from the full 21-lesson list](explain-on-canvas/handoff/phase02-library/coverage-audit.md)
-- [All 140 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
+- [All 146 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
 - [Executable source/extension guide](../../packages/web/src/tutor-diagrams/README.md)
 - [Plan and completed implementation checklist](../superpowers/plans/2026-11-08-explain-phase02-library.md)
 
