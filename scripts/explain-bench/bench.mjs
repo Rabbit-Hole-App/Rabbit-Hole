@@ -75,16 +75,21 @@ const { values: a } = parseArgs({ options: {
   base: { type: 'string' }, vars: { type: 'string' }, sets: { type: 'string' }, runs: { type: 'string' }, cap: { type: 'string', default: '2.00' }, label: { type: 'string', default: 'run' },
   log: { type: 'string' }, persist: { type: 'string' }, tree: { type: 'string' }, out: { type: 'string' }, against: { type: 'string' }, baseline: { type: 'string' }, 'tag-baseline': { type: 'boolean' },
   judge: { type: 'boolean' }, judges: { type: 'string', default: '1' }, 'judge-cap': { type: 'string', default: '1.00' }, 'judge-only': { type: 'string' }, 'richness-change': { type: 'boolean' },
-  note: { type: 'string' }, 'dry-run': { type: 'boolean' }, gap: { type: 'string', default: '1500' }, only: { type: 'string' } } });
+  note: { type: 'string' }, depth: { type: 'string' }, depths: { type: 'string' }, 'dry-run': { type: 'boolean' }, gap: { type: 'string', default: '1500' }, only: { type: 'string' } } });
 const fail = msg => { console.error(`✗ ${msg}`); process.exit(2); };
 const sets = (a.sets || SET_NAMES.join(',')).split(',').map(s => s.trim()).filter(Boolean);
 for (const s of sets) if (!availableSets().includes(s)) fail(`unknown set ${s}; sets: ${availableSets().join(', ')}`);
 const cap = Number(a.cap), judgeCap = Number(a['judge-cap']), judges = Number(a.judges), only = (a.only || '').split(',').filter(Boolean);
 if (!(cap > 0) || !(judgeCap >= 0) || !(judges >= 1)) fail('--cap must be > 0, --judge-cap >= 0, --judges >= 1');
-const plan = sets.map(n => { const d = loadSet(n), prompts = d.prompts.filter(p => !only.length || only.includes(p.id)); return { name: n, prompts, runs: a.runs ? Number(a.runs) : d.defaultRuns || 1, est: d.estUsdPerCard }; });
-const cards = plan.reduce((s, p) => s + p.prompts.length * p.runs, 0), est = plan.reduce((s, p) => s + p.prompts.length * p.runs * p.est, 0);
-const judgeEst = a.judge ? judges * plan.reduce((s, p) => s + p.prompts.length * p.runs * (JUDGE_EST.card + (p.prompts.some(x => x.sketch) ? JUDGE_EST.diagram : 0)), 0) : 0;
-console.log(`✓ sets: ${plan.map(p => `${p.name} ${p.prompts.length}x${p.runs}`).join(', ')} = ${cards} cards`);
+// Depth (--depth one, --depths several, else the set's defaultDepths, else none sent): sent as `depth` beside `board`; the server's DEPTHS are overview|standard|deep.
+const DEPTHS = ['overview', 'standard', 'deep'], depthArg = a.depths ? a.depths.split(',').map(s => s.trim()).filter(Boolean) : a.depth ? [a.depth] : null;
+if (depthArg && depthArg.some(x => !DEPTHS.includes(x))) fail(`--depth/--depths take ${DEPTHS.join(', ')}`);
+const plan = sets.map(n => { const d = loadSet(n), prompts = d.prompts.filter(p => !only.length || only.includes(p.id));
+  return { name: n, prompts, runs: a.runs ? Number(a.runs) : d.defaultRuns || 1, depths: depthArg || d.defaultDepths || [null], est: d.estUsdPerCard }; });
+const per = p => p.prompts.length * p.runs * p.depths.length;
+const cards = plan.reduce((s, p) => s + per(p), 0), est = plan.reduce((s, p) => s + per(p) * p.est, 0);
+const judgeEst = a.judge ? judges * plan.reduce((s, p) => s + per(p) * (JUDGE_EST.card + (p.prompts.some(x => x.sketch || x.depths) ? JUDGE_EST.diagram : 0)), 0) : 0;
+console.log(`✓ sets: ${plan.map(p => `${p.name} ${p.prompts.length}x${p.runs}${p.depths[0] ? ` at ${p.depths.join('/')}` : ''}`).join(', ')} = ${cards} cards`);
 console.log(`✓ estimate: US$${est.toFixed(2)} generation (per-card spend measured on the 2026-11-08 5d run), cap US$${cap.toFixed(2)} (hard)${est > cap ? `: the cap stops the run after about ${Math.floor(cap / (est / cards))} cards` : ''}`);
 console.log(a.judge ? `✓ judge: claude-sonnet-5-5 x${judges}, estimate US$${judgeEst.toFixed(2)}, judge cap US$${judgeCap.toFixed(2)}` : '✓ judge: off (no --judge): no factual or faithfulness scores');
 if (!a.vars && !a['dry-run']) fail('--vars <the stack\'s .dev.vars> is required (its TEST_BYPASS_SECRET mints the test session)');
@@ -112,13 +117,14 @@ const events = (text, name) => [...text.matchAll(new RegExp(`\\{"event":"${name}
 
 let spent = 0, sent = 0, stopped = false;
 outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const p of plan.filter(x => x.runs >= r)) {
-  const dir = join(rawDir, `${p.name}-r${r}`); mkdirSync(join(dir, 'cards'), { recursive: true });
+  for (const dep of p.depths) {
+  const dir = join(rawDir, `${p.name}-r${r}${dep ? `-${dep}` : ''}`); mkdirSync(join(dir, 'cards'), { recursive: true });
   for (const q of p.prompts) {
     if (spent + WORST_CARD > cap) { stopped = true; console.log(`STOP cap: spent US$${spent.toFixed(4)} of US$${cap.toFixed(2)}`); break outer; }
     try { // a stack that goes away mid-run stops the run; the cards so far are still scored and reported
     const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `explain-bench ${p.name} r${r} ${q.id}` }) })).body?.name;
     const logFrom = logSize(), before = (await api('/api/learn/usage')).body, startedAt = new Date().toISOString(), t0 = performance.now();
-    const res = canvas ? await fetch(`${BASE}/api/learn/artifact`, { method: 'POST', headers, body: JSON.stringify({ app: canvas, command: 'explanation', args: q.prompt, board: 'main' }) }) : null;
+    const res = canvas ? await fetch(`${BASE}/api/learn/artifact`, { method: 'POST', headers, body: JSON.stringify({ app: canvas, command: 'explanation', args: q.prompt, board: 'main', ...(dep ? { depth: dep } : {}) }) }) : null;
     const response = res ? await res.json().catch(() => null) : null, totalMs = Math.round(performance.now() - t0);
     await sleep(500);
     const after = (await api('/api/learn/usage')).body, text = logSince(logFrom);
@@ -127,7 +133,7 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
     const authorCalls = (response?.attempts?.length || 1) + (response?.repaired ? 1 : 0), estUsd = +(authorCalls * EST.authorCall + pictures * EST.picture).toFixed(4);
     const costUsd = ledgerUsd > 0 ? ledgerUsd : estUsd; spent += costUsd; sent++;
     const stripped = events(text, 'explanation_unknown_key_stripped'), raw = events(text, 'explanation_author_raw').map(({ event, ...rest }) => rest);
-    const row = { id: q.id, set: p.name, run: r, prompt: q.prompt, canvas, startedAt, http: res?.status ?? null, totalMs, delivered: !!block,
+    const row = { id: q.id, set: p.name, run: r, depth: dep, prompt: q.prompt, canvas, startedAt, http: res?.status ?? null, totalMs, delivered: !!block,
       failure: block ? null : String(canvas ? response?.code || response?.error || response?.result || `http_${res.status}` : 'no canvas').slice(0, 300),
       authoredBy: block?.authoredBy || null, profile: response?.profile || null, repaired: !!response?.repaired, attempts: response?.attempts || null, authorCalls, pictures,
       ledgerUsd, estUsd, costUsd, costSource: ledgerUsd > 0 ? 'ledger' : 'estimate',
@@ -140,13 +146,14 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
       modelCalls: events(text, 'learn_model').map(e => ({ served: e.served, status: e.status, outcome: e.outcome, error: e.error, ms: e.durationMs })) };
     writeFileSync(join(dir, 'cards', `${q.id}.json`), JSON.stringify({ row, response }, null, 1));
     appendFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n');
-    console.log(`${p.name.padEnd(10)} r${r} ${q.id.padEnd(20)} http=${row.http} ${String(totalMs).padStart(6)}ms ${block ? 'CARD' : `FAIL ${row.failure.slice(0, 80)}`}${row.repaired ? ' REPAIRED' : ''} ${row.costSource} US$${costUsd} spent=US$${spent.toFixed(4)}`);
+    console.log(`${p.name.padEnd(10)} r${r}${dep ? ` ${dep.padEnd(8)}` : ''} ${q.id.padEnd(20)} http=${row.http} ${String(totalMs).padStart(6)}ms ${block ? 'CARD' : `FAIL ${row.failure.slice(0, 80)}`}${row.repaired ? ' REPAIRED' : ''} ${row.costSource} US$${costUsd} spent=US$${spent.toFixed(4)}`);
     await sleep(Number(a.gap));
     } catch (e) { stopped = true; console.log(`STOP stack unreachable (${e.cause?.code || e.message}) after ${sent} cards, spent US$${spent.toFixed(4)}`); break outer; }
   }
+  }
 }
 if (a.persist) console.log(await tokensFromPersist(resolve(a.persist), email, rawDir).catch(e => `token counts skipped: ${e.message}`));
-writeFileSync(join(runDir, 'provenance.json'), JSON.stringify({ ...prov, ...(a.note ? { note: a.note } : {}), invocation: { base: BASE, sets: plan.map(p => ({ set: p.name, prompts: p.prompts.length, runs: p.runs })), cap, spentUsd: +spent.toFixed(4), cards: sent, stoppedByCap: stopped, user: email } }, null, 1));
+writeFileSync(join(runDir, 'provenance.json'), JSON.stringify({ ...prov, ...(a.note ? { note: a.note } : {}), invocation: { base: BASE, sets: plan.map(p => ({ set: p.name, prompts: p.prompts.length, runs: p.runs, depths: p.depths })), cap, spentUsd: +spent.toFixed(4), cards: sent, stoppedByCap: stopped, user: email } }, null, 1));
 const r = await report({ raw: rawDir, runId, out, label: a.label, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge, judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges, judgeCap, richnessChange: a['richness-change'] });
 for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
 if (r.results.judge) console.log(`judge: ${r.results.judge.calls} calls, ${r.results.judge.cached} cached, US$${r.results.judge.spent} of US$${judgeCap.toFixed(2)}`);

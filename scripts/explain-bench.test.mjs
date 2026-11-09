@@ -202,3 +202,25 @@ test('examples A/B: references from explanation_author_raw attempt 0 split every
   const fake = (p90, err, cost) => ({ name: `${p90}`, summary: { ...r.results.summary.overall, speed: { ...r.results.summary.overall.speed, all: { n: 2, p50: 2000, p90 } }, factual: { withErrors: err, judged: 10 }, cost: { perCard: cost } }, byRun: r.results.summary.byRun });
   assert.deepEqual(rankArms([fake(3900, 1, 0.01), fake(3000, 1, 0.02), fake(3500, 0, 0.03)]).map(a => a.name), ['3500', '3000', '3900']);
 });
+
+test('correct-svg: per-depth kinds and sketch score each card; folders carry the depth; the depth pass line', async () => {
+  const set = loadSet('correct-svg');
+  assert.equal(set.prompts.length, 14); assert.deepEqual(set.defaultDepths, ['overview', 'standard', 'deep']);
+  assert.ok(set.prompts.every(p => ['overview', 'standard', 'deep'].every(d => p.depths[d].kinds.length && p.depths[d].sketch.length === 2)));
+  assert.equal(set.prompts.filter(p => p.deepPlot).length, 6);
+  const sig = set.prompts.find(p => p.id === 'sigmoid'), prose = 'The sigmoid is $\sigma(z) = \frac{1}{1+e^{-z}}$.';
+  const deep = scoreCard(sig, { set: 'correct-svg', run: 1, depth: 'deep', id: 'sigmoid', delivered: true, block: block(prose, fence(sigmoidPlot([0.12, 0.5, 0.88]))), totalMs: 1 });
+  assert.deepEqual([deep.score, deep.depth, deep.sketch], ['right', 'deep', sig.depths.deep.sketch]);
+  const over = scoreCard(sig, { set: 'correct-svg', run: 1, depth: 'overview', id: 'sigmoid', delivered: true, block: block('p', fence(flow(['Take any number', 'Squash it', 'Between 0 and 1 = output']))), totalMs: 1 });
+  assert.equal(over.score, 'wrong'); assert.deepEqual(over.diagrams[0].flags.formulaLabels, ['Between 0 and 1 = output']);
+  const c = criteria(set, [deep, over]);
+  assert.equal(c.find(x => x.rule.startsWith('overview')).ok, false);
+  assert.match(c.find(x => x.rule.startsWith('deep')).detail, /^1\/1, 0 point errors$/);
+  const root = mkdtempSync(join(tmpdir(), 'bench-depth-')), dir = join(root, 'raw', 'correct-svg-r1-deep');
+  mkdirSync(join(dir, 'cards'), { recursive: true });
+  const row = { id: 'sigmoid', delivered: true, totalMs: 2000, repaired: false, repairCauses: [], costUsd: 0.01, ledgerUsd: 0.01 };
+  writeFileSync(join(dir, 'cards', 'sigmoid.json'), JSON.stringify({ row, response: { result: 'artifact', block: block(prose, fence(sigmoidPlot([0.12, 0.5, 0.88]))) } })); writeFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n');
+  const r = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'depth' });
+  assert.equal(r.results.cards[0].depth, 'deep'); assert.equal(r.results.summary.byDepth.deep.quantityPlots, 1);
+  assert.match(readFileSync(join(r.runDir, 'report.md'), 'utf8'), /## By depth[\s\S]*\| right kind \| 1\/1 \|/);
+});

@@ -152,6 +152,8 @@ export function diagramScore(d, prose, kinds = null) {
     duplicateLabels,
     nounBoxFlow: d.kind === 'flow' && !(d.nodes || []).some(n => n.role === 'decision') && !(d.nodes || []).some(n => verbStart(n.label)),
     bareMaths: (() => { let t = []; try { t = tutorDiagramVisibleText({ diagram: d }); } catch { t = L; } return t.filter(x => typeof x === 'string' && /[_^\\]/.test(x.replace(/\$[^$]*\$/g, ''))); })(),
+    // Any formula or maths in the drawn words (owner, overview depth): $...$, a subscript/power/backslash, or an equals sign.
+    formulaLabels: (() => { let t = []; try { t = tutorDiagramVisibleText({ diagram: d }); } catch { t = L; } return t.filter(x => typeof x === 'string' && /\$[^$]+\$|[_^\\=]/.test(x)); })(),
   };
   let describe = null; try { describe = describeTutorDiagram({ diagram: d }); } catch { /* an unexpected shape: no description */ }
   return {
@@ -173,12 +175,16 @@ const CAUSES = [[/over_budget/, 'length / over budget'], [/decision needs/, 'dec
 export const repairCause = e => CAUSES.find(([re]) => re.test(e))?.[1] ?? `other: ${String(e).slice(0, 100)}`;
 
 // One saved card -> its scored row. rec: { set, run, id, delivered, failure, block, totalMs, repaired, repairCauses, diagramCorrections, visualFallback, costUsd, costSource, tokens, raw, unknownKeysStripped }
+export const cardKey = c => `${c.set}/r${c.run}${c.depth ? `/${c.depth}` : ''}/${c.id}`;
 export function scoreCard(p, rec) {
+  // A per-depth prompt (correct-svg): that depth's kinds, acceptable kinds and sketch, as best/acceptable mixes (a picture or a second diagram allowed beside).
+  if (p.depths) { const dp = p.depths[rec.depth || 'standard'], k = `D:${dp.kinds.join('|')}`, a = dp.acceptableKinds.length ? `D:${dp.acceptableKinds.join('|')}` : null;
+    p = { ...p, kinds: dp.kinds, sketch: dp.sketch, best: [[k], [k, 'D:*'], [k, 'P']], acceptable: a ? [[a], [a, 'D:*'], [a, 'P']] : [] }; }
   const block = rec.delivered ? rec.block : null, vis = block ? visuals(block) : [], mix = mixOf(vis), prose = block ? proseOf(block.body) : '';
   const diagrams = vis.filter(v => v.diagram).map(v => diagramScore(v.diagram, prose, p.kinds || null));
   const score = block ? scoreMix(p, vis) : 'failed', it = block?.interactions;
   return {
-    set: rec.set, run: rec.run, id: p.id, prompt: p.prompt, group: p.group, category: p.category || null, sketch: p.sketch || null, regressionKind: p.regressionKind || null,
+    set: rec.set, run: rec.run, depth: rec.depth || null, deepPlot: !!p.deepPlot, id: p.id, prompt: p.prompt, group: p.group, category: p.category || null, sketch: p.sketch || null, regressionKind: p.regressionKind || null,
     delivered: !!block, failure: rec.failure || null, title: block?.title || null, mix, score,
     mixRight: !!block && p.best.some(b => mixClass(b) === mixClass(mix)), badKinds: mix.filter(t => t.startsWith('D:') && (p.badKinds || []).includes(t.slice(2))).map(t => t.slice(2)),
     needsPicture: !!p.needsPicture, noPicture: !!p.noPicture, hasPicture: mix.includes('P'), pictures: vis.filter(v => v.type === 'picture').map(({ type, id, ...v }) => v),
@@ -205,7 +211,7 @@ const tally = (xs, key) => xs.reduce((o, x) => ((o[key(x)] = (o[key(x)] || 0) + 
 // Every metric of a group of scored cards (counts with their denominators).
 export function summarize(cards) {
   const D = cards.filter(c => c.delivered), dg = D.flatMap(c => c.diagrams.map(d => ({ ...d, at: `${c.set}/r${c.run}/${c.id}` }))), graph = dg.filter(d => GRAPH_KINDS.includes(d.kind));
-  const n = f => D.filter(f).length, at = c => `${c.set}/r${c.run}/${c.id}`;
+  const n = f => D.filter(f).length, at = cardKey;
   const regCards = cards.filter(c => c.regressionKind);
   const regression = regCards.length ? Object.entries(regCards.reduce((o, c) => ((o[c.id] ||= []).push(c), o), {}))
     .map(([id, cs]) => ({ id, kind: cs[0].regressionKind, hits: cs.filter(c => c.mix.includes(`D:${cs[0].regressionKind}`)).length, runs: cs.length })) : null;
@@ -245,6 +251,7 @@ export function summarize(cards) {
       relationships: dg.filter(d => d.kind === 'relationship').length, duplicatedRelationshipNodes: dg.filter(d => d.duplicatedRelationshipNodes.length).length,
       flaggedList: dg.filter(d => d.flagged || d.flags.bareMaths.length || d.duplicatedRelationshipNodes.length).map(d => `${d.at} ${d.kind}: ${[d.flags.placeholderEdge.length ? `placeholder edge ${d.flags.placeholderEdge.map(l => JSON.stringify(l)).join(', ')}` : '', d.flags.duplicateLabels.length ? `duplicate labels ${d.flags.duplicateLabels.join(', ')}` : '', d.flags.nounBoxFlow ? 'noun-box flow' : '', d.flags.bareMaths.length ? `bare maths ${d.flags.bareMaths.map(l => JSON.stringify(l)).join(', ')}` : '', d.duplicatedRelationshipNodes.length ? `duplicated boxes ${d.duplicatedRelationshipNodes.join(', ')}` : ''].filter(Boolean).join('; ')}`),
       kindRight: withKinds.filter(d => d.kindRight).length, kindJudged: withKinds.length,
+      formulaLabelCards: n(c => c.diagrams.some(d => d.flags.formulaLabels.length)),
       formulaPrompts: formula.length, formulaPlotOk: formula.filter(c => c.formulaPlotOk).length, formulaWithPlot: formula.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length,
       plots: dg.filter(d => PLOT_KINDS.includes(d.kind)).length, plotsChecked: plots.length, points: plots.reduce((s, d) => s + d.arithmetic.points, 0), pointErrors: plots.reduce((s, d) => s + d.arithmetic.errors, 0),
       arithmeticList: dg.filter(d => d.arithmetic).map(d => `${d.at} ${d.kind}: ${d.arithmetic.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off, formula $${d.arithmetic.formula}$` : `not checked (${d.arithmetic.reason})`}`),
@@ -277,6 +284,14 @@ export function criteria(setDef, cards) {
   if (p.maxFlaggedPer60Diagrams !== undefined) add(`noun-box or placeholder labels on <= ${p.maxFlaggedPer60Diagrams} of 60 diagrams`, s.content.flagged * 60 <= p.maxFlaggedPer60Diagrams * s.content.diagrams, `${s.content.flagged}/${s.content.diagrams}`);
   if (p.minFormulaPlotsPerRun !== undefined) { const per = runs.map(r => { const f = cards.filter(c => c.run === r && c.category === 'formula'); return [f.filter(c => c.formulaPlotOk).length, f.length]; });
     add(`coordinate-plot or bar-chart with values that recompute on >= ${p.minFormulaPlotsPerRun} of the 8 formula prompts, every run`, per.length > 0 && per.every(([ok, of]) => of === 8 && ok >= p.minFormulaPlotsPerRun), per.map(([ok, of], i) => `r${runs[i]} ${ok}/${of}`).join(', ')); }
+  // correct-svg (owner 2026-11-08): per-depth pass line.
+  const depths = [...new Set(cards.map(c => c.depth).filter(Boolean))], of = dep => cards.filter(c => c.depth === dep);
+  if (p.minRightPerDepth !== undefined) add(`right kind >= ${p.minRightPerDepth}/14 at every depth`, depths.length > 0 && depths.every(dep => of(dep).filter(c => c.score === 'right').length >= p.minRightPerDepth), depths.map(dep => `${dep} ${of(dep).filter(c => c.score === 'right').length}/${of(dep).length}`).join(', '));
+  if (p.deepPlots) { const deep = of('deep').filter(c => c.deepPlot), plots = deep.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))), errs = deep.reduce((s, c) => s + c.diagrams.reduce((t, d) => t + (d.arithmetic?.errors || 0), 0), 0);
+    add(`deep: plot or chart on >= ${p.deepPlots.min}/6 quantity prompts with ${p.deepPlots.maxPointErrors} point errors`, deep.length > 0 && plots.length >= p.deepPlots.min && errs <= p.deepPlots.maxPointErrors, `${plots.length}/${deep.length}, ${errs} point errors`); }
+  if (p.maxPlaceholdersPlusDuplicates !== undefined) add(`placeholder + duplicate labels <= ${p.maxPlaceholdersPlusDuplicates} across all cards`, s.content.placeholderEdge + s.content.duplicateLabels <= p.maxPlaceholdersPlusDuplicates, `${s.content.placeholderEdge} + ${s.content.duplicateLabels} of ${s.content.diagrams} diagrams`);
+  if (p.overviewFormulaLabels !== undefined) { const o = of('overview').filter(c => c.diagrams.some(d => d.flags.formulaLabels.length)).length; add(`overview: cards with formulas in diagram labels <= ${p.overviewFormulaLabels}`, depths.includes('overview') && o <= p.overviewFormulaLabels, `${o}/${of('overview').length}`); }
+  if (p.maxRepairRate !== undefined) add(`repairs <= ${100 * p.maxRepairRate}% (merged baseline)`, s.repairs.of > 0 && s.repairs.repaired / s.repairs.of <= p.maxRepairRate, `${s.repairs.repaired}/${s.repairs.of}`);
   if (p.maxDuplicatedRelationshipNodes !== undefined) add('no duplicated node in any relationship', s.content.duplicatedRelationshipNodes <= p.maxDuplicatedRelationshipNodes, `${s.content.duplicatedRelationshipNodes}/${s.content.relationships} relationship diagrams`);
   return out;
 }

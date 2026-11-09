@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
-import { availableSets, criteria, loadSet, proseOf, scoreCard, summarize } from './score.mjs';
+import { PLOT_KINDS, availableSets, cardKey, criteria, loadSet, proseOf, scoreCard, summarize } from './score.mjs';
 import { RUBRICS, combine, judgeItems, keyTransport } from './judge.mjs';
 
 export const DEFAULT_OUT = 'C:/s/spec/benchmarks/explain-bench';
@@ -25,12 +25,12 @@ export const runDirName = (label, now = new Date()) => {
 export function loadRaw(rawDir) {
   const recs = [], notes = [];
   for (const dir of readdirSync(rawDir, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort()) {
-    const m = /^(.+?)(?:-r(\d+))?$/.exec(dir), set = LEGACY[m[1]] || m[1], run = Number(m[2] || 1);
+    const m = /^(.+?)(?:-r(\d+))?(?:-(overview|standard|deep))?$/.exec(dir), set = LEGACY[m[1]] || m[1], run = Number(m[2] || 1), depth = m[3] || null; // <set>-r<run>[-<depth>]
     if (!availableSets().includes(set)) { notes.push(`skipped folder ${dir}: no set named ${set}`); continue; }
     const base = join(rawDir, dir), tokens = existsSync(join(base, 'tokens.json')) ? json(join(base, 'tokens.json')).cards : [];
     for (const row of rd(join(base, 'results.jsonl'))) {
       const card = existsSync(join(base, 'cards', `${row.id}.json`)) ? json(join(base, 'cards', `${row.id}.json`)) : null, t = tokens.find(x => x.id === row.id);
-      recs.push({ set, run, id: row.id, delivered: !!row.delivered && !!card?.response?.block, failure: row.failure, block: card?.response?.block || null, totalMs: row.totalMs, repaired: row.repaired,
+      recs.push({ set, run, depth, id: row.id, delivered: !!row.delivered && !!card?.response?.block, failure: row.failure, block: card?.response?.block || null, totalMs: row.totalMs, repaired: row.repaired,
         repairCauses: row.repairCauses || [], diagramCorrections: row.diagramCorrections, visualFallback: row.visualFallback, costUsd: row.costUsd,
         costSource: row.costSource || (row.ledgerUsd > 0 ? 'ledger' : 'estimate'), tokens: t ? { input: t.input, output: t.output, authorUsd: t.authorUsd, pictureUsd: t.pictureUsd } : null,
         raw: row.raw ?? null, unknownKeysStripped: row.unknownKeysStripped ?? null, picturesDropped: row.picturesDropped ?? null, startedAt: row.startedAt });
@@ -163,7 +163,13 @@ function summaries(cards, setNames) {
   const byRun = runsOf(cards).map(r => ({ run: r, summary: summarize(cards.filter(c => c.run === r)) }));
   // Examples A/B: every metric for cards the server gave 0 author references vs 1-2 (from explanation_author_raw); null when not logged.
   const refs = cards.some(c => c.references) ? { none: summarize(cards.filter(c => c.references && !c.references.count)), some: summarize(cards.filter(c => c.references?.count > 0)) } : null;
-  return { overall: summarize(cards), sets, spread, judgedByRun, byRun, refs };
+  // Per depth (--depths): the owner's correct-svg rows.
+  const byDepth = Object.fromEntries([...new Set(cards.map(c => c.depth).filter(Boolean))].map(dep => { const cs = cards.filter(c => c.depth === dep), s = summarize(cs), deep = cs.filter(c => c.deepPlot);
+    const faithfulCards = cs.filter(c => c.diagrams.some(d => d.faithful)), plots = cs.flatMap(c => c.diagrams.filter(d => PLOT_KINDS.includes(d.kind)).map(d => `${c.id} ${d.kind}: ${d.arithmetic?.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off` : `not checked (${d.arithmetic?.reason})`}`));
+    return [dep, { cards: cs.length, right: s.choice.right, faithful: faithfulCards.filter(c => c.diagrams.every(d => !d.faithful || d.faithful.verdict === 'yes')).length, faithfulJudged: faithfulCards.length,
+      quantityPlots: deep.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length, quantityPrompts: deep.length, placeholders: s.content.placeholderEdge, duplicates: s.content.duplicateLabels, bareMaths: s.content.bareMaths,
+      formulaLabelCards: s.content.formulaLabelCards, repaired: s.repairs.repaired, p50: s.speed.all.p50, p90: s.speed.all.p90, pointErrors: s.content.pointErrors, points: s.content.points, plots }]; }));
+  return { overall: summarize(cards), sets, spread, judgedByRun, byRun, refs, byDepth };
 }
 
 const previousRun = (root, exclude) => (existsSync(root) ? readdirSync(root).filter(d => d !== exclude && existsSync(join(root, d, 'results.json'))).sort().at(-1) : undefined);
@@ -185,6 +191,13 @@ export function markdown(r) {
     [...S.judgedByRun.map(x => [`r${x.run}`, ...[x.picture, x.faithful].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]),
       ['all runs', ...[S.overall.pictures.content && [S.overall.pictures.content.no, S.overall.pictures.content.judged], S.overall.content.faithful && [S.overall.content.faithful.no, S.overall.content.faithful.judged]].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]]), '');
   out.push('## Pass criteria on record', '', C.length ? table(['set', 'criterion', 'result', 'detail'], C.map(c => [c.set, c.rule, c.ok ? 'PASS' : '**FAIL**', c.detail])) : 'None for these sets.', '');
+  const BD = Object.entries(S.byDepth || {});
+  if (BD.length) out.push('## By depth', '', table(['metric', ...BD.map(([d]) => d)], [
+    ['right kind', ...BD.map(([, v]) => `${v.right}/${v.cards}`)], ['faithful to the sketch (judge, cards)', ...BD.map(([, v]) => (v.faithfulJudged ? `${v.faithful}/${v.faithfulJudged}` : '-'))],
+    ['plot or chart on the 6 quantity prompts', ...BD.map(([, v]) => `${v.quantityPlots}/${v.quantityPrompts}`)], ['placeholder edge labels (diagrams)', ...BD.map(([, v]) => v.placeholders)], ['duplicate node labels (diagrams)', ...BD.map(([, v]) => v.duplicates)],
+    ['bare maths (diagrams)', ...BD.map(([, v]) => v.bareMaths)], ['cards with formulas/maths in diagram labels', ...BD.map(([, v]) => v.formulaLabelCards)], ['repaired', ...BD.map(([, v]) => `${v.repaired}/${v.cards}`)],
+    ['p50 / p90 ms', ...BD.map(([, v]) => `${v.p50} / ${v.p90}`)], ['plotted points off (recomputed from the prose formula)', ...BD.map(([, v]) => `${v.pointErrors}/${v.points}`)]]), '',
+    ...BD.flatMap(([d, v]) => (v.plots.length ? [`- ${d} plots: ${v.plots.join('; ')}`] : [])), '');
   out.push('## Absolute gates (model arm choice; not in the exit code)', '', table(['gate', 'value', 'result'], gates(S.overall, S.byRun).map(g => [g.gate, g.value, g.ok === null ? 'n/a' : g.ok ? 'PASS' : '**FAIL**'])), '');
   if (r.referencesAB) out.push(`## Examples A/B: cards with 0 vs 1-2 author references`, '', table(['metric', `0 references (${S.refs.none.cards.sent} cards)`, `1-2 references (${S.refs.some.cards.sent} cards)`, `${r.referencesAB.against ?? 'no comparison run'} (all cards)`], r.referencesAB.rows), '', REFERENCES_RULE, '');
   else out.push('## Examples A/B', '', 'references: not logged (no explanation_author_raw line with references in the app log).', '');
@@ -208,7 +221,7 @@ export function markdown(r) {
   out.push('## Lists', ...[list('Failed sends', O.cards.failures), list('Wrong mix', O.choice.wrongList), list('Right mix, wrong kind', O.choice.rightMixWrongKind), list('Bad kind used', O.choice.badKindUsed),
     list('Picture missing where needed', O.pictures.missing), list('Picture where none belongs', O.pictures.violations), list('Pictures dropped', O.pictures.dropped?.list), list('Quantitative-kind prompts', O.richness.quant.list),
     list('Content flags', O.content.flaggedList), list('Plotted values', O.content.arithmeticList), list('Not faithful to the sketch', O.content.faithful?.list), list('Factual errors (judge)', O.factual?.list), list('Visual fallback', O.repairs.visualFallback)].filter(Boolean));
-  out.push('## Cards', '', table(['set', 'run', 'id', 'mix', 'score', 'ms', 'repaired', 'US$', 'references', 'visuals (diagram kind: items, flags; picture check)'], r.cards.map(c => [c.set, c.run, c.id, c.mix.join(' + ') || '-', c.score, c.totalMs ?? '-', c.repaired ? 'yes' : '', c.costUsd ?? '-',
+  out.push('## Cards', '', table(['set', 'run', 'id', 'mix', 'score', 'ms', 'repaired', 'US$', 'references', 'visuals (diagram kind: items, flags; picture check)'], r.cards.map(c => [c.set, c.depth ? `${c.run} ${c.depth}` : c.run, c.id, c.mix.join(' + ') || '-', c.score, c.totalMs ?? '-', c.repaired ? 'yes' : '', c.costUsd ?? '-',
     c.references ? `${c.references.count}${c.references.count ? ` (${c.references.ids.join(', ')})` : ''}` : '-',
     c.diagrams.map(d => `${d.kind}: ${d.units}${d.flagged ? ' FLAG' : ''}${d.arithmetic?.errors ? ` ${d.arithmetic.errors} pts off` : ''}${d.faithful ? ` faithful=${d.faithful.verdict}` : ''}`).concat(c.pictures.map(p => `picture${p.content ? `: shows the question=${p.content.verdict}` : ''}`)).join('; ')])), '');
   return out.join('\n');
@@ -239,7 +252,7 @@ export async function run(o) {
     const items = [], ref = new Map(), want = r => !o.judgeOnly?.length || o.judgeOnly.includes(r);
     const push = (key, rubric, text, target) => { if (want(rubric)) { items.push({ key, rubric, text }); ref.set(key, [rubric, target]); } };
     for (const c of cards.filter(x => x.delivered)) {
-      const key = `${c.set}/r${c.run}/${c.id}`, b = blocks.get(c);
+      const key = cardKey(c), b = blocks.get(c);
       push(key, 'factual', itemText.factual(c, b), c);
       if (c.sketch) c.diagrams.forEach((d, i) => { if (d.describe) push(`${key}#d${i}`, 'faithful', itemText.faithful(c, b, d), d); });
       c.pictures.forEach((p, i) => push(`${key}#p${i}`, 'picture', itemText.picture(c, b, p), p));
