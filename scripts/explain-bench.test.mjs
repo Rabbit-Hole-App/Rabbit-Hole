@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, useSpecTree, visuals, SET_NAMES } from './explain-bench/score.mjs';
+import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, useSpecTree, visuals, planOf, kindStatus, SET_NAMES } from './explain-bench/score.mjs';
 import { delta, g3CardText, rankArms, richnessVerdict, run } from './explain-bench/report.mjs';
 import { combine, judgeItems, JUDGE_MODEL, requestBody, useRubrics, RUBRICS, RUBRIC_VERSIONS } from './explain-bench/judge.mjs';
 // Answers every rubric's request shape: no tools = the JSON text of factual-v2, else a record_review call (verdict = the first enum value unless `pick` says otherwise).
@@ -317,4 +317,34 @@ test('--same-as judges only the items the earlier run answered; --rubrics is res
   assert.deepEqual(r.results.cards.filter(c => c.judge).map(c => c.depth), ['deep']);
   assert.match(RUBRICS.factual.version, /^factual-v2/, 'restored');
   assert.match(readFileSync(join(r.runDir, 'report.md'), 'utf8'), /\*\*factual\*\* `factual-v1 2026-11-08`/);
+});
+
+test('planner arm: plan from explanation_author_raw (fixed, two offered, rules failure, picture only), latency, fixed vs offered right rates, disagreements labelled', async () => {
+  const set = loadSet('correct-svg');
+  assert.deepEqual(planOf([{ attempt: 0, plan: { planner: 'rules' } }]), { planner: 'rules' });
+  assert.equal(planOf([{ attempt: 0, plan: null }]), null); assert.equal(planOf(null), null);
+  const root = mkdtempSync(join(tmpdir(), 'bench-plan-')), dir = join(root, 'raw', 'correct-svg-r1-deep');
+  mkdirSync(join(dir, 'cards'), { recursive: true });
+  const plan = (kind, fixed, ms, choose = null) => ({ attempt: 0, plan: { visuals: [{ type: 'diagram', ...(fixed ? { kind } : { choose }) }], depthTreatment: 'quantitative', kind, fixed, confidence: { kind: 0.7 }, flags: {}, ms }, references: [], visuals: [] });
+  const bar = fence({ kind: 'bar-chart', title: 'b', bars: [{ label: 'a', value: 1 }, { label: 'b', value: 2 }] });
+  const cards = [
+    ['sigmoid', plan('coordinate-plot', true, 200), fence(sigmoidPlot([0.12, 0.5, 0.88]))],            // fixed, author agrees, right
+    ['gini', plan('flow', true, 400), bar],                                                              // fixed flow (wrong for gini), author drew a bar-chart (right)
+    ['softmax', plan('transformation', false, 600, ['transformation', 'flow']), fence({ kind: 'relationship', title: 'r', nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], edges: [{ from: 'a', to: 'b', label: 'x' }] })], // offered two, author drew neither
+    ['lr-schedule', { attempt: 0, plan: { planner: 'rules' }, references: [], visuals: [] }, fence(sigmoidPlot([0.1, 0.2, 0.3]))],
+  ];
+  for (const [id, raw, vis] of cards) { const row = { id, delivered: true, totalMs: 1000, repaired: false, repairCauses: [], costUsd: 0.01, ledgerUsd: 0.01, raw: [raw] };
+    writeFileSync(join(dir, 'cards', `${id}.json`), JSON.stringify({ row, response: { result: 'artifact', block: block('p', vis) } })); writeFileSync(join(dir, 'results.jsonl'), (existsSync(join(dir, 'results.jsonl')) ? readFileSync(join(dir, 'results.jsonl'), 'utf8') : '') + JSON.stringify(row) + '\n'); }
+  mkdirSync(join(root, 'results', 'plan'), { recursive: true }); writeFileSync(join(root, 'results', 'plan', 'provenance.json'), JSON.stringify({ plannerInputTokensEstimate: 1000 }));
+  const r = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'plan' });
+  const P = r.results.summary.overall.planner;
+  assert.deepEqual([P.cards, P.failed, P.pictureOnly, P.ms.p50, P.ms.n], [4, 1, 0, 400, 3]);
+  assert.deepEqual([P.fixed.cards, P.fixed.right, P.suggested.cards, P.suggested.right], [2, 2, 1, 0]);
+  assert.deepEqual([P.disagreements.cards, P.disagreements.authorOnly, P.disagreements.planOnly, P.disagreements.neither], [2, 1, 1, 0]);
+  assert.ok(P.disagreements.list.some(l => l.includes('plan flow (fixed) = wrong; author drew bar-chart = right')));
+  assert.ok(P.disagreements.list.some(l => l.includes('plan transformation (offered transformation or flow) = acceptable; author drew relationship = wrong')));
+  assert.deepEqual(r.results.plannerCost, { tokens: 1000, perCard: 0.000042, cards: 4 });
+  const md = readFileSync(join(r.runDir, 'report.md'), 'utf8');
+  assert.match(md, /## Planner \(JEV\)/); assert.match(md, /planner failures \(planner: rules, the author ran without a plan\) \| 1 \|/); assert.match(md, /two kinds offered: cards, right \/ acceptable \/ wrong \| 1: 0 \/ 0 \/ 1 \|/);
+  assert.equal(kindStatus({ best: [['D:coordinate-plot'], ['D:coordinate-plot', 'D:*']], acceptable: [['D:transformation']] }, 'transformation'), 'acceptable'); // a D:* second slot does not make every kind right
 });

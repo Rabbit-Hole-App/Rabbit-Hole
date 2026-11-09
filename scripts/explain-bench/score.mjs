@@ -182,12 +182,23 @@ const CAUSES = [[/over_budget/, 'length / over budget'], [/decision needs/, 'dec
 export const repairCause = e => CAUSES.find(([re]) => re.test(e))?.[1] ?? `other: ${String(e).slice(0, 100)}`;
 
 // One saved card -> its scored row. rec: { set, run, id, delivered, failure, block, totalMs, repaired, repairCauses, diagramCorrections, visualFallback, costUsd, costSource, tokens, raw, unknownKeysStripped }
+// The JEV planner's plan, from the dev-only explanation_author_raw line of attempt 0: { planner: 'jev', ms, kind, fixed, offered: [a, b] | null } | { planner: 'rules' } (the planner failed: the author ran as without it) | null (no planner).
+export function planOf(raw) {
+  const e = (raw || []).find(x => (x.attempt ?? 0) === 0);
+  if (!e || !e.plan) return null;
+  if (e.plan.planner === 'rules') return { planner: 'rules' };
+  const d = (e.plan.visuals || []).find(v => v.type === 'diagram');
+  return { planner: 'jev', ms: e.plan.ms ?? null, kind: e.plan.kind ?? null, fixed: e.plan.fixed ?? null, offered: d?.choose || null, treatment: e.plan.depthTreatment ?? null, confidence: e.plan.confidence?.kind ?? null };
+}
+// A kind's label against a prompt's labels, as one diagram of a card: right = in a best pattern with one diagram token, acceptable = in an acceptable one, else wrong (pictures are ignored).
+export const kindStatus = (p, k) => { const hit = list => list.some(b => { const d = b.filter(t => t !== 'P'); return d.length === 1 && tokenOk(d[0], `D:${k}`); }); return hit(p.best) ? 'right' : hit(p.acceptable) ? 'acceptable' : 'wrong'; };
+const RANK = { right: 2, acceptable: 1, wrong: 0 }, bestOf = xs => xs.reduce((a, b) => (RANK[b] > RANK[a] ? b : a), 'wrong');
 export const cardKey = c => `${c.set}/r${c.run}${c.depth ? `/${c.depth}` : ''}/${c.id}`;
 export function scoreCard(p, rec) {
   // A per-depth prompt (correct-svg): that depth's kinds, acceptable kinds and sketch, as best/acceptable mixes (a picture or a second diagram allowed beside).
   if (p.depths) { const dp = p.depths[rec.depth || 'standard'], k = `D:${dp.kinds.join('|')}`, a = dp.acceptableKinds.length ? `D:${dp.acceptableKinds.join('|')}` : null;
     p = { ...p, kinds: dp.kinds, sketch: dp.sketch, best: [[k], [k, 'D:*'], [k, 'P'], ...(dp.extraBest || [])], acceptable: [...(a ? [[a], [a, 'D:*'], [a, 'P']] : []), ...(dp.extraAcceptable || [])] }; }
-  const block = rec.delivered ? rec.block : null, vis = block ? visuals(block) : [], mix = mixOf(vis), prose = block ? proseOf(block.body) : '';
+  const block = rec.delivered ? rec.block : null, vis = block ? visuals(block) : [], mix = mixOf(vis), prose = block ? proseOf(block.body) : '', plan = planOf(rec.raw);
   const diagrams = vis.filter(v => v.diagram).map(v => diagramScore(v.diagram, prose, p.kinds || null));
   const score = block ? scoreMix(p, vis) : 'failed', it = block?.interactions;
   return {
@@ -200,6 +211,8 @@ export function scoreCard(p, rec) {
     repaired: !!rec.repaired || (rec.repairCauses || []).length > 0, repairCauses: (rec.repairCauses || []).map(c => ({ attempt: c.attempt, cause: repairCause(c.error), error: String(c.error).slice(0, 240) })),
     corrections: rec.diagramCorrections || block?.diagramCorrections || null, visualFallback: rec.visualFallback || block?.visualFallback || null,
     unknownKeysStripped: rec.unknownKeysStripped ?? null, raw: rec.raw ?? null,
+    plan, planCheck: plan?.kind && diagrams.length ? (kinds => { const drawn = diagrams.map(d => d.kind); return { planKind: plan.kind, offered: plan.fixed ? null : plan.offered, agree: drawn.some(k => kinds.includes(k)), drawn,
+      planStatus: bestOf(kinds.map(k => kindStatus(p, k))), authorStatus: bestOf(drawn.map(k => kindStatus(p, k))) }; })(plan.fixed || !plan.offered ? [plan.kind] : plan.offered) : null,
     // Pictures dropped: a figure with status "dropped", or (from the app log) a picture that never reached "ready", whose fence the server removed. null = not known (no log).
     // The author examples the server attached (dev-only log line explanation_author_raw, attempt 0: references [ids]). null = not logged.
     references: (e => (Array.isArray(e?.references) ? { count: e.references.length, ids: e.references } : null))((rec.raw || []).find(x => (x.attempt ?? 0) === 0)),
@@ -266,6 +279,11 @@ export function summarize(cards) {
       faithful: judgedF.length ? { judged: judgedF.length, fully: judgedF.filter(d => ['fully', 'yes'].includes(d.faithful.verdict)).length, partly: judgedF.filter(d => d.faithful.verdict === 'partly').length, not: judgedF.filter(d => ['not', 'no'].includes(d.faithful.verdict)).length,
         list: judgedF.filter(d => !['fully', 'yes'].includes(d.faithful.verdict)).map(d => `${d.at} ${d.kind}: ${d.faithful.verdict} (${d.faithful.reason})`) } : null,
       beyond: (j => (j.length ? { judged: j.length, yes: j.filter(d => d.beyond.verdict === 'yes').length, list: j.filter(d => d.beyond.verdict === 'yes').map(d => `${d.at} ${d.kind}: ${d.beyond.reason}`) } : null))(dg.filter(d => d.beyond)) },
+    planner: (pl => { if (!pl.length) return null; const jev = pl.filter(c => c.plan.planner === 'jev'), group = cs => ({ cards: cs.length, right: cs.filter(c => c.score === 'right').length, acceptable: cs.filter(c => c.score === 'acceptable').length, wrong: cs.filter(c => c.score === 'wrong').length });
+      const dis = jev.filter(c => c.planCheck && !c.planCheck.agree), ok = s => s !== 'wrong';
+      return { cards: pl.length, failed: pl.length - jev.length, ms: timing(jev.map(c => c.plan.ms)), pictureOnly: jev.filter(c => !c.plan.kind).length, fixed: group(jev.filter(c => c.plan.kind && c.plan.fixed)), suggested: group(jev.filter(c => c.plan.kind && c.plan.fixed === false)),
+        disagreements: { cards: dis.length, planOnly: dis.filter(c => ok(c.planCheck.planStatus) && !ok(c.planCheck.authorStatus)).length, authorOnly: dis.filter(c => !ok(c.planCheck.planStatus) && ok(c.planCheck.authorStatus)).length, both: dis.filter(c => ok(c.planCheck.planStatus) && ok(c.planCheck.authorStatus)).length, neither: dis.filter(c => !ok(c.planCheck.planStatus) && !ok(c.planCheck.authorStatus)).length,
+          list: dis.map(c => `${at(c)}: plan ${c.planCheck.planKind} (${c.planCheck.offered ? 'offered ' + c.planCheck.offered.join(' or ') : 'fixed'}) = ${c.planCheck.planStatus}; author drew ${c.planCheck.drawn.join('+')} = ${c.planCheck.authorStatus}`) } }; })(cards.filter(c => c.plan)),
     repairs: { repaired: rep.length, of: cards.length, byCause, corrections: corr, correctionTotal: Object.values(corr).reduce((s, v) => s + v, 0),
       visualFallback: cards.filter(c => c.visualFallback).map(c => `${at(c)}: ${c.visualFallback}`),
       unknownKeysStripped: cards.some(c => c.unknownKeysStripped) ? { events: cards.reduce((s, c) => s + (c.unknownKeysStripped?.events || 0), 0), keys: cards.reduce((s, c) => s + (c.unknownKeysStripped?.keys || 0), 0), cards: cards.filter(c => c.unknownKeysStripped?.events).length } : null,

@@ -134,6 +134,12 @@ prompts, plus 4 + 4 + 4.
 - **Picture content** (judge, every picture): yes / no, "does the described picture show what the question asks, from a
   view that teaches it?", from the question, the prose paragraphs either side of the picture and its prompt, alt and
   caption. Reported as the count and share of "no" per run and across runs; no gate yet.
+- **Planner** (JEV planner stacks, from `plan` in the dev-only `explanation_author_raw` line, attempt 0): planner
+  latency added per card (`plan.ms` p50/p90), failures (`planner: "rules"`: the author ran without a plan), cards with
+  the kind fixed vs two kinds offered and the right-kind rate in each, and every card whose drawn kind is not the plan's
+  fixed kind (or neither offered kind) with the plan's label and the author's label side by side (right / acceptable /
+  wrong against the prompt's labels). The planner's cost is an estimate (its input size from the stack tree, US$0.042
+  per million input tokens): `plan.inputTokens` is not in the log line.
 - **Repairs**: repaired cards, first-attempt causes from `learn_artifact_invalid` log events, server corrections by
   kind (`block.diagramCorrections`), visual fallback, unknown keys stripped (`explanation_unknown_key_stripped`
   events and keys).

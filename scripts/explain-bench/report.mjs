@@ -22,9 +22,9 @@ export const runDirName = (label, now = new Date()) => {
   return `${p.year}-${p.month}-${p.day}T${p.hour}${p.minute}${p.second}-${String(label || 'run').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)}`;
 };
 
-export function loadRaw(rawDir) {
+export function loadRaw(rawDir, folders = null) {
   const recs = [], notes = [];
-  for (const dir of readdirSync(rawDir, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort()) {
+  for (const dir of readdirSync(rawDir, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).filter(n => !folders?.length || folders.includes(n)).sort()) {
     const m = /^(.+?)(?:-r(\d+))?(?:-(overview|standard|deep))?$/.exec(dir), set = LEGACY[m[1]] || m[1], run = Number(m[2] || 1), depth = m[3] || null; // <set>-r<run>[-<depth>]
     if (!availableSets().includes(set)) { notes.push(`skipped folder ${dir}: no set named ${set}`); continue; }
     const base = join(rawDir, dir), tokens = existsSync(join(base, 'tokens.json')) ? json(join(base, 'tokens.json')).cards : [];
@@ -102,6 +102,12 @@ export const METRICS = [
   ['server rewrite: flow -> sequence', s => s.repairs.corrections.flow_to_sequence ?? 0, null],
   ['server rewrite: flow loop -> cycle', s => s.repairs.corrections.flow_loop_to_cycle ?? 0, null],
   ['binary tree layout used', s => s.richness.binaryLayout, null],
+  ['planner: failed (author ran without a plan)', s => s.planner && pair(s.planner.failed, s.planner.cards), 'down'],
+  ['planner: p50 ms added per card', s => s.planner?.ms.p50 ?? null, 'down'],
+  ['planner: p90 ms added per card', s => s.planner?.ms.p90 ?? null, 'down'],
+  ['planner: right kind when the kind was fixed', s => s.planner?.fixed.cards ? pair(s.planner.fixed.right, s.planner.fixed.cards) : null, 'up'],
+  ['planner: right kind when two kinds were offered', s => s.planner?.suggested.cards ? pair(s.planner.suggested.right, s.planner.suggested.cards) : null, 'up'],
+  ['planner: author drew a kind the plan did not offer', s => s.planner && pair(s.planner.disagreements.cards, s.planner.cards - s.planner.failed - s.planner.pictureOnly), null],
   ['cards with 1-2 author references', s => s.references && pair(s.references.some, s.references.known), null],
 ];
 const share = v => (Array.isArray(v) && v[1] ? v[0] / v[1] : null);
@@ -220,6 +226,12 @@ export function markdown(r) {
   out.push('## Repairs', '', table(['cause (first attempt)', 'cards'], Object.entries(O.repairs.byCause).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, v])), '',
     `Server corrections: ${Object.entries(O.repairs.corrections).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}. Unknown keys stripped: ${O.repairs.unknownKeysStripped ? `${O.repairs.unknownKeysStripped.events} events, ${O.repairs.unknownKeysStripped.keys} keys, on ${O.repairs.unknownKeysStripped.cards} cards` : 'not logged'}. Raw pre-correction specs: ${O.repairs.rawLogged ? `logged for ${O.repairs.rawLogged}/${O.cards.sent} cards` : 'raw: not logged (no explanation_author_raw event in the app log)'}.`, '');
   out.push(`Slowest card: ${O.speed.slowest ? `${O.speed.slowest.at} ${O.speed.slowest.ms} ms, ${O.speed.slowest.repaired ? `repaired (${O.speed.slowest.causes.join(', ')})` : 'not repaired'}, ${O.speed.slowest.pictures} picture(s)` : '-'}.`, '');
+  if (O.planner) { const P = O.planner, f = P.fixed, g = P.suggested, d = P.disagreements, est = r.plannerCost;
+    out.push('## Planner (JEV)', '', table(['metric', 'value'], [['cards with a plan attempt', P.cards], ['planner failures (planner: rules, the author ran without a plan)', P.failed], ['planner latency added per card, p50 / p90 ms', `${P.ms.p50} / ${P.ms.p90} (n ${P.ms.n})`], ['plans with no diagram (picture only)', P.pictureOnly],
+      ['kind fixed: cards, right / acceptable / wrong', `${f.cards}: ${f.right} / ${f.acceptable} / ${f.wrong}`], ['two kinds offered: cards, right / acceptable / wrong', `${g.cards}: ${g.right} / ${g.acceptable} / ${g.wrong}`],
+      ['author drew a kind outside the plan (fixed kind, or neither offered kind)', d.cards], ['  planner label right or acceptable, author not', d.planOnly], ['  author label right or acceptable, planner not', d.authorOnly], ['  both right or acceptable', d.both], ['  neither', d.neither],
+      ['cost: author per card (ledger)', O.cost.perCard], ['cost: planner per card (estimate, input tokens only)', est ? `US$${est.perCard} (${est.tokens} tokens x US$0.042 per million; plan.inputTokens is not in the log line)` : 'not estimated (no provenance)']]), '', list('Plan and author disagree', d.list));
+  }
   out.push('## Lists', ...[list('Failed sends', O.cards.failures), list('Wrong mix', O.choice.wrongList), list('Right mix, wrong kind', O.choice.rightMixWrongKind), list('Bad kind used', O.choice.badKindUsed),
     list('Picture missing where needed', O.pictures.missing), list('Picture where none belongs', O.pictures.violations), list('Pictures dropped', O.pictures.dropped?.list), list('Quantitative-kind prompts', O.richness.quant.list),
     list('Content flags', O.content.flaggedList), list('Plotted values', O.content.arithmeticList), list('Not fully faithful to the sketch (Core)', O.content.faithful?.list), list('Claims beyond the prose (judge)', O.content.beyond?.list), list('Factual errors (judge)', O.factual?.list), list('Visual fallback', O.repairs.visualFallback)].filter(Boolean));
@@ -257,7 +269,7 @@ export async function run(o) {
   mkdirSync(runDir, { recursive: true });
   // The diagram wording the judge sees and the descriptions come from the tree the cards were made on: --spec-tree, else the run's recorded stack tree, else this tree.
   const specTree = await useSpecTree(o.specTree || (existsSync(join(runDir, 'provenance.json')) ? json(join(runDir, 'provenance.json')).stackTree : null));
-  const { recs, notes } = loadRaw(o.raw), setNames = [...new Set(recs.map(r => r.set))].sort((a, b) => availableSets().indexOf(a) - availableSets().indexOf(b));
+  const { recs, notes } = loadRaw(o.raw, o.folders), setNames = [...new Set(recs.map(r => r.set))].sort((a, b) => availableSets().indexOf(a) - availableSets().indexOf(b));
   const defs = Object.fromEntries(setNames.map(n => [n, loadSet(n)])), blocks = new Map(), cards = [];
   for (const rec of recs) {
     const p = defs[rec.set].prompts.find(x => x.id === rec.id);
@@ -296,7 +308,8 @@ export async function run(o) {
   const abAgainst = deltas.previous; // the run to compare the examples A/B with: --against <5d run dir>, else the previous run
   const referencesAB = summary.refs ? { against: abAgainst?.against ?? null, rows: METRICS.map(([label, get]) => [label, show(get(summary.refs.none)), show(get(summary.refs.some)), abAgainst ? show(get(abAgainst.summary)) : '-']).filter(row => row.slice(1).some(v => v !== '-')) } : null;
   for (const d of Object.values(deltas)) if (d) delete d.summary;
-  const results = { meta, provenance, judge, criteria: crit, gates: gates(summary.overall, summary.byRun), richness, referencesAB, deltas, summary, cards };
+  const pe = provenance?.plannerInputTokensEstimate, plannerCost = pe && summary.overall.planner ? { tokens: pe, perCard: +(pe * 0.042 / 1e6).toFixed(6), cards: summary.overall.planner.cards } : null;
+  const results = { plannerCost, meta, provenance, judge, criteria: crit, gates: gates(summary.overall, summary.byRun), richness, referencesAB, deltas, summary, cards };
   writeFileSync(join(runDir, 'results.json'), JSON.stringify(results, null, 1));
   writeFileSync(join(runDir, 'metrics.json'), JSON.stringify({ meta, provenance, criteria: crit, richness, deltas, summary }, null, 1));
   writeFileSync(join(runDir, 'report.md'), markdown(results));
@@ -307,10 +320,10 @@ export async function run(o) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const { values: a } = parseArgs({ options: { raw: { type: 'string' }, 'run-id': { type: 'string' }, label: { type: 'string' }, out: { type: 'string' }, against: { type: 'string' }, baseline: { type: 'string' }, 'tag-baseline': { type: 'boolean' },
-    judge: { type: 'boolean' }, judges: { type: 'string' }, 'judge-cap': { type: 'string' }, 'judge-only': { type: 'string' }, 'judge-dry-run': { type: 'boolean' }, rubrics: { type: 'string' }, 'spec-tree': { type: 'string' }, 'same-as': { type: 'string' }, 'richness-change': { type: 'boolean' } } });
-  if (!a.raw) { console.error('usage: node scripts/explain-bench/report.mjs --raw <dir> [--label ...] [--out ...] [--against <dir>] [--baseline <run id>] [--tag-baseline] [--judge [--judge-dry-run] [--judge-only factual,faithful,beyond,picture] [--same-as <run dir>] [--rubrics factual=factual-v1,beyond=beyond-v1] [--spec-tree <the stack worktree>] [--judges N] [--judge-cap 1.00]] [--richness-change]'); process.exit(2); }
+    judge: { type: 'boolean' }, judges: { type: 'string' }, 'judge-cap': { type: 'string' }, 'judge-only': { type: 'string' }, 'judge-dry-run': { type: 'boolean' }, rubrics: { type: 'string' }, 'spec-tree': { type: 'string' }, folders: { type: 'string' }, 'same-as': { type: 'string' }, 'richness-change': { type: 'boolean' } } });
+  if (!a.raw) { console.error('usage: node scripts/explain-bench/report.mjs --raw <dir> [--label ...] [--out ...] [--against <dir>] [--baseline <run id>] [--tag-baseline] [--judge [--judge-dry-run] [--judge-only factual,faithful,beyond,picture] [--same-as <run dir>] [--rubrics factual=factual-v1,beyond=beyond-v1] [--spec-tree <the stack worktree>] [--folders B,C] [--judges N] [--judge-cap 1.00]] [--richness-change]'); process.exit(2); }
   const r = await run({ raw: a.raw, runId: a['run-id'], label: a.label, out: a.out, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge || a['judge-dry-run'], judgeDryRun: a['judge-dry-run'],
-    judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), rubrics: a.rubrics, specTree: a['spec-tree'], sameAs: a['same-as'], judges: Number(a.judges || 1), judgeCap: Number(a['judge-cap'] || 1), richnessChange: a['richness-change'] });
+    judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), rubrics: a.rubrics, specTree: a['spec-tree'], folders: (a.folders || '').split(',').filter(Boolean), sameAs: a['same-as'], judges: Number(a.judges || 1), judgeCap: Number(a['judge-cap'] || 1), richnessChange: a['richness-change'] });
   for (const n of r.results.meta.notes) console.log(`note: ${n}`);
   for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
   const J = r.results.judge;

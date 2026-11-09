@@ -18,7 +18,7 @@ const WORST_CARD = 0.05; // --cap covers the whole invocation: the judge gets mi
 const EST = { authorCall: 0.008, picture: 0.007 }; // the 2026-11-08 study's estimate where the stack ledger records nothing: measured p50 US$0.005 a call, rounded up
 const JUDGE_EST = { card: 0.008, diagram: 0.006 }; // Sonnet 5.5 at low effort: ~1.5k tokens in, ~500 out per card (estimate, not measured)
 const PROBE = 'how does the water cycle work?'; // the fixed question the prompt hash is built for
-const SETTINGS = ['SMALL_ENV', 'EXPLANATION_MODEL_PROFILE', 'EXPLANATION_FALLBACK', 'EXPLANATION_STREAM', 'EXPLANATION_INTERACTIONS']; // the only non-secret vars read
+const SETTINGS = ['SMALL_ENV', 'EXPLANATION_MODEL_PROFILE', 'EXPLANATION_FALLBACK', 'EXPLANATION_STREAM', 'EXPLANATION_INTERACTIONS', 'EXPLANATION_PLANNER']; // the only non-secret vars read
 const sha = s => createHash('sha256').update(s).digest('hex').slice(0, 16);
 const named = (text, k) => (text.match(new RegExp(`^${k}=(.*)$`, 'm'))?.[1] ?? '').trim();
 const git = (dir, ...args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
@@ -47,6 +47,8 @@ async function provenance(tree, settings, sets) {
       p.promptHashOf = `sha256/16 of the plan request's system text + tools (probe "${PROBE}"); schemaHash = the tools alone`;
     }
   } catch (e) { p.promptHash = `unknown: ${String(e.message).slice(0, 160)}`; }
+  // The planner's input size (the JEV planner posts its seven questions with every card; plan.inputTokens is not in the log line): an estimate from characters, for the cost line.
+  try { const { QUESTIONS, PLANNER_MODEL } = await import(pathToFileURL(join(tree, 'packages/control-plane/src/explanation-planner.js')).href); p.plannerInputTokensEstimate = Math.ceil(JSON.stringify({ model: PLANNER_MODEL, state: { question: 'x'.repeat(60), depth: 'standard', context: null }, questions: QUESTIONS }).length / 3.5); } catch { p.plannerInputTokensEstimate = null; }
   try { p.diagramSchemaHash = sha(readFileSync(join(tree, 'packages/web/src/tutor-diagrams/spec.js'))); } catch { p.diagramSchemaHash = 'unknown'; }
   p.sets = Object.fromEntries(sets.map(n => [n, { ...loadSet(n).version, sha: sha(readFileSync(join(SETS_DIR, `${n}.json`))) }]));
   return p;
