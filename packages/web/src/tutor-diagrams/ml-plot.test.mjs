@@ -348,7 +348,7 @@ test('reference scenes validate, render at narrow/wide widths and cover the Phas
     assert.ok(references.some(r => r.keywords.includes(term)), term);
 });
 
-test('the descent reference samples and smoothly closes 24 points per contour', () => {
+test('the descent reference samples and smoothly closes 16 points per contour', () => {
   const d = references.find(ref => ref.id === 'gradient-descent-contours').spec.diagram;
   const { svg } = render(d, 408);
   const paths = marks(svg, 'data-tutor-plot-series');
@@ -357,17 +357,41 @@ test('the descent reference samples and smoothly closes 24 points per contour', 
     const radius = 2 - i;
     assert.equal(series.closed, true);
     const samples = plotSeriesPoints(series);
-    assert.equal(samples.length, 24);
+    assert.equal(samples.length, 16);
     samples.forEach(({ x, y }, index) => {
-      const angle = 15 * index * Math.PI / 180;
-      assert.ok(Math.abs(x - radius * Math.cos(angle)) <= 0.0005 + Number.EPSILON);
-      assert.ok(Math.abs(y - radius * Math.sin(angle)) <= 0.0005 + Number.EPSILON);
+      const angle = 22.5 * index * Math.PI / 180;
+      assert.ok(Math.abs(x / radius - Math.cos(angle)) <= 0.0005 + Number.EPSILON);
+      assert.ok(Math.abs(y / radius - Math.sin(angle)) <= 0.0005 + Number.EPSILON);
     });
     const path = paths[i].tag.match(/\bd="([^"]+)"/)[1];
     assert.match(path, /^M[^L]+Z$/);
-    assert.equal(path.split('C').length - 1, 24);
+    assert.equal(path.split('C').length - 1, 16);
   }
   assert.equal(marks(svg, 'data-tutor-plot-segment').filter(mark => mark.value === 'vector').length, 3);
+});
+
+test('the descent starts within the outer contour and follows a continuous decreasing-loss path to the origin', () => {
+  const { diagram } = references.find(ref => ref.id === 'gradient-descent-contours').spec;
+  const steps = diagram.annotations;
+  const loss = ({ x, y }) => x ** 2 + y ** 2;
+  assert.ok(loss(steps[0].from) < 4, 'Step 1 must start strictly inside the radius-2 contour');
+  for (const [i, { from, to }] of steps.entries()) {
+    if (i > 0) assert.deepEqual(from, steps[i - 1].to);
+    assert.ok(loss(to) < loss(from));
+  }
+  assert.deepEqual(steps.at(-1).to, { x: 0, y: 0 });
+});
+
+test('compact circle samples require a closed line and at least three samples', () => {
+  const d = plot();
+  d.x.min = d.y.min = -2;
+  d.series = [{ label: 'Contour', kind: 'line', closed: true, samples: { radius: 2, count: 16 } }];
+  assert.equal(errors(d), '');
+  d.series[0].closed = false;
+  assert.match(errors(d), /Circle samples require a closed line/);
+  d.series[0].closed = true;
+  d.series[0].samples.count = 2;
+  assert.notEqual(errors(d), '');
 });
 
 
