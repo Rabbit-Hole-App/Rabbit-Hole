@@ -72,7 +72,7 @@ export const references = [
   ref('softmax-probabilities', ['03'], 'How do softmax probabilities compare two multiclass predictions?', ['softmax', 'multiclass', 'probability', 'attention weights'],
     'Group two normalized probability vectors by class.',
     bar('Two softmax probability vectors', 'grouped', ['Cat', 'Dog', 'Bird'], [{ label: 'Input A', values: [0.7, 0.2, 0.1] }, { label: 'Input B', values: [0.15, 0.6, 0.25] }])) ,
-  ref('tree-impurity-mixtures', ['04'], 'Why is a pure decision-tree node less impure than a mixed node?', ['impurity', 'gini', 'class mixture', 'entropy'],
+  ref('tree-impurity-mixtures', ['04'], 'Why is a pure decision-tree node less impure than a mixed node?', ['impurity', 'gini', 'class mixture'],
     'Show equal-size class counts so purity can be compared without a size confound.',
     bar('Class mixtures in equal-size tree nodes', 'stacked', ['Pure', 'Mostly A', 'Mixed'], [{ label: 'Class A', values: [10, 8, 5] }, { label: 'Class B', values: [0, 2, 5] }], 'samples')),
   ref('regression-tree-steps', ['04'], 'Why does a regression tree predict a step function?', ['regression tree', 'step', 'piecewise constant'],
@@ -153,7 +153,7 @@ export const references = [
     plot('ROC compares sensitivity and false alarms', axis('False-positive rate', 0, 1), axis('True-positive rate', 0, 1), [
       series('Classifier ROC', [[0, 0], [0.1, 0.6], [0.3, 0.85], [1, 1]]), series('Chance diagonal', [[0, 0], [1, 1]]),
     ], [point(0.1, 0.6, 'One decision threshold')])),
-  ref('precision-recall-thresholds', ['09', '17'], 'Why is a precision-recall curve useful for imbalanced classification?', ['pr', 'precision recall', 'precision and recall', 'recall', 'threshold', 'imbalance'],
+  ref('precision-recall-thresholds', ['09', '17'], 'Why is a precision-recall curve useful for imbalanced classification?', ['pr', 'precision recall', 'threshold', 'imbalance'],
     'Show the precision/recall tradeoff against a prevalence baseline.',
     plot('Precision and recall change together', axis('Recall', 0, 1), axis('Precision', 0, 1), [series('Classifier', [[0.1, 0.95], [0.3, 0.85], [0.5, 0.68], [0.7, 0.48], [1, 0.2]])], [line('y', 0.2, 'Positive prevalence = 20%')])),
   ref('learning-curves', ['09', '10'], 'How can learning curves show whether more data may help?', ['learning curves', 'evaluation', 'bias variance'],

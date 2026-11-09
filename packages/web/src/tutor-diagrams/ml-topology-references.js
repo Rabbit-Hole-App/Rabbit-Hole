@@ -58,7 +58,7 @@ export const references = [
       { id: 'regression', label: 'Regression', parent: 'supervised' }, { id: 'classification', label: 'Classification', parent: 'supervised' },
       { id: 'clustering', label: 'Clustering', parent: 'unsupervised' },
     ] }),
-  reference('ml-tree-split-path', ['04'], ['decision tree', 'split', 'path', 'sample count', 'gini', 'impurity'],
+  reference('ml-tree-split-path', ['04'], ['decision tree', 'split', 'path', 'sample count'],
     'Explain a decision tree split with branch conditions, sample counts, and one prediction path.',
     'Use an actual binary tree when teaching split thresholds, sample membership, impurity, and a root-to-leaf prediction.',
     { kind: 'tree', title: 'A prediction follows tested conditions', layout: 'binary',
