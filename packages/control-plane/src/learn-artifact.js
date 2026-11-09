@@ -1,5 +1,5 @@
 import { planExplanation, planShape, cardVisuals, visualKinds, visualsStatement, plannerEnabled } from './explanation-planner.js';
-import { selectDiagramReferences, preferSingleVariants, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
+import { selectDiagramReferences, selectWithSteer, preferSingleVariants, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -102,6 +102,7 @@ export function artifactPlan(command, { args = '', selection = null } = {}, env 
 // CORE.05: the exact first author request (system with any trusted suffix, tools, messages, output cap), so a quote and the dispatch hash
 // the same full body. -> a plan refusal ({ result }) | { request, ready, messages, model, body }
 export function prepareArtifactAuthorRequest(env, input, { only = null, systemSuffix = '', profile = null } = {}) {
+  input = planWithReferenceKind(input);
   const plan = artifactPlan(input.command, input, env, only);
   if (plan.result) return plan;
   const { request, ready } = plan;
@@ -150,6 +151,20 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
 
 // The learner's asked visuals (an implied picture is not one: explanation-visuals.js deriveVisualRequirements).
 const askedItems = input => (input.visualRequirements?.items ?? []).filter(i => !i.implied);
+// Owner 2026-11-09 (release 118): the planner's kind must not beat a selected worked example. When a JEV plan holds exactly one diagram and the learner named no diagram kind, a topical
+// reference that qualifies by its direct score (explanation-references.js topicalReferenceKind) sets the plan's diagram kind (kindSource 'reference', plannerKind kept); the picture visuals,
+// and the plan's `fixed`, are untouched. Applied once where the plan is made and again, idempotently, where the author request is built, so the statement, the shape example, the
+// reference and every later check (missing visual, repair, fallback) read the same kind. A picture-only plan, two diagrams, or an earlier override: unchanged.
+export function planWithReferenceKind(input) {
+  const plan = input?.plan;
+  if (plan?.planner !== 'jev' || plan.kindSource || !input.args || askedItems(input).some(i => i.kind === 'diagram' && i.diagramKind)) return input;
+  const diagrams = (plan.visuals ?? []).filter(v => v?.type === 'diagram');
+  if (diagrams.length !== 1) return input;
+  const hit = selectWithSteer({ prompt: input.args, requiredKinds: [], plannedKinds: [], shapeFallback: false, depth: input.depth }).steer;
+  if (!hit || [hit.kind, hit.referenceKind].includes(plan.kind)) return input; // a planned comparison with a two-panel comparison reference agrees: the comparison is the point
+  console.log(JSON.stringify({ event: 'explanation_plan_kind_from_reference', plannerKind: plan.kind ?? null, reference: hit.id, referenceKind: hit.kind, steerSource: hit.source, score: hit.score }));
+  return { ...input, plan: { ...plan, plannerKind: plan.kind ?? null, kind: hit.kind, kindSource: 'reference', visuals: plan.visuals.map(v => (v === diagrams[0] ? { type: 'diagram', kind: hit.kind } : v)) } };
+}
 // What a last-resort simplified diagram is drawn as: the card's planned kind when there is a plan (flow, cycle or sequence; any other kind becomes a flow), else the learner's words (explanation-visuals.js fallbackKind).
 const simplifiedKind = input => { if (input.plan?.planner !== 'jev') return fallbackKind(input.args); const kind = visualKinds(cardVisuals(input.plan, askedItems(input)))[0]; return ['flow', 'cycle', 'sequence'].includes(kind) ? kind : 'flow'; };
 
@@ -163,6 +178,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   if (!input.planned && (input.command === 'explain' || input.command === 'explanation') && String(input.args || '').trim() && plannerEnabled(env)) {
     input = { ...input, planned: true, plan: await planExplanation(env, { question: input.args, depth: validDepth(input.depth) || DEFAULT_DEPTH, context: input.context || null }) };
   }
+  input = planWithReferenceKind(input); // the reference's kind over the planner's guess (a plan the caller supplied too; idempotent)
   // Owner 2026-11-08 (clean-up): the 6a/6b word heuristics (repeat words -> cycle, looks-like -> picture) run only when the planner made no plan; one log line says which source decided the visuals.
   if (!input.visualsLogged && (input.command === 'explain' || input.command === 'explanation')) {
     const resolved = cardVisuals(input.plan, askedItems(input));
@@ -208,7 +224,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       if (id === 'explanation' && (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test')) {
         const visuals = call.input?.visuals ?? null;
         // references: the ids of the worked examples this request carried (0-2), so the bench can split results by them (owner 2026-11-08).
-        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, plan: input.plan ? { visuals: input.plan.visuals, depthTreatment: input.plan.depthTreatment, kind: input.plan.kind, fixed: input.plan.fixed, confidence: input.plan.confidence, flags: input.plan.flags, ms: input.plan.ms } : input.planned ? { planner: 'rules' } : null, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
+        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, plan: input.plan ? { visuals: input.plan.visuals, depthTreatment: input.plan.depthTreatment, kind: input.plan.kind, ...(input.plan.kindSource ? { kindSource: input.plan.kindSource, plannerKind: input.plan.plannerKind } : {}), fixed: input.plan.fixed, confidence: input.plan.confidence, flags: input.plan.flags, ms: input.plan.ms } : input.planned ? { planner: 'rules' } : null, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
       }
       // Owner 2026-11-09 hotfix: line breaks the author double-escaped (the two characters backslash and n) become real line breaks, in every string of the answer, first.
       if (id === 'explanation' && call.input) call = { ...call, input: literalBreaksDeep(call.input) };

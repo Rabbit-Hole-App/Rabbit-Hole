@@ -82,14 +82,23 @@ function referenceVariants(ref, required) {
 const DEPTH_KEYS = { brief: 'overview', balanced: 'standard', detailed: 'deep' };
 // plannedKinds (owner 2026-11-08, clean-up): the card's resolved diagram kinds (explanation-planner.js cardVisuals); candidates are filtered to them BEFORE keyword scoring, so a
 // reference of another kind is never offered. Empty: no filter (the rules decide the kind).
-export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard' } = {}) {
+export const selectDiagramReferences = options => selectWithSteer(options).references;
+// Owner 2026-11-09 (release 118): the planner's kind must not beat a selected worked example. The best TOPICAL reference (never a shape-* or general-* example) by its direct score, read BEFORE the
+// plannedKinds filter and before any shape fallback or kind bonus, qualifies at an exact documented prompt (+50), a short-topic hit (+40) or direct >= TOPICAL_STEER_MIN (12: one long phrase, or two
+// short learner phrases). It is then kept whole whatever the planner's kind (and goes first), and its kind comes back as steer { kind, source: 'reference', id, referenceKind, score }; a
+// two-panel reference is read through its single-diagram variant (preferSingleVariants), so its kind is that variant's. A learner-named kind (requiredKinds) is never steered: null.
+export const TOPICAL_STEER_MIN = 12;
+export function selectWithSteer({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard' } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   // Broad lesson aliases resolve a whole direct topic, including concise requests such as “show me the forest vote”.
   const shortTopic = query.replace(/^(?:please )?(?:(?:can you )?(?:explain|show me|describe|tell me about|help me understand) )?(?:the |an? )?/u, '');
   const source = normalized(contextText(context));
   const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
   const level = DEPTH_KEYS[depth] ?? depth; // the references' depth variants are keyed overview / standard / deep; the renamed levels (brief / balanced / detailed) map to them
-  const wanted = new Set(plannedKinds), candidates = diagramReferences.flatMap(ref => referenceVariants(ref.depths?.[level] ? { ...ref, ...ref.depths[level] } : ref, required)).filter(ref => !wanted.size || wanted.has(ref.spec.diagram.kind) || wanted.has(singleByPanel.get(ref.id)?.spec.diagram.kind)); // a two-panel reference also qualifies through its one-diagram variant's kind (Codex set 3), which preferSingleVariants then sends
+  const wanted = new Set(plannedKinds), atLevel = ref => (ref.depths?.[level] ? { ...ref, ...ref.depths[level] } : ref);
+  const topical = required.size || !query ? null : diagramReferences.filter(ref => !/^(?:shape|general)-/.test(ref.id)).map((ref, index) => ({ ref: atLevel(ref), index }))
+    .map(item => ({ ...item, score: topicScore(query, item.ref, shortTopic) })).filter(item => item.score >= TOPICAL_STEER_MIN).sort((x, y) => (y.score - x.score) || x.index - y.index)[0] ?? null;
+  const candidates = diagramReferences.flatMap(ref => referenceVariants(atLevel(ref), required)).filter(ref => !wanted.size || ref.id === topical?.ref.id || wanted.has(ref.spec.diagram.kind) || wanted.has(singleByPanel.get(ref.id)?.spec.diagram.kind)); // a two-panel reference also qualifies through its one-diagram variant's kind (Codex set 3), which preferSingleVariants then sends
   const ranked = candidates.map((ref, index) => ({
     ref, index, direct: topicScore(query, ref, shortTopic), source: topicScore(source, ref),
   }));
@@ -114,7 +123,8 @@ export function selectDiagramReferences({ prompt = '', context = '', requiredKin
     chars += length;
     if (picked.length === MAX_REFERENCES) break;
   }
-  return picked.length || !shapeFallback ? picked : shapeExamples(prompt, required);
+  const steer = topical && picked[0]?.id === topical.ref.id ? { kind: (singleByPanel.get(topical.ref.id) ?? topical.ref).spec.diagram.kind, source: 'reference', id: topical.ref.id, referenceKind: topical.ref.spec.diagram.kind, score: topical.score } : null;
+  return { references: picked.length || !shapeFallback ? picked : shapeExamples(prompt, required), steer };
 }
 
 // Owner 2026-11-08 (Codex set 3): a selected two-panel reference (comparison panels, visual transformation) is sent as its one-diagram `-single` variant (about half the

@@ -90,8 +90,9 @@ test('a two-panel reference goes out as its single-diagram variant unless the pl
   assert.equal(ask(q)[0].spec.diagram.kind, 'matrix');
   const plan = kind => ({ plan: planFromAnswers(answers({ kind: { choice: kind, probabilities: { [kind]: 0.9 } } })), planned: true });
   assert.deepEqual(ask(q, plan('comparison')).map(r => r.id), ['shape-comparison', 'ml-cpu-vs-gpu']);
-  // the clean-up's planned-kind filter: a transformation plan offers no comparison reference (it is not of the planned kind), so only the shape example goes out
-  assert.deepEqual(ask(q, plan('transformation')).map(r => r.id), ['shape-transformation']);
+  // release 118: the planner's kind does not beat a selected worked example. A transformation plan for this exact documented prompt takes the reference's (single-variant) kind, matrix, and its shape and reference go out
+  // (before 118 the planned-kind filter offered no reference and only shape-transformation went out)
+  assert.deepEqual(ask(q, plan('transformation')).map(r => r.id), ['shape-matrix', 'ml-cpu-vs-gpu-single']);
   assert.deepEqual(ask(q, plan('matrix')).map(r => r.id), ['shape-matrix', 'ml-cpu-vs-gpu-single']);
   const required = deriveVisualRequirements('Draw a comparison diagram of CPU vs GPU');
   assert.ok(ask('Draw a comparison diagram of CPU vs GPU', { visualRequirements: required }).every(r => !r.id.endsWith('-single')), 'a required comparison keeps the panels');

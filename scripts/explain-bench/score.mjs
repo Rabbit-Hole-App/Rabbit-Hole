@@ -241,7 +241,7 @@ export function planOf(raw) {
   if (e.plan.planner === 'rules') return { planner: 'rules' };
   const d = (e.plan.visuals || []).find(v => v.type === 'diagram');
   // physical = the planner's isPhysical probability; pictures = pictures in the plan; physicalOverride only when the server logs it (the raw line does not carry it yet: see the summary's physical counts).
-  return { planner: 'jev', ms: e.plan.ms ?? null, kind: e.plan.kind ?? null, fixed: e.plan.fixed ?? null, offered: d?.choose || null, treatment: e.plan.depthTreatment ?? null, confidence: e.plan.confidence?.kind ?? null,
+  return { planner: 'jev', ms: e.plan.ms ?? null, kind: e.plan.kind ?? null, kindSource: e.plan.kindSource ?? null, plannerKind: e.plan.plannerKind ?? null, fixed: e.plan.fixed ?? null, offered: d?.choose || null, treatment: e.plan.depthTreatment ?? null, confidence: e.plan.confidence?.kind ?? null,
     physical: e.plan.flags?.isPhysical ?? null, pictures: (e.plan.visuals || []).filter(v => v.type === 'picture').length, diagrams: (e.plan.visuals || []).filter(v => v.type === 'diagram').length, physicalOverride: e.plan.physicalOverride ?? null };
 }
 // A kind's label against a prompt's labels, as one diagram of a card: right = in a best pattern with one diagram token, acceptable = in an acceptable one, else wrong (pictures are ignored).
