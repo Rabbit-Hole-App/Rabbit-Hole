@@ -201,7 +201,8 @@ const generation = reference('autoregressive-prefix',
     ],
   }));
 
-const correctIndex = vocabulary.indexOf(predictedToken);
+const observedToken = sentence[decoderPrefix.length];
+const correctIndex = vocabulary.indexOf(observedToken);
 const nextTokenTarget = reference('one-hot-target',
   ['How does next-token training compare a probability vector with a one-hot target?'],
   ['How do vocabulary slots line up with the one-hot label for the next word?'],

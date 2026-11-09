@@ -10,7 +10,8 @@ import { DOMParser, parseHTML } from 'linkedom';
 import { marked } from 'marked';
 
 const outputRoot = fileURLToPath(new URL('../../../docs/features/explain-on-canvas/handoff/figure-briefs/', import.meta.url));
-const agent = 'ChatGPT-User (Rabbit Hole figure briefs)';
+const product = 'ChatGPT-User';
+const agent = product + ' (Rabbit Hole figure briefs)';
 const d2lSections = {
   'linear-regression': ['linear-regression', 'generalization', 'weight-decay'],
   'linear-classification': ['softmax-regression', 'generalization-classification', 'environment-and-distribution-shift'],
@@ -94,7 +95,7 @@ function parseRobots(text) {
     }
   }
   const scores = groups.map(group => Math.max(-1, ...group.agents.map(name =>
-    name === '*' ? 0 : agent.toLowerCase().includes(name) ? name.length : -1)));
+    name === '*' ? 0 : product.toLowerCase() === name ? name.length : -1)));
   const best = Math.max(-1, ...scores);
   const selected = best < 0 ? [] : groups.filter((_, index) => scores[index] === best);
   const rules = selected.flatMap(group => group.rules).sort((a, b) => b.length - a.length || Number(b.allow) - Number(a.allow));
@@ -147,9 +148,7 @@ function crawler({ fetch: get = globalThis.fetch, now = Date.now, sleep = delay 
           return parseRobots('');
         }
         if (response.ok) {
-          const text = await response.text();
-          // D2L redirects its missing robots path to an HTML home page.
-          return parseRobots(response.headers.get('content-type')?.includes('text/html') ? '' : text);
+          return parseRobots(await response.text());
         }
         await response.body?.cancel();
       } catch {
@@ -170,8 +169,12 @@ function headingText(node) {
   heading?.querySelectorAll('.headerlink,.d2l-tabs').forEach(control => control.remove());
   return nodeText(heading);
 }
-function pageFigures(source, contents, url) {
+export function pageFigures(source, contents, url) {
   const document = parseHTML(source.markdown ? '<main>' + marked.parse(contents) + '</main>' : contents).document;
+  const signInTitle = /^(?:sign\s*in|log\s*in)(?:\b|$)/i.test(headingText(document.querySelector('main h1,article h1,h1,title')));
+  if (signInTitle && document.querySelector('form input[type="password"]')) {
+    throw Object.assign(new Error('Login wall'), { status: 'login-wall' });
+  }
   const root = source.selector ? document.querySelector(source.selector) :
     document.querySelector('article,main,[role="main"]') ?? document;
   if (!root) throw new Error('Article selector did not match');
@@ -196,10 +199,13 @@ function pageFigures(source, contents, url) {
     const figureUrl = publicUrl(src, url);
     if (source.slug === 'illustrated-transformer' && !figureUrl.pathname.startsWith('/images/t/')) continue;
     const frame = node.closest('figure,.figure');
+    const imageWrapper = source.group === 'alammar' ? node.closest('.img-div,.img-div-any-width,.img-div-any-size') : null;
+    const caption = nodeText(frame?.querySelector('figcaption,.caption')) ||
+      (imageWrapper?.querySelectorAll('img,image[src]').length === 1 ? nodeText(imageWrapper) : '');
     const card = node.closest('article.llm-architecture-overview__card');
     const figure = {
       order: figures.length + 1, figureUrl: figureUrl.href, context: {
-        alt: clean(node.getAttribute('alt')), caption: nodeText(frame?.querySelector('figcaption,.caption')),
+        alt: clean(node.getAttribute('alt')), caption,
         heading: headingText(card?.querySelector(headings)) || heading, before: previous, after: '', svgText: [],
       },
     };
@@ -352,17 +358,21 @@ async function extractSvgLabels(sources, output) {
   }
 }
 
-async function main(args) {
+export function selectSources(inputs) {
   const defaults = sourcePages();
-  const labelsOnly = args[0] === '--extract-svg-text';
-  if (labelsOnly) args = args.slice(1);
-  const sources = args.length ? args.flatMap(input => {
+  const sources = inputs.length ? inputs.flatMap(input => {
     const match = defaults.filter(source => source.group === input || source.slug === input);
     if (match.length) return match;
     const url = publicUrl(input);
-    return [{ slug: slugify(url.hostname + url.pathname), url: url.href }];
+    const configured = defaults.find(source => source.url.replace(/\/$/, '') === url.href.replace(/\/$/, ''));
+    return [configured ?? { slug: slugify(url.hostname + url.pathname), url: url.href }];
   }) : defaults;
-  const unique = [...new Map(sources.map(source => [source.slug, source])).values()];
+  return [...new Map(sources.map(source => [source.slug, source])).values()];
+}
+
+async function main(args) {
+  const labelsOnly = args[0] === '--extract-svg-text';
+  const unique = selectSources(labelsOnly ? args.slice(1) : args);
   if (labelsOnly) return extractSvgLabels(unique, outputRoot);
   const inventory = await scrapeSources(unique, outputRoot, {
     onSource: (slug, page) => console.log(slug + ': ' + page.figures.filter(f => f.status === 'downloaded').length +

@@ -4,7 +4,7 @@ import { lintDiagramContent } from '../../scripts/explanation-content-contract.m
 import { selectDiagramReferences } from '../../../control-plane/src/explanation-references.js';
 import { parseTutorDiagram } from './spec.js';
 import { transformerFigureReferences } from './reference-library.js';
-import { heads, inputs, positions, predictedToken, projected, queryIndex, vocabularyWeights } from './transformer-walkthrough-data.js';
+import { decoderPrefix, heads, inputs, positions, projected, queryIndex, sentence, vocabulary, vocabularyWeights } from './transformer-walkthrough-data.js';
 
 test('each figure reference parses, lints, and reaches the author at every depth', () => {
   assert.equal(transformerFigureReferences.length, 13);
@@ -39,8 +39,8 @@ test('batched attention, positions, residual and vocabulary use the existing wal
   const normalized = residual.after.items[1].tensor.values;
   assert.ok(Math.abs(normalized.reduce((sum, value) => sum + value, 0)) < 0.004);
   assert.ok(Math.abs(normalized.reduce((sum, value) => sum + value ** 2, 0) / 4 - 1) < 0.003);
-  const vocabulary = find('ml-transformer-one-hot-target');
-  const row = vocabulary.rows.find(row => row.cells[1] === '1');
-  assert.equal(row.heading, predictedToken);
-  assert.equal(Number(row.cells[0]), Math.max(...vocabularyWeights));
+  const target = find('ml-transformer-one-hot-target').rows.find(row => row.cells[1] === '1');
+  const next = sentence[decoderPrefix.length];
+  assert.equal(target.heading, next);
+  assert.equal(Number(target.cells[0]), vocabularyWeights[vocabulary.indexOf(next)]);
 });

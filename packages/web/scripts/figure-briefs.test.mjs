@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { scrapeSources, sourcePages } from './figure-briefs.mjs';
+import { pageFigures, scrapeSources, selectSources, sourcePages } from './figure-briefs.mjs';
 
 test('keeps source order, a private exact context manifest, and an index with no artwork or prose', async t => {
   const out = await mkdtemp(join(tmpdir(), 'figure-briefs-'));
@@ -20,7 +20,7 @@ test('keeps source order, a private exact context manifest, and an index with no
     '<img src="/blocked.png"><img src="/figure.svg"></article></main>';
   const svg = '<svg xmlns="http://www.w3.org/2000/svg"><text>Axis</text><!-- 0.5 --><g></g></svg>';
   const routes = {
-    '/robots.txt': ['User-agent: *\nDisallow: /blocked', 'text/plain'],
+    '/robots.txt': ['User-agent: *\nDisallow: /blocked\nUser-agent: figure\nAllow: /blocked', 'text/html'],
     '/lesson': [html, 'text/html'],
     '/figure.svg': [svg, 'image/svg+xml'],
     '/sequence.gif': ['GIF89a', 'image/gif'],
@@ -83,8 +83,27 @@ test('checks robots at a redirect destination and never follows a login redirect
 test('pins the 21 lesson pages and begins with the Illustrated Transformer', () => {
   const sources = sourcePages();
   assert.match(sources[0].url, /jalammar.github.io\/illustrated-transformer\/$/);
+  assert.deepEqual(selectSources([sources[0].url, sources[0].slug, sources[0].url.slice(0, -1)]), [sources[0]]);
   const curriculum = sources.filter(page => page.group === 'phase02');
   assert.equal(curriculum.length, 21);
   assert.ok(curriculum.every(page => page.url.includes('/e7db050e64bde3be17a9381476f748da26d85692/')));
   assert.deepEqual(curriculum.map(page => page.lesson), Array.from({ length: 21 }, (_, i) => String(i + 1).padStart(2, '0')));
+});
+
+test('reads the source caption after a legacy inline figure', () => {
+  const [source] = sourcePages();
+  const html = '<article class="post"><div class="entry"><p>Before.</p>' +
+    '<div class="img-div-any-width"><image src="/images/t/attention.png" alt="Link weights"><br>' +
+    'Text after the image.</div><p>After.</p></div></article>';
+  const [{ context }] = pageFigures(source, html, source.url).figures;
+  assert.equal(context.caption, 'Text after the image.');
+  assert.equal(context.before, 'Before.');
+  assert.equal(context.after, 'After.');
+});
+
+test('refuses a sign-in form returned at the original page URL', () => {
+  const source = { url: 'https://example.test/lesson' };
+  const html = '<main><h1>Sign in to read this lesson</h1><img src="/logo.png">' +
+    '<form><input type="password"></form></main>';
+  assert.throws(() => pageFigures(source, html, source.url), { message: 'Login wall', status: 'login-wall' });
 });
