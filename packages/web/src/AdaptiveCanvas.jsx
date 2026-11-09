@@ -75,6 +75,7 @@ import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, colu
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
+import { besideSpot } from './beside-placement.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
@@ -2308,13 +2309,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // connector joins them, its id derived from the action so a repeated insert for the same action adds no second link.
       // fit (learn-slash.js, a new written Explanation; owner 2026-11-08): the card opens at its full length (card-layout.js fullLength) and its one
       // camera correction frames it whole instead of only panning to it (revealRef fit), zooming out or in; a reopened board has no such correction.
-      insertBlock: (block, { into = null, after = null, parent = null, fit = false } = {}) => {
+      insertBlock: (block, { into = null, after = null, parent = null, fit = false, link = true } = {}) => {
         if (!alive.current) return null;
         snapshot();
         const framed = id => { if (fit && revealRef.current?.id === id) revealRef.current.fit = { moves: revealRef.current.moves, h: null }; return id; };
         // A confirmed /motion card lands with its press's request id (withPressId), so a reload can never start a second job.
         let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}) } } : {}) });
-        if (parent?.id && blocksRef.current.some(entry => entry.id === parent.id)) {
+        if (link && parent?.id && blocksRef.current.some(entry => entry.id === parent.id)) { // link: false = a card placed beside its source, no connector (owner 2026-11-08)
           const linkId = parent.actionId ? `explain-child-${parent.actionId}` : crypto.randomUUID();
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
         }
@@ -2389,9 +2390,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at = null, quiet = false, state = 'generating' }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null }) => {
         const id = `slot:${crypto.randomUUID()}`;
-        const size = slotSize(card, BLOCK_TYPES, samples);
+        let size = slotSize(card, BLOCK_TYPES, samples);
+        // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
+        const source = beside ? boundsRef.current[beside] : null, spot = !given && source ? besideSpot(source, size, boardObstacles([beside])) : null, at = given || spot;
+        if (spot) size = { ...size, h: Math.round(source.h) };
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
@@ -5421,6 +5425,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const slot = into && slotsRef.current.find(entry => entry.id === into);
     const index = slot ? null : flowIndexAtView();
     if (slot?.top) block = { ...block, space: slot.top };
+    if (slot?.at) pendingAt.current.set(block.id, slot.at); // an anchored slot (beside its source, or a Tutor offer): the card's offsets put its top-left on the slot once it is measured
     setBlocks(previous => { const at = slot ? slotIndex(previous, slot) : index; return [...previous.slice(0, at), block, ...previous.slice(at)]; });
     if (slot) setSlots(previous => fillSlot(previous, into, block.id));
     return revealAfter(block.id, slot?.moves);
@@ -6157,7 +6162,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       chatWorkspace.panels?.openChat?.();
       const text = [card.title, card.body, ...(card.more || []).map(section => section.text)].filter(Boolean).join('\n\n').slice(0, 8000);
       // The card is the turn's subject, captured now. parentLink asks the written /explain to join its child card to this one (learn-slash.js insertBlock parent).
-      const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}) }; // 'follow-up' (the bottom field) and 'explore' (a term's new card, owner 2026-11-09) run the same /explain with no parentLink, so no connector joins the new card (owner 2026-11-08)
+      const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}), ...(destination === 'card' || destination === 'follow-up' || destination === 'explore' ? { beside: true } : {}) }; // 'follow-up' (the bottom field) and 'explore' (a term's new card, owner 2026-11-09) run the same /explain with no parentLink, so no connector joins the new card (owner 2026-11-08)
       // Admission is what the Chat or the command dispatcher reports (ask.jsx: the stream opened; LearnSlash: the command ran without an error notice), never the
       // promise's value, which for a Chat reply only settles when the whole answer is in.
       let admitted = false;

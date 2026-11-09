@@ -298,7 +298,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // sized as the command's first card; anything but a card (a question, a proposal, an error, a request
   // that never answers) gives it up. A skeleton means a card is committed: a command that can end in a paid
   // proposal holds no place until the learner confirms it (generate, below).
-  const hold = () => canvas.reserve?.({ label: `Creating /${typed}`, card: cardsFor(name)[0]?.card ?? null });
+  const hold = () => canvas.reserve?.({ label: `Creating /${typed}`, card: cardsFor(name)[0]?.card ?? null, ...((name === 'explain' || name === 'explanation') && target?.beside && target.id ? { beside: target.id } : {}) }); // a card from a card (Ask in a new card, Explore) stands beside its source
   // /explain with an image: the target's own (a region crop or an image card, uploaded) first, else the composer's attached
   // image, as ask.jsx picks one for a question. The words say what to show; an image alone asks. A crop whose upload has not
   // landed is waited for, never dropped.
@@ -335,7 +335,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // fit: a new written Explanation opens at its full length and the camera frames it (AdaptiveCanvas insertBlock, owner 2026-11-08).
   // The notice names the new card and can take the learner to it. target.parentLink: an Explanation card's Ask in a new card (explanation-host.js) joins the child to its parent.
   // A written /explain says nothing on success (owner 2026-11-08): its card on the canvas and its chip under the line are the answer.
-  if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot, ...(result.block?.type === 'explanation' ? { fit: true } : {}), ...(target?.parentLink && target.id ? { parent: { id: target.id, ...target.parentLink } } : {}) }); return { notice: name === 'explanation' ? null : { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
+  if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot, ...(result.block?.type === 'explanation' ? { fit: true } : {}), ...(target?.parentLink && target.id ? { parent: { id: target.id, ...target.parentLink } } : {}), ...(target?.beside ? { link: false } : {}) }); return { notice: name === 'explanation' ? null : { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
   // Generate inserts the card already confirmed, so it starts once (useConfirmedStart). Confirming commits it:
   // its place is held at once (the camera glides there), and the card - which shows its own progress while the
   // paid job runs - takes that slot as soon as the skeleton has been drawn. Cancel holds nothing.
