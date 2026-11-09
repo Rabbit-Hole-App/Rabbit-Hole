@@ -275,3 +275,25 @@ Real factual errors on the closing-run cards (the 7 that both judge setups flag,
 6. Standard atmosphere (3): exosphere described as "very low" where the prose and diagram give a wrong characterisation.
 7. Standard entropy (3): incoherent "increases with" edges in the relationship diagram.
 Detail for 1, 4 and 5 is in the judge output files; the reasons for 2, 3, 6 and 7 are the judge's one-line notes quoted in the bench agent's report. Factual gate: factual-v2 on all 42 cards of the arm E run, and once on the 42 baseline prompts of the frozen run (the "easy set" under the same judge); the gate is judged on the baseline set, the formula-heavy number is tracked next to it.
+
+## Arm E (JEV planner) result, 2026-11-08 ~19:10 PT (bench c3a749d3a; run `2026-11-08T184736-arm-e-planner-38db93c68`; $0.58 of $0.60; easy-set factual $0.14 of $0.20)
+
+Stack 38db93c68 (code = f0653ee26), planner on, gpt-oss low, references on, factual-v2 / faithful-v2 / beyond-v2. The machine was shared with the local acceptance stack: speed is indicative. The judge covered the first diagram of each card (41 of 68 diagrams); the second diagrams were not judged (budget).
+
+| check | arm E | frozen (re-scored under v3) | result |
+|---|---|---|---|
+| right kind O / S / D (of 14) | 10 / 11 / 12 | 11 / 10 / 9 | 33/42 vs 30/42: up at 2 of 3 depths (S, D), down at Overview |
+| Deep plot or chart | 3/6, 7 point errors (sigmoid second plot 7/9 off) | 4/6, 0 errors | FAIL |
+| placeholders + duplicates | 0 + 0 | 0 + 0 | pass |
+| Overview formula-label cards | 1 (cross-entropy "True class = 1") | 0 | FAIL |
+| repairs | 11/42 (26%) | 3/42 | FAIL |
+| faithful-v2 fully / partly / not | 26 / 13 / 2 of 41 judged | not judged (cost $0.14) | undecided |
+| beyond-v2 | 5/41 (named facts: atmosphere layers, Roman dates) | - | - |
+| factual-v2 cards with an error | 9/42 = 21.4% (mean 4.12) | - | gate <= 10% FAIL |
+| p50 / p90 whole card | 4.9 / 8.9 s | 3.6 / 4.4 s (unloaded) | above the 7 s p90 gate, indicative only |
+
+Easy set (5d/B, the 42 baseline prompts, factual-v2): 8/42 = 19.0% (mean 4.12): bike-gears, dodecahedron, bill-to-law, osi-model, caterpillar-butterfly, moon-phases, plant-animal-cell, volcano. Formula-heavy 21.4% vs easy set 19.0%: the factual gate (<= 10%) fails on both sets under one judge; this is model knowledge, not the planner.
+Planner: latency added p50 176 ms, p90 263 ms; failures 0; kind fixed on 35 cards (right 29 = 83%, acceptable 3, wrong 3), two kinds offered on 7 (right 4 = 57%); the author chose one of the two every time. Planner-vs-author disagreement: 1 card (overview TCP handshake: the planner was right, the author drew no diagram). Cost: author $0.00307 + planner about $0.00007 per card (frozen $0.00258); author input tokens 12.4k (frozen 9.0k), output 914 (frozen 655).
+What changed in behaviour: two-diagram cards 27/42 (frozen 0/42; 68 diagrams vs 40), driven by the planner's second-visual answer; this is where the extra output tokens, repairs (11 vs 3) and time come from. Repairs: Overview atmosphere, roman-empire, cross-entropy (label too long), precision-recall (matrix rows); Standard precision-recall; Deep bst, roman-empire, softmax, sigmoid, attention-weights, precision-recall. Misses: Overview TCP handshake (two pictures, no diagram), gini and cross-entropy as plots at Overview; Standard TCP handshake (sequence twice plus a picture).
+Keep rule (owner): right kind rises at two of three depths: met; faithfulness not falling: cannot be decided. Not kept as is; the planner stays behind its dev flag. Candidate next change (not built, owner decides): take secondVisual out of the plan so a card keeps one diagram unless the plan is picture + diagram.
+Real factual errors found by the judge on the formula-heavy cards: deep water-cycle (E = P + R - C balance), atmosphere (weather and lapse rate placed below the troposphere; "well-mixed"), entropy ("logarithmically"), softmax (worked examples wrong; "exponentiation removes sign"), lr-schedule (exponential decay described as halving).
