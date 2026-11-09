@@ -1,5 +1,7 @@
 # Figure briefs
 
+[Source index](sources.md) · [Phase 02 lesson order](briefs/README.md) · [Missing kinds](gaps.md)
+
 Run from the repository root after installing the web workspace dependencies. ImageMagick (`magick` or `convert`) saves the first frame of GIFs. Inkscape and Tesseract read labels when a source SVG stores lettering as outlines.
 
 ```sh

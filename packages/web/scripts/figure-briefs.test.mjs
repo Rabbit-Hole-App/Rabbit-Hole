@@ -11,7 +11,9 @@ test('keeps source order, a private exact context manifest, and an index with no
   const page = {
     slug: 'lesson', url: 'https://example.test/lesson', selector: 'article',
   };
-  const html = '<main><img src="/logo.png"><article><h2>First section</h2>' +
+  const html = '<meta property="og:title" content="Teaching article">' +
+    '<main><img src="/logo.png"><article><h2>First section<a class="headerlink">¶</a>' +
+    '<div class="d2l-tabs">Open the notebook</div></h2>' +
     '<p>Before &amp; beside.</p><figure><img src="/figure.svg" alt="Source label">' +
     '<figcaption>Figure caption.</figcaption></figure><p>After.</p>' +
     '<p><image src=" /sequence.gif " alt="Loop"></p>' +
@@ -40,6 +42,7 @@ test('keeps source order, a private exact context manifest, and an index with no
   assert.deepEqual(calls.map(([path]) => path), ['/robots.txt', '/lesson', '/figure.svg', '/sequence.gif']);
   assert.ok(calls.slice(1).every(([, time], index) => time - calls[index][1] >= 1000));
   const saved = await readFile(join(out, 'lesson', '_working', 'manifest.json'), 'utf8').then(JSON.parse);
+  assert.equal(saved.title, 'Teaching article');
   assert.deepEqual(saved.figures.map(figure => figure.status), ['downloaded', 'downloaded', 'robots-denied', 'downloaded']);
   assert.deepEqual(saved.figures[0].context, {
     alt: 'Source label', caption: 'Figure caption.', heading: 'First section',

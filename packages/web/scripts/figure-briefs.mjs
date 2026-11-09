@@ -165,6 +165,11 @@ function crawler({ fetch: get = globalThis.fetch, now = Date.now, sleep = delay 
 const headings = 'h1,h2,h3,h4,h5,h6';
 const clean = text => (text ?? '').replace(/[\s\u00a0]+/g, ' ').trim();
 const nodeText = node => clean(node?.textContent).replace(/\s*¶$/, '');
+function headingText(node) {
+  const heading = node?.cloneNode(true);
+  heading?.querySelectorAll('.headerlink,.d2l-tabs').forEach(control => control.remove());
+  return nodeText(heading);
+}
 function pageFigures(source, contents, url) {
   const document = parseHTML(source.markdown ? '<main>' + marked.parse(contents) + '</main>' : contents).document;
   const root = source.selector ? document.querySelector(source.selector) :
@@ -173,12 +178,13 @@ function pageFigures(source, contents, url) {
   const all = [...root.querySelectorAll(headings + ',p,img,image[src]')];
   const figures = [];
   let previous = '';
-  const title = nodeText(root.querySelector('h1')) || nodeText(document.querySelector('h1,title'));
+  const title = clean(document.querySelector('meta[property="og:title"]')?.getAttribute('content')) ||
+    headingText(root.querySelector('h1')) || headingText(document.querySelector('article h1,main h1,title'));
   let heading = title;
   let waiting = [];
   for (const node of all) {
     if (node.closest('nav,footer,noscript,template,.llm-architecture-zoom__body')) continue;
-    if (node.matches(headings)) heading = nodeText(node);
+    if (node.matches(headings)) heading = headingText(node);
     if (node.matches('p') && !node.querySelector('img,image[src]') && !node.matches('.caption')) {
       previous = nodeText(node);
       for (const figure of waiting) figure.context.after = previous;
@@ -194,7 +200,7 @@ function pageFigures(source, contents, url) {
     const figure = {
       order: figures.length + 1, figureUrl: figureUrl.href, context: {
         alt: clean(node.getAttribute('alt')), caption: nodeText(frame?.querySelector('figcaption,.caption')),
-        heading: nodeText(card?.querySelector(headings)) || heading, before: previous, after: '', svgText: [],
+        heading: headingText(card?.querySelector(headings)) || heading, before: previous, after: '', svgText: [],
       },
     };
     figures.push(figure);
