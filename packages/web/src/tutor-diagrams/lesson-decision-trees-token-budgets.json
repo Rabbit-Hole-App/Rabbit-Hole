@@ -1,0 +1,206 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-trees-candidate-split": {
+      "overview": [
+        {
+          "tokens": 156,
+          "sha256": "079c12c576d133a70ed2c62c4cc9d2a124d074436a3b840dd6954ea7f7690abe"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 193,
+          "sha256": "45ed5c3c3b8c73986176ec4741e402400613b01d713d658d20db11914489d761"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 199,
+          "sha256": "a3b6a534e04ed1fbb604afe64622df3e4feeea40b95f84160b07b35fedbd9c8e"
+        }
+      ]
+    },
+    "ml-trees-gini-split": {
+      "overview": [
+        {
+          "tokens": 93,
+          "sha256": "979720c4efc8557b258d5bfb514b7f6bfb3ff87294ca0dbb72ae89e2eb5087c3"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 110,
+          "sha256": "cdf60c4dffffb85f2e6c5e666335affab1f8f16de88cc5b221fb869324946886"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 123,
+          "sha256": "0571f33c9ea6bedeee4cfac1f37a272e66c3a3c5d23e580d06636d1f7d763783"
+        }
+      ]
+    },
+    "ml-trees-threshold-search": {
+      "overview": [
+        {
+          "tokens": 145,
+          "sha256": "b5a17169672f515210975f3a779c7c3febc0945a0effb4510e71f8e1f5b630e3"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 147,
+          "sha256": "cdefcc71b35eda9e6f199032c2ad3597c9245468df901f6dc8a1dae21e331e66"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 171,
+          "sha256": "e4a71e17d74dcb8a138c95c5eb820f17cc3a3f3a317d4d0329528db6a3f8882a"
+        }
+      ]
+    },
+    "ml-trees-grown-tree": {
+      "overview": [
+        {
+          "tokens": 240,
+          "sha256": "bbff1f17a73113428803aee36a6e635fde418ea332c27b7bd56ead801b175c98"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 246,
+          "sha256": "13a53508f539909f4dab9089211fe4383f1fda111d2db82eeeef5dd63da958c2"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 251,
+          "sha256": "9f0a6602abe29648ea5ce1c39a01cd10e1a1cfc22b07e149aa5cddc7c994eb09"
+        }
+      ]
+    },
+    "ml-trees-decision-regions": {
+      "overview": [
+        {
+          "tokens": 223,
+          "sha256": "702c10b61fc2b426d00f8122708e45532b0db1be5872d18829d08f28200c4b58"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 262,
+          "sha256": "081dcae5c6f0cecce76b5d725a2c5fe673a67f88b3624ec89b4754e38e2bfbc0"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 286,
+          "sha256": "9b8bcaf36e27380fd29f2270b79fad542f1d54049a45b514c3cd0b02f00196f4"
+        }
+      ]
+    },
+    "ml-trees-depth-overfit": {
+      "overview": [
+        {
+          "tokens": 180,
+          "sha256": "3f5560fcd240a20f321d5980b4567e8a8d9b0fe7c03f82ed13c2c43324956798"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 190,
+          "sha256": "979bd646088e33764363fc561100b602ecbd64187fe9c263f2b9a211d9b71fae"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 235,
+          "sha256": "746138800a68b636b6a2e4981a2bfe0060e7c9b70b30f21d4a8f96d577a4282a"
+        }
+      ]
+    },
+    "ml-trees-bootstrap-roots": {
+      "overview": [
+        {
+          "tokens": 193,
+          "sha256": "4c001b733a464597569aa81bd55a8d4f45d2236bb2dd87b5c8648c824ec6b0d7"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 232,
+          "sha256": "57fa73f50f44842ec56df19527f8ae97d9e0949eaccc209bde4101b4dbe76f00"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 259,
+          "sha256": "f453e10b715629f9a283ca0b8692bf252cecd09dc6f7bb3a3a2a68d9f3f3291e"
+        }
+      ]
+    },
+    "ml-trees-feature-subsets": {
+      "overview": [
+        {
+          "tokens": 91,
+          "sha256": "fa870fe331483e5df56b0635e8a2df901f7ec5cf3d25e3074b49f45605a06a96"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 99,
+          "sha256": "96e00dd5af60cd252c7db31d39be9774becb4df6223b0572a77e6355656b710a"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 124,
+          "sha256": "6ab162bf1af10f5525199f17b4b084853ec28a7ecacd21ef7f6783e36e9b458a"
+        }
+      ]
+    },
+    "ml-trees-majority-vote": {
+      "overview": [
+        {
+          "tokens": 64,
+          "sha256": "8e74800dc1003e19e6de33d55faa314a2149917b5607bba5411978dbd51e9aff"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 84,
+          "sha256": "ae687d55b21c1db3d3a1ac927d3c1e17989fd3d6f5490eaebd099b64fe3dc590"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 108,
+          "sha256": "bee4be01fb251ba633f875ebaeba8fcc9f3fd616ad122436768a4f93c02be328"
+        }
+      ]
+    },
+    "ml-trees-feature-importance": {
+      "overview": [
+        {
+          "tokens": 65,
+          "sha256": "a1f95611921c2209a37bb3871c6e89ac3fa10ee84b64b82b176de85e4cfbf624"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 70,
+          "sha256": "411ad091796c5326ce026e84f9535eaf73363aeca8cd6de099792e193d419b8a"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 114,
+          "sha256": "e8c43cb5f02c517593b24b7472a713ad71acf2fc5790677c7d585a5e4464f2b3"
+        }
+      ]
+    }
+  }
+}

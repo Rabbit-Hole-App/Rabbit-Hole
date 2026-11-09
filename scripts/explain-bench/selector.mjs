@@ -22,7 +22,10 @@ function matches(h, phrase) {
 }
 function scored(query, ref) {
   let score = 0;
-  for (const k of new Set(ref.keywords.map(normalized).filter(Boolean))) if (matches(query, k)) score += Math.min(12, 2 + k.split(' ').length * 2);
+  const short = ref.shortKeywords?.map(normalized), shortTopic = query.replace(/^(?:please )?(?:(?:can you )?(?:explain|show me|describe|tell me about|help me understand) )?(?:the |an? )?/u, '');
+  for (const k of new Set(ref.keywords.map(normalized).filter(Boolean))) {
+    if (short?.includes(k)) { if (shortTopic === k) score += 40; } else if (matches(query, k)) score += Math.min(12, 2 + k.split(' ').length * 2);
+  }
   if (ref.prompts.some(p => normalized(p) === query)) score += 50;
   return score;
 }
