@@ -36,6 +36,8 @@ import { transformerMultiheadReference } from './transformer-multihead-reference
 import { transformerEncoderReference } from './transformer-encoder-reference.js';
 import { transformerDecoderReferences } from './transformer-decoder-references.js';
 import { lessonDecisionTreesReferences } from './lesson-decision-trees-references.js';
+import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
+import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
 
 export const transformerWalkthroughReferences = Object.freeze([
   transformerEmbeddingReference, ...tensorReferences, ...transformerAttentionReferences,
@@ -47,6 +49,7 @@ export const illustrationReferences = Object.freeze([
 ]);
 
 export const batch1FollowupReferences = Object.freeze(batch1Followups);
+export const estimationEvaluationReferences = Object.freeze([mleBernoulliReference, kfoldValidationReference]);
 
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
@@ -70,6 +73,7 @@ export const diagramReferences = Object.freeze([
   ...transformerWalkthroughReferences.filter(ref => !illustrationReferences.includes(ref)),
   ...batch1FollowupReferences,
   ...lessonDecisionTreesReferences,
+  ...estimationEvaluationReferences,
 ]);
 
 export const PHASE02_SOURCE = Object.freeze({

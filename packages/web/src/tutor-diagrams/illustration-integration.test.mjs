@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { lintDiagramContent } from '../../scripts/explanation-content-contract.mjs';
 import { parseTutorDiagram, tutorDiagramVisibleText } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
-import { illustrationReferences, transformerWalkthroughReferences } from './reference-library.js';
+import { estimationEvaluationReferences, illustrationReferences, transformerWalkthroughReferences } from './reference-library.js';
 import budgets from './illustration-token-budgets.json' with { type: 'json' };
 import { predictedToken, vocabulary, vocabularyWeights } from './transformer-walkthrough-data.js';
 
@@ -56,7 +56,7 @@ test('illustration and walkthrough references pass the content contract and per-
   assert.equal(transformerWalkthroughReferences.length, 10);
   assert.equal(budgets.encoding, 'cl100k_base');
   assert.equal(budgets.maxSpecTokens, 300);
-  for (const ref of new Set([...illustrationReferences, ...transformerWalkthroughReferences])) {
+  for (const ref of new Set([...illustrationReferences, ...transformerWalkthroughReferences, ...estimationEvaluationReferences])) {
     const variants = { balanced: ref, brief: ref.depths?.overview, detailed: ref.depths?.deep };
     for (const [depth, variant] of Object.entries(variants)) {
       if (!variant) continue;

@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Rotate the validation fold",
+    "columns": [
+      "Fold 1 A0,B0",
+      "Fold 2 C0,D0",
+      "Fold 3 E1,F1",
+      "Fold 4 G1,H1",
+      "Fold 5 I1,J1"
+    ],
+    "rows": [
+      {
+        "id": "a",
+        "heading": "Round 1",
+        "cells": [
+          "2 of 2",
+          "Fit",
+          "Fit",
+          "Fit",
+          "Fit"
+        ]
+      },
+      {
+        "id": "c",
+        "heading": "Round 2",
+        "cells": [
+          "Fit",
+          "1 of 2",
+          "Fit",
+          "Fit",
+          "Fit"
+        ]
+      },
+      {
+        "id": "e",
+        "heading": "Round 3",
+        "cells": [
+          "Fit",
+          "Fit",
+          "1 of 2",
+          "Fit",
+          "Fit"
+        ]
+      },
+      {
+        "id": "g",
+        "heading": "Round 4",
+        "cells": [
+          "Fit",
+          "Fit",
+          "Fit",
+          "2 of 2",
+          "Fit"
+        ]
+      },
+      {
+        "id": "i",
+        "heading": "Round 5",
+        "cells": [
+          "Fit",
+          "Fit",
+          "Fit",
+          "Fit",
+          "2 of 2"
+        ]
+      }
+    ],
+    "emphasis": {
+      "cells": [
+        {
+          "row": "a",
+          "column": 0
+        },
+        {
+          "row": "c",
+          "column": 1
+        },
+        {
+          "row": "e",
+          "column": 2
+        },
+        {
+          "row": "g",
+          "column": 3
+        },
+        {
+          "row": "i",
+          "column": 4
+        }
+      ]
+    },
+    "caption": "Worked example. A–J have x 0–9. Suffixes are labels. 1-NN ties use lower x. Mean $(1+0.5+0.5+1+1)/5=0.8$."
+  }
+}
