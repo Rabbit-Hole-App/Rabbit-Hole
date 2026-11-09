@@ -43,7 +43,7 @@ export const references = [
   {
     id: 'ml-feature-scaling-transformation', lessons: ['06', '08'],
     prompts: ['Show feature scaling while preserving each sample identity.'],
-    keywords: ['feature scaling', 'standardization', 'standardisation', 'scaling knn', 'normalize features', 'batch normalization', 'batch normalisation', 'batch norm', 'batchnorm'],
+    keywords: ['feature scaling', 'standardization', 'standardisation', 'scaling knn', 'normalize features'],
     useWhen: 'Show exact before-and-after coordinates for a stated centering and scaling operation, keeping point IDs.',
     spec: transform('Center and scale two features', 'x′ = (x − 150) / 50; y′ = (y − 20) / 10',
       plot('Original feature values', axis('Feature x', 80, 220), axis('Feature y', 0, 50), [series('Samples', 'scatter', [[100, 10, 'a', 'A'], [150, 20, 'b', 'B'], [200, 40, 'c', 'C']])]),

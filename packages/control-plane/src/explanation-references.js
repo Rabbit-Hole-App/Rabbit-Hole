@@ -31,27 +31,11 @@ function contextText(context) {
   try { return JSON.stringify(context).slice(0, 6000); } catch { return ''; }
 }
 
-// Required visuals still validate against their top-level kind. When a useful
-// reference is a composition, give the author its matching real leaf examples
-// rather than a wrapper that would fail that requirement. Conceptual requests
-// continue to receive the complete comparison/transformation.
-function referenceVariants(ref, required) {
-  const diagram = ref.spec.diagram;
-  if (!required.size || required.has(diagram.kind)) return [ref];
-  const parts = diagram.kind === 'comparison' && diagram.variant === 'panels' ? diagram.panels
-    : diagram.kind === 'transformation' && diagram.variant === 'visual' ? [diagram.before, diagram.after] : [];
-  return parts.flatMap((part, partIndex) => required.has(part.diagram.kind) ? [{
-    ...ref, id: `${ref.id}--part-${partIndex + 1}`, sourceId: ref.id, partIndex,
-    useWhen: `${ref.useWhen} This is the ${part.heading ?? part.label} panel. Use its ${part.diagram.kind} kind directly when that kind is required.`,
-    spec: { version: ref.spec.version, diagram: part.diagram },
-  }] : []);
-}
-
 export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [] } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   const source = normalized(contextText(context));
   const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
-  const candidates = diagramReferences.flatMap(ref => referenceVariants(ref, required));
+  const candidates = diagramReferences.filter(ref => !required.size || required.has(ref.spec.diagram.kind));
   const ranked = candidates.map((ref, index) => ({
     ref, index, direct: topicScore(query, ref), source: topicScore(source, ref),
   }));
@@ -67,8 +51,7 @@ export function selectDiagramReferences({ prompt = '', context = '', requiredKin
   let chars = 600;
   for (const { ref } of pool) {
     const spec = parseTutorDiagram(ref.spec);
-    const compact = { id: ref.id, useWhen: ref.useWhen, spec,
-      ...(ref.sourceId ? { sourceId: ref.sourceId, partIndex: ref.partIndex } : {}) };
+    const compact = { id: ref.id, useWhen: ref.useWhen, spec };
     const length = JSON.stringify(compact).length;
     if (chars + length > MAX_CONTEXT) continue;
     picked.push(compact);
@@ -85,7 +68,7 @@ export function diagramReferenceContext(references) {
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
   const heading = '\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
   let out = heading;
-  for (const ref of references.slice(0, MAX_REFERENCES + 1)) { // the planner's shape example may come first (explanation-planner.js), then at most two topical ones
+  for (const ref of references.slice(0, MAX_REFERENCES)) {
     const line = JSON.stringify({ id: ref.id, useWhen: ref.useWhen, spec: ref.spec }) + '\n';
     if (out.length + line.length <= MAX_CONTEXT) out += line;
   }

@@ -4,18 +4,6 @@ import { references as plot } from './ml-plot-references.js';
 import { references as topology } from './ml-topology-references.js';
 import { references as data } from './ml-data-references.js';
 import { references as composition } from './ml-composition-references.js';
-import { references as batch2aEvaluation } from './ml-batch2a-evaluation-references.js';
-import { references as batch2aEncoding } from './ml-batch2a-encoding-references.js';
-import { references as batch2aTransform } from './ml-batch2a-transform-references.js';
-import { references as batch2bFits } from './ml-batch2b-fits-references.js';
-import { references as batch2bEnsembles } from './ml-batch2b-ensembles-references.js';
-import { references as batch2bTuning } from './ml-batch2b-tuning-references.js';
-import { references as batch2cPsi } from './ml-batch2c-psi-references.js';
-import { references as batch2cElimination } from './ml-batch2c-elimination-references.js';
-import { references as batch2cImbalance } from './ml-batch2c-imbalance-references.js';
-import { references as batch3aForecast } from './ml-batch3a-forecast-references.js';
-import { references as batch3aCorrelation } from './ml-batch3a-correlation-references.js';
-import { references as batch3aSeries } from './ml-batch3a-series-references.js';
 
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
@@ -26,13 +14,7 @@ const generic = originalExamples.filter(spec => unchanged.has(spec.diagram.kind)
   keywords: [spec.diagram.kind, spec.diagram.title.toLowerCase()],
   useWhen: `The question calls for ${spec.diagram.kind}; use this semantic structure with the learner's facts.`, spec,
 }));
-export const diagramReferences = Object.freeze([
-  ...topology, ...statistical, ...plot, ...data, ...composition,
-  ...batch2aEncoding, ...batch2aTransform, ...batch2aEvaluation,
-  ...batch2bFits, ...batch2bEnsembles, ...batch2bTuning,
-  ...batch2cImbalance, ...batch2cElimination, ...batch2cPsi,
-  ...batch3aSeries, ...batch3aCorrelation, ...batch3aForecast, ...generic,
-]);
+export const diagramReferences = Object.freeze([...topology, ...statistical, ...plot, ...data, ...composition, ...generic]);
 
 export const PHASE02_SOURCE = Object.freeze({
   repository: 'rohitg00/ai-engineering-from-scratch',

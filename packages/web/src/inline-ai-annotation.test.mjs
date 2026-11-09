@@ -110,7 +110,6 @@ const READERS = {
   'web/src/comments/MemberBoardPage.jsx': 'canvas references, not board links',
   'web/src/tutor-diagrams/spec.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
   'web/src/tutor-diagrams/ml-composition-spec.js': 'Phase 02 transformation links (before-item to after-item), not board links',
-  'control-plane/src/learn-primitives.js': 'TutorDiagram transformation links (before-item to after-item): the server correction drops a link that names a missing item, not board links',
   'web/src/tutor-diagrams/teaching-layouts.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
