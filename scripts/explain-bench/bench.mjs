@@ -125,7 +125,7 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
   for (const q of p.prompts) {
     if (spent + WORST_CARD > cap) { stopped = true; console.log(`STOP cap: spent US$${spent.toFixed(4)} of US$${cap.toFixed(2)}`); break outer; }
     try { // a stack that goes away mid-run stops the run; the cards so far are still scored and reported
-    const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `explain-bench ${p.name} r${r} ${q.id}` }) })).body?.name;
+    const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `explain-bench ${p.name} r${r} ${q.id}`.slice(0, 44) }) })).body?.name;
     const logFrom = logSize(), before = (await api('/api/learn/usage')).body, startedAt = new Date().toISOString(), t0 = performance.now();
     const res = canvas ? await fetch(`${BASE}/api/learn/artifact`, { method: 'POST', headers, body: JSON.stringify({ app: canvas, command: 'explanation', args: q.prompt, board: 'main', ...(dep ? { depth: dep } : {}) }) }) : null;
     const response = res ? await res.json().catch(() => null) : null, totalMs = Math.round(performance.now() - t0);
