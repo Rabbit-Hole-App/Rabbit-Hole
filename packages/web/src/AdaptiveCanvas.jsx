@@ -21,6 +21,7 @@ import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
+import { isMinimized, tileWidth } from './explanation-minimize.js';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
@@ -939,14 +940,16 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
   // A size whose height is undefined (a pending Explanation) means the content's height, not the type's fixed one.
   const sized = BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame);
+  // A minimized Explanation is a tile: its own narrow width and the content's height; its saved size and card layout stay on the block, so Open restores them (explanation-minimize.js).
+  const tile = isMinimized(block);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
       fitContent={!!BLOCK_TYPES[block.type]?.fitContent}
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
-      width={sized?.width ?? BLOCK_TYPES[block.type]?.width}
+      width={tile ? tileWidth(block) : sized?.width ?? BLOCK_TYPES[block.type]?.width} resizable={!tile}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
-      placing={placing} extraHeight={sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={expandHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
+      placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
@@ -956,10 +959,10 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
       </PromptSlot.Provider></PerfContext.Provider>
-      {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
-      {block.sourceRef && !headerSource(block) && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
-      {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
-      {!cadPermissions.readOnly && !cadPermissions.localCopy && <CardFeedback block={block} />}
+      {block.sources && !tile && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
+      {block.sourceRef && !headerSource(block) && !tile && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
+      {block.promptUsed && !slotted && !tile && <CardPrompt text={block.promptUsed} selected={selected} />}
+      {!cadPermissions.readOnly && !cadPermissions.localCopy && !tile && <CardFeedback block={block} />}
     </CanvasNode>
   );
 }
