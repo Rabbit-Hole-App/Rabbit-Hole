@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { SETS_DIR, SET_NAMES, availableSets, loadSet } from './score.mjs';
 import { DEFAULT_OUT, run as report, runDirName } from './report.mjs';
+import { preflight } from './preflight.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WORST_CARD = 0.05; // --cap covers the whole invocation: the judge gets min(--judge-cap, what generation left)
@@ -78,7 +79,7 @@ const { values: a } = parseArgs({ options: {
   base: { type: 'string' }, vars: { type: 'string' }, sets: { type: 'string' }, runs: { type: 'string' }, cap: { type: 'string', default: '2.00' }, label: { type: 'string', default: 'run' },
   log: { type: 'string' }, persist: { type: 'string' }, tree: { type: 'string' }, out: { type: 'string' }, against: { type: 'string' }, baseline: { type: 'string' }, 'tag-baseline': { type: 'boolean' },
   judge: { type: 'boolean' }, judges: { type: 'string', default: '1' }, 'judge-cap': { type: 'string', default: '1.00' }, 'judge-only': { type: 'string' }, 'richness-change': { type: 'boolean' },
-  note: { type: 'string' }, depth: { type: 'string' }, depths: { type: 'string' }, 'dry-run': { type: 'boolean' }, gap: { type: 'string', default: '1500' }, only: { type: 'string' } } });
+  note: { type: 'string' }, depth: { type: 'string' }, depths: { type: 'string' }, 'dry-run': { type: 'boolean' }, gap: { type: 'string', default: '1500' }, only: { type: 'string' }, 'skip-preflight': { type: 'boolean' } } });
 const fail = msg => { console.error(`✗ ${msg}`); process.exit(2); };
 const sets = (a.sets || SET_NAMES.join(',')).split(',').map(s => s.trim()).filter(Boolean);
 for (const s of sets) if (!availableSets().includes(s)) fail(`unknown set ${s}; sets: ${availableSets().join(', ')}`);
@@ -107,6 +108,8 @@ if (!a.base) fail('--base <stack URL> is required');
 
 const BASE = a.base.replace(/\/$/, ''), secret = named(varsText, 'TEST_BYPASS_SECRET'); // the one secret read, never printed
 if (!secret) fail('no TEST_BYPASS_SECRET in --vars');
+// Pre-flight (owner 2026-11-09): one probe per provider; an outage makes the run INVALID (exit 4), never a FAILED run. --skip-preflight is for offline checks only.
+if (!a['dry-run'] && !process.argv.includes('--skip-preflight')) { const pf = await preflight({ varsFile: a.vars }); for (const x of pf.results) console.log(`${x.ok ? '✓' : '✗'} preflight ${x.name}: ${x.detail}`); if (!pf.ok) { console.error('✗ PREFLIGHT INVALID: a provider is down, the run is not started (invalid, not failed)'); process.exit(4); } }
 const out = resolve(a.out || DEFAULT_OUT), runId = runDirName(a.label), runDir = join(out, runId), rawDir = join(runDir, 'raw');
 mkdirSync(rawDir, { recursive: true });
 const email = `explain-bench-${Date.now().toString(36)}@example.com`;
