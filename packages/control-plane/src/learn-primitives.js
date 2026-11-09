@@ -82,9 +82,29 @@ const visualFence = (v, i) => {
 };
 // The saved body: each first [[visual:N]] marker becomes visual N's fence on its own lines; an unknown or repeated marker is removed; a visual with no marker
 // goes at the end (the layout settling then moves it between prose parts).
+// Owner 2026-11-09 (batch-02 card 08, "Look at the weight distribution in [[visual:1]] where the queries..."): a marker that interrupts a sentence cut it in two. It moves to
+// after the end of that sentence (the next . ! or ? before a capital, digit or opening mark, inside the same paragraph, maths masked), with a paragraph break either side.
+// A marker already between sentences, at a paragraph start, after a heading, list, table or another marker, or whose sentence has no end in its paragraph, is left alone,
+// so a second pass changes nothing. shortcut: "e.g. The" ends a sentence here as it does in unitsOf; upgrade if a real card shows a bad move.
+export function markersOutOfSentences(body) {
+  let text = String(body ?? '');
+  const marks = [...text.matchAll(MARKER)].reverse(); // last first: a move only changes text after the marker, so earlier indices stay valid
+  for (const m of marks) {
+    const before = text.slice(0, m.index).trimEnd(), after = text.slice(m.index + m[0].length).trimStart();
+    if (!before || !/^\p{Ll}/u.test(after) || /[.!?]["')\]*_]*$/.test(before) || before.endsWith(']]')) continue;
+    if (/^\s*(?:#{1,6}\s|[-*+]\s|\d{1,9}[.)]\s|```)|\|\s*$/.test(before.split('\n').at(-1))) continue;
+    const paragraph = after.split(/\n\s*\n/)[0], masked = paragraph.replace(MATH_SPANS, x => ''.repeat(x.length));
+    const end = masked.match(/[.!?]["')\]*_]*(?=\s+[\p{Lu}\p{N}"'(*_$[]|$)/u);
+    if (!end) continue;
+    const cut = end.index + end[0].length;
+    text = `${before} ${paragraph.slice(0, cut)}\n\n[[visual:${m[1]}]]\n\n${after.slice(cut).trimStart()}`.trimEnd();
+    console.log(JSON.stringify({ event: 'explanation_marker_moved', visual: Number(m[1]), reason: 'the marker was inside a sentence' }));
+  }
+  return text;
+}
 export function composeVisuals(body, visuals) {
   const placed = new Set();
-  const out = String(body ?? '').replace(MARKER, (_, n) => {
+  const out = markersOutOfSentences(body).replace(MARKER, (_, n) => {
     const i = Number(n) - 1, fence = placed.has(i) ? null : visualFence(visuals[i], i);
     if (fence) placed.add(i);
     return fence ? '\n\n' + fence + '\n\n' : '\n\n';
