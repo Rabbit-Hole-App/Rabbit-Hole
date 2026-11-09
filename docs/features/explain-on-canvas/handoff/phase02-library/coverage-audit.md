@@ -4,7 +4,7 @@ Audited against the owner's full 21-lesson reference-scene table and the registr
 
 **The 13 renderer additions/extensions are implemented. The full requested reference-scene pack is not complete.** The earlier statement that nothing from the Phase 02 list remained, followed by a recommendation to move to the next phase, was too broad. Having a reference ID tagged with each lesson is not the same as covering each scene requested within that lesson.
 
-After Batch 3A, the registry contains **160 references**, with 146 tagged to Phase 02 lessons and 14 general examples. The batch receipts record local implementation checks. Live author selection and browser acceptance have separate tracking. [Batch 3A receipt](batch-3a.md#local-verification)
+The registry now contains **174 references**. Batch 3A brought it to 160, with 146 tagged to Phase 02 lessons and 14 general examples. The separate AI/ML batch adds 14 broader references, and the kind gallery adds 21 neutral shapes outside the registry. The 11 remaining Phase 02 curriculum references in Batch 3 stay open below. [Batch 3A receipt](batch-3a.md#local-verification) · [AI/ML and offline SVG handoff](svg-offline.md)
 
 ## Audit definitions
 

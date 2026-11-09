@@ -2,22 +2,22 @@
   "version": 1,
   "diagram": {
     "title": "A prediction follows tested conditions",
-    "caption": "Illustrative counts. For x₁ = 2 and x₂ = 1, follow the blue route to Class A.",
+    "caption": "Illustrative counts. For $x_1=2$ and $x_2=1$, follow the blue route to Class A.",
     "kind": "tree",
     "layout": "binary",
     "nodes": [
       {
         "id": "root",
-        "label": "x₁ ≤ 4?",
+        "label": "$x_1\\le 4$?",
         "count": 12,
-        "detail": "Gini ≈ 0.444"
+        "detail": "$\\text{Gini}\\approx 0.444$"
       },
       {
         "id": "left",
-        "label": "x₂ ≤ 2?",
+        "label": "$x_2\\le 2$?",
         "parent": "root",
         "side": "left",
-        "edgeLabel": "x₁ ≤ 4",
+        "edgeLabel": "$x_1\\le 4$",
         "count": 7,
         "detail": "4 A, 3 B"
       },
@@ -26,7 +26,7 @@
         "label": "Class B",
         "parent": "root",
         "side": "right",
-        "edgeLabel": "x₁ > 4",
+        "edgeLabel": "$x_1>4$",
         "count": 5,
         "detail": "0 A, 5 B"
       },
@@ -35,16 +35,16 @@
         "label": "Class A",
         "parent": "left",
         "side": "left",
-        "edgeLabel": "x₂ ≤ 2",
+        "edgeLabel": "$x_2\\le 2$",
         "count": 4,
         "detail": "4 A, 0 B"
       },
       {
         "id": "b",
-        "label": "Class B",
+        "label": "Class B after two tests",
         "parent": "left",
         "side": "right",
-        "edgeLabel": "x₂ > 2",
+        "edgeLabel": "$x_2>2$",
         "count": 3,
         "detail": "0 A, 3 B"
       }

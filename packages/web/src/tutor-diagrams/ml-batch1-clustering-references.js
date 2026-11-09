@@ -93,5 +93,5 @@ export const references = [
         ], emphasis: { columns: [2] },
         caption: '$p(x|k)=e^{-d^2/2}/(2\\pi)$ is a density. $r_k=\\pi_kp(x|k)/\\sum_j\\pi_jp(x|j)$. Share is posterior; pairs sum to 1. Rounded.',
       },
-    ], 'Illustrative 2D GMM: priors 0.5, means (0, 0) and (2, 0), identity covariance. $d$ is distance to that component’s mean.'),
+    ], 'Illustrative 2D GMM with equal priors $0.5$, means $(0, 0)$ and $(2, 0)$, and identity covariance. $d$ is distance to the component mean.'),
 ];

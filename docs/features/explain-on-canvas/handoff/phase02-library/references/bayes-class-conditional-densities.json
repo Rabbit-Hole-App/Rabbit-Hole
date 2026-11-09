@@ -104,7 +104,7 @@
     "annotations": [
       {
         "kind": "reference-line",
-        "label": "Observed feature = 2",
+        "label": "Observed feature value of 2",
         "axis": "x",
         "value": 2
       }

@@ -11,13 +11,13 @@
         "title": "Original feature values",
         "kind": "coordinate-plot",
         "x": {
-          "label": "Feature x",
+          "label": "Feature $x$",
           "min": 80,
           "max": 220,
           "scale": "linear"
         },
         "y": {
-          "label": "Feature y",
+          "label": "Feature $y$",
           "min": 0,
           "max": 50,
           "scale": "linear"
@@ -56,13 +56,13 @@
         "title": "Centered and scaled values",
         "kind": "coordinate-plot",
         "x": {
-          "label": "Scaled feature x",
+          "label": "Scaled feature $x'$",
           "min": -2,
           "max": 2,
           "scale": "linear"
         },
         "y": {
-          "label": "Scaled feature y",
+          "label": "Scaled feature $y'$",
           "min": -2,
           "max": 3,
           "scale": "linear"
@@ -95,7 +95,7 @@
         ]
       }
     },
-    "operation": "x′ = (x − 150) / 50; y′ = (y − 20) / 10",
+    "operation": "$x' = \\frac{x-150}{50}$ and $y' = \\frac{y-20}{10}$",
     "identity": {
       "mode": "preserved",
       "note": "A, B and C retain their sample IDs; only feature coordinates change."

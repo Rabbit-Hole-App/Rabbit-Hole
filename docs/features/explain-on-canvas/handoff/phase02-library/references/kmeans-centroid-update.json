@@ -44,7 +44,7 @@
       },
       {
         "kind": "point",
-        "label": "New mean = (3, 3)",
+        "label": "New mean at 3 on both axes",
         "x": 3,
         "y": 3
       },

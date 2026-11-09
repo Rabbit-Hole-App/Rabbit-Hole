@@ -7,22 +7,22 @@
     "nodes": [
       {
         "id": "configs",
-        "label": "Candidate configurations",
+        "label": "Run candidate configurations",
         "role": "fork"
       },
       {
         "id": "a",
-        "label": "A: complete 20 epochs",
+        "label": "Complete 20 epochs for A",
         "role": "process"
       },
       {
         "id": "b",
-        "label": "B: prune after 5 epochs",
+        "label": "Prune B after 5 epochs",
         "role": "process"
       },
       {
         "id": "c",
-        "label": "C: complete 20 epochs",
+        "label": "Complete 20 epochs for C",
         "role": "process"
       },
       {

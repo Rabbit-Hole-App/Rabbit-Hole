@@ -9,16 +9,16 @@
       {
         "heading": "Reference window",
         "diagram": {
-          "title": "Targets follow y = 2x",
+          "title": "Targets follow $y = 2x$",
           "kind": "coordinate-plot",
           "x": {
-            "label": "Input x",
+            "label": "Input $x$",
             "min": 0,
             "max": 5,
             "scale": "linear"
           },
           "y": {
-            "label": "Target y",
+            "label": "Target $y$",
             "min": 0,
             "max": 10,
             "scale": "linear"
@@ -48,16 +48,16 @@
       {
         "heading": "Current window",
         "diagram": {
-          "title": "Targets follow y = 8 − 2x",
+          "title": "Targets follow $y = 8 - 2x$",
           "kind": "coordinate-plot",
           "x": {
-            "label": "Input x",
+            "label": "Input $x$",
             "min": 0,
             "max": 5,
             "scale": "linear"
           },
           "y": {
-            "label": "Target y",
+            "label": "Target $y$",
             "min": 0,
             "max": 10,
             "scale": "linear"

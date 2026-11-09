@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Children } from 'react';
+import { Children, createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { tokenizeMath } from '../math-tokens.js';
 import { references } from './ml-batch3a-series-references.js';
 import { references as plotReferences } from './ml-plot-references.js';
 import { parseTutorDiagram } from './spec.js';
@@ -43,22 +44,23 @@ test('the additive example reconstructs every observation on its own date', () =
     point.y + seasonal.points[i].y + residual.points[i].y
   )));
   assert.equal(observed.points[3].y, 3);
-  assert.match(caption, /On Day 4, 3\.5 − 1 \+ 0\.5 = 3/);
+  assert.match(caption, /On Day 4, \$3\.5-1\+0\.5=3\$/);
 });
 
 test('each rolling mean uses the three observed values strictly before the prediction day', () => {
   const { lessons, prompts, spec } = referenceFor(rollingId);
   assert.deepEqual(lessons, ['15']);
   assert.deepEqual(prompts, ['Which past values go into a three-day rolling average before a prediction?']);
-  const { rows } = spec.diagram;
+  const { rows, caption } = spec.diagram;
   const observations = [10, 13, 16, 19, 22, 25];
   assert.deepEqual(rows.map(row => row.heading), ['Day 4', 'Day 5', 'Day 6', 'Day 7']);
   assert.deepEqual(rows.map(row => Number(row.cells[1])), [13, 16, 19, 22]);
+  assert.ok(caption.includes(String.raw`$\frac{${observations.slice(0, 3).join('+')}}{3}=${rows[0].cells[1]}$`));
   for (const { heading, cells: [inputs, mean] } of rows) {
     const predictionDay = Number(heading.split(' ')[1]);
     const dates = [], values = [];
     for (const input of inputs.split(' ')) {
-      const pair = input.match(/^D(\d+)=(\d+)$/);
+      const pair = input.match(/^D(\d+):(\d+)$/);
       assert.ok(pair, `${input} must pair a dated input with its value`);
       const day = Number(pair[1]);
       const value = Number(pair[2]);
@@ -84,7 +86,10 @@ function renderSaved(id, width) {
   assert.equal(svg, renderToStaticMarkup(renderTutorDiagram(spec, width).element));
   assert.ok(Number.isFinite(result.height) && result.height > 0);
   const frame = children(result.element);
-  assert.equal(textLines(frame.at(-1)).join(' '), spec.diagram.caption);
+  assert.ok(result.element.props['aria-label'].includes(spec.diagram.caption));
+  const caption = renderToStaticMarkup(createElement('svg', null, frame.at(-1)));
+  const renderedMath = [...caption.matchAll(/data-tutor-tex="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(renderedMath, tokenizeMath(spec.diagram.caption).math.map(entry => entry.raw));
   const body = frame.find(element => element.type === 'g');
   return { width: result.width, elements: children(body) };
 }
@@ -95,13 +100,17 @@ test('the saved additive comparison keeps the three Day 4 guides aligned at 320,
     assert.ok(renderedWidth >= width);
     const panels = elements.filter(element => element.props['data-tutor-composition-child'] !== undefined);
     assert.equal(panels.length, 3);
-    const aligned = panels.map(panel => {
+    const aligned = panels.map((panel, i) => {
       const marks = children(panel);
       const area = marks.find(element => element.props['data-tutor-plot-area'] !== undefined);
       const guide = marks.find(element => element.props['data-tutor-plot-reference'] === 'x:4');
       assert.ok(area && guide, 'each panel renders its day axis and Day 4 guide');
-      assert.equal(marks.filter(element => element.props['data-tutor-coordinate-point']).length,
-        panel === panels[0] ? 16 : 8);
+      const curves = marks.filter(element => element.props['data-tutor-plot-series'])
+        .map(element => element.props.points.split(' '));
+      assert.deepEqual(curves.map(curve => curve.length), [[8, 8], [8], []][i]);
+      for (const curve of curves) assert.equal(Number(curve[3].split(',')[0]), guide.props.x1);
+      assert.equal(marks.filter(element => element.props['data-tutor-coordinate-point']).length, i === 2 ? 8 : 0);
+      assert.equal(marks.filter(element => element.props['data-tutor-plot-stem']).length, i === 2 ? 8 : 0);
       const [, offset] = panel.props.transform.match(/^translate\(([^ ]+) /);
       return [Number(offset) + area.props.x, area.props.width, Number(offset) + guide.props.x1];
     });
@@ -118,7 +127,7 @@ test('the saved rolling matrix keeps each dated value and mean visible at 320, 4
       const key = element.props['data-tutor-matrix-row'] ?? element.props['data-tutor-matrix-cell'];
       if (!key) return [];
       const lines = textLines(elements[i + 1]);
-      if (key.endsWith(':0')) assert.ok(lines.every(line => /^(D\d+=\d+)( D\d+=\d+)*$/.test(line)));
+      if (key.endsWith(':0')) assert.ok(lines.every(line => /^(D\d+:\d+)( D\d+:\d+)*$/.test(line)));
       return [[key, lines.join(' ')]];
     }));
     assert.deepEqual(visible, Object.fromEntries(rows.flatMap(({ id, heading, cells }) => [

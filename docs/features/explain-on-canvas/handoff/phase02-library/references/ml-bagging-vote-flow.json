@@ -7,27 +7,27 @@
     "nodes": [
       {
         "id": "boot",
-        "label": "Bootstrap draws",
+        "label": "Draw bootstrap samples",
         "role": "fork"
       },
       {
         "id": "a",
-        "label": "Tree 1 predicts A",
+        "label": "Predict A with tree 1",
         "role": "process"
       },
       {
         "id": "b",
-        "label": "Tree 2 predicts B",
+        "label": "Predict B with tree 2",
         "role": "process"
       },
       {
         "id": "c",
-        "label": "Tree 3 predicts A",
+        "label": "Predict A with tree 3",
         "role": "process"
       },
       {
         "id": "vote",
-        "label": "Majority vote",
+        "label": "Take a majority vote",
         "role": "merge"
       },
       {

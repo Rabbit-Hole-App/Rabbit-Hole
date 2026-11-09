@@ -8,7 +8,7 @@
       "label": "Before the weight update",
       "diagram": {
         "title": "Equal weight on every row",
-        "caption": "Only R3 is missed, so the weighted error is 1/4. The binary learner coefficient is $\\alpha=\\ln(3)/2$.",
+        "caption": "Only R3 is missed, so the weighted error is $\\frac{1}{4}$. The binary learner coefficient is $\\alpha=\\ln(3)/2$.",
         "kind": "matrix",
         "layout": "teaching",
         "columns": [
@@ -21,7 +21,7 @@
             "heading": "R1",
             "cells": [
               "Correct",
-              "1/4"
+              "$\\frac{1}{4}$"
             ]
           },
           {
@@ -29,7 +29,7 @@
             "heading": "R2",
             "cells": [
               "Correct",
-              "1/4"
+              "$\\frac{1}{4}$"
             ]
           },
           {
@@ -37,7 +37,7 @@
             "heading": "R3",
             "cells": [
               "Missed",
-              "1/4"
+              "$\\frac{1}{4}$"
             ]
           },
           {
@@ -45,7 +45,7 @@
             "heading": "R4",
             "cells": [
               "Correct",
-              "1/4"
+              "$\\frac{1}{4}$"
             ]
           }
         ],
@@ -73,7 +73,7 @@
             "heading": "R1",
             "cells": [
               "$e^{-\\alpha}$",
-              "1/6"
+              "$\\frac{1}{6}$"
             ]
           },
           {
@@ -81,7 +81,7 @@
             "heading": "R2",
             "cells": [
               "$e^{-\\alpha}$",
-              "1/6"
+              "$\\frac{1}{6}$"
             ]
           },
           {
@@ -89,7 +89,7 @@
             "heading": "R3",
             "cells": [
               "$e^\\alpha$",
-              "1/2"
+              "$\\frac{1}{2}$"
             ]
           },
           {
@@ -97,7 +97,7 @@
             "heading": "R4",
             "cells": [
               "$e^{-\\alpha}$",
-              "1/6"
+              "$\\frac{1}{6}$"
             ]
           }
         ],
@@ -111,7 +111,7 @@
     "operation": "Multiply by the factor for each row, then normalize",
     "identity": {
       "mode": "preserved",
-      "note": "R1–R4 are the same examples in both tables. R3 goes from 1/4 to 1/2."
+      "note": "R1–R4 are the same examples in both tables. R3 goes from $\\frac{1}{4}$ to $\\frac{1}{2}$."
     }
   }
 }

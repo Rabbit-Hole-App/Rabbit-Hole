@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A convolutional network turns an image into class scores",
+    "caption": "Convolution produces feature maps. Activation adds nonlinearity, and pooling reduces their spatial size.",
+    "kind": "flow",
+    "nodes": [
+      {
+        "id": "image",
+        "label": "Read the image",
+        "role": "process"
+      },
+      {
+        "id": "convolution",
+        "label": "Convolve with learned filters",
+        "role": "process"
+      },
+      {
+        "id": "activation",
+        "label": "Activate feature maps",
+        "role": "process"
+      },
+      {
+        "id": "pooling",
+        "label": "Pool local neighborhoods",
+        "role": "process"
+      },
+      {
+        "id": "flatten",
+        "label": "Flatten pooled maps",
+        "role": "process"
+      },
+      {
+        "id": "dense",
+        "label": "Apply a fully connected layer",
+        "role": "process"
+      },
+      {
+        "id": "scores",
+        "label": "Produce class scores",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "image",
+        "to": "convolution"
+      },
+      {
+        "from": "convolution",
+        "to": "activation"
+      },
+      {
+        "from": "activation",
+        "to": "pooling"
+      },
+      {
+        "from": "pooling",
+        "to": "flatten"
+      },
+      {
+        "from": "flatten",
+        "to": "dense"
+      },
+      {
+        "from": "dense",
+        "to": "scores"
+      }
+    ]
+  }
+}

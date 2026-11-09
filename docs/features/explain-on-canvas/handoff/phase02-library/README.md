@@ -6,11 +6,11 @@ Task: `96d13bbb-6cd1-45be-b27a-95820d3495b0` · branch: `chatgpt/explain-phase02
 
 Four new diagram kinds and nine additive extensions are implemented in the **written `/explain`** path. The model receives relevant, valid JSON examples; Rabbit Hole renders the resulting semantic JSON using the existing SVG component. These are reusable layouts and reference data, not fixed lesson cards returned in place of generation. The `/interact` fixtures and `/animation` renderer are separate and unchanged.
 
-There are **160 registered references**, including 146 with Phase 02 lesson tags and 14 general examples. The registry covers all 21 supported kinds and maps all 21 lessons to concrete IDs. The per-lesson audit tracks which requested scenes are still missing. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Coverage audit](coverage-audit.md)
+There are **174 registered references**, including 146 with Phase 02 lesson tags, 14 general examples and 14 broader AI/ML examples. The separate kind gallery holds 21 neutral shapes. The registry covers all 21 supported kinds and maps all 21 lessons to concrete IDs. The per-lesson audit tracks the requested scenes that are still open. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Coverage audit](coverage-audit.md)
 
 The batch handoffs record the prompts, expected math and dev acceptance steps. Batch 1 covers ten references for Lessons 04–07. Batch 2 covers all 16 planned references across Lessons 08–12, 17–18 and 20. Batch 3A covers the four time-series gaps in Lesson 15. [Batch 1](batch-1.md) · [Batch 2A](batch-2a.md) · [Batch 2B](batch-2b.md) · [Batch 2C](batch-2c.md) · [Batch 3A](batch-3a.md)
 
-The batch receipts record focused test results, the web build and inspection of the exported SVGs for each implementation snapshot. Live generation, browser appearance and save/reopen have separate acceptance steps. [Latest receipt](batch-3a.md#local-verification)
+The latest handoff covers the 14 AI/ML additions, kind gallery, content contracts, standalone formula sampler, renderer diffs, correction corpus and SVG snapshots. It records the original selector benchmark and the additional paraphrase replay. [Offline SVG handoff](svg-offline.md)
 
 ## Implemented scope
 
@@ -42,13 +42,14 @@ See [all reference JSON/SVG pairs and per-lesson mapping](references/README.md).
 | Domain geometry | `packages/web/src/tutor-diagrams/ml-*-layouts.js` |
 | Exact approved palette | `packages/web/src/tutor-diagrams/teaching-theme.js` |
 | Actual author examples and all lesson mappings | `packages/web/src/tutor-diagrams/reference-library.js`, `ml-*-references.js` |
+| Neutral spec for each diagram kind | `packages/web/src/tutor-diagrams/kind-gallery.json` |
 | Bounded selection and author instructions | `packages/control-plane/src/explanation-references.js` |
 | Real author / repair context integration | `packages/control-plane/src/learn-artifact.js` |
 | Server requirement recognition and traced tree validation | `packages/control-plane/src/explanation-visuals.js`, `learn-primitives.js` |
 | Reproducible actual-renderer SVGs and gallery | `packages/web/scripts/export-explanation-references.mjs` |
 | Extension instructions / constraints | `packages/web/src/tutor-diagrams/README.md` |
 
-The selector adds **at most two** complete JSON examples and at most 14,000 characters of example context. This is a reference-context bound, not the card's visual count. It uses learner words before source context, filters explicit required kinds, and emits no unrelated examples when no topic matches. When an explicit kind matches a leaf inside a comparison or visual transformation, it can supply that valid leaf as a standalone example; a comparison wrapper is not accepted in place of a required histogram. Ordinary hierarchies cannot fall through to the first binary-operation examples. Repairs retain the same references. Other commands receive none. It makes no extra model call.
+The selector adds **at most two** complete JSON examples and at most 14,000 characters of example context. It uses learner words before source context and filters explicit required kinds. When a required kind matches a leaf inside a composition, it can supply that valid leaf as a standalone example. If no topic matches and a kind is known, it supplies the neutral gallery shape for that kind. An unfamiliar ordinary hierarchy can use `shape-tree`, which uses the hierarchy layout. Repairs retain the same references. Other commands receive none. It makes no extra model call.
 
 The JSON Schema is nonrecursive and serializable; its size is recorded in the execution receipt below. Runtime checks enforce additional invariants that JSON Schema cannot express. The schema still uses `version: 1` and retains the existing 16,384-character whole-diagram limit. Old specs preserve their existing render treatment; unknown new kinds need the coordinated new reader.
 

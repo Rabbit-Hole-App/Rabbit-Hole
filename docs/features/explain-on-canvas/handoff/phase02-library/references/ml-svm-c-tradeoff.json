@@ -1,8 +1,8 @@
 {
   "version": 1,
   "diagram": {
-    "title": "C trades margin width for hinge loss",
-    "caption": "Toy objective: $0.5w^2+C\\sum_i\\max(0,1-y_iwx_i)$. Larger C reduces hinge loss here; both fits misclassify 2 of 6.",
+    "title": "$C$ trades margin width for hinge loss",
+    "caption": "Toy objective $0.5w^2+C\\sum_i\\max(0,1-y_iwx_i)$. A larger $C$ reduces hinge loss here. Both fits misclassify 2 of 6.",
     "kind": "comparison",
     "variant": "panels",
     "panels": [
@@ -10,7 +10,7 @@
         "heading": "$C = 0.05$",
         "diagram": {
           "title": "$C = 0.05$",
-          "caption": "$w = 0.25$; $b = 0$; hinge sum = 4.75; objective = 0.26875.",
+          "caption": "Use $w = 0.25$ and $b = 0$. Hinge sum $4.75$, objective $0.26875$.",
           "kind": "coordinate-plot",
           "x": {
             "label": "Feature $x$",
@@ -94,7 +94,7 @@
         "heading": "$C = 2$",
         "diagram": {
           "title": "$C = 2$",
-          "caption": "$w = 1$; $b = 0$; hinge sum = 3; objective = 6.5.",
+          "caption": "Use $w = 1$ and $b = 0$. Hinge sum $3$, objective $6.5$.",
           "kind": "coordinate-plot",
           "x": {
             "label": "Feature $x$",

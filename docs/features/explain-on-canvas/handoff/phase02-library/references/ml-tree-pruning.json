@@ -8,7 +8,7 @@
     "nodes": [
       {
         "id": "r",
-        "label": "x₁ ≤ 2.5?",
+        "label": "$x_1\\le 2.5$?",
         "count": 100
       },
       {
@@ -21,7 +21,7 @@
       },
       {
         "id": "split",
-        "label": "x₂ ≤ 7.2?",
+        "label": "$x_2\\le 7.2$?",
         "parent": "r",
         "side": "right",
         "edgeLabel": "No",
@@ -39,7 +39,7 @@
       },
       {
         "id": "noise",
-        "label": "Class A",
+        "label": "Class A (pruned)",
         "parent": "split",
         "side": "right",
         "edgeLabel": "No",

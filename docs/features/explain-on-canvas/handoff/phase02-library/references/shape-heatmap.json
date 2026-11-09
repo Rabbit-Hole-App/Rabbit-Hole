@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Soil temperature in Celsius",
+    "kind": "heatmap",
+    "columns": [
+      "Morning",
+      "Noon"
+    ],
+    "rows": [
+      {
+        "label": "Shade",
+        "cells": [
+          16,
+          19
+        ]
+      },
+      {
+        "label": "Sun",
+        "cells": [
+          18,
+          24
+        ]
+      }
+    ],
+    "range": {
+      "min": 16,
+      "max": 24
+    }
+  }
+}

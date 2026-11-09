@@ -46,7 +46,7 @@
     "annotations": [
       {
         "kind": "reference-line",
-        "label": "Mean prediction = 3",
+        "label": "Mean prediction of 3",
         "axis": "y",
         "value": 3
       }

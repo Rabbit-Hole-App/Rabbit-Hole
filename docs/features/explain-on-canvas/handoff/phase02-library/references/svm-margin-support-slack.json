@@ -86,7 +86,7 @@
       },
       {
         "kind": "segment",
-        "label": "Margin violation = 0.5",
+        "label": "Margin violation of 0.5",
         "from": {
           "x": 0.5,
           "y": 2

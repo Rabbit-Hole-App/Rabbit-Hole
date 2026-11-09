@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Commute times",
+    "kind": "box-plot",
+    "x": {
+      "label": "Time",
+      "min": 0,
+      "max": 40,
+      "unit": "min"
+    },
+    "boxes": [
+      {
+        "label": "Bus rides",
+        "whiskerLow": 10,
+        "q1": 15,
+        "median": 20,
+        "q3": 25,
+        "whiskerHigh": 30
+      }
+    ]
+  }
+}

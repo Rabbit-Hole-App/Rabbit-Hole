@@ -1,0 +1,339 @@
+{
+  "requestCommit": "87d7d3918b3b5632c82709baa4899a80cbc2f6af",
+  "beforeRecords": 142,
+  "afterRecords": 156,
+  "requested": 14,
+  "passed": 14,
+  "protectedPrompts": 152,
+  "changedControls": [],
+  "detail": [
+    {
+      "id": "backprop",
+      "prompt": "how does backpropagation work?",
+      "expected": {
+        "id": "ml-backpropagation",
+        "kind": "flow"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-backpropagation",
+          "kind": "flow"
+        }
+      ],
+      "paraphrase": "Can you walk through backprop after the loss is computed?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-backpropagation",
+          "kind": "flow"
+        },
+        {
+          "id": "binary-cross-entropy-loss",
+          "kind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "id": "attention",
+      "prompt": "how does attention work in a transformer?",
+      "expected": {
+        "id": "ml-transformer-attention",
+        "kind": "matrix"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-transformer-attention",
+          "kind": "matrix"
+        }
+      ],
+      "paraphrase": "Show how transformer self-attention mixes the value vectors for each query token.",
+      "paraphrasePicks": [
+        {
+          "id": "ml-transformer-attention",
+          "kind": "matrix"
+        },
+        {
+          "id": "cosine-vector-directions",
+          "kind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "id": "gpu-matmul",
+      "prompt": "how does a GPU run matrix multiplications?",
+      "expected": {
+        "id": "ml-gpu-matmul",
+        "kind": "flow"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-gpu-matmul",
+          "kind": "flow"
+        }
+      ],
+      "paraphrase": "How do GPU thread blocks split up matmul?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-gpu-matmul",
+          "kind": "flow"
+        },
+        {
+          "id": "ml-tree-split-path",
+          "kind": "tree"
+        }
+      ]
+    },
+    {
+      "id": "cnn",
+      "prompt": "what is a convolutional neural network?",
+      "expected": {
+        "id": "ml-convolutional-network",
+        "kind": "flow"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-convolutional-network",
+          "kind": "flow"
+        }
+      ],
+      "paraphrase": "How do convolutional filters build features in a CNN?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-convolutional-network",
+          "kind": "flow"
+        }
+      ]
+    },
+    {
+      "id": "rag",
+      "prompt": "how does RAG work?",
+      "expected": {
+        "id": "ml-rag-retrieval",
+        "kind": "sequence"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-rag-retrieval",
+          "kind": "sequence"
+        }
+      ],
+      "paraphrase": "Show what gets passed to the language model in retrieval-augmented generation.",
+      "paraphrasePicks": [
+        {
+          "id": "ml-rag-retrieval",
+          "kind": "sequence"
+        }
+      ]
+    },
+    {
+      "id": "beam-search",
+      "prompt": "how does beam search work?",
+      "expected": {
+        "id": "ml-beam-search",
+        "kind": "tree"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-beam-search",
+          "kind": "tree"
+        }
+      ],
+      "paraphrase": "What gets pruned when beam search picks the next token?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-beam-search",
+          "kind": "tree"
+        }
+      ]
+    },
+    {
+      "id": "rlhf",
+      "prompt": "how does RLHF work?",
+      "expected": {
+        "id": "ml-rlhf-feedback",
+        "kind": "cycle"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-rlhf-feedback",
+          "kind": "cycle"
+        }
+      ],
+      "paraphrase": "How does reinforcement learning from human feedback use ranked answers?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-rlhf-feedback",
+          "kind": "cycle"
+        },
+        {
+          "id": "ml-learning-taxonomy",
+          "kind": "tree"
+        }
+      ]
+    },
+    {
+      "id": "cpu-vs-gpu",
+      "prompt": "what is the difference between a CPU and a GPU?",
+      "expected": {
+        "id": "ml-cpu-vs-gpu",
+        "kind": "comparison"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-cpu-vs-gpu",
+          "kind": "comparison"
+        }
+      ],
+      "paraphrase": "Why is a CPU good for sequential work while a GPU handles many calculations at once?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-cpu-vs-gpu",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "dropout",
+      "prompt": "how does dropout work?",
+      "expected": {
+        "id": "ml-dropout-network",
+        "kind": "transformation"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-dropout-network",
+          "kind": "transformation"
+        }
+      ],
+      "paraphrase": "Which hidden units and connections disappear when I apply dropout during training?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-dropout-network",
+          "kind": "transformation"
+        },
+        {
+          "id": "ml-feature-store-architecture",
+          "kind": "relationship"
+        }
+      ]
+    },
+    {
+      "id": "diffusion",
+      "prompt": "how does a diffusion model generate an image?",
+      "expected": {
+        "id": "ml-diffusion-denoising",
+        "kind": "sequence"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-diffusion-denoising",
+          "kind": "sequence"
+        }
+      ],
+      "paraphrase": "How does a text-to-image diffusion model turn noise into a picture?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-diffusion-denoising",
+          "kind": "sequence"
+        }
+      ]
+    },
+    {
+      "id": "kv-cache",
+      "prompt": "how does KV caching speed up inference?",
+      "expected": {
+        "id": "ml-kv-cache-decode",
+        "kind": "sequence"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-kv-cache-decode",
+          "kind": "sequence"
+        }
+      ],
+      "paraphrase": "When decoding with a KV cache, which tensors are reused for the next token?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-kv-cache-decode",
+          "kind": "sequence"
+        }
+      ]
+    },
+    {
+      "id": "nn-look",
+      "prompt": "what does a neural network look like?",
+      "expected": {
+        "id": "ml-neural-network-weights",
+        "kind": "relationship"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-neural-network-weights",
+          "kind": "relationship"
+        }
+      ],
+      "paraphrase": "Can I see the weighted connections in a fully connected network?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-neural-network-weights",
+          "kind": "relationship"
+        }
+      ]
+    },
+    {
+      "id": "robot-arm",
+      "prompt": "how does a robot arm pick up an object?",
+      "expected": {
+        "id": "ml-robot-arm-pickup",
+        "kind": "flow"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-robot-arm-pickup",
+          "kind": "flow"
+        }
+      ],
+      "paraphrase": "Show how a robot arm grips and lifts a block.",
+      "paraphrasePicks": [
+        {
+          "id": "ml-robot-arm-pickup",
+          "kind": "flow"
+        }
+      ]
+    },
+    {
+      "id": "comp-graph",
+      "prompt": "what is a computational graph?",
+      "expected": {
+        "id": "ml-computational-graph",
+        "kind": "relationship"
+      },
+      "before": [],
+      "after": [
+        {
+          "id": "ml-computational-graph",
+          "kind": "relationship"
+        }
+      ],
+      "paraphrase": "How does a computation graph track intermediate values?",
+      "paraphrasePicks": [
+        {
+          "id": "ml-computational-graph",
+          "kind": "relationship"
+        }
+      ]
+    }
+  ]
+}

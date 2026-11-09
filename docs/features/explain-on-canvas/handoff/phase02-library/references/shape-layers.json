@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A plywood sheet",
+    "kind": "layers",
+    "layers": [
+      {
+        "label": "Face veneer"
+      },
+      {
+        "label": "Core veneers"
+      },
+      {
+        "label": "Back veneer"
+      }
+    ]
+  }
+}

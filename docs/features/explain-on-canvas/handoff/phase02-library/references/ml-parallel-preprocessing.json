@@ -6,7 +6,7 @@
     "nodes": [
       {
         "id": "fork",
-        "label": "Column groups",
+        "label": "Split columns by type",
         "role": "fork"
       },
       {
@@ -36,7 +36,7 @@
       },
       {
         "id": "output",
-        "label": "Feature matrix",
+        "label": "Return feature matrix",
         "role": "outcome"
       }
     ],

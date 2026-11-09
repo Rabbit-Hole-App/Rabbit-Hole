@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "title": "Insert 7 into the binary search tree",
-    "caption": "7 < 8, 7 > 3, and 7 > 6. The empty right slot below 6 receives 7.",
+    "caption": "Since $7<8$, $7>3$, and $7>6$, insert 7 in the empty right slot below 6.",
     "kind": "tree",
     "layout": "binary",
     "nodes": [
@@ -15,7 +15,7 @@
         "label": "3",
         "parent": "eight",
         "side": "left",
-        "edgeLabel": "7 < 8"
+        "edgeLabel": "$7<8$"
       },
       {
         "id": "ten",
@@ -34,14 +34,14 @@
         "label": "6",
         "parent": "three",
         "side": "right",
-        "edgeLabel": "7 > 3"
+        "edgeLabel": "$7>3$"
       },
       {
         "id": "seven",
         "label": "7",
         "parent": "six",
         "side": "right",
-        "edgeLabel": "7 > 6",
+        "edgeLabel": "$7>6$",
         "detail": "Inserted key"
       }
     ],

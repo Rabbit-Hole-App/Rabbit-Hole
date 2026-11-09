@@ -82,7 +82,9 @@ test('required tree kind alone cannot select unrelated binary operations', () =>
       visualRequirements: deriveVisualRequirements(args) });
     assert.ok(prepared.diagramReferences.every(ref => ref.spec.diagram.layout !== 'binary'), args);
   }
-  assert.deepEqual(selectDiagramReferences({ prompt: 'Draw a tree diagram of an unfamiliar ontology.', requiredKinds: ['tree'] }), []);
+  const references = selectDiagramReferences({ prompt: 'Draw a tree diagram of an unfamiliar ontology.', requiredKinds: ['tree'] });
+  assert.deepEqual(references.map(ref => ref.id), ['shape-tree']);
+  assert.equal(references[0].spec.diagram.layout, undefined);
 });
 
 // Owner A1 (2026-11-08): a fast-chain author gets a fixed schema bundle chosen by its references and required kinds; the plan path keeps the whole schema.

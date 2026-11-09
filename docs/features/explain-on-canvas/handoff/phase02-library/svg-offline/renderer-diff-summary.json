@@ -1,0 +1,23 @@
+{
+  "beforeRenderer": "71f9e0d86edbc7e930b6f996a1bacda0f7f2b9be",
+  "sameSpecsOnBothSides": true,
+  "referenceCount": 174,
+  "kindCount": 21,
+  "pairs": 585,
+  "changed": 216,
+  "unchanged": 369,
+  "changedByKind": {
+    "coordinate-plot": 138,
+    "comparison": 45,
+    "transformation": 12,
+    "relationship": 21
+  },
+  "changedByRequestedWidth": {
+    "320": 72,
+    "408": 72,
+    "720": 72
+  },
+  "archive": "renderer-diffs.tar.gz",
+  "archiveBytes": 785478,
+  "archiveSha256": "55eddeb7a208f7cc686d8fd16c8de86df9b6bc09ca7c79288c161c8d37342221"
+}

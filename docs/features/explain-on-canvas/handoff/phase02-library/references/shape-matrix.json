@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Bikes at two stations",
+    "kind": "matrix",
+    "columns": [
+      "Monday",
+      "Tuesday"
+    ],
+    "rows": [
+      {
+        "heading": "River Park",
+        "cells": [
+          "8",
+          "5"
+        ]
+      },
+      {
+        "heading": "Town Hall",
+        "cells": [
+          "3",
+          "7"
+        ]
+      }
+    ]
+  }
+}

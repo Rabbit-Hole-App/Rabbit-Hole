@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Dropout in a small hidden layer",
+    "caption": "Classical dropout uses all units at inference and scales each activation by keep rate $p$ ($h_i\\mapsto ph_i$).",
+    "kind": "transformation",
+    "variant": "visual",
+    "before": {
+      "label": "All hidden units active",
+      "diagram": {
+        "title": "All hidden units active",
+        "kind": "matrix",
+        "layout": "teaching",
+        "columns": [
+          "Input links from",
+          "Output link to"
+        ],
+        "rows": [
+          {
+            "id": "h1",
+            "heading": "$h_1$",
+            "cells": [
+              "$x_1,x_2$",
+              "$y$"
+            ]
+          },
+          {
+            "id": "h2",
+            "heading": "$h_2$",
+            "cells": [
+              "$x_1,x_2$",
+              "$y$"
+            ]
+          },
+          {
+            "id": "h3",
+            "heading": "$h_3$",
+            "cells": [
+              "$x_1,x_2$",
+              "$y$"
+            ]
+          }
+        ]
+      }
+    },
+    "after": {
+      "label": "One sampled mask",
+      "diagram": {
+        "title": "One sampled mask",
+        "kind": "matrix",
+        "layout": "teaching",
+        "columns": [
+          "Input links from",
+          "Output link to"
+        ],
+        "rows": [
+          {
+            "id": "h1",
+            "heading": "$h_1$",
+            "cells": [
+              "$x_1,x_2$",
+              "$y$"
+            ]
+          },
+          {
+            "id": "h2",
+            "heading": "$h_2$ off",
+            "cells": [
+              "Removed",
+              "Removed"
+            ]
+          },
+          {
+            "id": "h3",
+            "heading": "$h_3$",
+            "cells": [
+              "$x_1,x_2$",
+              "$y$"
+            ]
+          }
+        ],
+        "emphasis": {
+          "rows": [
+            "h2"
+          ]
+        }
+      }
+    },
+    "operation": "Randomly mask hidden units during training",
+    "identity": {
+      "mode": "preserved",
+      "note": "Both sets of links for $h_2$ are inactive for this training pass."
+    }
+  }
+}

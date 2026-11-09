@@ -75,7 +75,7 @@
       "useWhen": "Use an actual binary tree when teaching split thresholds, sample membership, impurity, and a root-to-leaf prediction.",
       "kind": "tree",
       "width": 408,
-      "height": 446
+      "height": 464
     },
     {
       "id": "ml-tree-pruning",
@@ -90,7 +90,7 @@
       "useWhen": "Show the real subtree and its counts; mark a discarded subtree instead of replacing the explanation with a generic flow.",
       "kind": "tree",
       "width": 408,
-      "height": 463
+      "height": 481
     },
     {
       "id": "ml-isolation-tree",
@@ -143,7 +143,7 @@
       "useWhen": "A fork means both routes run. Use a merge to concatenate outputs; a decision diamond would incorrectly mean choose one route.",
       "kind": "flow",
       "width": 408,
-      "height": 533
+      "height": 545
     },
     {
       "id": "ml-bagging-vote-flow",
@@ -157,7 +157,7 @@
       "useWhen": "Use simultaneous fork/merge routes for independent bagged models; show sample multiplicities separately with sample-set.",
       "kind": "flow",
       "width": 408,
-      "height": 511
+      "height": 529
     },
     {
       "id": "ml-stacking-flow",
@@ -171,7 +171,7 @@
       "useWhen": "Parallel base models merge out-of-fold predictions into meta features. Distinguish these from in-sample predictions to avoid leakage.",
       "kind": "flow",
       "width": 408,
-      "height": 532
+      "height": 544
     },
     {
       "id": "ml-feature-store-architecture",
@@ -242,7 +242,7 @@
       "useWhen": "Use a fork for concurrently evaluated configurations and a merge to compare their validation results; each trial label states its budget.",
       "kind": "flow",
       "width": 408,
-      "height": 536
+      "height": 554
     },
     {
       "id": "confusion-matrix-counts",
@@ -461,7 +461,7 @@
       "useWhen": "Use when given a five-number inlier summary and outliers. Fences are labelled separately from observed whiskers and must fit the shared axis.",
       "kind": "box-plot",
       "width": 408,
-      "height": 329
+      "height": 346
     },
     {
       "id": "nearest-centroid-boundary",
@@ -1528,9 +1528,9 @@
         "Show covariate drift where inputs shift while the target rule stays fixed."
       ],
       "useWhen": "Contrast shifted input samples under an unchanged conditional target rule.",
-      "kind": "comparison",
-      "width": 444,
-      "height": 1109
+      "kind": "coordinate-plot",
+      "width": 420,
+      "height": 528
     },
     {
       "id": "ml-label-prior-drift-comparison",
@@ -1542,9 +1542,9 @@
         "Show label-prior shift as a change in class prevalence."
       ],
       "useWhen": "Compare class prevalence in equally sized windows; do not infer a changed conditional relationship from counts alone.",
-      "kind": "comparison",
-      "width": 408,
-      "height": 558
+      "kind": "bar-chart",
+      "width": 420,
+      "height": 368
     },
     {
       "id": "ml-concept-drift-comparison",
@@ -1597,7 +1597,7 @@
       "useWhen": "Show a fixed additive prediction update on the same sample identities, with a stated learning rate.",
       "kind": "transformation",
       "width": 444,
-      "height": 1450
+      "height": 1434
     },
     {
       "id": "ml-differencing-transformation",
@@ -1944,7 +1944,7 @@
       "useWhen": "Show the feature ranking at each fit. Drop the lowest-scoring feature, refit the survivors and rank them again. Track feature identities and stop at the requested subset size.",
       "kind": "matrix",
       "width": 408,
-      "height": 389
+      "height": 339
     },
     {
       "id": "ml-psi-bin-contributions",
@@ -1970,7 +1970,7 @@
       "useWhen": "Decompose an additive series into trend, seasonal contribution and residuals. Align the dates and reconstruct an observed value from the three components at the same date.",
       "kind": "comparison",
       "width": 444,
-      "height": 1632
+      "height": 1649
     },
     {
       "id": "ml-rolling-mean-feature",
@@ -2012,12 +2012,166 @@
       "height": 801
     },
     {
+      "id": "ml-backpropagation",
+      "lessons": [],
+      "prompts": [
+        "how does backpropagation work?"
+      ],
+      "useWhen": "Trace the forward pass through a hidden and output layer to the loss, then use the chain rule through those same layers in reverse to compute weight gradients before updating.",
+      "kind": "flow",
+      "width": 408,
+      "height": 846
+    },
+    {
+      "id": "ml-gpu-matmul",
+      "lessons": [],
+      "prompts": [
+        "how does a GPU run matrix multiplications?"
+      ],
+      "useWhen": "Show a GPU assigning different output tiles to parallel thread blocks. Each block multiplies its corresponding rows and columns, and the output is assembled from the completed tiles.",
+      "kind": "flow",
+      "width": 506,
+      "height": 661
+    },
+    {
+      "id": "ml-convolutional-network",
+      "lessons": [],
+      "prompts": [
+        "what is a convolutional neural network?"
+      ],
+      "useWhen": "Trace one image-classification CNN from learned filters and feature maps through activation, pooling and flattening to a fully connected layer that produces class scores.",
+      "kind": "flow",
+      "width": 408,
+      "height": 684
+    },
+    {
+      "id": "ml-beam-search",
+      "lessons": [],
+      "prompts": [
+        "how does beam search work?"
+      ],
+      "useWhen": "Show scored continuations from a start token. Keep the two best partial sequences across all candidates at each depth, prune the rest, and highlight the best final sequence.",
+      "kind": "tree",
+      "width": 542,
+      "height": 368
+    },
+    {
+      "id": "ml-rlhf-feedback",
+      "lessons": [],
+      "prompts": [
+        "how does RLHF work?"
+      ],
+      "useWhen": "Explain iterative RLHF with a return arrow from policy tuning to answer sampling. The first round starts with a pretrained model.",
+      "kind": "cycle",
+      "width": 408,
+      "height": 380
+    },
+    {
+      "id": "ml-neural-network-weights",
+      "lessons": [],
+      "prompts": [
+        "what does a neural network look like?"
+      ],
+      "useWhen": "Draw each input, hidden and output unit once. Label the weight on every link between consecutive layers of a small fully connected network.",
+      "kind": "relationship",
+      "width": 408,
+      "height": 680
+    },
+    {
+      "id": "ml-computational-graph",
+      "lessons": [],
+      "prompts": [
+        "what is a computational graph?"
+      ],
+      "useWhen": "Represent operations as nodes and intermediate values as labeled edges. Use the same graph in reverse to explain the chain rule for loss gradients.",
+      "kind": "relationship",
+      "width": 408,
+      "height": 737
+    },
+    {
+      "id": "ml-transformer-attention",
+      "lessons": [],
+      "prompts": [
+        "how does attention work in a transformer?"
+      ],
+      "useWhen": "Show one encoder self-attention head with query rows, key columns, row-wise softmax and worked value-vector mixes.",
+      "kind": "matrix",
+      "width": 408,
+      "height": 317
+    },
+    {
+      "id": "ml-rag-retrieval",
+      "lessons": [],
+      "prompts": [
+        "how does RAG work?"
+      ],
+      "useWhen": "Trace a question through embedding and retrieval, then send the question and retrieved text to the LLM.",
+      "kind": "sequence",
+      "width": 440,
+      "height": 658
+    },
+    {
+      "id": "ml-cpu-vs-gpu",
+      "lessons": [],
+      "prompts": [
+        "what is the difference between a CPU and a GPU?"
+      ],
+      "useWhen": "Compare typical CPU and GPU cores, performance goals and the workloads that suit each.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 289
+    },
+    {
+      "id": "ml-dropout-network",
+      "lessons": [],
+      "prompts": [
+        "how does dropout work?"
+      ],
+      "useWhen": "Compare the same hidden units before and after a training mask, then explain classical inference scaling.",
+      "kind": "transformation",
+      "width": 408,
+      "height": 754
+    },
+    {
+      "id": "ml-diffusion-denoising",
+      "lessons": [],
+      "prompts": [
+        "how does a diffusion model generate an image?"
+      ],
+      "useWhen": "Follow a prompt-conditioned sampler from pure noise to an image and name the forward noising process used in training.",
+      "kind": "sequence",
+      "width": 408,
+      "height": 555
+    },
+    {
+      "id": "ml-kv-cache-decode",
+      "lessons": [],
+      "prompts": [
+        "how does KV caching speed up inference?"
+      ],
+      "useWhen": "Show new-token projections and the append-and-read operations at two successive decoder steps.",
+      "kind": "sequence",
+      "width": 408,
+      "height": 704
+    },
+    {
+      "id": "ml-robot-arm-pickup",
+      "lessons": [],
+      "prompts": [
+        "how does a robot arm pick up an object?"
+      ],
+      "useWhen": "Show the robot pickup procedure as a flow, from camera sensing to checking the grip.",
+      "kind": "flow",
+      "width": 408,
+      "height": 521
+    },
+    {
       "id": "general-sequence-1",
       "lessons": [],
       "prompts": [
         "Explain a cache-aside read"
       ],
-      "useWhen": "The question calls for sequence; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "sequence",
       "width": 408,
       "height": 299
@@ -2028,7 +2182,7 @@
       "prompts": [
         "Explain three layers of a web application"
       ],
-      "useWhen": "The question calls for layers; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "layers",
       "width": 408,
       "height": 262
@@ -2039,7 +2193,7 @@
       "prompts": [
         "Explain an experiment cycle"
       ],
-      "useWhen": "The question calls for cycle; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "cycle",
       "width": 408,
       "height": 283
@@ -2050,7 +2204,7 @@
       "prompts": [
         "Explain parts of an animal cell"
       ],
-      "useWhen": "The question calls for figure; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "figure",
       "width": 408,
       "height": 425
@@ -2061,7 +2215,7 @@
       "prompts": [
         "Explain forces on a balanced block"
       ],
-      "useWhen": "The question calls for figure; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "figure",
       "width": 408,
       "height": 448
@@ -2072,7 +2226,7 @@
       "prompts": [
         "Explain a layered panel in cross-section"
       ],
-      "useWhen": "The question calls for figure; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "figure",
       "width": 408,
       "height": 392
@@ -2083,7 +2237,7 @@
       "prompts": [
         "Explain build a reading of a passage"
       ],
-      "useWhen": "The question calls for argument; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "argument",
       "width": 408,
       "height": 385
@@ -2094,7 +2248,7 @@
       "prompts": [
         "Explain open and closed endpoints"
       ],
-      "useWhen": "The question calls for number-line; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "number-line",
       "width": 408,
       "height": 236
@@ -2105,7 +2259,7 @@
       "prompts": [
         "Explain post entries to cash"
       ],
-      "useWhen": "The question calls for t-account; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "t-account",
       "width": 408,
       "height": 293
@@ -2116,10 +2270,243 @@
       "prompts": [
         "Explain from opening cash to closing cash"
       ],
-      "useWhen": "The question calls for waterfall; use this semantic structure with the learner's facts.",
+      "useWhen": "Use this worked example when its topic matches the learner’s question.",
       "kind": "waterfall",
       "width": 408,
       "height": 280
+    }
+  ],
+  "kindGallery": [
+    {
+      "id": "shape-flow",
+      "lessons": [],
+      "prompts": [
+        "Wash berries"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "flow",
+      "width": 408,
+      "height": 245
+    },
+    {
+      "id": "shape-comparison",
+      "lessons": [],
+      "prompts": [
+        "Paper and e-books"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 155
+    },
+    {
+      "id": "shape-timeline",
+      "lessons": [],
+      "prompts": [
+        "Library pickup"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "timeline",
+      "width": 408,
+      "height": 145
+    },
+    {
+      "id": "shape-sequence",
+      "lessons": [],
+      "prompts": [
+        "Get a weather forecast"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "sequence",
+      "width": 408,
+      "height": 202
+    },
+    {
+      "id": "shape-matrix",
+      "lessons": [],
+      "prompts": [
+        "Bikes at two stations"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "matrix",
+      "width": 408,
+      "height": 179
+    },
+    {
+      "id": "shape-layers",
+      "lessons": [],
+      "prompts": [
+        "A plywood sheet"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "layers",
+      "width": 408,
+      "height": 197
+    },
+    {
+      "id": "shape-cycle",
+      "lessons": [],
+      "prompts": [
+        "Water cycle"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "cycle",
+      "width": 408,
+      "height": 283
+    },
+    {
+      "id": "shape-figure",
+      "lessons": [],
+      "prompts": [
+        "An animal cell"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "figure",
+      "width": 408,
+      "height": 293
+    },
+    {
+      "id": "shape-tree",
+      "lessons": [],
+      "prompts": [
+        "String instruments"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "tree",
+      "width": 408,
+      "height": 181
+    },
+    {
+      "id": "shape-relationship",
+      "lessons": [],
+      "prompts": [
+        "Apple blossom pollination"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "relationship",
+      "width": 408,
+      "height": 222
+    },
+    {
+      "id": "shape-transformation",
+      "lessons": [],
+      "prompts": [
+        "Water freezes"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "transformation",
+      "width": 408,
+      "height": 187
+    },
+    {
+      "id": "shape-argument",
+      "lessons": [],
+      "prompts": [
+        "Refill a birdbath"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "argument",
+      "width": 408,
+      "height": 292
+    },
+    {
+      "id": "shape-number-line",
+      "lessons": [],
+      "prompts": [
+        "A half-open interval"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "number-line",
+      "width": 408,
+      "height": 209
+    },
+    {
+      "id": "shape-coordinate-plot",
+      "lessons": [],
+      "prompts": [
+        "Area of a square"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "coordinate-plot",
+      "width": 420,
+      "height": 476
+    },
+    {
+      "id": "shape-bar-chart",
+      "lessons": [],
+      "prompts": [
+        "Library loans"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "bar-chart",
+      "width": 408,
+      "height": 157
+    },
+    {
+      "id": "shape-t-account",
+      "lessons": [],
+      "prompts": [
+        "Cash entries"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "t-account",
+      "width": 408,
+      "height": 239
+    },
+    {
+      "id": "shape-waterfall",
+      "lessons": [],
+      "prompts": [
+        "Market stall cash"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "waterfall",
+      "width": 408,
+      "height": 280
+    },
+    {
+      "id": "shape-heatmap",
+      "lessons": [],
+      "prompts": [
+        "Soil temperature in Celsius"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "heatmap",
+      "width": 408,
+      "height": 259
+    },
+    {
+      "id": "shape-sample-set",
+      "lessons": [],
+      "prompts": [
+        "Seed packet sample"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "sample-set",
+      "width": 408,
+      "height": 228
+    },
+    {
+      "id": "shape-histogram",
+      "lessons": [],
+      "prompts": [
+        "Leaf lengths"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "histogram",
+      "width": 408,
+      "height": 349
+    },
+    {
+      "id": "shape-box-plot",
+      "lessons": [],
+      "prompts": [
+        "Commute times"
+      ],
+      "useWhen": "Neutral example for the requested diagram kind.",
+      "kind": "box-plot",
+      "width": 408,
+      "height": 241
     }
   ],
   "lessons": [

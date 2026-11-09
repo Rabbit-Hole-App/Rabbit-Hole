@@ -16,6 +16,8 @@ import { references as batch2cImbalance } from './ml-batch2c-imbalance-reference
 import { references as batch3aForecast } from './ml-batch3a-forecast-references.js';
 import { references as batch3aCorrelation } from './ml-batch3a-correlation-references.js';
 import { references as batch3aSeries } from './ml-batch3a-series-references.js';
+import { references as batch3Topology } from './ml-batch3-topology-references.js';
+import { references as batch3Teaching } from './ml-batch3-teaching-references.js';
 
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
@@ -23,15 +25,16 @@ const unchanged = new Set(['cycle', 'sequence', 'layers', 'number-line', 'argume
 const generic = originalExamples.filter(spec => unchanged.has(spec.diagram.kind)).map((spec, index) => ({
   id: `general-${spec.diagram.kind}-${index + 1}`, lessons: [],
   prompts: [`Explain ${spec.diagram.title.toLowerCase()}`],
-  keywords: [spec.diagram.kind, spec.diagram.title.toLowerCase()],
-  useWhen: `The question calls for ${spec.diagram.kind}; use this semantic structure with the learner's facts.`, spec,
+  keywords: [spec.diagram.title.toLowerCase()],
+  useWhen: 'Use this worked example when its topic matches the learner’s question.', spec,
 }));
 export const diagramReferences = Object.freeze([
   ...topology, ...statistical, ...plot, ...data, ...composition,
   ...batch2aEncoding, ...batch2aTransform, ...batch2aEvaluation,
   ...batch2bFits, ...batch2bEnsembles, ...batch2bTuning,
   ...batch2cImbalance, ...batch2cElimination, ...batch2cPsi,
-  ...batch3aSeries, ...batch3aCorrelation, ...batch3aForecast, ...generic,
+  ...batch3aSeries, ...batch3aCorrelation, ...batch3aForecast,
+  ...batch3Topology, ...batch3Teaching, ...generic,
 ]);
 
 export const PHASE02_SOURCE = Object.freeze({

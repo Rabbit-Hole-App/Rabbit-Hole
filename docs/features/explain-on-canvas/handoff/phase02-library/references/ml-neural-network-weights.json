@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Weights connect adjacent neural network layers",
+    "caption": "Each hidden unit sums its weighted inputs and applies an activation. The output combines the two hidden activations.",
+    "kind": "relationship",
+    "layout": "graph",
+    "nodes": [
+      {
+        "id": "x1",
+        "label": "Input $x_1$"
+      },
+      {
+        "id": "x2",
+        "label": "Input $x_2$"
+      },
+      {
+        "id": "h1",
+        "label": "Hidden $h_1$"
+      },
+      {
+        "id": "h2",
+        "label": "Hidden $h_2$"
+      },
+      {
+        "id": "y",
+        "label": "Output $y$"
+      }
+    ],
+    "edges": [
+      {
+        "from": "x1",
+        "to": "h1",
+        "label": "Scale by $w_{11}$"
+      },
+      {
+        "from": "x1",
+        "to": "h2",
+        "label": "Scale by $w_{12}$"
+      },
+      {
+        "from": "x2",
+        "to": "h1",
+        "label": "Scale by $w_{21}$"
+      },
+      {
+        "from": "x2",
+        "to": "h2",
+        "label": "Scale by $w_{22}$"
+      },
+      {
+        "from": "h1",
+        "to": "y",
+        "label": "Scale by $v_1$"
+      },
+      {
+        "from": "h2",
+        "to": "y",
+        "label": "Scale by $v_2$"
+      }
+    ]
+  }
+}

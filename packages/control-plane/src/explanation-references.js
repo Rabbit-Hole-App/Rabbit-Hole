@@ -1,9 +1,31 @@
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
+import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 
 const MAX_REFERENCES = 2;
 const MAX_CONTEXT = 14_000;
 const normalized = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const shapesByKind = new Map(kindGallery.map(spec => [spec.diagram.kind, spec]));
+const legacyShapeKinds = [...new Set(diagramReferences.filter(ref => ref.id.startsWith('general-')).map(ref => ref.spec.diagram.kind))];
+
+export function fallbackKind(prompt) {
+  const query = normalized(String(prompt).slice(0, 4000));
+  const named = query.replace(/^please /, '')
+    .replace(/^(?:explain|show|draw|make|create|use)(?: me)? /, '')
+    .replace(/^(?:a|an|the|one) /, '')
+    .replace(/ (?:diagram|example)$/, '');
+  return [...shapesByKind.keys()].find(kind => normalized(kind) === named) ??
+    legacyShapeKinds.find(kind => matches(query, normalized(kind)));
+}
+
+function shapeExamples(prompt, required) {
+  const kinds = required.size ? [...required] : [fallbackKind(prompt)];
+  return kinds.filter(kind => shapesByKind.has(kind)).slice(0, MAX_REFERENCES).map(kind => ({
+    id: `shape-${kind}`,
+    useWhen: 'Use this neutral shape to structure the learner’s own content.',
+    spec: parseTutorDiagram(shapesByKind.get(kind)),
+  }));
+}
 function matches(haystack, phrase) {
   const forms = new Set([phrase, `${phrase}s`, `${phrase}es`]);
   if (phrase.endsWith('y')) forms.add(`${phrase.slice(0, -1)}ies`);
@@ -75,7 +97,7 @@ export function selectDiagramReferences({ prompt = '', context = '', requiredKin
     chars += length;
     if (picked.length === MAX_REFERENCES) break;
   }
-  return picked;
+  return picked.length ? picked : shapeExamples(prompt, required);
 }
 
 // The start of the reference block in a system prompt; the fast chain moves the block to the end of its system message (assembledSystem).

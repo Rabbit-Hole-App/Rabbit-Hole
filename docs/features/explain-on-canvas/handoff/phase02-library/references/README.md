@@ -121,8 +121,8 @@ Palette source: the approved `tree-splits-and-impurity.svg` at Rabbit-Hole commi
 | [ml-fit-quality-comparison](ml-fit-quality-comparison.svg) · [JSON](ml-fit-quality-comparison.json) | `comparison` | 02, 10 | Compare underfitting, a reasonable fit, and overfitting on the same observations. |
 | [ml-feature-scaling-transformation](ml-feature-scaling-transformation.svg) · [JSON](ml-feature-scaling-transformation.json) | `transformation` | 06, 08 | Show feature scaling while preserving each sample identity. |
 | [ml-clustering-comparison](ml-clustering-comparison.svg) · [JSON](ml-clustering-comparison.json) | `comparison` | 07 | Compare K-means and DBSCAN assignments on the same small sample set. |
-| [ml-covariate-drift-comparison](ml-covariate-drift-comparison.svg) · [JSON](ml-covariate-drift-comparison.json) | `comparison` | 20 | Show covariate drift where inputs shift while the target rule stays fixed. |
-| [ml-label-prior-drift-comparison](ml-label-prior-drift-comparison.svg) · [JSON](ml-label-prior-drift-comparison.json) | `comparison` | 17, 20 | Show label-prior shift as a change in class prevalence. |
+| [ml-covariate-drift-comparison](ml-covariate-drift-comparison.svg) · [JSON](ml-covariate-drift-comparison.json) | `coordinate-plot` | 20 | Show covariate drift where inputs shift while the target rule stays fixed. |
+| [ml-label-prior-drift-comparison](ml-label-prior-drift-comparison.svg) · [JSON](ml-label-prior-drift-comparison.json) | `bar-chart` | 17, 20 | Show label-prior shift as a change in class prevalence. |
 | [ml-concept-drift-comparison](ml-concept-drift-comparison.svg) · [JSON](ml-concept-drift-comparison.json) | `comparison` | 20 | Show concept drift where the input-to-target relationship changes. |
 | [ml-one-hot-encoding-transformation](ml-one-hot-encoding-transformation.svg) · [JSON](ml-one-hot-encoding-transformation.json) | `transformation` | 08 | Explain one-hot encoding while keeping row identity visible. |
 | [ml-imputation-transformation](ml-imputation-transformation.svg) · [JSON](ml-imputation-transformation.json) | `transformation` | 08, 13 | Show a missing value filled with a training-set imputation statistic. |
@@ -158,6 +158,20 @@ Palette source: the approved `tree-splits-and-impurity.svg` at Rabbit-Hole commi
 | [ml-rolling-mean-feature](ml-rolling-mean-feature.svg) · [JSON](ml-rolling-mean-feature.json) | `matrix` | 15 | Which past values go into a three-day rolling average before a prediction? |
 | [ml-acf-vs-pacf](ml-acf-vs-pacf.svg) · [JSON](ml-acf-vs-pacf.json) | `comparison` | 15 | What is the difference between ACF and PACF for the same series? |
 | [ml-recursive-vs-direct-forecast](ml-recursive-vs-direct-forecast.svg) · [JSON](ml-recursive-vs-direct-forecast.json) | `comparison` | 15 | How are recursive and direct multi-step forecasts different? |
+| [ml-backpropagation](ml-backpropagation.svg) · [JSON](ml-backpropagation.json) | `flow` | General | how does backpropagation work? |
+| [ml-gpu-matmul](ml-gpu-matmul.svg) · [JSON](ml-gpu-matmul.json) | `flow` | General | how does a GPU run matrix multiplications? |
+| [ml-convolutional-network](ml-convolutional-network.svg) · [JSON](ml-convolutional-network.json) | `flow` | General | what is a convolutional neural network? |
+| [ml-beam-search](ml-beam-search.svg) · [JSON](ml-beam-search.json) | `tree` | General | how does beam search work? |
+| [ml-rlhf-feedback](ml-rlhf-feedback.svg) · [JSON](ml-rlhf-feedback.json) | `cycle` | General | how does RLHF work? |
+| [ml-neural-network-weights](ml-neural-network-weights.svg) · [JSON](ml-neural-network-weights.json) | `relationship` | General | what does a neural network look like? |
+| [ml-computational-graph](ml-computational-graph.svg) · [JSON](ml-computational-graph.json) | `relationship` | General | what is a computational graph? |
+| [ml-transformer-attention](ml-transformer-attention.svg) · [JSON](ml-transformer-attention.json) | `matrix` | General | how does attention work in a transformer? |
+| [ml-rag-retrieval](ml-rag-retrieval.svg) · [JSON](ml-rag-retrieval.json) | `sequence` | General | how does RAG work? |
+| [ml-cpu-vs-gpu](ml-cpu-vs-gpu.svg) · [JSON](ml-cpu-vs-gpu.json) | `comparison` | General | what is the difference between a CPU and a GPU? |
+| [ml-dropout-network](ml-dropout-network.svg) · [JSON](ml-dropout-network.json) | `transformation` | General | how does dropout work? |
+| [ml-diffusion-denoising](ml-diffusion-denoising.svg) · [JSON](ml-diffusion-denoising.json) | `sequence` | General | how does a diffusion model generate an image? |
+| [ml-kv-cache-decode](ml-kv-cache-decode.svg) · [JSON](ml-kv-cache-decode.json) | `sequence` | General | how does KV caching speed up inference? |
+| [ml-robot-arm-pickup](ml-robot-arm-pickup.svg) · [JSON](ml-robot-arm-pickup.json) | `flow` | General | how does a robot arm pick up an object? |
 | [general-sequence-1](general-sequence-1.svg) · [JSON](general-sequence-1.json) | `sequence` | General | Explain a cache-aside read |
 | [general-layers-2](general-layers-2.svg) · [JSON](general-layers-2.json) | `layers` | General | Explain three layers of a web application |
 | [general-cycle-3](general-cycle-3.svg) · [JSON](general-cycle-3.json) | `cycle` | General | Explain an experiment cycle |
@@ -168,6 +182,32 @@ Palette source: the approved `tree-splits-and-impurity.svg` at Rabbit-Hole commi
 | [general-number-line-8](general-number-line-8.svg) · [JSON](general-number-line-8.json) | `number-line` | General | Explain open and closed endpoints |
 | [general-t-account-9](general-t-account-9.svg) · [JSON](general-t-account-9.json) | `t-account` | General | Explain post entries to cash |
 | [general-waterfall-10](general-waterfall-10.svg) · [JSON](general-waterfall-10.json) | `waterfall` | General | Explain from opening cash to closing cash |
+
+## Neutral kind shapes
+
+| Kind | Files |
+| --- | --- |
+| `flow` | [SVG](shape-flow.svg) · [JSON](shape-flow.json) |
+| `comparison` | [SVG](shape-comparison.svg) · [JSON](shape-comparison.json) |
+| `timeline` | [SVG](shape-timeline.svg) · [JSON](shape-timeline.json) |
+| `sequence` | [SVG](shape-sequence.svg) · [JSON](shape-sequence.json) |
+| `matrix` | [SVG](shape-matrix.svg) · [JSON](shape-matrix.json) |
+| `layers` | [SVG](shape-layers.svg) · [JSON](shape-layers.json) |
+| `cycle` | [SVG](shape-cycle.svg) · [JSON](shape-cycle.json) |
+| `figure` | [SVG](shape-figure.svg) · [JSON](shape-figure.json) |
+| `tree` | [SVG](shape-tree.svg) · [JSON](shape-tree.json) |
+| `relationship` | [SVG](shape-relationship.svg) · [JSON](shape-relationship.json) |
+| `transformation` | [SVG](shape-transformation.svg) · [JSON](shape-transformation.json) |
+| `argument` | [SVG](shape-argument.svg) · [JSON](shape-argument.json) |
+| `number-line` | [SVG](shape-number-line.svg) · [JSON](shape-number-line.json) |
+| `coordinate-plot` | [SVG](shape-coordinate-plot.svg) · [JSON](shape-coordinate-plot.json) |
+| `bar-chart` | [SVG](shape-bar-chart.svg) · [JSON](shape-bar-chart.json) |
+| `t-account` | [SVG](shape-t-account.svg) · [JSON](shape-t-account.json) |
+| `waterfall` | [SVG](shape-waterfall.svg) · [JSON](shape-waterfall.json) |
+| `heatmap` | [SVG](shape-heatmap.svg) · [JSON](shape-heatmap.json) |
+| `sample-set` | [SVG](shape-sample-set.svg) · [JSON](shape-sample-set.json) |
+| `histogram` | [SVG](shape-histogram.svg) · [JSON](shape-histogram.json) |
+| `box-plot` | [SVG](shape-box-plot.svg) · [JSON](shape-box-plot.json) |
 
 ## Coverage by lesson
 

@@ -17,7 +17,7 @@
     },
     "series": [
       {
-        "label": "Prediction ± epsilon",
+        "label": "Prediction tube $\\hat{y}\\pm\\epsilon$",
         "kind": "line",
         "points": [
           {
@@ -56,7 +56,7 @@
     "annotations": [
       {
         "kind": "segment",
-        "label": "Penalized excess = 0.5",
+        "label": "Penalized excess of 0.5",
         "from": {
           "x": 2,
           "y": 3.5

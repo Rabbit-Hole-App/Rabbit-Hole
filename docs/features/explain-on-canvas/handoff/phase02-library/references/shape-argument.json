@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Refill a birdbath",
+    "kind": "argument",
+    "claim": "Refill the birdbath today.",
+    "support": [
+      {
+        "label": "The basin is dry."
+      }
+    ],
+    "objections": [
+      {
+        "label": "Rain is forecast tonight."
+      }
+    ],
+    "conclusion": "Refill it now so birds have water today."
+  }
+}

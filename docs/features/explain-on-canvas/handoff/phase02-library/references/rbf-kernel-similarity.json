@@ -17,7 +17,7 @@
     },
     "series": [
       {
-        "label": "Gamma = 0.5",
+        "label": "Gamma 0.5",
         "kind": "line",
         "points": [
           {
@@ -51,7 +51,7 @@
         ]
       },
       {
-        "label": "Gamma = 2",
+        "label": "Gamma 2",
         "kind": "line",
         "points": [
           {

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Cash entries",
+    "kind": "t-account",
+    "account": "Cash",
+    "unit": "USD",
+    "debits": [
+      {
+        "label": "Book sale",
+        "amount": 20
+      }
+    ],
+    "credits": [
+      {
+        "label": "Postage",
+        "amount": 5
+      }
+    ]
+  }
+}

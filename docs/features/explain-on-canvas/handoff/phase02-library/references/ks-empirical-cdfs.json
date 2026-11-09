@@ -80,7 +80,7 @@
     "annotations": [
       {
         "kind": "segment",
-        "label": "Maximum vertical gap = 0.25",
+        "label": "Maximum vertical gap of 0.25",
         "from": {
           "x": 2.5,
           "y": 0.25

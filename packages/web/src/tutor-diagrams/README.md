@@ -104,9 +104,11 @@ Integrate it with the active release rather than replacing active `learn-artifac
 From the repository root with existing web dependencies installed:
 
 ```sh
-node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-references.test.js packages/control-plane/test/explanation-diagram-kinds.test.js packages/control-plane/test/explanation-visuals.test.js packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/learn-artifact.test.js
+node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-reference*.test.js packages/control-plane/test/explanation-shape-gallery.test.js packages/control-plane/test/explanation-diagram-kinds.test.js packages/control-plane/test/explanation-visuals.test.js packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/learn-artifact.test.js
 npm run build --workspace=packages/web
 node packages/web/scripts/export-explanation-references.mjs
 ```
 
 The fixtures exercise deterministic rendering and narrow widths without calling a model. Backend tests use the actual request/validation path with a scripted provider. Browser fit, live provider schema acceptance and generated-card save/reopen still require dev evidence. The existing math test needs `linkedom` available in the test environment; it is not a production dependency of this change.
+
+`content-contract.js` checks reference text and composition in the focused tests. The formula sampler and correction corpus run independently of the author and renderer. For intentional rendering changes, update the SVG snapshots with `UPDATE_TUTOR_SVG_SNAPSHOTS=1 node --test packages/web/src/tutor-diagrams/svg-snapshots.test.mjs`, then review and regenerate the exports. [Offline verification and diff archive](../../../../docs/features/explain-on-canvas/handoff/phase02-library/svg-offline.md)

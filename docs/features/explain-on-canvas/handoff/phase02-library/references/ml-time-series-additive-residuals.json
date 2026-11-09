@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "title": "Additive time series with residuals",
-    "caption": "Illustrative daily values. Observed = trend + seasonality + residual. On Day 4, 3.5 − 1 + 0.5 = 3.",
+    "caption": "Illustrative daily values. $\\text{Observed}=\\text{trend}+\\text{seasonality}+\\text{residual}$. On Day 4, $3.5-1+0.5=3$.",
     "kind": "comparison",
     "variant": "panels",
     "panels": [

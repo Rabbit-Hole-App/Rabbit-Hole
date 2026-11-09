@@ -7,15 +7,15 @@ export const references = [
     useWhen: 'Compare identifiable hyperparameter candidates under one acquisition rule. Show the surrogate mean, uncertainty bonus and resulting score, then select the candidate with the highest score.',
     spec: { version: 1, diagram: {
       kind: 'matrix', layout: 'teaching', title: 'How UCB picks the next trial',
-      columns: ['μ + σ', 'UCB'],
+      columns: [String.raw`$\mu,\sigma$`, 'UCB'],
       rows: [
-        { id: 'a', heading: 'A · d=2', cells: ['0.70+0.02', '0.72'] },
-        { id: 'b', heading: 'B · d=4', cells: ['0.76+0.02', '0.78'] },
-        { id: 'c', heading: 'C · d=6', cells: ['0.73+0.10', '0.83'] },
-        { id: 'd', heading: 'D · d=8', cells: ['0.68+0.08', '0.76'] },
+        { id: 'a', heading: 'A · $d=2$', cells: ['$0.70,0.02$', '0.72'] },
+        { id: 'b', heading: 'B · $d=4$', cells: ['$0.76,0.02$', '0.78'] },
+        { id: 'c', heading: 'C · $d=6$', cells: ['$0.73,0.10$', '0.83'] },
+        { id: 'd', heading: 'D · $d=8$', cells: ['$0.68,0.08$', '0.76'] },
       ],
       emphasis: { cells: [{ row: 'c', column: 1 }] },
-      caption: 'Toy tree depths d. The upper confidence bound adds one standard deviation σ to predicted mean μ. B has the best mean. Try C next.',
+      caption: String.raw`Toy tree depths $d$. The upper confidence bound adds one standard deviation $\sigma$ to predicted mean $\mu$. B has the best mean. Try C next.`,
     } },
   },
   {
@@ -38,7 +38,7 @@ export const references = [
       emphasis: { cells: [
         { row: 'a-1', column: 1 }, { row: 'c-1', column: 1 }, { row: 'a-2', column: 1 }, { row: 'a-4', column: 1 },
       ] },
-      caption: 'Toy held-out accuracy. Keep the top half. Epochs are cumulative. Total spend when resuming is 4 + 2 + 2 = 8 trial-epochs.',
+      caption: 'Toy held-out accuracy. Keep the top half. Epochs are cumulative. Total spend when resuming is $4 + 2 + 2 = 8$ trial-epochs.',
     } },
   },
 ];

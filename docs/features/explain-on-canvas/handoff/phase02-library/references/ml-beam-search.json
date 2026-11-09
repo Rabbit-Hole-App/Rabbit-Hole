@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Beam search with $k=2$",
+    "caption": "Toy scores are cumulative probabilities. Keep the top two candidates at each depth, then pick the best at the two-token limit.",
+    "kind": "tree",
+    "layout": "hierarchy",
+    "nodes": [
+      {
+        "id": "start",
+        "label": "Start token"
+      },
+      {
+        "id": "i",
+        "label": "I",
+        "parent": "start",
+        "detail": "$0.50$"
+      },
+      {
+        "id": "we",
+        "label": "We",
+        "parent": "start",
+        "detail": "$0.40$"
+      },
+      {
+        "id": "they",
+        "label": "They",
+        "parent": "start",
+        "detail": "$0.10$",
+        "pruned": true
+      },
+      {
+        "id": "iAgree",
+        "label": "I agree",
+        "parent": "i",
+        "detail": "$0.30$"
+      },
+      {
+        "id": "iThink",
+        "label": "I think",
+        "parent": "i",
+        "detail": "$0.20$",
+        "pruned": true
+      },
+      {
+        "id": "weAgree",
+        "label": "We agree",
+        "parent": "we",
+        "detail": "Best $0.32$"
+      },
+      {
+        "id": "weThink",
+        "label": "We think",
+        "parent": "we",
+        "detail": "$0.08$",
+        "pruned": true
+      }
+    ],
+    "highlightPath": [
+      "start",
+      "we",
+      "weAgree"
+    ]
+  }
+}

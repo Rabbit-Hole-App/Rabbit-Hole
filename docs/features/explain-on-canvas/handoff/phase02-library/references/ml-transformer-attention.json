@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Transformer self-attention weights",
+    "caption": "Softmax makes each row sum to $1$. In key order, $v_1=(2,0)$ and $v_2=(0,4)$. Row mixes are $0.75v_1+0.25v_2=(1.5,1)$ and $0.5v_1+0.5v_2=(1,2)$.",
+    "kind": "matrix",
+    "layout": "teaching",
+    "columns": [
+      "Key “red”",
+      "Key “bird”"
+    ],
+    "rows": [
+      {
+        "id": "red",
+        "heading": "Query “red”",
+        "cells": [
+          "$0.75$",
+          "$0.25$"
+        ]
+      },
+      {
+        "id": "bird",
+        "heading": "Query “bird”",
+        "cells": [
+          "$0.5$",
+          "$0.5$"
+        ]
+      }
+    ]
+  }
+}

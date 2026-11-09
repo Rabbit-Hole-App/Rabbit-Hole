@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Library pickup",
+    "kind": "timeline",
+    "events": [
+      {
+        "time": "9 am",
+        "label": "Reserve the atlas"
+      },
+      {
+        "time": "Noon",
+        "label": "Collect the atlas"
+      }
+    ]
+  }
+}

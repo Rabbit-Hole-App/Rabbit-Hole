@@ -46,7 +46,7 @@
     "annotations": [
       {
         "kind": "reference-line",
-        "label": "Positive prevalence = 20%",
+        "label": "Positive prevalence of 20%",
         "axis": "y",
         "value": 0.2
       }

@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "title": "TF-IDF: exact weights before normalization",
-    "caption": "Here TF=count, $IDF=\\ln(2/df)$, with no smoothing or normalization. Fox appears in both documents, so its IDF is $\\ln 1=0$.",
+    "caption": "TF is the raw count. Use $\\mathrm{IDF}=\\ln(2/\\mathrm{df})$ without smoothing or normalization. Fox is in both documents, so $\\ln 1=0$.",
     "kind": "matrix",
     "layout": "teaching",
     "columns": [

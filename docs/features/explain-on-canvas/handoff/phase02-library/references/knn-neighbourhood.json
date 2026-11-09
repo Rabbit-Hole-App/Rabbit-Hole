@@ -71,7 +71,7 @@
       },
       {
         "kind": "vector",
-        "label": "Distance = 1",
+        "label": "Distance of 1",
         "from": {
           "x": 5,
           "y": 5

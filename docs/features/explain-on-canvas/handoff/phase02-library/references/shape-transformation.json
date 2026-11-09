@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Water freezes",
+    "kind": "transformation",
+    "before": {
+      "label": "Liquid",
+      "items": [
+        "Water"
+      ]
+    },
+    "after": {
+      "label": "Solid",
+      "items": [
+        "Ice"
+      ]
+    },
+    "operation": "Remove heat"
+  }
+}

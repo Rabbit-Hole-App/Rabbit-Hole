@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Seed packet sample",
+    "kind": "sample-set",
+    "samples": [
+      {
+        "id": "pea",
+        "label": "Pea"
+      },
+      {
+        "id": "bean",
+        "label": "Bean"
+      },
+      {
+        "id": "corn",
+        "label": "Corn"
+      }
+    ],
+    "groups": [
+      {
+        "id": "draw",
+        "label": "Seeds drawn",
+        "members": [
+          "bean",
+          "corn"
+        ]
+      }
+    ]
+  }
+}

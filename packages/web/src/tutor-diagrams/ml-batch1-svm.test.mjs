@@ -87,8 +87,8 @@ test('C panels depict global soft-margin optima and the same two classification 
     const mistakes = points.filter(p => p.target * (w * p.x + b) < 0).length;
     assert.equal(mistakes, 2, 'a narrower margin does not promise fewer classification errors');
     const loss = hingeSum(points, w, b);
-    close(Number(plot.caption.match(/hinge sum = ([\d.]+)/)?.[1]), loss, 'displayed hinge sum');
-    close(Number(plot.caption.match(/objective = (\d+(?:\.\d+)?)/)?.[1]), objective(points, C, w), 'displayed objective');
+    close(Number(plot.caption.match(/Hinge sum \$([\d.]+)\$/)?.[1]), loss, 'displayed hinge sum');
+    close(Number(plot.caption.match(/objective \$([\d.]+)\$/)?.[1]), objective(points, C, w), 'displayed objective');
     return { C, w, margin: positive - negative, loss };
   }).sort((a, b) => a.C - b.C);
   assert.deepEqual(results.map(r => [r.C, r.w, r.margin, r.loss]), [[0.05, 0.25, 8, 4.75], [2, 1, 2, 3]]);

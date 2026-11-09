@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Reuse keys and values during decoding",
+    "caption": "Attention uses the new query with cached keys and values. Reuse saves projecting past tokens again.",
+    "kind": "sequence",
+    "actors": [
+      {
+        "id": "decoder",
+        "label": "Decoder"
+      },
+      {
+        "id": "cache",
+        "label": "KV cache"
+      },
+      {
+        "id": "attention",
+        "label": "Attention"
+      }
+    ],
+    "messages": [
+      {
+        "from": "decoder",
+        "to": "attention",
+        "label": "Project only token $t$ to $q_t$, $k_t$, $v_t$"
+      },
+      {
+        "from": "attention",
+        "to": "cache",
+        "label": "Append $k_t$ and $v_t$, then read cache"
+      },
+      {
+        "from": "cache",
+        "to": "attention",
+        "label": "All keys $K_{\\le t}$ and values $V_{\\le t}$"
+      },
+      {
+        "from": "attention",
+        "to": "decoder",
+        "label": "Context for next-token prediction"
+      },
+      {
+        "from": "decoder",
+        "to": "attention",
+        "label": "Project only token $t+1$ to $q_{t+1}$, $k_{t+1}$, $v_{t+1}$"
+      },
+      {
+        "from": "attention",
+        "to": "cache",
+        "label": "Append $k_{t+1}$ and $v_{t+1}$, then read cache"
+      },
+      {
+        "from": "cache",
+        "to": "attention",
+        "label": "All keys $K_{\\le t+1}$ and values $V_{\\le t+1}$"
+      },
+      {
+        "from": "attention",
+        "to": "decoder",
+        "label": "Context for next-token prediction"
+      }
+    ]
+  }
+}

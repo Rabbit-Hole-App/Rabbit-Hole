@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A computational graph links operations through values",
+    "caption": "Read edges forward for values and backward for gradients. For $L=z^2$, the chain rule gives $\\partial L/\\partial w=2zx$.",
+    "kind": "relationship",
+    "layout": "graph",
+    "nodes": [
+      {
+        "id": "x",
+        "label": "Read input"
+      },
+      {
+        "id": "w",
+        "label": "Read weight"
+      },
+      {
+        "id": "multiply",
+        "label": "Multiply"
+      },
+      {
+        "id": "b",
+        "label": "Read bias"
+      },
+      {
+        "id": "add",
+        "label": "Add"
+      },
+      {
+        "id": "loss",
+        "label": "Square for loss"
+      }
+    ],
+    "edges": [
+      {
+        "from": "x",
+        "to": "multiply",
+        "label": "Pass $x$"
+      },
+      {
+        "from": "w",
+        "to": "multiply",
+        "label": "Pass $w$"
+      },
+      {
+        "from": "multiply",
+        "to": "add",
+        "label": "Pass $u=wx$"
+      },
+      {
+        "from": "b",
+        "to": "add",
+        "label": "Pass $b$"
+      },
+      {
+        "from": "add",
+        "to": "loss",
+        "label": "Pass $z=u+b$"
+      }
+    ]
+  }
+}

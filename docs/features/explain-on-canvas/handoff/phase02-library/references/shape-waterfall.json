@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Market stall cash",
+    "kind": "waterfall",
+    "opening": 20,
+    "unit": "USD",
+    "changes": [
+      {
+        "label": "Sales",
+        "amount": 15
+      },
+      {
+        "label": "Stall fee",
+        "amount": -5
+      }
+    ]
+  }
+}

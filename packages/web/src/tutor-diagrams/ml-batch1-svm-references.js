@@ -37,15 +37,15 @@ export const references = [
     keywords: ['svm c', 'increase c', 'c parameter', 'c penalty', 'regularization parameter c', 'soft margin', 'margin tradeoff', 'hinge loss'],
     useWhen: 'Compare exact soft-margin SVM optima on the same six samples. C weights the sum of hinge losses; classification need not improve.',
     spec: { version: 1, diagram: {
-      kind: 'comparison', variant: 'panels', title: 'C trades margin width for hinge loss',
+      kind: 'comparison', variant: 'panels', title: '$C$ trades margin width for hinge loss',
       sharedAxes: ['x', 'y'],
       panels: [
         { heading: '$C = 0.05$', diagram: svmPlot('$C = 0.05$', 4,
-          '$w = 0.25$; $b = 0$; hinge sum = 4.75; objective = 0.26875.') },
+          'Use $w = 0.25$ and $b = 0$. Hinge sum $4.75$, objective $0.26875$.') },
         { heading: '$C = 2$', diagram: svmPlot('$C = 2$', 1,
-          '$w = 1$; $b = 0$; hinge sum = 3; objective = 6.5.') },
+          'Use $w = 1$ and $b = 0$. Hinge sum $3$, objective $6.5$.') },
       ],
-      caption: 'Toy objective: $0.5w^2+C\\sum_i\\max(0,1-y_iwx_i)$. Larger C reduces hinge loss here; both fits misclassify 2 of 6.',
+      caption: 'Toy objective $0.5w^2+C\\sum_i\\max(0,1-y_iwx_i)$. A larger $C$ reduces hinge loss here. Both fits misclassify 2 of 6.',
     } },
   },
   {

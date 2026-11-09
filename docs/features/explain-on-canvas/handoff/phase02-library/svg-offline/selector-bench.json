@@ -1,0 +1,2059 @@
+{
+  "requestCommit": "87d7d3918b3b5632c82709baa4899a80cbc2f6af",
+  "referenceCounts": {
+    "before": 142,
+    "after": 156
+  },
+  "runs": [
+    {
+      "benchmarkCommit": "aba447cd40a83c735448ee85a69d9de0775b0873",
+      "before": {
+        "rows": [
+          {
+            "set": "correct-svg",
+            "prompts": 14,
+            "given an example": 10,
+            "examples": 10,
+            "kind right": "10/10 100%",
+            "right or acceptable": "10/10 100%",
+            "prompts with a wrong-kind example": "0/14"
+          },
+          {
+            "set": "aiml",
+            "prompts": 28,
+            "given an example": 11,
+            "examples": 13,
+            "kind right": "8/13 62%",
+            "right or acceptable": "12/13 92%",
+            "prompts with a wrong-kind example": "1/28"
+          }
+        ],
+        "detail": [
+          {
+            "set": "correct-svg",
+            "id": "water-cycle",
+            "refs": [
+              {
+                "id": "general-cycle-3",
+                "kind": "cycle",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "tcp-handshake",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "atmosphere",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "bst",
+            "refs": [
+              {
+                "id": "tree-bst-insertion",
+                "kind": "tree",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "roman-empire",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "entropy",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "gini",
+            "refs": [
+              {
+                "id": "tree-impurity-mixtures",
+                "kind": "bar-chart",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "cross-entropy",
+            "refs": [
+              {
+                "id": "binary-cross-entropy-loss",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "softmax",
+            "refs": [
+              {
+                "id": "softmax-probabilities",
+                "kind": "bar-chart",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "sigmoid",
+            "refs": [
+              {
+                "id": "sigmoid-threshold",
+                "kind": "coordinate-plot",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "lr-schedule",
+            "refs": [
+              {
+                "id": "learning-rate-schedules",
+                "kind": "coordinate-plot",
+                "score": 10
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "gradient-descent",
+            "refs": [
+              {
+                "id": "gradient-descent-contours",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "attention-weights",
+            "refs": [
+              {
+                "id": "softmax-probabilities",
+                "kind": "bar-chart",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "precision-recall",
+            "refs": [
+              {
+                "id": "ml-confusion-denominators",
+                "kind": "comparison",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "backprop",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "attention",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "gpu-matmul",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "gradient-descent",
+            "refs": [
+              {
+                "id": "gradient-descent-contours",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "tokenization",
+            "refs": [
+              {
+                "id": "token-count-matrix",
+                "kind": "matrix",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "cnn",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "rag",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "overfitting",
+            "refs": [
+              {
+                "id": "ml-tree-pruning",
+                "kind": "tree",
+                "score": 4
+              },
+              {
+                "id": "ml-fit-quality-comparison",
+                "kind": "comparison",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "beam-search",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "vector-db",
+            "refs": [
+              {
+                "id": "cosine-vector-directions",
+                "kind": "coordinate-plot",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "rlhf",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "cpu-vs-gpu",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "dropout",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "lr-schedule",
+            "refs": [
+              {
+                "id": "learning-rate-schedules",
+                "kind": "coordinate-plot",
+                "score": 10
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "diffusion",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "batchnorm",
+            "refs": [
+              {
+                "id": "ml-feature-scaling-transformation",
+                "kind": "transformation",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "kv-cache",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "nn-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "decision-tree",
+            "refs": [
+              {
+                "id": "ml-tree-split-path",
+                "kind": "tree",
+                "score": 6
+              },
+              {
+                "id": "ml-tree-pruning",
+                "kind": "tree",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "quantization",
+            "refs": [
+              {
+                "id": "ml-value-binning",
+                "kind": "comparison",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "gpu-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "rack-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "bio-neuron",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "robot-arm",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "random-forest",
+            "refs": [
+              {
+                "id": "ml-bagging-vote-flow",
+                "kind": "flow",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "ml-pipeline",
+            "refs": [
+              {
+                "id": "ml-parallel-preprocessing",
+                "kind": "flow",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "nn-layers",
+            "refs": [
+              {
+                "id": "general-layers-2",
+                "kind": "layers",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "comp-graph",
+            "refs": []
+          }
+        ],
+        "mismatches": []
+      },
+      "after": {
+        "rows": [
+          {
+            "set": "correct-svg",
+            "prompts": 14,
+            "given an example": 10,
+            "examples": 10,
+            "kind right": "10/10 100%",
+            "right or acceptable": "10/10 100%",
+            "prompts with a wrong-kind example": "0/14"
+          },
+          {
+            "set": "aiml",
+            "prompts": 28,
+            "given an example": 25,
+            "examples": 27,
+            "kind right": "22/27 81%",
+            "right or acceptable": "26/27 96%",
+            "prompts with a wrong-kind example": "1/28"
+          }
+        ],
+        "detail": [
+          {
+            "set": "correct-svg",
+            "id": "water-cycle",
+            "refs": [
+              {
+                "id": "general-cycle-3",
+                "kind": "cycle",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "tcp-handshake",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "atmosphere",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "bst",
+            "refs": [
+              {
+                "id": "tree-bst-insertion",
+                "kind": "tree",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "roman-empire",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "entropy",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "gini",
+            "refs": [
+              {
+                "id": "tree-impurity-mixtures",
+                "kind": "bar-chart",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "cross-entropy",
+            "refs": [
+              {
+                "id": "binary-cross-entropy-loss",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "softmax",
+            "refs": [
+              {
+                "id": "softmax-probabilities",
+                "kind": "bar-chart",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "sigmoid",
+            "refs": [
+              {
+                "id": "sigmoid-threshold",
+                "kind": "coordinate-plot",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "lr-schedule",
+            "refs": [
+              {
+                "id": "learning-rate-schedules",
+                "kind": "coordinate-plot",
+                "score": 10
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "gradient-descent",
+            "refs": [
+              {
+                "id": "gradient-descent-contours",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "attention-weights",
+            "refs": [
+              {
+                "id": "softmax-probabilities",
+                "kind": "bar-chart",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "precision-recall",
+            "refs": [
+              {
+                "id": "ml-confusion-denominators",
+                "kind": "comparison",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "backprop",
+            "refs": [
+              {
+                "id": "ml-backpropagation",
+                "kind": "flow",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "attention",
+            "refs": [
+              {
+                "id": "ml-transformer-attention",
+                "kind": "matrix",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "gpu-matmul",
+            "refs": [
+              {
+                "id": "ml-gpu-matmul",
+                "kind": "flow",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "gradient-descent",
+            "refs": [
+              {
+                "id": "gradient-descent-contours",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "tokenization",
+            "refs": [
+              {
+                "id": "token-count-matrix",
+                "kind": "matrix",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "cnn",
+            "refs": [
+              {
+                "id": "ml-convolutional-network",
+                "kind": "flow",
+                "score": 58
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "rag",
+            "refs": [
+              {
+                "id": "ml-rag-retrieval",
+                "kind": "sequence",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "overfitting",
+            "refs": [
+              {
+                "id": "ml-tree-pruning",
+                "kind": "tree",
+                "score": 4
+              },
+              {
+                "id": "ml-fit-quality-comparison",
+                "kind": "comparison",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "beam-search",
+            "refs": [
+              {
+                "id": "ml-beam-search",
+                "kind": "tree",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "vector-db",
+            "refs": [
+              {
+                "id": "cosine-vector-directions",
+                "kind": "coordinate-plot",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "rlhf",
+            "refs": [
+              {
+                "id": "ml-rlhf-feedback",
+                "kind": "cycle",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "cpu-vs-gpu",
+            "refs": [
+              {
+                "id": "ml-cpu-vs-gpu",
+                "kind": "comparison",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "dropout",
+            "refs": [
+              {
+                "id": "ml-dropout-network",
+                "kind": "transformation",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "lr-schedule",
+            "refs": [
+              {
+                "id": "learning-rate-schedules",
+                "kind": "coordinate-plot",
+                "score": 10
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "diffusion",
+            "refs": [
+              {
+                "id": "ml-diffusion-denoising",
+                "kind": "sequence",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "batchnorm",
+            "refs": [
+              {
+                "id": "ml-feature-scaling-transformation",
+                "kind": "transformation",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "kv-cache",
+            "refs": [
+              {
+                "id": "ml-kv-cache-decode",
+                "kind": "sequence",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "nn-look",
+            "refs": [
+              {
+                "id": "ml-neural-network-weights",
+                "kind": "relationship",
+                "score": 60
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "decision-tree",
+            "refs": [
+              {
+                "id": "ml-tree-split-path",
+                "kind": "tree",
+                "score": 6
+              },
+              {
+                "id": "ml-tree-pruning",
+                "kind": "tree",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "quantization",
+            "refs": [
+              {
+                "id": "ml-value-binning",
+                "kind": "comparison",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "gpu-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "rack-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "bio-neuron",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "robot-arm",
+            "refs": [
+              {
+                "id": "ml-robot-arm-pickup",
+                "kind": "flow",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "random-forest",
+            "refs": [
+              {
+                "id": "ml-bagging-vote-flow",
+                "kind": "flow",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "ml-pipeline",
+            "refs": [
+              {
+                "id": "ml-parallel-preprocessing",
+                "kind": "flow",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "nn-layers",
+            "refs": [
+              {
+                "id": "general-layers-2",
+                "kind": "layers",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "comp-graph",
+            "refs": [
+              {
+                "id": "ml-computational-graph",
+                "kind": "relationship",
+                "score": 56
+              }
+            ]
+          }
+        ],
+        "mismatches": []
+      },
+      "changed": [
+        {
+          "set": "aiml",
+          "id": "backprop",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-backpropagation",
+              "kind": "flow",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "attention",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-transformer-attention",
+              "kind": "matrix",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "gpu-matmul",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-gpu-matmul",
+              "kind": "flow",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "cnn",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-convolutional-network",
+              "kind": "flow",
+              "score": 58
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "rag",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-rag-retrieval",
+              "kind": "sequence",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "beam-search",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-beam-search",
+              "kind": "tree",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "rlhf",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-rlhf-feedback",
+              "kind": "cycle",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "cpu-vs-gpu",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-cpu-vs-gpu",
+              "kind": "comparison",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "dropout",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-dropout-network",
+              "kind": "transformation",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "diffusion",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-diffusion-denoising",
+              "kind": "sequence",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "kv-cache",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-kv-cache-decode",
+              "kind": "sequence",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "nn-look",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-neural-network-weights",
+              "kind": "relationship",
+              "score": 60
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "robot-arm",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-robot-arm-pickup",
+              "kind": "flow",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "comp-graph",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-computational-graph",
+              "kind": "relationship",
+              "score": 56
+            }
+          ]
+        }
+      ],
+      "unchanged": 28,
+      "withoutExample": [
+        "gpu-look",
+        "rack-look",
+        "bio-neuron"
+      ],
+      "existingWrongKind": [
+        {
+          "set": "aiml",
+          "id": "overfitting",
+          "refs": [
+            {
+              "id": "ml-tree-pruning",
+              "kind": "tree",
+              "score": 4
+            },
+            {
+              "id": "ml-fit-quality-comparison",
+              "kind": "comparison",
+              "score": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmarkCommit": "788e23e08b2e5a7d992a76b219ef84366eade965",
+      "before": {
+        "rows": [
+          {
+            "set": "correct-svg",
+            "prompts": 14,
+            "given an example": 10,
+            "examples": 10,
+            "kind right": "10/10 100%",
+            "right or acceptable": "10/10 100%",
+            "prompts with a wrong-kind example": "0/14",
+            "shape examples (right kind)": "0 (0 right, 0 right or acceptable)"
+          },
+          {
+            "set": "aiml",
+            "prompts": 28,
+            "given an example": 11,
+            "examples": 13,
+            "kind right": "8/13 62%",
+            "right or acceptable": "12/13 92%",
+            "prompts with a wrong-kind example": "1/28",
+            "shape examples (right kind)": "0 (0 right, 0 right or acceptable)"
+          }
+        ],
+        "detail": [
+          {
+            "set": "correct-svg",
+            "id": "water-cycle",
+            "refs": [
+              {
+                "id": "general-cycle-3",
+                "kind": "cycle",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "tcp-handshake",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "atmosphere",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "bst",
+            "refs": [
+              {
+                "id": "tree-bst-insertion",
+                "kind": "tree",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "roman-empire",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "entropy",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "gini",
+            "refs": [
+              {
+                "id": "tree-impurity-mixtures",
+                "kind": "bar-chart",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "cross-entropy",
+            "refs": [
+              {
+                "id": "binary-cross-entropy-loss",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "softmax",
+            "refs": [
+              {
+                "id": "softmax-probabilities",
+                "kind": "bar-chart",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "sigmoid",
+            "refs": [
+              {
+                "id": "sigmoid-threshold",
+                "kind": "coordinate-plot",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "lr-schedule",
+            "refs": [
+              {
+                "id": "learning-rate-schedules",
+                "kind": "coordinate-plot",
+                "score": 10
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "gradient-descent",
+            "refs": [
+              {
+                "id": "gradient-descent-contours",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "attention-weights",
+            "refs": [
+              {
+                "id": "softmax-probabilities",
+                "kind": "bar-chart",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "precision-recall",
+            "refs": [
+              {
+                "id": "ml-confusion-denominators",
+                "kind": "comparison",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "backprop",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "attention",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "gpu-matmul",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "gradient-descent",
+            "refs": [
+              {
+                "id": "gradient-descent-contours",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "tokenization",
+            "refs": [
+              {
+                "id": "token-count-matrix",
+                "kind": "matrix",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "cnn",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "rag",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "overfitting",
+            "refs": [
+              {
+                "id": "ml-tree-pruning",
+                "kind": "tree",
+                "score": 4
+              },
+              {
+                "id": "ml-fit-quality-comparison",
+                "kind": "comparison",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "beam-search",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "vector-db",
+            "refs": [
+              {
+                "id": "cosine-vector-directions",
+                "kind": "coordinate-plot",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "rlhf",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "cpu-vs-gpu",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "dropout",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "lr-schedule",
+            "refs": [
+              {
+                "id": "learning-rate-schedules",
+                "kind": "coordinate-plot",
+                "score": 10
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "diffusion",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "batchnorm",
+            "refs": [
+              {
+                "id": "ml-feature-scaling-transformation",
+                "kind": "transformation",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "kv-cache",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "nn-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "decision-tree",
+            "refs": [
+              {
+                "id": "ml-tree-split-path",
+                "kind": "tree",
+                "score": 6
+              },
+              {
+                "id": "ml-tree-pruning",
+                "kind": "tree",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "quantization",
+            "refs": [
+              {
+                "id": "ml-value-binning",
+                "kind": "comparison",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "gpu-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "rack-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "bio-neuron",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "robot-arm",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "random-forest",
+            "refs": [
+              {
+                "id": "ml-bagging-vote-flow",
+                "kind": "flow",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "ml-pipeline",
+            "refs": [
+              {
+                "id": "ml-parallel-preprocessing",
+                "kind": "flow",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "nn-layers",
+            "refs": [
+              {
+                "id": "general-layers-2",
+                "kind": "layers",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "comp-graph",
+            "refs": []
+          }
+        ],
+        "mismatches": []
+      },
+      "after": {
+        "rows": [
+          {
+            "set": "correct-svg",
+            "prompts": 14,
+            "given an example": 10,
+            "examples": 10,
+            "kind right": "10/10 100%",
+            "right or acceptable": "10/10 100%",
+            "prompts with a wrong-kind example": "0/14",
+            "shape examples (right kind)": "0 (0 right, 0 right or acceptable)"
+          },
+          {
+            "set": "aiml",
+            "prompts": 28,
+            "given an example": 25,
+            "examples": 27,
+            "kind right": "22/27 81%",
+            "right or acceptable": "26/27 96%",
+            "prompts with a wrong-kind example": "1/28",
+            "shape examples (right kind)": "0 (0 right, 0 right or acceptable)"
+          }
+        ],
+        "detail": [
+          {
+            "set": "correct-svg",
+            "id": "water-cycle",
+            "refs": [
+              {
+                "id": "general-cycle-3",
+                "kind": "cycle",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "tcp-handshake",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "atmosphere",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "bst",
+            "refs": [
+              {
+                "id": "tree-bst-insertion",
+                "kind": "tree",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "roman-empire",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "entropy",
+            "refs": []
+          },
+          {
+            "set": "correct-svg",
+            "id": "gini",
+            "refs": [
+              {
+                "id": "tree-impurity-mixtures",
+                "kind": "bar-chart",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "cross-entropy",
+            "refs": [
+              {
+                "id": "binary-cross-entropy-loss",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "softmax",
+            "refs": [
+              {
+                "id": "softmax-probabilities",
+                "kind": "bar-chart",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "sigmoid",
+            "refs": [
+              {
+                "id": "sigmoid-threshold",
+                "kind": "coordinate-plot",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "lr-schedule",
+            "refs": [
+              {
+                "id": "learning-rate-schedules",
+                "kind": "coordinate-plot",
+                "score": 10
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "gradient-descent",
+            "refs": [
+              {
+                "id": "gradient-descent-contours",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "attention-weights",
+            "refs": [
+              {
+                "id": "softmax-probabilities",
+                "kind": "bar-chart",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "correct-svg",
+            "id": "precision-recall",
+            "refs": [
+              {
+                "id": "ml-confusion-denominators",
+                "kind": "comparison",
+                "score": 8
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "backprop",
+            "refs": [
+              {
+                "id": "ml-backpropagation",
+                "kind": "flow",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "attention",
+            "refs": [
+              {
+                "id": "ml-transformer-attention",
+                "kind": "matrix",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "gpu-matmul",
+            "refs": [
+              {
+                "id": "ml-gpu-matmul",
+                "kind": "flow",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "gradient-descent",
+            "refs": [
+              {
+                "id": "gradient-descent-contours",
+                "kind": "coordinate-plot",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "tokenization",
+            "refs": [
+              {
+                "id": "token-count-matrix",
+                "kind": "matrix",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "cnn",
+            "refs": [
+              {
+                "id": "ml-convolutional-network",
+                "kind": "flow",
+                "score": 58
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "rag",
+            "refs": [
+              {
+                "id": "ml-rag-retrieval",
+                "kind": "sequence",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "overfitting",
+            "refs": [
+              {
+                "id": "ml-tree-pruning",
+                "kind": "tree",
+                "score": 4
+              },
+              {
+                "id": "ml-fit-quality-comparison",
+                "kind": "comparison",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "beam-search",
+            "refs": [
+              {
+                "id": "ml-beam-search",
+                "kind": "tree",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "vector-db",
+            "refs": [
+              {
+                "id": "cosine-vector-directions",
+                "kind": "coordinate-plot",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "rlhf",
+            "refs": [
+              {
+                "id": "ml-rlhf-feedback",
+                "kind": "cycle",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "cpu-vs-gpu",
+            "refs": [
+              {
+                "id": "ml-cpu-vs-gpu",
+                "kind": "comparison",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "dropout",
+            "refs": [
+              {
+                "id": "ml-dropout-network",
+                "kind": "transformation",
+                "score": 54
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "lr-schedule",
+            "refs": [
+              {
+                "id": "learning-rate-schedules",
+                "kind": "coordinate-plot",
+                "score": 10
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "diffusion",
+            "refs": [
+              {
+                "id": "ml-diffusion-denoising",
+                "kind": "sequence",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "batchnorm",
+            "refs": [
+              {
+                "id": "ml-feature-scaling-transformation",
+                "kind": "transformation",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "kv-cache",
+            "refs": [
+              {
+                "id": "ml-kv-cache-decode",
+                "kind": "sequence",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "nn-look",
+            "refs": [
+              {
+                "id": "ml-neural-network-weights",
+                "kind": "relationship",
+                "score": 60
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "decision-tree",
+            "refs": [
+              {
+                "id": "ml-tree-split-path",
+                "kind": "tree",
+                "score": 6
+              },
+              {
+                "id": "ml-tree-pruning",
+                "kind": "tree",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "quantization",
+            "refs": [
+              {
+                "id": "ml-value-binning",
+                "kind": "comparison",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "gpu-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "rack-look",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "bio-neuron",
+            "refs": []
+          },
+          {
+            "set": "aiml",
+            "id": "robot-arm",
+            "refs": [
+              {
+                "id": "ml-robot-arm-pickup",
+                "kind": "flow",
+                "score": 56
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "random-forest",
+            "refs": [
+              {
+                "id": "ml-bagging-vote-flow",
+                "kind": "flow",
+                "score": 6
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "ml-pipeline",
+            "refs": [
+              {
+                "id": "ml-parallel-preprocessing",
+                "kind": "flow",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "nn-layers",
+            "refs": [
+              {
+                "id": "general-layers-2",
+                "kind": "layers",
+                "score": 4
+              }
+            ]
+          },
+          {
+            "set": "aiml",
+            "id": "comp-graph",
+            "refs": [
+              {
+                "id": "ml-computational-graph",
+                "kind": "relationship",
+                "score": 56
+              }
+            ]
+          }
+        ],
+        "mismatches": []
+      },
+      "changed": [
+        {
+          "set": "aiml",
+          "id": "backprop",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-backpropagation",
+              "kind": "flow",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "attention",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-transformer-attention",
+              "kind": "matrix",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "gpu-matmul",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-gpu-matmul",
+              "kind": "flow",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "cnn",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-convolutional-network",
+              "kind": "flow",
+              "score": 58
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "rag",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-rag-retrieval",
+              "kind": "sequence",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "beam-search",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-beam-search",
+              "kind": "tree",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "rlhf",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-rlhf-feedback",
+              "kind": "cycle",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "cpu-vs-gpu",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-cpu-vs-gpu",
+              "kind": "comparison",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "dropout",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-dropout-network",
+              "kind": "transformation",
+              "score": 54
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "diffusion",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-diffusion-denoising",
+              "kind": "sequence",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "kv-cache",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-kv-cache-decode",
+              "kind": "sequence",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "nn-look",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-neural-network-weights",
+              "kind": "relationship",
+              "score": 60
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "robot-arm",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-robot-arm-pickup",
+              "kind": "flow",
+              "score": 56
+            }
+          ]
+        },
+        {
+          "set": "aiml",
+          "id": "comp-graph",
+          "before": [],
+          "after": [
+            {
+              "id": "ml-computational-graph",
+              "kind": "relationship",
+              "score": 56
+            }
+          ]
+        }
+      ],
+      "unchanged": 28,
+      "withoutExample": [
+        "gpu-look",
+        "rack-look",
+        "bio-neuron"
+      ],
+      "existingWrongKind": [
+        {
+          "set": "aiml",
+          "id": "overfitting",
+          "refs": [
+            {
+              "id": "ml-tree-pruning",
+              "kind": "tree",
+              "score": 4
+            },
+            {
+              "id": "ml-fit-quality-comparison",
+              "kind": "comparison",
+              "score": 4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

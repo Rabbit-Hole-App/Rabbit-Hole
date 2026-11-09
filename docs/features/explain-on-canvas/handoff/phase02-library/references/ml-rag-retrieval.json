@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Retrieve evidence before answering",
+    "caption": "The retriever embeds the question and ranks passages by vector similarity. The language model answers using the retrieved text.",
+    "kind": "sequence",
+    "actors": [
+      {
+        "id": "user",
+        "label": "User"
+      },
+      {
+        "id": "app",
+        "label": "App"
+      },
+      {
+        "id": "retriever",
+        "label": "Retriever / vector store"
+      },
+      {
+        "id": "llm",
+        "label": "LLM"
+      }
+    ],
+    "messages": [
+      {
+        "from": "user",
+        "to": "app",
+        "label": "“When does the museum close?”"
+      },
+      {
+        "from": "app",
+        "to": "retriever",
+        "label": "Question text to embed and search"
+      },
+      {
+        "from": "retriever",
+        "to": "app",
+        "label": "Top passages include “Closes at 5 pm”"
+      },
+      {
+        "from": "app",
+        "to": "llm",
+        "label": "Prompt with question and top passages"
+      },
+      {
+        "from": "llm",
+        "to": "app",
+        "label": "Answer “5 pm” with source passage"
+      },
+      {
+        "from": "app",
+        "to": "user",
+        "label": "“5 pm” with source"
+      }
+    ]
+  }
+}

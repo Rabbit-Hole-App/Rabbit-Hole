@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "title": "DBSCAN core neighbourhood and noise",
-    "caption": "Epsilon = 1.5; min_samples = 4 counts the query point itself.",
+    "caption": "Epsilon is 1.5. The min_samples count of 4 includes the query point itself.",
     "kind": "coordinate-plot",
     "x": {
       "label": "Feature 1",

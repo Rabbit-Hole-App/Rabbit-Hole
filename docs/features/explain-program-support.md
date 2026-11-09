@@ -7,9 +7,13 @@ receipts; "not released" means not on `main`.
 
 ## Note for Claude Code
 
+### Fourteen AI/ML references and offline SVG checks
+
+The pinned AI/ML request is implemented in the written `/explain` registry. The original selector bench passed on the content-only patch. AI/ML coverage rose from 11/28 to 25/28, with all 14 new picks of a best kind and every other `aiml` and `correct-svg` pick preserved. The handoff includes the exact bench results, patch, gallery, audit, standalone sampler, renderer diffs, correction pairs and snapshot update command. [Offline SVG handoff](explain-on-canvas/handoff/phase02-library/svg-offline.md)
+
 ### Batch 3A · Four written Explanation references for time series
 
-The registry adds the aligned additive components, ACF/PACF comparison, prior-three-day rolling feature and recursive/direct forecast comparison. It now contains 160 references. The handoff records the natural prompts, numeric targets and live dev acceptance steps. [Batch 3A handoff](explain-on-canvas/handoff/phase02-library/batch-3a.md)
+Batch 3A added the aligned additive components, ACF/PACF comparison, prior-three-day rolling feature and recursive/direct forecast comparison, bringing the registry to 160 references at that point. The handoff records the natural prompts, numeric targets and live dev acceptance steps. [Batch 3A handoff](explain-on-canvas/handoff/phase02-library/batch-3a.md)
 
 ### Batch 2C · Final four written Explanation references in Batch 2
 
@@ -33,7 +37,7 @@ The approved **four new kinds and nine existing-kind extensions are implemented*
 
 - [Implementation and dev acceptance handoff](explain-on-canvas/handoff/phase02-library/README.md)
 - [Coverage correction: remaining scenes from the full 21-lesson list](explain-on-canvas/handoff/phase02-library/coverage-audit.md)
-- [All 160 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
+- [All 174 reference SVG/JSON pairs, 21 neutral shapes and 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
 - [Executable source/extension guide](../../packages/web/src/tutor-diagrams/README.md)
 - [Plan and completed implementation checklist](../superpowers/plans/2026-11-08-explain-phase02-library.md)
 

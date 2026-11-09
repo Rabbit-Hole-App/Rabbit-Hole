@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Area of a square",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Side length",
+      "min": 0,
+      "max": 8
+    },
+    "y": {
+      "label": "Area",
+      "min": 0,
+      "max": 64
+    },
+    "series": [
+      {
+        "label": "$A=s^2$",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 2,
+            "y": 4
+          },
+          {
+            "x": 3,
+            "y": 9
+          },
+          {
+            "x": 4,
+            "y": 16,
+            "label": "$s=4$"
+          },
+          {
+            "x": 5,
+            "y": 25
+          },
+          {
+            "x": 6,
+            "y": 36
+          },
+          {
+            "x": 7,
+            "y": 49
+          },
+          {
+            "x": 8,
+            "y": 64
+          }
+        ]
+      }
+    ]
+  }
+}

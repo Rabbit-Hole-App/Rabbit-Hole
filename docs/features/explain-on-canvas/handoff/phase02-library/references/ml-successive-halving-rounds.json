@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "title": "Successive halving keeps top trials",
-    "caption": "Toy held-out accuracy. Keep the top half. Epochs are cumulative. Total spend when resuming is 4 + 2 + 2 = 8 trial-epochs.",
+    "caption": "Toy held-out accuracy. Keep the top half. Epochs are cumulative. Total spend when resuming is $4 + 2 + 2 = 8$ trial-epochs.",
     "kind": "matrix",
     "layout": "teaching",
     "columns": [

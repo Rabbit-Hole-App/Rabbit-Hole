@@ -8,12 +8,12 @@
     "nodes": [
       {
         "id": "r",
-        "label": "x < 8?",
+        "label": "$x<8$?",
         "count": 8
       },
       {
         "id": "normal",
-        "label": "y < 3?",
+        "label": "$y<3$?",
         "parent": "r",
         "side": "left",
         "edgeLabel": "Yes",

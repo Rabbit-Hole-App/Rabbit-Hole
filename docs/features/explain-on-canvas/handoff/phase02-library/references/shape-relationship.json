@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Apple blossom pollination",
+    "kind": "relationship",
+    "layout": "graph",
+    "nodes": [
+      {
+        "id": "bee",
+        "label": "Bee"
+      },
+      {
+        "id": "blossom",
+        "label": "Apple blossom"
+      }
+    ],
+    "edges": [
+      {
+        "from": "bee",
+        "to": "blossom",
+        "label": "Carries pollen to"
+      }
+    ]
+  }
+}

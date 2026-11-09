@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "RLHF tunes a policy using human preferences",
+    "caption": "Start with a pretrained model. After each policy update, sample the next round of answers from the tuned model.",
+    "kind": "cycle",
+    "steps": [
+      "Sample several answers per prompt",
+      "Have humans rank the answers",
+      "Train a reward model on rankings",
+      "Tune the policy with PPO using predicted rewards"
+    ]
+  }
+}

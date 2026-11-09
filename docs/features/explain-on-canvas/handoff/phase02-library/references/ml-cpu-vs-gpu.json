@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "How CPUs and GPUs handle work",
+    "kind": "comparison",
+    "columns": [
+      {
+        "heading": "CPU",
+        "items": [
+          "A few large general-purpose cores",
+          "Low latency for a single task",
+          "Sequential or branch-heavy work"
+        ]
+      },
+      {
+        "heading": "GPU",
+        "items": [
+          "Thousands of small arithmetic cores",
+          "High throughput across many tasks",
+          "Parallel work on many data elements"
+        ]
+      }
+    ]
+  }
+}

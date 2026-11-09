@@ -65,7 +65,7 @@
         "heading": "Apply the two voting rules",
         "diagram": {
           "title": "Hard counts and soft averages",
-          "caption": "Hard voting picks A. For soft voting, average (55 + 55 + 5) ÷ 3 for A and (45 + 45 + 95) ÷ 3 for B. B wins. Averages are rounded.",
+          "caption": "Hard voting picks A. Soft voting averages $\\frac{55+55+5}{3}$ for A and $\\frac{45+45+95}{3}$ for B. B wins. Averages are rounded.",
           "kind": "matrix",
           "layout": "teaching",
           "columns": [

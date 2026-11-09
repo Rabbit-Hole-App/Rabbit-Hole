@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Pick up an object with a robot arm",
+    "kind": "flow",
+    "nodes": [
+      {
+        "id": "sense",
+        "label": "Find the object with a camera",
+        "role": "process"
+      },
+      {
+        "id": "plan",
+        "label": "Plan the grasp pose",
+        "role": "process"
+      },
+      {
+        "id": "move",
+        "label": "Move the joints to the grasp pose",
+        "role": "process"
+      },
+      {
+        "id": "close",
+        "label": "Close the gripper around the object",
+        "role": "process"
+      },
+      {
+        "id": "lift",
+        "label": "Lift the object",
+        "role": "process"
+      },
+      {
+        "id": "verify",
+        "label": "Verify the grip with sensor feedback",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "sense",
+        "to": "plan"
+      },
+      {
+        "from": "plan",
+        "to": "move"
+      },
+      {
+        "from": "move",
+        "to": "close"
+      },
+      {
+        "from": "close",
+        "to": "lift"
+      },
+      {
+        "from": "lift",
+        "to": "verify"
+      }
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Denoise an image from pure noise",
+    "caption": "Remove some predicted noise at each step using the same prompt. The forward process in training adds noise to clean images.",
+    "kind": "sequence",
+    "actors": [
+      {
+        "id": "app",
+        "label": "Image app"
+      },
+      {
+        "id": "sampler",
+        "label": "Sampler"
+      },
+      {
+        "id": "denoiser",
+        "label": "Denoiser"
+      }
+    ],
+    "messages": [
+      {
+        "from": "app",
+        "to": "denoiser",
+        "label": "Prompt embedding for “a red fox”"
+      },
+      {
+        "from": "sampler",
+        "to": "denoiser",
+        "label": "Pure noise $x_T$ and step $T$"
+      },
+      {
+        "from": "denoiser",
+        "to": "sampler",
+        "label": "Noise predicted from $x_T$ and prompt"
+      },
+      {
+        "from": "sampler",
+        "to": "denoiser",
+        "label": "Less noisy $x_{T-1}$ and next step"
+      },
+      {
+        "from": "denoiser",
+        "to": "sampler",
+        "label": "Next noise prediction"
+      },
+      {
+        "from": "sampler",
+        "to": "app",
+        "label": "Clean image $x_0$ after $T$ steps"
+      }
+    ]
+  }
+}

@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "title": "GMM: normalize likelihoods into responsibilities",
-    "caption": "Illustrative 2D GMM: priors 0.5, means (0, 0) and (2, 0), identity covariance. $d$ is distance to that component’s mean.",
+    "caption": "Illustrative 2D GMM with equal priors $0.5$, means $(0, 0)$ and $(2, 0)$, and identity covariance. $d$ is distance to the component mean.",
     "kind": "comparison",
     "variant": "panels",
     "panels": [

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Paper and e-books",
+    "kind": "comparison",
+    "columns": [
+      {
+        "heading": "Paperback",
+        "items": [
+          "Turn printed pages"
+        ]
+      },
+      {
+        "heading": "E-book",
+        "items": [
+          "Adjust the font size"
+        ]
+      }
+    ]
+  }
+}

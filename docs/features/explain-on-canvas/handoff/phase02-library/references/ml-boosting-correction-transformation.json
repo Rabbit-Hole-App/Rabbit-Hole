@@ -48,7 +48,7 @@
             ]
           },
           {
-            "label": "Prediction F₀",
+            "label": "Prediction $F_0$",
             "kind": "line",
             "points": [
               {
@@ -114,7 +114,7 @@
             ]
           },
           {
-            "label": "Prediction F₁",
+            "label": "Prediction $F_1$",
             "kind": "line",
             "points": [
               {
@@ -137,7 +137,7 @@
         ]
       }
     },
-    "operation": "Add half the residual correction: F₁ = F₀ + 0.5r",
+    "operation": "Update predictions with $F_1 = F_0 + 0.5r$",
     "identity": {
       "mode": "preserved",
       "note": "Samples A, B and C keep their targets and IDs. Residuals −1, 0 and 1 yield updates −0.5, 0 and 0.5."

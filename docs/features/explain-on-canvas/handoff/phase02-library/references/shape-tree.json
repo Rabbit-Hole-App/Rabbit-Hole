@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "String instruments",
+    "kind": "tree",
+    "nodes": [
+      {
+        "id": "strings",
+        "label": "Strings"
+      },
+      {
+        "id": "violin",
+        "label": "Violin",
+        "parent": "strings"
+      },
+      {
+        "id": "cello",
+        "label": "Cello",
+        "parent": "strings"
+      }
+    ]
+  }
+}

@@ -54,7 +54,7 @@
     "annotations": [
       {
         "kind": "band",
-        "label": "Inside the ±3 threshold",
+        "label": "From −3 to 3",
         "axis": "y",
         "from": -3,
         "to": 3

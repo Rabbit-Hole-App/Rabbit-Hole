@@ -7,22 +7,22 @@
     "nodes": [
       {
         "id": "folds",
-        "label": "Shared training folds",
+        "label": "Use shared training folds",
         "role": "fork"
       },
       {
         "id": "linear",
-        "label": "Linear model OOF scores",
+        "label": "Get linear model OOF scores",
         "role": "process"
       },
       {
         "id": "tree",
-        "label": "Tree model OOF scores",
+        "label": "Get tree model OOF scores",
         "role": "process"
       },
       {
         "id": "merge",
-        "label": "OOF feature matrix",
+        "label": "Build the OOF feature matrix",
         "role": "merge"
       },
       {
@@ -32,7 +32,7 @@
       },
       {
         "id": "out",
-        "label": "Combined predictor",
+        "label": "Return combined predictor",
         "role": "outcome"
       }
     ],

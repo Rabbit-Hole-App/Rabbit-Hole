@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Water cycle",
+    "kind": "cycle",
+    "steps": [
+      "Evaporate",
+      "Condense",
+      "Fall as rain",
+      "Flow to the ocean"
+    ]
+  }
+}

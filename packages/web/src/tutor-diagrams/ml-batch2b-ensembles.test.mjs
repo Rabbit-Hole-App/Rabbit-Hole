@@ -30,8 +30,9 @@ test('normalized model probabilities give different hard and soft voting winners
 });
 
 function fraction(text) {
-  const [numerator, denominator] = text.split('/').map(Number);
-  return numerator / denominator;
+  const match = text.match(/^\$\\frac\{(\d+)\}\{(\d+)\}\$$/);
+  assert.ok(match, `Expected a typeset fraction, got ${text}`);
+  return Number(match[1]) / Number(match[2]);
 }
 
 test('AdaBoost applies the binary update to the same examples and normalizes their weights', () => {
@@ -40,7 +41,7 @@ test('AdaBoost applies the binary update to the same examples and normalizes the
   const updated = after.diagram.rows;
   assert.equal(identity.mode, 'preserved');
   assert.deepEqual(updated.map(({ id, heading }) => [id, heading]), starting.map(({ id, heading }) => [id, heading]));
-  assert.deepEqual(starting.map(row => row.cells[1]), ['1/4', '1/4', '1/4', '1/4']);
+  assert.deepEqual(starting.map(row => fraction(row.cells[1])), [0.25, 0.25, 0.25, 0.25]);
   assert.deepEqual(starting.filter(row => row.cells[0] === 'Missed').map(row => row.id), ['r3']);
   const error = starting.filter(row => row.cells[0] === 'Missed').reduce((sum, row) => sum + fraction(row.cells[1]), 0);
   assert.equal(error, 0.25);
@@ -84,7 +85,7 @@ test('each stacking meta row comes from exactly one disjoint held-out prediction
 test('all three ensemble references serialize and render their teaching marks at 320, 408 and 720 px', () => {
   const marks = {
     'ml-soft-vote-probabilities': [/data-tutor-matrix-row="model-3"/, /data-tutor-matrix-row="soft"/, /61\.67%/],
-    'ml-adaboost-weight-update': [/data-tutor-matrix-row="r3"/, /1\/2/, /data-tutor-arrowhead/],
+    'ml-adaboost-weight-update': [/data-tutor-matrix-row="r3"/, /data-tutor-tex="\$\\frac\{1\}\{2\}\$"/, /data-tutor-arrowhead/],
     'ml-stacking-oof-predictions': [/data-tutor-matrix-row="f1"/, /data-tutor-matrix-row="r4"/, /Target/],
   };
   assert.equal(references.length, 3);

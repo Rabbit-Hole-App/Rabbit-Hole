@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Get a weather forecast",
+    "kind": "sequence",
+    "actors": [
+      {
+        "id": "app",
+        "label": "Weather app"
+      },
+      {
+        "id": "service",
+        "label": "Forecast service"
+      }
+    ],
+    "messages": [
+      {
+        "from": "app",
+        "to": "service",
+        "label": "Request forecast for Oslo"
+      },
+      {
+        "from": "service",
+        "to": "app",
+        "label": "Return Oslo forecast"
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Wash berries",
+    "kind": "flow",
+    "nodes": [
+      {
+        "id": "sort",
+        "label": "Sort the berries",
+        "role": "process"
+      },
+      {
+        "id": "rinse",
+        "label": "Rinse the berries",
+        "role": "process"
+      },
+      {
+        "id": "drain",
+        "label": "Drain the berries",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "sort",
+        "to": "rinse"
+      },
+      {
+        "from": "rinse",
+        "to": "drain"
+      }
+    ]
+  }
+}

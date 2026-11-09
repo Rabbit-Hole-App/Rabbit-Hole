@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "GPU thread blocks compute output tiles in parallel",
+    "caption": "Each thread block multiplies a row block $A_i$ by a column block $B_j$ and writes its own tile $C_{ij}$.",
+    "kind": "flow",
+    "nodes": [
+      {
+        "id": "split",
+        "label": "Split output $C$ into tiles",
+        "role": "fork"
+      },
+      {
+        "id": "tile11",
+        "label": "Compute $A_1 B_1$",
+        "role": "process"
+      },
+      {
+        "id": "tile12",
+        "label": "Compute $A_1 B_2$",
+        "role": "process"
+      },
+      {
+        "id": "tile21",
+        "label": "Compute $A_2 B_1$",
+        "role": "process"
+      },
+      {
+        "id": "tile22",
+        "label": "Compute $A_2 B_2$",
+        "role": "process"
+      },
+      {
+        "id": "merge",
+        "label": "Assemble tiles in place",
+        "role": "merge"
+      },
+      {
+        "id": "result",
+        "label": "Return $C=AB$",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "split",
+        "to": "tile11",
+        "label": "Thread block 1"
+      },
+      {
+        "from": "split",
+        "to": "tile12",
+        "label": "Thread block 2"
+      },
+      {
+        "from": "split",
+        "to": "tile21",
+        "label": "Thread block 3"
+      },
+      {
+        "from": "split",
+        "to": "tile22",
+        "label": "Thread block 4"
+      },
+      {
+        "from": "tile11",
+        "to": "merge",
+        "label": "$C_{11}$"
+      },
+      {
+        "from": "tile12",
+        "to": "merge",
+        "label": "$C_{12}$"
+      },
+      {
+        "from": "tile21",
+        "to": "merge",
+        "label": "$C_{21}$"
+      },
+      {
+        "from": "tile22",
+        "to": "merge",
+        "label": "$C_{22}$"
+      },
+      {
+        "from": "merge",
+        "to": "result"
+      }
+    ]
+  }
+}

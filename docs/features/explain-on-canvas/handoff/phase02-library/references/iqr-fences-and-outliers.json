@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "title": "Fences are not observed whiskers",
-    "caption": "IQR = 4 − 2 = 2. The 1.5 × IQR fences are −1 and 7; observed whiskers end at 0 and 6.",
+    "caption": "$\\mathrm{IQR}=4-2=2$. Fences extend 1.5 IQRs past the quartiles to −1 and 7. Observed whiskers end at 0 and 6.",
     "kind": "box-plot",
     "x": {
       "label": "Reading",

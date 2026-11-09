@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "title": "PSI adds the shifts across common bins",
-    "caption": "The [3, 4] bin contributes most. Its term is $(0.40-0.10)\\ln(0.40/0.10)\\approx0.4159$.",
+    "caption": "The $[3, 4]$ bin contributes most. Its term is $(0.40-0.10)\\ln(0.40/0.10)\\approx0.4159$.",
     "kind": "comparison",
     "variant": "panels",
     "panels": [
@@ -58,7 +58,7 @@
           "rows": [
             {
               "id": "bin-0",
-              "heading": "[0, 1)",
+              "heading": "$[0, 1)$",
               "cells": [
                 "10%",
                 "5%",
@@ -67,7 +67,7 @@
             },
             {
               "id": "bin-1",
-              "heading": "[1, 2)",
+              "heading": "$[1, 2)$",
               "cells": [
                 "40%",
                 "15%",
@@ -76,7 +76,7 @@
             },
             {
               "id": "bin-2",
-              "heading": "[2, 3)",
+              "heading": "$[2, 3)$",
               "cells": [
                 "40%",
                 "40%",
@@ -85,7 +85,7 @@
             },
             {
               "id": "bin-3",
-              "heading": "[3, 4]",
+              "heading": "$[3, 4]$",
               "cells": [
                 "10%",
                 "40%",

@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { z } from 'zod';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createElement as h } from 'react';
 import { createShapes, validate, describe, visibleText } from './ml-composition-spec.js';
 import { createLayouts } from './ml-composition-layouts.js';
 import { references } from './ml-composition-references.js';
 import { tutorDiagramSchema } from './spec.js';
+import { renderTutorDiagram } from './TutorDiagram.js';
 import { layouts as legacy } from './layouts.js';
 import { textWidth } from './primitives.js';
 
@@ -220,19 +220,45 @@ test('a child title reused as its heading is rendered and counted once', () => {
   assert.equal(counted.filter(text => text === 'Observed values').length, 1);
 });
 
-test('composition references are bounded executable examples covering the approved teaching families', () => {
+test('the reference library covers the approved teaching families with bounded, renderable specs', () => {
   const ids = new Set();
   assert.ok(references.length >= 9);
   for (const reference of references) {
     assert.ok(!ids.has(reference.id));
     ids.add(reference.id);
     assert.ok(reference.lessons.length && reference.prompts.length && reference.keywords.length && reference.useWhen);
-    const diagram = schema.parse(reference.spec.diagram);
-    const scene = realLayouts[diagram.kind](diagram, 320);
-    assert.ok(scene.width > 0 && scene.height > 0 && scene.elements.length > 0, reference.id);
-    const markup = renderToStaticMarkup(h('svg', { width: scene.width, height: scene.height }, ...scene.elements));
-    assert.ok(!/NaN|Infinity|<svg[^>]*<svg/.test(markup), reference.id);
+    const { element, width, height } = renderTutorDiagram(reference.spec, 320);
+    assert.ok(width >= 320 && height > 0, reference.id);
+    const markup = renderToStaticMarkup(element);
+    assert.doesNotMatch(markup, /NaN|Infinity|<svg[\s\S]*<svg/, reference.id);
     assert.ok(JSON.stringify(reference.spec).length < 16384, reference.id);
   }
   for (const lesson of ['02', '06', '07', '08', '10', '11', '15', '20']) assert.ok(references.some(reference => reference.lessons.includes(lesson)), lesson);
+});
+
+test('the drift charts preserve both windows, all original values and the unchanged covariate rule', () => {
+  const covariate = references.find(ref => ref.id === 'ml-covariate-drift-comparison').spec;
+  const labelPrior = references.find(ref => ref.id === 'ml-label-prior-drift-comparison').spec;
+  const scatter = covariate.diagram;
+  assert.equal(scatter.kind, 'coordinate-plot');
+  assert.deepEqual([scatter.x.min, scatter.x.max, scatter.y.min, scatter.y.max], [0, 5, 0, 10]);
+  assert.deepEqual(scatter.series.map(({ label, kind, points }) => [label, kind, points.map(({ x, y }) => [x, y])]), [
+    ['Reference window', 'scatter', [[1, 2], [1.5, 3], [2, 4]]],
+    ['Current window', 'scatter', [[2.5, 5], [3, 6], [3.5, 7]]],
+  ]);
+  assert.match(scatter.caption, /\$y = 2x\$/);
+  const bars = labelPrior.diagram;
+  assert.equal(bars.kind, 'bar-chart');
+  assert.equal(bars.variant, 'grouped');
+  assert.equal(bars.unit, 'samples');
+  assert.deepEqual(bars.categories, ['Class 0', 'Class 1']);
+  assert.deepEqual(bars.series, [{ label: 'Reference window', values: [7, 3] }, { label: 'Current window', values: [3, 7] }]);
+
+  for (const width of [320, 408, 720]) {
+    const scatterSvg = renderToStaticMarkup(renderTutorDiagram(covariate, width).element);
+    const barsSvg = renderToStaticMarkup(renderTutorDiagram(labelPrior, width).element);
+    assert.equal([...scatterSvg.matchAll(/data-tutor-plot-area=/g)].length, 1);
+    assert.equal([...scatterSvg.matchAll(/data-tutor-coordinate-point=/g)].length, 6);
+    assert.equal([...barsSvg.matchAll(/data-tutor-grouped-bar=/g)].length, 4);
+  }
 });

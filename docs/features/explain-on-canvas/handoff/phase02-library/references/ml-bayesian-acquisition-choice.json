@@ -2,43 +2,43 @@
   "version": 1,
   "diagram": {
     "title": "How UCB picks the next trial",
-    "caption": "Toy tree depths d. The upper confidence bound adds one standard deviation σ to predicted mean μ. B has the best mean. Try C next.",
+    "caption": "Toy tree depths $d$. The upper confidence bound adds one standard deviation $\\sigma$ to predicted mean $\\mu$. B has the best mean. Try C next.",
     "kind": "matrix",
     "layout": "teaching",
     "columns": [
-      "μ + σ",
+      "$\\mu,\\sigma$",
       "UCB"
     ],
     "rows": [
       {
         "id": "a",
-        "heading": "A · d=2",
+        "heading": "A · $d=2$",
         "cells": [
-          "0.70+0.02",
+          "$0.70,0.02$",
           "0.72"
         ]
       },
       {
         "id": "b",
-        "heading": "B · d=4",
+        "heading": "B · $d=4$",
         "cells": [
-          "0.76+0.02",
+          "$0.76,0.02$",
           "0.78"
         ]
       },
       {
         "id": "c",
-        "heading": "C · d=6",
+        "heading": "C · $d=6$",
         "cells": [
-          "0.73+0.10",
+          "$0.73,0.10$",
           "0.83"
         ]
       },
       {
         "id": "d",
-        "heading": "D · d=8",
+        "heading": "D · $d=8$",
         "cells": [
-          "0.68+0.08",
+          "$0.68,0.08$",
           "0.76"
         ]
       }

@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "title": "Cut a dendrogram by merge distance",
-    "caption": "Illustrative distances. A cutoff of 0.5 keeps {A, B} and {C, D} separate.",
+    "caption": "Illustrative distances. At a cutoff of $0.5$, A and B form one cluster and C and D form the other.",
     "kind": "tree",
     "layout": "dendrogram",
     "nodes": [
@@ -14,14 +14,14 @@
       },
       {
         "id": "ab",
-        "label": "Cluster A + B",
+        "label": "Cluster of A and B",
         "parent": "all",
         "count": 2,
         "height": 0.2
       },
       {
         "id": "cd",
-        "label": "Cluster C + D",
+        "label": "Cluster of C and D",
         "parent": "all",
         "count": 2,
         "height": 0.3
