@@ -45,6 +45,7 @@ export const QUESTIONS = {
   needsPlot: { type: 'noul', instructions: 'Is this a question about a formula, a metric, a loss, an activation function, a schedule, or how one quantity changes with another?' },
   isPhysical: { type: 'noul', instructions: 'Is the subject a physical object, place, organism, 3D shape, repeating structure (molecule, lattice, gear train, mesh) or natural event? Software, algorithms, neural networks, protocols, a CPU versus a GPU and other digital or mathematical subjects are not physical.' },
   needsWorkedExample: { type: 'noul', instructions: 'Would a small worked numeric example (computed from the formula the explanation states) make the answer clearer?' },
+  secondVisual: { type: 'noul', instructions: "Does the question ask about TWO separate things, each of which is itself a structure or a living thing that can be drawn on its own: two data structures, two search or traversal algorithms, two organisms or life stages, two objects? Answer no for a metric, a formula, one process with steps, one thing with parts, or two technologies or protocols compared on properties." },
 };
 
 // The server's mapping (explanation-planner.js planFromAnswers, v2): answers -> plan (visuals as bench mixes: 'P' and 'D:<kind>'). Offered kinds give one candidate mix each (the author picks one).
