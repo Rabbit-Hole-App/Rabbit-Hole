@@ -161,8 +161,8 @@ function coordinatePlot(diagram, width) {
     const style = SERIES[index];
     if (entry.kind === 'line') elements.push(seriesLine(entry.points.map(point => `${x(point.x)},${y(point.y)}`).join(' '), style));
     const sparseMarkers = entry.kind === 'line' && entry.points.length > 6;
-    for (const point of entry.points) {
-      if (sparseMarkers && !point.label) continue;
+    for (const [at, point] of entry.points.entries()) {
+      if (sparseMarkers && !point.label && at !== 0 && at !== entry.points.length - 1) continue; // owner 2026-11-08: first, last and labelled points only
       const coordinates = `${point.x},${point.y}`;
       markers.push(plotMarker(x(point.x), y(point.y), style, `${entry.label}: (${point.x}, ${point.y})`, coordinates));
     }

@@ -161,7 +161,7 @@ function coordinatePlot(d, requested) {
         geometry.push(h('path', { d: `M ${cx} ${lo} V ${hi} M ${cx - 4} ${lo} H ${cx + 4} M ${cx - 4} ${hi} H ${cx + 4}`,
           fill: 'none', stroke: COLORS[i], strokeWidth: 1.5, 'data-tutor-plot-errorbar': `${p.low},${p.high}` }));
       }
-      if (!sparseMarkers || p.label) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`));
+      if (!sparseMarkers || p.label || j === 0 || j === series.points.length - 1) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`));
       if (p.label) note([cx, cy], `${p.label}: (${p.x}, ${p.y})`);
     });
     const lines = wrap(`${series.label}${hasUncertainty ? ' · low/high interval' : ''}`, width - 2 * PAD - 36);

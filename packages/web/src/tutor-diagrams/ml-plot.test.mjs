@@ -73,14 +73,14 @@ test('annotations and labelled samples share the same exact linear mapping', () 
   assert.ok(describe(d).join(' ').includes('sample1'));
 });
 
-test('a dense extended line only marks labelled points and retains the full curve', () => {
+test('a dense extended line marks its first and last point and labelled points, and retains the full curve', () => {
   const d = plot();
   d.series = [{ label: 'Dense line', kind: 'line', points: Array.from({ length: 7 }, (_, i) => ({ x: i, y: i % 3,
     ...(i === 2 ? { label: 'Peak' } : i === 3 ? { id: 'unlabelled' } : {}),
   })) }, { label: 'Stems', kind: 'stem', points: Array.from({ length: 7 }, (_, i) => ({ x: i, y: i + 1 })) }];
   const { svg, plotBounds } = render(d);
   assert.deepEqual(marks(svg, 'data-tutor-coordinate-point').map(mark => mark.value),
-    ['2,2', '0,1', '1,2', '2,3', '3,4', '4,5', '5,6', '6,7']);
+    ['0,0', '2,2', '6,0', '0,1', '1,2', '2,3', '3,4', '4,5', '5,6', '6,7']);
   assert.equal(marks(svg, 'data-tutor-plot-stem').length, 7);
   assert.match(svg, /Peak/);
   assert.match(svg, /Dense line/);
