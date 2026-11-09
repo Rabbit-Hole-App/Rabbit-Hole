@@ -115,7 +115,8 @@ test('requestSummary: sends the title and prose only; an old card with no summar
   const ok = await requestSummary(async (path, init) => { sent.push([path, JSON.parse(init.body)]); return { summary: 'A short one.' }; }, { app: 'canvas', block: card({ body: `${PROSE}\n\n${fence('rh-diagram', SPEC)}` }) });
   assert.equal(ok, 'A short one.');
   assert.equal(sent[0][0], '/api/learn/explanation-summary');
-  assert.deepEqual(Object.keys(sent[0][1]).sort(), ['app', 'body', 'title']);
+  assert.deepEqual(Object.keys(sent[0][1]).sort(), ['app', 'body', 'id', 'title']);
+  assert.equal(sent[0][1].id, 'c1', 'the card id rides with the request: the server answers one call per card');
   assert.ok(!sent[0][1].body.includes('rh-diagram'), 'no diagram JSON');
   assert.equal(await requestSummary(async () => { throw new Error('HTTP 502'); }, { app: 'canvas', block: card() }), null);
   assert.equal(await requestSummary(async () => ({ summary: null }), { app: 'canvas', block: card() }), null);
