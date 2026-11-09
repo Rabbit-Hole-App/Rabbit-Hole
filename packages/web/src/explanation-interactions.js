@@ -51,7 +51,9 @@ const SKIP = '[data-code-lang],[data-code-copy],[data-explanation-skip],[data-ex
 // dollars) but the DOM holds KaTeX glyphs, so it is matched by the source KaTeX keeps in its annotation (a formula KaTeX refused shows its source as text).
 // A formula in a diagram label ([data-tutor-tex], tutor-diagrams/primitives.js) counts as the source written in the label, delimiters included.
 const MATH = '[data-chat-math]';
-const ISLAND = `[data-tutor-diagram],[data-tutor-tex],${MATH}`;
+// [data-tutor-visible]: a diagram's wrapper (Md.jsx) carrying tutorDiagramVisibleText, the words the card's canonical text holds for it. The drawing's own text (axis ticks, graph badges, legends of the
+// newer kinds) is not those words, so it must never be compared with the canonical text: the wrapper is the island and its words are what align (owner 2026-11-08: pills and Highlight were dead on every card with a plot, histogram or graph).
+const ISLAND = `[data-tutor-visible],[data-tutor-diagram],[data-tutor-tex],${MATH}`;
 const TEXT = 3, ELEMENT = 1;
 const texOf = node => node.querySelector?.('annotation[encoding="application/x-tex"]')?.textContent ?? node.textContent;
 function walkItems(node, out) {
@@ -63,7 +65,7 @@ function walkItems(node, out) {
   return out;
 }
 const nonSpace = text => Array.from(String(text ?? '')).filter(ch => !isSpace(ch));
-const islandChars = node => node.hasAttribute?.('data-tutor-tex') ? nonSpace(node.getAttribute('data-tutor-tex')) : walkItems(node, []).flatMap(item => (item.text ? nonSpace(item.text.data) : item.island ? islandChars(item.island) : []));
+const islandChars = node => node.hasAttribute?.('data-tutor-visible') ? nonSpace(node.getAttribute('data-tutor-visible')) : node.hasAttribute?.('data-tutor-tex') ? nonSpace(node.getAttribute('data-tutor-tex')) : walkItems(node, []).flatMap(item => (item.text ? nonSpace(item.text.data) : item.island ? islandChars(item.island) : []));
 const inIsland = node => !!(node?.nodeType === ELEMENT ? node : node?.parentNode)?.closest?.(ISLAND);
 
 // The aligned field: `root`'s rendered text against the canonical text. null when they disagree (anything rendered that the canonical

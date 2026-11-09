@@ -6,7 +6,8 @@
 import shapeExamples from '../../web/src/tutor-diagrams/examples.json' with { type: 'json' };
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
-export const PLANNER_MODEL = 'jev-latest', PLANNER_TIMEOUT_MS = 800, FIX_AT = 0.6;
+// 1.2 s (owner 2026-11-08; 4 of 42 timed out at 800 ms on the Gemini stack); every timeout is logged as reason 'timeout' (explanation_planner_failed)
+export const PLANNER_MODEL = 'jev-latest', PLANNER_TIMEOUT_MS = 1200, FIX_AT = 0.6;
 const KIND = {
   flow: 'Ordered steps of one process, with or without decisions; the default only when nothing below fits.',
   sequence: 'Two to four named parties sending things to each other: client/server, sender/receiver, protocols, handshakes, request/response.',
@@ -88,7 +89,8 @@ export async function planExplanation(env, { question, depth = 'standard', conte
     if (need.some(k => !out?.answers?.[k])) throw new Error('incomplete answers');
     return { ...planFromAnswers(out.answers), ms: Date.now() - started, inputTokens: out.usage?.input_tokens ?? null };
   } catch (error) {
-    console.log(JSON.stringify({ event: 'explanation_planner_failed', reason: String(error?.message || error).slice(0, 120), ms: Date.now() - started }));
+    const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError' || /timeout|aborted/i.test(String(error?.message || ''));
+    console.log(JSON.stringify({ event: 'explanation_planner_failed', reason: timedOut ? 'timeout' : String(error?.message || error).slice(0, 120), timeout: timedOut, ms: Date.now() - started }));
     return null;
   }
 }

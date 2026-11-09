@@ -91,3 +91,13 @@ test('generateArtifact plans once per card with the flag on, and runs as today w
     assert.ok(seen2.length >= 1 && seen2.every(m => !m.includes('cardPlan')));
   } finally { globalThis.fetch = realFetch; console.log = log; }
 });
+
+// Owner 2026-11-08: the planner waits 1.2 s (4 of 42 timed out at 800 ms on the Gemini stack) and every timeout is logged as a timeout.
+test('planner timeout is 1.2 s and a timeout is logged as one', async () => {
+  const { PLANNER_TIMEOUT_MS } = await import('../src/explanation-planner.js');
+  assert.equal(PLANNER_TIMEOUT_MS, 1200);
+  const lines = [], log = console.log; console.log = l => lines.push(String(l));
+  try { assert.equal(await planExplanation({ TYPESAFE_API_KEY: 'k' }, { question: 'x' }, { fetchImpl: (u, init) => new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(init.signal.reason))), timeoutMs: 20 }), null); } finally { console.log = log; }
+  const event = JSON.parse(lines.find(l => l.includes('explanation_planner_failed')));
+  assert.deepEqual([event.reason, event.timeout], ['timeout', true]);
+});
