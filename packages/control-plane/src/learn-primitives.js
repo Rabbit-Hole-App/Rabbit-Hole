@@ -687,6 +687,21 @@ function correctedTimeline(raw) {
 // one per row (the heading as a lowercase slug, row-N when it has none, made distinct); rows with fewer cells than columns, every row short by the same count, are padded
 // with an em dash; a row with more cells than columns loses its trailing cells; rows that disagree with each other are left for the one repair. Kept only when the
 // whole diagram then parses. -> { spec, kinds } or null.
+// Owner 2026-11-09 (figure-chapters 02, demo card 03): a matrix or heatmap whose columns are objects ({heading, items}) instead of strings, and a matrix whose rows carry ids without the teaching layout,
+// fail validation for a reason the server can read. Each object column becomes its own text (heading, then label, text, title; an object with none of them is left, and the diagram then fails as it did);
+// a teaching-layout row with no id gets one from its heading (correctedMatrix, matrix_row_ids, run on the coerced diagram); ids on the rows of a plain matrix (no teaching layout, no emphasis, no states: nothing refers to them) are removed. Only the fields the parser
+// names are touched. The result applies only if the whole diagram then validates; a diagram that still lacks rows or a range goes to the repair exactly as before. -> { raw, counts } or null.
+const columnText = column => [column?.heading, column?.label, column?.text, column?.title].find(value => typeof value === 'string' && value.trim());
+function coercedMatrixShape(raw) {
+  const source = raw?.diagram;
+  if (!['matrix', 'heatmap'].includes(source?.kind) || tryParse(raw)) return null;
+  const d = structuredClone(source), counts = { columns: 0, rowIdsDropped: 0 };
+  if (Array.isArray(d.columns)) d.columns = d.columns.map(column => { const text = column && typeof column === 'object' && !Array.isArray(column) ? columnText(column) : undefined; if (text === undefined) return column; counts.columns++; return text.trim(); });
+  if (d.kind === 'matrix' && Array.isArray(d.rows) && d.rows.every(row => row && typeof row === 'object' && !Array.isArray(row))) {
+    if (d.layout !== 'teaching' && d.emphasis === undefined && d.states === undefined) d.rows.forEach(row => { if (row.id !== undefined) { delete row.id; counts.rowIdsDropped++; } });
+  }
+  return counts.columns || counts.rowIdsDropped ? { raw: { ...raw, diagram: d }, counts } : null;
+}
 function correctedMatrix(raw) {
   if (tryParse(raw)) return null;
   const d = structuredClone(raw?.diagram);
@@ -752,7 +767,13 @@ export function correctDiagrams(md) {
     if (open) {
       if (/^\s*```/.test(line)) {
         let raw = null; try { raw = JSON.parse(open.lines.join('\n')); } catch { /* not JSON: the repair's */ }
-        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw) || correctedMatrix(raw) || correctedSequence(raw) || correctedFields(raw));
+        const coerced = raw && coercedMatrixShape(raw), base = coerced ? coerced.raw : raw;
+        let fixed = base && (correctedFlow(base) || correctedTimeline(base) || correctedMatrix(base) || correctedSequence(base) || correctedFields(base));
+        if (coerced) {
+          const spec = fixed ? fixed.spec : tryParse(base); // the coercion counts only when the whole diagram then validates
+          fixed = spec ? { spec, kinds: ['matrix_coerced', ...(fixed?.kinds ?? [])] } : null;
+          if (fixed) console.log(JSON.stringify({ event: 'explanation_matrix_coerced', diagram: raw.diagram.kind, columnsCoerced: coerced.counts.columns, rowIdsAdded: (fixed.spec.diagram.rows ?? []).filter(row => row.id).length - (base.diagram.rows ?? []).filter(row => row?.id).length, rowIdsDropped: coerced.counts.rowIdsDropped }));
+        }
         if (fixed) for (const kind of fixed.kinds) corrections[kind] = (corrections[kind] || 0) + 1;
         out.push(open.raw, ...(fixed ? [JSON.stringify(fixed.spec)] : open.lines), line); open = null;
       } else open.lines.push(line);
