@@ -1995,7 +1995,7 @@
       "408": {
         "requested": 408,
         "width": 420,
-        "height": 539
+        "height": 556
       },
       "960": {
         "requested": 960,
@@ -2005,7 +2005,7 @@
       "natural": {
         "requested": 420,
         "width": 420,
-        "height": 539
+        "height": 556
       }
     }
   },
@@ -2175,7 +2175,7 @@
       "408": {
         "requested": 408,
         "width": 420,
-        "height": 556
+        "height": 539
       },
       "960": {
         "requested": 960,
@@ -2185,7 +2185,7 @@
       "natural": {
         "requested": 420,
         "width": 420,
-        "height": 556
+        "height": 539
       }
     }
   },

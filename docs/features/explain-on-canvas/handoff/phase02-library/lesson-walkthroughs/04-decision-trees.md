@@ -193,12 +193,12 @@ In this illustrative run, increasing the forest from one tree to 50 raises test 
 
 ### Fit sine with regression trees
 
-Both trees fit the same 25 samples from 0° through 360°, one every 15°. The fits choose midpoint cuts by squared-error reduction, with limits of four leaves at depth two and sixteen at depth five. Each step is the mean of the rounded samples in its leaf.
+Both trees fit the same 25 samples from 0° through 360°, one every 15°. The full trees have four leaves at depth two and sixteen at depth four. Each split picks the midpoint with the largest squared-error reduction among cuts that leave enough samples to complete both child subtrees. Each step is the mean of the rounded samples in its leaf.
 
 `ml-trees-regression-step-fit` · `coordinate-plot`
 
 - **Brief** — Shows how a leaf's mean gives a flat step. [408 px SVG](../illustrations/ml-trees-regression-step-fit-brief/408.svg)
-- **Balanced** — Compares the four-leaf and sixteen-leaf fits with the same sine curve. [408 px SVG](../illustrations/ml-trees-regression-step-fit/408.svg)
+- **Balanced** — Compares the depth-two and depth-four fits with the same sine curve. [408 px SVG](../illustrations/ml-trees-regression-step-fit/408.svg)
 - **Detailed** — Labels the four depth-two leaf means. [408 px SVG](../illustrations/ml-trees-regression-step-fit-detailed/408.svg)
 
 ## Pilot choices

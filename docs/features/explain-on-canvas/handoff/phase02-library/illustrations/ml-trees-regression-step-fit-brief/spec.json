@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "kind": "coordinate-plot",
-    "title": "Sine step fits",
+    "title": "Sine fits",
     "x": {
       "label": "Angle (degrees)",
       "min": 0,
@@ -15,7 +15,7 @@
     },
     "series": [
       {
-        "label": "Sine samples",
+        "label": "Sine",
         "kind": "line",
         "samples": {
           "x": {
@@ -77,7 +77,7 @@
         }
       },
       {
-        "label": "Depth 5",
+        "label": "Depth 4",
         "kind": "step",
         "samples": {
           "x": {
@@ -93,10 +93,10 @@
               345,
               375,
               405,
+              435,
               465,
               615,
               645,
-              675,
               705,
               720
             ],
@@ -113,11 +113,11 @@
             259,
             0,
             -259,
-            -603,
+            -500,
+            -707,
             -933,
             -707,
-            -500,
-            -259,
+            -379,
             0,
             0
           ],
@@ -125,6 +125,6 @@
         }
       }
     ],
-    "caption": "Worked example. Each step predicts one leaf mean."
+    "caption": "Worked example. 4 leaves versus 16"
   }
 }

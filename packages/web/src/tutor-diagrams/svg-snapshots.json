@@ -4587,47 +4587,47 @@
       "height": 637
     },
     "ml-trees-regression-step-fit/408": {
-      "sha256": "a486d5a25138cab96df95a069c0c99c95d5226c4f1de1ff7e8e61344670cbc62",
+      "sha256": "893385ec66d4a7ff3db8ab09d5fefc2d1d0ee561f234909fd7f1938ff329e55e",
       "width": 420,
-      "height": 539
+      "height": 556
     },
     "ml-trees-regression-step-fit/960": {
-      "sha256": "78f2c03f539091d222381c256d40b09c249cc7d1e0a5fe3f379fb0dc4521442e",
+      "sha256": "ac2798f87f2b26440391ccb41679c88ffc5bdfc0f1f0e040f7f508972155e176",
       "width": 720,
       "height": 539
     },
     "ml-trees-regression-step-fit/natural": {
-      "sha256": "a486d5a25138cab96df95a069c0c99c95d5226c4f1de1ff7e8e61344670cbc62",
-      "width": 420,
-      "height": 539
-    },
-    "ml-trees-regression-step-fit-brief/408": {
-      "sha256": "66fcc4d97de8cfdc3e0331e321b4d56b2e2a8b1acf638b0258178e7d6b4f7e40",
+      "sha256": "893385ec66d4a7ff3db8ab09d5fefc2d1d0ee561f234909fd7f1938ff329e55e",
       "width": 420,
       "height": 556
     },
+    "ml-trees-regression-step-fit-brief/408": {
+      "sha256": "b789bab6d5dc4730f08fa157e635bd0d9cee415972f3b1a0a947facf5d94e86b",
+      "width": 420,
+      "height": 539
+    },
     "ml-trees-regression-step-fit-brief/960": {
-      "sha256": "fc89324ab4b231aca8b2641ea2dca28227fead75ad529818a071c460fba866e9",
+      "sha256": "62fed7c58bd5debc84188f931d688591b3aadd62271d02e3a0d4d31ce5e3c937",
       "width": 720,
       "height": 539
     },
     "ml-trees-regression-step-fit-brief/natural": {
-      "sha256": "66fcc4d97de8cfdc3e0331e321b4d56b2e2a8b1acf638b0258178e7d6b4f7e40",
+      "sha256": "b789bab6d5dc4730f08fa157e635bd0d9cee415972f3b1a0a947facf5d94e86b",
       "width": 420,
-      "height": 556
+      "height": 539
     },
     "ml-trees-regression-step-fit-detailed/408": {
-      "sha256": "abddb17e4999e837846cb579544bee99095b761904bdf8c794aee0ed653d68a9",
+      "sha256": "c0531d2dc5ff1f9d4bf845f5b6e301a6404b6c897f9d924571bf940d51c6ac5d",
       "width": 420,
       "height": 635
     },
     "ml-trees-regression-step-fit-detailed/960": {
-      "sha256": "c0e01658fbe6a1c875ec0e83c479076b374ad115c689ffa019d11972d974116e",
+      "sha256": "e64c1b0af2b6a43e97d73c59b32004dbaefb0f46aadd21771f8c4e6d0b5ba4cf",
       "width": 720,
       "height": 635
     },
     "ml-trees-regression-step-fit-detailed/natural": {
-      "sha256": "abddb17e4999e837846cb579544bee99095b761904bdf8c794aee0ed653d68a9",
+      "sha256": "c0531d2dc5ff1f9d4bf845f5b6e301a6404b6c897f9d924571bf940d51c6ac5d",
       "width": 420,
       "height": 635
     },

@@ -13,15 +13,18 @@ function bestCut(leaves, maxDepth) {
   for (const [index, { start, end, depth }] of leaves.entries()) {
     if (depth === maxDepth) continue;
     const total = sum(start, end);
-    let left = 0;
-    for (let cut = start + 1; cut < end; cut++) {
+    // Reserve one sample for each leaf in both remaining subtrees.
+    const minimumChildSize = 2 ** (maxDepth - depth - 1);
+    const firstCut = start + minimumChildSize;
+    let left = sum(start, firstCut - 1);
+    for (let cut = firstCut; cut <= end - minimumChildSize; cut++) {
       left += targets[cut - 1];
       const leftCount = cut - start;
       const rightCount = end - cut;
       // Squared-error reduction equals nL*nR/n times the squared difference of means.
       const numerator = (left * rightCount - (total - left) * leftCount) ** 2;
       const denominator = (end - start) * leftCount * rightCount;
-      if (numerator > 0 && (!best || numerator * best.denominator > best.numerator * denominator)) {
+      if (!best || numerator * best.denominator > best.numerator * denominator) {
         best = { index, cut, numerator, denominator };
       }
     }
@@ -46,27 +49,27 @@ function fittedSteps(maxDepth, maxLeaves) {
 }
 
 const shallow = fittedSteps(2, 4);
-const deep = fittedSteps(5, 16);
+const deep = fittedSteps(4, 16);
+const comparison = `${shallow.y.length - 1} leaves versus ${deep.y.length - 1}`;
 
 export const lessonDecisionTreesRegressionDemo = {
   name: 'regression-step-fit',
-  prompt: 'how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?',
+  prompt: 'how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 4?',
   paraphrase: 'Why does a deeper regression tree approximate a sine wave with more steps?',
+  additionalPrompts: ['how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?'],
   keywords: ['regression tree', 'step function', 'variance reduction'],
   useWhen: 'Compare regression tree depth on a sine target. Each leaf predicts the mean of its own samples.',
   diagramAt(depth) {
     return {
-      kind: 'coordinate-plot', title: 'Sine step fits',
+      kind: 'coordinate-plot', title: 'Sine fits',
       x: { label: 'Angle (degrees)', min: start, max: end },
       y: { label: 'Target', min: -1, max: 1 },
       series: [
-        { label: 'Sine samples', kind: 'line', samples: { x: { start, step }, y: targets, divisor } },
+        { label: 'Sine', kind: 'line', samples: { x: { start, step }, y: targets, divisor } },
         { label: 'Depth 2', kind: 'step', samples: { ...shallow, ...(depth === 'deep' ? { showValues: true } : {}) } },
-        { label: 'Depth 5', kind: 'step', samples: deep },
+        { label: 'Depth 4', kind: 'step', samples: deep },
       ],
-      caption: depth === 'deep' ? 'Worked example. Rounded leaf means.' :
-        depth === 'overview' ? 'Worked example. Each step predicts one leaf mean.' :
-          `Worked example. ${shallow.y.length - 1} leaves versus ${deep.y.length - 1}.`,
+      caption: `Worked example. ${comparison}${depth === 'standard' ? '. Same samples.' : ''}`,
     };
   },
 };
