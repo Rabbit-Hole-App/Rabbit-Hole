@@ -46,6 +46,29 @@ const VISUAL_ITEM = { oneOf: [
   shape({ k: { type: 'string', const: 'diagram' }, spec: tutorDiagramJsonSchema }),
   shape({ k: { type: 'string', const: 'picture' }, p: text(AUTHOR_PICTURE_LIMITS.prompt), a: text(AUTHOR_PICTURE_LIMITS.alt), c: text(AUTHOR_PICTURE_LIMITS.caption) }),
 ] };
+// Owner M3 (2026-11-08): a key the author added that the schema does not declare (Gemini wrote `layers` on a comparison) is removed before the card is read,
+// instead of costing a repair. Checked against the declared schema of that visual and of that diagram kind, recursively; each removal is reported.
+const branchFor = (schema, value) => {
+  const options = schema.oneOf ?? schema.anyOf;
+  if (!options) return schema;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return options.find(o => Object.entries(o.properties ?? {}).some(([k, s]) => s?.const !== undefined && value[k] === s.const))
+    ?? options.find(o => (o.required ?? []).every(k => Object.hasOwn(value, k))) ?? null;
+};
+function stripUnknown(value, schema, kind, out) {
+  const s = schema && value && typeof value === 'object' ? branchFor(schema, value) : null;
+  if (!s) return value;
+  if (Array.isArray(value)) return s.items ? value.map(v => stripUnknown(v, s.items, kind, out)) : value;
+  if (!s.properties) return value;
+  const own = typeof value.kind === 'string' ? value.kind : typeof value.k === 'string' ? value.k : kind;
+  return Object.fromEntries(Object.entries(value).filter(([key]) => Object.hasOwn(s.properties, key) || (out.push({ kind: own, key }), false))
+    .map(([key, v]) => [key, stripUnknown(v, s.properties[key], own, out)]));
+}
+// -> { visuals, stripped: [{ kind, key }] }: the author's visuals with every undeclared key removed (an unknown kind or shape is left for the parser to name).
+export function stripUnknownKeys(visuals) {
+  const stripped = [];
+  return { visuals: Array.isArray(visuals) ? visuals.map(v => stripUnknown(v, VISUAL_ITEM, null, stripped)) : visuals, stripped };
+}
 const MARKER = /[ \t]*\[\[visual:(\d+)\]\][ \t]*/g;
 // The fence id of the picture at a 0-based position of visuals.
 export const pictureId = i => `pic-${i + 1}`;
@@ -305,7 +328,7 @@ export function artifactBlock(id, spec) {
 // --- CORE.09: the shared Explanation teaching guidance, display-text budget and the card's diagram format ----------------------------------
 // Offered with make_explanation on every path (direct /explain, Quick Edit, the Tutor roadmap); the request's Depth objective and budget
 // (chat-depth.js explanationTarget) follow it in the same tool description.
-export const EXPLANATION_GUIDANCE = 'For make_explanation, write the title, then visuals, then one body in Markdown (paragraphs, headings and pipe tables); there are no folded sections. Lay the body out as prose, then a visual, then prose, and optionally a second and a third visual, each followed by prose: one to three visuals, at most two of them pictures, and every visual has paragraph text both before and after it. Never write a bulleted or numbered list: parallel points go into a visual, a comparison diagram for 2-4 things side by side (each column a heading and up to 5 short items), a flow or sequence for steps, a tree for the parts of one thing; anything else is written as sentences. Each visual is one entry of visuals, either a diagram {"k":"diagram","spec":<the diagram>} or an illustration {"k":"picture","p":<prompt>,"a":<alt>,"c":<caption>}. Place each visual in the body with a line holding only its marker, [[visual:1]], [[visual:2]] or [[visual:3]] (its position in visuals), between two prose parts; never write a fence, JSON or a diagram label in the body. Choose visuals in this order. 1) Type: objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them; a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram; processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams; never use a picture for a data structure, an algorithm or numbers. 2) Diagram kind, by the shape of the answer: cycle when the last step feeds the first; sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response); timeline for dates or eras; transformation for inputs becoming outputs; tree for splits, sub-parts or sub-calls; relationship for causes; layers only for a real ordered stack; flow otherwise, a straight chain included (request, auth, handler, database). For binary trees use kind "tree" with layout "binary". Give each child its parent and side ("left" or "right"), with at most one child per side. Use short node labels and omit side on the root. For an operation on a binary tree or BST (traversal, insertion, search, deletion) the first visual is the tree itself, showing the operation in its node labels (the visit order, as 1st, 2nd, or the new key marked as 7 (new)) or as two tree visuals, before and after; a flow with a highlightPath for the steps may follow it but never replaces it; a tree has no highlight field. Three visuals are a maximum, not a target. Layers, matrix, comparison, flow, tree and figure cannot draw a shape, object, place or appearance; figure is only for a cell, a free-body diagram or a layered cross-section; comparison is for 2-4 separate items, never the parts of one thing. 3) Count: two visuals when the question names two things (X and Y, X vs Y) or asks both how something looks and how it works; otherwise one; a third only for a list of parallel points turned into a comparison, flow or tree. A table is not a visual: it may sit inside a prose part. Each visual must show what the learner\'s question asks and what the prose next to it explains, never decoration: its title, caption or labels name that idea in the same words the question or the neighbouring prose uses. Every visual has a title or caption (a diagram its title, an illustration its caption). An illustration is a picture made for you by an image model while you answer: p says what to draw in at most 200 characters (subject, view, style; no text or labels in the picture), a says what the picture shows for a reader who cannot see it in at most 120 characters, c is one line under the picture saying what to notice in at most 100 characters. Use a table to compare items across shared attributes. Fulfill every entry of requiredVisuals in the request at every Depth, including Overview, as a complete table, a valid diagram of the kind named or an illustration; when requiredVisuals lists diagrams or illustrations, the visuals are exactly those, that many of each kind and no other; shorten the prose to stay inside the same budget rather than omit it. When the request traces a worked case through a flow, give the flow a highlightPath (the node ids of the route in order, from the start node to an end node along existing edges) and also say the route in the caption in words (for example First check? Yes, then second check? Yes, so Approve). The body must answer the learner\'s question on its own. Be factual: explain the mechanism; leave out exact numbers, formulas, named parts and historical particulars unless they are standard textbook facts you are certain of, and never invent the name of an object, tool or part. Apply the requested Depth guidance and character budget. Only prose counts toward the budget: paragraph, heading and list text; the title, tables, diagrams and illustrations do not count. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. The spec of a diagram is one TutorDiagram object {"version":1,"diagram":{"kind":...,"title":...}}; never write Mermaid, HTML or SVG. Kinds: flow for a process with decisions (nodes [{id,label,role:"process"|"decision"|"outcome"}], edges [{from,to,label?}], optional highlightPath [node ids] for a traced worked case: one connected acyclic graph with exactly one start node; a decision has two or three outgoing edges with distinct short labels such as Yes and No, each to its own node, and a failed check ends in its own outcome; a process has one outgoing edge, an outcome has none; use cycle or relationship for a loop), comparison for items across attributes (columns [{heading,items:[1-5 texts]}], 2-4 columns), timeline for events in time (events [{time,label,detail?}]), sequence for messages between actors (actors [{id,label}] 2-4, messages [{from,to,label}] between different actors), matrix for a grid (columns [...], rows [{heading,cells:[one per column]}]), layers for a stack (layers [{label,detail?}]), cycle for a repeating process (steps [...]), figure for a labeled drawing (figure "cell"|"free-body"|"cross-section", callouts [{anchor,label,detail?}] with one callout per anchor: cell anchors membrane, nucleus, cytoplasm, mitochondrion; cross-section anchors top-layer, core, bottom-layer, interface; free-body anchors body or a direction that has a vector; free-body also takes vectors [{direction:"up"|"down"|"left"|"right",magnitude above zero,label}] with unique directions and an optional unit, and only free-body takes vectors and unit), tree for a hierarchy (nodes [{id,label,parent?,side?}], exactly one node without a parent, no cycles, side only for the binary layout), relationship for labeled links between things, reciprocal or cyclic allowed (nodes [{id,label}], edges [{from,to,label}]: different ends, every node linked, no repeated labeled pair), transformation for before and after (before {label,items}, after {label,items}, operation, optional links [{from,to,label?}] as zero-based item indexes), argument for claim and evidence (claim, support [{label,source?}], objections [{label,source?}] possibly empty, conclusion), number-line for values and intervals (min, max, markers [{value,label}] distinct and inside the range, optional intervals [{from,to,startClosed,endClosed,label}] increasing and inside the range; at least one marker or interval), coordinate-plot for data on two axes (x and y {label,min,max,unit?} with min below max, series [{label,kind:"line"|"scatter",points:[{x,y}]}] 1-3 series, points inside the axes, a line needs two points), bar-chart for comparing quantities (unit?, bars [{label,value}] 2-8, values may be negative), t-account for debits and credits (account, unit?, debits and credits [{label,amount}] nonnegative with at most two decimals, at least one posting), waterfall for an opening value changed by signed steps (opening, unit?, changes [{label,amount}] with at most two decimals). IDs start with a letter. Labels are short single-line text: title at most 90 characters, optional caption 140, flow node label 60 and edge label 30. Never invent numbers; use exact values from the request or the source.';
+export const EXPLANATION_GUIDANCE = 'For make_explanation, write the title, then visuals, then one body in Markdown (paragraphs, headings and pipe tables); there are no folded sections. Lay the body out as prose, then a visual, then prose, and optionally a second and a third visual, each followed by prose: one to three visuals, at most two of them pictures, and every visual has paragraph text both before and after it. Never write a bulleted or numbered list: parallel points go into a visual, a comparison diagram for 2-4 things side by side (each column a heading and up to 5 short items), a flow or sequence for steps, a tree for the parts of one thing; anything else is written as sentences. Each visual is one entry of visuals, either a diagram {"k":"diagram","spec":<the diagram>} or an illustration {"k":"picture","p":<prompt>,"a":<alt>,"c":<caption>}. Place each visual in the body with a line holding only its marker, [[visual:1]], [[visual:2]] or [[visual:3]] (its position in visuals), between two prose parts; never write a fence, JSON or a diagram label in the body. Choose visuals in this order. 1) Type: objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them; a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram; processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams; never use a picture for a data structure, an algorithm or numbers; a 3D object or a repeating structure — a molecule, a crystal lattice, a gear train, a mesh — is a picture, never a tree, figure or layers. Digital, abstract or procedural subjects — email, DNS, network protocols, algorithms, software, data structures, mathematics — never get a picture. They get a diagram only. 2) Diagram kind, by the shape of the answer: cycle when the last step feeds the first; sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response); timeline for dates or eras; transformation for inputs becoming outputs; tree for splits, sub-parts or sub-calls; relationship for causes; layers only for a real ordered stack; a question about a formula, a metric, a loss or how a quantity behaves gets a coordinate-plot of the function, with y computed from the formula the prose states at 7-12 x values (two decimals), or a bar-chart of one worked example; the title or caption says \'worked example\'. A question comparing two distributions or sets of values gets two series on one plot or a grouped bar-chart; a formula, metric or quantity question follows the depth: at Overview, or when the card plan gives a plain depth treatment, the simplest diagram with plain-word labels, otherwise its plot or chart; flow otherwise, a straight chain included (request, auth, handler, database). For binary trees use kind "tree" with layout "binary". Give each child its parent and side ("left" or "right"), with at most one child per side. Use short node labels and omit side on the root. For an operation on a binary tree or BST (traversal, insertion, search, deletion) the first visual is the tree itself, showing the operation in its node labels (the visit order, as 1st, 2nd, or the new key marked as 7 (new)) or as two tree visuals, before and after; a flow with a highlightPath for the steps may follow it but never replaces it; a tree highlightPath is only a root-to-descendant route along parent-to-child edges, such as the search path an insertion or search follows, never a visit order. Three visuals are a maximum, not a target. Layers, matrix, comparison, flow, tree and figure cannot draw a shape, object, place or appearance; figure is only for a cell, a free-body diagram or a layered cross-section; comparison is for 2-4 separate items, never the parts of one thing. 3) Count: two visuals when the question names two things (X and Y, X vs Y) or asks both how something looks and how it works; otherwise one; a third only for a list of parallel points turned into a comparison, flow or tree. A table is not a visual: it may sit inside a prose part. Each visual must show what the learner\'s question asks and what the prose next to it explains, never decoration: its title, caption or labels name that idea in the same words the question or the neighbouring prose uses. Every visual has a title or caption (a diagram its title, an illustration its caption). An illustration is a picture made for you by an image model while you answer: p says what to draw in at most 200 characters (subject, view, style; no text or labels in the picture), a says what the picture shows for a reader who cannot see it in at most 120 characters, c is one line under the picture saying what to notice in at most 100 characters. Use a table to compare items across shared attributes. Fulfill every entry of requiredVisuals in the request at every Depth, including Overview, as a complete table, a valid diagram of the kind named or an illustration; when requiredVisuals lists diagrams or illustrations, the visuals are exactly those, that many of each kind and no other; shorten the prose to stay inside the same budget rather than omit it. When the request traces a worked case through a flow, give the flow a highlightPath (the node ids of the route in order, from the start node to an end node along existing edges) and also say the route in the caption in words (for example First check? Yes, then second check? Yes, so Approve). The body must answer the learner\'s question on its own. Be factual: explain the mechanism; leave out exact numbers, formulas, named parts and historical particulars unless they are standard textbook facts you are certain of, and never invent the name of an object, tool or part. Apply the requested Depth guidance and character budget. Only prose counts toward the budget: paragraph, heading and list text; the title, tables, diagrams and illustrations do not count. A table has leading and trailing pipes, a header row, a separator row and the same number of cells in every row. The spec of a diagram is one TutorDiagram object {"version":1,"diagram":{"kind":...,"title":...}}; never write Mermaid, HTML or SVG. Kinds: flow for a process with decisions (nodes [{id,label,role:"process"|"decision"|"outcome"|"fork"|"merge"}], edges [{from,to,label?}], optional highlightPath [node ids] for a traced worked case: one connected acyclic graph with exactly one start node; a decision has two or three outgoing edges with distinct short labels such as Yes and No, each to its own node, and a failed check ends in its own outcome; a process has one outgoing edge, an outcome has none; use cycle or relationship for a loop; a fork starts parallel paths and a merge joins them); node labels are actions, verb first; a decision\'s label is a question; an outcome states the result, comparison for items across attributes (columns [{heading,items:[1-5 texts]}], 2-4 columns); row i in every column is the same attribute in the same order, timeline for events in time (events [{time,label,detail?}]), sequence for two or more named parties that send things to each other (client and server, sender and receiver, a protocol, request and response; actors [{id,label}] 2-4, messages [{from,to,label}] between different actors); message labels say what is sent, never the actor\'s name, matrix for a grid (columns [...], rows [{heading,cells:[one per column]}]), layers for a stack (layers [{label,detail?}]), cycle for a repeating process (steps [...]), figure for a labeled drawing (figure "cell"|"free-body"|"cross-section", callouts [{anchor,label,detail?}] with one callout per anchor: cell anchors membrane, nucleus, cytoplasm, mitochondrion; cross-section anchors top-layer, core, bottom-layer, interface; free-body anchors body or a direction that has a vector; free-body also takes vectors [{direction:"up"|"down"|"left"|"right",magnitude above zero,label}] with unique directions and an optional unit, and only free-body takes vectors and unit), tree for a hierarchy (nodes [{id,label,parent?,side?}], exactly one node without a parent, no cycles, side only for the binary layout), relationship for labeled links between things, reciprocal or cyclic allowed (nodes [{id,label}], edges [{from,to,label}]: different ends, every node linked, no repeated labeled pair); each thing is one node; every edge label is the relation as a verb phrase (raises, feeds back into, is measured by), never a bare noun or a placeholder such as input, output, compare, link, transformation for before and after (before {label,items}, after {label,items}, operation, optional links [{from,to,label?}] as zero-based item indexes); before and after are two states of the same thing, item i before matching item i after; operation names what changed, argument for claim and evidence (claim, support [{label,source?}], objections [{label,source?}] possibly empty, conclusion), number-line for values and intervals (min, max, markers [{value,label}] distinct and inside the range, optional intervals [{from,to,startClosed,endClosed,label}] increasing and inside the range; at least one marker or interval), coordinate-plot for data on two axes (x and y {label,min,max,unit?} with min below max, series [{label,kind:"line"|"scatter",points:[{x,y}]}] 1-3 series, points inside the axes, a line needs two points); axes are the two quantities; a line series is the function sampled at 7-12 x values across the axis; mark the points the prose names with their exact values; for schedules and piecewise-constant values, a line series with two points at each change (the same x, the old and the new y) so it draws as steps; when the prose describes a path or trajectory, draw it as a line series with its points in order, bar-chart for comparing quantities (unit?, bars [{label,value}] 2-8, values may be negative), t-account for debits and credits (account, unit?, debits and credits [{label,amount}] nonnegative with at most two decimals, at least one posting), waterfall for an opening value changed by signed steps (opening, unit?, changes [{label,amount}] with at most two decimals). Maths in any label, heading or item uses the card\'s $...$ delimiters, as in the prose ($p_i$, $H(p,q)$). IDs start with a letter. Labels are short single-line text: title at most 90 characters, optional caption 140, flow node label 60 and edge label 30.';
 
 // The card's own patterns (Md.jsx lines()): an opening ``` takes its language token and ignores the rest of the line, any line starting with
 // ``` closes, and the card draws a TutorDiagram for /^rh-diagram$/i. Pinned against Md.jsx by explanation-validation.test.js.
@@ -491,7 +514,16 @@ function correctedFlow(raw) {
     if (starts.length >= 2 && starts.length <= 3 && d.nodes.length < 12 && starts.every(n => out(n.id).length)) {
       const branches = starts.map(n => fit(n.label, 30));
       let id = 'start'; for (let k = 2; ids.has(id); k++) id = `start${k}`;
-      if (new Set(branches.map(b => b.toLowerCase())).size === branches.length && branches.every(Boolean)) {
+      // Owner M5 (2026-11-08): parallel inputs that converge (attention: Compute Q, K and V are three starts; Q and K meet at the similarity step and every
+      // start reaches the weighted sum) run at the same time, so they are joined under a fork, not a decision whose branches would read as alternatives.
+      const reach = from => { const seen = new Set(), todo = [from]; while (todo.length) for (const e of out(todo.pop())) if (!seen.has(e.to)) { seen.add(e.to); todo.push(e.to); } return seen; };
+      const [first, ...others] = starts.map(n => reach(n.id));
+      if ([...first].some(n => others.every(set => set.has(n)))) {
+        d.nodes.unshift({ id, label: fit(d.title || 'Start', FLOW_LABEL), role: 'fork' });
+        d.edges.unshift(...starts.map(n => ({ from: id, to: n.id })));
+        if (Array.isArray(d.highlightPath) && starts.some(n => n.id === d.highlightPath[0])) d.highlightPath.unshift(id);
+        kinds.push('joined_roots_fork');
+      } else if (new Set(branches.map(b => b.toLowerCase())).size === branches.length && branches.every(Boolean)) {
         d.nodes.unshift({ id, label: fit(d.title || 'Start', FLOW_LABEL), role: 'decision' });
         d.edges.unshift(...starts.map((n, i) => ({ from: id, to: n.id, label: branches[i] })));
         if (Array.isArray(d.highlightPath) && starts.some(n => n.id === d.highlightPath[0])) d.highlightPath.unshift(id);
@@ -502,14 +534,25 @@ function correctedFlow(raw) {
   const spec = kinds.length ? tryParse({ version: 1, diagram: d }) : null;
   return spec ? { spec, kinds } : null;
 }
-// -> { md, corrections: { [kind]: count } }: every rh-diagram fence corrected where it can be (correctedFlow), the same string when none is.
+// Owner 2026-11-08 (correct-SVG closing pass): a plain timeline (top-level events with dated text such as "27 BC") sent with the scaled-lanes layout and only
+// empty lanes is the plain timeline the author wrote: the layout, domain and empty lanes are dropped. Kept only when the result parses. -> { spec, kinds } or null.
+function correctedTimeline(raw) {
+  if (tryParse(raw)) return null;
+  const d = raw?.diagram;
+  if (d?.kind !== 'timeline' || d.layout !== 'scaled-lanes' || !Array.isArray(d.events) || !d.events.length || !d.events.every(e => typeof e?.time === 'string')
+    || (Array.isArray(d.lanes) && d.lanes.some(l => l?.intervals?.length || l?.events?.length))) return null;
+  const { layout, domain, lanes, ...plain } = d;
+  const spec = tryParse({ version: 1, diagram: plain });
+  return spec ? { spec, kinds: ['timeline_plain'] } : null;
+}
+// -> { md, corrections: { [kind]: count } }: every rh-diagram fence corrected where it can be (correctedFlow, correctedTimeline), the same string when none is.
 export function correctDiagrams(md) {
   const out = [], corrections = {}; let open = null;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       if (/^\s*```/.test(line)) {
         let raw = null; try { raw = JSON.parse(open.lines.join('\n')); } catch { /* not JSON: the repair's */ }
-        const fixed = raw && correctedFlow(raw);
+        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw));
         if (fixed) for (const kind of fixed.kinds) corrections[kind] = (corrections[kind] || 0) + 1;
         out.push(open.raw, ...(fixed ? [JSON.stringify(fixed.spec)] : open.lines), line); open = null;
       } else open.lines.push(line);
@@ -556,6 +599,54 @@ function mapDiagrams(md, fn) {
   return changed ? out.join('\n') : md;
 }
 export const chainsAsCycles = md => mapDiagrams(md, chainAsCycle);
+
+// Owner 2026-11-08: a protocol exchange drawn as a straight flow ("Client sends SYN" -> "Server replies SYN-ACK" -> "Client sends ACK" -> "Connection Established")
+// is drawn as the sequence it is, with no model call. Only a flow with no decision that is one straight chain (each node at most one edge in and one out), and
+// only when every step label reads "<party> <verb> <message>" with the verb from MESSAGE_VERBS; a last node with no such verb (an outcome) is dropped from the
+// messages and becomes the caption when there is none. 2-4 parties and at least 2 distinct ones (so the subject changes at least once). A message goes to the
+// next step's subject when that differs, else to the other party when there are exactly two, else the flow is left (ambiguous). A receive step names the
+// receiver: its sender is the previous step's subject by the same rule, and the message the previous step already sent is not drawn twice.
+// DECISION (owner 2026-11-08): "User submits form" -> "Server validates input" -> "Server stores record" stays a FLOW: validates and stores are not message
+// verbs and nothing goes back to the user; a sequence needs every step to be a message.
+// Extend this list (every inflection spelled out) when a new protocol prompt uses a new message verb.
+const MESSAGE_VERBS = new Set(['send', 'sends', 'sent', 'reply', 'replies', 'replied', 'respond', 'responds', 'responded', 'return', 'returns', 'returned',
+  'request', 'requests', 'requested', 'acknowledge', 'acknowledges', 'acknowledged', 'forward', 'forwards', 'forwarded', 'transmit', 'transmits', 'transmitted',
+  'receive', 'receives', 'received']);
+const RECEIVE_VERBS = new Set(['receive', 'receives', 'received']);
+function flowAsSequence(spec) {
+  const d = spec.diagram;
+  if (d.kind !== 'flow' || d.nodes.some(n => n.role === 'decision')) return null;
+  const next = new Map(), into = new Set();
+  for (const e of d.edges) { if (next.has(e.from) || into.has(e.to)) return null; next.set(e.from, e.to); into.add(e.to); }
+  const byId = new Map(d.nodes.map(n => [n.id, n])), labels = [];
+  for (let id = d.nodes.find(n => !into.has(n.id))?.id; id && labels.length <= d.nodes.length; id = next.get(id)) labels.push(byId.get(id).label);
+  if (labels.length !== d.nodes.length) return null;
+  const words = labels.map(l => l.trim().split(/\s+/)), verb = w => MESSAGE_VERBS.has(w.toLowerCase());
+  const outcome = words.at(-1).some(verb) ? null : labels.pop();
+  if (outcome) words.pop();
+  const steps = words.map(ws => { const i = ws.findIndex((w, k) => k > 0 && k < ws.length - 1 && verb(w)); return i < 0 ? null : { party: ws.slice(0, i).join(' '), receive: RECEIVE_VERBS.has(ws[i].toLowerCase()), message: ws.slice(i + 1).join(' ') }; });
+  if (!steps.length || steps.some(s => !s)) return null;
+  const key = s => s.toLowerCase(), parties = [];
+  for (const s of steps) if (!parties.some(p => key(p) === key(s.party))) parties.push(s.party);
+  if (parties.length < 2 || parties.length > 4) return null;
+  const at = party => parties.findIndex(p => key(p) === key(party));
+  const peer = (me, s) => (s && at(s.party) !== me ? at(s.party) : parties.length === 2 ? 1 - me : -1);
+  const messages = [];
+  for (const [j, s] of steps.entries()) {
+    const me = at(s.party), them = peer(me, steps[s.receive ? j - 1 : j + 1]);
+    if (them < 0) return null;
+    const [from, to] = (s.receive ? [them, me] : [me, them]).map(i => `a${i + 1}`), last = messages.at(-1);
+    if (!(s.receive && last && last.from === from && last.to === to && key(last.label) === key(s.message))) messages.push({ from, to, label: s.message });
+  }
+  const caption = d.caption || outcome;
+  return tryParse({ version: 1, diagram: { title: d.title, ...(caption ? { caption } : {}), kind: 'sequence', actors: parties.map((label, i) => ({ id: `a${i + 1}`, label })), messages } });
+}
+// -> { md, count }: every valid rh-diagram flow that is a message exchange (flowAsSequence) redrawn as a sequence; md unchanged when count is 0.
+export function flowsAsSequences(md) {
+  let count = 0;
+  const out = mapDiagrams(md, spec => { const seq = flowAsSequence(spec); if (seq) count++; return seq; });
+  return { md: out, count };
+}
 // The binary tree layout fits only trees whose nodes have at most two children by definition (owner check 2026-11-08: a family tree and a folder tree came
 // back binary in 4 of 4 runs). Outside a binary / heap / BST question, a binary tree is drawn as the ordinary tree: layout and sides removed, nothing else changed.
 export const BINARY_WORDS = /\b(binary|heaps?|bst)\b/i;
@@ -578,6 +669,19 @@ const binaryTree = doc => {
 };
 // Trees follow the question, not the model's guess: binary layout exactly for binary / heap / BST questions (when the tree allows it), ordinary layout otherwise.
 export const plainTreesUnlessBinary = (md, args) => mapDiagrams(md, BINARY_WORDS.test(String(args ?? '')) ? binaryTree : plainTree);
+// Owner E3 (2026-11-08), log only for now: diagram text with _, ^ or \ outside maths delimiters is maths the card will show as raw source (p_i, x^2).
+const MATH_SPANS = /\$\$[\s\S]*?\$\$|\$[^$]*\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]/g;
+export const bareMaths = text => /[_^\\]/.test(String(text ?? '').replace(MATH_SPANS, ''));
+// -> the visible texts of the body's valid diagrams that hold bare maths.
+export function diagramSmells(md) {
+  const labels = [];
+  mapDiagrams(md, doc => { for (const t of tutorDiagramVisibleText(doc)) if (typeof t === 'string' && bareMaths(t)) labels.push(t); return null; });
+  return labels;
+}
+// Owner C1.1 (2026-11-08): a relationship draws each node once. The server sets the graph layout on every relationship; the graph layout refuses a
+// disconnected one (each component would float apart), so that one keeps the pairs layout, unchanged.
+const graphRelationship = doc => { const d = doc?.diagram; if (d?.kind !== 'relationship' || d.layout === 'graph') return null; try { return parseTutorDiagram({ ...doc, diagram: { ...d, layout: 'graph' } }); } catch { return null; } };
+export const relationshipsAsGraphs = md => mapDiagrams(md, graphRelationship);
 
 // E1: the tables and diagrams a Markdown string really holds, for the required-visual check (explanation-visuals.js). A pipe table is complete only with a header row, a
 // separator row, at least one body row, at least two columns, the same cell count in every row and no empty header cell; a closed rh-diagram fence is ok only if
@@ -599,7 +703,7 @@ export function markdownVisuals(md) {
   flush();
   const diagrams = fences.filter(f => f.lang === DIAGRAM).map(f => {
     if (!f.closed) return { ok: false, problem: 'the rh-diagram fence is not closed' };
-    try { const { diagram: d } = parseTutorDiagram(f.lines.join('\n')); return { ok: true, kind: d.kind, highlightPath: d.highlightPath ?? null, edgeLabels: (d.edges || []).map(e => e.label).filter(Boolean), hasDecision: (d.nodes || []).some(n => n.role === 'decision'), hasOutcome: (d.nodes || []).some(n => n.role === 'outcome') }; }
+    try { const { diagram: d } = parseTutorDiagram(f.lines.join('\n')); return { ok: true, kind: d.kind, highlightPath: d.highlightPath ?? null, edgeLabels: d.kind === 'tree' ? d.nodes.map(n => n.edgeLabel).filter(Boolean) : (d.edges || []).map(e => e.label).filter(Boolean), hasDecision: (d.nodes || []).some(n => n.role === 'decision'), hasOutcome: (d.nodes || []).some(n => n.role === 'outcome') }; }
     catch (error) { return { ok: false, problem: (Array.isArray(error?.issues) ? error.issues.slice(0, 2).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid')).slice(0, 200) }; }
   });
   return { tables, diagrams };

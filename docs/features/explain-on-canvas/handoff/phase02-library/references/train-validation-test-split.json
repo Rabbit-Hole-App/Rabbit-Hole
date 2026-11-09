@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Training, validation, and test split",
+    "caption": "Fit on training data, select with validation data, then report once on the held-out test set.",
+    "kind": "timeline",
+    "layout": "scaled-lanes",
+    "domain": {
+      "min": 0,
+      "max": 100,
+      "unit": "%",
+      "label": "Shuffled row boundary"
+    },
+    "lanes": [
+      {
+        "id": "split",
+        "label": "One partition",
+        "intervals": [
+          {
+            "id": "train",
+            "label": "Fit: 60%",
+            "start": 0,
+            "end": 60,
+            "role": "train"
+          },
+          {
+            "id": "validate",
+            "label": "Tune: 20%",
+            "start": 60,
+            "end": 80,
+            "role": "validation"
+          },
+          {
+            "id": "test",
+            "label": "Final test: 20%",
+            "start": 80,
+            "end": 100,
+            "role": "test"
+          }
+        ]
+      }
+    ]
+  }
+}

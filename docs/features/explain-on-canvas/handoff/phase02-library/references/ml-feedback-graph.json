@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Observed outcomes close the feedback loop",
+    "kind": "relationship",
+    "layout": "graph",
+    "nodes": [
+      {
+        "id": "model",
+        "label": "Deployed model"
+      },
+      {
+        "id": "users",
+        "label": "User decisions"
+      },
+      {
+        "id": "labels",
+        "label": "Observed outcomes"
+      },
+      {
+        "id": "training",
+        "label": "Training and evaluation"
+      }
+    ],
+    "edges": [
+      {
+        "from": "model",
+        "to": "users",
+        "label": "Predictions inform actions"
+      },
+      {
+        "from": "users",
+        "to": "model",
+        "label": "New prediction requests"
+      },
+      {
+        "from": "users",
+        "to": "labels",
+        "label": "Outcomes arrive after a delay"
+      },
+      {
+        "from": "labels",
+        "to": "training",
+        "label": "Evaluate and retrain"
+      },
+      {
+        "from": "training",
+        "to": "model",
+        "label": "Deploy accepted model"
+      }
+    ]
+  }
+}

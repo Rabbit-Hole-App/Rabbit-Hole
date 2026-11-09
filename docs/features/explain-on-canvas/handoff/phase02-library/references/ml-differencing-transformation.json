@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "First-difference a short time series",
+    "kind": "transformation",
+    "variant": "visual",
+    "before": {
+      "label": "Before",
+      "diagram": {
+        "title": "Original observations",
+        "kind": "coordinate-plot",
+        "x": {
+          "label": "Time",
+          "min": 1,
+          "max": 4,
+          "scale": "linear"
+        },
+        "y": {
+          "label": "Observed value",
+          "min": 0,
+          "max": 20,
+          "scale": "linear"
+        },
+        "series": [
+          {
+            "label": "y",
+            "kind": "line",
+            "points": [
+              {
+                "x": 1,
+                "y": 10,
+                "id": "t1",
+                "label": "t1"
+              },
+              {
+                "x": 2,
+                "y": 13,
+                "id": "t2",
+                "label": "t2"
+              },
+              {
+                "x": 3,
+                "y": 15,
+                "id": "t3",
+                "label": "t3"
+              },
+              {
+                "x": 4,
+                "y": 19,
+                "id": "t4",
+                "label": "t4"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "after": {
+      "label": "After",
+      "diagram": {
+        "title": "Consecutive differences",
+        "kind": "coordinate-plot",
+        "x": {
+          "label": "Time",
+          "min": 1,
+          "max": 4,
+          "scale": "linear"
+        },
+        "y": {
+          "label": "Difference",
+          "min": 0,
+          "max": 5,
+          "scale": "linear"
+        },
+        "series": [
+          {
+            "label": "Δy",
+            "kind": "line",
+            "points": [
+              {
+                "x": 2,
+                "y": 3,
+                "id": "d2",
+                "label": "d2"
+              },
+              {
+                "x": 3,
+                "y": 2,
+                "id": "d3",
+                "label": "d3"
+              },
+              {
+                "x": 4,
+                "y": 4,
+                "id": "d4",
+                "label": "d4"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "operation": "Subtract the previous observation: Δyₜ = yₜ − yₜ₋₁",
+    "identity": {
+      "mode": "mapped",
+      "note": "Each output uses the current and previous observation. The first observation has no earlier value.",
+      "mappings": [
+        {
+          "from": "t1",
+          "to": "d2",
+          "note": "Subtract 10"
+        },
+        {
+          "from": "t2",
+          "to": "d2",
+          "note": "13 − 10 = 3"
+        },
+        {
+          "from": "t2",
+          "to": "d3",
+          "note": "Subtract 13"
+        },
+        {
+          "from": "t3",
+          "to": "d3",
+          "note": "15 − 13 = 2"
+        },
+        {
+          "from": "t3",
+          "to": "d4",
+          "note": "Subtract 15"
+        },
+        {
+          "from": "t4",
+          "to": "d4",
+          "note": "19 − 15 = 4"
+        }
+      ]
+    }
+  }
+}

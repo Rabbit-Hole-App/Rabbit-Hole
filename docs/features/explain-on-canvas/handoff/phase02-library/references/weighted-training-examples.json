@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Weights and identities are separate",
+    "caption": "The minority example has weight 3 and multiplicity 1.",
+    "kind": "sample-set",
+    "samples": [
+      {
+        "id": "a",
+        "class": "Majority",
+        "weight": 1
+      },
+      {
+        "id": "b",
+        "class": "Majority",
+        "weight": 1
+      },
+      {
+        "id": "c",
+        "class": "Majority",
+        "weight": 1
+      },
+      {
+        "id": "d",
+        "class": "Minority",
+        "weight": 3
+      }
+    ],
+    "groups": [
+      {
+        "id": "weighted",
+        "label": "One copy of each example",
+        "members": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Center and scale two features",
+    "caption": "The stated centers and scales are fixed teaching values, not estimates fitted from these three samples.",
+    "kind": "transformation",
+    "variant": "visual",
+    "before": {
+      "label": "Before",
+      "diagram": {
+        "title": "Original feature values",
+        "kind": "coordinate-plot",
+        "x": {
+          "label": "Feature x",
+          "min": 80,
+          "max": 220,
+          "scale": "linear"
+        },
+        "y": {
+          "label": "Feature y",
+          "min": 0,
+          "max": 50,
+          "scale": "linear"
+        },
+        "series": [
+          {
+            "label": "Samples",
+            "kind": "scatter",
+            "points": [
+              {
+                "x": 100,
+                "y": 10,
+                "id": "a",
+                "label": "A"
+              },
+              {
+                "x": 150,
+                "y": 20,
+                "id": "b",
+                "label": "B"
+              },
+              {
+                "x": 200,
+                "y": 40,
+                "id": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "after": {
+      "label": "After",
+      "diagram": {
+        "title": "Centered and scaled values",
+        "kind": "coordinate-plot",
+        "x": {
+          "label": "Scaled feature x",
+          "min": -2,
+          "max": 2,
+          "scale": "linear"
+        },
+        "y": {
+          "label": "Scaled feature y",
+          "min": -2,
+          "max": 3,
+          "scale": "linear"
+        },
+        "series": [
+          {
+            "label": "Samples",
+            "kind": "scatter",
+            "points": [
+              {
+                "x": -1,
+                "y": -1,
+                "id": "a",
+                "label": "A"
+              },
+              {
+                "x": 0,
+                "y": 0,
+                "id": "b",
+                "label": "B"
+              },
+              {
+                "x": 1,
+                "y": 2,
+                "id": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "operation": "x′ = (x − 150) / 50; y′ = (y − 20) / 10",
+    "identity": {
+      "mode": "preserved",
+      "note": "A, B and C retain their sample IDs; only feature coordinates change."
+    }
+  }
+}

@@ -5,6 +5,19 @@ What a generated /explain program card supports, its limits, how it recovers and
 item: [explain-sandbox-checklist.md](explain-sandbox-checklist.md). Times are PT. Written 2026-10-29 from code and
 receipts; "not released" means not on `main`.
 
+## Note for Claude Code
+
+### 2026-11-08: Phase 02 written Explanation library
+
+The approved **four new kinds and nine existing-kind extensions are implemented** on `chatgpt/explain-phase02-library`, based on `748e561eda37a269e277d913cdc1f9099fe9bf94`. This addition concerns written `/explain` and its `tutor-diagrams` JSON→SVG path; the `/interact` program/SDK sections below describe a separate renderer and remain unchanged.
+
+- [Implementation and dev acceptance handoff](explain-on-canvas/handoff/phase02-library/README.md)
+- [All 130 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
+- [Executable source/extension guide](../../packages/web/src/tutor-diagrams/README.md)
+- [Plan and completed implementation checklist](../superpowers/plans/2026-11-08-explain-phase02-library.md)
+
+These examples now reach the actual written-Explanation author and its repair context through `explanation-references.js`; they are no longer just test fixtures. Fixed JSON/reference checks and the web build are local evidence. Live model choice, provider acceptance of the expanded schema, browser rendering, saved generated-card reopen and production deployment remain separate pending checks. Preserve the ongoing binary-tree selection work and three-visual release when integrating shared backend files.
+
 ## Versions
 
 A card runs only when its artifact matches a supported tuple exactly. Nothing matches by major version, and no fingerprint

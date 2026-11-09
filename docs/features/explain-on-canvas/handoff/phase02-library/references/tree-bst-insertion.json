@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Insert 7 into the binary search tree",
+    "caption": "7 < 8, 7 > 3, and 7 > 6. The empty right slot below 6 receives 7.",
+    "kind": "tree",
+    "layout": "binary",
+    "nodes": [
+      {
+        "id": "eight",
+        "label": "8"
+      },
+      {
+        "id": "three",
+        "label": "3",
+        "parent": "eight",
+        "side": "left",
+        "edgeLabel": "7 < 8"
+      },
+      {
+        "id": "ten",
+        "label": "10",
+        "parent": "eight",
+        "side": "right"
+      },
+      {
+        "id": "one",
+        "label": "1",
+        "parent": "three",
+        "side": "left"
+      },
+      {
+        "id": "six",
+        "label": "6",
+        "parent": "three",
+        "side": "right",
+        "edgeLabel": "7 > 3"
+      },
+      {
+        "id": "seven",
+        "label": "7",
+        "parent": "six",
+        "side": "right",
+        "edgeLabel": "7 > 6",
+        "detail": "Inserted key"
+      }
+    ],
+    "highlightPath": [
+      "eight",
+      "three",
+      "six",
+      "seven"
+    ]
+  }
+}

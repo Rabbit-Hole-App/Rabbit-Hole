@@ -4,8 +4,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { diagramProblem, explanationProblem, explanationProseChars, EXPLANATION_GUIDANCE } from '../src/learn-primitives.js';
+import { diagramProblem, explanationProblem, explanationProseChars, EXPLANATION_GUIDANCE, relationshipsAsGraphs } from '../src/learn-primitives.js';
+// Owner C1.1 (2026-11-08): a relationship is delivered with the graph layout the server sets; every other example verbatim.
+const delivered = body => relationshipsAsGraphs(body);
 import { generateArtifact } from '../src/learn-artifact.js';
+import { ARTIFACT_SYSTEM } from '../src/agents/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
 import { EXPLANATION_BUDGET, EXPLANATION_CAPS } from '../src/chat-depth.js';
 import { parseTutorDiagram, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js';
@@ -25,12 +28,13 @@ const words = spec => tutorDiagramVisibleText(parseTutorDiagram(JSON.stringify(s
 
 test('the library ships a valid example for every one of the 17 kinds', () => {
   assert.deepEqual([...new Set(EXAMPLES.map(e => e.diagram.kind))].sort(), [...KINDS].sort());
-  assert.equal(EXAMPLES.length, 19);
+  assert.equal(EXAMPLES.length, 22); // owner E2 2026-11-08: plus a binary tree, a highlighted search path and maths in labels
 });
 
-test('the authoring guidance teaches all 17 kinds, each with a when-to-use line, and the never-invent-numbers rule', () => {
+test('the authoring guidance teaches all 17 kinds, each with a when-to-use line; the one number rule lives in the system prompt (owner N1)', () => {
   for (const kind of KINDS) assert.ok(EXPLANATION_GUIDANCE.includes(kind), kind);
-  assert.match(EXPLANATION_GUIDANCE, /Never invent numbers/);
+  assert.match(ARTIFACT_SYSTEM, /Never invent measurements, statistics or data about the real world/);
+  assert.doesNotMatch(EXPLANATION_GUIDANCE, /Never invent numbers/);
 });
 
 test('a binary-tree question advertises and saves a top-down diagram with explicit child sides', async () => {
@@ -52,16 +56,18 @@ test('a binary-tree question advertises and saves a top-down diagram with explic
 // EXP-13 (owner 2026-11-08): prose, visual, prose; the prose names the diagram's title, so the visual is related to the text around it.
 const around = (example, extra = '') => `See ${example.diagram.title}.\n\n${fence(example)}\n\nThat is ${example.diagram.title}.${extra}`;
 
-for (const [i, example] of EXAMPLES.entries()) {
+// A binary-layout tree is drawn binary only for a binary / heap / BST question (plainTreesUnlessBinary); these loops ask 'x', so those two are checked below.
+const ORDINARY = EXAMPLES.filter(e => e.diagram.layout !== 'binary');
+for (const [i, example] of ORDINARY.entries()) {
   const kind = example.diagram.kind, name = `${i + 1}. ${kind}`;
   test(`${name}: valid example is delivered verbatim in the body; an invalid second diagram is repaired once, then dropped, at both entry points`, async () => {
     assert.equal(diagramProblem(fence(example)), null);
     assert.ok(words(example).length > 0, 'a kind with no visible words could hide text');
     const body = { title: 'T', body: around(example) };
     const direct = await viaDirect('deep', body);
-    assert.deepEqual([direct.out.result, direct.out.block?.body, direct.out.diagramsDropped], ['artifact', body.body, undefined], 'direct');
+    assert.deepEqual([direct.out.result, direct.out.block?.body, direct.out.diagramsDropped], ['artifact', delivered(body.body), undefined], 'direct');
     const road = await viaRoadmap('deep', body);
-    assert.deepEqual([road.out.outcome, road.out.block?.body, road.out.diagramsDropped], ['ok', body.body, undefined], 'roadmap');
+    assert.deepEqual([road.out.outcome, road.out.block?.body, road.out.diagramsDropped], ['ok', delivered(body.body), undefined], 'roadmap');
 
     // invalid variant: the schema is strict, so an unknown key refuses every kind
     const bad = { ...example, diagram: { ...example.diagram, bogus: 1 } };
@@ -69,9 +75,9 @@ for (const [i, example] of EXAMPLES.entries()) {
     assert.match(diagramProblem(fence(bad)) || '', /^explanation_bad_diagram:/);
     const badBlock = { title: 'T', body: around(example, `\n\n${fence(bad)}\n\nDone.`) };
     const d = await viaDirect('deep', badBlock);
-    assert.deepEqual([d.out.result, d.out.block?.body, d.out.diagramsDropped, d.m.seen.length], ['artifact', around(example, '\n\nDone.'), 1, 2], 'direct drop after one repair');
+    assert.deepEqual([d.out.result, d.out.block?.body, d.out.diagramsDropped, d.m.seen.length], ['artifact', delivered(around(example, '\n\nDone.')), 1, 2], 'direct drop after one repair');
     const r = await viaRoadmap('deep', badBlock);
-    assert.deepEqual([r.out.outcome, r.out.block?.body, r.out.diagramsDropped, r.m.seen.length], ['ok', around(example, '\n\nDone.'), 1, 1], 'roadmap drop, one call');
+    assert.deepEqual([r.out.outcome, r.out.block?.body, r.out.diagramsDropped, r.m.seen.length], ['ok', delivered(around(example, '\n\nDone.')), 1, 1], 'roadmap drop, one call');
   });
 }
 
@@ -99,15 +105,24 @@ test('unseen text cannot hide: an unparseable fence is refused, a parseable one 
   assert.equal(explanationProseChars({ title: 'T', body: fence(ids) }), 0, 'ids, roles, numbers and labels are not prose');
 });
 
-test('single-call roadmap path: an authored rh-diagram fence (every one of the 19 examples) is delivered verbatim from ONE author call with no repair, and survives a board JSON round trip', async () => {
-  for (const [i, example] of EXAMPLES.entries()) {
+test('the binary-tree examples are delivered verbatim for a BST question', async () => {
+  for (const example of EXAMPLES.filter(e => e.diagram.layout === 'binary')) {
+    const block = { title: 'T', body: around(example) };
+    const m = scripted(['make_explanation', block]);
+    const out = await generateArtifact({}, { command: 'explanation', args: 'Show me inserting 7 into a BST.', depth: 'deep' }, { callModel: m.callModel });
+    assert.deepEqual([out.result, out.block?.body], ['artifact', block.body], example.diagram.title);
+  }
+});
+
+test('single-call roadmap path: an authored rh-diagram fence (every example but the two binary trees) is delivered verbatim from ONE author call with no repair, and survives a board JSON round trip', async () => {
+  for (const [i, example] of ORDINARY.entries()) {
     const block = { title: 'T', body: around(example) };
     const { out, m } = await viaRoadmap('deep', block);
     assert.equal(out.outcome, 'ok', `${i + 1}. ${example.diagram.kind}`);
     assert.equal(m.seen.length, 1, 'one author call, repairs 0');
     assert.equal(out.repaired, false);
     assert.equal(out.diagramsDropped, undefined);
-    assert.equal(out.block.body, block.body, 'the fence is delivered verbatim');
+    assert.equal(out.block.body, delivered(block.body), 'the fence is delivered verbatim (a relationship with its graph layout)');
     assert.deepEqual(JSON.parse(JSON.stringify(out.block)), out.block, 'board JSON round trip');
   }
 });

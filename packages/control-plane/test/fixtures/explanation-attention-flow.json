@@ -1,0 +1,65 @@
+{
+ "note": "Fireworks gpt-oss-120b, reasoning low, temperature 0, seed 7: \"How does attention work in a transformer?\", core schema bundle, 2026-11-08. The same invalid flow 3 of 3 (three starts: A flow needs exactly one root).",
+ "spec": {
+  "version": 1,
+  "diagram": {
+   "title": "Scaled Dot‑Product Attention",
+   "caption": "Flow of queries, keys, values and the weighted sum",
+   "kind": "flow",
+   "nodes": [
+    {
+     "id": "Q",
+     "label": "Compute Queries (Q)",
+     "role": "process"
+    },
+    {
+     "id": "K",
+     "label": "Compute Keys (K)",
+     "role": "process"
+    },
+    {
+     "id": "V",
+     "label": "Compute Values (V)",
+     "role": "process"
+    },
+    {
+     "id": "S",
+     "label": "Similarity: Q·Kᵀ / √d",
+     "role": "process"
+    },
+    {
+     "id": "A",
+     "label": "Softmax → Attention Weights",
+     "role": "process"
+    },
+    {
+     "id": "O",
+     "label": "Weighted sum: A·V (output)",
+     "role": "outcome"
+    }
+   ],
+   "edges": [
+    {
+     "from": "Q",
+     "to": "S"
+    },
+    {
+     "from": "K",
+     "to": "S"
+    },
+    {
+     "from": "S",
+     "to": "A"
+    },
+    {
+     "from": "V",
+     "to": "O"
+    },
+    {
+     "from": "A",
+     "to": "O"
+    }
+   ]
+  }
+ }
+}

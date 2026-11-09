@@ -9,7 +9,9 @@ This is a static SVG renderer for the written Explanation card. It takes a versi
 - `TutorDiagram.js` exports the default React component. Use `<TutorDiagram spec={value} fallback={existingContent} />`. The spec can be an object or a JSON string. Invalid specs use the caller's fallback. The component measures its container and keeps the text at native size when a dense diagram needs horizontal scrolling.
 - `renderTutorDiagram(value, width)` in the same module returns `{ element, width, height }` for deterministic static rendering and geometry tests. It throws on invalid input.
 - `spec.js` exports `parseTutorDiagram(value)` for backend validation and `tutorDiagramJsonSchema` for a structured-output request. The runtime parser is authoritative for topology, references, distinct branch labels, and matrix row lengths. `describeTutorDiagram(parsedSpec)` produces the readable diagram text for context, copying, and accessibility.
-- `examples.json` contains runnable, complete fixtures for each kind.
+- `examples.json` retains the original saved-spec fixtures. `reference-library.js` is the current author/reference registry: 146 examples (Phase 02 batches 2a, 2b and 2c included; batch 1 queued), all 21 kinds and all 21 Phase 02 lessons. Its `ml-*-references.js` sources contain complete JSON plus natural prompts and selection keywords.
+- `packages/control-plane/src/explanation-references.js` selects at most two relevant examples and supplies them to the **actual** `prepareArtifactAuthorRequest` system context in `learn-artifact.js`. Repairs reuse that context. Required kinds filter examples; they never justify an unrelated example. When the required kind matches a comparison/visual-transformation leaf, selection can excerpt that leaf as a standalone valid spec, with a deterministic part ID and its source reference ID. Ordinary conceptual requests retain the full composition. Required-kind validation remains strict. Unknown topics can receive no example and still use the schema.
+- [Phase 02 handoff](../../../../docs/features/explain-on-canvas/handoff/phase02-library/README.md) records the implementation, acceptance limits and exact sources. [Generated gallery](../../../../docs/features/explain-on-canvas/handoff/phase02-library/references/index.html) renders the same reference objects.
 
 ## Components and formats
 
@@ -42,24 +44,69 @@ Figure callouts refer to anchors defined by the local schematic. See the three f
 
 Any label, title, caption, heading or item may hold maths in the card prose's delimiters (`$...$`, `\(...\)`, `$$...$$`, `\[...\]`). The renderer typesets each formula with KaTeX in a `foreignObject` (`math.js`), measures it whole from its TeX so its box holds it, never splits it across lines, and sets a formula taller than a line (a fraction, a sum with limits) smaller so it fits that line. TeX that KaTeX refuses stays as its source text. A formula counts against a text limit by what it shows: delimiters, braces and spaces are free and a command such as `\frac` counts one; its source may be up to twice the limit.
 
+## Phase 02 extensions (2026-11-08)
+
+The runtime supports **21 kinds**: the original 17 above plus the four new kinds below. Nine original kinds have additive variants. Old version-1 JSON without the new fields keeps its existing rendering.
+
+| Kind | New supported fields / variant | Primary source |
+| --- | --- | --- |
+| `heatmap` | Numeric `rows[].cells`, columns, explicit `range`, masked nulls and indexed highlights | `ml-statistical-*` |
+| `sample-set` | Stable sample IDs, classes/weights; group memberships, explicit replacement, omissions and exact out-of-bag complements | `ml-statistical-*` |
+| `histogram` | `binEdges`, count/proportion series, markers; unequal-width bins require `density` | `ml-statistical-*` |
+| `box-plot` | Quartiles, median, observed whiskers, fences and labelled outliers on an explicit axis | `ml-statistical-*` |
+| `tree` | `layout: binary/hierarchy/dendrogram`, child `edgeLabel`, count/detail/pruned; `highlightPath`, merge heights and cutoff | `ml-topology-*` |
+| `relationship` | `layout: graph`, each node drawn once, separate directed/reciprocal routes and labelled ledger | `ml-topology-*` |
+| `flow` | `fork` and `merge` roles for simultaneous branches; legacy routing retained | `ml-topology-*` |
+| `coordinate-plot` | Linear/log axes, step/stem series, low/high uncertainty, bounded annotations in data coordinates | `ml-plot-*` |
+| `bar-chart` | `variant: grouped/stacked`, categories, series; signed stacks calculated separately around zero | `ml-plot-*` |
+| `timeline` | `layout: scaled-lanes`, numeric domain/unit, lanes with intervals/events and cutoffs | `ml-data-*` |
+| `matrix` | `layout: teaching`, stable row IDs, emphasis and missing/changed cell states | `ml-data-*` |
+| `comparison` | `variant: panels`, two or three real leaf diagrams; declared shared axes must match | `ml-composition-*` |
+| `transformation` | `variant: visual`, before/after leaf diagrams, operation and preserved/mapped sample identity | `ml-composition-*` |
+
+`spec.js` combines strict schemas, base checks and each domain's numeric/topology validation. Nested children are validated with the same rules. Compositions cannot contain other compositions. The whole JSON stays within the existing 16,384-character cap whether supplied as an object or string. Runtime validation remains stronger than JSON Schema: a provider accepting the schema does not prove mathematical correctness.
+
+Plots accept point, segment, vector, reference-line, rectangle, polygon, circle, ellipse and band annotations. Coordinates are **data values** inside declared domains, never authored pixels. Circles/ellipses are axis-aligned data geometry; nonlinear axes can change their apparent shape. Large teaching diagrams retain native text and scroll using the existing component, rather than shrinking labels. A three-panel comparison stacks at narrow widths and can be tall.
+
+A highlighted tree path is root-to-descendant, not an arbitrary traversal order. Inorder traversal uses visit annotations on the actual structure. A family descendant hierarchy has one root and one parent per child; a multiple-parent pedigree needs a relationship graph.
+
 ## Approved visual treatment
 
-The renderer uses the existing `--viz-surface` for the background and existing RH theme tokens for neutral text and lines. Colored nodes retain dark outlines and dark label ink. The component fills are process blue `#8DBFEF`, decision amber `#E5AA46`, outcome teal `#67B9A0`, comparison olive `#95A448`, and comparison coral `#F58371`. The expansion adds concept lavender `#B9A4E8`, exception rose `#E8A3B7`, and context slate blue `#A8BBD0`. The model supplies semantic inputs and data values. SVG, CSS, layout positions, asset URLs, and fill assignments are renderer-owned.
+`teaching-theme.js` owns the exact tokens from the approved `tree-splits-and-impurity.svg` at commit `012d4ae3dfd9b20ef14156bea89c2632b844cc46`:
+
+| Role | Value |
+| --- | --- |
+| Surface / inset | `#fffefa` / `#f6f8f4` |
+| Ink / muted | `#202723` / `#5d675f` |
+| Primary blue / soft blue | `#426db2` / `#eaf1fb` |
+| Secondary warm accent / soft warm | `#b86232` / `#f8ece3` |
+| Semantic green / soft green | `#267657` / `#e7f3ed` |
+| Border / connector | `#e3e7e0` / `#b9c3b9` |
+
+New teaching layouts scope these tokens inside their SVG. Legacy layouts retain their earlier `primitives.js` palette and theme variables so saved content is not silently restyled. The card shell is unchanged. The model supplies labels, relationships and data; geometry, font sizes, line styles, palette and fills belong to the renderer.
+
+## Adding another kind or reference
+
+1. Add the strict shape and domain checks to the relevant `ml-*-spec.js` module; add its layout to that domain's `ml-*-layouts.js`. A new domain also needs registration in `spec.js` and `layouts.js`.
+2. Implement readable description and visible text for every new rendered field. Keep legacy behavior when an extension is absent.
+3. Add complete, mathematically checked `ml-*-references.js` examples with stable ID, lesson IDs, natural prompts, keywords and `useWhen`. The registry is the single source for author context and exported visual references. Do not put author-only examples in `examples.json` and assume they are loaded.
+4. For a new kind, add explicit-request recognition in `explanation-visuals.js` where applicable. Update concise guidance in `explanation-references.js`, not a separate unofficial schema.
+5. Run focused numeric/layout, saved-JSON, request-selection and repair tests. Export references with `node packages/web/scripts/export-explanation-references.mjs`, then inspect affected actual renders. Keep real-provider selection and dev acceptance separate from fixture success.
 
 ## Claude integration handoff
 
-1. Cherry-pick the additive library commit and then the expansion commit onto the active Tutor implementation base. If the first commit is already present, bring over only the expansion. The `chatgpt/tutor` branch carries handoff history and is behind the current app.
-2. Use the existing written Explanation author and renderer. In current main, start at `ExplanationBody` in `LearningBlocks.jsx` and its rich Markdown blocks in `Md.jsx`. One compatibility-friendly way to persist the new diagrams is a versioned `rh-diagram` JSON fence recognized only for Explanation body and More content. Use the existing block parser and card surface. Expose the library's plain-text description to copying and Tutor context.
-3. Validate every new spec through `parseTutorDiagram` before delivery. Count the visible labels and captions against the existing Depth content caps, including diagrams inside collapsed More sections. Keep prose readable when a diagram is unavailable. Preserve the existing readers for saved Mermaid fences, standalone `/diagram` cards, source Markdown, and interactive `VisualSpec` scenes.
-4. After the current Celeris benchmark, run the same fixtures through the proposed author-to-card route at the actual Explanation width. Confirm the provider accepts the expanded JSON Schema before adopting it. Include examples from science, math, humanities, and accounting. Record first-valid and eventual-valid rates, render-to-paint and end-to-end latency. Include narrow and dark appearance, body and More, save/reload, invalid input, and one saved Mermaid card.
-5. Switch newly authored static Tutor diagrams to this library after the integration passes. Retire an old renderer only after its stored content and other callers are covered.
+Read [the current handoff](../../../../docs/features/explain-on-canvas/handoff/phase02-library/README.md). The schema → server validation → saved `rh-diagram` fence → `Md.jsx` → `TutorDiagram.js` path is already wired in this branch, including relevant author examples. This is an implementation, not a proposal to hook up later.
+
+Integrate it with the active release rather than replacing active `learn-artifact.js` / `learn-primitives.js` / `explanation-visuals.js` wholesale. Preserve Claude's binary selection rules and the separate three-visual release. This branch keeps its base's visual count and budgets unchanged. New kinds require a coordinated reader/writer deployment: an older reader falls back to JSON for unknown kinds.
 
 ## Focused local checks
 
 From the repository root with existing web dependencies installed:
 
 ```sh
-node --test packages/web/src/tutor-diagrams/*.test.mjs
+node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-references.test.js packages/control-plane/test/explanation-diagram-kinds.test.js packages/control-plane/test/explanation-visuals.test.js packages/control-plane/test/explanation-validation.test.js packages/control-plane/test/learn-artifact.test.js
+npm run build --workspace=packages/web
+node packages/web/scripts/export-explanation-references.mjs
 ```
 
-The fixtures exercise deterministic rendering and narrow widths without an author or model. Browser fit, real provider schema acceptance, and persisted Explanation behavior require integration evidence.
+The fixtures exercise deterministic rendering and narrow widths without calling a model. Backend tests use the actual request/validation path with a scripted provider. Browser fit, live provider schema acceptance and generated-card save/reopen still require dev evidence. The existing math test needs `linkedom` available in the test environment; it is not a production dependency of this change.

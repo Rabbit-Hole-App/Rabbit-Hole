@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "The elbow is a change in marginal improvement",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Number of clusters",
+      "min": 1,
+      "max": 6,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Within-cluster sum of squares",
+      "min": 0,
+      "max": 120
+    },
+    "series": [
+      {
+        "label": "Inertia",
+        "kind": "line",
+        "points": [
+          {
+            "x": 1,
+            "y": 115
+          },
+          {
+            "x": 2,
+            "y": 65
+          },
+          {
+            "x": 3,
+            "y": 28
+          },
+          {
+            "x": 4,
+            "y": 22
+          },
+          {
+            "x": 5,
+            "y": 18
+          },
+          {
+            "x": 6,
+            "y": 15
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "label": "Candidate elbow",
+        "x": 3,
+        "y": 28
+      }
+    ]
+  }
+}

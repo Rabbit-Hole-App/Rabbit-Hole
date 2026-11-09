@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Gaussian components can overlap softly",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Feature 1",
+      "min": 0,
+      "max": 10,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Feature 2",
+      "min": 0,
+      "max": 8
+    },
+    "series": [
+      {
+        "label": "Samples",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 2,
+            "y": 3
+          },
+          {
+            "x": 3,
+            "y": 4
+          },
+          {
+            "x": 4,
+            "y": 3
+          },
+          {
+            "x": 5,
+            "y": 4
+          },
+          {
+            "x": 6,
+            "y": 4
+          },
+          {
+            "x": 7,
+            "y": 5
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "ellipse",
+        "label": "Component A equal-density contour",
+        "center": {
+          "x": 3,
+          "y": 3.5
+        },
+        "radiusX": 2,
+        "radiusY": 1.2
+      },
+      {
+        "kind": "ellipse",
+        "label": "Component B equal-density contour",
+        "center": {
+          "x": 6,
+          "y": 4
+        },
+        "radiusX": 2.5,
+        "radiusY": 2
+      },
+      {
+        "kind": "point",
+        "label": "Both components assign nonzero probability",
+        "x": 4.5,
+        "y": 3.7
+      }
+    ]
+  }
+}

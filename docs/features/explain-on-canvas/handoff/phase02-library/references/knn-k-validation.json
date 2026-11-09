@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Choose K using validation error",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Number of neighbours K",
+      "min": 1,
+      "max": 9,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Error rate",
+      "min": 0,
+      "max": 0.4
+    },
+    "series": [
+      {
+        "label": "Training",
+        "kind": "line",
+        "points": [
+          {
+            "x": 1,
+            "y": 0
+          },
+          {
+            "x": 3,
+            "y": 0.08
+          },
+          {
+            "x": 5,
+            "y": 0.13
+          },
+          {
+            "x": 7,
+            "y": 0.2
+          },
+          {
+            "x": 9,
+            "y": 0.28
+          }
+        ]
+      },
+      {
+        "label": "Validation",
+        "kind": "line",
+        "points": [
+          {
+            "x": 1,
+            "y": 0.3
+          },
+          {
+            "x": 3,
+            "y": 0.2
+          },
+          {
+            "x": 5,
+            "y": 0.16
+          },
+          {
+            "x": 7,
+            "y": 0.21
+          },
+          {
+            "x": 9,
+            "y": 0.29
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "label": "Lowest validation error",
+        "x": 5,
+        "y": 0.16
+      }
+    ]
+  }
+}

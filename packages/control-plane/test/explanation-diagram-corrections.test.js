@@ -3,8 +3,12 @@
 // every correction is logged and counted on the card. Offline: the model is a double, nothing is sent or paid.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { correctDiagrams, diagramProblem, simplifiedDiagram } from '../src/learn-primitives.js';
-import { fallbackKind } from '../src/explanation-visuals.js';
+import { readFileSync } from 'node:fs';
+import { correctDiagrams, diagramProblem, flowsAsSequences, relationshipsAsGraphs, simplifiedDiagram } from '../src/learn-primitives.js';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { renderTutorDiagram } from '../../web/src/tutor-diagrams/TutorDiagram.js';
+import { deriveVisualRequirements, fallbackKind } from '../src/explanation-visuals.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { AUTHOR_SEED, AUTHOR_TEMPERATURE, REPAIR_TEMPERATURE, stepRequest } from '../src/explanation-fast-chain.js';
 import { CHAIN_STEPS } from '../src/explanation-models.js';
@@ -94,6 +98,48 @@ test('the last-resort simplified diagram takes its kind from the learner\'s word
   } finally { console.log = log; }
 });
 
+// Owner 2026-11-08: a straight flow whose every step is a message between parties is drawn as a sequence; anything else stays a flow.
+const chainOf = (title, labels) => flow(labels.map((label, i) => [`n${i}`, label]), labels.slice(1).map((_, i) => [`n${i}`, `n${i + 1}`]), { title });
+const sequenced = (title, labels) => flowsAsSequences(`A.\n\n${fence(chainOf(title, labels))}\n\nB.`);
+test('flow_to_sequence: a handshake and a 3-party exchange drawn as straight flows become sequences, the trailing outcome kept as the caption', () => {
+  const tcp = sequenced('The TCP handshake', ['Client sends SYN', 'Server replies SYN-ACK', 'Client sends ACK', 'Connection Established']);
+  assert.equal(tcp.count, 1);
+  assert.deepEqual(specOf(tcp.md), { kind: 'sequence', title: 'The TCP handshake', caption: 'Connection Established', actors: [{ id: 'a1', label: 'Client' }, { id: 'a2', label: 'Server' }],
+    messages: [{ from: 'a1', to: 'a2', label: 'SYN' }, { from: 'a2', to: 'a1', label: 'SYN-ACK' }, { from: 'a1', to: 'a2', label: 'ACK' }] });
+  assert.equal(diagramProblem(tcp.md), null);
+  // Three parties: each message goes to the next step's subject; the last step receives what the one before sent, so it is not drawn twice.
+  const proxy = sequenced('A page through a proxy', ['Browser sends GET /page', 'Proxy forwards GET /page', 'Web Server returns page', 'Proxy forwards page', 'Browser receives page']);
+  assert.deepEqual([specOf(proxy.md).actors.map(a => a.label), specOf(proxy.md).messages.map(m => [m.from, m.to, m.label])],
+    [['Browser', 'Proxy', 'Web Server'], [['a1', 'a2', 'GET /page'], ['a2', 'a3', 'GET /page'], ['a3', 'a2', 'page'], ['a2', 'a1', 'page']]]);
+  assert.equal(specOf(proxy.md).caption, undefined);
+});
+
+test('flow_to_sequence never fires on a single-actor pipeline, a flow with a decision, a non-message step or an ambiguous receiver', () => {
+  const same = (title, labels) => { const out = sequenced(title, labels); assert.equal(out.count, 0, title); assert.equal(specOf(out.md).kind, 'flow', title); };
+  same('Compiling', ['Compiler lexes source', 'Compiler parses tokens', 'Compiler generates code']);
+  same('One party only', ['Client sends SYN', 'Client sends ACK']);
+  // DECISION (owner 2026-11-08): stays a FLOW. validates and stores are not message verbs and nothing goes back to the user; a sequence needs every step to be a message.
+  same('Submitting a form', ['User submits form', 'Server validates input', 'Server stores record']);
+  same('Outcome in the middle', ['Client sends SYN', 'Connection Established', 'Server replies SYN-ACK']);
+  // Three parties and the last message has no next subject: the receiver is ambiguous.
+  same('Ambiguous', ['Browser sends GET', 'Proxy forwards GET', 'Server returns page']);
+  const decided = `A.\n\n${fence(flow([['a', 'Client sends SYN'], ['b', 'Server up?', 'decision'], ['c', 'Server replies SYN-ACK'], ['d', 'Client sends RST']], [['a', 'b'], ['b', 'c', 'Yes'], ['b', 'd', 'No']]))}\n\nB.`;
+  assert.deepEqual(flowsAsSequences(decided), { md: decided, count: 0 });
+});
+
+test('flow_to_sequence is logged and counted on the card like the other corrections, and a learner who named a flow keeps it', async () => {
+  const card = { title: 'The TCP handshake', body: `The client and server agree to talk in three messages.\n\n${fence(chainOf('The TCP handshake', ['Client sends SYN', 'Server replies SYN-ACK', 'Client sends ACK']))}\n\nThen data can flow.` };
+  const run = args => generateArtifact({}, { command: 'explanation', args, visualRequirements: deriveVisualRequirements(args) }, { callModel: async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c1', name: 'make_explanation', input: card }] }) });
+  const lines = [], log = console.log; console.log = line => lines.push(String(line));
+  try {
+    const out = await run('How does the TCP handshake work?');
+    assert.deepEqual([out.result, specOf(out.block.body).kind, out.block.diagramCorrections], ['artifact', 'sequence', { flow_to_sequence: 1 }]);
+    assert.deepEqual(lines.filter(l => l.includes('explanation_diagram_corrected')).map(l => JSON.parse(l)), [{ event: 'explanation_diagram_corrected', kind: 'flow_to_sequence' }]);
+    const named = await run('Draw a flowchart of the TCP handshake');
+    assert.deepEqual([named.result, specOf(named.block.body).kind, named.block.diagramCorrections], ['artifact', 'flow', undefined]);
+  } finally { console.log = log; }
+});
+
 test('sampling: the author call is temperature 0 with a seed only where the provider documents one; the repair carries the problem and samples at 0.3, unseeded', () => {
   const body = { max_tokens: 3000, system: 'S', tools: [{ name: 'make_explanation', description: 'D', input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false } }], messages: [{ role: 'user', content: 'Q' }] };
   const repair = { ...body, messages: [...body.messages, { role: 'assistant', content: [{ type: 'tool_use', id: 't', name: 'make_explanation', input: {} }] }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't', is_error: true, content: 'Validation failed: explanation_bad_diagram' }] }] };
@@ -106,4 +152,107 @@ test('sampling: the author call is temperature 0 with a seed only where the prov
     assert.deepEqual([r.temperature, 'seed' in r], [0.3, false], p);
     assert.match(r.messages.at(-1).content, /Validation failed: explanation_bad_diagram/, `${p}: the repair input differs, it carries the validator's problem`);
   }
+});
+
+// Owner M5 (2026-11-08): the real attention flow (Fireworks gpt-oss low, temperature 0, 3 of 3): three parallel input starts that converge. Joined under a fork.
+test('M5: parallel input starts that converge (the real attention flow) are joined under a fork, not a decision', () => {
+  const { spec } = JSON.parse(readFileSync(new URL('./fixtures/explanation-attention-flow.json', import.meta.url), 'utf8'));
+  assert.ok(diagramProblem(`A.\n\n${fence(spec.diagram)}\n\nB.`), 'the raw answer is invalid: three starts');
+  const out = fix(spec.diagram);
+  assert.deepEqual(out.corrections, { joined_roots_fork: 1 });
+  const d = specOf(out.md);
+  assert.deepEqual(d.nodes[0], { id: 'start', label: 'Scaled Dot‑Product Attention', role: 'fork' });
+  assert.deepEqual(d.edges.slice(0, 3), [{ from: 'start', to: 'Q' }, { from: 'start', to: 'K' }, { from: 'start', to: 'V' }]);
+  assert.equal(diagramProblem(out.md), null);
+});
+
+// Owner M3 (2026-11-08): Gemini wrote an undeclared `layers` key on a comparison; it is removed before the card is read, logged and counted, with no repair.
+test('M3: undeclared keys in the visuals are stripped and logged on every route; a clean answer is untouched', async () => {
+  const comparison = { kind: 'comparison', title: 'Underfitting and overfitting', layers: ['x'], columns: [{ heading: 'Underfitting', items: ['Too simple'], extra: 1 }, { heading: 'Overfitting', items: ['Too complex'] }] };
+  const body = 'A model can be too simple or too complex.\n\n[[visual:1]]\n\nThe right model sits between the two.';
+  const answer = visuals => async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c1', name: 'make_explanation', input: { title: 'Underfitting and overfitting', visuals, body } }] });
+  const lines = [], log = console.log; console.log = line => lines.push(String(line));
+  try {
+    let calls = 0;
+    const call = answer([{ k: 'diagram', spec: { version: 1, diagram: comparison }, note: 'x' }]);
+    const out = await generateArtifact({}, { command: 'explanation', args: 'What is the difference between underfitting and overfitting?' }, { callModel: async (...a) => { calls++; return call(...a); } });
+    assert.deepEqual([out.result, calls, out.block.unknownKeysStripped], ['artifact', 1, 3], 'no repair call');
+    assert.deepEqual(lines.filter(l => l.includes('explanation_unknown_key_stripped')).map(l => JSON.parse(l)).map(e => [e.kind, e.key]).sort(), [['comparison', 'extra'], ['comparison', 'layers'], ['diagram', 'note']]);
+    const clean = await generateArtifact({}, { command: 'explanation', args: 'What is the difference between underfitting and overfitting?' }, { callModel: answer([{ k: 'diagram', spec: { version: 1, diagram: { ...comparison, layers: undefined, columns: comparison.columns.map(({ extra, ...c }) => c) } } }]) });
+    assert.equal(clean.block.unknownKeysStripped, undefined);
+  } finally { console.log = log; }
+  // The undeclared keys are only those: every key of every reference survives (the schema declares the whole library).
+  const { diagramReferences } = await import('../../web/src/tutor-diagrams/reference-library.js');
+  const { stripUnknownKeys } = await import('../src/learn-primitives.js');
+  for (const ref of diagramReferences) assert.deepEqual(stripUnknownKeys([{ k: 'diagram', spec: ref.spec }]).stripped, [], ref.id);
+});
+
+// Owner E3 (2026-11-08), log only: p_i outside maths delimiters is a smell; $p_i$ is not.
+test('E3: bare maths in diagram text is logged and counted on the card, never repaired', async () => {
+  const { bareMaths, diagramSmells } = await import('../src/learn-primitives.js');
+  assert.deepEqual(['p_i', 'x^2', '\\frac{a}{b}', '$p_i$', 'the $x^2$ term', '\\(p_i\\)', 'Class A'].map(bareMaths), [true, true, true, false, false, false, false]);
+  const rel = { kind: 'flow', title: 'Gini impurity', nodes: [{ id: 'a', label: 'Class shares p_i', role: 'process' }, { id: 'b', label: 'Gini $1-\\sum p_i^2$', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] };
+  assert.deepEqual(diagramSmells(`A.\n\n${fence(rel)}\n\nB.`), ['Class shares p_i']);
+  const lines = [], log = console.log; console.log = line => lines.push(String(line));
+  try {
+    const card = { title: 'Gini impurity', body: `Gini impurity measures how mixed the classes are.\n\n${fence(rel)}\n\nA pure node has Gini impurity zero.` };
+    const out = await generateArtifact({}, { command: 'explanation', args: 'What is gini impurity?' }, { callModel: async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c1', name: 'make_explanation', input: card }] }) });
+    assert.deepEqual([out.result, out.block.diagramSmells], ['artifact', { bare_maths: 1 }]);
+    assert.deepEqual(lines.filter(l => l.includes('explanation_diagram_smell')).map(l => JSON.parse(l)), [{ event: 'explanation_diagram_smell', kind: 'bare_maths', label: 'Class shares p_i' }]);
+  } finally { console.log = log; }
+});
+
+// Owner 2026-11-08: a dev-only line with the author's visuals as returned, before any server step; never in production.
+test('the raw author visuals are logged in dev and test, for the first answer and the repair, and never in production', async () => {
+  const visuals = [{ k: 'diagram', spec: { version: 1, diagram: { kind: 'cycle', title: 'Seasons', steps: ['Spring', 'Summer'] } } }];
+  const bad = { title: 'Seasons', visuals, body: 'Too short.' };
+  const good = { title: 'Seasons', visuals, body: 'The seasons follow one another through the year.\n\n[[visual:1]]\n\nSpring comes back after summer and the rest.' };
+  const run = async env => {
+    const lines = [], log = console.log; console.log = line => lines.push(String(line));
+    let n = 0;
+    try { await generateArtifact(env, { command: 'explanation', args: 'Why do the seasons repeat?' }, { callModel: async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${n}`, name: 'make_explanation', input: n++ ? good : bad }] }) }); }
+    finally { console.log = log; }
+    return lines.filter(l => l.includes('explanation_author_raw')).map(l => JSON.parse(l));
+  };
+  for (const SMALL_ENV of ['dev', 'test']) {
+    const raw = await run({ SMALL_ENV });
+    assert.deepEqual(raw.map(r => [r.event, r.attempt, r.kinds]), [['explanation_author_raw', 0, ['cycle']], ['explanation_author_raw', 1, ['cycle']]], SMALL_ENV);
+    assert.deepEqual(raw[0].visuals, visuals);
+    // the worked examples this request carried: their ids, the same on the first answer and the repair
+    assert.ok(Array.isArray(raw[0].references) && raw[0].references.length <= 2 && raw[0].references.every(id => typeof id === 'string'), JSON.stringify(raw[0].references));
+    assert.deepEqual(raw[1].references, raw[0].references);
+  }
+  assert.deepEqual(await run({ SMALL_ENV: 'production' }), []);
+  assert.deepEqual(await run({}), []);
+});
+
+// Owner C1.1 (2026-11-08): every relationship gets the graph layout, so each node is drawn once (the pairs layout repeats a node in every pair it is in).
+test('C1.1: relationships are drawn as graphs, each node once; a disconnected one keeps the pairs layout', () => {
+  const thermostat = JSON.parse(readFileSync(new URL('../../web/src/tutor-diagrams/examples.json', import.meta.url), 'utf8')).find(e => e.diagram.kind === 'relationship').diagram;
+  const gini = { kind: 'relationship', title: 'Gini impurity', nodes: [{ id: 'A', label: 'Class A' }, { id: 'B', label: 'Class B' }, { id: 'C', label: 'Gini impurity' }], edges: [{ from: 'A', to: 'C', label: 'p_i' }, { from: 'B', to: 'C', label: 'p_i' }] };
+  const ce = { kind: 'relationship', title: 'Cross entropy', nodes: [{ id: 'A', label: 'True distribution $p$' }, { id: 'B', label: 'Model distribution $q$' }, { id: 'C', label: 'Cross entropy $H(p,q)$' }], edges: [{ from: 'A', to: 'C', label: 'input' }, { from: 'B', to: 'C', label: 'output' }, { from: 'A', to: 'B', label: 'compare' }] };
+  for (const d of [thermostat, gini, ce]) {
+    const out = specOf(relationshipsAsGraphs(`Before.\n\n${fence(d)}\n\nAfter.`));
+    assert.equal(out.layout, 'graph', d.title);
+    const svg = renderToStaticMarkup(createElement('svg', null, renderTutorDiagram({ version: 1, diagram: out }, 408).element));
+    for (const n of d.nodes) assert.equal(svg.split(`data-tutor-node="${n.id}"`).length - 1, 1, `${d.title}: ${n.label} drawn once`);
+  }
+  const apart = { kind: 'relationship', title: 'Two pairs', nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }, { id: 'd', label: 'D' }], edges: [{ from: 'a', to: 'b', label: 'x' }, { from: 'c', to: 'd', label: 'y' }] };
+  const md = `Before.\n\n${fence(apart)}\n\nAfter.`;
+  assert.equal(relationshipsAsGraphs(md), md, 'the graph layout refuses a disconnected relationship, so it is left as written');
+});
+
+// Owner 2026-11-08 (correct-SVG closing pass): the Roman Empire spec gpt-oss wrote at two depths (bench run 61e02eca9): a plain dated timeline sent with the
+// scaled-lanes layout and empty lanes. The server drops the layout, domain and empty lanes; a timeline with real lane content is left for the repair.
+test('a plain dated timeline sent with scaled-lanes and empty lanes becomes the plain timeline, without a repair', () => {
+  const roman = { version: 1, diagram: { title: 'Roman Empire Timeline', kind: 'timeline', layout: 'scaled-lanes', events: [{ time: '753 BC', label: 'Founding of Rome' }, { time: '27 BC', label: 'Augustus becomes first emperor' }, { time: '117 AD', label: 'Empire at its greatest extent' }, { time: '284 AD', label: 'Diocletian splits empire' }, { time: '476 AD', label: 'Western empire falls' }], domain: { min: -800, max: 500, unit: 'year', label: 'Calendar years' }, lanes: [{ id: 'west', label: 'Western Empire' }, { id: 'east', label: 'Eastern Empire' }] } };
+  const md = `Rome grew, split and fell.\n\n\`\`\`rh-diagram\n${JSON.stringify(roman)}\n\`\`\`\n\nThe East lasted longer.`;
+  const out = correctDiagrams(md);
+  assert.deepEqual(out.corrections, { timeline_plain: 1 });
+  const fixed = JSON.parse(out.md.split('\n')[3]).diagram;
+  assert.equal(fixed.layout, undefined); assert.equal(fixed.lanes, undefined); assert.equal(fixed.domain, undefined);
+  assert.deepEqual(fixed.events.map(e => e.time), ['753 BC', '27 BC', '117 AD', '284 AD', '476 AD']);
+  // a lane that holds content is a real scaled timeline: not touched here
+  const real = structuredClone(roman); real.diagram.lanes[0].events = [{ at: -27, label: 'Augustus' }];
+  assert.deepEqual(correctDiagrams(md.replace(JSON.stringify(roman), JSON.stringify(real))).corrections, {});
 });

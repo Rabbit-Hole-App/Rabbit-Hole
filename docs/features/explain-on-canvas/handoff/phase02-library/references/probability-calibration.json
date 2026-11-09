@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Calibration compares predicted and observed rates",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Predicted probability",
+      "min": 0,
+      "max": 1,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Observed frequency",
+      "min": 0,
+      "max": 1
+    },
+    "series": [
+      {
+        "label": "Observed bins",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0.1,
+            "y": 0.05
+          },
+          {
+            "x": 0.3,
+            "y": 0.2
+          },
+          {
+            "x": 0.5,
+            "y": 0.4
+          },
+          {
+            "x": 0.7,
+            "y": 0.6
+          },
+          {
+            "x": 0.9,
+            "y": 0.8
+          }
+        ]
+      },
+      {
+        "label": "Perfect calibration",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          }
+        ]
+      }
+    ],
+    "annotations": []
+  }
+}

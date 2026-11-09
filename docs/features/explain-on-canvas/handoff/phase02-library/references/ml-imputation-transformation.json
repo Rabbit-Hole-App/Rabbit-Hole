@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Impute one missing feature value",
+    "caption": "Fit the imputer on training data only, then reuse that statistic for validation and test data.",
+    "kind": "transformation",
+    "variant": "visual",
+    "before": {
+      "label": "Before",
+      "diagram": {
+        "title": "Before imputation",
+        "kind": "matrix",
+        "layout": "teaching",
+        "columns": [
+          "Age",
+          "Score"
+        ],
+        "rows": [
+          {
+            "id": "a",
+            "heading": "Row A",
+            "cells": [
+              "20",
+              "4"
+            ]
+          },
+          {
+            "id": "b",
+            "heading": "Row B",
+            "cells": [
+              "Missing",
+              "7"
+            ]
+          },
+          {
+            "id": "c",
+            "heading": "Row C",
+            "cells": [
+              "40",
+              "8"
+            ]
+          }
+        ],
+        "states": [
+          {
+            "row": "b",
+            "column": 0,
+            "state": "missing"
+          }
+        ]
+      }
+    },
+    "after": {
+      "label": "After",
+      "diagram": {
+        "title": "After imputation",
+        "kind": "matrix",
+        "layout": "teaching",
+        "columns": [
+          "Age",
+          "Score"
+        ],
+        "rows": [
+          {
+            "id": "a",
+            "heading": "Row A",
+            "cells": [
+              "20",
+              "4"
+            ]
+          },
+          {
+            "id": "b",
+            "heading": "Row B",
+            "cells": [
+              "30",
+              "7"
+            ]
+          },
+          {
+            "id": "c",
+            "heading": "Row C",
+            "cells": [
+              "40",
+              "8"
+            ]
+          }
+        ],
+        "states": [
+          {
+            "row": "b",
+            "column": 0,
+            "state": "changed"
+          }
+        ]
+      }
+    },
+    "operation": "Fill missing Age with the training-set mean of 30",
+    "identity": {
+      "mode": "preserved",
+      "note": "All row IDs and observed cells remain unchanged; only Row B’s missing Age is filled."
+    }
+  }
+}

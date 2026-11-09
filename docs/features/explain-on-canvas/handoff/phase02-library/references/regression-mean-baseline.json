@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "A constant mean baseline",
+    "caption": "Illustrative values; the geometry shows the stated relationship.",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Sample",
+      "min": 1,
+      "max": 5,
+      "scale": "linear"
+    },
+    "y": {
+      "label": "Target",
+      "min": 0,
+      "max": 6
+    },
+    "series": [
+      {
+        "label": "Targets",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 2,
+            "y": 4
+          },
+          {
+            "x": 3,
+            "y": 2
+          },
+          {
+            "x": 4,
+            "y": 5
+          },
+          {
+            "x": 5,
+            "y": 3
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "label": "Mean prediction = 3",
+        "axis": "y",
+        "value": 3
+      }
+    ]
+  }
+}

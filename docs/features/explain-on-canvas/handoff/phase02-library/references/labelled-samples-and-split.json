@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Labels stay attached to samples",
+    "caption": "Both groups contain two negative examples and one positive example.",
+    "kind": "sample-set",
+    "samples": [
+      {
+        "id": "a",
+        "class": "Negative"
+      },
+      {
+        "id": "b",
+        "class": "Negative"
+      },
+      {
+        "id": "c",
+        "class": "Negative"
+      },
+      {
+        "id": "d",
+        "class": "Negative"
+      },
+      {
+        "id": "e",
+        "class": "Positive"
+      },
+      {
+        "id": "f",
+        "class": "Positive"
+      }
+    ],
+    "groups": [
+      {
+        "id": "train",
+        "label": "Training",
+        "members": [
+          "a",
+          "b",
+          "e"
+        ],
+        "omitted": [
+          "c",
+          "d",
+          "f"
+        ]
+      },
+      {
+        "id": "test",
+        "label": "Test",
+        "members": [
+          "c",
+          "d",
+          "f"
+        ]
+      }
+    ]
+  }
+}

@@ -177,7 +177,7 @@ test('prompt fingerprints are stable, one tool per role, and change when a promp
   assert.equal(PINNED.roadmap_revise, a.roadmap_revise, `roadmap_revise prompt changed: re-pin ${a.roadmap_revise}`);
   assert.equal(PINNED.roadmap_subject, a.roadmap_subject, `roadmap_subject prompt changed: re-pin ${a.roadmap_subject}`);
 });
-const PINNED = { roadmap_subject: 'e7f7ff8ccf1c', roadmap_draft: '884361a26e7e', roadmap_revise: 'f04ce8a45307' }; // CORE.09 planner guidance (2026-11-06; a diagram, not a Mermaid flowchart, 2026-11-07); formatRequired suggestion rule (BE.05a, 2026-11-07)
+const PINNED = { roadmap_subject: 'e7f7ff8ccf1c', roadmap_draft: '6624f30c1141', roadmap_revise: 'dc661b4e4e47' }; // 2026-11-08: MATH_FORMAT's \frac no longer a form feed; CORE.09 planner guidance (2026-11-06; a diagram, not a Mermaid flowchart, 2026-11-07); formatRequired suggestion rule (BE.05a, 2026-11-07)
 
 test('CORE.09: draft and revise planner instructions plan one learning idea per step within the Depth budget, with tables and flowcharts inside an explanation', () => {
   for (const role of ['roadmap_draft', 'roadmap_revise']) {

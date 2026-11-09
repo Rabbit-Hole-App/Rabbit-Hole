@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "TF-IDF: exact weights before normalization",
+    "caption": "Here TF=count, $IDF=\\ln(2/df)$, with no smoothing or normalization. Fox appears in both documents, so its IDF is $\\ln 1=0$.",
+    "kind": "matrix",
+    "layout": "teaching",
+    "columns": [
+      "red",
+      "blue",
+      "fox"
+    ],
+    "rows": [
+      {
+        "id": "d1",
+        "heading": "red red fox",
+        "cells": [
+          "$2 \\ln 2$",
+          "0",
+          "0"
+        ]
+      },
+      {
+        "id": "d2",
+        "heading": "blue fox",
+        "cells": [
+          "0",
+          "$\\ln 2$",
+          "0"
+        ]
+      },
+      {
+        "id": "df",
+        "heading": "Document frequency",
+        "cells": [
+          "1",
+          "1",
+          "2"
+        ]
+      }
+    ],
+    "emphasis": {
+      "columns": [
+        2
+      ]
+    }
+  }
+}

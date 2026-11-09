@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Fit quality on the same observations",
+    "caption": "Illustrative fits share the same samples. Overfitting concerns generalization, not training error alone.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Underfit",
+        "diagram": {
+          "title": "A constant misses the trend",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Input x",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Target y",
+            "min": 0,
+            "max": 10,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Observed samples",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 1
+                },
+                {
+                  "x": 1,
+                  "y": 2.2
+                },
+                {
+                  "x": 2,
+                  "y": 4.8
+                },
+                {
+                  "x": 3,
+                  "y": 7.2
+                },
+                {
+                  "x": 4,
+                  "y": 9
+                }
+              ]
+            },
+            {
+              "label": "Fitted prediction",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 4.84
+                },
+                {
+                  "x": 4,
+                  "y": 4.84
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Reasonable fit",
+        "diagram": {
+          "title": "A smooth increasing fit",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Input x",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Target y",
+            "min": 0,
+            "max": 10,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Observed samples",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 1
+                },
+                {
+                  "x": 1,
+                  "y": 2.2
+                },
+                {
+                  "x": 2,
+                  "y": 4.8
+                },
+                {
+                  "x": 3,
+                  "y": 7.2
+                },
+                {
+                  "x": 4,
+                  "y": 9
+                }
+              ]
+            },
+            {
+              "label": "Fitted prediction",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0.8
+                },
+                {
+                  "x": 1,
+                  "y": 2.4
+                },
+                {
+                  "x": 2,
+                  "y": 4.7
+                },
+                {
+                  "x": 3,
+                  "y": 7
+                },
+                {
+                  "x": 4,
+                  "y": 9.1
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Overfit",
+        "diagram": {
+          "title": "An oscillating interpolating fit",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Input x",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Target y",
+            "min": 0,
+            "max": 10,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Observed samples",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 1
+                },
+                {
+                  "x": 1,
+                  "y": 2.2
+                },
+                {
+                  "x": 2,
+                  "y": 4.8
+                },
+                {
+                  "x": 3,
+                  "y": 7.2
+                },
+                {
+                  "x": 4,
+                  "y": 9
+                }
+              ]
+            },
+            {
+              "label": "Fitted prediction",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 1
+                },
+                {
+                  "x": 0.5,
+                  "y": 4
+                },
+                {
+                  "x": 1,
+                  "y": 2.2
+                },
+                {
+                  "x": 1.5,
+                  "y": 1
+                },
+                {
+                  "x": 2,
+                  "y": 4.8
+                },
+                {
+                  "x": 2.5,
+                  "y": 9
+                },
+                {
+                  "x": 3,
+                  "y": 7.2
+                },
+                {
+                  "x": 3.5,
+                  "y": 5
+                },
+                {
+                  "x": 4,
+                  "y": 9
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "sharedAxes": [
+      "x",
+      "y"
+    ]
+  }
+}
