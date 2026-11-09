@@ -17,6 +17,7 @@ import { authorPicture, parseIllustration } from './learn-primitives.js';
 import { spendTransport } from './learn-spend.js';
 import { exclusiveOneOfToAnyOf } from './interact-model-adapters.js';
 import { chainSteps } from './explanation-models.js';
+import { NEW_KINDS, listForm } from './explanation-references.js';
 
 export const FALLBACK_SETTING = 'EXPLANATION_FALLBACK';
 export const STREAM_SETTING = 'EXPLANATION_STREAM';
@@ -65,19 +66,15 @@ export const withoutBounds = (o, names = false) => (Array.isArray(o) ? o.map(s =
 // the refusal follows the schema's structure, not its characters or string constraints (accepted at 362 properties, refused at 368 even with every pattern
 // and length removed), and the child diagrams inside comparison panels and visual transformations are two thirds of it. So the Gemini step also gets
 // comparison and transformation in their list forms only, and the four new kinds only when the learner's request names one (its requiredVisuals): 303
-// properties, accepted. Fireworks and Cerebras keep the whole schema; the validator accepts every kind from any step.
-const NEW_KINDS = new Set(['heatmap', 'sample-set', 'histogram', 'box-plot']);
-const childDiagram = s => Array.isArray(s?.anyOf) && s.anyOf.some(b => b?.properties?.diagram);
+// properties, accepted. Every step already gets its request's schema bundle (learn-artifact.js, explanation-references.js bundledAuthorSchema); this
+// reduction comes on top for Gemini only, because the largest bundle without it is past that limit. The validator accepts every kind from any step.
+const NEW = new Set(NEW_KINDS);
 const requiredKinds = body => { const first = [].concat(body.messages?.[0]?.content ?? []).map(p => (typeof p === 'string' ? p : p?.text)).filter(Boolean).at(-1);
   try { return new Set((JSON.parse(first).requiredVisuals ?? []).map(v => v.diagramKind).filter(Boolean)); } catch { return new Set(); } };
 export const forGemini = (o, keep = new Set()) => {
-  if (Array.isArray(o)) return o.filter(b => !NEW_KINDS.has(b?.properties?.kind?.const) || keep.has(b.properties.kind.const)).map(s => forGemini(s, keep));
+  if (Array.isArray(o)) return o.filter(b => !NEW.has(b?.properties?.kind?.const) || keep.has(b.properties.kind.const)).map(s => forGemini(s, keep));
   if (!o || typeof o !== 'object') return o;
-  if (['comparison', 'transformation'].includes(o.properties?.kind?.const)) {
-    const { variant, panels, sharedAxes, ...properties } = o.properties;
-    for (const side of ['before', 'after']) if (childDiagram(properties[side])) properties[side] = properties[side].anyOf.find(b => !b.properties?.diagram);
-    return { ...o, properties };
-  }
+  if (['comparison', 'transformation'].includes(o.properties?.kind?.const)) return listForm(o);
   return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
 };
 

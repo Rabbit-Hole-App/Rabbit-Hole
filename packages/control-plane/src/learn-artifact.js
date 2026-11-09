@@ -1,4 +1,4 @@
-import { selectDiagramReferences, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE } from './explanation-references.js';
+import { selectDiagramReferences, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -126,6 +126,9 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
     context: { selection: request.selection, context: input.context, documents: input.documents },
     requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind),
   }) : [];
+  // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
+  // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
+  if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind) })); }
   const system = (input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '') + diagramReferenceContext(diagramReferences);
   return { request, ready, messages, diagramReferences, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }

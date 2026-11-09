@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prepareArtifactAuthorRequest, generateArtifact } from '../src/learn-artifact.js';
-import { selectDiagramReferences, diagramReferenceContext } from '../src/explanation-references.js';
+import { selectDiagramReferences, diagramReferenceContext, CORE_KINDS, NEW_KINDS, QUANT_KINDS } from '../src/explanation-references.js';
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { deriveVisualRequirements } from '../src/explanation-visuals.js';
@@ -83,4 +83,23 @@ test('required tree kind alone cannot select unrelated binary operations', () =>
     assert.ok(prepared.diagramReferences.every(ref => ref.spec.diagram.layout !== 'binary'), args);
   }
   assert.deepEqual(selectDiagramReferences({ prompt: 'Draw a tree diagram of an unfamiliar ontology.', requiredKinds: ['tree'] }), []);
+});
+
+// Owner A1 (2026-11-08): a fast-chain author gets a fixed schema bundle chosen by its references and required kinds; the plan path keeps the whole schema.
+test('schema bundles: core by default, extras only when steered, the same bytes for the same bundle, the whole schema off the fast chain', () => {
+  const FAST = { SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'x' };
+  const author = (env, args) => { const v = deriveVisualRequirements(args); return prepareArtifactAuthorRequest(env, { command: 'explanation', args, ...(v.items?.length ? { visualRequirements: v } : {}) }).body.tools.find(t => t.name === 'make_explanation').input_schema; };
+  const kinds = schema => { const spec = (schema.properties.visuals.items.oneOf ?? schema.properties.visuals.items.anyOf).find(v => v.properties.spec).properties.spec.properties.diagram; return (spec.oneOf ?? spec.anyOf).map(b => b.properties.kind.const); };
+  const panels = schema => JSON.stringify(schema).includes('"panels"');
+  const core = author(FAST, 'How does attention work in a transformer?');
+  assert.deepEqual(kinds(core).sort(), [...CORE_KINDS].sort());
+  assert.equal(panels(core), false);
+  assert.equal(JSON.stringify(author(FAST, 'Why does the sky look blue?')), JSON.stringify(core), 'another unsteered question sends the same bytes');
+  const box = author(FAST, 'What does a box plot call an outlier?');
+  assert.deepEqual(kinds(box).sort(), [...CORE_KINDS, ...NEW_KINDS].sort(), 'a required new kind adds the new-kind group, not the quantitative one');
+  const fit = author(FAST, 'What is the difference between underfitting and overfitting?');
+  assert.ok(panels(fit) && !JSON.stringify(fit).includes('"identity"'), 'a panel reference adds comparison panels only');
+  const bars = author(FAST, 'Show a bar chart of the votes');
+  assert.ok(QUANT_KINDS.every(k => kinds(bars).includes(k)), 'a required quantitative kind adds the quantitative group');
+  assert.equal(kinds(author({ SMALL_ENV: 'test' }, 'How does attention work in a transformer?')).length, 21, 'the plan path keeps every kind');
 });

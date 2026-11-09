@@ -12,6 +12,7 @@ const KINDS = [
   [/\b(?:binary(?: search)? trees?|bst|dendrograms?)\b/i, 'tree'],
   [/\bheat ?maps?\b/i, 'heatmap'], [/\bhistograms?\b/i, 'histogram'],
   [/\bbox[- ]?plots?\b/i, 'box-plot'], [/\bsample[- ]set diagrams?\b/i, 'sample-set'],
+  // Owner B1 (2026-11-08): a decision tree stays a flow: a flow with decision nodes and Yes/No branches to outcomes is a faithful decision tree.
   [/\b(decision[- ]?trees?|flow ?charts?|flow ?diagrams?|decision diagrams?|process diagrams?|flow of)\b/i, 'flow'],
   [/\bsequence diagrams?\b/i, 'sequence'], [/\btimeline\b/i, 'timeline'], [/\bcycle diagrams?\b/i, 'cycle'], [/\blayer(s|ed)? diagrams?\b/i, 'layers'],
   [/\b(tree|hierarchy) diagrams?\b/i, 'tree'], [/\bcomparison diagrams?\b/i, 'comparison'], [/\bmatrix diagrams?\b/i, 'matrix'],

@@ -72,4 +72,37 @@ export function diagramReferenceContext(references) {
   return out === heading ? '' : out;
 }
 
-export const PHASE02_DIAGRAM_GUIDANCE = 'Additional teaching layouts: heatmap for numerical grids with an explicit scale; sample-set for identifiable samples, membership, replacement and weights; histogram for numeric bin distributions; box-plot for quartiles, whiskers, fences and outliers. Use coordinate-plot for regression, decision boundaries, distances, loss, uncertainty and distributions on axes; its supported annotations are data coordinates, never pixels. Use grouped or stacked bar-chart for votes, importance and category proportions. Use a scaled-lanes timeline for numeric time windows, cutoffs, availability and TTL, and a teaching matrix for highlighted data cells. Tree hierarchy, binary and dendrogram layouts are distinct: dendrogram heights are numerical merge distances; a family tree or folders are not automatically binary. An operation on a binary tree or BST must show the structure itself; an optional flow can explain additional steps but cannot replace it. Connected feedback and lineage use relationship layout graph. Concurrent preprocessing, ensembles and store branches use flow fork/merge roles, not decision diamonds. Use comparison visual panels for actual diagrams on coordinated axes, and transformation visual states when showing how the same records or points change. These compositions contain only bounded leaf diagrams; never nest comparisons or transformations. Follow the tool schema and the selected reference JSON for exact fields; no invented kind, SVG, CSS, colour or position fields.';
+// Schema bundles for the fast chain (owner A1, 2026-11-08): the whole 21-kind diagram schema is ~87k characters, and Fireworks counts it as input
+// (27,599 prompt tokens, 6.7 s, against 6,702 and 2.45 s before Phase 02). Every request gets the CORE kinds (comparison and transformation in their list
+// forms) plus a picture; QUANT, NEW, comparison panels and visual transformations (each child a leaf diagram; ~16k characters per child union, so the
+// two composed forms are separate flags) are added only when a selected reference or a required visual steers to them. A fixed rule over four flags,
+// never a per-request schema, so each bundle serializes to the same bytes and a provider's prefix cache stays warm. The validator still accepts every kind.
+export const CORE_KINDS = ['flow', 'comparison', 'tree', 'sequence', 'cycle', 'relationship', 'transformation', 'layers', 'timeline'];
+export const QUANT_KINDS = ['coordinate-plot', 'bar-chart', 'number-line', 't-account', 'waterfall', 'matrix', 'argument', 'figure'];
+export const NEW_KINDS = ['heatmap', 'sample-set', 'histogram', 'box-plot'];
+const childDiagram = s => (s?.anyOf ?? s?.oneOf)?.some(b => b?.properties?.diagram);
+// A comparison or transformation schema branch in its list form only: no panels, shared axes, visual states or identity (the visual variant's own fields).
+export const listForm = branch => {
+  const { variant, panels, sharedAxes, identity, ...properties } = branch.properties;
+  for (const side of ['before', 'after']) if (childDiagram(properties[side])) properties[side] = (properties[side].anyOf ?? properties[side].oneOf).find(b => !b.properties?.diagram);
+  return { ...branch, properties };
+};
+// -> { quant, fresh, panels, states }: which extras the selected references and the required diagram kinds steer to.
+export function diagramBundle({ references = [], requiredKinds = [] } = {}) {
+  const kinds = new Set([...requiredKinds, ...references.map(r => r.spec.diagram.kind)]);
+  return { quant: QUANT_KINDS.some(k => kinds.has(k)), fresh: NEW_KINDS.some(k => kinds.has(k)),
+    panels: references.some(r => r.spec.diagram.variant === 'panels'), states: references.some(r => r.spec.diagram.kind === 'transformation' && r.spec.diagram.variant === 'visual') };
+}
+// The make_explanation input schema reduced to one bundle: deterministic, so the same bundle serializes to the same bytes on every request.
+export function bundledAuthorSchema(schema, { quant, fresh, panels, states }) {
+  const allowed = new Set([...CORE_KINDS, ...(quant ? QUANT_KINDS : []), ...(fresh ? NEW_KINDS : [])]);
+  const out = structuredClone(schema);
+  const visuals = out.properties.visuals.items;
+  const spec = (visuals.oneOf ?? visuals.anyOf).find(v => v.properties.spec).properties.spec;
+  const union = spec.properties.diagram, key = union.oneOf ? 'oneOf' : 'anyOf';
+  union[key] = union[key].filter(b => allowed.has(b.properties.kind.const))
+    .map(b => ((b.properties.kind.const === 'comparison' && !panels) || (b.properties.kind.const === 'transformation' && !states) ? listForm(b) : b));
+  return out;
+}
+
+export const PHASE02_DIAGRAM_GUIDANCE ='Additional teaching layouts: heatmap for numerical grids with an explicit scale; sample-set for identifiable samples, membership, replacement and weights; histogram for numeric bin distributions; box-plot for quartiles, whiskers, fences and outliers. Use coordinate-plot for regression, decision boundaries, distances, loss, uncertainty and distributions on axes; its supported annotations are data coordinates, never pixels. Use grouped or stacked bar-chart for votes, importance and category proportions. Use a scaled-lanes timeline for numeric time windows, cutoffs, availability and TTL, and a teaching matrix for highlighted data cells. Tree hierarchy, binary and dendrogram layouts are distinct: dendrogram heights are numerical merge distances; a family tree or folders are not automatically binary. An operation on a binary tree or BST must show the structure itself; an optional flow can explain additional steps but cannot replace it. Connected feedback and lineage use relationship layout graph. Concurrent preprocessing, ensembles and store branches use flow fork/merge roles, not decision diamonds. Use comparison visual panels for actual diagrams on coordinated axes, and transformation visual states when showing how the same records or points change. These compositions contain only bounded leaf diagrams; never nest comparisons or transformations. Follow the tool schema and the selected reference JSON for exact fields; no invented kind, SVG, CSS, colour or position fields.';
