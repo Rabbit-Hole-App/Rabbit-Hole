@@ -20,7 +20,7 @@ for (const { id, prompt, kind, referenceId, paraphrase } of bench.cases) {
         command: 'explanation', args, visualRequirements: deriveVisualRequirements(args),
       });
       assert.ok(!prepared.result, `Unexpected refusal for "${args}"`);
-      assert.equal(prepared.diagramReferences[0]?.id, referenceId);
+      assert.ok([referenceId, `${referenceId}-single`].includes(prepared.diagramReferences[0]?.id)); // two-panel references go out as their single variant
       assert.ok(prepared.body.system.includes(JSON.stringify(prepared.diagramReferences[0].spec)));
       assert.ok(prepared.diagramReferences.length <= 2);
       assert.ok(diagramReferenceContext(prepared.diagramReferences).length <= 14_000);

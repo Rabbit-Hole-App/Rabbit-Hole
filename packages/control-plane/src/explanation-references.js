@@ -1,9 +1,35 @@
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
+import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
+import { singleDiagramReferences } from '../../web/src/tutor-diagrams/reference-single-variants.js';
 
 const MAX_REFERENCES = 2;
 const MAX_CONTEXT = 14_000;
 const normalized = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const shapesByKind = new Map(kindGallery.map(spec => [spec.diagram.kind, spec]));
+const legacyShapeKinds = [...new Set(diagramReferences.filter(ref => ref.id.startsWith('general-')).map(ref => ref.spec.diagram.kind))];
+
+// Codex's learner-word fallback (set 1-7): the kind the learner's own words name ("show a sequence diagram", "the water cycle"). Used ONLY when no planner kind is
+// available (the planner timed out, failed or is off; learn-artifact.js passes shapeFallback: false when a plan exists, because then the gallery example comes
+// from the planner's chosen kind, explanation-planner.js planShape).
+export function fallbackKind(prompt) {
+  const query = normalized(String(prompt).slice(0, 4000));
+  const named = query.replace(/^please /, '')
+    .replace(/^(?:explain|show|draw|make|create|use)(?: me)? /, '')
+    .replace(/^(?:a|an|the|one) /, '')
+    .replace(/ (?:diagram|example)$/, '');
+  return [...shapesByKind.keys()].find(kind => normalized(kind) === named) ??
+    legacyShapeKinds.find(kind => matches(query, normalized(kind)));
+}
+
+function shapeExamples(prompt, required) {
+  const kinds = required.size ? [...required] : [fallbackKind(prompt)];
+  return kinds.filter(kind => shapesByKind.has(kind)).slice(0, MAX_REFERENCES).map(kind => ({
+    id: `shape-${kind}`,
+    useWhen: 'Use this neutral shape to structure the learner’s own content.',
+    spec: parseTutorDiagram(shapesByKind.get(kind)),
+  }));
+}
 function matches(haystack, phrase) {
   const forms = new Set([phrase, `${phrase}s`, `${phrase}es`]);
   if (phrase.endsWith('y')) forms.add(`${phrase.slice(0, -1)}ies`);
@@ -47,7 +73,7 @@ function referenceVariants(ref, required) {
   }] : []);
 }
 
-export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [] } = {}) {
+export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [], shapeFallback = true } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   const source = normalized(contextText(context));
   const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
@@ -75,7 +101,19 @@ export function selectDiagramReferences({ prompt = '', context = '', requiredKin
     chars += length;
     if (picked.length === MAX_REFERENCES) break;
   }
-  return picked;
+  return picked.length || !shapeFallback ? picked : shapeExamples(prompt, required);
+}
+
+// Owner 2026-11-08 (Codex set 3): a selected two-panel reference (comparison panels, visual transformation) is sent as its one-diagram `-single` variant (about half the
+// tokens), unless the planner's kind is comparison or transformation (the comparison is then the point) or the learner required that panel kind. The variant shares the
+// panel's keywords, so selection and its bench are unchanged: the swap happens after the pick. A leaf excerpt (sourceId) is never swapped.
+const singleByPanel = new Map(singleDiagramReferences.map(single => [single.panelReferenceId, single]));
+export function preferSingleVariants(references, { plannedKind = null, requiredKinds = [] } = {}) {
+  if (plannedKind === 'comparison' || plannedKind === 'transformation') return references;
+  return references.map(ref => {
+    const single = ref.sourceId ? null : singleByPanel.get(ref.id);
+    return !single || requiredKinds.includes(ref.spec.diagram.kind) ? ref : { id: single.id, useWhen: single.useWhen, spec: parseTutorDiagram(single.spec) };
+  });
 }
 
 // The start of the reference block in a system prompt; the fast chain moves the block to the end of its system message (assembledSystem).

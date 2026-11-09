@@ -148,7 +148,7 @@ test('the request: provider endpoint and key, model, reasoning_effort, strict js
 // Owner 2026-11-08 (A1-A3): "\frac" in a plain JS string was a form feed, so the model read "$rac{a}{b}$"; the json_schema chain has no tools, so it gets no
 // tool paragraph and no line asking for fences in the body. Built offline as it would be sent; nothing is sent.
 test('the system prompt as sent: LaTeX spelled out, no control character but newline, no tool paragraph on the fast chain, the tool paragraph kept on the tool route', () => {
-  const args = { command: 'explanation', args: 'How does attention work in a transformer?' };
+  const args = { command: 'explanation', args: 'Why does the sky look blue?' }; // an unmatched question: the attention question selects a reference, and the tool route is then not ARTIFACT_SYSTEM alone
   const fast = prepareArtifactAuthorRequest(offline('fireworks-low', { [INTERACTIONS_SETTING]: 'true' }), args);
   const sent = stepRequest({ provider: 'fireworks', model: FW }, 'low', fast.body).messages[0].content;
   const tools = prepareArtifactAuthorRequest({}, args).body;

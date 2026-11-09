@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { planFromAnswers, planStatement, planShape, planExplanation, plannerEnabled, QUESTIONS } from '../src/explanation-planner.js';
 import { prepareArtifactAuthorRequest, generateArtifact } from '../src/learn-artifact.js';
+import { deriveVisualRequirements } from '../src/explanation-visuals.js';
 
 const answers = (over = {}) => ({
   visualType: { choice: 'diagram', confidence: 0.95, probabilities: { diagram: 0.95, picture: 0.03, both: 0.02 } },
@@ -32,9 +33,14 @@ test('picture and both map to the visuals in the author order; no second-visual 
   assert.match(planStatement(planFromAnswers(answers())), /^Card plan, decided before you write; follow it\. Visuals, in this order: 1\) a sequence diagram\. Depth treatment: mechanism \(/);
 });
 
-test('the shape example is the examples.json entry of the planned kind, none for a kind without one or for a picture', () => {
-  assert.equal(planShape(planFromAnswers(answers()))?.id, 'shape-sequence');
-  assert.equal(planShape(planFromAnswers(answers({ kind: { choice: 'histogram', probabilities: { histogram: 0.9 } } }))), null);
+test('the shape example is the gallery spec of the planned kind at the card depth, none for a picture or a kind the gallery lacks', () => {
+  const sequence = depth => planShape(planFromAnswers(answers()), depth);
+  assert.equal(sequence()?.id, 'shape-sequence');
+  assert.equal(sequence('standard').spec.diagram.title, sequence().spec.diagram.title, 'Standard is the default depth');
+  assert.equal(new Set(['overview', 'standard', 'deep'].map(depth => JSON.stringify(sequence(depth).spec))).size, 3, 'three distinct depth examples');
+  assert.deepEqual(sequence('nonsense'), sequence('standard'), 'an unknown depth falls back to Standard');
+  assert.ok(planShape(planFromAnswers(answers({ kind: { choice: 'histogram', probabilities: { histogram: 0.9 } } })))?.spec, 'every kind has a gallery example');
+  assert.equal(planShape({ kind: 'not-a-kind' }), null);
   assert.equal(planShape(planFromAnswers(answers({ visualType: { choice: 'picture' } }))), null);
 });
 
@@ -54,6 +60,34 @@ test('a plan puts cardPlan in the request and its shape example first in the ref
   assert.ok(p.body.system.includes('Shape example for a sequence diagram on another subject'));
   const withTopical = prepareArtifactAuthorRequest({}, { command: 'explanation', args: 'What is gini impurity?', plan: planFromAnswers(answers({ kind: { choice: 'bar-chart', probabilities: { 'bar-chart': 0.9 } } })), planned: true });
   assert.equal(withTopical.diagramReferences[0].id, 'shape-bar-chart'); assert.ok(withTopical.diagramReferences.length >= 2 && withTopical.diagramReferences.length <= 3);
+});
+
+// Owner 2026-11-08: the gallery example comes from the planner's kind, at the card's depth; the learner-word fallback only when there is no plan.
+test('with a plan the example is the planned kind at the card depth, before any topical reference; the learner-word fallback is off', () => {
+  const ask = (args, input = {}) => prepareArtifactAuthorRequest({}, { command: 'explanation', args, visualRequirements: deriveVisualRequirements(args), ...input });
+  const flow = planFromAnswers(answers({ kind: { choice: 'flow', probabilities: { flow: 0.9 } } }));
+  const byDepth = ['overview', 'standard', 'deep'].map(depth => ask('Explain parcel handoff.', { plan: flow, planned: true, depth }).diagramReferences);
+  assert.deepEqual(byDepth.map(refs => refs.length), [1, 1, 1], 'one example, no learner-word fallback beside it');
+  assert.equal(new Set(byDepth.map(refs => JSON.stringify(refs[0].spec))).size, 3, 'a different example at each depth');
+  assert.deepEqual(byDepth[1][0].spec, planShape(flow).spec, 'no depth sent is Standard');
+  // a plan whose kind differs from the learner's own words: the planner wins (no shape-flow from "flowchart" beside shape-tree)
+  const tree = planFromAnswers(answers({ kind: { choice: 'tree', probabilities: { tree: 0.9 } } }));
+  assert.deepEqual(ask('Draw a flowchart for sorting mail.', { plan: tree, planned: true }).diagramReferences.map(r => r.id), ['shape-tree']);
+  // no plan (planner off, timed out or failed: plan null): the learner words give the fallback as before
+  for (const input of [{}, { plan: null, planned: true }]) assert.deepEqual(ask('Draw a flowchart for sorting mail.', input).diagramReferences.map(r => r.id), ['shape-flow']);
+});
+
+test('a two-panel reference goes out as its single-diagram variant unless the planned kind is the comparison (or the learner required that kind)', () => {
+  const ask = (args, input = {}) => prepareArtifactAuthorRequest({}, { command: 'explanation', args, ...input }).diagramReferences;
+  const q = 'How does CPU vs GPU compare?';
+  assert.deepEqual(ask(q).map(r => r.id), ['ml-cpu-vs-gpu-single']);
+  assert.equal(ask(q)[0].spec.diagram.kind, 'matrix');
+  const plan = kind => ({ plan: planFromAnswers(answers({ kind: { choice: kind, probabilities: { [kind]: 0.9 } } })), planned: true });
+  assert.deepEqual(ask(q, plan('comparison')).map(r => r.id), ['shape-comparison', 'ml-cpu-vs-gpu']);
+  assert.deepEqual(ask(q, plan('transformation')).map(r => r.id), ['shape-transformation', 'ml-cpu-vs-gpu']);
+  assert.deepEqual(ask(q, plan('matrix')).map(r => r.id), ['shape-matrix', 'ml-cpu-vs-gpu-single']);
+  const required = deriveVisualRequirements('Draw a comparison diagram of CPU vs GPU');
+  assert.ok(ask('Draw a comparison diagram of CPU vs GPU', { visualRequirements: required }).every(r => !r.id.endsWith('-single')), 'a required comparison keeps the panels');
 });
 
 test('the planner call: 800 ms timeout, any failure is no plan (the card never waits on it), bad answers are no plan', async () => {

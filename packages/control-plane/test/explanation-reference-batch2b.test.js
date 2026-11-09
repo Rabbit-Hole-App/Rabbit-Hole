@@ -4,6 +4,7 @@ import { prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { deriveVisualRequirements } from '../src/explanation-visuals.js';
 import { diagramReferenceContext } from '../src/explanation-references.js';
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
+import { singleDiagramReferences } from '../../web/src/tutor-diagrams/reference-single-variants.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
 const cases = [
@@ -25,9 +26,9 @@ for (const [id, paraphrase] of cases) {
         command: 'explanation', args, visualRequirements: deriveVisualRequirements(args),
       });
       assert.ok(!prepared.result, `${args}: unexpected refusal`);
-      const selected = prepared.diagramReferences.find(item => item.id === id);
+      const selected = prepared.diagramReferences.find(item => item.id === id || item.id === `${id}-single`); // a two-panel reference goes out as its single-diagram variant (explanation-references.js preferSingleVariants)
       assert.ok(selected, `${args}: selected ${prepared.diagramReferences.map(item => item.id).join(', ')}`);
-      assert.deepEqual(selected.spec, parseTutorDiagram(reference.spec));
+      assert.deepEqual(selected.spec, parseTutorDiagram(selected.id.endsWith('-single') ? singleDiagramReferences.find(single => single.id === selected.id).spec : reference.spec));
       assert.ok(prepared.body.system.includes(JSON.stringify(selected.spec)));
       assert.ok(prepared.diagramReferences.length <= 2);
       assert.ok(diagramReferenceContext(prepared.diagramReferences).length <= 14_000);

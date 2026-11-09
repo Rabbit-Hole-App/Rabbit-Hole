@@ -3,7 +3,7 @@
 // decides the card's visual type, kind, second visual and depth treatment; the server states the plan to the author in the request. A timeout or any error means no
 // plan and the author prompt as today: the card is never blocked on the planner. The questions are the bench's (scripts/explain-bench/planner.mjs on explain/quality-bench).
 // Mapping (owner 2026-11-08): no plot override; the kind is FIXED when its top probability is >= 0.6, otherwise the top two kinds are offered and the author chooses.
-import shapeExamples from '../../web/src/tutor-diagrams/examples.json' with { type: 'json' };
+import galleryDepths from '../../web/src/tutor-diagrams/kind-gallery-depths.json' with { type: 'json' };
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
 // 1.2 s (owner 2026-11-08; 4 of 42 timed out at 800 ms on the Gemini stack); every timeout is logged as reason 'timeout' (explanation_planner_failed)
@@ -72,9 +72,10 @@ export function planStatement(plan) {
   return `Card plan, decided before you write; follow it. Visuals, in this order: ${parts.join('; ')}${plan.visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}. Depth treatment: ${plan.depthTreatment} (${TREATMENT[plan.depthTreatment]}).`;
 }
 
-// The shape example for the planned diagram: the first examples.json entry of its kind (the top kind when the plan is not fixed), else null (no example for that kind).
-export function planShape(plan) {
-  const kind = plan?.kind, spec = kind && shapeExamples.find(e => e.diagram.kind === kind);
+// The gallery example for the planned diagram (owner 2026-11-08): the kind-gallery-depths.json spec of its kind at the card's depth (Standard when the depth is
+// unknown), the top kind when the plan is not fixed; null when the plan has no diagram kind (a picture). It replaces the examples.json shape example.
+export function planShape(plan, depth = 'standard') {
+  const kind = plan?.kind, entry = kind && galleryDepths.find(e => e.kind === kind), spec = entry && (entry[depth] ?? entry.standard);
   return spec ? { id: `shape-${kind}`, useWhen: `Shape example for a ${kind} diagram on another subject. Use its structure, not its content.`, spec: parseTutorDiagram(spec), shape: true } : null;
 }
 
