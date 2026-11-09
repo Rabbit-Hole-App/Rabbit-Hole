@@ -30,13 +30,10 @@ const KIND = {
   't-account': 'Debits and credits.',
   waterfall: 'An opening value changed by signed steps to a closing value.',
 };
-const SECOND = ['flow', 'sequence', 'cycle', 'timeline', 'tree', 'relationship', 'transformation', 'comparison', 'layers', 'matrix', 'coordinate-plot', 'bar-chart', 'histogram', 'box-plot', 'heatmap', 'number-line'];
 export const QUESTIONS = {
   visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only.",
     criteria: { picture: 'A drawn illustration of a physical thing, place, organism or natural event.', diagram: 'A schematic: process, relationship, comparison, structure, quantity or formula.', both: 'A physical thing that also has a mechanism to explain (volcano erupting, engine, eclipse).' } },
   kind: { type: 'choice', instructions: 'If a diagram is used, which kind best teaches the answer? Judge by the shape of the answer, not by words in the question.', criteria: KIND },
-  secondVisual: { type: 'choice', instructions: 'Is a second visual needed, and of what kind? Two visuals when the question names two things (X and Y, X vs Y) or asks both how something looks and how it works; otherwise none.',
-    criteria: { none: 'One visual is enough.', picture: 'A picture alongside the diagram.', ...Object.fromEntries(SECOND.map(k => [k, KIND[k]])) } },
   depthTreatment: { type: 'choice', instructions: 'How technical should the explanation and its visual be for this depth? Overview: plain words, no formulas or jargon, the simplest visual with plain labels. Standard: the mechanism with its proper terms; a plot or chart if a quantity is central. Deep: precise terms, the formula or exact relationship in the labels, the quantitative view.',
     criteria: { plain: 'No formulas, no jargon, plain-word labels.', mechanism: 'Proper terms, the mechanism; a plot if a quantity is central.', quantitative: 'Formula and exact relationships in labels; plot or chart where a quantity is involved.' } },
   needsPlot: { type: 'noul', instructions: 'Is this a question about a formula, a metric, a loss, an activation function, a schedule, or how one quantity changes with another?' },
@@ -55,9 +52,9 @@ const top2 = probabilities => Object.entries(probabilities || {}).sort((x, y) =>
 export function planFromAnswers(a) {
   const [[kind, p1] = [a.kind?.choice, a.kind?.confidence], second] = top2(a.kind?.probabilities);
   const fixed = p1 >= FIX_AT || !second, diagram = fixed ? { type: 'diagram', kind } : { type: 'diagram', choose: [kind, second[0]] };
-  const type = a.visualType?.choice, more = a.secondVisual?.choice;
-  const visuals = type === 'picture' ? [{ type: 'picture' }] : type === 'both' ? [{ type: 'picture' }, diagram]
-    : [diagram, ...(!more || more === 'none' ? [] : more === 'picture' ? [{ type: 'picture' }] : [{ type: 'diagram', kind: more }])];
+  // v2 (owner 2026-11-08): no second-visual decision. One diagram, plus a picture only when the visual type is both; the author's own count rule stays the only source of a second diagram.
+  const type = a.visualType?.choice;
+  const visuals = type === 'picture' ? [{ type: 'picture' }] : type === 'both' ? [{ type: 'picture' }, diagram] : [diagram];
   const treatment = a.depthTreatment?.choice;
   return { visuals, depthTreatment: TREATMENT[treatment] ? treatment : 'mechanism', kind: type === 'picture' ? null : kind, fixed: type === 'picture' ? null : fixed, planner: 'jev',
     flags: { needsPlot: a.needsPlot?.noul ?? null, isPhysical: a.isPhysical?.noul ?? null, needsWorkedExample: a.needsWorkedExample?.noul ?? null },
@@ -87,7 +84,7 @@ export async function planExplanation(env, { question, depth = 'standard', conte
       body: JSON.stringify({ model: PLANNER_MODEL, state: { question: String(question).slice(0, 2000), depth, context: context ? String(context).slice(0, 2000) : null }, questions: QUESTIONS }) });
     if (!response.ok) throw new Error(`http ${response.status}`);
     const out = await response.json();
-    const need = ['visualType', 'kind', 'secondVisual', 'depthTreatment', 'needsPlot', 'isPhysical', 'needsWorkedExample'];
+    const need = ['visualType', 'kind', 'depthTreatment', 'needsPlot', 'isPhysical', 'needsWorkedExample'];
     if (need.some(k => !out?.answers?.[k])) throw new Error('incomplete answers');
     return { ...planFromAnswers(out.answers), ms: Date.now() - started, inputTokens: out.usage?.input_tokens ?? null };
   } catch (error) {
