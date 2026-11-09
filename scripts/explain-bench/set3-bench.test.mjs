@@ -78,7 +78,7 @@ test('the illustrations set carries the seven Codex reference prompts, labelled 
   const { illustrationReferences } = await import('../../packages/web/src/tutor-diagrams/reference-library.js');
   assert.ok(SET_NAMES.includes('illustrations'));
   const set = loadSet('illustrations');
-  assert.equal(set.prompts.length, 8); // the seven references plus the overfitting prompt
+  assert.equal(set.prompts.length, 9); // the seven references plus the overfitting and cross-validation prompts
   for (const ref of illustrationReferences) {
     const p = set.prompts.find(x => x.id === ref.id);
     assert.ok(p, ref.id);
@@ -96,4 +96,14 @@ test('minSeries (owner 2026-11-08, overfitting card): a one-series coordinate-pl
   const three = [{ label: 'Observed', kind: 'scatter', points: [pt(0, 1), pt(1, 2), pt(2, 5)] }, ...one, { label: 'Overfit', kind: 'line', points: [pt(0, 1), pt(1, 4), pt(2, 5)] }];
   assert.equal(scoreCard(p, card(one)).score, 'wrong');
   assert.notEqual(scoreCard(p, card(three)).score, 'wrong');
+});
+
+test('illustrations set: cross-validation is labelled one grouped bar-chart (categorical x), a coordinate-plot is wrong, five paraphrases for the offline planner check', async () => {
+  const { loadSet } = await import('./score.mjs');
+  const p = loadSet('illustrations').prompts.find(x => x.id === 'cross-validation');
+  assert.equal(p.prompt, 'how does cross-validation detect overfitting?');
+  assert.deepEqual(p.depths.standard.kinds, ['bar-chart']);
+  assert.ok(p.badKinds.includes('coordinate-plot') && !p.depths.standard.acceptableKinds.includes('coordinate-plot'));
+  assert.match(p.want, /grouped bar-chart/);
+  assert.equal(p.paraphrases.length, 5);
 });
