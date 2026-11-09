@@ -33,7 +33,7 @@ export function loadRaw(rawDir) {
       recs.push({ set, run, id: row.id, delivered: !!row.delivered && !!card?.response?.block, failure: row.failure, block: card?.response?.block || null, totalMs: row.totalMs, repaired: row.repaired,
         repairCauses: row.repairCauses || [], diagramCorrections: row.diagramCorrections, visualFallback: row.visualFallback, costUsd: row.costUsd,
         costSource: row.costSource || (row.ledgerUsd > 0 ? 'ledger' : 'estimate'), tokens: t ? { input: t.input, output: t.output, authorUsd: t.authorUsd, pictureUsd: t.pictureUsd } : null,
-        raw: row.raw ?? null, unknownKeysStripped: row.unknownKeysStripped ?? null, startedAt: row.startedAt });
+        raw: row.raw ?? null, unknownKeysStripped: row.unknownKeysStripped ?? null, picturesDropped: row.picturesDropped ?? null, startedAt: row.startedAt });
     }
   }
   return { recs, notes };
@@ -70,6 +70,8 @@ export const METRICS = [
   ['faithful to the sketch: yes', s => s.content.faithful && pair(s.content.faithful.yes, s.content.faithful.judged), 'up'],
   ['faithful to the sketch: no', s => s.content.faithful && pair(s.content.faithful.no, s.content.faithful.judged), 'down'],
   ['picture shows what the question asks: no (judge)', s => s.pictures.content && pair(s.pictures.content.no, s.pictures.content.judged), 'down'],
+  ['pictures present', s => s.pictures.present, null],
+  ['pictures dropped (status dropped or fence removed) of planned', s => s.pictures.dropped && pair(s.pictures.dropped.count, s.pictures.present + s.pictures.dropped.count), 'down'],
   ['factual score (judge mean, 1-5)', s => s.factual?.mean ?? null, 'up'],
   ['cards with a factual error', s => s.factual && pair(s.factual.withErrors, s.factual.judged), 'down'],
   ['repaired', s => pair(s.repairs.repaired, s.repairs.of), 'down'],
@@ -167,7 +169,7 @@ export function markdown(r) {
     `Server corrections: ${Object.entries(O.repairs.corrections).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}. Unknown keys stripped: ${O.repairs.unknownKeysStripped ? `${O.repairs.unknownKeysStripped.events} events, ${O.repairs.unknownKeysStripped.keys} keys, on ${O.repairs.unknownKeysStripped.cards} cards` : 'not logged'}. Raw pre-correction specs: ${O.repairs.rawLogged ? `logged for ${O.repairs.rawLogged}/${O.cards.sent} cards` : 'raw: not logged (no explanation_author_raw event in the app log)'}.`, '');
   out.push(`Slowest card: ${O.speed.slowest ? `${O.speed.slowest.at} ${O.speed.slowest.ms} ms, ${O.speed.slowest.repaired ? `repaired (${O.speed.slowest.causes.join(', ')})` : 'not repaired'}, ${O.speed.slowest.pictures} picture(s)` : '-'}.`, '');
   out.push('## Lists', ...[list('Failed sends', O.cards.failures), list('Wrong mix', O.choice.wrongList), list('Right mix, wrong kind', O.choice.rightMixWrongKind), list('Bad kind used', O.choice.badKindUsed),
-    list('Picture missing where needed', O.pictures.missing), list('Picture where none belongs', O.pictures.violations), list('Quantitative-kind prompts', O.richness.quant.list),
+    list('Picture missing where needed', O.pictures.missing), list('Picture where none belongs', O.pictures.violations), list('Pictures dropped', O.pictures.dropped?.list), list('Quantitative-kind prompts', O.richness.quant.list),
     list('Content flags', O.content.flaggedList), list('Plotted values', O.content.arithmeticList), list('Not faithful to the sketch', O.content.faithful?.list), list('Factual errors (judge)', O.factual?.list), list('Visual fallback', O.repairs.visualFallback)].filter(Boolean));
   out.push('## Cards', '', table(['set', 'run', 'id', 'mix', 'score', 'ms', 'repaired', 'US$', 'visuals (diagram kind: items, flags; picture check)'], r.cards.map(c => [c.set, c.run, c.id, c.mix.join(' + ') || '-', c.score, c.totalMs ?? '-', c.repaired ? 'yes' : '', c.costUsd ?? '-',
     c.diagrams.map(d => `${d.kind}: ${d.units}${d.flagged ? ' FLAG' : ''}${d.arithmetic?.errors ? ` ${d.arithmetic.errors} pts off` : ''}${d.faithful ? ` faithful=${d.faithful.verdict}` : ''}`).concat(c.pictures.map(p => `picture${p.content ? `: shows the question=${p.content.verdict}` : ''}`)).join('; ')])), '');

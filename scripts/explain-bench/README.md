@@ -102,7 +102,9 @@ prompts, plus 4 + 4 + 4.
 - **Kind/mix**: right = matches a best mix including the diagram kind; acceptable = matches an acceptable mix; else
   wrong. Right mix, wrong kind = the picture/diagram counts match a best mix but the kind does not. Kind regression
   pass = the best kind in every run of that prompt.
-- **Pictures, both directions**: given where every best mix has one; absent where none belongs.
+- **Pictures, both directions**: given where every best mix has one; absent where none belongs; pictures present, and
+  pictures dropped (a figure with status `dropped`, or, from `explain_figure` log events, a picture that never reached
+  `ready`, whose fence the server removed; "not known" without `--log`), per run and across runs.
 - **Size**: median drawn items per diagram; graph diagrams (flow, tree, relationship, cycle) outside 3-8 items.
 - **Field use**: share of edges labelled; which optional fields are used: caption, detail, highlightPath, units,
   point labels; labels with maths (`$...$`) or numbers.

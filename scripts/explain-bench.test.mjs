@@ -169,3 +169,15 @@ test('picture-content check: the judge reads the question, the prose either side
   assert.deepEqual(real.results.summary.judgedByRun[0].picture, [1, 1]);
   assert.match(readFileSync(join(real.runDir, 'report.md'), 'utf8'), /\| all runs \| 1\/1 \| 100% \|/);
 });
+
+test('pictures dropped: a figure with status dropped or a logged picture that never became ready; unknown without a log', () => {
+  const b = block('p', pic('pic-1')); b.figures = { 'pic-1': { status: 'ready' }, 'pic-2': { status: 'dropped' } };
+  const p = loadSet('baseline').prompts.find(x => x.id === 'heart');
+  const known = scoreCard(p, { set: 'baseline', run: 1, id: 'heart', delivered: true, block: b, totalMs: 1, picturesDropped: ['pic-3'] });
+  assert.deepEqual(known.picturesDropped, ['pic-3', 'pic-2']);
+  const s = summarize([known]);
+  assert.deepEqual([s.pictures.present, s.pictures.dropped.count, s.pictures.dropped.known], [1, 2, 1]);
+  const unknown = scoreCard(p, { set: 'baseline', run: 1, id: 'heart', delivered: true, block: block('p', pic('pic-1')), totalMs: 1 });
+  assert.equal(unknown.picturesDropped, null);
+  assert.equal(summarize([unknown]).pictures.dropped, null);
+});

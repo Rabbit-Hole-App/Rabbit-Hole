@@ -133,6 +133,8 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
       repairCauses: events(text, 'learn_artifact_invalid').map(e => ({ attempt: e.attempt, error: String(e.error).slice(0, 240) })), corrected: events(text, 'explanation_diagram_corrected').map(e => e.kind),
       diagramCorrections: block?.diagramCorrections || null, visualFallback: block?.visualFallback || null, proseLists: block?.proseLists ?? null,
       unknownKeysStripped: a.log ? { events: stripped.length, keys: stripped.reduce((s, e) => s + (Array.isArray(e.keys) ? e.keys.length : e.count ?? 1), 0) } : null,
+      // explanation-figures.js logs explain_figure per attempt; a picture with no "ready" outcome was dropped and its fence removed. null = no --log.
+      picturesDropped: a.log ? (f => [...new Set(f.map(e => e.id))].filter(id => !f.some(e => e.id === id && e.outcome === 'ready')))(events(text, 'explain_figure')) : null,
       raw: raw.length ? raw : null, // null = raw: not logged (the server writes no explanation_author_raw line yet, or no --log)
       modelCalls: events(text, 'learn_model').map(e => ({ served: e.served, status: e.status, outcome: e.outcome, error: e.error, ms: e.durationMs })) };
     writeFileSync(join(dir, 'cards', `${q.id}.json`), JSON.stringify({ row, response }, null, 1));

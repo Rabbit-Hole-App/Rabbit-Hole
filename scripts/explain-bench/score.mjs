@@ -187,6 +187,8 @@ export function scoreCard(p, rec) {
     repaired: !!rec.repaired || (rec.repairCauses || []).length > 0, repairCauses: (rec.repairCauses || []).map(c => ({ attempt: c.attempt, cause: repairCause(c.error), error: String(c.error).slice(0, 240) })),
     corrections: rec.diagramCorrections || block?.diagramCorrections || null, visualFallback: rec.visualFallback || block?.visualFallback || null,
     unknownKeysStripped: rec.unknownKeysStripped ?? null, raw: rec.raw ?? null,
+    // Pictures dropped: a figure with status "dropped", or (from the app log) a picture that never reached "ready", whose fence the server removed. null = not known (no log).
+    picturesDropped: (f => (rec.picturesDropped || f.length ? [...new Set([...(rec.picturesDropped || []), ...f])] : null))(Object.entries(block?.figures || {}).filter(([, x]) => x?.status === 'dropped').map(([id]) => id)),
     proseLists: block?.proseLists ?? null,
     output: block ? { title: (block.title || '').length, visuals: [...String(block.body).matchAll(FENCE)].reduce((s, m) => s + m[2].trim().length, 0), body: prose.trim().length,
       questions: (it?.questions || []).reduce((s, x) => s + String(x.text || '').length, 0), terms: (it?.terms || []).reduce((s, x) => s + String(x.label || '').length + String(x.definition || '').length, 0) } : null,
@@ -224,6 +226,8 @@ export function summarize(cards) {
     regression: regression && { prompts: regression.length, pass: regression.filter(r => r.hits === r.runs).length, list: regression },
     pictures: { needed: need.length, given: need.filter(c => c.hasPicture).length, missing: need.filter(c => !c.hasPicture).map(c => `${at(c)}: ${c.mix.join('+')}`),
       noPictureSubjects: none.length, violations: none.filter(c => c.hasPicture).map(c => `${at(c)}: ${c.mix.join('+')}`),
+      present: D.reduce((s, c) => s + c.pictures.length, 0),
+      dropped: (k => (k.length ? { known: k.length, count: k.reduce((s, c) => s + c.picturesDropped.length, 0), list: k.filter(c => c.picturesDropped.length).map(c => `${at(c)}: ${c.picturesDropped.join(', ')}`) } : null))(D.filter(c => Array.isArray(c.picturesDropped))),
       content: (j => (j.length ? { judged: j.length, no: j.filter(x => x.content.verdict === 'no').length, list: j.filter(x => x.content.verdict === 'no').map(x => `${x.at}: "${x.caption}" (${x.content.reason})`) } : null))(D.flatMap(c => c.pictures.filter(x => x.content).map(x => ({ ...x, at: at(c) })))) },
     richness: { diagrams: dg.length, sizeMedian: quantile(dg.map(d => d.units), 0.5), graphDiagrams: graph.length, graphOutside3to8: graph.filter(d => d.units < 3 || d.units > 8).length,
       edges: dg.reduce((s, d) => s + d.edges, 0), labelledEdges: dg.reduce((s, d) => s + d.labelledEdges, 0),
