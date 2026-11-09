@@ -365,7 +365,7 @@ const routes = {
     // Learn Artifact Generation v1: a / command's validated canvas block
     // (docs/features/learn-artifact-generation.md).
     // Both refuse a non-owner in subscription mode after their own authorization.
-    if (path === '/api/learn/artifact') return artifactFetch(req, env);
+    if (path === '/api/learn/artifact') return artifactFetch(req, env, undefined, { waitUntil: ctx?.waitUntil ? work => ctx.waitUntil(work) : null }); // a card's pictures finish after it is answered
     // The inline AI editor (docs/features/inline-ai-editor.md): JEV routing, the streamed note or edit, and its telemetry.
     if (path === '/api/learn/inline/route') return inlineRouteFetch(req, env);
     if (path === '/api/learn/inline/decide') return inlineDecideFetch(req, env);
