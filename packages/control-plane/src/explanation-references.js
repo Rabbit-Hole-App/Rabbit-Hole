@@ -1,5 +1,7 @@
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
+import shapeExamples from '../../web/src/tutor-diagrams/examples.json' with { type: 'json' };
+import { messaging, repeats } from './explanation-visuals.js';
 
 const MAX_REFERENCES = 2;
 const MAX_CONTEXT = 14_000;
@@ -58,8 +60,23 @@ export function selectDiagramReferences({ prompt = '', context = '', requiredKin
     chars += length;
     if (picked.length === MAX_REFERENCES) break;
   }
-  return picked;
+  if (picked.length || required.size) return picked;
+  // Owner 2026-11-08: no topical reference scored, so one generic shape example of the kind the learner's words suggest (none when no signal matches).
+  const kind = fallbackKind(prompt), example = kind && shapeExamples.find(spec => spec.diagram.kind === kind);
+  return example ? [{ id: `shape-${kind}`, useWhen: `Shape example for a ${kind} diagram on another subject. Use its structure, not its content.`, spec: parseTutorDiagram(example) }] : [];
 }
+
+// The kind for a shape example, from the learner's words, first match wins (owner 2026-11-08 word lists; repeats and messaging are the existing signals).
+const DATE_WORDS = /\b(?:\d{3,4}s?|years?|centur(?:y|ies)|empires?|history|historical|timelines?|eras?|dynast(?:y|ies))\b/i;
+const FORMULA_WORDS = /\b(?:formulas?|equations?|loss(?:es)?|impurity|entropy|metrics?|probabilit(?:y|ies)|accuracy|precision|recall|scores?|functions?)\b/i;
+const TREE_WORDS = /\b(?:parts? of|hierarch(?:y|ies|ical)|splits?)\b/i;
+const COMPARE_WORDS = /\b(?:vs\.?|versus|compar(?:e|es|ed|ing|ison)|differences?|differ)\b/i;
+export const fallbackKind = text => {
+  const t = String(text ?? '');
+  // comparison before formula: "the difference between precision and recall" compares two metrics (selector bench, 2026-11-08)
+  return repeats(t) ? 'cycle' : messaging(t) ? 'sequence' : DATE_WORDS.test(t) ? 'timeline' : COMPARE_WORDS.test(t) ? 'comparison'
+    : FORMULA_WORDS.test(t) ? 'coordinate-plot' : TREE_WORDS.test(t) ? 'tree' : null;
+};
 
 // The start of the reference block in a system prompt; the fast chain moves the block to the end of its system message (assembledSystem).
 export const REFERENCE_MARK = '\nApproved diagram references';

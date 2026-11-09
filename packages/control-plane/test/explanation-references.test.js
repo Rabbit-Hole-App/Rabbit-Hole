@@ -139,3 +139,21 @@ test('M4: a panel bundle allows at most two panels', () => {
   const spec = (fit.properties.visuals.items.oneOf ?? fit.properties.visuals.items.anyOf).find(v => v.properties.spec).properties.spec.properties.diagram;
   assert.equal((spec.oneOf ?? spec.anyOf).find(b => b.properties.kind.const === 'comparison').properties.panels.maxItems, 2);
 });
+
+// Owner 2026-11-08: no topical reference scored -> one generic shape example of the kind the learner's words suggest; topical references still win; a
+// required kind or no signal word -> none, as before.
+test('shape-example fallback: one examples.json entry of the signalled kind, only when nothing topical scores', async () => {
+  const { fallbackKind } = await import('../src/explanation-references.js');
+  const cases = [['How does the TCP handshake work?', 'sequence'], ['How did the Roman Empire rise and fall?', 'timeline'], ['What is entropy?', 'coordinate-plot'],
+    ['What is the difference between precision and recall?', 'comparison'], ['Why do the seasons repeat?', 'cycle'], ['What are the parts of a sentence?', 'tree']];
+  for (const [prompt, kind] of cases) {
+    assert.equal(fallbackKind(prompt), kind, prompt);
+    const refs = selectDiagramReferences({ prompt });
+    assert.equal(refs.length, 1, prompt);
+    assert.equal(refs[0].id, `shape-${kind}`); assert.equal(refs[0].spec.diagram.kind, kind);
+    assert.match(refs[0].useWhen, /^Shape example for a .+ diagram on another subject\. Use its structure, not its content\.$/);
+  }
+  assert.ok(selectDiagramReferences({ prompt: 'What is a learning rate schedule?' }).every(r => !r.id.startsWith('shape-')), 'a topical reference wins');
+  assert.deepEqual(selectDiagramReferences({ prompt: 'How is the Roman Empire organized?', requiredKinds: ['tree'] }), []);
+  assert.equal(fallbackKind('Explain an unfamiliar general concept'), null);
+});
