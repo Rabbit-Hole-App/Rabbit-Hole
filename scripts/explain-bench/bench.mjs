@@ -144,6 +144,7 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
       failure: block ? null : String(canvas ? response?.code || response?.error || response?.result || `http_${res.status}` : 'no canvas').slice(0, 300),
       authoredBy: block?.authoredBy || null, profile: response?.profile || null, repaired: !!response?.repaired, attempts: response?.attempts || null, authorCalls, pictures,
       ledgerUsd, estUsd, costUsd, costSource: ledgerUsd > 0 ? 'ledger' : 'estimate',
+      steer: a.log ? events(text, 'explanation_plan_kind_from_reference').map(({ event, ...rest }) => rest) : null, // a reference's exact-prompt / score >= 12 match set the plan kind; null = no --log
       repairCauses: events(text, 'learn_artifact_invalid').map(e => ({ attempt: e.attempt, error: String(e.error).slice(0, 240) })), corrected: events(text, 'explanation_diagram_corrected').map(e => e.kind),
       diagramCorrections: block?.diagramCorrections || null, visualFallback: block?.visualFallback || null, proseLists: block?.proseLists ?? null,
       unknownKeysStripped: a.log ? { events: stripped.length, keys: stripped.reduce((s, e) => s + (Array.isArray(e.keys) ? e.keys.length : e.count ?? 1), 0) } : null,
