@@ -109,16 +109,28 @@ test('requires a single-root connected DAG and allows branches that merge', () =
   })), /cycle|reach/i);
 });
 
-test('sequence self-messages require an ordinary message before and after each one', () => {
+test('sequence self-messages can appear first, in the middle, or last', () => {
   const sequence = structuredClone(other.find(d => d.kind === 'sequence'));
   const [request] = sequence.messages;
-  const internal = { from: 's', to: 's', label: 'Read from cache' };
+  const sign = { from: 'c', to: 'c', label: 'Sign request' };
+  const verify = { from: 's', to: 's', label: 'Verify request' };
   const reply = { from: 's', to: 'c', label: 'Send reply' };
-  const valid = versioned({ ...sequence, messages: [request, internal, reply] });
-  assert.deepEqual(parseTutorDiagram(valid), valid);
-  for (const messages of [[internal, reply], [request, internal], [request, internal, internal, reply]]) {
-    assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages })), /self-message.*ordinary/i);
+  for (const messages of [[sign, request], [request, verify, reply], [request, verify], [sign, request, verify]]) {
+    const valid = versioned({ ...sequence, messages });
+    assert.deepEqual(parseTutorDiagram(valid), valid);
   }
+});
+
+test('a sequence requires an ordinary message and rejects consecutive self-messages', () => {
+  const sequence = structuredClone(other.find(d => d.kind === 'sequence'));
+  const [request] = sequence.messages;
+  const sign = { from: 'c', to: 'c', label: 'Sign request' };
+  const verify = { from: 's', to: 's', label: 'Verify request' };
+  const audit = { from: 's', to: 's', label: 'Record verification' };
+  for (const messages of [[request, verify, audit], [sign, verify, request]]) {
+    assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages })), /consecutive self-messages/i);
+  }
+  assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages: [sign] })), /message between different actors/i);
 });
 
 test('rejects missing sequence actors, duplicate actor IDs, and ragged matrices', () => {

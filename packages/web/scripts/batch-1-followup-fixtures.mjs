@@ -12,6 +12,20 @@ export const sequenceSelfMessage = {
   },
 };
 
+const [sendEncryptedMessage, decryptMessage] = sequenceSelfMessage.diagram.messages;
+export const sequenceBoundarySelfMessages = {
+  version: 1,
+  diagram: {
+    ...sequenceSelfMessage.diagram,
+    title: 'Encrypt, send and decrypt a message',
+    messages: [
+      { from: 'sender', to: 'sender', label: 'Encrypt with the receiver’s public key' },
+      sendEncryptedMessage,
+      decryptMessage,
+    ],
+  },
+};
+
 export const convergingFlow = {
   version: 1,
   diagram: {
