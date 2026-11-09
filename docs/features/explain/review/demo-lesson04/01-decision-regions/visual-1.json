@@ -1,0 +1,82 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Leaf regions on the feature plane",
+  "caption": "Illustrative split thresholds dividing the plane into rectangular regions.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Feature x_1",
+   "min": 0,
+   "max": 8
+  },
+  "y": {
+   "label": "Feature x_2",
+   "min": 0,
+   "max": 8
+  },
+  "series": [
+   {
+    "label": "Class A",
+    "kind": "scatter",
+    "points": [
+     {
+      "x": 1,
+      "y": 1
+     },
+     {
+      "x": 2,
+      "y": 2
+     },
+     {
+      "x": 1,
+      "y": 6
+     }
+    ]
+   },
+   {
+    "label": "Class B",
+    "kind": "scatter",
+    "points": [
+     {
+      "x": 6,
+      "y": 2
+     },
+     {
+      "x": 5,
+      "y": 6
+     },
+     {
+      "x": 7,
+      "y": 7
+     }
+    ]
+   }
+  ],
+  "annotations": [
+   {
+    "kind": "rectangle",
+    "label": "Region 1",
+    "xMin": 0,
+    "xMax": 4,
+    "yMin": 0,
+    "yMax": 8
+   },
+   {
+    "kind": "rectangle",
+    "label": "Region 2",
+    "xMin": 4,
+    "xMax": 8,
+    "yMin": 0,
+    "yMax": 4
+   },
+   {
+    "kind": "rectangle",
+    "label": "Region 3",
+    "xMin": 4,
+    "xMax": 8,
+    "yMin": 4,
+    "yMax": 8
+   }
+  ]
+ }
+}

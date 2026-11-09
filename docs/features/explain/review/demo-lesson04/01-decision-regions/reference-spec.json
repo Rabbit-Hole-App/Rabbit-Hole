@@ -1,0 +1,90 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Feature x",
+   "min": 0,
+   "max": 8
+  },
+  "y": {
+   "label": "Feature y",
+   "min": 0,
+   "max": 8
+  },
+  "series": [
+   {
+    "label": "Class 0",
+    "kind": "scatter",
+    "points": [
+     {
+      "x": 1,
+      "y": 1
+     },
+     {
+      "x": 1,
+      "y": 5
+     },
+     {
+      "x": 3,
+      "y": 3
+     },
+     {
+      "x": 3,
+      "y": 7
+     },
+     {
+      "x": 5,
+      "y": 1
+     }
+    ]
+   },
+   {
+    "label": "Class 1",
+    "kind": "scatter",
+    "points": [
+     {
+      "x": 5,
+      "y": 3
+     },
+     {
+      "x": 7,
+      "y": 5
+     },
+     {
+      "x": 7,
+      "y": 7
+     }
+    ]
+   }
+  ],
+  "title": "Leaf regions on the feature plane",
+  "annotations": [
+   {
+    "kind": "rectangle",
+    "label": "Predict 0",
+    "xMin": 0,
+    "xMax": 4,
+    "yMin": 0,
+    "yMax": 8
+   },
+   {
+    "kind": "rectangle",
+    "label": "Predict 0",
+    "xMin": 4,
+    "xMax": 8,
+    "yMin": 0,
+    "yMax": 2
+   },
+   {
+    "kind": "rectangle",
+    "label": "Predict 1",
+    "xMin": 4,
+    "xMax": 8,
+    "yMin": 2,
+    "yMax": 8
+   }
+  ],
+  "caption": "Worked example. The vertical cut spans the plot. The horizontal cut divides only the right side."
+ }
+}

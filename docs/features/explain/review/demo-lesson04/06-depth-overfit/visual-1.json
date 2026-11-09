@@ -1,0 +1,65 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Training and held-out error by depth",
+  "caption": "Worked example. The deepest tree fits training rows and makes more mistakes on held-out rows.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Max depth",
+   "min": 0,
+   "max": 2
+  },
+  "y": {
+   "label": "Error rate",
+   "min": 0,
+   "max": 100,
+   "unit": "%"
+  },
+  "series": [
+   {
+    "label": "Training",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 37.5
+     },
+     {
+      "x": 1,
+      "y": 12.5
+     },
+     {
+      "x": 2,
+      "y": 0
+     }
+    ]
+   },
+   {
+    "label": "Held out",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 50
+     },
+     {
+      "x": 1,
+      "y": 0
+     },
+     {
+      "x": 2,
+      "y": 50
+     }
+    ]
+   }
+  ],
+  "annotations": [
+   {
+    "kind": "reference-line",
+    "label": "Best held-out depth",
+    "axis": "x",
+    "value": 1
+   }
+  ]
+ }
+}

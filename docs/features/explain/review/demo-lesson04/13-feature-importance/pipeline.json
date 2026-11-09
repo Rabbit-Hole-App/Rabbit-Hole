@@ -1,0 +1,222 @@
+{
+ "run": "2026-11-09T112024-demo-lesson04-balanced",
+ "plan": {
+  "planner": "jev",
+  "ms": 341,
+  "kind": "comparison",
+  "fixed": true,
+  "offered": null,
+  "treatment": "mechanism",
+  "confidence": 0.74,
+  "physical": 0.07,
+  "pictures": 0,
+  "diagrams": 1,
+  "physicalOverride": null
+ },
+ "raw": [
+  {
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "comparison"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "comparison",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.74,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.73,
+     "isPhysical": 0.07,
+     "needsWorkedExample": 0.77
+    },
+    "ms": 341
+   },
+   "references": [
+    "shape-comparison"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Feature Importance Comparison",
+       "kind": "comparison",
+       "columns": [
+        {
+         "heading": "Impurity-based",
+         "items": [
+          "Biased toward high cardinality",
+          "Biased toward continuous variables",
+          "Overrates random noise features",
+          "Computed during training"
+         ]
+        },
+        {
+         "heading": "Permutation",
+         "items": [
+          "Unbiased across feature types",
+          "Evaluates out-of-sample drop",
+          "Correctly scores noise near zero",
+          "Computed after training"
+         ]
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "comparison"
+   ]
+  }
+ ],
+ "row": {
+  "id": "ml-trees-feature-importance",
+  "set": "demo-lesson04",
+  "run": 1,
+  "depth": "standard",
+  "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+  "canvas": "canvas-44fb2586",
+  "startedAt": "2026-11-09T19:21:17.852Z",
+  "http": 200,
+  "totalMs": 3126,
+  "delivered": true,
+  "failure": null,
+  "authoredBy": {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite"
+  },
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "repaired": false,
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "authorCalls": 1,
+  "pictures": 0,
+  "ledgerUsd": 0.002231,
+  "estUsd": 0.008,
+  "costUsd": 0.002231,
+  "costSource": "ledger",
+  "repairCauses": [],
+  "corrected": [],
+  "diagramCorrections": null,
+  "visualFallback": null,
+  "proseLists": 0,
+  "unknownKeysStripped": {
+   "events": 0,
+   "keys": 0
+  },
+  "picturesDropped": [],
+  "raw": [
+   {
+    "attempt": 0,
+    "plan": {
+     "visuals": [
+      {
+       "type": "diagram",
+       "kind": "comparison"
+      }
+     ],
+     "depthTreatment": "mechanism",
+     "kind": "comparison",
+     "fixed": true,
+     "confidence": {
+      "kind": 0.74,
+      "visualType": 1
+     },
+     "flags": {
+      "needsPlot": 0.73,
+      "isPhysical": 0.07,
+      "needsWorkedExample": 0.77
+     },
+     "ms": 341
+    },
+    "references": [
+     "shape-comparison"
+    ],
+    "visuals": [
+     {
+      "k": "diagram",
+      "spec": {
+       "version": 1,
+       "diagram": {
+        "title": "Feature Importance Comparison",
+        "kind": "comparison",
+        "columns": [
+         {
+          "heading": "Impurity-based",
+          "items": [
+           "Biased toward high cardinality",
+           "Biased toward continuous variables",
+           "Overrates random noise features",
+           "Computed during training"
+          ]
+         },
+         {
+          "heading": "Permutation",
+          "items": [
+           "Unbiased across feature types",
+           "Evaluates out-of-sample drop",
+           "Correctly scores noise near zero",
+           "Computed after training"
+          ]
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "kinds": [
+     "comparison"
+    ]
+   }
+  ],
+  "modelCalls": [
+   {
+    "served": "gemini-3.5-flash-lite",
+    "status": 200,
+    "outcome": "completed",
+    "error": null,
+    "ms": 2515
+   }
+  ]
+ },
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "tokens": {
+  "input": 3501,
+  "output": 472,
+  "authorUsd": 0.002231,
+  "pictureUsd": 0
+ },
+ "totalMs": 3126,
+ "costUsd": 0.002231
+}

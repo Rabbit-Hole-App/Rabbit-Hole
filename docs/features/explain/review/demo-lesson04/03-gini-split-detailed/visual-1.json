@@ -1,0 +1,32 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "A decision tree split with Gini and samples",
+  "caption": "Illustrative counts. For parent with 12 items, split gives left (7) and right (5) nodes.",
+  "kind": "tree",
+  "nodes": [
+   {
+    "id": "root",
+    "label": "$x_1 \\le 4$?",
+    "count": 12,
+    "detail": "$\\text{Gini} = 0.444$"
+   },
+   {
+    "id": "left",
+    "label": "Left branch",
+    "parent": "root",
+    "edgeLabel": "$x_1 \\le 4$",
+    "count": 7,
+    "detail": "4 A, 3 B"
+   },
+   {
+    "id": "right",
+    "label": "Right branch",
+    "parent": "root",
+    "edgeLabel": "$x_1 > 4$",
+    "count": 5,
+    "detail": "0 A, 5 B"
+   }
+  ]
+ }
+}

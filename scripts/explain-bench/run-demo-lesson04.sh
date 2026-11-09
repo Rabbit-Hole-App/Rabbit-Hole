@@ -22,7 +22,7 @@ RUNS=()
 runbench() { # label depth ids
   local log; log=$(mktemp)
   node $B/bench.mjs "${COMMON[@]}" --label "$1" --depth "$2" --only "$3" | tee "$log"
-  local rc=${PIPESTATUS[0]} dir; dir=$(sed -n 's/^RESULT .* report=\(.*\)\/report\.md.*/\1/p' "$log" | tail -1); rm -f "$log"
+  local rc=${PIPESTATUS[0]} dir; dir=$(tr '\\' / < "$log" | sed -n 's/^RESULT .* report=\(.*\)\/report\.md.*/\1/p' | tail -1); rm -f "$log"
   [ "$rc" = 4 ] && { echo "bench INVALID (provider or stack refusal); stopping" >&2; exit 4; }
   [ -n "$dir" ] && RUNS+=("$dir")
 }
