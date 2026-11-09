@@ -20,17 +20,17 @@ const KIND = {
   timeline: 'Events ordered by dates, years or eras.',
   tree: 'A hierarchy, parts of one thing, splits, recursive calls; binary trees, BSTs, heaps, decision trees as structures.',
   relationship: 'Named things linked by labelled relations, including feedback and cycles between them; causes and effects.',
-  transformation: 'The same thing before and after an operation: reshape, encode, normalise, differencing.',
+  transformation: 'The same thing before and after an operation: reshape, encode, normalise, differencing. Never for a function, wave or encoding over position or time.',
   comparison: 'Two to four separate things set side by side on shared attributes.',
-  layers: 'A real ordered stack: network layers, atmosphere, software tiers, a transformer block.',
+  layers: 'A real ordered stack: network layers, atmosphere, software tiers, a transformer block. A stack: frames or levels pushed and popped (a call stack, a protocol stack), even when the question mentions recursion.',
   matrix: 'A grid of values with row and column headings: truth table, confusion matrix.',
-  'coordinate-plot': 'How one quantity varies with another: a function\'s curve, a loss curve, a decision boundary, points in a plane.',
+  'coordinate-plot': 'How one quantity varies with another: a function\'s curve, a loss curve, a decision boundary, points in a plane. A function, wave or periodic quantity over a position or time (sinusoidal position encoding), or a set of points with centroids or a fitted line (k-means clustering).',
   'bar-chart': 'Comparing a few quantities by size, one worked example.',
   histogram: 'The distribution of one numeric variable in bins.',
   'box-plot': 'Quartiles, median, whiskers, outliers of one or more groups.',
   heatmap: 'A numeric grid coloured by value, with an explicit scale.',
   'number-line': 'Values and intervals on one axis.',
-  figure: 'A labelled schematic of a cell, a free-body force diagram, or a layered cross-section only.',
+  figure: 'A labelled schematic of a cell, a free-body force diagram, or a layered cross-section only; a device or machine (a lens, an engine, a camera) is a flow or sequence of what it does, not a figure.',
   'sample-set': 'Identifiable samples and their group membership, replacement or weights (bootstrap, folds).',
   argument: 'A claim with supporting and opposing evidence and a conclusion.',
   't-account': 'Debits and credits.',
@@ -72,6 +72,8 @@ export function cases(setDir = join(HERE, 'sets')) {
   const ai = JSON.parse(readFileSync(join(setDir, 'aiml.json'), 'utf8'));
   for (const p of ai.prompts) out.push({ set: 'aiml', id: p.id, depth: 'standard', prompt: p.prompt, best: p.best, acceptable: p.acceptable,
     quantity: [...kindsIn([p.best[0] || []])].some(k => k === 'coordinate-plot' || k === 'bar-chart') });
+  // The review loop's batch-01 prompts (owner 2026-11-09): same best/acceptable notation as aiml.json; read when the file is there.
+  try { for (const p of JSON.parse(readFileSync(join(setDir, 'review-batch-01.json'), 'utf8')).prompts) out.push({ set: 'review-batch-01', id: p.id, depth: 'standard', prompt: p.prompt, best: p.best, acceptable: p.acceptable, quantity: [...kindsIn([p.best[0] || []])].some(k => k === 'coordinate-plot' || k === 'bar-chart') }); } catch { /* shortcut: a missing set file is skipped, the bench keeps its two original sets */ }
   return out.map(c => ({ ...c, rightKinds: kindsIn(c.best), okKinds: new Set([...kindsIn(c.best), ...kindsIn(c.acceptable)]),
     expectType: (ms => (ms.some(m => m.includes('P') && m.some(t => t.startsWith('D:'))) ? ['both'] : []).concat(ms.some(m => m.length && m.every(t => t === 'P')) ? ['picture'] : [], ms.some(m => m[0]?.startsWith('D:')) ? ['diagram'] : []))(c.best) }));
 }

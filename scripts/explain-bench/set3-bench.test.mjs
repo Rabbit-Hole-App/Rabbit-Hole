@@ -55,3 +55,20 @@ test('planner replay rejects duplicate and mismatched captured cases', () => {
   assert.throws(() => scorePlannerReplay(cases, [{ ...saved[0], prompt: 'Something else' }], scoring), /prompt/i);
   assert.throws(() => scorePlannerReplay(cases, [{ ...saved[0], depth: 'deep' }], scoring), /unknown/i);
 });
+
+test('review-batch-01 set (owner 2026-11-09): ten prompts plus three paraphrases each for positional encoding, k-means and the call stack, labelled with the REVIEW.md kinds; and the planner kind text carries the three data-shaped sentences in production and bench alike', async () => {
+  const { cases, QUESTIONS: bench } = await import('./planner.mjs');
+  const { QUESTIONS: prod } = await import('../../packages/control-plane/src/explanation-planner.js');
+  const rows = cases().filter(c => c.set === 'review-batch-01');
+  assert.equal(rows.length, 19);
+  const want = { 'positional-encoding': 'coordinate-plot', 'k-means': 'coordinate-plot', 'call-stack': 'layers' };
+  for (const [id, kind] of Object.entries(want)) {
+    const group = rows.filter(r => r.id === id || r.id.startsWith(id + '-p'));
+    assert.equal(group.length, 4, id);
+    assert.ok(group.every(r => r.rightKinds.has(kind)), id);
+  }
+  assert.deepEqual(bench.kind.criteria, prod.kind.criteria, 'bench and production kind text are one text');
+  assert.match(prod.kind.criteria.layers, /pushed and popped/);
+  assert.match(prod.kind.criteria['coordinate-plot'], /periodic quantity over a position or time/);
+  assert.match(prod.kind.criteria.transformation, /Never for a function, wave or encoding/);
+});
