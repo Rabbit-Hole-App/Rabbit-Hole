@@ -78,8 +78,8 @@ test('both references round-trip as lint-clean saved version 1 diagrams', () => 
   }
 });
 
-function renderMarks(id, width) {
-  const { spec } = referenceFor(id);
+function renderMarks(id, width, edit = spec => spec) {
+  const spec = edit(structuredClone(referenceFor(id).spec));
   const { element, width: renderedWidth, height } = renderTutorDiagram(JSON.stringify(spec), width);
   const svg = renderToStaticMarkup(element);
   assert.match(svg, /^<svg .*role="img"/);
@@ -92,9 +92,11 @@ function renderMarks(id, width) {
 
 test('the run band and flag align with the observed counts at all three widths', () => {
   for (const width of widths) {
-    const marks = renderMarks(runId, width);
+    // A line series of more than six points marks only its first and last point and labelled points (owner 2026-11-08): the run's start point, which the band is checked against, is labelled here.
+    const labelRunStart = spec => { for (const series of spec.diagram.series) for (const point of series.points) if (point.x === 7 && point.y === 5) point.label = 'Run start'; return spec; };
+    const marks = renderMarks(runId, width, labelRunStart);
     const observations = marks.filter(mark => mark.props['data-tutor-coordinate-point']);
-    assert.equal(observations.length, 12);
+    assert.equal(observations.length, 3, 'first point, the labelled run start and the last point');
     const start = observations.find(mark => mark.props['data-tutor-coordinate-point'] === '7,5');
     const end = observations.find(mark => mark.props['data-tutor-coordinate-point'] === '12,5');
     const band = marks.find(mark => mark.props['data-tutor-plot-band']);
