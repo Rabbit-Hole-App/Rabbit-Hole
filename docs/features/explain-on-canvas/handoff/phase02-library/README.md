@@ -60,6 +60,8 @@ The reference index lists all JSON/SVG pairs and their lesson mapping. The archi
 
 The selector adds **at most two** complete JSON examples and at most 14,000 characters of example context. It uses learner words before source context and filters explicit required kinds. When a required kind matches a leaf inside a composition, it can supply that valid leaf as a standalone example. If no topic matches and a kind is known, it supplies the neutral gallery shape for that kind. An unfamiliar ordinary hierarchy can use `shape-tree`, which uses the hierarchy layout. Repairs retain the same references. Other commands receive none. It makes no extra model call.
 
+The learner-keyword audit checked 406 references. The 391 entries that lacked short learner topics each gained two phrases in [the audit table](../../../../../packages/web/src/tutor-diagrams/reference-learner-keywords.json). A request such as “show me the class balance across folds” uses the short-topic match. Longer requests and attachment context use each reference's original keywords.
+
 The JSON Schema is nonrecursive and serializable; its size is recorded in the execution receipt below. Runtime checks enforce additional invariants that JSON Schema cannot express. The schema still uses `version: 1` and retains the existing 16,384-character whole-diagram limit. Old specs preserve their existing render treatment; unknown new kinds need the coordinated new reader.
 
 ### Worked estimation and validation
