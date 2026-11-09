@@ -13,6 +13,9 @@ import { references as batch2bTuning } from './ml-batch2b-tuning-references.js';
 import { references as batch2cPsi } from './ml-batch2c-psi-references.js';
 import { references as batch2cElimination } from './ml-batch2c-elimination-references.js';
 import { references as batch2cImbalance } from './ml-batch2c-imbalance-references.js';
+import { references as batch3aForecast } from './ml-batch3a-forecast-references.js';
+import { references as batch3aCorrelation } from './ml-batch3a-correlation-references.js';
+import { references as batch3aSeries } from './ml-batch3a-series-references.js';
 
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
@@ -27,7 +30,8 @@ export const diagramReferences = Object.freeze([
   ...topology, ...statistical, ...plot, ...data, ...composition,
   ...batch2aEncoding, ...batch2aTransform, ...batch2aEvaluation,
   ...batch2bFits, ...batch2bEnsembles, ...batch2bTuning,
-  ...batch2cImbalance, ...batch2cElimination, ...batch2cPsi, ...generic,
+  ...batch2cImbalance, ...batch2cElimination, ...batch2cPsi,
+  ...batch3aSeries, ...batch3aCorrelation, ...batch3aForecast, ...generic,
 ]);
 
 export const PHASE02_SOURCE = Object.freeze({
