@@ -45,14 +45,14 @@
     },
     "ml-llama-decoder-block": {
       "balanced": {
-        "tokens": 164,
-        "sha256": "71c212ab2b6f83e6c75685c88d310b866420934745b3c9d0d0f960e5e2106a8b",
-        "authorPacketTokens": 210
+        "tokens": 162,
+        "sha256": "de2003393ad0c2ef8ee50ff026045b8d581fd33c630d2d990c7d40d7d253eb30",
+        "authorPacketTokens": 208
       },
       "brief": {
-        "tokens": 143,
-        "sha256": "99f40a9ce194c4632c8f0bc1e5fd4fb2951f9aec52e461bcb26cc57c64e3fe66",
-        "authorPacketTokens": 189
+        "tokens": 147,
+        "sha256": "08b26d6b7bd8c6b3ca8326ab21a07f8c5117d4e464fa945af7428a990e2a1d67",
+        "authorPacketTokens": 193
       },
       "detailed": {
         "tokens": 166,
@@ -80,22 +80,22 @@
     "ml-gemma-decoder-stack": {
       "balanced": {
         "tokens": 169,
-        "sha256": "4bea70d17dbe000d6dc29786bd26afff95f429f5a90daf6e84ed8fda6e487f05",
+        "sha256": "275939fba5508cb0fba04777a2b13194023804fc68d24f6b0c1afff1bc55e5fb",
         "authorPacketTokens": 241
       },
       "brief": {
         "tokens": 109,
-        "sha256": "e3e84057fe1c9369bed2588b81ee0a5a2da9e964f555df13f771aaf9e3ab28a6",
+        "sha256": "3162698c8321184a102c5d09a5aa917d53dc92688edd29b4bf9be0ec112c2ee6",
         "authorPacketTokens": 181
       },
       "detailed": {
-        "tokens": 391,
-        "sha256": "d57e2d89bd25410291d2bbfc04780514ebdd7e7c3d8f26e864b6486272c86c06",
-        "authorPacketTokens": 465,
+        "tokens": 386,
+        "sha256": "55b65e780dc847ea8251410ecdd06621b6d73ba7ea66f1abb46b269d3cef79ee",
+        "authorPacketTokens": 460,
         "visuals": [
           {
-            "tokens": 320,
-            "sha256": "1905c630da945da117b2c90845980940e9abc4a21338dfd53d57e4016656bc95",
+            "tokens": 315,
+            "sha256": "5a9e3411173477846acf1f6104ff97ae0fa0b39f6ea997878024bdd0f03a85ee",
             "maxSpecTokens": 320
           },
           {
@@ -114,23 +114,23 @@
     },
     "ml-transformer-token-embeddings": {
       "balanced": {
-        "tokens": 295,
-        "sha256": "0925358b0b3edc7043a008b8840a8dedf9c1130038ea715f405d2ea8d16d838b",
-        "authorPacketTokens": 347
+        "tokens": 243,
+        "sha256": "b1fa2aa7eb1761558d98196288eb6d302af3e4404a6aa3ae46371717e73da03d",
+        "authorPacketTokens": 297
       },
       "brief": {
-        "tokens": 245,
-        "sha256": "80035511e1f61a2ab58833a62b9f00ad14f7209a9ff53cae26063d2d33e14eac",
+        "tokens": 243,
+        "sha256": "5d0cafa48a7894f1e4bd5a77bb521d156faedaa53a5508b1ef03d593c8aba959",
         "authorPacketTokens": 297
       },
       "detailed": {
-        "tokens": 561,
-        "sha256": "44e3830e7d938a5ce154c70c4180e1a215c56f4d26617205cc8bceb32fe70969",
-        "authorPacketTokens": 613,
+        "tokens": 504,
+        "sha256": "b64dd5905c08bdbb1467731cf4e1181b8ad935a8caae7b3f1fb421df19667111",
+        "authorPacketTokens": 558,
         "visuals": [
           {
-            "tokens": 299,
-            "sha256": "144e6e8fb8796c2013da69312d55f811faeca7f57abe213e1c04fab4a2f3d0ee"
+            "tokens": 242,
+            "sha256": "a22509b109f70ec14d359e060a09edf767f8a1142bff54e3141c84e5281f4bce"
           },
           {
             "tokens": 260,
