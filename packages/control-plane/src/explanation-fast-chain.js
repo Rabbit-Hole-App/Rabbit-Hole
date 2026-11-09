@@ -17,7 +17,7 @@ import { authorPicture, parseIllustration } from './learn-primitives.js';
 import { spendTransport } from './learn-spend.js';
 import { exclusiveOneOfToAnyOf } from './interact-model-adapters.js';
 import { chainSteps } from './explanation-models.js';
-import { NEW_KINDS, listForm } from './explanation-references.js';
+import { NEW_KINDS, REFERENCE_MARK, listForm } from './explanation-references.js';
 
 export const FALLBACK_SETTING = 'EXPLANATION_FALLBACK';
 export const STREAM_SETTING = 'EXPLANATION_STREAM';
@@ -87,16 +87,23 @@ export const forGemini = (o, keep = new Set()) => {
 export const AUTHOR_TEMPERATURE = 0, REPAIR_TEMPERATURE = 0.3, AUTHOR_SEED = 7;
 const SEEDED = new Set(['fireworks', 'cerebras']);
 const isRepair = body => body.messages.some(m => Array.isArray(m.content) && m.content.some(part => part.type === 'tool_result'));
+// The system message a fast-chain step sends (owner M2, 2026-11-08): the system prompt, the tool guidance, then the diagram references (they differ per
+// question, so they come last and the rest stays one cached prefix), then the answer format. The benchmark's promptHash hashes this same text.
+export function assembledSystem(body, tool = body.tools?.find(t => t.name === TOOL)) {
+  const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
+  const at = system.indexOf(REFERENCE_MARK), head = at < 0 ? system : system.slice(0, at), refs = at < 0 ? '' : system.slice(at).trim();
+  return `${head}\n\n${tool?.description ?? ''}${refs ? `\n${refs}` : ''}\n${ADDENDUM}`;
+}
 export function stepRequest(step, effort, body, stream = false) {
   const tool = body.tools?.find(t => t.name === TOOL);
   if (!tool) throw final('tool_unsupported', `The fast explanation chain makes only ${TOOL}.`);
   // ponytail: ask_clarifying_question is not offered in json_schema mode; the author always writes the card.
-  const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
+  const system = assembledSystem(body, tool);
   const options = stream && CHAIN_ENDPOINTS[step.provider]?.streamOptions;
   const schema = exclusiveOneOfToAnyOf(tool.input_schema);
   const sampling = isRepair(body) ? { temperature: REPAIR_TEMPERATURE } : { temperature: AUTHOR_TEMPERATURE, ...(SEEDED.has(step.provider) ? { seed: AUTHOR_SEED } : {}) };
   return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort, ...sampling,
-    messages: [{ role: 'system', content: `${system}\n\n${tool.description}\n${ADDENDUM}` }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
+    messages: [{ role: 'system', content: system }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
     response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? forGemini(withoutBounds(schema), requiredKinds(body)) : schema } } };
 }
 

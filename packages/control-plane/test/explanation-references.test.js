@@ -103,3 +103,39 @@ test('schema bundles: core by default, extras only when steered, the same bytes 
   assert.ok(QUANT_KINDS.every(k => kinds(bars).includes(k)), 'a required quantitative kind adds the quantitative group');
   assert.equal(kinds(author({ SMALL_ENV: 'test' }, 'How does attention work in a transformer?')).length, 21, 'the plan path keeps every kind');
 });
+
+// Owner N1, M2, M4 (2026-11-08): one number rule in the whole request on both routes; the references last in the fast-chain system message, before the
+// answer format; at most two panels in a bundle.
+test('N1: the assembled request holds exactly one number rule on the plan route and on the fast chain', async () => {
+  const { assembledSystem } = await import('../src/explanation-fast-chain.js');
+  const N1 = "Never invent measurements, statistics or data about the real world. Use the learner's own numbers when the request or source gives any. Otherwise a diagram may use only the checked values of a selected reference, and its title or caption must say 'illustrative'.";
+  const OTHER = /never invent numbers|label invented|example numbers|illustrative example|exact values from the request/i;
+  const args = 'Show me inserting 7 into a BST.';
+  const plan = prepareArtifactAuthorRequest({}, { command: 'explanation', args });
+  const fast = prepareArtifactAuthorRequest({ SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'x' }, { command: 'explanation', args });
+  assert.ok(plan.diagramReferences.length && fast.diagramReferences.length, 'a reference is selected, so its block is in the request');
+  const planText = [plan.body.system, ...plan.body.tools.map(t => t.description)].join('\n');
+  for (const [route, text] of [['plan', planText], ['fast chain', assembledSystem(fast.body)]]) {
+    assert.equal(text.split(N1).length - 1, 1, `${route}: the rule once`);
+    assert.equal(OTHER.test(text), false, `${route}: no second wording`);
+  }
+});
+
+test('M2: the fast-chain system message is the system prompt, the tool guidance, the references, then the answer format', async () => {
+  const { assembledSystem, stepRequest } = await import('../src/explanation-fast-chain.js');
+  const { CHAIN_STEPS } = await import('../src/explanation-models.js');
+  const env = { SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'x' };
+  const bst = prepareArtifactAuthorRequest(env, { command: 'explanation', args: 'Show me inserting 7 into a BST.' }).body;
+  const text = assembledSystem(bst), at = s => { const i = text.indexOf(s); assert.ok(i >= 0, s); return i; };
+  assert.ok(at('You make exactly one learning artifact') < at('For make_explanation') && at('For make_explanation') < at('Approved diagram references') && at('Approved diagram references') < at('Answer format for this request'));
+  assert.equal(stepRequest(CHAIN_STEPS.fireworks, 'low', bst).messages[0].content, text, 'the step sends this text');
+  // Two questions with different references share everything before the reference block.
+  const other = assembledSystem(prepareArtifactAuthorRequest(env, { command: 'explanation', args: 'Show a correlation heatmap of features.' }).body);
+  assert.equal(other.slice(0, at('Approved diagram references')), text.slice(0, at('Approved diagram references')));
+});
+
+test('M4: a panel bundle allows at most two panels', () => {
+  const fit = prepareArtifactAuthorRequest({ SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'x' }, { command: 'explanation', args: 'What is the difference between underfitting and overfitting?' }).body.tools.find(t => t.name === 'make_explanation').input_schema;
+  const spec = (fit.properties.visuals.items.oneOf ?? fit.properties.visuals.items.anyOf).find(v => v.properties.spec).properties.spec.properties.diagram;
+  assert.equal((spec.oneOf ?? spec.anyOf).find(b => b.properties.kind.const === 'comparison').properties.panels.maxItems, 2);
+});

@@ -217,5 +217,55 @@
       "kind": "waterfall", "title": "From opening cash to closing cash", "opening": 1000, "unit": "USD",
       "changes": [{"label": "Receipts", "amount": 350.25}, {"label": "Supplies", "amount": -80.05}]
     }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "tree", "layout": "binary", "title": "A binary search tree",
+      "caption": "Every left child is smaller than its parent and every right child larger",
+      "nodes": [
+        {"id": "n8", "label": "8"},
+        {"id": "n3", "label": "3", "parent": "n8", "side": "left"},
+        {"id": "n10", "label": "10", "parent": "n8", "side": "right"},
+        {"id": "n1", "label": "1", "parent": "n3", "side": "left"},
+        {"id": "n6", "label": "6", "parent": "n3", "side": "right"},
+        {"id": "n14", "label": "14", "parent": "n10", "side": "right"}
+      ]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "tree", "layout": "binary", "title": "Inserting 7 into the search tree",
+      "caption": "7 < 8 goes left, 7 > 3 goes right, 7 > 6 goes right: 7 becomes the right child of 6",
+      "nodes": [
+        {"id": "n8", "label": "8"},
+        {"id": "n3", "label": "3", "parent": "n8", "side": "left", "edgeLabel": "7 < 8"},
+        {"id": "n10", "label": "10", "parent": "n8", "side": "right"},
+        {"id": "n1", "label": "1", "parent": "n3", "side": "left"},
+        {"id": "n6", "label": "6", "parent": "n3", "side": "right", "edgeLabel": "7 > 3"},
+        {"id": "n7", "label": "7 (new)", "parent": "n6", "side": "right", "edgeLabel": "7 > 6"}
+      ],
+      "highlightPath": ["n8", "n3", "n6", "n7"]
+    }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "flow", "title": "One gradient descent step",
+      "caption": "The weights move against the gradient $\\nabla L$, scaled by the learning rate $\\eta$",
+      "nodes": [
+        {"id": "loss", "label": "Compute the loss $L(\\theta)$", "role": "process"},
+        {"id": "grad", "label": "Compute the gradient $\\nabla L(\\theta)$", "role": "process"},
+        {"id": "step", "label": "Update $\\theta \\leftarrow \\theta - \\eta \\nabla L$", "role": "process"},
+        {"id": "done", "label": "Converged?", "role": "decision"},
+        {"id": "stop", "label": "Keep $\\theta$", "role": "outcome"},
+        {"id": "again", "label": "Take another step", "role": "outcome"}
+      ],
+      "edges": [
+        {"from": "loss", "to": "grad"}, {"from": "grad", "to": "step"}, {"from": "step", "to": "done"},
+        {"from": "done", "to": "stop", "label": "Yes"}, {"from": "done", "to": "again", "label": "No"}
+      ]
+    }
   }
 ]

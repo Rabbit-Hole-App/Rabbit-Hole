@@ -15,7 +15,7 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, dropInvalidDiagrams, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -172,6 +172,20 @@ export async function generateArtifact(env, input, { callModel: injected = null,
     try {
       if (result.stop_reason === 'max_tokens') throw new Error('The artifact was cut off before it was complete');
       if (!id) throw new Error('The clarifying question was empty');
+      // Owner 2026-11-08, DEV ONLY (SMALL_ENV dev or test, as auth.js testMode; never production): the author's visuals exactly as returned, before any server
+      // step, so a benchmark can keep the model's own diagram specs. One line per answer: attempt 0 is the first answer, 1 the repair.
+      if (id === 'explanation' && (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test')) {
+        const visuals = call.input?.visuals ?? null;
+        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
+      }
+      // Owner M3 (2026-11-08): keys the schema does not declare are removed from the visuals before the card is read, logged and counted, never a repair.
+      let keysStripped = 0;
+      if (id === 'explanation' && Array.isArray(call.input?.visuals)) {
+        const clean = stripUnknownKeys(call.input.visuals);
+        for (const { kind, key } of clean.stripped) console.log(JSON.stringify({ event: 'explanation_unknown_key_stripped', kind, key }));
+        keysStripped = clean.stripped.length;
+        if (keysStripped) call = { ...call, input: { ...call.input, visuals: clean.visuals } };
+      }
       let block, extraction, diagramsDropped = 0, diagramsSimplified = 0, questions, terms;
       if (input.imageSource) {
         const checked = checkImageExtraction(call.input, content => ({ result: artifactBlock(id, content) }), input.imageSource);
@@ -232,6 +246,11 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         // Item 47: one log line per server correction this card's diagrams got, and their count on the card, so a rising count shows after a prompt change.
         for (const [kind, n] of Object.entries(corrections)) for (let i = 0; i < n; i++) console.log(JSON.stringify({ event: 'explanation_diagram_corrected', kind }));
         if (Object.keys(corrections).length) block = { ...block, diagramCorrections: corrections };
+        if (keysStripped) block = { ...block, unknownKeysStripped: keysStripped };
+        // Owner E3 (2026-11-08), log only: diagram text with bare maths (_, ^ or \ outside $...$), one line each and the count on the card; no repair yet.
+        const smells = diagramSmells(block.body);
+        for (const label of smells) console.log(JSON.stringify({ event: 'explanation_diagram_smell', kind: 'bare_maths', label: label.slice(0, 200) }));
+        if (smells.length) block = { ...block, diagramSmells: { bare_maths: smells.length } };
         // EXP-13: the pictures, made before the card is returned and saved; one that cannot be made loses its fence, never the card. It shows no text, so the anchors checked above still hold.
         block = await illustrateExplanation(env, block, { ...(figures || {}), early });
         if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };

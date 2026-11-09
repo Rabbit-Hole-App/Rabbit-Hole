@@ -3,6 +3,7 @@
 // every correction is logged and counted on the card. Offline: the model is a double, nothing is sent or paid.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { correctDiagrams, diagramProblem, flowsAsSequences, simplifiedDiagram } from '../src/learn-primitives.js';
 import { deriveVisualRequirements, fallbackKind } from '../src/explanation-visuals.js';
 import { generateArtifact } from '../src/learn-artifact.js';
@@ -148,4 +149,73 @@ test('sampling: the author call is temperature 0 with a seed only where the prov
     assert.deepEqual([r.temperature, 'seed' in r], [0.3, false], p);
     assert.match(r.messages.at(-1).content, /Validation failed: explanation_bad_diagram/, `${p}: the repair input differs, it carries the validator's problem`);
   }
+});
+
+// Owner M5 (2026-11-08): the real attention flow (Fireworks gpt-oss low, temperature 0, 3 of 3): three parallel input starts that converge. Joined under a fork.
+test('M5: parallel input starts that converge (the real attention flow) are joined under a fork, not a decision', () => {
+  const { spec } = JSON.parse(readFileSync(new URL('./fixtures/explanation-attention-flow.json', import.meta.url), 'utf8'));
+  assert.ok(diagramProblem(`A.\n\n${fence(spec.diagram)}\n\nB.`), 'the raw answer is invalid: three starts');
+  const out = fix(spec.diagram);
+  assert.deepEqual(out.corrections, { joined_roots_fork: 1 });
+  const d = specOf(out.md);
+  assert.deepEqual(d.nodes[0], { id: 'start', label: 'Scaled Dot‑Product Attention', role: 'fork' });
+  assert.deepEqual(d.edges.slice(0, 3), [{ from: 'start', to: 'Q' }, { from: 'start', to: 'K' }, { from: 'start', to: 'V' }]);
+  assert.equal(diagramProblem(out.md), null);
+});
+
+// Owner M3 (2026-11-08): Gemini wrote an undeclared `layers` key on a comparison; it is removed before the card is read, logged and counted, with no repair.
+test('M3: undeclared keys in the visuals are stripped and logged on every route; a clean answer is untouched', async () => {
+  const comparison = { kind: 'comparison', title: 'Underfitting and overfitting', layers: ['x'], columns: [{ heading: 'Underfitting', items: ['Too simple'], extra: 1 }, { heading: 'Overfitting', items: ['Too complex'] }] };
+  const body = 'A model can be too simple or too complex.\n\n[[visual:1]]\n\nThe right model sits between the two.';
+  const answer = visuals => async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c1', name: 'make_explanation', input: { title: 'Underfitting and overfitting', visuals, body } }] });
+  const lines = [], log = console.log; console.log = line => lines.push(String(line));
+  try {
+    let calls = 0;
+    const call = answer([{ k: 'diagram', spec: { version: 1, diagram: comparison }, note: 'x' }]);
+    const out = await generateArtifact({}, { command: 'explanation', args: 'What is the difference between underfitting and overfitting?' }, { callModel: async (...a) => { calls++; return call(...a); } });
+    assert.deepEqual([out.result, calls, out.block.unknownKeysStripped], ['artifact', 1, 3], 'no repair call');
+    assert.deepEqual(lines.filter(l => l.includes('explanation_unknown_key_stripped')).map(l => JSON.parse(l)).map(e => [e.kind, e.key]).sort(), [['comparison', 'extra'], ['comparison', 'layers'], ['diagram', 'note']]);
+    const clean = await generateArtifact({}, { command: 'explanation', args: 'What is the difference between underfitting and overfitting?' }, { callModel: answer([{ k: 'diagram', spec: { version: 1, diagram: { ...comparison, layers: undefined, columns: comparison.columns.map(({ extra, ...c }) => c) } } }]) });
+    assert.equal(clean.block.unknownKeysStripped, undefined);
+  } finally { console.log = log; }
+  // The undeclared keys are only those: every key of every reference survives (the schema declares the whole library).
+  const { diagramReferences } = await import('../../web/src/tutor-diagrams/reference-library.js');
+  const { stripUnknownKeys } = await import('../src/learn-primitives.js');
+  for (const ref of diagramReferences) assert.deepEqual(stripUnknownKeys([{ k: 'diagram', spec: ref.spec }]).stripped, [], ref.id);
+});
+
+// Owner E3 (2026-11-08), log only: p_i outside maths delimiters is a smell; $p_i$ is not.
+test('E3: bare maths in diagram text is logged and counted on the card, never repaired', async () => {
+  const { bareMaths, diagramSmells } = await import('../src/learn-primitives.js');
+  assert.deepEqual(['p_i', 'x^2', '\\frac{a}{b}', '$p_i$', 'the $x^2$ term', '\\(p_i\\)', 'Class A'].map(bareMaths), [true, true, true, false, false, false, false]);
+  const rel = { kind: 'flow', title: 'Gini impurity', nodes: [{ id: 'a', label: 'Class shares p_i', role: 'process' }, { id: 'b', label: 'Gini $1-\\sum p_i^2$', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] };
+  assert.deepEqual(diagramSmells(`A.\n\n${fence(rel)}\n\nB.`), ['Class shares p_i']);
+  const lines = [], log = console.log; console.log = line => lines.push(String(line));
+  try {
+    const card = { title: 'Gini impurity', body: `Gini impurity measures how mixed the classes are.\n\n${fence(rel)}\n\nA pure node has Gini impurity zero.` };
+    const out = await generateArtifact({}, { command: 'explanation', args: 'What is gini impurity?' }, { callModel: async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c1', name: 'make_explanation', input: card }] }) });
+    assert.deepEqual([out.result, out.block.diagramSmells], ['artifact', { bare_maths: 1 }]);
+    assert.deepEqual(lines.filter(l => l.includes('explanation_diagram_smell')).map(l => JSON.parse(l)), [{ event: 'explanation_diagram_smell', kind: 'bare_maths', label: 'Class shares p_i' }]);
+  } finally { console.log = log; }
+});
+
+// Owner 2026-11-08: a dev-only line with the author's visuals as returned, before any server step; never in production.
+test('the raw author visuals are logged in dev and test, for the first answer and the repair, and never in production', async () => {
+  const visuals = [{ k: 'diagram', spec: { version: 1, diagram: { kind: 'cycle', title: 'Seasons', steps: ['Spring', 'Summer'] } } }];
+  const bad = { title: 'Seasons', visuals, body: 'Too short.' };
+  const good = { title: 'Seasons', visuals, body: 'The seasons follow one another through the year.\n\n[[visual:1]]\n\nSpring comes back after summer and the rest.' };
+  const run = async env => {
+    const lines = [], log = console.log; console.log = line => lines.push(String(line));
+    let n = 0;
+    try { await generateArtifact(env, { command: 'explanation', args: 'Why do the seasons repeat?' }, { callModel: async () => Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${n}`, name: 'make_explanation', input: n++ ? good : bad }] }) }); }
+    finally { console.log = log; }
+    return lines.filter(l => l.includes('explanation_author_raw')).map(l => JSON.parse(l));
+  };
+  for (const SMALL_ENV of ['dev', 'test']) {
+    const raw = await run({ SMALL_ENV });
+    assert.deepEqual(raw.map(r => [r.event, r.attempt, r.kinds]), [['explanation_author_raw', 0, ['cycle']], ['explanation_author_raw', 1, ['cycle']]], SMALL_ENV);
+    assert.deepEqual(raw[0].visuals, visuals);
+  }
+  assert.deepEqual(await run({ SMALL_ENV: 'production' }), []);
+  assert.deepEqual(await run({}), []);
 });

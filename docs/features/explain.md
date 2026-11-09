@@ -299,6 +299,25 @@ Proposed command seam: `resolveExplanationProfile(profileId, registry)` returns 
 Illustrative test profiles, not selected winners: Opus author; Celeris author; a named Cerebras-served author; Gemini Flash author; Opus author with an eligible Gemini direct-repair model; or a Gemini Tutor planner with an Opus author. Label standalone and Tutor results separately, keep upstream plans frozen for isolated author comparisons, and then test the actual mixed Tutor pipeline independently.
 
 <a id="code-map"></a>
+### Coordinate-plot formula series (spec, not built; owner 2026-11-08)
+
+Status: written, not built. Build it only if the benchmark shows more than about 1 in 10 model-computed plots with an arithmetic error (a plotted value more than 0.01 from the function's value after rounding).
+
+**Contract.** A `coordinate-plot` series may carry two new optional fields instead of `points`: `formula` (text, at most 80 characters, in `x`) and `samples` (integer, 7 to 48). When `formula` is present the author omits `points`; the server samples the formula at `samples` evenly spaced `x` values across the series' x axis (`x.min` to `x.max`, both included) and writes the points before the diagram is parsed, so the saved card, the renderer and every later reader see an ordinary `points` series. A series with both `formula` and `points`, or `samples` without `formula`, is invalid. Scatter series keep authored points (a formula is for `line`, `step` and `stem`).
+
+**Failures go to the one repair, with the exact message.** A formula that does not parse (with the position of the unexpected character), a value that is not a finite number (NaN, infinity, a domain error such as `log` of zero), or a value outside the y axis (`y.min` to `y.max`) refuses the diagram with one line naming the series, the `x` at which it failed and the value; that line goes to the step's one repair. Nothing is clipped or silently dropped.
+
+**Never `eval` or `new Function`.** The formula is evaluated by a parser and evaluator written for this grammar only, with no access to any JavaScript name.
+
+**Grammar (owner list).** Numbers (decimal, optional exponent), the variable `x`, `+ - * / ^` (with `^` right-associative and binding tighter than unary minus on its left operand, as in `-x^2 = -(x^2)`), parentheses, and the functions `exp log log2 sqrt abs sin cos tanh max min` (`max` and `min` take two or more arguments; `log` is natural). No other names, no constants other than literals (`e` and `pi` can be added later if the bench asks for them).
+
+**Evaluator choice.** The repo has no expression dependency (no mathjs, no expr-eval). The one safe evaluator it has is `evalScalar` / `ScalarExpr` in `packages/web/src/interact-plan.js`: a JSON expression tree (`literal`, `input`, `add`, `subtract`, `multiply`, `divide`) checked by `scalarExprProblem`, used by `/interact`. Two options:
+
+- **(a) Reuse ScalarExpr.** The model writes the formula as a JSON tree instead of a string, so no parser is written. But ScalarExpr has none of `^`, `exp`, `log`, `sqrt`, `sin`, `tanh`, `max` or `min`; adding them changes a contract `/interact` owns and validates with interval arithmetic. Its schema is recursive (`$ref`), which the fast chain cannot send to Gemini today and which grows the bundle. A tree also costs several times the output tokens of the same formula as text, and output tokens are latency.
+- **(b) A small hand-written parser for the string grammar above** (a recursive-descent parser of about 80 lines plus a table of the allowed functions), living next to the plot spec in `packages/web/src/tutor-diagrams/` so the server and the card share it.
+
+**Recommendation: (b).** It keeps the author schema flat (one short string field), costs the fewest output tokens, has an exact error position for the repair message, and leaves the `/interact` contract untouched. The cost is one new parser to test: every operator and function, precedence and associativity, each failure message, and a fuzz test that no input reaches anything but the whitelist.
+
 ## 6. Implementation map and branch differences
 
 Paths below are repository-relative and verified on main `34a63b7d2322d0bb70a086612f4bfb749776496a`. Open that revision when a file is absent on the handoff branch. Source inspection proves an implementation seam exists, not that the approved UI or deployed feature has passed acceptance.
