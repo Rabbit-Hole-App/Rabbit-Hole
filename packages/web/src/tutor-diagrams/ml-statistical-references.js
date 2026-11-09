@@ -65,7 +65,7 @@ export const references = [
       samples: [{ id: 'a', class: 'Majority', weight: 1 }, { id: 'b', class: 'Majority', weight: 1 }, { id: 'c', class: 'Majority', weight: 1 }, { id: 'd', class: 'Minority', weight: 3 }],
       groups: [{ id: 'weighted', label: 'One copy of each example', members: ['a', 'b', 'c', 'd'] }], caption: 'The minority example has weight 3 and multiplicity 1.' }),
   ref('tree-class-mixtures', ['04'],
-    ['Show class mixtures before and after a decision-tree split.'], ['impurity', 'gini', 'class mixture', 'pure leaf'],
+    ['Show class mixtures before and after a decision-tree split.'], ['class mixture', 'pure leaf'],
     'Use for the exact class memberships behind impurity calculations. Use a tree reference when the branch topology also matters.',
     { kind: 'sample-set', title: 'A split separates class mixtures', samples: labelled,
       groups: [{ id: 'parent', label: 'Parent: 4 negative, 2 positive', members: ['a', 'b', 'c', 'd', 'e', 'f'] },
