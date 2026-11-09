@@ -174,3 +174,22 @@ Status: not passed; prompt not frozen; nothing merged to explain/card-layout or 
 
 Scope: 6 references (`ml-batch2a-{encoding,transform,evaluation}-references.js`: ordinal encoding, value binning, feature interaction, raw vs log histograms, confusion-matrix denominators, MAE/MSE/RMSE), their tests, registry entries (140 -> 146), and one selector change in `packages/control-plane/src/explanation-references.js`: when the request requires a kind, a composite reference (panels comparison or visual transformation) contributes its matching leaf panels as standalone examples (`--part-N` ids, `sourceId` kept); requests without required kinds are unchanged. No schema, renderer, prompt-text or validator change. On Codex's older base (after batch-1), so cherry-pick only, never merge.
 Owner decision: held until the correct-SVG loop passes, queued after batch-1. Pending when it runs: the 6 documented prompts plus "Show two histograms comparing raw and log-transformed values." through actual /explain; math, layout, formulas, save/reopen; the new confusion-matrix reference may change which example the correct-svg precision-recall prompt receives, so it lands as its own bench delta.
+
+## Correct SVG: frozen state (owner closing pass, 2026-11-08 17:44 PT)
+
+Final run on eb6661166 (iteration 2 + server correction `timeline_plain`: a plain dated timeline sent with scaled-lanes and empty lanes becomes the plain timeline), set correct-svg v2 (owner relabel: entropy relationship and atmosphere picture + layers count as right), tagged as the correct-SVG regression baseline: `C:/s/spec/benchmarks/explain-bench/2026-11-08T174437-correct-svg-regression-baseline-eb666116/report.md`.
+
+| check | run 1 | iter 1 | iter 2 | iter 2 under v2 | final | pass? |
+|---|---|---|---|---|---|---|
+| right kind >= 11/14 (O/S/D) | 7/8/7 | 8/8/7 | 9/8/8 | 10/9/9 | 11/10/9 | FAIL (S, D) |
+| Deep plot or chart >= 5/6, 0 point errors | 5/6 | 4/6 | 4/6 | 4/6 | 4/6, 0 errors (sigmoid only checkable) | FAIL |
+| placeholders + duplicates <= 2 | 0+3 | 0 | 0 | 0 | 0 | PASS |
+| Overview formula-label cards = 0 | 1 | 0 | 0 | 0 | 0 | PASS |
+| repairs <= 11.7% | 4/42 | 5/42 | 5/42 | 5/42 | 3/42 | PASS |
+| judge not-faithful cards | 8 | 3 | 2 | 2 | 2 (entropy O, D; judge still reads the v1 transformation sketch) | - |
+| p50 / p90 | 4.02/5.66 s | 3.66/4.83 s | 3.62/5.33 s | - | 3.58/4.40 s | - |
+
+Relabel alone: +1/+1/+1 (entropy). Server fix: +1 O, +1 S (Roman Empire timeline; timeline_plain fired 2x). Deep quantity prompts not plotted: attention-weights (flow) and precision-recall (comparison), both acceptable kinds whose labels ask for bar-chart/matrix, not a plot: no prompt change (owner). Remaining wrong kinds: atmosphere picture (O), cross-entropy plot at Overview, gini relationship (S), softmax relationship (S), Roman Empire picture (D).
+Owner: this is the frozen state; the prompt is not touched further on this problem; this 42-card run is the permanent correct-SVG regression baseline. Spend tonight for the loop: about $0.76 (cards + judge, all runs).
+
+Selector bench (no model calls, scripts/explain-bench/selector.mjs on explain/quality-bench aba447cd4, production-parity test): current selector on correct-svg 9/14 prompts given an example, 9/9 right kind (tuned on this set tonight); AI/ML 9/28 given an example, 6/11 examples right kind (55%), 10/11 right or acceptable, 1/28 prompts given a wrong-kind example (overfitting -> tree-pruning). Guards measured and rejected by the owner: minimum score (cuts coverage to 2/14 and 1/28), contradiction filter (no change), single-diagram first (no gain). Carry forward: the gap is coverage (19 of 28 AI/ML prompts get no example); if the baseline's 0 vs 1-2 references split shows examples help, the next step is more AI/ML references, measured on this selector bench before any model run.
