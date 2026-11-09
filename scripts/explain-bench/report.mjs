@@ -7,8 +7,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
-import { PLOT_KINDS, availableSets, cardKey, criteria, loadSet, proseOf, scoreCard, summarize } from './score.mjs';
-import { RUBRICS, combine, judgeItems, keyTransport } from './judge.mjs';
+import { PLOT_KINDS, availableSets, cardKey, criteria, loadSet, proseOf, scoreCard, summarize, useSpecTree, visibleText } from './score.mjs';
+import { RUBRICS, combine, judgeItems, keyTransport, useRubrics } from './judge.mjs';
 
 export const DEFAULT_OUT = 'C:/s/spec/benchmarks/explain-bench';
 // The 2026-11-08 study's folder letters (5d, 5e): A regression, B baseline, C AI/ML, D sequence.
@@ -229,8 +229,20 @@ export function markdown(r) {
   return out.join('\n');
 }
 
+// factual-v2 shows the judge what the G3 gate showed it (judge.mjs of 2026-11-08, cardText): the title, the prose with the visual fences taken out, each diagram's visible text and
+// each picture's caption and alt. A diagram kind newer than this tree's spec.js shows every string of its spec except structural keys (the G3 judge showed none: "not drawable").
+const FENCE_G3 = /^\s*```\s*(rh-diagram|rh-illustration)[^\n]*\n([\s\S]*?)^\s*```/gim, STRUCTURAL = new Set(['id', 'kind', 'role', 'parent', 'from', 'to', 'side', 'layout', 'variant', 'anchor', 'direction', 'scale', 'figure', 'version']);
+const allStrings = (v, key = '') => (typeof v === 'string' ? (STRUCTURAL.has(key) ? [] : [v]) : Array.isArray(v) ? v.flatMap(x => allStrings(x, key)) : v && typeof v === 'object' ? Object.entries(v).flatMap(([k, x]) => allStrings(x, k)) : []);
+export function g3CardText(block) {
+  const body = String(block.body || ''), parts = [`Title: ${block.title || ''}`, `Prose:\n${body.replace(FENCE_G3, '').replace(/\n{3,}/g, '\n\n').trim()}`];
+  for (const m of body.matchAll(FENCE_G3)) {
+    if (m[1].toLowerCase() === 'rh-diagram') { try { const d = JSON.parse(m[2]).diagram; parts.push(`Diagram (${d.kind}): ${visibleText(d, allStrings(d)).join(' | ')}`); } catch { /* not drawable: not shown */ } }
+    else { try { const p = JSON.parse(m[2]); parts.push(`Picture caption: ${p.caption} (shows: ${p.alt})`); } catch { /* none */ } }
+  }
+  return parts.join('\n\n');
+}
 const itemText = {
-  factual: (c, block) => [`Learner's question: ${c.prompt}`, `Card title: ${block.title || ''}`, String(block.body || ''),
+  factual: (c, block) => RUBRICS.factual.json ? g3CardText(block) : [`Learner's question: ${c.prompt}`, `Card title: ${block.title || ''}`, String(block.body || ''),
     (block.interactions?.terms || []).length ? `Key terms:\n${block.interactions.terms.map(t => `- ${t.label}: ${t.definition}`).join('\n')}` : '',
     (block.interactions?.questions || []).length ? `Follow-up questions:\n${block.interactions.questions.map(q => `- ${q.text}`).join('\n')}` : ''].filter(Boolean).join('\n\n'),
   faithful: (c, block, d) => [`Content sketch, written in advance:\n${c.sketch.map(l => `- ${l}`).join('\n')}`, `The diagram, as the renderer describes it:\n${d.describe ?? JSON.stringify(d.spec)}`, `The card's prose:\n${proseOf(block.body).trim()}`].join('\n\n'),
@@ -243,6 +255,8 @@ const itemText = {
 export async function run(o) {
   const out = resolve(o.out || DEFAULT_OUT), runId = o.runId || runDirName(o.label), runDir = join(out, runId);
   mkdirSync(runDir, { recursive: true });
+  // The diagram wording the judge sees and the descriptions come from the tree the cards were made on: --spec-tree, else the run's recorded stack tree, else this tree.
+  const specTree = await useSpecTree(o.specTree || (existsSync(join(runDir, 'provenance.json')) ? json(join(runDir, 'provenance.json')).stackTree : null));
   const { recs, notes } = loadRaw(o.raw), setNames = [...new Set(recs.map(r => r.set))].sort((a, b) => availableSets().indexOf(a) - availableSets().indexOf(b));
   const defs = Object.fromEntries(setNames.map(n => [n, loadSet(n)])), blocks = new Map(), cards = [];
   for (const rec of recs) {
@@ -251,9 +265,13 @@ export async function run(o) {
     const c = scoreCard(p, rec); cards.push(c); blocks.set(c, rec.block);
   }
   let judge = null;
+  const restoreRubrics = o.rubrics ? useRubrics(o.rubrics) : null; // --rubrics factual=factual-v1: an older version, for re-scoring
+  // --same-as <run dir>: judge only the items that run's judge answered (same cards, diagrams and pictures), not whatever its cap left.
+  const keep = o.sameAs ? (prev => { const k = new Set(); for (const c of prev.cards) { const key = cardKey(c); if (c.judge?.factual) k.add(`factual|${key}`);
+    c.diagrams.forEach((d, i) => { if (d.faithful) k.add(`faithful|${key}#d${i}`); if (d.beyond) k.add(`beyond|${key}#d${i}b`); }); c.pictures.forEach((p, i) => { if (p.content) k.add(`picture|${key}#p${i}`); }); } return k; })(json(join(resolve(o.sameAs), 'results.json'))) : null;
   if (o.judge) {
     const items = [], ref = new Map(), want = r => !o.judgeOnly?.length || o.judgeOnly.includes(r);
-    const push = (key, rubric, text, target) => { if (want(rubric)) { items.push({ key, rubric, text }); ref.set(key, [rubric, target]); } };
+    const push = (key, rubric, text, target) => { if (want(rubric) && (!keep || keep.has(`${rubric}|${key}`))) { items.push({ key, rubric, text }); ref.set(key, [rubric, target]); } };
     for (const c of cards.filter(x => x.delivered)) {
       const key = cardKey(c), b = blocks.get(c);
       push(key, 'factual', itemText.factual(c, b), c);
@@ -266,7 +284,7 @@ export async function run(o) {
     judge = { ...judge, cap: o.judgeCap ?? 1, only: o.judgeOnly?.length ? o.judgeOnly : null, results: undefined };
   }
   const summary = summaries(cards, setNames), crit = setNames.flatMap(n => criteria(defs[n], cards.filter(c => c.set === n)));
-  const meta = { runId, label: o.label || 'run', scored: runDirName('').slice(0, 17), raw: resolve(o.raw), baseline: !!o.tagBaseline, notes,
+  const meta = { runId, label: o.label || 'run', specTree, scored: runDirName('').slice(0, 17), raw: resolve(o.raw), baseline: !!o.tagBaseline, notes,
     sets: Object.fromEntries(setNames.map(n => [n, { prompts: defs[n].prompts.length, runs: runsOf(cards.filter(c => c.set === n)).length, version: defs[n].version }])) };
   const recorded = existsSync(join(runDir, 'provenance.json')) ? json(join(runDir, 'provenance.json')) : null;
   const provenance = judge ? { ...(recorded || { stack: 'not recorded for this run (imported saved cards)' }), judgeRubrics: judge.rubrics } : recorded;
@@ -282,16 +300,17 @@ export async function run(o) {
   writeFileSync(join(runDir, 'results.json'), JSON.stringify(results, null, 1));
   writeFileSync(join(runDir, 'metrics.json'), JSON.stringify({ meta, provenance, criteria: crit, richness, deltas, summary }, null, 1));
   writeFileSync(join(runDir, 'report.md'), markdown(results));
+  if (restoreRubrics) Object.assign(RUBRICS, restoreRubrics);
   const failed = crit.filter(c => !c.ok).length + (o.richnessChange && richness.verdict !== 'KEEP' ? 1 : 0);
   return { code: failed ? 1 : 0, runDir, results };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const { values: a } = parseArgs({ options: { raw: { type: 'string' }, 'run-id': { type: 'string' }, label: { type: 'string' }, out: { type: 'string' }, against: { type: 'string' }, baseline: { type: 'string' }, 'tag-baseline': { type: 'boolean' },
-    judge: { type: 'boolean' }, judges: { type: 'string' }, 'judge-cap': { type: 'string' }, 'judge-only': { type: 'string' }, 'judge-dry-run': { type: 'boolean' }, 'richness-change': { type: 'boolean' } } });
-  if (!a.raw) { console.error('usage: node scripts/explain-bench/report.mjs --raw <dir> [--label ...] [--out ...] [--against <dir>] [--baseline <run id>] [--tag-baseline] [--judge [--judge-dry-run] [--judge-only factual,faithful,picture] [--judges N] [--judge-cap 1.00]] [--richness-change]'); process.exit(2); }
+    judge: { type: 'boolean' }, judges: { type: 'string' }, 'judge-cap': { type: 'string' }, 'judge-only': { type: 'string' }, 'judge-dry-run': { type: 'boolean' }, rubrics: { type: 'string' }, 'spec-tree': { type: 'string' }, 'same-as': { type: 'string' }, 'richness-change': { type: 'boolean' } } });
+  if (!a.raw) { console.error('usage: node scripts/explain-bench/report.mjs --raw <dir> [--label ...] [--out ...] [--against <dir>] [--baseline <run id>] [--tag-baseline] [--judge [--judge-dry-run] [--judge-only factual,faithful,beyond,picture] [--same-as <run dir>] [--rubrics factual=factual-v1,beyond=beyond-v1] [--spec-tree <the stack worktree>] [--judges N] [--judge-cap 1.00]] [--richness-change]'); process.exit(2); }
   const r = await run({ raw: a.raw, runId: a['run-id'], label: a.label, out: a.out, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge || a['judge-dry-run'], judgeDryRun: a['judge-dry-run'],
-    judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges: Number(a.judges || 1), judgeCap: Number(a['judge-cap'] || 1), richnessChange: a['richness-change'] });
+    judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), rubrics: a.rubrics, specTree: a['spec-tree'], sameAs: a['same-as'], judges: Number(a.judges || 1), judgeCap: Number(a['judge-cap'] || 1), richnessChange: a['richness-change'] });
   for (const n of r.results.meta.notes) console.log(`note: ${n}`);
   for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
   const J = r.results.judge;

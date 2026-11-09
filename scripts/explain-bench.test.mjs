@@ -4,9 +4,15 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, visuals, SET_NAMES } from './explain-bench/score.mjs';
-import { delta, rankArms, richnessVerdict, run } from './explain-bench/report.mjs';
-import { combine, judgeItems, JUDGE_MODEL } from './explain-bench/judge.mjs';
+import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, useSpecTree, visuals, SET_NAMES } from './explain-bench/score.mjs';
+import { delta, g3CardText, rankArms, richnessVerdict, run } from './explain-bench/report.mjs';
+import { combine, judgeItems, JUDGE_MODEL, requestBody, useRubrics, RUBRICS, RUBRIC_VERSIONS } from './explain-bench/judge.mjs';
+// Answers every rubric's request shape: no tools = the JSON text of factual-v2, else a record_review call (verdict = the first enum value unless `pick` says otherwise).
+const fakeJudge = (sent, pick = {}) => async body => { sent.push(body); const usage = { input_tokens: 1000, output_tokens: 500 };
+  if (!body.tools) return new Response(JSON.stringify({ stop_reason: 'end_turn', usage, content: [{ type: 'text', text: pick.json ?? '{"score": 4, "error": "no", "note": ""}' }] }), { status: 200 });
+  const props = body.tools[0].input_schema.properties, kind = body.system.includes('Core line') ? 'faithful' : body.system.includes('NAMED fact') || body.system.includes('state any fact') ? 'beyond' : props.score ? 'factual' : 'picture';
+  const input = props.score ? { score: 4, errors: [] } : { verdict: pick[kind] ?? props.verdict.enum[0], reason: 'ok' };
+  return new Response(JSON.stringify({ stop_reason: 'tool_use', usage, content: [{ type: 'tool_use', name: 'record_review', input }] }), { status: 200 }); };
 
 const fence = d => `\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: d })}\n\`\`\``;
 const pic = id => `\`\`\`rh-illustration\n${JSON.stringify({ id, prompt: 'a picture', caption: 'look here' })}\n\`\`\``;
@@ -109,7 +115,7 @@ test('delta marks each metric better, worse or same; the richness rule keeps or 
 });
 
 test('the judge is Sonnet, blind, shuffled, capped and cached', async () => {
-  const sent = [], call = async body => { sent.push(body); return new Response(JSON.stringify({ stop_reason: 'tool_use', usage: { input_tokens: 1000, output_tokens: 500 }, content: [{ type: 'tool_use', name: 'record_review', input: body.system.includes('FACTUAL') ? { score: 4, errors: [] } : { verdict: body.tools[0].input_schema.properties.verdict.enum[0], reason: 'ok' } }] }), { status: 200 }); };
+  const sent = [], call = fakeJudge(sent);
   const items = Array.from({ length: 6 }, (_, i) => ({ key: `baseline/r1/secret-id-${i}`, rubric: i < 5 ? 'factual' : 'faithful', text: `card ${i}` }));
   const dir = mkdtempSync(join(tmpdir(), 'bench-judge-')), cacheFile = join(dir, 'cache.json');
   let seed = 1; const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -248,22 +254,67 @@ test('correct-svg v3 and the judge rubrics: Core/Optional sketches, faithful-v2 
   const pr = fence(sigmoidPlot([0.1, 0.5, 0.9]));
   for (const d of ['overview', 'standard', 'deep']) assert.equal(v('precision-recall', d, pr), 'acceptable', d);
   assert.equal(v('entropy', 'overview', fence({ kind: 'relationship', title: 'r', nodes: [{ id: 'a', label: 'Entropy' }, { id: 'b', label: 'Disorder' }], edges: [{ from: 'a', to: 'b', label: 'measures' }] })), 'right');
-  const { RUBRICS, rubricHash } = await import('./explain-bench/judge.mjs');
-  assert.match(RUBRICS.faithful.version, /^faithful-v2/); assert.match(RUBRICS.faithful.text, /Core line only: fully/); assert.match(RUBRICS.beyond.version, /^beyond-v1/);
+  const { rubricHash } = await import('./explain-bench/judge.mjs');
+  assert.match(RUBRICS.faithful.version, /^faithful-v2/); assert.match(RUBRICS.faithful.text, /Core line only: fully/); assert.match(RUBRICS.beyond.version, /^beyond-v2/); assert.match(RUBRICS.factual.version, /^factual-v2/);
   assert.notEqual(rubricHash('faithful'), rubricHash('beyond'));
   // Report: faithful items for every sketched diagram and a beyond item for every diagram, verdicts fully/partly/not and counted claims beyond the prose.
   const root = mkdtempSync(join(tmpdir(), 'bench-v3-')), dir = join(root, 'raw', 'correct-svg-r1-deep');
   mkdirSync(join(dir, 'cards'), { recursive: true });
   const row = { id: 'sigmoid', delivered: true, totalMs: 2000, repaired: false, repairCauses: [], costUsd: 0.01, ledgerUsd: 0.01 };
   writeFileSync(join(dir, 'cards', 'sigmoid.json'), JSON.stringify({ row, response: { result: 'artifact', block: block('The sigmoid is $\sigma(z) = \frac{1}{1+e^{-z}}$.', fence(sigmoidPlot([0.12, 0.5, 0.88]))) } })); writeFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n');
-  const sent = [], call = async body => { sent.push(body); const name = body.system.includes('FACTUAL') ? 'factual' : body.system.includes('Core line') ? 'faithful' : 'beyond';
-    return new Response(JSON.stringify({ stop_reason: 'tool_use', usage: { input_tokens: 10, output_tokens: 10 }, content: [{ type: 'tool_use', name: 'record_review', input: name === 'factual' ? { score: 5, errors: [] } : name === 'faithful' ? { verdict: 'partly', reason: 'no 0.5 mark' } : { verdict: 'yes', reason: 'names a derivative' } }] })); };
+  const sent = [], call = fakeJudge(sent, { faithful: 'partly', beyond: 'yes' });
   const r = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'v3', judge: true, call });
-  assert.deepEqual(sent.map(b => b.system.includes('Core line') ? 'faithful' : b.system.includes('FACTUAL') ? 'factual' : 'beyond').sort(), ['beyond', 'factual', 'faithful']);
+  assert.deepEqual(sent.map(b => b.system.includes('Core line') ? 'faithful' : b.system.includes('NAMED fact') ? 'beyond' : 'factual').sort(), ['beyond', 'factual', 'faithful']);
   const s = r.results.summary.overall;
   assert.deepEqual([s.content.faithful.fully, s.content.faithful.partly, s.content.faithful.not, s.content.beyond.yes, s.content.beyond.judged], [0, 1, 0, 1, 1]);
   const md = readFileSync(join(r.runDir, 'report.md'), 'utf8');
   assert.match(md, /\| diagrams with claims beyond the prose \(judge\) \| 1\/1 /);
-  assert.match(md, /\*\*beyond\*\* `beyond-v1 2026-11-08` \(hash `[0-9a-f]{16}`\)/);
+  assert.match(md, /\*\*beyond\*\* `beyond-v2 2026-11-08` \(hash `[0-9a-f]{16}`\)/);
   assert.match(md, /Not fully faithful to the sketch \(Core\)/);
+});
+
+test('factual-v2 is the G3 setup: strict fact-checker, json answer with no tool, error only for a false statement; factual-v1 and beyond-v1 stay selectable', async () => {
+  const body = requestBody('factual', 'card text');
+  assert.equal(body.tools, undefined); assert.equal(body.output_config, undefined); assert.equal(body.max_tokens, 1200);
+  assert.match(body.system, /strict fact-checker/); assert.match(body.system, /a simplification is not an error/); assert.equal(body.messages.length, 1);
+  assert.match(RUBRICS.factual.version, /^factual-v2/); assert.match(RUBRICS.beyond.version, /^beyond-v2/);
+  assert.match(RUBRICS.beyond.text, /NAMED fact/); assert.match(RUBRICS.beyond.text, /Do NOT count: plotted values/);
+  const before = useRubrics('factual=factual-v1,beyond-v1');
+  try { assert.match(requestBody('factual', 'x').system, /FACTUAL ACCURACY only/); assert.ok(requestBody('factual', 'x').tools); assert.match(RUBRICS.beyond.version, /^beyond-v1/); } finally { Object.assign(RUBRICS, before); }
+  assert.match(RUBRICS.factual.version, /^factual-v2/);
+  assert.throws(() => useRubrics('factual=beyond-v2'), /unknown rubric/);
+  assert.deepEqual(Object.keys(RUBRIC_VERSIONS).filter(k => k.startsWith('factual') || k.startsWith('beyond')), ['factual-v1', 'factual-v2', 'beyond-v1', 'beyond-v2']);
+  // The json answer is read from the first { to the last }, as the G3 judge did; error "yes" becomes the one listed error; no JSON fails the item.
+  const answer = text => async b => new Response(JSON.stringify({ stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 10 }, content: [{ type: 'text', text }] }), { status: 200 });
+  const run1 = await judgeItems([{ key: 'a', rubric: 'factual', text: 'one' }], { call: answer('Here: {"score": 3, "error": "yes", "note": "wrong boiling point"} done'), cap: 1, log: () => {} });
+  assert.deepEqual(combine('factual', run1.results.a), { score: 3, errors: [{ claim: 'wrong boiling point', why: '' }], notes: ['wrong boiling point'], judges: 1 });
+  const ok = await judgeItems([{ key: 'a', rubric: 'factual', text: 'two' }], { call: answer('{"score": 5, "error": "no", "note": ""}'), cap: 1, log: () => {} });
+  assert.deepEqual(combine('factual', ok.results.a).errors, []);
+  const bad = await judgeItems([{ key: 'a', rubric: 'factual', text: 'three' }], { call: answer('no json here'), cap: 1, log: () => {} });
+  assert.equal(bad.failed, 1);
+});
+
+test('factual-v2 text is the G3 cardText: title, prose without the fences, each diagram\'s visible text, each picture caption', () => {
+  const b = block('Intro.\n\nMore.', fence(flow(['Boil the water', 'Collect steam', 'Done'])), pic('pic-1'));
+  b.title = 'Water';
+  b.body = b.body.replace('"caption":"look here"', '"alt":"a kettle","caption":"look here"');
+  const text = g3CardText(b);
+  assert.match(text, /^Title: Water\n\nProse:\nIntro\.\n\nMore\.\n\nDiagram \(flow\): F \| Boil the water \| Collect steam \| Done\n\nPicture caption: look here \(shows: a kettle\)$/);
+});
+
+test('--same-as judges only the items the earlier run answered; --rubrics is restored afterwards; --spec-tree falls back to this tree', async () => {
+  assert.equal(await useSpecTree('C:/no/such/tree'), null);
+  const root = mkdtempSync(join(tmpdir(), 'bench-same-')), mk = depth => { const dir = join(root, 'raw', `correct-svg-r1-${depth}`); mkdirSync(join(dir, 'cards'), { recursive: true });
+    const row = { id: 'sigmoid', delivered: true, totalMs: 1000, repaired: false, repairCauses: [], costUsd: 0.01, ledgerUsd: 0.01 };
+    writeFileSync(join(dir, 'cards', 'sigmoid.json'), JSON.stringify({ row, response: { result: 'artifact', block: block('The sigmoid squashes any number into 0 to 1.', fence(sigmoidPlot([0.12, 0.5, 0.88]))) } })); writeFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n'); };
+  mk('overview'); mk('deep');
+  const prev = join(root, 'prev'); mkdirSync(prev);
+  writeFileSync(join(prev, 'results.json'), JSON.stringify({ cards: [{ set: 'correct-svg', run: 1, depth: 'deep', id: 'sigmoid', judge: { factual: { score: 4, errors: [] } }, diagrams: [{ beyond: { verdict: 'no' } }], pictures: [] }, { set: 'correct-svg', run: 1, depth: 'overview', id: 'sigmoid', diagrams: [{}], pictures: [] }] }));
+  const sent = [], call = fakeJudge(sent);
+  const r = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'same', judge: true, sameAs: prev, rubrics: 'factual=factual-v1', call });
+  assert.deepEqual(sent.map(b => (b.system.includes('NAMED fact') ? 'beyond' : b.system.includes('Core line') ? 'faithful' : 'factual')).sort(), ['beyond', 'factual']);
+  assert.ok(sent.find(b => b.system.includes('FACTUAL ACCURACY')), 'the factual-v1 rubric was used for this run');
+  assert.deepEqual(r.results.cards.filter(c => c.judge).map(c => c.depth), ['deep']);
+  assert.match(RUBRICS.factual.version, /^factual-v2/, 'restored');
+  assert.match(readFileSync(join(r.runDir, 'report.md'), 'utf8'), /\*\*factual\*\* `factual-v1 2026-11-08`/);
 });

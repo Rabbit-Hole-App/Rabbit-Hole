@@ -122,8 +122,15 @@ prompts, plus 4 + 4 + 4.
   precision is an error. Formulas with a subscript, a sum or more than one variable are reported as not checked.
 - **Faithfulness** (judge, sketched sets; `faithful-v2`): fully / partly / not, judged on the sketch's Core line only
   (the Optional line never lowers it), from the sketch, `describeTutorDiagram` text and the prose.
-- **Claims beyond the prose** (judge, every diagram; `beyond-v1`): yes / no, "does the diagram state any fact, number
-  or name that the prose does not?", counted next to the factual numbers.
+- **Claims beyond the prose** (judge, every diagram; `beyond-v2`): yes / no, "does the diagram state any NAMED fact that
+  the prose does not give?", counted next to the factual numbers. Plotted values, data points, axis and tick values,
+  example counts and numbers computed from a formula the prose states are not claims; dates, heights, names of parts,
+  historical particulars and named entities are. (`beyond-v1` counted any fact, number or name; it stays selectable.)
+- **Factual** (judge, every card; `factual-v2`): score 1-5 and error yes/no, the G3 gate's strict fact-checker verbatim:
+  `error = "yes"` only if a statement is FALSE (a simplification is not an error). The judge is shown the title, the
+  prose with the visuals taken out, each diagram's visible text and each picture's caption, not the learner's question,
+  the raw diagram JSON, the key terms or the follow-up questions. `factual-v1` (the bench's first rubric: it listed every
+  imprecision and saw all of that) stays selectable with `--rubrics factual=factual-v1`.
 - **Picture content** (judge, every picture): yes / no, "does the described picture show what the question asks, from a
   view that teaches it?", from the question, the prose paragraphs either side of the picture and its prompt, alt and
   caption. Reported as the count and share of "no" per run and across runs; no gate yet.
@@ -161,7 +168,11 @@ versioned rubrics (text and hash printed in the report): `factual` (1-5 and the 
 picture). Calls are cached by (content hash, rubric version, judge index)
 in `judge-cache.json`. A separate `--judge-cap` (default US$1.00) stops judging; its spend is printed.
 `--judge-dry-run` (report.mjs) builds every item, writes them to `judge-items.json`, and prints a cost range
-without any call.
+without any call. `--same-as <run dir>` judges only the items that run's judge answered (same cards, diagrams and
+pictures), so a new rubric version is compared on the same items. `--rubrics factual=factual-v1,beyond=beyond-v1`
+selects older rubric versions for a re-score. `--spec-tree <worktree>` takes the diagram wording and descriptions the
+judge sees from the tree the cards were made on (default: the run's recorded stack tree, else this tree); with it the
+`factual-v2` item text is byte-identical to the G3 gate's (30 of 30 closing-run cards; 19 of 30 without it).
 
 ## Cost and time of a run
 

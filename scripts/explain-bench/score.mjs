@@ -3,8 +3,15 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describeTutorDiagram, tutorDiagramVisibleText } from '../../packages/web/src/tutor-diagrams/spec.js';
+import * as ownSpec from '../../packages/web/src/tutor-diagrams/spec.js';
+import { existsSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+// The diagram words and descriptions come from this tree's spec.js unless useSpecTree points at the tree the cards were made on (its newer kinds and wording).
+let spec = ownSpec;
+export async function useSpecTree(tree) { const file = tree && join(tree, 'packages/web/src/tutor-diagrams/spec.js'); spec = file && existsSync(file) ? await import(pathToFileURL(file).href) : ownSpec; return file && existsSync(file) ? file : null; }
 
+// The words a diagram draws (spec.js tutorDiagramVisibleText); a kind newer than this copy of spec.js falls back to the caller's own label list.
+export const visibleText = (d, fallback = []) => { let t; try { t = spec.tutorDiagramVisibleText({ diagram: d }); } catch { /* unknown kind */ } return (Array.isArray(t) ? t : fallback).filter(x => typeof x === 'string' && x.trim()); };
 export const SETS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'sets');
 export const SET_NAMES = ['regression', 'baseline', 'aiml', 'sequence', 'content'];
 export const loadSet = (name, dir = SETS_DIR) => JSON.parse(readFileSync(join(dir, `${name}.json`), 'utf8'));
@@ -151,11 +158,11 @@ export function diagramScore(d, prose, kinds = null) {
     placeholderEdge: edgeLabels.filter(l => PLACEHOLDER_EDGE_LABELS.has(norm(l)) || labelSet.has(norm(l))),
     duplicateLabels,
     nounBoxFlow: d.kind === 'flow' && !(d.nodes || []).some(n => n.role === 'decision') && !(d.nodes || []).some(n => verbStart(n.label)),
-    bareMaths: (() => { let t = []; try { t = tutorDiagramVisibleText({ diagram: d }) ?? L; } catch { t = L; } return t.filter(x => typeof x === 'string' && /[_^\\]/.test(x.replace(/\$[^$]*\$/g, ''))); })(),
+    bareMaths: (() => { let t = []; try { t = spec.tutorDiagramVisibleText({ diagram: d }) ?? L; } catch { t = L; } return t.filter(x => typeof x === 'string' && /[_^\\]/.test(x.replace(/\$[^$]*\$/g, ''))); })(),
     // Any formula or maths in the drawn words (owner, overview depth): $...$, a subscript/power/backslash, or an equals sign.
-    formulaLabels: (() => { let t = []; try { t = tutorDiagramVisibleText({ diagram: d }) ?? L; } catch { t = L; } return t.filter(x => typeof x === 'string' && /\$[^$]+\$|[_^\\=]/.test(x)); })(),
+    formulaLabels: (() => { let t = []; try { t = spec.tutorDiagramVisibleText({ diagram: d }) ?? L; } catch { t = L; } return t.filter(x => typeof x === 'string' && /\$[^$]+\$|[_^\\=]/.test(x)); })(),
   };
-  let describe = null; try { describe = describeTutorDiagram({ diagram: d }); } catch { /* an unexpected shape: no description */ }
+  let describe = null; try { describe = spec.describeTutorDiagram({ diagram: d }); } catch { /* an unexpected shape: no description */ }
   return {
     kind: d.kind, kindRight: kinds ? kinds.includes(d.kind) : null, units, edges: edges.length, labelledEdges: labelled, optional,
     numericLabels: L.filter(x => /\$[^$]+\$|\d/.test(x)).length, labels: L.length,
