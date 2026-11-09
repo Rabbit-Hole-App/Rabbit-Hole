@@ -73,6 +73,8 @@ The validation matrix holds out two rows per round and fits 1-NN on the other ei
 | `ml-mle-bernoulli-likelihood` | [408 px SVG](illustrations/ml-mle-bernoulli-likelihood-brief/408.svg) | [408 px SVG](illustrations/ml-mle-bernoulli-likelihood/408.svg) | [408 px SVG](illustrations/ml-mle-bernoulli-likelihood-detailed/408.svg) |
 | `ml-kfold-validation` | [408 px SVG](illustrations/ml-kfold-validation-brief/408.svg) | [408 px SVG](illustrations/ml-kfold-validation/408.svg) | [408 px SVG](illustrations/ml-kfold-validation-detailed/408.svg) |
 
+The gradient-descent example uses `closed: true` for both loss contours. Each vertex appears once in the data. Three arrow steps descend toward the minimum. [408 px SVG](references/gradient-descent-contours.svg)
+
 ## Integration with your active release
 
 1. Fetch `chatgpt/explain-phase02-library` from `rabbit-hole`. Integrate its delta from base `748e561eda37a269e277d913cdc1f9099fe9bf94` onto the active release. Do not reset the release branch to this older base.

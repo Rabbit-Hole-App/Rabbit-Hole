@@ -29,7 +29,7 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   return [
     z.strictObject({ ...titled, kind: z.literal('coordinate-plot'), x: axis, y: axis,
       series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(),
-        endLabel: z.boolean().optional(),
+        endLabel: z.boolean().optional(), closed: z.boolean().optional(),
         points: z.array(z.strictObject({ x: numeric, y: numeric, id: id.optional(), label: text(60).optional(),
           low: numeric.optional(), high: numeric.optional() })).min(1).max(24).optional(),
         samples: samples.optional(),
@@ -62,7 +62,7 @@ export function plotSeriesPoints(series) {
 
 export const isExtendedPlot = d => d.kind === 'coordinate-plot' &&
   (d.series.length > 3 || d.x.scale !== undefined || d.y.scale !== undefined || d.x.integerTicks || d.y.integerTicks || d.annotations !== undefined || d.series.some(s =>
-    s.samples || s.endLabel || !['line', 'scatter'].includes(s.kind) ||
+    s.samples || s.endLabel || s.closed || !['line', 'scatter'].includes(s.kind) ||
     s.points.some(p => p.label !== undefined || p.id !== undefined || p.low !== undefined || p.high !== undefined)));
 
 function inAxis(value, axis) {
@@ -95,6 +95,11 @@ function checkPlot(d, issue) {
       issue([...path, 'endLabel'], 'A right-edge label requires a line ending at the x-axis maximum');
     }
     const uncertainty = points.some(p => p.low !== undefined || p.high !== undefined);
+    if (s.closed) {
+      if (s.kind !== 'line') issue([...path, 'closed'], 'Only line series can be closed');
+      if (new Set(points.map(p => `${p.x},${p.y}`)).size < 3) issue(coordinatePath, 'A closed line needs at least three distinct vertices');
+      if (s.endLabel || uncertainty) issue([...path, 'closed'], 'A closed line cannot use an end label or an uncertainty band');
+    }
     const ids = new Set();
     points.forEach((p, j) => {
       const pointPath = [...coordinatePath, j];
@@ -184,7 +189,7 @@ export function annotationDescription(a) {
 export function describe(d) {
   if (isExtendedPlot(d)) return [
     ...[d.x, d.y].map(a => `${axisName(a)}: ${a.min} to ${a.max}`),
-    ...d.series.map(s => `${s.label} (${s.kind}): ${plotSeriesPoints(s).map(p => `${p.id ? `${p.id} ` : ''}${p.label ? `${p.label} ` : ''}${xy(p)}${p.low !== undefined ? ` [${p.low}, ${p.high}]` : ''}`).join('; ')}`),
+    ...d.series.map(s => `${s.label} (${s.closed ? 'closed line' : s.kind}): ${plotSeriesPoints(s).map(p => `${p.id ? `${p.id} ` : ''}${p.label ? `${p.label} ` : ''}${xy(p)}${p.low !== undefined ? ` [${p.low}, ${p.high}]` : ''}`).join('; ')}`),
     ...(d.annotations ?? []).map(annotationDescription),
   ];
   if (d.kind === 'bar-chart' && d.variant) return [

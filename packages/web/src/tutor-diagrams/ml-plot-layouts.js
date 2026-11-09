@@ -185,7 +185,8 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
     }
     const values = series.points.map(xy);
     if (series.kind === 'line' || series.kind === 'step') {
-      const path = series.kind === 'line' && series.smooth !== false ? monotoneLinePath(values, band) : undefined;
+      const openPath = series.kind === 'line' && series.smooth !== false ? monotoneLinePath(values, band) : undefined;
+      const path = series.closed ? (openPath ?? 'M' + values.join('L')) + 'Z' : openPath;
       geometry.push(curve(series.kind === 'step' ? stepPoints(values) : values, i, { 'data-tutor-plot-series': series.label }, path));
     }
     series.points.forEach((p, j) => {

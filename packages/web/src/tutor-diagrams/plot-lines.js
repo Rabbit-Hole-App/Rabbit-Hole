@@ -40,6 +40,7 @@ function withinBand(value, band, index, fraction) {
   return Math.max(lower, Math.min(upper, value));
 }
 
-export function showPlotMarker({ kind, points }, index) {
+export function showPlotMarker({ kind, points, closed }, index) {
+  if (closed) return Boolean(points[index].label || points[index].id);
   return kind !== 'line' || points.length <= 6 || index === 0 || index === points.length - 1 || Boolean(points[index].label);
 }
