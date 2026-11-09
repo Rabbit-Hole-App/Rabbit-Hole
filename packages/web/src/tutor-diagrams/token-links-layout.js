@@ -1,5 +1,5 @@
 import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, textWidth, wrap } from './primitives.js';
+import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { TEACHING, teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
 
 const PAD = 12;
@@ -8,24 +8,25 @@ const GUTTER = 68;
 const GAP = 10;
 const CELL_PAD = 8;
 const MIN_CELL = 58;
+const PANEL_MIN_CELL = 56;
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 960;
 const SMALL = 12;
 
-function tokenMetrics({ source, target }) {
-  return {
-    count: Math.max(source.length, target.length),
-    preferred: Math.ceil(Math.max(MIN_CELL, ...[...source, ...target].map(token => textWidth(token) + 2 * CELL_PAD))),
-  };
+function tokenMetrics({ source, target }, compact) {
+  const count = Math.max(source.length, target.length);
+  // In comparison panels, wrap ordinary labels and place row labels outside the grid.
+  const measure = compact ? widestFormula : textWidth;
+  const preferred = Math.ceil(Math.max(compact ? PANEL_MIN_CELL : MIN_CELL,
+    ...[...source, ...target].map(token => measure(token) + 2 * CELL_PAD)));
+  const gutter = compact ? 0 : GUTTER;
+  const required = 2 * (PAD + INSET) + gutter + count * preferred + (count - 1) * GAP;
+  const minimum = Math.max(MIN_WIDTH, compact ? required : Math.min(MAX_WIDTH, required));
+  return { count, preferred, gutter, minimum };
 }
 
-function naturalWidth({ count, preferred }) {
-  const width = 2 * (PAD + INSET) + GUTTER + count * preferred + (count - 1) * GAP;
-  return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, width));
-}
-
-export function tokenLinksNaturalWidth(diagram) {
-  return naturalWidth(tokenMetrics(diagram));
+export function tokenLinksNaturalWidth(diagram, { compact = false } = {}) {
+  return tokenMetrics(diagram, compact).minimum;
 }
 
 function weightedArrow(from, to, queryIndex, targetIndex, weight, description) {
@@ -46,24 +47,27 @@ function weightBadge(from, to, weight) {
     label(text, x, y, { size: SMALL, weight: 700, fill: TEACHING.blue }));
 }
 
-export function layoutTokenLinks(diagram, requestedWidth = 408) {
+export function layoutTokenLinks(diagram, requestedWidth = 408, { compact = false } = {}) {
   const { source, target, queries } = diagram;
-  const metrics = tokenMetrics(diagram);
-  const requested = Number.isFinite(requestedWidth) ? Math.round(requestedWidth) : 408;
-  const width = Math.min(MAX_WIDTH, Math.max(naturalWidth(metrics), requested));
+  const metrics = tokenMetrics(diagram, compact);
+  // A comparison can allocate fractional widths. Rounding down avoids falsely stacking an odd-width pair.
+  const requested = Number.isFinite(requestedWidth) ? (compact ? Math.floor(requestedWidth) : Math.round(requestedWidth)) : 408;
+  const width = Math.max(metrics.minimum, Math.min(MAX_WIDTH, requested));
   const contentWidth = width - 2 * (PAD + INSET);
-  const rowWidth = contentWidth - GUTTER;
+  const rowWidth = contentWidth - metrics.gutter;
   const slotWidth = Math.floor((rowWidth - (metrics.count - 1) * GAP) / metrics.count);
   const cellWidth = Math.min(slotWidth, Math.max(metrics.preferred, 112));
   const left = PAD + INSET;
-  const rowStart = left + GUTTER + (rowWidth - metrics.count * slotWidth - (metrics.count - 1) * GAP) / 2;
+  const rowStart = left + metrics.gutter + (rowWidth - metrics.count * slotWidth - (metrics.count - 1) * GAP) / 2;
   const center = index => rowStart + index * (slotWidth + GAP) + slotWidth / 2;
   const innerWidth = cellWidth - 2 * CELL_PAD;
   const sourceLabels = source.map(token => wrap(token, innerWidth));
   const targetLabels = target.map(token => wrap(token, innerWidth));
   const cellHeight = Math.max(...[...sourceLabels, ...targetLabels].map(lines => lines.length * lineHeight() + 24));
-  const sourceY = INSET + 22;
+  const sourceY = INSET + (compact ? 42 : 22);
   const targetY = sourceY + cellHeight + Math.max(86, Math.round(rowWidth * 0.16));
+  const sourceLabelY = compact ? sourceY - 11 : sourceY + cellHeight / 2;
+  const targetLabelY = compact ? targetY + cellHeight + 11 : targetY + cellHeight / 2;
 
   function tokenBox(lines, row, index, y, query, strongest) {
     const cx = center(index);
@@ -91,7 +95,7 @@ export function layoutTokenLinks(diagram, requestedWidth = 408) {
       ? `Equal largest weights at targets ${strongest.map(position => position + 1).join(', ')}` : '';
     const footer = note ? wrap(note, contentWidth, SMALL) : [];
     const footerHeight = footer.length * lineHeight(SMALL);
-    const footerTop = targetY + cellHeight + 8;
+    const footerTop = targetY + cellHeight + (compact ? 24 : 8);
     const panelHeight = footerTop + footerHeight + INSET;
     const from = [center(index), sourceY + cellHeight + 3];
     const to = targetIndex => [center(targetIndex), targetY - 3];
@@ -103,8 +107,8 @@ export function layoutTokenLinks(diagram, requestedWidth = 408) {
     const panel = h('g', { transform: `translate(0 ${y})`, 'data-tutor-token-panel': index },
       box(PAD, 0, width - 2 * PAD, panelHeight),
       label(`Query at source position ${index + 1}`, left, INSET + 4, { weight: 700, anchor: 'start' }),
-      label('Source', left, sourceY + cellHeight / 2, { size: SMALL, tone: 'muted', anchor: 'start' }),
-      label('Target', left, targetY + cellHeight / 2, { size: SMALL, tone: 'muted', anchor: 'start' }),
+      label('Source', left, sourceLabelY, { size: SMALL, tone: 'muted', anchor: 'start' }),
+      label('Target', left, targetLabelY, { size: SMALL, tone: 'muted', anchor: 'start' }),
       ...arrows,
       ...sourceLabels.map((lines, i) => tokenBox(lines, 'source', i, sourceY, index, strongest)),
       ...targetLabels.map((lines, i) => tokenBox(lines, 'target', i, targetY, index, strongest)),

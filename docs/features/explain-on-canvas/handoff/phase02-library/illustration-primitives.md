@@ -28,18 +28,20 @@ The [preview manifest](illustrations/manifest.json) lists each request width, ac
 
 | Schema surface | Serialized characters | Change |
 | --- | ---: | ---: |
-| Full TutorDiagram | 97,549 | +11,130 |
-| Full explanation author tool | 98,244 | +11,130 |
+| Full TutorDiagram | 98,502 | +12,083 |
+| Full explanation author tool | 99,197 | +12,083 |
 | Unsteered fast-author core | 10,526 | 0 |
-| Legacy visual panels bundle | 29,622 | +28 |
-| Legacy visual states bundle | 48,918 | +56 |
+| Visual panels bundle | 30,485 | +891 |
+| Legacy visual states bundle | 48,978 | +116 |
 | QKV transformation bundle | 11,856 | +1,330 vs core |
 | Token links bundle | 11,359 | +833 vs core |
 | Block stack bundle | 13,977 | +3,451 vs core |
-| Architecture comparison bundle | 33,073 | +3,451 vs legacy panels |
+| Architecture comparison bundle | 33,936 | +3,451 vs visual panels |
 | MoE flow bundle | 10,701 | +175 vs core |
 
 Coordinate-plot smoothing adds 112 characters to the full schema. Bundles expose the optional `smooth` field wherever they include a coordinate-plot.
+
+The batch 1 follow-ups add 953 characters to the full schema for token-links comparison children and right-edge plot labels. The unsteered core stays at 10,526 characters. [Batch 1 follow-up handoff](batch-1-followups.md)
 
 ### Gemini-compatible bundles
 
@@ -55,7 +57,7 @@ These counts come from the JSON request built for `gemini-3.5-flash-lite` throug
 | QKV transformation on its own | 145 | No | No | No |
 | Dense vs MoE comparison on its own | 129 | No | No | No |
 
-The QKV bundle exposes the inline tensor payload inside transformation items. Gemini reduces comparison and visual transformation to their list forms, which removes nested block-stacks from the dense-vs-MoE example. A broad schema that exceeds the limit is reduced again, keeping new standalone kinds only when the request explicitly requires them. Measured against the full tool schema, the reduced request has 297 properties with no named new kinds and 358 with all three named. These are offline schema checks.
+The QKV bundle exposes the inline tensor payload inside transformation items. Gemini reduces comparison and visual transformation to their list forms, which removes nested block-stacks from dense vs MoE and token-links panels from the two-head example. A broad schema that exceeds the limit is reduced again, keeping new standalone kinds only when the request explicitly requires them. Measured against the full tool schema, the reduced request has 298 properties with no named new kinds and 359 with all three named. These are offline schema checks.
 
 The [walkthrough handoff](illustrated-transformer-walkthrough.md) records the causal-mask heatmap constraint and the ten teaching examples.
 
@@ -70,7 +72,7 @@ Counts use `cl100k_base` on compact JSON. Each cell gives diagram tokens, then t
 | Encoder stack | 167 / 208 | 166 / 207 | 194 / 235 |
 | Llama-style decoder | 147 / 193 | 162 / 208 | 166 / 213 |
 | Dense vs MoE | 247 / 270 | 265 / 288 | 286 / 309 |
-| Gemma decoder | 109 / 181 | 169 / 241 | 386 / 460 |
+| Gemma decoder | 109 / 227 | 169 / 287 | 386 / 506 |
 | Top-two MoE routing | — | 300 / 335 | — |
 
 The gallery now has 24 kinds. All three new shapes have Brief, Balanced and Detailed specs. The saved depth keys remain `overview`, `standard` and `deep`. The preview manifest includes gallery variants, walkthrough examples, and both Gemma visuals. The dense-vs-MoE comparison also has a linked single-matrix alternative in the offline catalogue of variants.

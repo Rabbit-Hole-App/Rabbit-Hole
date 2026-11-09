@@ -661,6 +661,16 @@
         "sha256": "31b8c1ccc3864e897da332a6d20b950eac397b3e7244b7b1d8e5bfa840ecb20b",
         "estimated": true
       }
+    },
+    "ml-transformer-parallel-attention-heads": {
+      "panel": {
+        "tokens": 219,
+        "sha256": "52f52ac19f9c09175c012f733e648daae5f821d5f84aca81ede117f1e49931ff"
+      },
+      "single": {
+        "tokens": 147,
+        "sha256": "2f7a963fcbc25469be5d46815a60d653048b5b4d52e19cb583738b9cb05db96e"
+      }
     }
   }
 }

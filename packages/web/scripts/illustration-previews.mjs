@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { illustrationReferences, transformerWalkthroughReferences } from '../src/tutor-diagrams/reference-library.js';
+import { batch1FollowupReferences, illustrationReferences, transformerWalkthroughReferences } from '../src/tutor-diagrams/reference-library.js';
 import kindGalleryDepths from '../src/tutor-diagrams/kind-gallery-depths.json' with { type: 'json' };
 import { ILLUSTRATION_KINDS } from '../src/tutor-diagrams/illustration-kinds.js';
 import { blockStackNaturalWidth } from '../src/tutor-diagrams/block-stack-layout.js';
@@ -10,11 +10,12 @@ import { tokenLinksNaturalWidth } from '../src/tutor-diagrams/token-links-layout
 import { layouts } from '../src/tutor-diagrams/layouts.js';
 import { panelsNaturalWidth } from '../src/tutor-diagrams/ml-composition-layouts.js';
 import { renderTutorDiagram } from '../src/tutor-diagrams/TutorDiagram.js';
+import { convergingFlow, sequenceSelfMessage } from './batch-1-followup-fixtures.mjs';
 
 const depthNames = { overview: 'brief', standard: 'balanced', deep: 'detailed' };
 
 export function* illustrationSpecs() {
-  for (const ref of new Set([...illustrationReferences, ...transformerWalkthroughReferences])) {
+  for (const ref of new Set([...illustrationReferences, ...transformerWalkthroughReferences, ...batch1FollowupReferences])) {
     yield { id: ref.id, spec: ref.spec, ...(ref.detailSpec ? { detail: true } : {}) };
     if (ref.detailSpec) yield { id: `${ref.id}-detail`, spec: ref.detailSpec };
     for (const [key, { spec, detailSpec }] of Object.entries(ref.depths ?? {})) {
@@ -30,13 +31,15 @@ export function* illustrationSpecs() {
       yield { id: `shape-${kind}${suffix}`, spec };
     }
   }
+  yield { id: 'flow-converging-arrivals', spec: convergingFlow };
+  yield { id: 'sequence-self-message', spec: sequenceSelfMessage };
 }
 
-function naturalWidth(diagram) {
-  if (diagram.kind === 'token-links') return tokenLinksNaturalWidth(diagram);
+function naturalWidth(diagram, { compact = false } = {}) {
+  if (diagram.kind === 'token-links') return tokenLinksNaturalWidth(diagram, { compact });
   if (diagram.kind === 'block-stack') return blockStackNaturalWidth(diagram);
   if (diagram.kind === 'comparison' && diagram.variant === 'panels') {
-    return Math.min(960, panelsNaturalWidth(diagram.panels.map(panel => naturalWidth(panel.diagram))));
+    return Math.min(960, panelsNaturalWidth(diagram.panels.map(panel => naturalWidth(panel.diagram, { compact: true }))));
   }
   return layouts[diagram.kind](diagram, 320).width;
 }

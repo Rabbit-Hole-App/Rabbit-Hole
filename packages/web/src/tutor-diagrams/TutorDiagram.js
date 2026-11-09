@@ -1,6 +1,7 @@
 import { TEACHING_STYLE } from './teaching-theme.js';
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react';
 import { layouts } from './layouts.js';
+import { isExtendedPlot } from './ml-plot-spec.js';
 import { fitCaption, label, layoutCaption, lineHeight, SURFACE, wrap } from './primitives.js';
 import { describeTutorDiagram, parseTutorDiagram } from './spec.js';
 import { usesIllustrations } from './illustration-kinds.js';
@@ -75,6 +76,5 @@ function isTeachingDiagram(d) {
   if (['scaled-lanes', 'teaching', 'hierarchy', 'dendrogram', 'graph'].includes(d.layout)) return true;
   if (d.kind === 'tree') return d.highlightPath || d.nodes.some(n => n.edgeLabel || n.detail || n.count !== undefined || n.pruned);
   if (d.kind === 'flow') return d.nodes.some(n => n.role === 'fork' || n.role === 'merge');
-  if (d.kind === 'coordinate-plot') return d.annotations || d.x.scale || d.y.scale || d.series.some(s => !['line', 'scatter'].includes(s.kind) || s.points.some(p => p.id || p.label || p.low !== undefined));
-  return false;
+  return isExtendedPlot(d);
 }

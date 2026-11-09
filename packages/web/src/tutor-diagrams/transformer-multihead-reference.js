@@ -4,10 +4,13 @@ function patterns(title, caption) {
   return {
     version: 1,
     diagram: {
-      kind: 'token-links', title,
-      source: ['sat A', 'sat B'], target: sentence,
-      queries: heads.map((head, index) => ({ index, weights: head.weights[queryIndex] })),
-      normalized: true,
+      kind: 'comparison', variant: 'panels', title,
+      panels: ['Head A', 'Head B'].map((heading, index) => ({ heading, diagram: {
+        kind: 'token-links', title: heading,
+        source: sentence, target: sentence,
+        queries: [{ index: queryIndex, weights: heads[index].weights[queryIndex] }],
+        normalized: true,
+      } })),
       caption,
     },
   };
@@ -73,6 +76,19 @@ export const transformerMultiheadReference = {
         operation: 'Concatenate the heads, then apply $W_O$',
         caption: String.raw`$z=\operatorname{Concat}(h_1,h_2)W_O$. The four example entries represent a 512-wide model.`,
       }),
+    },
+  },
+};
+
+export const transformerMultiheadSingleSpec = {
+  useWhen: 'Compare the two heads on one bar chart. Use the same six token positions and the same query for both heads.',
+  spec: {
+    version: 1,
+    diagram: {
+      kind: 'bar-chart', variant: 'grouped', title: 'Attention weights by head and token',
+      categories: sentence.map((token, index) => `${index + 1}. ${token}`),
+      series: heads.map((head, index) => ({ label: index === 0 ? 'Head A' : 'Head B', values: head.weights[queryIndex] })),
+      caption: 'Both heads query sat. Head A puts the most weight on cat, and Head B puts the most on the first the.',
     },
   },
 };

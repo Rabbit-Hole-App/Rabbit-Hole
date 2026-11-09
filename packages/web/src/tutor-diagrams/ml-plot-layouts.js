@@ -1,14 +1,15 @@
-import { createElement as h } from 'react';
-import { label, lineHeight, widestFormula, wrap } from './primitives.js';
+import { cloneElement, createElement as h } from 'react';
+import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
-import { TEACHING as T, TEACHING_SERIES as COLORS, teachingConnector } from './teaching-theme.js';
+import { TEACHING as T, TEACHING_SERIES, teachingConnector } from './teaching-theme.js';
 import { annotationDescription, axisName, isExtendedPlot } from './ml-plot-spec.js';
 
 const PAD = 12;
 const SMALL = 12;
-const SOFT = [T.blueSoft, T.warmSoft, T.greenSoft];
-const DASH = [undefined, '7 4', '2 4'];
+const COLORS = [...TEACHING_SERIES, T.ink, T.muted];
+const SOFT = [T.blueSoft, T.warmSoft, T.greenSoft, T.inset, T.inset];
+const DASH = [undefined, '7 4', '2 4', '12 5', '6 3 1 3'];
 const pointString = values => values.map(p => p.join(',')).join(' ');
 const format = value => String(value);
 const amount = (value, unit) => `${value}${unit ? ` ${unit}` : ''}`;
@@ -23,7 +24,7 @@ function scale(axis, start, end) {
   return value => start + (end - start) * (project(value) - min) / (max - min);
 }
 function symbol(x, y, index, attributes = {}, title) {
-  const props = { fill: COLORS[index % 3], stroke: T.surface, strokeWidth: 1.1, ...attributes };
+  const props = { fill: COLORS[index], stroke: T.surface, strokeWidth: 1.1, ...attributes };
   const child = title ? h('title', null, title) : null;
   if (index % 3 === 1) return h('rect', { x: x - 4, y: y - 4, width: 8, height: 8, ...props }, child);
   if (index % 3 === 2) return h('polygon', { points: pointString([[x, y - 5], [x + 5, y], [x, y + 5], [x - 5, y]]), ...props }, child);
@@ -31,8 +32,8 @@ function symbol(x, y, index, attributes = {}, title) {
 }
 function curve(points, colorIndex, attributes = {}, path) {
   const geometry = path ? { d: path } : { points: pointString(points) };
-  return h(path ? 'path' : 'polyline', { ...geometry, fill: 'none', stroke: COLORS[colorIndex % 3], strokeWidth: 2,
-    strokeDasharray: DASH[colorIndex % 3], strokeLinejoin: 'round', strokeLinecap: 'round', ...attributes });
+  return h(path ? 'path' : 'polyline', { ...geometry, fill: 'none', stroke: COLORS[colorIndex], strokeWidth: 2,
+    strokeDasharray: DASH[colorIndex], strokeLinejoin: 'round', strokeLinecap: 'round', ...attributes });
 }
 function stepPoints(points) {
   return points.flatMap((p, i) => i ? [[p[0], points[i - 1][1]], p] : [p]);
@@ -43,11 +44,36 @@ function bodyWidth(d, requested) {
   return Math.max(requested, 420, ...text.filter(Boolean).map(t => widestFormula(t) + 150));
 }
 
-function coordinatePlot(d, requested) {
-  const width = bodyWidth(d, requested);
-  // Fixed gutters make equally sized child plots share the same coordinate frame
-  // even when their tick values have different lengths. Native text is never scaled.
-  const bounds = { left: 104, right: width - 24, top: 66, bottom: 306 };
+function plotEndLabels(series) {
+  const endSeries = series.flatMap((entry, i) => entry.endLabel ? [{ entry, color: COLORS[i] }] : []);
+  const endLabelWidth = Math.ceil(Math.max(0, ...endSeries.map(({ entry }) =>
+    Math.max(Math.min(128, textWidth(entry.label, SMALL)), widestFormula(entry.label, SMALL)))));
+  const labels = endSeries.map(({ entry, color }) => {
+    const lines = wrap(entry.label, endLabelWidth, SMALL);
+    return { name: entry.label, value: entry.points.at(-1).y, color, lines, height: lines.length * lineHeight(SMALL) };
+  }).sort((a, b) => b.value - a.value);
+  return {
+    labels,
+    gutter: endLabelWidth ? endLabelWidth + 12 : 0,
+    height: labels.reduce((sum, item) => sum + item.height + 4, 0),
+  };
+}
+
+export function sharedPlotLabelSpace(diagrams) {
+  const measurements = diagrams.map(diagram => plotEndLabels(diagram.series));
+  return {
+    gutter: Math.max(...measurements.map(({ gutter }) => gutter)),
+    height: Math.max(...measurements.map(({ height }) => height)),
+  };
+}
+
+function coordinatePlot(d, requested, { sharedLabelSpace } = {}) {
+  const endLabels = plotEndLabels(d.series);
+  const endGutter = Math.max(endLabels.gutter, sharedLabelSpace?.gutter ?? 0);
+  let remainingLabels = endLabels.height;
+  const width = Math.max(bodyWidth(d, requested), 324 + endGutter);
+  const bottomEdge = 66 + Math.max(240, endLabels.height, sharedLabelSpace?.height ?? 0);
+  const bounds = { left: 104, right: width - 24 - endGutter, top: 66, bottom: bottomEdge };
   const { left, right, top, bottom } = bounds;
   const x = scale(d.x, left, right), y = scale(d.y, bottom, top);
   const xy = p => [x(p.x), y(p.y)];
@@ -183,6 +209,16 @@ function coordinatePlot(d, requested) {
     elements.push(label(lines, PAD, legendY + height / 2, { anchor: 'start' }));
     legendY += height + 6;
   }
+  let nextLabelTop = top;
+  for (const { name, value, color, lines, height } of endLabels.labels) {
+    const anchor = y(value);
+    const rowTop = Math.max(nextLabelTop, Math.min(bottom - remainingLabels, anchor - height / 2));
+    const center = rowTop + height / 2;
+    foreground.push(h('line', { x1: right + 4, y1: anchor, x2: right + 9, y2: center, stroke: color, strokeWidth: 1.2 }),
+      cloneElement(label(lines, right + 12, center, { size: SMALL, anchor: 'start', fill: color }), { 'data-tutor-plot-end-label': name }));
+    nextLabelTop = rowTop + height + 4;
+    remainingLabels -= height + 4;
+  }
   return { width, height: legendY + PAD, plotBounds: bounds, elements: [...elements, ...geometry, ...marks, ...foreground] };
 }
 
@@ -244,7 +280,7 @@ function barChart(d, requested) {
 
 export function createLayouts({ legacy }) {
   return {
-    'coordinate-plot': (d, width) => isExtendedPlot(d) ? coordinatePlot(d, width) : legacy['coordinate-plot'](d, width),
+    'coordinate-plot': (d, width, options) => isExtendedPlot(d) ? coordinatePlot(d, width, options) : legacy['coordinate-plot'](d, width),
     'bar-chart': (d, width) => d.variant ? barChart(d, width) : legacy['bar-chart'](d, width),
   };
 }

@@ -109,9 +109,20 @@ test('requires a single-root connected DAG and allows branches that merge', () =
   })), /cycle|reach/i);
 });
 
-test('rejects sequence self messages, missing actors, duplicate actor IDs, and ragged matrices', () => {
+test('sequence self-messages require an ordinary message before and after each one', () => {
   const sequence = structuredClone(other.find(d => d.kind === 'sequence'));
-  assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages: [{ from: 'c', to: 'c', label: 'Loop' }] })), /itself/i);
+  const [request] = sequence.messages;
+  const internal = { from: 's', to: 's', label: 'Read from cache' };
+  const reply = { from: 's', to: 'c', label: 'Send reply' };
+  const valid = versioned({ ...sequence, messages: [request, internal, reply] });
+  assert.deepEqual(parseTutorDiagram(valid), valid);
+  for (const messages of [[internal, reply], [request, internal], [request, internal, internal, reply]]) {
+    assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages })), /self-message.*ordinary/i);
+  }
+});
+
+test('rejects missing sequence actors, duplicate actor IDs, and ragged matrices', () => {
+  const sequence = structuredClone(other.find(d => d.kind === 'sequence'));
   assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages: [{ from: 'c', to: 'other', label: 'Unknown' }] })), /unknown/i);
   assert.throws(() => parseTutorDiagram(versioned({ ...sequence, actors: [sequence.actors[0], sequence.actors[0]] })), /unique/i);
   const matrix = structuredClone(other.find(d => d.kind === 'matrix'));

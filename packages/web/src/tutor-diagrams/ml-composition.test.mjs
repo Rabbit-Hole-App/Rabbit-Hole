@@ -41,7 +41,7 @@ const transformation = extra => ({ kind: 'transformation', title: 'Scale values'
   after: { label: 'After', diagram: plot('Scaled values', { series: [{ label: 'Samples', kind: 'scatter', points: [{ id: 'b', label: 'B', x: 3, y: 3 }, { id: 'a', label: 'A', x: 1, y: 1 }] }] }) },
   identity: { mode: 'preserved', note: 'The same rows A and B remain present.' }, ...extra,
 });
-const realLayouts = createLayouts({ legacy, renderChild: (diagram, width) => legacy[diagram.kind](diagram, width) });
+const realLayouts = createLayouts({ legacy, renderChild: (diagram, width, options) => legacy[diagram.kind](diagram, width, options) });
 const walk = values => values.flatMap(value => value && typeof value === 'object' ? [value, ...walk([value.props?.children].flat())] : []);
 const tags = (scene, type) => walk(scene.elements).filter(element => element.type === type);
 const textContent = scene => tags(scene, 'text').flatMap(element => [element.props.children].flat().map(span => span.props.children)).join(' ');
@@ -82,6 +82,20 @@ test('shared axes reject mismatched domain, unit, label and scale while allowing
   const nonPlot = comparison({ sharedAxes: ['x'] });
   nonPlot.panels[1].diagram = { kind: 'bar-chart', title: 'Bars', bars: [{ label: 'A', value: 1 }, { label: 'B', value: 2 }] };
   assert.equal(schema.safeParse(nonPlot).success, false);
+});
+
+test('a right-edge curve label keeps the same shared plot bounds in both panels', () => {
+  const d = comparison({ sharedAxes: ['x', 'y'] });
+  d.panels[0].diagram.series = [{
+    kind: 'line', label: 'First fit', endLabel: true, points: [{ x: 0, y: 0 }, { x: 4, y: 8 }],
+  }];
+  for (const width of [408, 960]) {
+    const scene = realLayouts.comparison(d, width);
+    const bounds = tags(scene, 'rect').filter(el => Object.hasOwn(el.props, 'data-tutor-plot-area'))
+      .map(({ props: { x, y, width, height } }) => [x, y, width, height]);
+    assert.equal(bounds.length, 2);
+    assert.deepEqual(bounds[0], bounds[1]);
+  }
 });
 
 test('legacy shapes stay valid and cannot mix list and visual representations', () => {

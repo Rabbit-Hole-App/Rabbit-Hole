@@ -14,6 +14,8 @@ Batch 4A covers classification versus regression and the logistic decision bound
 
 The static illustration pack adds seven transformer and architecture references. The previews use natural widths up to 960 px, with a 320 px minimized Gemma example. [Illustration primitives](illustration-primitives.md) · [Illustrated Transformer walkthrough](illustrated-transformer-walkthrough.md)
 
+The batch 1 follow-ups add sequence self-messages, clearer flow arrivals, side-by-side attention heads, and three references for B-tree lookup, recursion and Big-O. [Batch 1 follow-up handoff](batch-1-followups.md)
+
 The offline SVG handoff covers the 14 AI/ML additions, kind gallery, content contracts, standalone formula sampler, renderer diffs, correction corpus and SVG snapshots. It records the original selector benchmark and the additional paraphrase replay. [Offline SVG handoff](svg-offline.md)
 
 ## Implemented scope

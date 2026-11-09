@@ -81,17 +81,17 @@
       "balanced": {
         "tokens": 169,
         "sha256": "275939fba5508cb0fba04777a2b13194023804fc68d24f6b0c1afff1bc55e5fb",
-        "authorPacketTokens": 241
+        "authorPacketTokens": 287
       },
       "brief": {
         "tokens": 109,
         "sha256": "3162698c8321184a102c5d09a5aa917d53dc92688edd29b4bf9be0ec112c2ee6",
-        "authorPacketTokens": 181
+        "authorPacketTokens": 227
       },
       "detailed": {
         "tokens": 386,
         "sha256": "55b65e780dc847ea8251410ecdd06621b6d73ba7ea66f1abb46b269d3cef79ee",
-        "authorPacketTokens": 460,
+        "authorPacketTokens": 506,
         "visuals": [
           {
             "tokens": 315,
@@ -222,13 +222,13 @@
     },
     "ml-transformer-parallel-attention-heads": {
       "balanced": {
-        "tokens": 379,
-        "sha256": "ed7c06dba7a8f33df5afc3a6b4d4d07ade7d4b109a6cff23c50dd8fda6de136d",
-        "authorPacketTokens": 428,
+        "tokens": 462,
+        "sha256": "6e1c166eb19f1d709c4487619053c11792c0649761997ebdd394c36fc60c3d00",
+        "authorPacketTokens": 512,
         "visuals": [
           {
-            "tokens": 136,
-            "sha256": "9eb223d47093b60505fd1cb957a93d395a83b6df6a0e51ff32e01bdad8f240e0"
+            "tokens": 219,
+            "sha256": "52f52ac19f9c09175c012f733e648daae5f821d5f84aca81ede117f1e49931ff"
           },
           {
             "tokens": 241,
@@ -237,13 +237,13 @@
         ]
       },
       "brief": {
-        "tokens": 377,
-        "sha256": "45fd954202ef1a60a5852c273ab7281d26e6e39624e56a08ab4688259f8e9edd",
-        "authorPacketTokens": 426,
+        "tokens": 460,
+        "sha256": "1d1d4e6ac5041196f698c3d5663a16de9eded88786aae00ea779c34ac831ad09",
+        "authorPacketTokens": 510,
         "visuals": [
           {
-            "tokens": 137,
-            "sha256": "ea26369cdaaa962c9ee4ddea3f00f2ff7e761303b8b6ca89af3bc120cd87bcda"
+            "tokens": 220,
+            "sha256": "448f59fb9b2551041c30b7f26287e90f5d2cafae36af0b9742e3d03ecb0f530e"
           },
           {
             "tokens": 238,
@@ -252,13 +252,13 @@
         ]
       },
       "detailed": {
-        "tokens": 415,
-        "sha256": "e2d910d67c574b0ebf7baf35fba82ac0b1733ae1d1cd3ae4e17b3a6082251756",
-        "authorPacketTokens": 464,
+        "tokens": 498,
+        "sha256": "8cf890c9b13af2337f8491a132c92b623bf692438073cd5e33ad9eb9a81b34ca",
+        "authorPacketTokens": 548,
         "visuals": [
           {
-            "tokens": 160,
-            "sha256": "c2dd7dff51a37c4b8dac7b021a3c8dacd63ea568320ee15b56791bf7c1fb0468"
+            "tokens": 243,
+            "sha256": "43f96ea2d18598635179511474122f6c6851268623d8ada0d0f022e19f8c053b"
           },
           {
             "tokens": 253,

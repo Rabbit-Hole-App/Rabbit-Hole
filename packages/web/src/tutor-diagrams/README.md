@@ -22,7 +22,7 @@ Every spec has the shape `{ "version": 1, "diagram": { "kind": "...", "title": "
 | `flow` | Nodes with `id`, `label`, `role`; directed edges with `from`, `to`, optional `label` | Process boxes, decision diamonds, outcome pills, elbow arrows, branch labels, skip lanes |
 | `comparison` | Columns with `heading` and `items` | Colored headers, outlined cells, dashed column dividers |
 | `timeline` | Events with `time`, `label`, optional `detail` | Time pills, event cards, connected markers |
-| `sequence` | Actors with `id` and `label`; messages with `from`, `to`, and `label` | Actor boxes, lifelines, directed message arrows |
+| `sequence` | Actors with `id` and `label`, messages with `from`, `to`, and `label`. A self-message needs an ordinary message immediately before and after it. | Actor boxes, lifelines, directed arrows, labelled loops for self-messages |
 | `matrix` | Column labels; rows with `heading` and `cells` | Column headers, row headers, data cells |
 | `layers` | Ordered layers with `label`, optional `detail` | Stacked color blocks with wrapped labels and details |
 | `cycle` | Ordered step labels | Step boxes, arrows, outer return connector |
@@ -56,8 +56,8 @@ This batch added four kinds to the original 17. Nine original kinds have additiv
 | `box-plot` | Quartiles, median, observed whiskers, fences and labelled outliers on an explicit axis | `ml-statistical-*` |
 | `tree` | `layout: binary/hierarchy/dendrogram`, child `edgeLabel`, count/detail/pruned; `highlightPath`, merge heights and cutoff | `ml-topology-*` |
 | `relationship` | `layout: graph`, each node drawn once, separate directed/reciprocal routes and labelled ledger | `ml-topology-*` |
-| `flow` | `fork` and `merge` roles for simultaneous branches; legacy routing retained | `ml-topology-*` |
-| `coordinate-plot` | Linear/log axes, step/stem series, low/high uncertainty, bounded annotations in data coordinates | `ml-plot-*` |
+| `flow` | `fork` and `merge` for simultaneous branches. Arrivals from three or more edges use distinct top ports and staggered approaches. | `ml-topology-*` |
+| `coordinate-plot` | Linear/log axes, up to five series, step/stem series, low/high uncertainty, bounded annotations in data coordinates. Use `endLabel: true` for a line ending at the x-axis maximum. | `ml-plot-*` |
 | `bar-chart` | `variant: grouped/stacked`, categories, series; signed stacks calculated separately around zero | `ml-plot-*` |
 | `timeline` | `layout: scaled-lanes`, numeric domain/unit, lanes with intervals/events and cutoffs | `ml-data-*` |
 | `matrix` | `layout: teaching`, stable row IDs, emphasis and missing/changed cell states | `ml-data-*` |
@@ -75,7 +75,7 @@ A highlighted tree path is root-to-descendant, not an arbitrary traversal order.
 | Kind | Schema and layout modules | Supported structure |
 | --- | --- | --- |
 | `tensor` | `tensor-spec.js`, `tensor-layout.js` | Up to eight visible cells, optional numbers, name and dimension label. The payload also works in flow, relationship, transformation and block stacks. |
-| `token-links` | `token-links-spec.js`, `token-links-layout.js` | Weighted links between two token rows, with a separate panel for each query. |
+| `token-links` | `token-links-spec.js`, `token-links-layout.js` | Weighted links between token rows. Comparison panels use compact token boxes with a 56 px minimum. Two six-token panels fit from 912 px. |
 | `block-stack` | `block-stack-spec.js`, `block-stack-layout.js` | Inset flows, tensors or layers, residual arrows, repeat groups, add and multiply joins, side inputs, callouts and detail indices. A comparison can use two of these stacks and highlight changed blocks. |
 
 The registry includes their reference prompts and keywords. `explanation-references.js` adds the matching fields to the fast-author bundle. The natural-width renderer uses the existing scroll viewport. [Previews, JSON and test receipts](../../../../docs/features/explain-on-canvas/handoff/phase02-library/illustration-primitives.md)
