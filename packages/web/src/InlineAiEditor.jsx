@@ -24,9 +24,9 @@ import { cardEditSelectionReason } from './inline-card-edit.js';
 import { explainEditProblem } from './explain-client.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
-import { CHIP, CHIP_ICON_BUTTON } from './ContextChips.jsx';
-import { firstWords, scrimPath } from './inline-highlight.js';
-import { cardText } from './canvas-semantics.js';
+import { CHIP } from './ContextChips.jsx';
+import { cardContext, contextMessage, firstWords, placeBesideWords, scrimPath } from './inline-highlight.js';
+import { markClear, markSet } from './inline-highlight-mark.js';
 import { composerKey } from './composer-keys.js';
 import DepthMenu from './DepthMenu.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -35,7 +35,7 @@ import { inlineProvenance, cardId, cardTx, describeChange, editTx, explainConnec
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagram.js';
 import { placeResult, regionStyle } from './inline-placement.js';
-import { PROMPT_MAX, routeLabel, selectionSummary, selectionTitle } from './inline-ai-route.js';
+import { INLINE_COMMAND_ROUTE, PROMPT_MAX, ROUTES, routeLabel, selectionSummary, selectionTitle } from './inline-ai-route.js';
 import { HANDOFF_REFUSED, ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
 import { descFor, typedOf } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
@@ -54,7 +54,7 @@ import { keyLabel } from './shortcuts.js';
 // small adapter (board(), apply(tx), boxes, view) and owns nothing of a request.
 
 // The composer (owner brief 2026-10-13): about 420 px wide, a prompt that grows to 180 px, then scrolls.
-const W = 420, GAP = 12, EDGE = 8, PROMPT_H = 180, RESERVE = 300;
+const W = 420, GAP = 12, EDGE = 8, PROMPT_H = 180, RESERVE = 300, FRAME_ROOM = 160; // FRAME_ROOM: the window height the camera centres (its first height and a little more; a streamed answer has the rest of RESERVE below)
 // The character count shows only near the limit.
 const NEAR = Math.round(PROMPT_MAX * 0.9);
 const MODES = [['edit', 'Edit selection'], ['explain', 'Explain selection']];
@@ -62,6 +62,8 @@ const LABEL = { shape: 'Shape', line: 'Line', text: 'Text', sticky: 'Note', equa
 // Why each supporting object is in the context, as its line in the details says it.
 const RELATION = { connected: 'connected', sibling: 'sibling', diagram: 'same diagram', inferred: 'drawn arrow', group: 'same group', heading: 'heading or section',
   label: 'label', flow: 'text before or after', discussion: 'discussion', mentions: 'shares its terms', annotation: 'earlier note' };
+// Over highlighted words: the router's probability a command needs, and how long the picked command shows before it runs (Escape closes the window and cancels).
+const INTENT_AT = 0.7, INTENT_SHOW_MS = 1000;
 const short = (text, n = 48) => { const one = String(text || '').replace(/\s+/g, ' ').trim(); return one.length > n ? `${one.slice(0, n - 1)}…` : one; };
 const busy = status => status === 'routing' || status === 'generating' || status === 'streaming';
 
@@ -100,15 +102,27 @@ export function CardEditPreview({ fields, proposedOnly = false }) {
     </section>)}
   </div>;
 }
-export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, preset = null, highlight = null, onClearHighlight = null, onClose }) {
+export default function InlineAiEditor({ target, canvas, config, view, readOnly = false, opened = null, cold = false, initialMode = null, preset = null, highlight = null, onClose }) {
   const board = canvas.board;
   // Owner 2026-11-09: the highlighted words stay marked while the window is open (the native selection collapses when the prompt field takes the focus): the live Range under a CSS custom
   // highlight (index.css ::highlight(inline-target)), a mark for this request only, never a saved Highlight; it goes when the window closes or the chip is cleared.
+  // Sent to Chat as a slash command, the mark stays until the Chat's chip x is pressed (inline-highlight-mark.js); closed without sending, it goes.
+  const handedOff = useRef(false);
   useEffect(() => {
-    if (!highlight?.live || typeof CSS === 'undefined' || !CSS.highlights || typeof Highlight === 'undefined') return undefined;
-    CSS.highlights.set('inline-target', new Highlight(highlight.live));
-    return () => { CSS.highlights.delete('inline-target'); };
+    if (!highlight?.live) return undefined;
+    markSet(highlight);
+    return () => { if (!handedOff.current) markClear(); };
   }, [highlight]);
+  // The camera frames the words and the window beside them (a card made by a command takes over the camera itself; closed without sending, the camera goes back).
+  useEffect(() => {
+    const origin = overlay.current?.getBoundingClientRect();
+    if (!highlight || !origin || !canvas.frameWords) return undefined;
+    const rects = highlight.rects.map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
+    const words = { left: Math.min(...rects.map(r => r.left)), top: Math.min(...rects.map(r => r.top)), right: Math.max(...rects.map(r => r.left + r.width)), bottom: Math.max(...rects.map(r => r.top + r.height)) };
+    const restore = canvas.frameWords(words, { w: W, h: FRAME_ROOM, gap: 10 });
+    const again = setTimeout(() => tick(n => n + 1), 420);
+    return () => { clearTimeout(again); if (!handedOff.current) restore?.(); };
+  }, [highlight]); // eslint-disable-line react-hooks/exhaustive-deps
   // The board's Depth (the Chat composer's own setting, one value for both): null on a page with no Chat workspace..
   const depthSettings = useChatWorkspace()?.settings ?? null;
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
@@ -136,7 +150,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [handoffError, setHandoffError] = useState('');
   const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && (explainTarget ? explainEditReason : cardEditSelectionReason(target.ids || [], canvas.board?.() || {}));
   const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
-  const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
+  const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason || (highlight && !initialMode) ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain'); // owner 2026-11-09: Ctrl+K over highlighted words in a card is Explain selection (the card's words are read, not edited)
   // preset: { command, prompt } from an opener that already knows the command and its words (Explain on a highlighted passage).
   const [prompt, setPrompt] = useState(preset?.prompt ?? '');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
@@ -271,7 +285,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     const live = { ...board(), boxes: canvas.layout() };
     // A creation reads the region around its anchor; its look (style) travels apart from its subject (creation §4).
     const context = target.creation
-      ? buildCreationContext(live, target.anchor, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, request, extras: config.extras?.() || {}, style: regionStyle(live, target.anchor) })
+      ? buildCreationContext(live, target.anchor, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, request, extras: { ...(config.extras?.() || {}), ...(highlight ? { highlightedCard: highlightedCardMessage() } : {}) }, style: regionStyle(live, target.anchor) })
       : buildContext(live, target, { cache: canvas.cache, boardKey: canvas.boardKey, describeCard: canvas.describe, selectionOnly: only, request, extras: config.extras?.() || {} });
     if(!target.creation&&!target.range){const native=freezeNativeTools(live,target.ids,live.boxes);if(native)context.nativeTools=native;}
     if(!target.creation&&!target.range){const tools=freezeInlineTools(live,target.ids,live.boxes,{mode:intent,notebook:notebookScope?Object.fromEntries(['id','notebookId','path','revision','cellIds'].map(key=>[key,notebookScope[key]])):null});if(tools)context.toolSnapshot=tools;}
@@ -317,6 +331,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return () => node.removeEventListener('wheel', stop);
   }, []);
 
+  // The subject of a request over highlighted words: the WHOLE card (id, type, title, prose, every diagram's saved spec, picture prompts, questions, terms) with the highlighted words flagged, as one
+  // message the model reads; beside + alignY place a new card next to the source, level with the highlighted line (owner 2026-11-09).
+  const highlightedCardMessage = () => { const source = (board()?.blocks || []).find(block => block.id === highlight.id); return source ? contextMessage(cardContext(source, highlight.text)) : ''; };
+  const highlightSelection = () => {
+    const source = (board()?.blocks || []).find(block => block.id === highlight.id);
+    const card = source ? cardContext(source, highlight.text) : null;
+    return { id: highlight.id, kind: 'card', title: card?.title || '', text: card ? contextMessage(card) : highlight.text.slice(0, 8000), ...(card ? { card } : {}), ...(source ? { beside: true, alignY: highlight.alignY } : {}) };
+  };
   const submit = (text, how = mode) => {
     if (readOnly || busy(state.status)) return;
     session.submit({
@@ -368,6 +390,22 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // An explicit command (owner spec 2026-10-29 4.2): handed to Chat's dispatcher as its typed line, about THIS selection as it is
     // now (its first id and every object's words), and Ctrl+K closes. Chat asks, prepares the brief or acts, and the result lands on
     // this canvas through Chat's own output path. Nothing is generated here. Not taken (Chat busy or not open in time): the line stays.
+    // Owner 2026-11-09: over highlighted words a plain prompt asks JEV which slash command it is (the router's own question, ROUTES): a command it picks with probability >= INTENT_AT is shown for a second,
+    // then handed to Chat's dispatcher (the right Chat panel opens, /explain makes a card beside the highlighted line); none, a note or a low answer leaves the request here as Explain selection.
+    if (highlight && !out.handoff && out.mode !== 'edit' && String(prompt).trim() && config.transport?.route && config.handoff) {
+      const asked = String(prompt).trim(), intent = await config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: highlight.text.slice(0, 1500) });
+      const choice = intent && !intent.error ? intent.choice : null, name = choice && ROUTES[choice] && choice !== 'note' ? Object.entries(INLINE_COMMAND_ROUTE).find(([, route]) => route === choice)?.[0] || choice : null;
+      if (name && intent.probability >= INTENT_AT && (config.enabled || ['note']).includes(choice)) {
+        const line = `/${typedOf(name)} ${asked}`;
+        setPicked(typedOf(name));
+        await new Promise(resolve => setTimeout(resolve, INTENT_SHOW_MS));
+        if (!alive.current) return;
+        setPicked(null);
+        if (await config.handoff(line, { selection: highlightSelection() })) { handedOff.current = true; onClose(); return; }
+        setHandoffError(HANDOFF_REFUSED);
+        return;
+      }
+    }
     if (out.handoff) {
       if (!config.handoff) { setRefused(typedOf(out.handoff.command)); return; }
       const objects = target.creation ? [] : (prepare(selectionOnly, out.handoff.line).context?.target?.objects || []);
@@ -375,11 +413,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       const title = selectionTitle({ target: { objects } }, board()?.blocks || []).slice(0, 100) || null;
       // Owner 2026-11-09: /explain from Ctrl+K carries the question, the highlighted words AND the card they are in (its title and text), and the new card stands beside the source level with the
       // highlighted line (beside + alignY, learn-slash.js hold -> canvas.reserve).
-      const source = highlight && (board()?.blocks || []).find(block => block.id === highlight.id);
-      const selection = target.ids?.length ? { id: target.ids[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title: source?.title ? String(source.title).slice(0, 200) : title, text: highlight ? highlight.text.slice(0, 8000) : words,
-        ...(source ? { card: { title: String(source.title || '').slice(0, 200), body: cardText(source).slice(0, 6000) }, beside: true, alignY: highlight.alignY } : {}) } : null;
+      const selection = highlight ? highlightSelection() : target.ids?.length ? { id: target.ids[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title, text: words } : null;
       setHandoffError('');
-      if (await config.handoff(out.handoff.line, { selection, concept: title })) { onClose(); return; }
+      if (await config.handoff(out.handoff.line, { selection, concept: title })) { handedOff.current = true; onClose(); return; }
       setHandoffError(HANDOFF_REFUSED);
       return;
     }
@@ -662,6 +698,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // Owner 2026-11-09: over highlighted words the window stands beside THOSE words (the live Range's rects, so it follows a pan), never over them; the overlay's own origin turns client
   // rects into canvas coordinates.
   const overlay = useRef(null);
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+  const [picked, setPicked] = useState(null);
   const marked = (() => {
     const origin = overlay.current?.getBoundingClientRect();
     if (!highlight || !origin) return null;
@@ -670,6 +709,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return rects.map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
   })();
   const [, tick] = useState(0);
+  useEffect(() => {
+    if (!highlight) return undefined;
+    const again = () => tick(n => n + 1);
+    window.addEventListener('resize', again); document.addEventListener('scroll', again, true);
+    return () => { window.removeEventListener('resize', again); document.removeEventListener('scroll', again, true); };
+  }, [highlight]);
   useLayoutEffect(() => { if (highlight && !marked) tick(n => n + 1); }, [highlight, marked]);
   const targetScreen = (() => {
     if (marked?.length) { const x = Math.min(...marked.map(r => r.left)), y = Math.min(...marked.map(r => r.top)); return { x, y, w: Math.max(...marked.map(r => r.left + r.width)) - x, h: Math.max(...marked.map(r => r.top + r.height)) - y }; }
@@ -692,6 +737,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const place = (() => {
     const width = Math.min(W, surface.w - EDGE * 2);
     const clamp = (left, top) => ({ left: Math.max(EDGE, Math.min(left, surface.w - width - EDGE)), top: Math.max(EDGE, Math.min(top, surface.h - height - EDGE)) });
+    // Over highlighted words: close to them, never over them (placeBesideWords: below, above, right, left; the toolbar and the bottom strip kept clear when it can).
+    if (marked?.length) { const spot = placeBesideWords(marked, { w: width, h: height }, surface, { avoid: canvas.chromeRects(), edge: EDGE }); if (spot) return { left: spot.left, top: spot.top, up: spot.up, width }; }
     if (!targetScreen) return { ...clamp(EDGE, EDGE), width };
     const t = targetScreen, chrome = canvas.chromeRects();
     const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
@@ -851,10 +898,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {/* The chosen command (CommandPill, shared with Chat): removing it keeps the words, the selection and the context. */}
         {showsPill(command) && <div className="mb-1.5 flex pr-7"><CommandPill name={command} disabled={busy(status)} onRemove={() => { setCommand(null); focusField(); }}
           className="h-6 gap-0.5 rounded-md pr-0.5 pl-1.5 text-xs" removeClassName="h-5 w-5" /></div>}
-        {highlight && <span data-inline-chip title={highlight.text} className={`${CHIP} mb-1.5 w-fit pl-2`}>
-          <span data-inline-chip-text className="min-w-0 truncate">{firstWords(highlight.text)}</span>
-          <button type="button" data-inline-chip-clear aria-label="Remove the highlighted text" title="Remove the highlighted text" onClick={() => onClearHighlight?.()} className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
-        </span>}
+        {/* Owner 2026-11-09: the chip is just the first words (the full text is its tooltip); the x of this window closes it and clears the mark and the scrim. */}
+        {highlight && <span data-inline-chip title={highlight.text} className={`${CHIP} mb-1.5 w-fit px-2`}><span data-inline-chip-text className="min-w-0 truncate">{firstWords(highlight.text)}</span></span>}
         <textarea ref={field} rows={2} value={prompt} onChange={event => typing(event.target.value)} onKeyDown={fieldKey} data-inline-prompt
           aria-activedescendant={pickerOpen && matches.length ? `inline-command-${matches[Math.min(active, matches.length - 1)].name}` : undefined}
           aria-label={preview ? 'Refine the request' : mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}
@@ -863,6 +908,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           className="min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 pr-7 text-sm leading-5 outline-none placeholder:text-ink-3" />
         {readOnly && <p data-inline-readonly className="mt-1 text-xs text-ink-2">This canvas is view-only, so Edit and Explain can't add to it.</p>}
         {/* Output, beneath the prompt, only when there is some; a short status only while nothing has arrived. */}
+        {picked && <p data-inline-picked role="status" className="mt-2 text-xs text-ink-2">Sending to Chat as /{picked}. Esc cancels.</p>}
         {state.notice && <p data-inline-notice className="mt-2 text-xs text-ink-2">{state.notice}</p>}
         {moved && moved === preview?.requestId && <p data-inline-moved role="status" className="mt-2 text-xs text-ink-2">Something is where this was going, so it has a new place on the canvas. Check it, then Accept again.</p>}
         {busy(status) && !streamText && !state.stream?.edits && <p data-inline-stage role="status" className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-ink-2"><Loader2 size={12} className="shrink-0 animate-spin" /><span className="truncate">{state.stage}{preview ? ' (your last preview stays until this one is ready)' : ''}</span></p>}

@@ -411,7 +411,7 @@ export function buildContext(board, target, { cache, boardKey, describeCard = nu
   // 8. Metadata: the canvas's title and goal, which may be out of date or name another topic than the selection's.
   const metadata = {};
   omitted.metadata = 0;
-  for (const [key, value, max] of [['canvasTitle', extras.title, 200], ['learningGoal', extras.goal, 300]]) {
+  for (const [key, value, max] of [['canvasTitle', extras.title, 200], ['learningGoal', extras.goal, 300], ['highlightedCard', extras.highlightedCard, 6000]]) {
     if (!value) continue;
     const text = String(value);
     const room = Math.min(max, Math.max(0, limits.total - chars - JSON.stringify({ [key]: '' }).length));

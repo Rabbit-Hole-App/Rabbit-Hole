@@ -76,7 +76,7 @@ import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.j
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { besideSpot } from './beside-placement.js';
-import { pickedHighlight } from './inline-highlight.js';
+import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
@@ -3840,6 +3840,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     renderNativeShape: shape => <ShapeView shape={{...shape,id:`inline-preview:${shape.id}`}} tool="preview" zoom={view.z} selected={false} />,
     layout: () => Object.fromEntries(contentBoxes().filter(box => box.id).map(({ id, ...box }) => [id, box])),
     boxOf: id => boxesOf([id])[0] || null,
+    // Ctrl+K over highlighted words: the camera glides (the canvas's own short move, none under reduced motion) so the words and the window are centred in the visible area; the returned function brings the camera back.
+    frameWords: (words, win) => { const free = visibleArea(), wide = surface.current.clientWidth, area = free.right >= wide - 40 ? { ...free, left: Math.min(free.left, wide - free.right) } : free; // only small controls on the left: the middle is the surface's middle
+      const target = cameraForWords(words, win, viewRef.current, area); if (!target) return () => {}; const was = { ...viewRef.current }; glideTo(target, true); return () => glideTo(was, true); },
     // Every kind of thing on the board (A7): measured boxes, connectors along their drawn paths, group frames, areas and
     // comment pins, in world units.
     obstacles: exclude => boardObstacles(exclude).map(({ id: _id, ...box }) => box),
@@ -6289,7 +6292,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           </div>
         </form>}
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset} highlight={inline.highlight || null}
-          onClearHighlight={() => setInline(open => (open && open.highlight ? { ...open, highlight: null, target: freezeTarget(inlineBoard(), open.target.ids) || open.target } : open))}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
         {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (

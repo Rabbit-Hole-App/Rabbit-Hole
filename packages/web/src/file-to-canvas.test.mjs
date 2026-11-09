@@ -88,7 +88,7 @@ test('Ctrl+K preserves file-family restrictions and additionally requires a safe
   assert.match(editor, /const explainTarget = !!config\.explainEdit && !readOnly && !target\.creation && target\.ids\?\.length === 1 && canvas\.board\?\.\(\)\.blocks\?\.find\(block => block\.id === target\.ids\[0\] && block\.type === 'animation'\);/, 'only a single selected Explanation, where the page offers v2 Edit');
   assert.match(editor, /const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target\.creation && \(explainTarget \? explainEditReason : cardEditSelectionReason\(target\.ids \|\| \[\], canvas\.board\?\.\(\) \|\| \{\}\)\);/, 'the same runtime eligibility guard controls the editor');
   assert.match(editor, /const fileLocked = !imageTarget && !cadTarget && !target\.creation && fileEditLocked\(target\.ids \|\| \[\], canvas\.board\?\.\(\)\);/);
-  assert.match(editor, /useState\(target\.creation \|\| fileLocked \|\| cardEditReason \? 'explain'/, 'opens in Explain');
+  assert.match(editor, /useState\(target\.creation \|\| fileLocked \|\| cardEditReason \|\| \(highlight && !initialMode\) \? 'explain'/, 'opens in Explain');
   assert.match(editor, /disabled=\{\(target\.creation \|\| fileLocked \|\| cardEditReason\) && value === 'edit'\}/, 'Edit is disabled in the mode menu');
   assert.match(editor, /if \(mode === 'edit' && fileLocked\) \{ setRefused\(FILE_EDIT_LOCKED\); return; \}/, 'and refused at send');
 });
