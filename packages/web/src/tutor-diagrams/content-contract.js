@@ -159,7 +159,7 @@ export function lintDiagramContent(spec) {
     if (typeof value === 'string') {
       const visible = Number.isInteger(key) ? TEXT_LISTS.has(path.at(-2)) : TEXT_FIELDS.has(key);
       if (visible && needsMathDelimiters(value, key)) report('math-delimiters', path,
-        'Put each complete mathematical expression inside single dollar signs ($…$).', value);
+        'Put each complete mathematical expression inside $…$ delimiters.', value);
     } else if (Array.isArray(value)) {
       value.forEach((entry, index) => visit(entry, [...path, index]));
     } else if (value && typeof value === 'object') {
