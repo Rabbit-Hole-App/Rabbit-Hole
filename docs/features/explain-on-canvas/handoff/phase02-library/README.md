@@ -6,9 +6,9 @@ Task: `96d13bbb-6cd1-45be-b27a-95820d3495b0` · branch: `chatgpt/explain-phase02
 
 Four new diagram kinds and nine additive extensions are implemented in the **written `/explain`** path. The model receives relevant, valid JSON examples; Rabbit Hole renders the resulting semantic JSON using the existing SVG component. These are reusable layouts and reference data, not fixed lesson cards returned in place of generation. The `/interact` fixtures and `/animation` renderer are separate and unchanged.
 
-The upstream author registry has **150 references** in its existing order. The separate offline catalogue retains **174 references** and the kind gallery has 21 neutral shapes. The per-lesson audit tracks the requested scenes that are still open. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Rebase verification](svg-offline.md#rebase-onto-correct-svg) · [Coverage audit](coverage-audit.md)
+The branch author registry has **154 references**, including four Lesson 16 additions after the rebase. The offline catalogue has **178 references** and the kind gallery has 21 neutral shapes. The per-lesson audit tracks the requested scenes that are still open. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Rebase verification](svg-offline.md#rebase-onto-correct-svg) · [Coverage audit](coverage-audit.md)
 
-The batch handoffs record the prompts, expected math and dev acceptance steps. Batch 1 covers ten references for Lessons 04–07. Batch 2 covers all 16 planned references across Lessons 08–12, 17–18 and 20. Batch 3A covers the four time-series gaps in Lesson 15. [Batch 1](batch-1.md) · [Batch 2A](batch-2a.md) · [Batch 2B](batch-2b.md) · [Batch 2C](batch-2c.md) · [Batch 3A](batch-3a.md)
+The batch handoffs record the prompts, expected math and dev acceptance steps. Batch 1 covers ten references for Lessons 04–07. Batch 2 covers all 16 planned references across Lessons 08–12, 17–18 and 20. Batch 3A covers four time-series gaps in Lesson 15. Batch 3B covers four anomaly-detection gaps in Lesson 16. [Batch 1](batch-1.md) · [Batch 2A](batch-2a.md) · [Batch 2B](batch-2b.md) · [Batch 2C](batch-2c.md) · [Batch 3A](batch-3a.md) · [Batch 3B](batch-3b.md)
 
 The latest handoff covers the 14 AI/ML additions, kind gallery, content contracts, standalone formula sampler, renderer diffs, correction corpus and SVG snapshots. It records the original selector benchmark and the additional paraphrase replay. [Offline SVG handoff](svg-offline.md)
 
@@ -30,7 +30,7 @@ The latest handoff covers the 14 AI/ML additions, kind gallery, content contract
 | Comparison | Two/three actual child diagrams, shared-domain validation, narrow-width stacking | [Fit quality](references/ml-fit-quality-comparison.svg) |
 | Transformation | Before/after diagrams with preserved/mapped sample identity | [Scaling](references/ml-feature-scaling-transformation.svg) |
 
-See [all reference JSON/SVG pairs and per-lesson mapping](references/README.md). Open [the self-contained gallery](references/index.html) to inspect formula styling as well as geometry. Individual SVGs are raw renderer output; KaTeX foreignObjects require the host stylesheet that the gallery and app provide.
+The reference index lists all JSON/SVG pairs and their lesson mapping. The archived self-contained gallery shows the earlier examples with formula styling. The export command in the Batch 3B handoff generates a fresh gallery from the current catalogue. [Reference index](references/README.md) · [Archived gallery](references/index.html) · [Gallery export](batch-3b.md#local-verification)
 
 ## Where the implementation lives
 

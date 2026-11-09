@@ -16,6 +16,8 @@ import { references as batch2cImbalance } from './ml-batch2c-imbalance-reference
 import { references as batch3aForecast } from './ml-batch3a-forecast-references.js';
 import { references as batch3aCorrelation } from './ml-batch3a-correlation-references.js';
 import { references as batch3aSeries } from './ml-batch3a-series-references.js';
+import { references as batch3bDensity } from './ml-batch3b-anomaly-density-references.js';
+import { references as batch3bDecisions } from './ml-batch3b-anomaly-decisions-references.js';
 
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
@@ -31,7 +33,8 @@ export const diagramReferences = Object.freeze([
   ...batch2aEncoding, ...batch2aTransform, ...batch2aEvaluation,
   ...batch2bFits, ...batch2bEnsembles, ...batch2bTuning,
   ...batch2cImbalance, ...batch2cElimination, ...batch2cPsi,
-  ...batch3aSeries, ...batch3aCorrelation, ...batch3aForecast, ...generic,
+  ...batch3aSeries, ...batch3aCorrelation, ...batch3aForecast,
+  ...batch3bDensity, ...batch3bDecisions, ...generic,
 ]);
 
 export const PHASE02_SOURCE = Object.freeze({

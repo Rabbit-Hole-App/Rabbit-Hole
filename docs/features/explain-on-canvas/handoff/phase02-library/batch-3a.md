@@ -34,4 +34,4 @@ The library handoff has the replay commands. [Focused local checks](README.md#fo
 
 ## Next reference work
 
-The remaining 11 proposed Batch 3 references cover anomaly detection, ML system design and feature stores. [Coverage audit](coverage-audit.md#recommended-build-order)
+Batch 3B covers anomaly detection. The remaining Batch 3 gaps are in ML system design and feature stores. [Batch 3B](batch-3b.md) · [Coverage audit](coverage-audit.md#recommended-build-order)

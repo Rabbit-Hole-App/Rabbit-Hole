@@ -2274,6 +2274,58 @@
       "kind": "waterfall",
       "width": 408,
       "height": 280
+    },
+    {
+      "id": "ml-zscore-distribution-tails",
+      "lessons": [
+        "16"
+      ],
+      "prompts": [
+        "Why do z scores in the tails get flagged as anomalies?"
+      ],
+      "useWhen": "Show the two tails of a standard normal density beyond three standard deviations. Each observation has a z-score on the horizontal axis. Area under the curve over a range of z-scores gives the probability of that range.",
+      "kind": "coordinate-plot",
+      "width": 420,
+      "height": 565
+    },
+    {
+      "id": "ml-local-outlier-factor",
+      "lessons": [
+        "16"
+      ],
+      "prompts": [
+        "How does local outlier factor compare a point with its neighbours?"
+      ],
+      "useWhen": "Compare local outlier factor for two points with the same nearest gap. Use horizontal distances and k=2. Reachability distance to a neighbour is the larger of the gap and that neighbour’s distance to its second-nearest other point. Local reachability density is the reciprocal of the mean reachability distance. The dense-row probe has density 2/9 and each of its neighbours has density 2/3. The sparse-row probe and both of its neighbours have density 1/4.",
+      "kind": "coordinate-plot",
+      "width": 420,
+      "height": 660
+    },
+    {
+      "id": "ml-collective-anomaly-run",
+      "lessons": [
+        "16"
+      ],
+      "prompts": [
+        "How can several normal readings in a row be a collective anomaly?"
+      ],
+      "useWhen": "Use failed-login counts that are ordinary in isolation. Highlight the consecutive high counts and mark the minute when the run rule first flags them.",
+      "kind": "coordinate-plot",
+      "width": 420,
+      "height": 565
+    },
+    {
+      "id": "ml-ranked-anomaly-scores",
+      "lessons": [
+        "16"
+      ],
+      "prompts": [
+        "How do I rank anomaly scores and decide which cases to review?"
+      ],
+      "useWhen": "Rank illustrative scores from most to least unusual. Show how a higher review cutoff narrows the queue while scores and their order stay fixed.",
+      "kind": "bar-chart",
+      "width": 408,
+      "height": 330
     }
   ],
   "kindGallery": [
@@ -2741,7 +2793,11 @@
         "iqr-fences-and-outliers",
         "dbscan-density-neighbourhoods",
         "zscore-anomaly-band",
-        "contextual-time-anomaly"
+        "contextual-time-anomaly",
+        "ml-zscore-distribution-tails",
+        "ml-local-outlier-factor",
+        "ml-collective-anomaly-run",
+        "ml-ranked-anomaly-scores"
       ]
     },
     {
