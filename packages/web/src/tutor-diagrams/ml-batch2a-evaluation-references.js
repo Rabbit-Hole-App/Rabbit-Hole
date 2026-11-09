@@ -70,7 +70,7 @@ export const references = [
           columns: ['Calculation', 'Result'],
           rows: [
             { id: 'mae', heading: 'MAE', cells: ['$6/4$', '1.500'] },
-            { id: 'mse', heading: 'MSE', cells: ['$12/4$', '3.000'] },
+            { id: 'mse', heading: 'MSE', cells: [String.raw`$\,12/4$`, '3.000'] },
             { id: 'rmse', heading: 'RMSE', cells: [String.raw`$\sqrt{12/4}$`, '1.732'] },
           ],
           caption: 'MAE and RMSE use target units; MSE uses squared units. Every sample has equal weight. Displayed results are rounded.',
