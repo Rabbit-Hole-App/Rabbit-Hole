@@ -22,11 +22,11 @@ const request = (args, plan, extra = {}) => ({ command: 'explain', args, depth: 
 
 const DEMOS = [
   ['03', 'how do I compute the Gini impurity on both sides of a split and the information gain?', 'tree', 'ml-trees-gini-split', 'matrix'],
-  ['11', 'how does a random forest combine the predictions of its trees into one answer?', 'flow', 'ml-trees-majority-vote', 'bar-chart'],
+  ['11', 'how does a random forest combine the predictions of its trees into one answer?', 'flow', 'ml-trees-majority-vote', 'flow'], // Codex's fix (release 118): the majority-vote reference is a flow, so the planner's flow and the reference agree
   ['13', 'compare impurity-based feature importance with permutation importance when one feature is random noise', 'comparison', 'ml-trees-feature-importance', 'bar-chart'],
 ];
 
-for (const [id, prompt, plannerKind, refId, refKind] of DEMOS) {
+for (const [id, prompt, plannerKind, refId, refKind] of DEMOS.filter(d => d[2] !== d[4])) {
   test(`demo ${id}: planner kind ${plannerKind}, reference ${refId} (${refKind}): the plan takes the reference's kind, says so, and the author reads one kind`, t => {
     const events = capture(t);
     const input = planWithReferenceKind(request(prompt, planFromAnswers(answers(plannerKind))));
@@ -107,4 +107,12 @@ test('selectWithSteer: a qualifying topical reference is kept whole and first wh
   assert.equal(selectWithSteer({ prompt, requiredKinds: ['tree'], shapeFallback: false }).steer, null);
   assert.equal(selectWithSteer({ prompt: 'why does ice float?' }).steer, null);
   assert.equal(selectWithSteer({ prompt: 'what does gini on both sides mean here', shapeFallback: false }).steer, null);
+});
+
+test('demo 11: the planner (flow) and the reference (ml-trees-majority-vote, flow) agree: the steer fires and is a no-op (no override, no event)', t => {
+  const events = capture(t), [, prompt, plannerKind, refId, refKind] = DEMOS[1], input = request(prompt, planFromAnswers(answers(plannerKind)));
+  const { steer } = selectWithSteer({ prompt, plannedKinds: [plannerKind], shapeFallback: false });
+  assert.deepEqual([steer.id, steer.kind, steer.source], [refId, refKind, 'reference']);
+  assert.equal(planWithReferenceKind(input), input);
+  assert.deepEqual(events(), []);
 });
