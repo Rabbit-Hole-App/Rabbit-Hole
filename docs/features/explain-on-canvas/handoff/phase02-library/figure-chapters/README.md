@@ -2,6 +2,8 @@
 
 The scraper inventoried 654 figure occurrences across 39 article and chapter pages. Each occurrence has a brief. The 21 pinned curriculum lessons link to the briefs that match their scope.
 
+[Figure-by-figure reference map](reference-chapters.md) · [Rendered reference previews by chapter](figure-reference-chapters.md)
+
 | Source | Figures | Briefs | New worked references | Figures mapped to references |
 | --- | ---: | ---: | ---: | ---: |
 | [Illustrated Transformer](transformer.md) | 36 | 36 | 13 | 36 |
