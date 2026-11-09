@@ -6,7 +6,6 @@ const GAP = 8;
 const TEXT = 14;
 const SMALL = 13;
 const TEXT_PAD = 10;
-const LINK_MIN = 56; // the narrowest link lane: room for an arrow with its head
 
 function measure(value, width, detail) {
   const lines = wrap(value, width - 2 * TEXT_PAD, TEXT);
@@ -138,11 +137,8 @@ function tree(diagram, width) {
 // reciprocal or cross-column links without routing arrows through unrelated cards.
 function linkRow(from, to, text, y, width, roles) {
   const usable = width - PAD * 2;
-  // Owner 2026-11-08: the middle is sized to its label (at least LINK_MIN for the arrow), not a fixed third, so a short label leaves no wide empty gap;
-  // a long label still gets at most the old third and wraps there.
-  const widest = usable - 2 * Math.floor(usable * 0.34) - 12;
-  const centerWidth = Math.min(widest, Math.max(LINK_MIN, text ? textWidth(text, SMALL) + 2 * TEXT_PAD : 0));
-  const sideWidth = Math.floor((usable - centerWidth - 12) / 2);
+  const sideWidth = Math.floor(usable * 0.34);
+  const centerWidth = usable - 2 * sideWidth - 12;
   const wordTooWide = (value, space, size) => words(value).some(word => textWidth(word, size) > space);
   const labelAbove = !!text && (wordTooWide(text, centerWidth, SMALL) ||
     wordTooWide(from, sideWidth - 2 * TEXT_PAD, TEXT) || wordTooWide(to, sideWidth - 2 * TEXT_PAD, TEXT));
