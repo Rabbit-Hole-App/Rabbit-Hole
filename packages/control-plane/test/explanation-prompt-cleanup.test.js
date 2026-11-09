@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { prepareArtifactAuthorRequest, generateArtifact } from '../src/learn-artifact.js';
 import { assembledSystem } from '../src/explanation-fast-chain.js';
 import { planFromAnswers, cardVisuals, visualKinds, visualsStatement } from '../src/explanation-planner.js';
-import { selectDiagramReferences } from '../src/explanation-references.js';
+import { selectDiagramReferences, selectWithSteer } from '../src/explanation-references.js';
 import { EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES } from '../src/learn-primitives.js';
 import { EXPLANATION_DEPTH_LINES } from '../src/chat-depth.js';
 import { deriveVisualRequirements } from '../src/explanation-visuals.js';
@@ -139,9 +139,11 @@ test('reference selection filters to the planned kinds before any keyword scorin
   // the Codex fit-quality reference now answers 'underfitting and overfitting' alone, so the prompt names both the fit and the tree
   const prompt = 'What is overfitting and how does pruning a tree fix it?', all = selectDiagramReferences({ prompt });
   assert.ok(all.length > 1 && new Set(all.map(r => r.spec.diagram.kind)).size > 1, 'unfiltered, more than one kind is offered');
-  const trees = selectDiagramReferences({ prompt, plannedKinds: ['tree'] });
-  assert.ok(trees.length && trees.every(r => r.spec.diagram.kind === 'tree'));
-  assert.deepEqual(selectDiagramReferences({ prompt, plannedKinds: ['sequence'] }), [], 'nothing of the planned kind matches the topic');
+  // release 118: a qualifying topical reference (an exact documented prompt or a direct score >= 12) is the one exception: it is kept whole and first whatever the planned kind (steer);
+  // every other reference is still filtered to the planned kinds before scoring.
+  const { references: trees, steer } = selectWithSteer({ prompt, plannedKinds: ['tree'] });
+  assert.ok(trees.length && trees.slice(steer ? 1 : 0).every(r => r.spec.diagram.kind === 'tree') && (!steer || trees[0].id === steer.id));
+  assert.deepEqual(selectDiagramReferences({ prompt, plannedKinds: ['sequence'] }).map(r => r.id), steer ? [steer.id] : [], 'nothing of the planned kind matches the topic (the steering reference aside)');
   const two = selectDiagramReferences({ prompt, plannedKinds: all.map(r => r.spec.diagram.kind) });
   assert.deepEqual(two.map(r => r.id), all.map(r => r.id), 'every offered kind kept: the same picks');
 });
