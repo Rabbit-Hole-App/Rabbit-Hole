@@ -2,7 +2,8 @@
   "name": "illustrations",
   "version": {
     "prompts": "P1 2026-11-08 PT (the seven Codex illustration reference prompts)",
-    "labels": "L1 2026-11-08 PT (expected kind per reference; acceptable kinds are the older kinds that can carry the same idea)"
+    "labels": "L1 2026-11-08 PT (expected kind per reference; acceptable kinds are the older kinds that can carry the same idea)",
+    "walkthrough": "2026-11-09 Codex walkthrough prompts"
   },
   "measures": "The Codex illustration primitives: right kind (tensor items in a transformation, token-links, block-stack, comparison of block stacks, flow with parallel paths), faithfulness to the sketch, render width (intrinsic width per diagram), the 320 px callout fallback on the tile.",
   "written": "2026-11-08 PT, from the Codex handoff (illustration-primitives.md table of reference cards); not seen by any card",
@@ -356,6 +357,235 @@
         }
       },
       "want": "grouped bar-chart (variant grouped, categories = folds, two series: training error and validation error) with a steady gap; the sentence before the chart points at the gap; never a coordinate-plot line across folds"
+    },
+    {
+      "id": "ml-transformer-token-embeddings",
+      "group": "illustration",
+      "prompt": "How does a transformer turn the words in a sentence into embeddings?",
+      "needsPicture": false,
+      "noPicture": true,
+      "badKinds": [
+        "figure",
+        "timeline"
+      ],
+      "best": [],
+      "acceptable": [],
+      "depths": {
+        "standard": {
+          "kinds": [
+            "block-stack"
+          ],
+          "acceptableKinds": [
+            "tensor",
+            "transformation"
+          ],
+          "sketch": [
+            "Core: one horizontal row of six shape-only strips in sentence order; both occurrences of \"the\" share an embedding (not a vertical layers stack).",
+            "Optional: the worked numbers of the shared walkthrough input."
+          ]
+        }
+      },
+      "want": "block-stack (walkthrough ml-transformer-token-embeddings)"
+    },
+    {
+      "id": "ml-transformer-scaled-attention-scores",
+      "group": "illustration",
+      "prompt": "How does a transformer get a match score between words?",
+      "needsPicture": false,
+      "noPicture": true,
+      "badKinds": [
+        "figure",
+        "timeline"
+      ],
+      "best": [],
+      "acceptable": [],
+      "depths": {
+        "standard": {
+          "kinds": [
+            "matrix"
+          ],
+          "acceptableKinds": [
+            "heatmap",
+            "token-links"
+          ],
+          "sketch": [
+            "Core: six keys each with a dot product and a scaled score for one query.",
+            "Optional: the worked numbers of the shared walkthrough input."
+          ]
+        }
+      },
+      "want": "matrix (walkthrough ml-transformer-scaled-attention-scores)"
+    },
+    {
+      "id": "ml-transformer-attention-softmax",
+      "group": "illustration",
+      "prompt": "How do attention scores turn into weights?",
+      "needsPicture": false,
+      "noPicture": true,
+      "badKinds": [
+        "figure",
+        "timeline"
+      ],
+      "best": [],
+      "acceptable": [],
+      "depths": {
+        "standard": {
+          "kinds": [
+            "token-links"
+          ],
+          "acceptableKinds": [
+            "bar-chart",
+            "tensor"
+          ],
+          "sketch": [
+            "Core: six scores become weights that sum to one; the largest weight is on the best match.",
+            "Optional: the worked numbers of the shared walkthrough input."
+          ]
+        }
+      },
+      "want": "token-links (walkthrough ml-transformer-attention-softmax)"
+    },
+    {
+      "id": "ml-transformer-weighted-values",
+      "group": "illustration",
+      "prompt": "How does a transformer mix the word values after it has attention weights?",
+      "needsPicture": false,
+      "noPicture": true,
+      "badKinds": [
+        "figure",
+        "timeline"
+      ],
+      "best": [],
+      "acceptable": [],
+      "depths": {
+        "standard": {
+          "kinds": [
+            "block-stack"
+          ],
+          "acceptableKinds": [
+            "token-links",
+            "tensor"
+          ],
+          "sketch": [
+            "Core: six value strips read left to right with their weights, multiplied and summed into one output strip.",
+            "Optional: the worked numbers of the shared walkthrough input."
+          ]
+        }
+      },
+      "want": "block-stack (walkthrough ml-transformer-weighted-values)"
+    },
+    {
+      "id": "ml-transformer-parallel-attention-heads",
+      "group": "illustration",
+      "prompt": "Why does a transformer use more than one attention head?",
+      "needsPicture": false,
+      "noPicture": true,
+      "badKinds": [
+        "figure",
+        "timeline"
+      ],
+      "best": [],
+      "acceptable": [],
+      "depths": {
+        "standard": {
+          "kinds": [
+            "token-links"
+          ],
+          "acceptableKinds": [
+            "block-stack",
+            "comparison"
+          ],
+          "sketch": [
+            "Core: two heads each put attention over the same six tokens; a second visual joins the outputs.",
+            "Optional: the worked numbers of the shared walkthrough input."
+          ]
+        }
+      },
+      "want": "token-links (walkthrough ml-transformer-parallel-attention-heads)"
+    },
+    {
+      "id": "ml-transformer-causal-mask",
+      "group": "illustration",
+      "prompt": "How does the transformer decoder avoid looking ahead at later words?",
+      "needsPicture": false,
+      "noPicture": true,
+      "badKinds": [
+        "figure",
+        "timeline"
+      ],
+      "best": [],
+      "acceptable": [],
+      "depths": {
+        "standard": {
+          "kinds": [
+            "heatmap"
+          ],
+          "acceptableKinds": [
+            "matrix"
+          ],
+          "sketch": [
+            "Core: future-token cells are masked in the weight grid; visible weights sum to one in each row.",
+            "Optional: the worked numbers of the shared walkthrough input."
+          ]
+        }
+      },
+      "want": "heatmap (walkthrough ml-transformer-causal-mask)"
+    },
+    {
+      "id": "ml-transformer-cross-attention",
+      "group": "illustration",
+      "prompt": "How does the decoder use the encoder's words while writing the next word?",
+      "needsPicture": false,
+      "noPicture": true,
+      "badKinds": [
+        "figure",
+        "timeline"
+      ],
+      "best": [],
+      "acceptable": [],
+      "depths": {
+        "standard": {
+          "kinds": [
+            "token-links"
+          ],
+          "acceptableKinds": [
+            "sequence"
+          ],
+          "sketch": [
+            "Core: the decoder prefix is the query; the six encoder tokens supply keys and values.",
+            "Optional: the worked numbers of the shared walkthrough input."
+          ]
+        }
+      },
+      "want": "token-links (walkthrough ml-transformer-cross-attention)"
+    },
+    {
+      "id": "ml-transformer-vocabulary-softmax",
+      "group": "illustration",
+      "prompt": "How does a transformer turn scores into a guess for the next word?",
+      "needsPicture": false,
+      "noPicture": true,
+      "badKinds": [
+        "figure",
+        "timeline"
+      ],
+      "best": [],
+      "acceptable": [],
+      "depths": {
+        "standard": {
+          "kinds": [
+            "bar-chart"
+          ],
+          "acceptableKinds": [
+            "tensor"
+          ],
+          "sketch": [
+            "Core: six vocabulary scores (signed bars) and the probability row with the winner highlighted.",
+            "Optional: the worked numbers of the shared walkthrough input."
+          ]
+        }
+      },
+      "want": "bar-chart (walkthrough ml-transformer-vocabulary-softmax)"
     }
   ]
 }
