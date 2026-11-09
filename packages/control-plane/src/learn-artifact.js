@@ -177,7 +177,8 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       // step, so a benchmark can keep the model's own diagram specs. One line per answer: attempt 0 is the first answer, 1 the repair.
       if (id === 'explanation' && (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test')) {
         const visuals = call.input?.visuals ?? null;
-        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
+        // references: the ids of the worked examples this request carried (0-2), so the bench can split results by them (owner 2026-11-08).
+        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
       }
       // Owner M3 (2026-11-08): keys the schema does not declare are removed from the visuals before the card is read, logged and counted, never a repair.
       let keysStripped = 0;

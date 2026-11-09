@@ -215,6 +215,9 @@ test('the raw author visuals are logged in dev and test, for the first answer an
     const raw = await run({ SMALL_ENV });
     assert.deepEqual(raw.map(r => [r.event, r.attempt, r.kinds]), [['explanation_author_raw', 0, ['cycle']], ['explanation_author_raw', 1, ['cycle']]], SMALL_ENV);
     assert.deepEqual(raw[0].visuals, visuals);
+    // the worked examples this request carried: their ids, the same on the first answer and the repair
+    assert.ok(Array.isArray(raw[0].references) && raw[0].references.length <= 2 && raw[0].references.every(id => typeof id === 'string'), JSON.stringify(raw[0].references));
+    assert.deepEqual(raw[1].references, raw[0].references);
   }
   assert.deepEqual(await run({ SMALL_ENV: 'production' }), []);
   assert.deepEqual(await run({}), []);
