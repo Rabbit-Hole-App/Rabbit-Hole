@@ -4,19 +4,19 @@
     "kind": "transformation",
     "title": "One token, three attention projections",
     "before": {
-      "label": "Token embedding",
+      "label": "Input for sat",
       "items": [
         {
           "tensor": {
             "rows": 1,
             "columns": 4,
             "dimensions": "1 × 512",
-            "name": "x",
+            "name": "Embedding plus position",
             "values": [
-              0.2,
-              -0.1,
-              0.7,
-              0.4
+              1.109,
+              -0.516,
+              0.72,
+              1.4
             ],
             "role": "input"
           }
@@ -29,27 +29,39 @@
         {
           "tensor": {
             "rows": 1,
-            "columns": 3,
-            "dimensions": "1 × 64",
-            "name": "Query q",
+            "columns": 2,
+            "dimensions": "1 × 256",
+            "name": "Query",
+            "values": [
+              1.829,
+              -0.516
+            ],
             "role": "output"
           }
         },
         {
           "tensor": {
             "rows": 1,
-            "columns": 3,
-            "dimensions": "1 × 64",
-            "name": "Key k",
+            "columns": 2,
+            "dimensions": "1 × 256",
+            "name": "Key",
+            "values": [
+              1.109,
+              1.4
+            ],
             "role": "output"
           }
         },
         {
           "tensor": {
             "rows": 1,
-            "columns": 3,
-            "dimensions": "1 × 64",
-            "name": "Value v",
+            "columns": 2,
+            "dimensions": "1 × 256",
+            "name": "Value",
+            "values": [
+              0.72,
+              1.4
+            ],
             "role": "output"
           }
         }
@@ -70,6 +82,6 @@
         "to": 2
       }
     ],
-    "caption": "The cells illustrate part of each vector for one attention head."
+    "caption": "One head for “the cat sat on the mat”. Four input entries and two entries per output are shown."
   }
 }

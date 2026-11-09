@@ -6,25 +6,30 @@
     "blocks": [
       {
         "id": "emb",
-        "label": "Token embeddings"
+        "label": "Token embeddings",
+        "role": "embedding"
       },
       {
         "id": "att",
-        "label": "Read current and earlier tokens",
+        "label": "Attention to current and earlier tokens",
         "repeat": 62,
-        "repeatTo": "ff"
+        "repeatTo": "ff",
+        "role": "attention"
       },
       {
         "id": "ff",
-        "label": "Update each token"
+        "label": "Per-token update",
+        "role": "feedforward"
       },
       {
         "id": "norm",
-        "label": "Final normalization"
+        "label": "Final normalization",
+        "role": "norm"
       },
       {
         "id": "out",
-        "label": "Score possible next tokens"
+        "label": "Next-token scores",
+        "role": "output"
       }
     ]
   }

@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { illustrationReferences } from '../src/tutor-diagrams/reference-library.js';
+import { illustrationReferences, transformerWalkthroughReferences } from '../src/tutor-diagrams/reference-library.js';
 import kindGalleryDepths from '../src/tutor-diagrams/kind-gallery-depths.json' with { type: 'json' };
 import { ILLUSTRATION_KINDS } from '../src/tutor-diagrams/illustration-kinds.js';
 import { blockStackNaturalWidth } from '../src/tutor-diagrams/block-stack-layout.js';
@@ -14,8 +14,9 @@ import { renderTutorDiagram } from '../src/tutor-diagrams/TutorDiagram.js';
 const depthNames = { overview: 'brief', standard: 'balanced', deep: 'detailed' };
 
 export function* illustrationSpecs() {
-  for (const ref of illustrationReferences) {
-    yield { id: ref.id, spec: ref.spec };
+  for (const ref of new Set([...illustrationReferences, ...transformerWalkthroughReferences])) {
+    yield { id: ref.id, spec: ref.spec, ...(ref.detailSpec ? { detail: true } : {}) };
+    if (ref.detailSpec) yield { id: `${ref.id}-detail`, spec: ref.detailSpec };
     for (const [key, { spec, detailSpec }] of Object.entries(ref.depths ?? {})) {
       const id = `${ref.id}-${depthNames[key]}`;
       yield { id, spec, ...(detailSpec ? { detail: true } : {}) };
@@ -43,7 +44,8 @@ function naturalWidth(diagram) {
 export function* illustrationCases() {
   for (const { id, spec, detail } of illustrationSpecs()) {
     const sizes = { 408: 408, natural: Math.max(320, naturalWidth(spec.diagram)), 960: 960 };
-    if (detail && spec.diagram.callouts?.length) sizes[320] = 320;
+    const row = spec.diagram.kind === 'block-stack' && spec.diagram.orientation === 'horizontal';
+    if (row || (detail && spec.diagram.callouts?.length)) sizes[320] = 320;
     for (const [size, available] of Object.entries(sizes)) yield { key: `${id}/${size}`, id, size, spec, available };
   }
 }

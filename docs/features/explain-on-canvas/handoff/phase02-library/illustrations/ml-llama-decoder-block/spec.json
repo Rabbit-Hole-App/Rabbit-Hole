@@ -6,25 +6,25 @@
     "blocks": [
       {
         "id": "an",
-        "label": "Pre-attention norm",
-        "variant": "RMSNorm",
+        "label": "Pre-RMSNorm 1 (input scaling)",
+        "role": "norm",
         "repeat": 32,
         "repeatTo": "ff"
       },
       {
         "id": "att",
-        "label": "Causal attention",
-        "variant": "GQA"
+        "label": "Causal grouped-query attention (shared key and value heads)",
+        "role": "attention"
       },
       {
         "id": "fn",
-        "label": "Pre-FFN norm",
-        "variant": "RMSNorm"
+        "label": "Pre-RMSNorm 2 (feed-forward input scaling)",
+        "role": "norm"
       },
       {
         "id": "ff",
-        "label": "Feed-forward",
-        "variant": "SwiGLU"
+        "label": "SwiGLU FFN (per-token update)",
+        "role": "feedforward"
       }
     ],
     "edges": [
@@ -39,6 +39,6 @@
         "to": "ff"
       }
     ],
-    "caption": "Grouped-query attention shares key/value heads. The feed-forward network updates each token separately."
+    "caption": "Each sublayer adds its result to the token stream."
   }
 }

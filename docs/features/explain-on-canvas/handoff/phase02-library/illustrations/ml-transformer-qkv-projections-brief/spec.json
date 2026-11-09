@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "transformation",
+    "title": "Three jobs for the word sat",
+    "before": {
+      "label": "Start with the word",
+      "items": [
+        {
+          "tensor": {
+            "rows": 1,
+            "columns": 4,
+            "dimensions": "512 entries",
+            "name": "Word row",
+            "role": "input"
+          }
+        }
+      ]
+    },
+    "after": {
+      "label": "Make three rows",
+      "items": [
+        {
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "256 entries",
+            "name": "Ask",
+            "role": "output"
+          }
+        },
+        {
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "256 entries",
+            "name": "Match",
+            "role": "output"
+          }
+        },
+        {
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "256 entries",
+            "name": "Share",
+            "role": "output"
+          }
+        }
+      ]
+    },
+    "operation": "Make each row with a different rule",
+    "links": [
+      {
+        "from": 0,
+        "to": 0
+      },
+      {
+        "from": 0,
+        "to": 1
+      },
+      {
+        "from": 0,
+        "to": 2
+      }
+    ],
+    "caption": "Use sat and its place in “the cat sat on the mat” to make three rows."
+  }
+}

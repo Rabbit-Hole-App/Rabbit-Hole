@@ -6,31 +6,31 @@
     "blocks": [
       {
         "id": "an",
-        "label": "Pre-attention norm",
-        "variant": "RMSNorm",
+        "label": "Pre-RMSNorm 1",
         "dims": "$d=4096$",
+        "role": "norm",
         "repeat": 32,
         "repeatTo": "ff"
       },
       {
         "id": "att",
-        "label": "Causal attention",
-        "variant": "GQA",
+        "label": "Causal grouped-query attention",
         "inputs": [
           {
             "label": "RoPE"
           }
-        ]
+        ],
+        "role": "attention"
       },
       {
         "id": "fn",
-        "label": "Pre-FFN norm",
-        "variant": "RMSNorm"
+        "label": "Pre-RMSNorm 2",
+        "role": "norm"
       },
       {
         "id": "ff",
-        "label": "Feed-forward",
-        "variant": "SwiGLU"
+        "label": "SwiGLU FFN",
+        "role": "feedforward"
       }
     ],
     "edges": [

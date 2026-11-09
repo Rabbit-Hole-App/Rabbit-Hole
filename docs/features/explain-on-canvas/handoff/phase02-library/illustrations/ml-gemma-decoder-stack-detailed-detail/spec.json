@@ -7,6 +7,7 @@
       {
         "id": "gate",
         "label": "Hidden state",
+        "role": "feedforward",
         "merge": "multiply",
         "inputs": [
           {
@@ -19,7 +20,8 @@
       },
       {
         "id": "out",
-        "label": "Linear"
+        "label": "Linear",
+        "role": "output"
       }
     ]
   }

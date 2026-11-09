@@ -6,13 +6,13 @@ Task: `96d13bbb-6cd1-45be-b27a-95820d3495b0` · branch: `chatgpt/explain-phase02
 
 Four new diagram kinds and nine additive extensions are implemented in the **written `/explain`** path. The model receives relevant, valid JSON examples; Rabbit Hole renders the resulting semantic JSON using the existing SVG component. These are reusable layouts and reference data, not fixed lesson cards returned in place of generation. The `/interact` fixtures and `/animation` renderer are separate and unchanged.
 
-The branch author registry has **168 references**. The offline catalogue has **192 references** and the kind gallery has 24 neutral shapes. The per-lesson audit tracks the open reference patterns. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Rebase verification](svg-offline.md#rebase-onto-correct-svg) · [Coverage audit](coverage-audit.md)
+The branch author registry has **176 references**. The offline catalogue has **200 references** and the kind gallery has 24 neutral shapes. The per-lesson audit tracks the open reference patterns. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Rebase verification](svg-offline.md#rebase-onto-correct-svg) · [Coverage audit](coverage-audit.md)
 
 The batch handoffs record the prompts, expected math and dev acceptance steps. Batch 1 covers ten references for Lessons 04–07. Batch 2 covers all 16 planned references across Lessons 08–12, 17–18 and 20. Batches 3A, 3B and 3C cover time series, anomaly detection and ML system design. [Batch 1](batch-1.md) · [Batch 2A](batch-2a.md) · [Batch 2B](batch-2b.md) · [Batch 2C](batch-2c.md) · [Batch 3A](batch-3a.md) · [Batch 3B](batch-3b.md) · [Batch 3C](batch-3c.md)
 
 Batch 4A covers classification versus regression and the logistic decision boundary in Lessons 01 and 03. [Batch 4A](batch-4a.md)
 
-The static illustration pack adds seven transformer and architecture references. The previews use natural widths up to 960 px, with a 320 px minimized Gemma example. [Illustration primitives](illustration-primitives.md)
+The static illustration pack adds seven transformer and architecture references. The previews use natural widths up to 960 px, with a 320 px minimized Gemma example. [Illustration primitives](illustration-primitives.md) · [Illustrated Transformer walkthrough](illustrated-transformer-walkthrough.md)
 
 The offline SVG handoff covers the 14 AI/ML additions, kind gallery, content contracts, standalone formula sampler, renderer diffs, correction corpus and SVG snapshots. It records the original selector benchmark and the additional paraphrase replay. [Offline SVG handoff](svg-offline.md)
 

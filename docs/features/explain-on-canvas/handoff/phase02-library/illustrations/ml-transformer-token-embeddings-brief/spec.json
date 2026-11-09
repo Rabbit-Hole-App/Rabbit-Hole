@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "orientation": "horizontal",
+    "title": "One strip for each word",
+    "blocks": [
+      {
+        "id": "t0",
+        "label": "first the",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 4,
+            "dimensions": "512 entries"
+          }
+        }
+      },
+      {
+        "id": "t1",
+        "label": "cat",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 4,
+            "dimensions": "512 entries"
+          }
+        }
+      },
+      {
+        "id": "t2",
+        "label": "sat",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 4,
+            "dimensions": "512 entries"
+          }
+        }
+      },
+      {
+        "id": "t3",
+        "label": "on",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 4,
+            "dimensions": "512 entries"
+          }
+        }
+      },
+      {
+        "id": "t4",
+        "label": "second the",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 4,
+            "dimensions": "512 entries"
+          }
+        }
+      },
+      {
+        "id": "t5",
+        "label": "mat",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 4,
+            "dimensions": "512 entries"
+          }
+        }
+      }
+    ],
+    "caption": "Look up a row of numbers for each word. Both uses of “the” start with the same row."
+  }
+}

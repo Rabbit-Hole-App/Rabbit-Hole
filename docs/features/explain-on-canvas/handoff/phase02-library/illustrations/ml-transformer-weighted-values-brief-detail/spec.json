@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "tensor",
+    "title": "New values for sat",
+    "caption": "Give each pair its share and add the first entries together, then the second entries together.",
+    "tensor": {
+      "rows": 1,
+      "columns": 2,
+      "dimensions": "Pair",
+      "values": [
+        0.362,
+        1.115
+      ],
+      "role": "output"
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "orientation": "horizontal",
+    "title": "Next word after the cat sat",
+    "caption": "Of these six sample words, on has the largest chance.",
+    "blocks": [
+      {
+        "id": "the",
+        "label": "the",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.134
+            ]
+          }
+        }
+      },
+      {
+        "id": "cat",
+        "label": "cat",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.073
+            ]
+          }
+        }
+      },
+      {
+        "id": "sat",
+        "label": "sat",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.178
+            ]
+          }
+        }
+      },
+      {
+        "id": "on",
+        "label": "on",
+        "role": "output",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.465
+            ]
+          }
+        }
+      },
+      {
+        "id": "mat",
+        "label": "mat",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.1
+            ]
+          }
+        }
+      },
+      {
+        "id": "slept",
+        "label": "slept",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "Chance",
+            "values": [
+              0.05
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

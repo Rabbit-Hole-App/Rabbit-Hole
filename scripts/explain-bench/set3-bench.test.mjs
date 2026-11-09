@@ -78,7 +78,9 @@ test('the illustrations set carries the seven Codex reference prompts, labelled 
   const { illustrationReferences } = await import('../../packages/web/src/tutor-diagrams/reference-library.js');
   assert.ok(SET_NAMES.includes('illustrations'));
   const set = loadSet('illustrations');
-  assert.equal(set.prompts.length, 9); // the seven references plus the overfitting and cross-validation prompts
+  assert.equal(set.prompts.length, 17); // the seven references, the overfitting and cross-validation prompts, and the eight Codex walkthrough prompts (steps 1, 3, 4, 5, 6, 8, 9, 10; steps 2 and 7 are the qkv and encoder entries)
+  for (const id of ['ml-transformer-token-embeddings', 'ml-transformer-weighted-values']) assert.deepEqual(set.prompts.find(x => x.id === id).depths.standard.kinds, ['block-stack'], id);
+  assert.deepEqual(set.prompts.find(x => x.id === 'ml-transformer-vocabulary-softmax').depths.standard.kinds, ['bar-chart']);
   for (const ref of illustrationReferences) {
     const p = set.prompts.find(x => x.id === ref.id);
     assert.ok(p, ref.id);

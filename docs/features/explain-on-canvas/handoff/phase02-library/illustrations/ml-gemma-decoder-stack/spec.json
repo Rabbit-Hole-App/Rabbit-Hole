@@ -6,25 +6,30 @@
     "blocks": [
       {
         "id": "emb",
-        "label": "Token embeddings"
+        "label": "Token embeddings",
+        "role": "embedding"
       },
       {
         "id": "att",
-        "label": "Grouped-query attention",
+        "label": "Grouped-query attention (shared key and value heads)",
         "repeat": 62,
-        "repeatTo": "ff"
+        "repeatTo": "ff",
+        "role": "attention"
       },
       {
         "id": "ff",
-        "label": "Gated feed-forward"
+        "label": "Gated GELU FFN (per-token update)",
+        "role": "feedforward"
       },
       {
         "id": "norm",
-        "label": "Final RMSNorm"
+        "label": "Final RMSNorm",
+        "role": "norm"
       },
       {
         "id": "out",
-        "label": "Output linear"
+        "label": "Output linear",
+        "role": "output"
       }
     ],
     "edges": [

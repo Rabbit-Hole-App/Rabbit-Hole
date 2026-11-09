@@ -5,8 +5,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { lintDiagramContent } from '../../scripts/explanation-content-contract.mjs';
 import { parseTutorDiagram, tutorDiagramVisibleText } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
-import { illustrationReferences } from './reference-library.js';
+import { illustrationReferences, transformerWalkthroughReferences } from './reference-library.js';
 import budgets from './illustration-token-budgets.json' with { type: 'json' };
+import { predictedToken, vocabulary, vocabularyWeights } from './transformer-walkthrough-data.js';
 
 const tensor = { rows: 1, columns: 2, dimensions: 'Two cells', name: 'Input values', values: [1, 2] };
 const flow = { kind: 'flow', title: 'Process data',
@@ -50,11 +51,12 @@ test('nested payloads and architecture panels keep semantic validation and fixed
   assert.throws(() => parseTutorDiagram(doc({ ...relationship, nodes: [{ id: 'a', tensor: invalidTensor }, relationship.nodes[1]] })));
 });
 
-test('the seven references and their depth variants pass the content contract and compact token budget', () => {
+test('illustration and walkthrough references pass the content contract and per-visual token budget', () => {
   assert.equal(illustrationReferences.length, 7);
+  assert.equal(transformerWalkthroughReferences.length, 10);
   assert.equal(budgets.encoding, 'cl100k_base');
   assert.equal(budgets.maxSpecTokens, 300);
-  for (const ref of illustrationReferences) {
+  for (const ref of new Set([...illustrationReferences, ...transformerWalkthroughReferences])) {
     const variants = { balanced: ref, brief: ref.depths?.overview, detailed: ref.depths?.deep };
     for (const [depth, variant] of Object.entries(variants)) {
       if (!variant) continue;
@@ -67,7 +69,45 @@ test('the seven references and their depth variants pass the content contract an
       const measured = budgets.refs[ref.id][depth];
       const json = JSON.stringify(detailSpec ? visuals : spec);
       assert.equal(measured.sha256, createHash('sha256').update(json).digest('hex'), ref.id);
-      assert.ok(measured.tokens > 0 && measured.tokens <= 300, ref.id);
+      const entries = detailSpec ? measured.visuals : [measured];
+      assert.equal(entries.length, visuals.length, ref.id);
+      for (const [index, entry] of entries.entries()) {
+        assert.equal(entry.sha256, createHash('sha256').update(JSON.stringify(visuals[index])).digest('hex'), ref.id);
+        // The older Gemma figure carries six explicit roles in its inset flows.
+        const limit = ref.id === 'ml-gemma-decoder-stack' && depth === 'detailed' && index === 0 ? 320 : budgets.maxSpecTokens;
+        assert.equal(entry.maxSpecTokens ?? budgets.maxSpecTokens, limit, ref.id);
+        assert.ok(entry.tokens > 0 && entry.tokens <= limit, ref.id);
+      }
+    }
+  }
+});
+
+test('embedding strips use one consistent value treatment at every depth', () => {
+  const reference = transformerWalkthroughReferences.find(ref => ref.id === 'ml-transformer-token-embeddings');
+  for (const { spec: { diagram } } of [reference, reference.depths.overview, reference.depths.deep]) {
+    assert.equal(diagram.blocks.length, 6);
+    const tensors = diagram.blocks.map(block => block.diagram.tensor);
+    assert.ok(tensors.every(tensor => tensor.columns === 4));
+    const valued = tensors.filter(tensor => tensor.values);
+    assert.ok(valued.length === 0 || valued.length === tensors.length, 'all six strips use the same value treatment');
+  }
+});
+
+test('the walkthrough token, value and vocabulary sequences use one row at every depth', () => {
+  const ids = ['ml-transformer-token-embeddings', 'ml-transformer-weighted-values', 'ml-transformer-vocabulary-softmax'];
+  for (const id of ids) {
+    const ref = transformerWalkthroughReferences.find(reference => reference.id === id);
+    for (const variant of [ref.depths.overview, ref, ref.depths.deep]) {
+      const spec = [variant.spec, variant.detailSpec].find(item => item?.diagram.orientation === 'horizontal');
+      assert.ok(spec, id);
+      const { diagram } = spec;
+      assert.equal(diagram.blocks.length, 6, id);
+      const { width, height } = renderTutorDiagram(spec, 320);
+      assert.ok(width > 320 && width <= 960 && height < 280, id);
+      if (id !== 'ml-transformer-vocabulary-softmax') continue;
+      assert.deepEqual(diagram.blocks.map(block => block.label), vocabulary);
+      assert.deepEqual(diagram.blocks.map(block => block.diagram.tensor.values[0]), vocabularyWeights);
+      assert.equal(diagram.blocks.find(block => block.role === 'output').label, predictedToken);
     }
   }
 });

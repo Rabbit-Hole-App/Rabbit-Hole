@@ -6,11 +6,12 @@
     "blocks": [
       {
         "id": "emb",
-        "label": "Token embeddings"
+        "label": "Token embeddings",
+        "role": "embedding"
       },
       {
         "id": "att",
-        "label": "GQA",
+        "label": "Attention",
         "repeat": 62,
         "repeatTo": "ff",
         "inputs": [
@@ -24,9 +25,18 @@
         "diagram": {
           "kind": "flow",
           "steps": [
-            "Normalize input",
-            "Use 5:1 SWA/global",
-            "Normalize output"
+            {
+              "label": "Pre-RMSNorm 1",
+              "role": "norm"
+            },
+            {
+              "label": "Sliding-window + GQA attention (5:1 local:global)",
+              "role": "attention"
+            },
+            {
+              "label": "Post-RMSNorm 1",
+              "role": "norm"
+            }
           ]
         }
       },
@@ -37,19 +47,30 @@
         "diagram": {
           "kind": "flow",
           "steps": [
-            "Normalize input",
-            "Transform token",
-            "Normalize output"
+            {
+              "label": "Pre-RMSNorm 2",
+              "role": "norm"
+            },
+            {
+              "label": "Gated GELU FFN",
+              "role": "feedforward"
+            },
+            {
+              "label": "Post-RMSNorm 2",
+              "role": "norm"
+            }
           ]
         }
       },
       {
         "id": "norm",
-        "label": "Final RMSNorm"
+        "label": "Final RMSNorm",
+        "role": "norm"
       },
       {
         "id": "out",
-        "label": "Output linear"
+        "label": "Output linear",
+        "role": "output"
       }
     ],
     "edges": [

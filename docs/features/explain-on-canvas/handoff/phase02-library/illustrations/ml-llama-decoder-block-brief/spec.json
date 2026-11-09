@@ -6,21 +6,25 @@
     "blocks": [
       {
         "id": "an",
-        "label": "Normalize for attention",
+        "label": "Input scaling for attention",
+        "role": "norm",
         "repeat": 32,
         "repeatTo": "ff"
       },
       {
         "id": "att",
-        "label": "Look back at tokens"
+        "label": "Attention to current and earlier tokens",
+        "role": "attention"
       },
       {
         "id": "fn",
-        "label": "Normalize for feed-forward"
+        "label": "Input scaling for token update",
+        "role": "norm"
       },
       {
         "id": "ff",
-        "label": "Update token features"
+        "label": "Per-token update",
+        "role": "feedforward"
       }
     ],
     "edges": [
