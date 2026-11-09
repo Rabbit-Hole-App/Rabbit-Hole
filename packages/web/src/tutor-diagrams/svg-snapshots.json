@@ -1056,6 +1056,21 @@
       "width": 720,
       "height": 411
     },
+    "ml-classification-vs-regression/320": {
+      "sha256": "d4e1e9143e5925313b10bf725d10ce696fc087bedc21b43b7d6aa2825f868a24",
+      "width": 320,
+      "height": 357
+    },
+    "ml-classification-vs-regression/408": {
+      "sha256": "5ef6ee3e38c0f5c4841a63bdab52052ea89e02f7e6ab68715b808801e2d5ceb4",
+      "width": 408,
+      "height": 318
+    },
+    "ml-classification-vs-regression/720": {
+      "sha256": "b567f4439d84bf027275cadbd02f21f3d251715088b46d4e534bb6315cbd802a",
+      "width": 720,
+      "height": 259
+    },
     "ml-clustering-comparison/320": {
       "sha256": "01a32abb9b03a5e0f6dc339089fab4cd6aae5f0caee3e78719b0e60ce5c710c9",
       "width": 444,
@@ -1550,6 +1565,21 @@
       "sha256": "a358050858916496a0082bbdead54186326b6d874b52aa823bd45b7c3edf1e16",
       "width": 720,
       "height": 624
+    },
+    "ml-logistic-decision-boundary/320": {
+      "sha256": "c5ab58d8c0931c4b40a5b98864b5fa6f496cedbce6dbc445a71f166dd1f74a02",
+      "width": 420,
+      "height": 615
+    },
+    "ml-logistic-decision-boundary/408": {
+      "sha256": "c5ab58d8c0931c4b40a5b98864b5fa6f496cedbce6dbc445a71f166dd1f74a02",
+      "width": 420,
+      "height": 615
+    },
+    "ml-logistic-decision-boundary/720": {
+      "sha256": "d27222073a940760cd43eeaa7bf314fc707f87487e6a2a80cee0d631687d13dd",
+      "width": 720,
+      "height": 580
     },
     "ml-majority-undersampling/320": {
       "sha256": "d5743bdbb4ccc8241baed91fdb655ed02ad104a843fc0bf571525b795b3dbb29",

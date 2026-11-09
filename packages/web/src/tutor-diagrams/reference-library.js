@@ -20,6 +20,8 @@ import { references as batch3bDensity } from './ml-batch3b-anomaly-density-refer
 import { references as batch3bDecisions } from './ml-batch3b-anomaly-decisions-references.js';
 import { references as batch3cFlow } from './ml-batch3c-system-flow-references.js';
 import { references as batch3cServing } from './ml-batch3c-system-serving-references.js';
+import { references as batch4aPrediction } from './ml-batch4a-prediction-references.js';
+import { references as batch4aLogistic } from './ml-batch4a-logistic-references.js';
 
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
@@ -37,7 +39,8 @@ export const diagramReferences = Object.freeze([
   ...batch2cImbalance, ...batch2cElimination, ...batch2cPsi,
   ...batch3aSeries, ...batch3aCorrelation, ...batch3aForecast,
   ...batch3bDensity, ...batch3bDecisions,
-  ...batch3cFlow, ...batch3cServing, ...generic,
+  ...batch3cFlow, ...batch3cServing,
+  ...batch4aPrediction, ...batch4aLogistic, ...generic,
 ]);
 
 export const PHASE02_SOURCE = Object.freeze({
