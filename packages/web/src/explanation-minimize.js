@@ -51,8 +51,10 @@ export async function requestSummary(post, { app, block }) {
   } catch { return null; }
 }
 
-// The tile's width: the card's own width held between the narrowest and the widest the tile is drawn at (320 and 408 px).
-export const tileWidth = block => Math.min(408, Math.max(320, block?.cardLayout?.scrollableSize?.w || block?.w || 408));
+// The tile's width (owner 2026-11-08: the picture was small and hard to see at 100%): one fixed 512 px, so the picture, inside the tile's 16 px of padding, is 480 px wide.
+// The card's saved size stays on the block; Open restores it.
+export const TILE_WIDTH = 512;
+export const tileWidth = () => TILE_WIDTH;
 
 // The summary lands on the card as it is now (a functional update on the latest blocks): only that field, only on an Explanation still on the canvas that has no
 // summary of its own, so a deleted card is skipped and nothing the learner changed meanwhile is overwritten.

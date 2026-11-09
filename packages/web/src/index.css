@@ -1094,6 +1094,6 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 /* The minimized Explanation tile (LearningBlocks ExplanationTile): its picture is capped in height (object-contain letterboxes it); a diagram scales down to the tile
    instead of scrolling sideways (TutorDiagram draws a fixed-size SVG inside an overflow-x scroller; both are overridden here, only inside the tile); its height is capped like the picture's (the drawing keeps its proportions inside the box). */
 [data-explanation-tile] [data-illustration] { margin: 0; }
-[data-explanation-tile] [data-illustration-frame] { max-height: 12rem; }
+[data-explanation-tile] [data-illustration-frame] { max-height: 30rem; }
 [data-explanation-tile] [data-tile-visual="diagram"] > div { overflow: hidden !important; }
-[data-explanation-tile] [data-tile-visual="diagram"] svg { width: 100%; height: auto; max-width: 100% !important; max-height: 14rem; }
+[data-explanation-tile] [data-tile-visual="diagram"] svg { width: 100%; height: auto; max-width: 100% !important; max-height: 26rem; }

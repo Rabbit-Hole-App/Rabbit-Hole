@@ -46,6 +46,10 @@ test('the tile: title, summary clamped to three lines, the picture when there is
   assert.match(html, /<img src="data:image\/png;base64,AAAA" alt="A steaming cup"/);
   assert.doesNotMatch(html, /data-illustration-caption/, 'no caption on the tile');
   assert.match(html, /<button[^>]*data-explanation-open[^>]*>Open<\/button>/);
+  const open = html.match(/<button[^>]*data-explanation-open[^>]*>/)[0];
+  assert.match(open, /class="[^"]*border border-line-strong bg-surface text-ink[^"]*"/, 'a white button with black text (the secondary variant; the one-line switch is variant="inverse")');
+  assert.match(open, /class="[^"]*\bself-center\b[^"]*"/, 'centred at the bottom of the tile');
+  assert.match(open, /class="[^"]*border! border-ink\/50![^"]*"/, 'a visible border: the base button has border-0, so the width is forced too');
   assert.doesNotMatch(html, /data-explanation(?!-)|data-explanation-flow|data-explain-more/, 'the full card is not drawn under the tile');
 });
 
@@ -62,7 +66,8 @@ test('the picture wins over an earlier diagram; with no picture the first diagra
   assert.match(none, /data-explanation-open/);
   const css = read('./index.css');
   assert.match(css, /\[data-explanation-tile\] \[data-tile-visual="diagram"\] > div \{ overflow: hidden !important; \}/, 'a dense diagram scales down, it does not scroll sideways, in the tile');
-  assert.match(css, /\[data-explanation-tile\] \[data-tile-visual="diagram"\] svg \{ width: 100%; height: auto; max-width: 100% !important; max-height: 14rem; \}/);
+  assert.match(css, /\[data-explanation-tile\] \[data-tile-visual="diagram"\] svg \{ width: 100%; height: auto; max-width: 100% !important; max-height: 26rem; \}/);
+  assert.match(css, /\[data-explanation-tile\] \[data-illustration-frame\] \{ max-height: 30rem; \}/, 'the picture is drawn large: 480 px wide at 100%');
 });
 
 test('minimizedVisual: the legacy illustration, a ready figure or a diagram; never a figure that is not ready or a diagram that does not parse; More sections count', () => {
@@ -91,9 +96,9 @@ test('minimized round-trips through the card save path and Open restores the ful
   assert.equal(isMinimized(saved[0]), true, 'it survives the board being saved and loaded');
   assert.equal(isMinimized(saved[1]), false, 'the default is false');
   assert.deepEqual({ w: saved[0].w, h: saved[0].h, cardLayout: saved[0].cardLayout }, { w: 440, h: 700, cardLayout: before[0].cardLayout }, 'its own size is untouched, so Open restores it');
-  assert.equal(tileWidth(saved[0]), 408);
-  assert.equal(tileWidth({ w: 300 }), 320);
-  assert.equal(tileWidth({ w: 380 }), 380);
+  assert.equal(tileWidth(saved[0]), 512, 'one tile width, whatever the card\'s own width: 480 px of picture inside 16 px of padding');
+  assert.equal(tileWidth({ w: 300 }), 512);
+  assert.equal(tileWidth({ w: 900 }), 512);
   const opened = { ...saved[0], minimized: false };
   assert.match(draw(opened), /data-explanation="true"/);
   assert.doesNotMatch(draw(opened), /data-explanation-tile/);
