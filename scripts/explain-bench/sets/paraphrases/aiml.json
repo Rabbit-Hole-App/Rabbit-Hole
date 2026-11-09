@@ -1,0 +1,4304 @@
+{
+ "name": "aiml",
+ "version": {
+  "prompts": "P1 2026-11-08 15:10 PT",
+  "labels": "L2 2026-11-08 16:20 PT (owner relabels: entropy, DNS, decision tree)"
+ },
+ "measures": "AI/ML subjects: kind choice where several kinds collide, no picture for digital/abstract subjects, a picture for the four picture-worthy ones.",
+ "source": "C:/s/spec/benchmarks/explain-visual-choice-2026-11-08/prompts-C.json",
+ "written": "2026-11-08 15:10 PT, before any C card was sent",
+ "relabels": [
+  "2026-11-08 ~16:20 PT owner relabel (applied before scoring 5e, 5d re-scored): decision tree: flow-with-decisions = right, tree = acceptable"
+ ],
+ "notation": "As prompts.json: P = picture, D:<kind> = diagram (D:a|b either, D:* any). best = right; acceptable = weaker; anything else wrong. picture: yes (a picture is required), no (digital/abstract: any picture is a miss in the no-picture direction), optional.",
+ "defaultRuns": 1,
+ "estUsdPerCard": 0.0115,
+ "pass": {},
+ "prompts": [
+  {
+   "id": "backprop-p1",
+   "group": "ai-core",
+   "prompt": "What happens during backpropagation?",
+   "best": [
+    [
+     "D:flow|relationship|cycle"
+    ],
+    [
+     "D:flow|relationship|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|layers|sequence"
+    ]
+   ],
+   "badKinds": [
+    "comparison",
+    "timeline",
+    "figure",
+    "matrix"
+   ],
+   "why": "Forward pass, loss, gradients flowing back through the layers, weight update: a flow (or the training loop as a cycle, the chain rule as relationship).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "backprop"
+  },
+  {
+   "id": "backprop-p2",
+   "group": "ai-core",
+   "prompt": "How does the backprop step in training actually work?",
+   "best": [
+    [
+     "D:flow|relationship|cycle"
+    ],
+    [
+     "D:flow|relationship|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|layers|sequence"
+    ]
+   ],
+   "badKinds": [
+    "comparison",
+    "timeline",
+    "figure",
+    "matrix"
+   ],
+   "why": "Forward pass, loss, gradients flowing back through the layers, weight update: a flow (or the training loop as a cycle, the chain rule as relationship).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "backprop"
+  },
+  {
+   "id": "backprop-p3",
+   "group": "ai-core",
+   "prompt": "I was following neural net training until I got to backpropagation.",
+   "best": [
+    [
+     "D:flow|relationship|cycle"
+    ],
+    [
+     "D:flow|relationship|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|layers|sequence"
+    ]
+   ],
+   "badKinds": [
+    "comparison",
+    "timeline",
+    "figure",
+    "matrix"
+   ],
+   "why": "Forward pass, loss, gradients flowing back through the layers, weight update: a flow (or the training loop as a cycle, the chain rule as relationship).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "backprop"
+  },
+  {
+   "id": "backprop-p4",
+   "group": "ai-core",
+   "prompt": "Could you go over what a model does during backpropagation?",
+   "best": [
+    [
+     "D:flow|relationship|cycle"
+    ],
+    [
+     "D:flow|relationship|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|layers|sequence"
+    ]
+   ],
+   "badKinds": [
+    "comparison",
+    "timeline",
+    "figure",
+    "matrix"
+   ],
+   "why": "Forward pass, loss, gradients flowing back through the layers, weight update: a flow (or the training loop as a cycle, the chain rule as relationship).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "backprop"
+  },
+  {
+   "id": "backprop-p5",
+   "group": "ai-core",
+   "prompt": "I've seen it called backprop. What's going on when a neural net does it?",
+   "best": [
+    [
+     "D:flow|relationship|cycle"
+    ],
+    [
+     "D:flow|relationship|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|layers|sequence"
+    ]
+   ],
+   "badKinds": [
+    "comparison",
+    "timeline",
+    "figure",
+    "matrix"
+   ],
+   "why": "Forward pass, loss, gradients flowing back through the layers, weight update: a flow (or the training loop as a cycle, the chain rule as relationship).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "backprop"
+  },
+  {
+   "id": "attention-p1",
+   "group": "ai-core",
+   "prompt": "What is a transformer doing when it uses attention?",
+   "best": [
+    [
+     "D:relationship|flow|transformation|matrix"
+    ],
+    [
+     "D:relationship|flow|transformation|matrix",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle"
+   ],
+   "why": "Each token scores every other token (a weight matrix) and mixes their values: matrix, relationship or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "attention"
+  },
+  {
+   "id": "attention-p2",
+   "group": "ai-core",
+   "prompt": "I'm having trouble understanding the attention part of transformers.",
+   "best": [
+    [
+     "D:relationship|flow|transformation|matrix"
+    ],
+    [
+     "D:relationship|flow|transformation|matrix",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle"
+   ],
+   "why": "Each token scores every other token (a weight matrix) and mixes their values: matrix, relationship or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "attention"
+  },
+  {
+   "id": "attention-p3",
+   "group": "ai-core",
+   "prompt": "Could you explain how attention operates inside a transformer?",
+   "best": [
+    [
+     "D:relationship|flow|transformation|matrix"
+    ],
+    [
+     "D:relationship|flow|transformation|matrix",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle"
+   ],
+   "why": "Each token scores every other token (a weight matrix) and mixes their values: matrix, relationship or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "attention"
+  },
+  {
+   "id": "attention-p4",
+   "group": "ai-core",
+   "prompt": "How does a transformer handle attention?",
+   "best": [
+    [
+     "D:relationship|flow|transformation|matrix"
+    ],
+    [
+     "D:relationship|flow|transformation|matrix",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle"
+   ],
+   "why": "Each token scores every other token (a weight matrix) and mixes their values: matrix, relationship or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "attention"
+  },
+  {
+   "id": "attention-p5",
+   "group": "ai-core",
+   "prompt": "When people talk about attention in transformers, what's actually happening there?",
+   "best": [
+    [
+     "D:relationship|flow|transformation|matrix"
+    ],
+    [
+     "D:relationship|flow|transformation|matrix",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle"
+   ],
+   "why": "Each token scores every other token (a weight matrix) and mixes their values: matrix, relationship or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "attention"
+  },
+  {
+   "id": "gpu-matmul-p1",
+   "group": "ai-core",
+   "prompt": "What happens inside a GPU when it multiplies matrices?",
+   "best": [
+    [
+     "D:matrix|flow|tree|transformation"
+    ],
+    [
+     "D:matrix|flow|tree|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The answer is how the work splits into tiles across many cores: a diagram. The GPU is physical, so a picture is tolerated second, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "gpu-matmul"
+  },
+  {
+   "id": "gpu-matmul-p2",
+   "group": "ai-core",
+   "prompt": "How does matrix multiplication get done on a GPU?",
+   "best": [
+    [
+     "D:matrix|flow|tree|transformation"
+    ],
+    [
+     "D:matrix|flow|tree|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The answer is how the work splits into tiles across many cores: a diagram. The GPU is physical, so a picture is tolerated second, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "gpu-matmul"
+  },
+  {
+   "id": "gpu-matmul-p3",
+   "group": "ai-core",
+   "prompt": "I know how to multiply matrices by hand. How does a GPU do it?",
+   "best": [
+    [
+     "D:matrix|flow|tree|transformation"
+    ],
+    [
+     "D:matrix|flow|tree|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The answer is how the work splits into tiles across many cores: a diagram. The GPU is physical, so a picture is tolerated second, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "gpu-matmul"
+  },
+  {
+   "id": "gpu-matmul-p4",
+   "group": "ai-core",
+   "prompt": "Can you walk me through how a graphics processor performs matrix multiplication?",
+   "best": [
+    [
+     "D:matrix|flow|tree|transformation"
+    ],
+    [
+     "D:matrix|flow|tree|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The answer is how the work splits into tiles across many cores: a diagram. The GPU is physical, so a picture is tolerated second, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "gpu-matmul"
+  },
+  {
+   "id": "gpu-matmul-p5",
+   "group": "ai-core",
+   "prompt": "I'm trying to understand what a GPU does when it runs a matmul.",
+   "best": [
+    [
+     "D:matrix|flow|tree|transformation"
+    ],
+    [
+     "D:matrix|flow|tree|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The answer is how the work splits into tiles across many cores: a diagram. The GPU is physical, so a picture is tolerated second, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "gpu-matmul"
+  },
+  {
+   "id": "gradient-descent-p1",
+   "group": "ai-core",
+   "prompt": "When people talk about using gradient descent, what do they mean?",
+   "best": [
+    [
+     "D:coordinate-plot|flow|cycle"
+    ],
+    [
+     "D:coordinate-plot|flow|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "tree",
+    "comparison"
+   ],
+   "why": "Steps down a loss curve (coordinate plot) or the repeat-until-converged loop (cycle/flow).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "gradient-descent-p2",
+   "group": "ai-core",
+   "prompt": "Could you explain what the gradient descent method is?",
+   "best": [
+    [
+     "D:coordinate-plot|flow|cycle"
+    ],
+    [
+     "D:coordinate-plot|flow|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "tree",
+    "comparison"
+   ],
+   "why": "Steps down a loss curve (coordinate plot) or the repeat-until-converged loop (cycle/flow).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "gradient-descent-p3",
+   "group": "ai-core",
+   "prompt": "I see gradient descent come up in model training. What is it?",
+   "best": [
+    [
+     "D:coordinate-plot|flow|cycle"
+    ],
+    [
+     "D:coordinate-plot|flow|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "tree",
+    "comparison"
+   ],
+   "why": "Steps down a loss curve (coordinate plot) or the repeat-until-converged loop (cycle/flow).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "gradient-descent-p4",
+   "group": "ai-core",
+   "prompt": "Gradient descent is one of those terms I keep seeing without really understanding it.",
+   "best": [
+    [
+     "D:coordinate-plot|flow|cycle"
+    ],
+    [
+     "D:coordinate-plot|flow|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "tree",
+    "comparison"
+   ],
+   "why": "Steps down a loss curve (coordinate plot) or the repeat-until-converged loop (cycle/flow).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "gradient-descent-p5",
+   "group": "ai-core",
+   "prompt": "What's gradient descent all about?",
+   "best": [
+    [
+     "D:coordinate-plot|flow|cycle"
+    ],
+    [
+     "D:coordinate-plot|flow|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "tree",
+    "comparison"
+   ],
+   "why": "Steps down a loss curve (coordinate plot) or the repeat-until-converged loop (cycle/flow).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "tokenization-p1",
+   "group": "ai-core",
+   "prompt": "What goes on when text is tokenized?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle",
+    "layers"
+   ],
+   "why": "Text becomes a list of tokens: transformation, or the steps as a flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "tokenization"
+  },
+  {
+   "id": "tokenization-p2",
+   "group": "ai-core",
+   "prompt": "I'm trying to understand the tokenization part of working with text.",
+   "best": [
+    [
+     "D:transformation|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle",
+    "layers"
+   ],
+   "why": "Text becomes a list of tokens: transformation, or the steps as a flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "tokenization"
+  },
+  {
+   "id": "tokenization-p3",
+   "group": "ai-core",
+   "prompt": "How does a tokenizer handle the text you give it?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle",
+    "layers"
+   ],
+   "why": "Text becomes a list of tokens: transformation, or the steps as a flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "tokenization"
+  },
+  {
+   "id": "tokenization-p4",
+   "group": "ai-core",
+   "prompt": "What actually happens to text during tokenization?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle",
+    "layers"
+   ],
+   "why": "Text becomes a list of tokens: transformation, or the steps as a flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "tokenization"
+  },
+  {
+   "id": "tokenization-p5",
+   "group": "ai-core",
+   "prompt": "Could you explain how text gets tokenized?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle",
+    "layers"
+   ],
+   "why": "Text becomes a list of tokens: transformation, or the steps as a flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "tokenization"
+  },
+  {
+   "id": "cnn-p1",
+   "group": "ai-core",
+   "prompt": "What do people mean when they talk about a CNN in machine learning?",
+   "best": [
+    [
+     "D:flow|layers|transformation"
+    ],
+    [
+     "D:flow|layers|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Image -> convolution -> pooling -> classifier: a flow or a layer stack.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "cnn"
+  },
+  {
+   "id": "cnn-p2",
+   "group": "ai-core",
+   "prompt": "I know what a neural network is, but I'm fuzzy on what makes one convolutional.",
+   "best": [
+    [
+     "D:flow|layers|transformation"
+    ],
+    [
+     "D:flow|layers|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Image -> convolution -> pooling -> classifier: a flow or a layer stack.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "cnn"
+  },
+  {
+   "id": "cnn-p3",
+   "group": "ai-core",
+   "prompt": "What's a convnet, exactly?",
+   "best": [
+    [
+     "D:flow|layers|transformation"
+    ],
+    [
+     "D:flow|layers|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Image -> convolution -> pooling -> classifier: a flow or a layer stack.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "cnn"
+  },
+  {
+   "id": "cnn-p4",
+   "group": "ai-core",
+   "prompt": "Could you explain the concept of a convolutional neural network?",
+   "best": [
+    [
+     "D:flow|layers|transformation"
+    ],
+    [
+     "D:flow|layers|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Image -> convolution -> pooling -> classifier: a flow or a layer stack.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "cnn"
+  },
+  {
+   "id": "cnn-p5",
+   "group": "ai-core",
+   "prompt": "I could use a refresher on what a convolutional neural net is.",
+   "best": [
+    [
+     "D:flow|layers|transformation"
+    ],
+    [
+     "D:flow|layers|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Image -> convolution -> pooling -> classifier: a flow or a layer stack.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "cnn"
+  },
+  {
+   "id": "rag-p1",
+   "group": "ai-core",
+   "prompt": "What happens when a system uses RAG?",
+   "best": [
+    [
+     "D:sequence|flow"
+    ],
+    [
+     "D:sequence|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Query -> retriever -> documents -> model -> answer, between named parts: sequence or flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rag"
+  },
+  {
+   "id": "rag-p2",
+   "group": "ai-core",
+   "prompt": "I'm unclear on how retrieval-augmented generation works.",
+   "best": [
+    [
+     "D:sequence|flow"
+    ],
+    [
+     "D:sequence|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Query -> retriever -> documents -> model -> answer, between named parts: sequence or flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rag"
+  },
+  {
+   "id": "rag-p3",
+   "group": "ai-core",
+   "prompt": "How does a RAG system actually do its job?",
+   "best": [
+    [
+     "D:sequence|flow"
+    ],
+    [
+     "D:sequence|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Query -> retriever -> documents -> model -> answer, between named parts: sequence or flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rag"
+  },
+  {
+   "id": "rag-p4",
+   "group": "ai-core",
+   "prompt": "I keep seeing RAG mentioned. Could you explain how it works?",
+   "best": [
+    [
+     "D:sequence|flow"
+    ],
+    [
+     "D:sequence|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Query -> retriever -> documents -> model -> answer, between named parts: sequence or flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rag"
+  },
+  {
+   "id": "rag-p5",
+   "group": "ai-core",
+   "prompt": "Can you walk me through what goes on in retrieval augmented generation?",
+   "best": [
+    [
+     "D:sequence|flow"
+    ],
+    [
+     "D:sequence|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Query -> retriever -> documents -> model -> answer, between named parts: sequence or flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rag"
+  },
+  {
+   "id": "overfitting-p1",
+   "group": "ai-core",
+   "prompt": "What does it mean when a model overfits?",
+   "best": [
+    [
+     "D:coordinate-plot|comparison"
+    ],
+    [
+     "D:coordinate-plot|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|transformation|relationship"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Training error keeps falling while validation error rises: two curves, or a good-fit vs overfit comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "overfitting",
+   "minSeries": 2
+  },
+  {
+   "id": "overfitting-p2",
+   "group": "ai-core",
+   "prompt": "How should I understand the term overfitting?",
+   "best": [
+    [
+     "D:coordinate-plot|comparison"
+    ],
+    [
+     "D:coordinate-plot|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|transformation|relationship"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Training error keeps falling while validation error rises: two curves, or a good-fit vs overfit comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "overfitting",
+   "minSeries": 2
+  },
+  {
+   "id": "overfitting-p3",
+   "group": "ai-core",
+   "prompt": "I keep hearing that models can overfit, but I don't know what that means.",
+   "best": [
+    [
+     "D:coordinate-plot|comparison"
+    ],
+    [
+     "D:coordinate-plot|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|transformation|relationship"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Training error keeps falling while validation error rises: two curves, or a good-fit vs overfit comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "overfitting",
+   "minSeries": 2
+  },
+  {
+   "id": "overfitting-p4",
+   "group": "ai-core",
+   "prompt": "Can you explain what people mean by an overfit model?",
+   "best": [
+    [
+     "D:coordinate-plot|comparison"
+    ],
+    [
+     "D:coordinate-plot|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|transformation|relationship"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Training error keeps falling while validation error rises: two curves, or a good-fit vs overfit comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "overfitting",
+   "minSeries": 2
+  },
+  {
+   "id": "overfitting-p5",
+   "group": "ai-core",
+   "prompt": "What's overfitting in the context of training a model?",
+   "best": [
+    [
+     "D:coordinate-plot|comparison"
+    ],
+    [
+     "D:coordinate-plot|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|transformation|relationship"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Training error keeps falling while validation error rises: two curves, or a good-fit vs overfit comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "overfitting",
+   "minSeries": 2
+  },
+  {
+   "id": "beam-search-p1",
+   "group": "ai-core",
+   "prompt": "What goes on during beam search?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "A tree of candidate continuations pruned to the k best at each step.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "beam-search"
+  },
+  {
+   "id": "beam-search-p2",
+   "group": "ai-core",
+   "prompt": "How is beam search carried out?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "A tree of candidate continuations pruned to the k best at each step.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "beam-search"
+  },
+  {
+   "id": "beam-search-p3",
+   "group": "ai-core",
+   "prompt": "Could you walk me through what beam search does?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "A tree of candidate continuations pruned to the k best at each step.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "beam-search"
+  },
+  {
+   "id": "beam-search-p4",
+   "group": "ai-core",
+   "prompt": "When an algorithm uses beam search, what is it actually doing?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "A tree of candidate continuations pruned to the k best at each step.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "beam-search"
+  },
+  {
+   "id": "beam-search-p5",
+   "group": "ai-core",
+   "prompt": "I got stuck on how beam search is supposed to work.",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "A tree of candidate continuations pruned to the k best at each step.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "beam-search"
+  },
+  {
+   "id": "vector-db-p1",
+   "group": "ai-core",
+   "prompt": "What do people mean by a vector database?",
+   "best": [
+    [
+     "D:flow|transformation|relationship|sequence"
+    ],
+    [
+     "D:flow|transformation|relationship|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Items become vectors, a query vector finds its nearest neighbours: flow or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "vector-db"
+  },
+  {
+   "id": "vector-db-p2",
+   "group": "ai-core",
+   "prompt": "I've heard about vector DBs but don't know what one actually is.",
+   "best": [
+    [
+     "D:flow|transformation|relationship|sequence"
+    ],
+    [
+     "D:flow|transformation|relationship|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Items become vectors, a query vector finds its nearest neighbours: flow or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "vector-db"
+  },
+  {
+   "id": "vector-db-p3",
+   "group": "ai-core",
+   "prompt": "I'm familiar with databases, but what makes a database a vector database?",
+   "best": [
+    [
+     "D:flow|transformation|relationship|sequence"
+    ],
+    [
+     "D:flow|transformation|relationship|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Items become vectors, a query vector finds its nearest neighbours: flow or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "vector-db"
+  },
+  {
+   "id": "vector-db-p4",
+   "group": "ai-core",
+   "prompt": "I'm trying to understand the term vector database.",
+   "best": [
+    [
+     "D:flow|transformation|relationship|sequence"
+    ],
+    [
+     "D:flow|transformation|relationship|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Items become vectors, a query vector finds its nearest neighbours: flow or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "vector-db"
+  },
+  {
+   "id": "vector-db-p5",
+   "group": "ai-core",
+   "prompt": "When a tool says it's a vector database, what is it describing?",
+   "best": [
+    [
+     "D:flow|transformation|relationship|sequence"
+    ],
+    [
+     "D:flow|transformation|relationship|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Items become vectors, a query vector finds its nearest neighbours: flow or transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "vector-db"
+  },
+  {
+   "id": "rlhf-p1",
+   "group": "ai-core",
+   "prompt": "What goes on in RLHF?",
+   "best": [
+    [
+     "D:flow|cycle|sequence"
+    ],
+    [
+     "D:flow|cycle|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "layers",
+    "figure"
+   ],
+   "why": "Model answers, humans rank, a reward model learns, the policy is tuned, repeat: flow, cycle or sequence.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rlhf"
+  },
+  {
+   "id": "rlhf-p2",
+   "group": "ai-core",
+   "prompt": "Could you go over how reinforcement learning from human feedback works?",
+   "best": [
+    [
+     "D:flow|cycle|sequence"
+    ],
+    [
+     "D:flow|cycle|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "layers",
+    "figure"
+   ],
+   "why": "Model answers, humans rank, a reward model learns, the policy is tuned, repeat: flow, cycle or sequence.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rlhf"
+  },
+  {
+   "id": "rlhf-p3",
+   "group": "ai-core",
+   "prompt": "I keep seeing RLHF in discussions of model training. How does it work?",
+   "best": [
+    [
+     "D:flow|cycle|sequence"
+    ],
+    [
+     "D:flow|cycle|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "layers",
+    "figure"
+   ],
+   "why": "Model answers, humans rank, a reward model learns, the policy is tuned, repeat: flow, cycle or sequence.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rlhf"
+  },
+  {
+   "id": "rlhf-p4",
+   "group": "ai-core",
+   "prompt": "What's happening when a model is trained with RLHF?",
+   "best": [
+    [
+     "D:flow|cycle|sequence"
+    ],
+    [
+     "D:flow|cycle|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "layers",
+    "figure"
+   ],
+   "why": "Model answers, humans rank, a reward model learns, the policy is tuned, repeat: flow, cycle or sequence.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rlhf"
+  },
+  {
+   "id": "rlhf-p5",
+   "group": "ai-core",
+   "prompt": "I'm having trouble following how RLHF is carried out.",
+   "best": [
+    [
+     "D:flow|cycle|sequence"
+    ],
+    [
+     "D:flow|cycle|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "layers",
+    "figure"
+   ],
+   "why": "Model answers, humans rank, a reward model learns, the policy is tuned, repeat: flow, cycle or sequence.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "rlhf"
+  },
+  {
+   "id": "cpu-vs-gpu-p1",
+   "group": "ai-core",
+   "prompt": "How is a GPU different from a CPU?",
+   "best": [
+    [
+     "D:comparison"
+    ],
+    [
+     "D:comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison",
+     "P"
+    ],
+    [
+     "D:matrix"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "figure"
+   ],
+   "why": "Two items across attributes: comparison. A picture of the chips is tolerated, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "cpu-vs-gpu"
+  },
+  {
+   "id": "cpu-vs-gpu-p2",
+   "group": "ai-core",
+   "prompt": "I get the acronyms CPU and GPU, but I don't know how the two differ.",
+   "best": [
+    [
+     "D:comparison"
+    ],
+    [
+     "D:comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison",
+     "P"
+    ],
+    [
+     "D:matrix"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "figure"
+   ],
+   "why": "Two items across attributes: comparison. A picture of the chips is tolerated, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "cpu-vs-gpu"
+  },
+  {
+   "id": "cpu-vs-gpu-p3",
+   "group": "ai-core",
+   "prompt": "What sets a CPU apart from a graphics processor?",
+   "best": [
+    [
+     "D:comparison"
+    ],
+    [
+     "D:comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison",
+     "P"
+    ],
+    [
+     "D:matrix"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "figure"
+   ],
+   "why": "Two items across attributes: comparison. A picture of the chips is tolerated, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "cpu-vs-gpu"
+  },
+  {
+   "id": "cpu-vs-gpu-p4",
+   "group": "ai-core",
+   "prompt": "How do CPUs and GPUs differ in what they do?",
+   "best": [
+    [
+     "D:comparison"
+    ],
+    [
+     "D:comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison",
+     "P"
+    ],
+    [
+     "D:matrix"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "figure"
+   ],
+   "why": "Two items across attributes: comparison. A picture of the chips is tolerated, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "cpu-vs-gpu"
+  },
+  {
+   "id": "cpu-vs-gpu-p5",
+   "group": "ai-core",
+   "prompt": "What distinguishes a central processing unit from a graphics processing unit?",
+   "best": [
+    [
+     "D:comparison"
+    ],
+    [
+     "D:comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison",
+     "P"
+    ],
+    [
+     "D:matrix"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "figure"
+   ],
+   "why": "Two items across attributes: comparison. A picture of the chips is tolerated, not needed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "cpu-vs-gpu"
+  },
+  {
+   "id": "dropout-p1",
+   "group": "ai-core",
+   "prompt": "What happens when a neural network uses dropout?",
+   "best": [
+    [
+     "D:transformation|comparison"
+    ],
+    [
+     "D:transformation|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|flow"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The network before and after units are switched off: transformation or comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "dropout"
+  },
+  {
+   "id": "dropout-p2",
+   "group": "ai-core",
+   "prompt": "I'm confused about the dropout part of training a network.",
+   "best": [
+    [
+     "D:transformation|comparison"
+    ],
+    [
+     "D:transformation|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|flow"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The network before and after units are switched off: transformation or comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "dropout"
+  },
+  {
+   "id": "dropout-p3",
+   "group": "ai-core",
+   "prompt": "Could you go over how dropout is applied in a neural net?",
+   "best": [
+    [
+     "D:transformation|comparison"
+    ],
+    [
+     "D:transformation|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|flow"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The network before and after units are switched off: transformation or comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "dropout"
+  },
+  {
+   "id": "dropout-p4",
+   "group": "ai-core",
+   "prompt": "When people say they use dropout on a model, what are they doing?",
+   "best": [
+    [
+     "D:transformation|comparison"
+    ],
+    [
+     "D:transformation|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|flow"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The network before and after units are switched off: transformation or comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "dropout"
+  },
+  {
+   "id": "dropout-p5",
+   "group": "ai-core",
+   "prompt": "I know the name dropout. How does that technique work?",
+   "best": [
+    [
+     "D:transformation|comparison"
+    ],
+    [
+     "D:transformation|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|flow"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The network before and after units are switched off: transformation or comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "dropout"
+  },
+  {
+   "id": "lr-schedule-p1",
+   "group": "ai-core",
+   "prompt": "What do people mean by a learning-rate schedule?",
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|timeline|number-line|flow"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "A quantity over training steps: a curve (chart-hold case).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "lr-schedule-p2",
+   "group": "ai-core",
+   "prompt": "What's the idea of having a schedule for the learning rate?",
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|timeline|number-line|flow"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "A quantity over training steps: a curve (chart-hold case).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "lr-schedule-p3",
+   "group": "ai-core",
+   "prompt": "I'm reading about training models and got stuck on what a learning rate schedule is.",
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|timeline|number-line|flow"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "A quantity over training steps: a curve (chart-hold case).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "lr-schedule-p4",
+   "group": "ai-core",
+   "prompt": "When someone says to use a learning rate schedule, what are they talking about?",
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|timeline|number-line|flow"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "A quantity over training steps: a curve (chart-hold case).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "lr-schedule-p5",
+   "group": "ai-core",
+   "prompt": "What does it mean to schedule a model's learning rate during training?",
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|timeline|number-line|flow"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "A quantity over training steps: a curve (chart-hold case).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "diffusion-p1",
+   "group": "ai-core",
+   "prompt": "What happens when a diffusion model makes an image?",
+   "best": [
+    [
+     "D:transformation|flow|sequence|timeline"
+    ],
+    [
+     "D:transformation|flow|sequence|timeline",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "layers",
+    "figure",
+    "matrix"
+   ],
+   "why": "Noise is removed step by step: transformation or flow. A picture of noise becoming an image is tolerated second.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "diffusion"
+  },
+  {
+   "id": "diffusion-p2",
+   "group": "ai-core",
+   "prompt": "How does image generation work in a diffusion model?",
+   "best": [
+    [
+     "D:transformation|flow|sequence|timeline"
+    ],
+    [
+     "D:transformation|flow|sequence|timeline",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "layers",
+    "figure",
+    "matrix"
+   ],
+   "why": "Noise is removed step by step: transformation or flow. A picture of noise becoming an image is tolerated second.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "diffusion"
+  },
+  {
+   "id": "diffusion-p3",
+   "group": "ai-core",
+   "prompt": "I'm stuck on the part where a diffusion model actually produces an image.",
+   "best": [
+    [
+     "D:transformation|flow|sequence|timeline"
+    ],
+    [
+     "D:transformation|flow|sequence|timeline",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "layers",
+    "figure",
+    "matrix"
+   ],
+   "why": "Noise is removed step by step: transformation or flow. A picture of noise becoming an image is tolerated second.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "diffusion"
+  },
+  {
+   "id": "diffusion-p4",
+   "group": "ai-core",
+   "prompt": "Could you walk me through how an image gets made with a diffusion model?",
+   "best": [
+    [
+     "D:transformation|flow|sequence|timeline"
+    ],
+    [
+     "D:transformation|flow|sequence|timeline",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "layers",
+    "figure",
+    "matrix"
+   ],
+   "why": "Noise is removed step by step: transformation or flow. A picture of noise becoming an image is tolerated second.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "diffusion"
+  },
+  {
+   "id": "diffusion-p5",
+   "group": "ai-core",
+   "prompt": "When you use diffusion to generate an image, what's the model doing?",
+   "best": [
+    [
+     "D:transformation|flow|sequence|timeline"
+    ],
+    [
+     "D:transformation|flow|sequence|timeline",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "layers",
+    "figure",
+    "matrix"
+   ],
+   "why": "Noise is removed step by step: transformation or flow. A picture of noise becoming an image is tolerated second.",
+   "needsPicture": false,
+   "noPicture": false,
+   "sourceId": "diffusion"
+  },
+  {
+   "id": "batchnorm-p1",
+   "group": "ai-core",
+   "prompt": "What do people mean by batch normalization?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ],
+    [
+     "D:transformation|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:coordinate-plot|bar-chart|comparison"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Activations re-centred and re-scaled per batch: before/after transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "batchnorm"
+  },
+  {
+   "id": "batchnorm-p2",
+   "group": "ai-core",
+   "prompt": "I've heard it called batch norm. What is that in a neural net?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ],
+    [
+     "D:transformation|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:coordinate-plot|bar-chart|comparison"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Activations re-centred and re-scaled per batch: before/after transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "batchnorm"
+  },
+  {
+   "id": "batchnorm-p3",
+   "group": "ai-core",
+   "prompt": "I'm trying to get my head around batch normalization.",
+   "best": [
+    [
+     "D:transformation|flow"
+    ],
+    [
+     "D:transformation|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:coordinate-plot|bar-chart|comparison"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Activations re-centred and re-scaled per batch: before/after transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "batchnorm"
+  },
+  {
+   "id": "batchnorm-p4",
+   "group": "ai-core",
+   "prompt": "Could you explain the concept of batch normalization?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ],
+    [
+     "D:transformation|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:coordinate-plot|bar-chart|comparison"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Activations re-centred and re-scaled per batch: before/after transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "batchnorm"
+  },
+  {
+   "id": "batchnorm-p5",
+   "group": "ai-core",
+   "prompt": "When someone says a model uses batch normalization, what does that mean?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ],
+    [
+     "D:transformation|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:coordinate-plot|bar-chart|comparison"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Activations re-centred and re-scaled per batch: before/after transformation.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "batchnorm"
+  },
+  {
+   "id": "kv-cache-p1",
+   "group": "ai-core",
+   "prompt": "Why is inference faster with a KV cache?",
+   "best": [
+    [
+     "D:comparison|sequence|flow|transformation"
+    ],
+    [
+     "D:comparison|sequence|flow|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Recompute everything vs reuse stored keys and values: a comparison, or the decode steps as a sequence/flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "kv-cache"
+  },
+  {
+   "id": "kv-cache-p2",
+   "group": "ai-core",
+   "prompt": "What is it about KV caching that makes inference quicker?",
+   "best": [
+    [
+     "D:comparison|sequence|flow|transformation"
+    ],
+    [
+     "D:comparison|sequence|flow|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Recompute everything vs reuse stored keys and values: a comparison, or the decode steps as a sequence/flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "kv-cache"
+  },
+  {
+   "id": "kv-cache-p3",
+   "group": "ai-core",
+   "prompt": "I get that a KV cache helps with inference speed, but how does it do that?",
+   "best": [
+    [
+     "D:comparison|sequence|flow|transformation"
+    ],
+    [
+     "D:comparison|sequence|flow|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Recompute everything vs reuse stored keys and values: a comparison, or the decode steps as a sequence/flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "kv-cache"
+  },
+  {
+   "id": "kv-cache-p4",
+   "group": "ai-core",
+   "prompt": "Can you explain how key-value caching makes inference take less time?",
+   "best": [
+    [
+     "D:comparison|sequence|flow|transformation"
+    ],
+    [
+     "D:comparison|sequence|flow|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Recompute everything vs reuse stored keys and values: a comparison, or the decode steps as a sequence/flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "kv-cache"
+  },
+  {
+   "id": "kv-cache-p5",
+   "group": "ai-core",
+   "prompt": "Where does the speedup during inference come from when you use a KV cache?",
+   "best": [
+    [
+     "D:comparison|sequence|flow|transformation"
+    ],
+    [
+     "D:comparison|sequence|flow|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Recompute everything vs reuse stored keys and values: a comparison, or the decode steps as a sequence/flow.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "kv-cache"
+  },
+  {
+   "id": "nn-look-p1",
+   "group": "collision",
+   "prompt": "What kind of structure does a neural network have?",
+   "best": [
+    [
+     "D:relationship|layers|flow"
+    ],
+    [
+     "D:relationship|layers|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "comparison"
+   ],
+   "why": "Word collision with 'look like' (6b): the subject is abstract, nodes in layers joined by weights; a diagram. A picture is decoration (tolerated beside a diagram, wrong alone).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-look"
+  },
+  {
+   "id": "nn-look-p2",
+   "group": "collision",
+   "prompt": "I'm having trouble picturing what a neural net looks like.",
+   "best": [
+    [
+     "D:relationship|layers|flow"
+    ],
+    [
+     "D:relationship|layers|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "comparison"
+   ],
+   "why": "Word collision with 'look like' (6b): the subject is abstract, nodes in layers joined by weights; a diagram. A picture is decoration (tolerated beside a diagram, wrong alone).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-look"
+  },
+  {
+   "id": "nn-look-p3",
+   "group": "collision",
+   "prompt": "How is a neural network put together?",
+   "best": [
+    [
+     "D:relationship|layers|flow"
+    ],
+    [
+     "D:relationship|layers|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "comparison"
+   ],
+   "why": "Word collision with 'look like' (6b): the subject is abstract, nodes in layers joined by weights; a diagram. A picture is decoration (tolerated beside a diagram, wrong alone).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-look"
+  },
+  {
+   "id": "nn-look-p4",
+   "group": "collision",
+   "prompt": "What sort of arrangement does a neural network have?",
+   "best": [
+    [
+     "D:relationship|layers|flow"
+    ],
+    [
+     "D:relationship|layers|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "comparison"
+   ],
+   "why": "Word collision with 'look like' (6b): the subject is abstract, nodes in layers joined by weights; a diagram. A picture is decoration (tolerated beside a diagram, wrong alone).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-look"
+  },
+  {
+   "id": "nn-look-p5",
+   "group": "collision",
+   "prompt": "When people say neural network, what does the network itself look like?",
+   "best": [
+    [
+     "D:relationship|layers|flow"
+    ],
+    [
+     "D:relationship|layers|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "comparison"
+   ],
+   "why": "Word collision with 'look like' (6b): the subject is abstract, nodes in layers joined by weights; a diagram. A picture is decoration (tolerated beside a diagram, wrong alone).",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-look"
+  },
+  {
+   "id": "decision-tree-p1",
+   "group": "ai-core",
+   "prompt": "What does a decision tree do to arrive at a prediction?",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Questions split the data down to a leaf: tree (or a decision flow).",
+   "flowNeedsDecision": true,
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "decision-tree"
+  },
+  {
+   "id": "decision-tree-p2",
+   "group": "ai-core",
+   "prompt": "I'm confused about how a decision tree decides what to predict.",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Questions split the data down to a leaf: tree (or a decision flow).",
+   "flowNeedsDecision": true,
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "decision-tree"
+  },
+  {
+   "id": "decision-tree-p3",
+   "group": "ai-core",
+   "prompt": "When a decision tree makes a prediction, what does it do?",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Questions split the data down to a leaf: tree (or a decision flow).",
+   "flowNeedsDecision": true,
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "decision-tree"
+  },
+  {
+   "id": "decision-tree-p4",
+   "group": "ai-core",
+   "prompt": "Could you walk me through how a decision tree works out its prediction?",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Questions split the data down to a leaf: tree (or a decision flow).",
+   "flowNeedsDecision": true,
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "decision-tree"
+  },
+  {
+   "id": "decision-tree-p5",
+   "group": "ai-core",
+   "prompt": "I know what a decision tree is, but I'm lost on how it makes a prediction.",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Questions split the data down to a leaf: tree (or a decision flow).",
+   "flowNeedsDecision": true,
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "decision-tree"
+  },
+  {
+   "id": "quantization-p1",
+   "group": "ai-core",
+   "prompt": "What's meant by quantization?",
+   "best": [
+    [
+     "D:transformation|number-line|comparison"
+    ],
+    [
+     "D:transformation|number-line|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Precise numbers mapped to fewer levels: transformation or a number line.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "quantization"
+  },
+  {
+   "id": "quantization-p2",
+   "group": "ai-core",
+   "prompt": "I keep running across quantization in machine learning and don't know what it is.",
+   "best": [
+    [
+     "D:transformation|number-line|comparison"
+    ],
+    [
+     "D:transformation|number-line|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Precise numbers mapped to fewer levels: transformation or a number line.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "quantization"
+  },
+  {
+   "id": "quantization-p3",
+   "group": "ai-core",
+   "prompt": "Could you help me understand the idea of quantization?",
+   "best": [
+    [
+     "D:transformation|number-line|comparison"
+    ],
+    [
+     "D:transformation|number-line|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Precise numbers mapped to fewer levels: transformation or a number line.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "quantization"
+  },
+  {
+   "id": "quantization-p4",
+   "group": "ai-core",
+   "prompt": "What does it mean for something to be quantized?",
+   "best": [
+    [
+     "D:transformation|number-line|comparison"
+    ],
+    [
+     "D:transformation|number-line|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Precise numbers mapped to fewer levels: transformation or a number line.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "quantization"
+  },
+  {
+   "id": "quantization-p5",
+   "group": "ai-core",
+   "prompt": "When people say they're quantizing something, what are they doing?",
+   "best": [
+    [
+     "D:transformation|number-line|comparison"
+    ],
+    [
+     "D:transformation|number-line|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Precise numbers mapped to fewer levels: transformation or a number line.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "quantization"
+  },
+  {
+   "id": "gpu-look-p1",
+   "group": "picture-worthy",
+   "prompt": "How would I recognize a GPU by its appearance?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object: a picture of the card and chip.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "gpu-look"
+  },
+  {
+   "id": "gpu-look-p2",
+   "group": "picture-worthy",
+   "prompt": "I'm trying to picture what a GPU looks like.",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object: a picture of the card and chip.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "gpu-look"
+  },
+  {
+   "id": "gpu-look-p3",
+   "group": "picture-worthy",
+   "prompt": "If I had a GPU in front of me, what would it look like?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object: a picture of the card and chip.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "gpu-look"
+  },
+  {
+   "id": "gpu-look-p4",
+   "group": "picture-worthy",
+   "prompt": "What would a graphics processor look like in person?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object: a picture of the card and chip.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "gpu-look"
+  },
+  {
+   "id": "gpu-look-p5",
+   "group": "picture-worthy",
+   "prompt": "I know what a GPU does, but I don't know what one looks like.",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object: a picture of the card and chip.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "gpu-look"
+  },
+  {
+   "id": "rack-look-p1",
+   "group": "picture-worthy",
+   "prompt": "What would I see if I were standing in front of a data center rack?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object and place: a picture. Its stacked units as layers are a fair second.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "rack-look"
+  },
+  {
+   "id": "rack-look-p2",
+   "group": "picture-worthy",
+   "prompt": "I'm trying to picture a rack you'd find in a data center.",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object and place: a picture. Its stacked units as layers are a fair second.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "rack-look"
+  },
+  {
+   "id": "rack-look-p3",
+   "group": "picture-worthy",
+   "prompt": "What does one of those racks in a data centre actually look like?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object and place: a picture. Its stacked units as layers are a fair second.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "rack-look"
+  },
+  {
+   "id": "rack-look-p4",
+   "group": "picture-worthy",
+   "prompt": "I've never seen a data center rack. What would one look like in person?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object and place: a picture. Its stacked units as layers are a fair second.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "rack-look"
+  },
+  {
+   "id": "rack-look-p5",
+   "group": "picture-worthy",
+   "prompt": "What should I imagine when someone mentions a rack in a data center?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object and place: a picture. Its stacked units as layers are a fair second.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "rack-look"
+  },
+  {
+   "id": "bio-neuron-p1",
+   "group": "picture-worthy",
+   "prompt": "What's the shape and structure of a biological neuron?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:flow|sequence|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "matrix",
+    "layers"
+   ],
+   "why": "Anatomy: a picture of dendrites, cell body and axon.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "bio-neuron"
+  },
+  {
+   "id": "bio-neuron-p2",
+   "group": "picture-worthy",
+   "prompt": "I'm trying to picture a neuron from an actual nervous system.",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:flow|sequence|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "matrix",
+    "layers"
+   ],
+   "why": "Anatomy: a picture of dendrites, cell body and axon.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "bio-neuron"
+  },
+  {
+   "id": "bio-neuron-p3",
+   "group": "picture-worthy",
+   "prompt": "What does a real nerve cell look like?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:flow|sequence|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "matrix",
+    "layers"
+   ],
+   "why": "Anatomy: a picture of dendrites, cell body and axon.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "bio-neuron"
+  },
+  {
+   "id": "bio-neuron-p4",
+   "group": "picture-worthy",
+   "prompt": "When people talk about a biological neuron, what does the cell itself look like?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:flow|sequence|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "matrix",
+    "layers"
+   ],
+   "why": "Anatomy: a picture of dendrites, cell body and axon.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "bio-neuron"
+  },
+  {
+   "id": "bio-neuron-p5",
+   "group": "picture-worthy",
+   "prompt": "Could you help me get a sense of what a biological neuron looks like?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:flow|sequence|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "matrix",
+    "layers"
+   ],
+   "why": "Anatomy: a picture of dendrites, cell body and axon.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "bio-neuron"
+  },
+  {
+   "id": "robot-arm-p1",
+   "group": "picture-worthy",
+   "prompt": "What happens when a robotic arm picks something up?",
+   "best": [
+    [
+     "P",
+     "D:flow|sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:flow|sequence"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "matrix",
+    "layers",
+    "comparison"
+   ],
+   "why": "A physical machine doing something: picture plus the sense-plan-grip steps.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "robot-arm"
+  },
+  {
+   "id": "robot-arm-p2",
+   "group": "picture-worthy",
+   "prompt": "What has to happen for a robot arm to pick an object up?",
+   "best": [
+    [
+     "P",
+     "D:flow|sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:flow|sequence"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "matrix",
+    "layers",
+    "comparison"
+   ],
+   "why": "A physical machine doing something: picture plus the sense-plan-grip steps.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "robot-arm"
+  },
+  {
+   "id": "robot-arm-p3",
+   "group": "picture-worthy",
+   "prompt": "I'm trying to understand what a robot arm does to pick up an object.",
+   "best": [
+    [
+     "P",
+     "D:flow|sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:flow|sequence"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "matrix",
+    "layers",
+    "comparison"
+   ],
+   "why": "A physical machine doing something: picture plus the sense-plan-grip steps.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "robot-arm"
+  },
+  {
+   "id": "robot-arm-p4",
+   "group": "picture-worthy",
+   "prompt": "Could you walk me through how a robotic arm picks an object up?",
+   "best": [
+    [
+     "P",
+     "D:flow|sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:flow|sequence"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "matrix",
+    "layers",
+    "comparison"
+   ],
+   "why": "A physical machine doing something: picture plus the sense-plan-grip steps.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "robot-arm"
+  },
+  {
+   "id": "robot-arm-p5",
+   "group": "picture-worthy",
+   "prompt": "I know robot arms can pick things up, but I'm curious how they do it.",
+   "best": [
+    [
+     "P",
+     "D:flow|sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:flow|sequence"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "matrix",
+    "layers",
+    "comparison"
+   ],
+   "why": "A physical machine doing something: picture plus the sense-plan-grip steps.",
+   "needsPicture": true,
+   "noPicture": false,
+   "sourceId": "robot-arm"
+  },
+  {
+   "id": "random-forest-p1",
+   "group": "collision",
+   "prompt": "What do people mean by a random forest model?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:flow|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "Word collision: many decision trees that vote; never a picture of a forest.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "random-forest"
+  },
+  {
+   "id": "random-forest-p2",
+   "group": "collision",
+   "prompt": "I keep seeing random forest in my ML notes. What's that?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:flow|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "Word collision: many decision trees that vote; never a picture of a forest.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "random-forest"
+  },
+  {
+   "id": "random-forest-p3",
+   "group": "collision",
+   "prompt": "Could you unpack what a random forest is in machine learning?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:flow|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "Word collision: many decision trees that vote; never a picture of a forest.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "random-forest"
+  },
+  {
+   "id": "random-forest-p4",
+   "group": "collision",
+   "prompt": "I'd like to understand the idea behind random forests.",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:flow|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "Word collision: many decision trees that vote; never a picture of a forest.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "random-forest"
+  },
+  {
+   "id": "random-forest-p5",
+   "group": "collision",
+   "prompt": "A random forest came up in class and I didn't get what it was.",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:flow|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "Word collision: many decision trees that vote; never a picture of a forest.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "random-forest"
+  },
+  {
+   "id": "ml-pipeline-p1",
+   "group": "collision",
+   "prompt": "How does data move through a machine learning pipeline?",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|transformation|layers"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'flow' but a flow really is right: ingest -> clean -> features -> train -> evaluate -> serve.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "ml-pipeline"
+  },
+  {
+   "id": "ml-pipeline-p2",
+   "group": "collision",
+   "prompt": "What happens to the data as it goes through an ML pipeline?",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|transformation|layers"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'flow' but a flow really is right: ingest -> clean -> features -> train -> evaluate -> serve.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "ml-pipeline"
+  },
+  {
+   "id": "ml-pipeline-p3",
+   "group": "collision",
+   "prompt": "I'm trying to follow how data travels through an ML pipeline.",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|transformation|layers"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'flow' but a flow really is right: ingest -> clean -> features -> train -> evaluate -> serve.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "ml-pipeline"
+  },
+  {
+   "id": "ml-pipeline-p4",
+   "group": "collision",
+   "prompt": "Can you walk me through what happens to data in a machine learning pipeline?",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|transformation|layers"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'flow' but a flow really is right: ingest -> clean -> features -> train -> evaluate -> serve.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "ml-pipeline"
+  },
+  {
+   "id": "ml-pipeline-p5",
+   "group": "collision",
+   "prompt": "Once data enters an ML pipeline, where does it go from there?",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|transformation|layers"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'flow' but a flow really is right: ingest -> clean -> features -> train -> evaluate -> serve.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "ml-pipeline"
+  },
+  {
+   "id": "nn-layers-p1",
+   "group": "collision",
+   "prompt": "What layers make up a neural network?",
+   "best": [
+    [
+     "D:layers|flow|relationship"
+    ],
+    [
+     "D:layers|flow|relationship",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'layers': input, hidden and output layers in order; layers, flow or relationship are all right.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-layers"
+  },
+  {
+   "id": "nn-layers-p2",
+   "group": "collision",
+   "prompt": "I'm trying to get a handle on the layers in a neural net.",
+   "best": [
+    [
+     "D:layers|flow|relationship"
+    ],
+    [
+     "D:layers|flow|relationship",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'layers': input, hidden and output layers in order; layers, flow or relationship are all right.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-layers"
+  },
+  {
+   "id": "nn-layers-p3",
+   "group": "collision",
+   "prompt": "When people talk about layers in a neural network, what are those layers?",
+   "best": [
+    [
+     "D:layers|flow|relationship"
+    ],
+    [
+     "D:layers|flow|relationship",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'layers': input, hidden and output layers in order; layers, flow or relationship are all right.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-layers"
+  },
+  {
+   "id": "nn-layers-p4",
+   "group": "collision",
+   "prompt": "Can you explain how a neural network is organized into layers?",
+   "best": [
+    [
+     "D:layers|flow|relationship"
+    ],
+    [
+     "D:layers|flow|relationship",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'layers': input, hidden and output layers in order; layers, flow or relationship are all right.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-layers"
+  },
+  {
+   "id": "nn-layers-p5",
+   "group": "collision",
+   "prompt": "I know a neural network has layers, but I'm not clear on what each one is.",
+   "best": [
+    [
+     "D:layers|flow|relationship"
+    ],
+    [
+     "D:layers|flow|relationship",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'layers': input, hidden and output layers in order; layers, flow or relationship are all right.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "nn-layers"
+  },
+  {
+   "id": "comp-graph-p1",
+   "group": "collision",
+   "prompt": "What does the term computational graph refer to?",
+   "best": [
+    [
+     "D:relationship|flow|tree"
+    ],
+    [
+     "D:relationship|flow|tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|sequence"
+    ]
+   ],
+   "badKinds": [
+    "coordinate-plot",
+    "bar-chart",
+    "timeline",
+    "figure"
+   ],
+   "why": "Word collision with 'graph': operations as nodes joined by edges, never a chart.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "comp-graph"
+  },
+  {
+   "id": "comp-graph-p2",
+   "group": "collision",
+   "prompt": "I ran into the phrase computation graph and don't know what it means.",
+   "best": [
+    [
+     "D:relationship|flow|tree"
+    ],
+    [
+     "D:relationship|flow|tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|sequence"
+    ]
+   ],
+   "badKinds": [
+    "coordinate-plot",
+    "bar-chart",
+    "timeline",
+    "figure"
+   ],
+   "why": "Word collision with 'graph': operations as nodes joined by edges, never a chart.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "comp-graph"
+  },
+  {
+   "id": "comp-graph-p3",
+   "group": "collision",
+   "prompt": "When someone mentions a computational graph, what are they talking about?",
+   "best": [
+    [
+     "D:relationship|flow|tree"
+    ],
+    [
+     "D:relationship|flow|tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|sequence"
+    ]
+   ],
+   "badKinds": [
+    "coordinate-plot",
+    "bar-chart",
+    "timeline",
+    "figure"
+   ],
+   "why": "Word collision with 'graph': operations as nodes joined by edges, never a chart.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "comp-graph"
+  },
+  {
+   "id": "comp-graph-p4",
+   "group": "collision",
+   "prompt": "Could you help me understand the idea of a computation graph?",
+   "best": [
+    [
+     "D:relationship|flow|tree"
+    ],
+    [
+     "D:relationship|flow|tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|sequence"
+    ]
+   ],
+   "badKinds": [
+    "coordinate-plot",
+    "bar-chart",
+    "timeline",
+    "figure"
+   ],
+   "why": "Word collision with 'graph': operations as nodes joined by edges, never a chart.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "comp-graph"
+  },
+  {
+   "id": "comp-graph-p5",
+   "group": "collision",
+   "prompt": "Computational graphs keep coming up in my notes. What are they?",
+   "best": [
+    [
+     "D:relationship|flow|tree"
+    ],
+    [
+     "D:relationship|flow|tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|sequence"
+    ]
+   ],
+   "badKinds": [
+    "coordinate-plot",
+    "bar-chart",
+    "timeline",
+    "figure"
+   ],
+   "why": "Word collision with 'graph': operations as nodes joined by edges, never a chart.",
+   "needsPicture": false,
+   "noPicture": true,
+   "sourceId": "comp-graph"
+  }
+ ]
+}

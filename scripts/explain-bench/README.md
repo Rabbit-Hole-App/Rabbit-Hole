@@ -1,0 +1,207 @@
+# /explain card benchmark
+
+One command that generates `/explain` cards on a local test stack, scores them, and compares the run with the previous
+run and the release baseline, so each change shows at a glance whether it improved or regressed factual quality,
+speed, picture-vs-diagram choice, diagram kind, diagram richness and content, repairs and cost.
+
+Built from the 2026-11-08 study (`C:/s/spec/benchmarks/explain-visual-choice-2026-11-08`: `run.mjs`, `score.mjs`,
+`report5d.mjs`, `richness.mjs`, `tokens.mjs`, and the prompt sets) and `C:/s/spec/latency-lab/explainbench`
+(`stack.sh`, `fastbench.mjs`, `seq.mjs`, `bt.mjs`, `recheck.mjs`).
+
+## Run it
+
+1. Start one test stack from the worktree you want to measure (it serves `127.0.0.1:8888`; only one stack can run on
+   that port, and the bench must be the only client of it, because each card's log lines are read by byte range):
+
+   ```bash
+   cd <worktree>
+   KEYHELPER=C:/s/spec/latency-lab/explainbench/addkey-fast.cjs bash C:/s/spec/latency-lab/explainbench/stack.sh start <persist dir>
+   ```
+
+   The key helper reads the Fireworks and Recraft keys by name from the credentials file and writes them, with
+   `SMALL_ENV=dev` (so the local ledger settles real spend per user) and the model profile, into the stack's
+   `packages/control-plane/.dev.vars`. Stop it afterwards with `stack.sh stop <persist dir>`.
+
+2. Dry run first (no call, no session): prints the sets, card count, estimated cost and the provenance.
+
+   ```bash
+   node scripts/explain-bench/bench.mjs --vars <worktree>/packages/control-plane/.dev.vars --dry-run
+   ```
+
+3. Run:
+
+   ```bash
+   node scripts/explain-bench/bench.mjs --base http://127.0.0.1:8888 --vars <worktree>/packages/control-plane/.dev.vars \
+     --log <persist dir>/app.log --persist <persist dir> --label "after phase02" [--judge]
+   ```
+
+   The first run after a merge (owner, 2026-11-08): `--runs 3 --cap 4.00 --tag-baseline`, all sets, with `--log`
+   so raw specs are stored.
+
+Options: `--sets regression,baseline,aiml,sequence,content` (default all five), `--runs N` (default: each set's
+`defaultRuns`, 1 except `content` 3), `--cap 2.00` (hard US$ cap per invocation), `--label`, `--log` (the stack's
+app log: repair causes, server corrections, raw specs, stripped keys), `--persist` (the stack's persist dir: provider
+tokens per card from its local D1), `--tree` (the stack's worktree, default: the git tree holding `--vars`), `--out`
+(results root, default `C:/s/spec/benchmarks/explain-bench`, not committed), `--against <run dir>` (instead of the
+most recent run), `--baseline <run id>` (default: the newest run made with `--tag-baseline`), `--tag-baseline`,
+`--judge`, `--judges N`, `--judge-cap 1.00`, `--judge-only factual,faithful,picture`, `--richness-change` (makes the
+richness rule an exit-code gate), `--only id,id`, `--gap 1500` (ms between cards).
+
+From `--vars` the bench reads `TEST_BYPASS_SECRET` (to mint a test session; never printed) and the non-secret
+settings `SMALL_ENV`, `EXPLANATION_MODEL_PROFILE`, `EXPLANATION_FALLBACK`, `EXPLANATION_STREAM`,
+`EXPLANATION_INTERACTIONS` (provenance), nothing else.
+
+Each card: a fresh canvas, `POST /api/learn/artifact` (`command: explanation`), timed request to response on the real
+stack path. Cost per card is the user's `/api/learn/usage` `usedCredits` delta (1 credit = US$0.01) when the stack
+records it (`SMALL_ENV=dev`), else the study's stated estimate (US$0.008 per author call + US$0.007 per picture). A
+card is only sent while US$0.05 of the cap is left.
+
+Re-score saved cards without a stack (also how the 2026-11-08 5d run was imported):
+
+```bash
+node scripts/explain-bench/report.mjs --raw <raw dir> --label "..." [--out ...] [--judge | --judge-dry-run]
+```
+
+## Outputs
+
+`<out>/<PT time>-<label>/`: `raw/<set>-r<run>/results.jsonl` + `cards/<id>.json` (the whole response, including the
+post-correction spec of every diagram) + `tokens.json`; `provenance.json`; `results.json` (every scored card,
+including each diagram's spec, flags and judge verdicts); `metrics.json` (every metric, criteria, deltas); `report.md`
+(provenance, judge rubrics, pass criteria, the delta tables against the previous run and the baseline with
+before -> after and `↑ better` / `↓ worse` / `= same`, every metric per set as count/denominator, the min-max spread
+over runs, output tokens by diagram kind, repairs by cause, lists, and every card). `judge-cache.json` sits in the
+results root.
+
+Exit code: 0 when every pass criterion on record holds; 1 when one fails (or the cap stopped the run, or with
+`--richness-change` the richness rule says revert); 2 for bad arguments.
+
+## Sets
+
+Versioned files in `sets/` (the owner's relabels live only there; `version.prompts` / `version.labels` and the file
+hash are recorded per run). Each prompt: `id`, `prompt`, `group`, `best` and `acceptable` mixes (`P` = picture,
+`D:<kind>`, `D:a|b`, `D:*`), `badKinds`, `needsPicture` / `noPicture`, and where relevant `category`
+(`formula` / `quantity`), `regressionKind`, `flowNeedsDecision`, `kinds` and a two-line `sketch`.
+
+| set | prompts | default runs | measures | pass criteria on record |
+|---|---|---|---|---|
+| regression | 6 | 1 | one known-right kind each (water cycle, TCP handshake, atmosphere, BST, Roman Empire, entropy) | best kind in every run |
+| baseline | 42 | 1 | picture-vs-diagram choice and kind across physical, appearance, process, comparison, quantity, structure, algorithm, history, abstract and two-visual prompts | none |
+| aiml | 28 | 1 | AI/ML kind collisions, no picture for digital subjects, a picture for the 4 picture-worthy ones | none |
+| sequence | 3 | 1 | message exchanges: TCP handshake, DNS, email | handshake right every run, DNS and email right in >= 2 of 3, no picture |
+| content | 20 | 3 | diagram content: 8 formula, 4 relationship/feedback, 4 structure, 4 process prompts, each with expected kinds and a sketch written before any card | noun-box or placeholder labels on <= 2 of 60 diagrams; coordinate-plot or bar-chart with values that recompute on >= 6 of the 8 formula prompts every run; no duplicated node in any relationship |
+
+Owner relabels applied (2026-11-08 16:20 PT): entropy transformation = right, relationship = acceptable; DNS lookup
+sequence or a flow with a decision node = right (a decision-free flow stays acceptable); decision tree flow with
+decisions = right, tree = acceptable. The content set resolves "20 prompts" as gini impurity, cross entropy and 6 of
+the listed formula prompts (softmax, sigmoid, learning-rate schedule, gradient descent, attention weights, precision vs
+recall; log loss and dropout rate dropped: log loss repeats cross entropy, dropout is in the AI/ML set), so 8 formula
+prompts, plus 4 + 4 + 4.
+
+## Metrics (never blended into one score)
+
+- **Kind/mix**: right = matches a best mix including the diagram kind; acceptable = matches an acceptable mix; else
+  wrong. Right mix, wrong kind = the picture/diagram counts match a best mix but the kind does not. Kind regression
+  pass = the best kind in every run of that prompt.
+- **Pictures, both directions**: given where every best mix has one; absent where none belongs; pictures present, and
+  pictures dropped (a figure with status `dropped`, or, from `explain_figure` log events, a picture that never reached
+  `ready`, whose fence the server removed; "not known" without `--log`), per run and across runs.
+- **Size**: median drawn items per diagram; graph diagrams (flow, tree, relationship, cycle) outside 3-8 items.
+- **Field use**: share of edges labelled; which optional fields are used: caption, detail, highlightPath, units,
+  point labels; labels with maths (`$...$`) or numbers.
+- **Content flags** (counts, written rules): placeholder edge label = one of `input, output, compare, comparison, link,
+  links, relates, relation, uses, connects, →, ->` or equal to a node label; duplicate node labels (trimmed,
+  lowercased); noun-box flow = a flow with no decision node and no node label starting with a verb from the fixed
+  list in `score.mjs` (`VERBS`); bare maths = a label containing `_`, `^` or `\` outside `$...$`. "Noun-box or
+  placeholder labels" = any of the first three. The 2026-11-08 study's prose noun-box (every node label <= 4 words,
+  verbatim in the prose, no edge label) is kept as its own column.
+- **Renderer problem**: a relationship whose node is in 2+ edges; the relationship layout
+  (`packages/web/src/tutor-diagrams/teaching-layouts.js`) draws one row per edge, so that node is drawn twice.
+- **Quantitative use**: a coordinate-plot, bar-chart, number-line or waterfall on prompts labelled formula/quantity.
+- **Arithmetic** (plot rule, owner 2026-11-08): for coordinate-plot and bar-chart (numeric bar labels only), every plotted
+  point is recomputed from the formula the prose states FOR ITS SERIES: functions the prose defines (`$f(x) = ...$`,
+  `$f'(x) = ...$`) are expanded, so a derivative series is checked against the derivative and the base series against
+  the base function; each series takes the stated formula that fits its points best, and a series that fits none on half
+  its points is not checked. A point off by more than 0.01 after rounding to the plotted precision is an error, and a
+  plot with any wrong point makes its card "wrong" (`--plot-rule strict`, the default). `strict-first` checks every
+  point against the first stated formula only; `legacy` reports the points and leaves the score unchanged. Formulas with
+  a subscript, a sum or more than one variable are reported as not checked; the pass-line header lists every plot, which
+  were checked and which were not.
+- **Keep checks** (header of the report, when compared with a run): right kind at Standard and Deep not below the
+  compared run, repairs at most the compared run's plus 2, p90 at most 7 s with p50 reported.
+- **Faithfulness** (judge, sketched sets; `faithful-v2`): fully / partly / not, judged on the sketch's Core line only
+  (the Optional line never lowers it), from the sketch, `describeTutorDiagram` text and the prose.
+- **Claims beyond the prose** (judge, every diagram; `beyond-v2`): yes / no, "does the diagram state any NAMED fact that
+  the prose does not give?", counted next to the factual numbers. Plotted values, data points, axis and tick values,
+  example counts and numbers computed from a formula the prose states are not claims; dates, heights, names of parts,
+  historical particulars and named entities are. (`beyond-v1` counted any fact, number or name; it stays selectable.)
+- **Factual** (judge, every card; `factual-v2`): score 1-5 and error yes/no, the G3 gate's strict fact-checker verbatim:
+  `error = "yes"` only if a statement is FALSE (a simplification is not an error). The judge is shown the title, the
+  prose with the visuals taken out, each diagram's visible text and each picture's caption, not the learner's question,
+  the raw diagram JSON, the key terms or the follow-up questions. `factual-v1` (the bench's first rubric: it listed every
+  imprecision and saw all of that) stays selectable with `--rubrics factual=factual-v1`.
+- **Picture content** (judge, every picture): yes / no, "does the described picture show what the question asks, from a
+  view that teaches it?", from the question, the prose paragraphs either side of the picture and its prompt, alt and
+  caption. Reported as the count and share of "no" per run and across runs; no gate yet.
+- **Planner** (JEV planner stacks, from `plan` in the dev-only `explanation_author_raw` line, attempt 0): planner
+  latency added per card (`plan.ms` p50/p90), failures (`planner: "rules"`: the author ran without a plan), cards with
+  the kind fixed vs two kinds offered and the right-kind rate in each, and every card whose drawn kind is not the plan's
+  fixed kind (or neither offered kind) with the plan's label and the author's label side by side (right / acceptable /
+  wrong against the prompt's labels). The planner's cost is an estimate (its input size from the stack tree, US$0.042
+  per million input tokens): `plan.inputTokens` is not in the log line.
+- **Repairs**: repaired cards, first-attempt causes from `learn_artifact_invalid` log events, server corrections by
+  kind (`block.diagramCorrections`), visual fallback, unknown keys stripped (`explanation_unknown_key_stripped`
+  events and keys).
+- **Speed**: p50/p90 overall and split no repair & no picture / no repair & picture / repaired; cards within 4 s; the
+  slowest card.
+- **Output**: cards with prose lists (`block.proseLists`); mean characters by field (title, visuals, body, questions,
+  terms); output tokens per card overall and by diagram kind (with `--persist`).
+- **Cost**: per card and total, ledger or estimate.
+- **Pass rule for a richness change** (owner): content flags down, quantitative use up on labelled prompts,
+  faithfulness not down, against the baseline (or the previous run); else REVERT.
+
+## Provenance
+
+Per run: the stack's commit and modified-file count, the bench's commit, the model profile (provider, model, effort,
+temperature, seed, output cap), the prompt hash = sha256 of the final assembled system message the author call sends
+(`prepareArtifactAuthorRequest` + `stepRequest` for the fixed probe question) plus its `response_format` schema, the
+schema hash (`response_format` alone), the diagram schema hash (`tutor-diagrams/spec.js`), each set's versions and file
+hash, and with `--judge` each rubric's version and hash.
+
+Raw pre-correction specs: stored from a dev-only app-log line `{"event":"explanation_author_raw", ...}` (expected
+fields: `attempt` and the author's raw `diagrams` or `body`), stored whole per card. The server does not write that
+line yet, so reports say "raw: not logged" until it does.
+
+## Judge (`--judge`)
+
+Blind Sonnet reviews were the method used on 2026-11-08 (three blind Sonnet reviewers then). Here one judge per item
+by default for speed; `--judges N` runs N independent reviews (each in its own shuffled order; factual = mean score,
+verdicts = majority). Model `claude-sonnet-5-5` (owner rule: never Opus), `ANTHROPIC_API_KEY` read by name from the
+credentials file. Items are shuffled and carry no set, prompt id or label; only the question and the card text. Four
+versioned rubrics (text and hash printed in the report): `factual` (1-5 and the factual errors, every card), `faithful`
+(sketched diagrams, Core line only), `beyond` (every diagram: claims the prose does not make) and `picture` (every
+picture). Calls are cached by (content hash, rubric version, judge index)
+in `judge-cache.json`. A separate `--judge-cap` (default US$1.00) stops judging; its spend is printed.
+`--judge-dry-run` (report.mjs) builds every item, writes them to `judge-items.json`, and prints a cost range
+without any call. `--same-as <run dir>` judges only the items that run's judge answered (same cards, diagrams and
+pictures), so a new rubric version is compared on the same items. `--rubrics factual=factual-v1,beyond=beyond-v1`
+selects older rubric versions for a re-score. `--spec-tree <worktree>` takes the diagram wording and descriptions the
+judge sees from the tree the cards were made on (default: the run's recorded stack tree, else this tree); with it the
+`factual-v2` item text is byte-identical to the G3 gate's (30 of 30 closing-run cards; 19 of 30 without it).
+
+## Cost and time of a run
+
+From the 2026-11-08 5d run (98 cards, US$1.103 settled on the stack ledger, about 14 minutes): per card US$0.008
+(regression), US$0.0127 (baseline), US$0.0115 (AI/ML), US$0.0107 (sequence); the content set is assumed at the AI/ML
+rate (not yet measured).
+
+- Default (all sets, content x3): 139 cards, about US$1.63 and 20 minutes.
+- Release baseline (all sets x3): 297 cards, about US$3.50 and 45 minutes: needs `--cap 4.00`.
+- Judge, estimated from characters (no call made): factual about US$0.003-0.008 a card, picture about
+  US$0.003-0.007 a picture; the 5d cards (97 cards, 25 pictures) about US$0.38-0.92 in all, the 25 pictures alone
+  about US$0.07-0.18.
+
+## Tests
+
+`node --test scripts/explain-bench.test.mjs` (fixtures, no network): set files, mix matching and the relabels, the
+content-flag rules, the formula recompute, criteria, delta and the richness rule, judge blindness, shuffling, cap and
+cache, the picture-content items, and the report end to end with a previous run and a baseline.

@@ -1,0 +1,4269 @@
+{
+ "name": "correct-svg",
+ "version": {
+  "prompts": "P1 2026-11-08 (owner: 6 regression + 8 content formula prompts)",
+  "labels": "L3 2026-11-08 owner closing pass: acceptability (atmosphere picture at overview, Roman Empire picture at deep, precision-recall curve everywhere) and Core/Optional sketches | L4 2026-11-09 owner relabel (token-links accepted for attention-weights)"
+ },
+ "measures": "Does the author write correct diagram JSON at each depth (overview: plain-word labels, no formulas, simplest kind; standard: the mechanism with its terms; deep: the formula or exact relationship in labels, a plot or chart when a quantity is involved, maths in $...$). Run with --depths overview,standard,deep.",
+ "written": "2026-11-08, before any correct-svg card was sent",
+ "notation": "Per depth: kinds = right diagram kinds (a picture or a second diagram beside it is allowed), acceptableKinds = weaker kinds; sketch = what the nodes, axes and edges must say. best/acceptable mixes are derived from these per depth. Sketch lines: \"Core:\" = the elements the diagram must have; \"Optional:\" = extras a short card may leave out.",
+ "defaultRuns": 1,
+ "defaultDepths": [
+  "overview",
+  "standard",
+  "deep"
+ ],
+ "estUsdPerCard": 0.0115,
+ "pass": {
+  "minRightPerDepth": 11,
+  "deepPlots": {
+   "min": 5,
+   "maxPointErrors": 0
+  },
+  "maxPlaceholdersPlusDuplicates": 2,
+  "overviewFormulaLabels": 0,
+  "maxRepairRate": 0.117
+ },
+ "prompts": [
+  {
+   "id": "water-cycle-p1",
+   "group": "process",
+   "prompt": "What happens to water as it goes through the water cycle?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "cycle",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Water rises from the sea, forms clouds, falls as rain or snow, and flows back to the sea, the arrows closing the loop.",
+      "Optional: The sun as what drives it."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation -> condensation -> precipitation -> collection, looping back to evaporation.",
+      "Optional: The sun's heat driving evaporation; runoff and groundwater."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation (and transpiration) -> condensation -> precipitation -> runoff or infiltration, a closed cycle.",
+      "Optional: Energy terms (solar energy, latent heat); storage reservoirs."
+     ]
+    }
+   },
+   "sourceId": "water-cycle"
+  },
+  {
+   "id": "water-cycle-p2",
+   "group": "process",
+   "prompt": "How does water keep circulating around Earth?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "cycle",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Water rises from the sea, forms clouds, falls as rain or snow, and flows back to the sea, the arrows closing the loop.",
+      "Optional: The sun as what drives it."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation -> condensation -> precipitation -> collection, looping back to evaporation.",
+      "Optional: The sun's heat driving evaporation; runoff and groundwater."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation (and transpiration) -> condensation -> precipitation -> runoff or infiltration, a closed cycle.",
+      "Optional: Energy terms (solar energy, latent heat); storage reservoirs."
+     ]
+    }
+   },
+   "sourceId": "water-cycle"
+  },
+  {
+   "id": "water-cycle-p3",
+   "group": "process",
+   "prompt": "I know the term water cycle, but I'm fuzzy on what actually happens.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "cycle",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Water rises from the sea, forms clouds, falls as rain or snow, and flows back to the sea, the arrows closing the loop.",
+      "Optional: The sun as what drives it."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation -> condensation -> precipitation -> collection, looping back to evaporation.",
+      "Optional: The sun's heat driving evaporation; runoff and groundwater."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation (and transpiration) -> condensation -> precipitation -> runoff or infiltration, a closed cycle.",
+      "Optional: Energy terms (solar energy, latent heat); storage reservoirs."
+     ]
+    }
+   },
+   "sourceId": "water-cycle"
+  },
+  {
+   "id": "water-cycle-p4",
+   "group": "process",
+   "prompt": "Could you walk me through the way water cycles in nature?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "cycle",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Water rises from the sea, forms clouds, falls as rain or snow, and flows back to the sea, the arrows closing the loop.",
+      "Optional: The sun as what drives it."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation -> condensation -> precipitation -> collection, looping back to evaporation.",
+      "Optional: The sun's heat driving evaporation; runoff and groundwater."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation (and transpiration) -> condensation -> precipitation -> runoff or infiltration, a closed cycle.",
+      "Optional: Energy terms (solar energy, latent heat); storage reservoirs."
+     ]
+    }
+   },
+   "sourceId": "water-cycle"
+  },
+  {
+   "id": "water-cycle-p5",
+   "group": "process",
+   "prompt": "What's going on during the water cycle, exactly?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "cycle",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Water rises from the sea, forms clouds, falls as rain or snow, and flows back to the sea, the arrows closing the loop.",
+      "Optional: The sun as what drives it."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation -> condensation -> precipitation -> collection, looping back to evaporation.",
+      "Optional: The sun's heat driving evaporation; runoff and groundwater."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: Evaporation (and transpiration) -> condensation -> precipitation -> runoff or infiltration, a closed cycle.",
+      "Optional: Energy terms (solar energy, latent heat); storage reservoirs."
+     ]
+    }
+   },
+   "sourceId": "water-cycle"
+  },
+  {
+   "id": "tcp-handshake-p1",
+   "group": "process",
+   "prompt": "What goes on during a TCP handshake?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "regressionKind": "sequence",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Two actors, your computer and the server, and three messages in order: hello, hello back, OK.",
+      "Optional: \"Connection open\" at the end."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: The connection established at the end."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: Sequence and acknowledgement numbers (seq=x, ack=x+1, seq=y, ack=y+1)."
+     ]
+    }
+   },
+   "sourceId": "tcp-handshake"
+  },
+  {
+   "id": "tcp-handshake-p2",
+   "group": "process",
+   "prompt": "How does a TCP connection get going in the first place?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "regressionKind": "sequence",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Two actors, your computer and the server, and three messages in order: hello, hello back, OK.",
+      "Optional: \"Connection open\" at the end."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: The connection established at the end."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: Sequence and acknowledgement numbers (seq=x, ack=x+1, seq=y, ack=y+1)."
+     ]
+    }
+   },
+   "sourceId": "tcp-handshake"
+  },
+  {
+   "id": "tcp-handshake-p3",
+   "group": "process",
+   "prompt": "I keep hearing about the TCP handshake and want to understand what's happening.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "regressionKind": "sequence",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Two actors, your computer and the server, and three messages in order: hello, hello back, OK.",
+      "Optional: \"Connection open\" at the end."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: The connection established at the end."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: Sequence and acknowledgement numbers (seq=x, ack=x+1, seq=y, ack=y+1)."
+     ]
+    }
+   },
+   "sourceId": "tcp-handshake"
+  },
+  {
+   "id": "tcp-handshake-p4",
+   "group": "process",
+   "prompt": "Could you unpack the handshake part of TCP for me?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "regressionKind": "sequence",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Two actors, your computer and the server, and three messages in order: hello, hello back, OK.",
+      "Optional: \"Connection open\" at the end."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: The connection established at the end."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: Sequence and acknowledgement numbers (seq=x, ack=x+1, seq=y, ack=y+1)."
+     ]
+    }
+   },
+   "sourceId": "tcp-handshake"
+  },
+  {
+   "id": "tcp-handshake-p5",
+   "group": "process",
+   "prompt": "When a TCP connection starts, what actually happens during the handshake?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "regressionKind": "sequence",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: Two actors, your computer and the server, and three messages in order: hello, hello back, OK.",
+      "Optional: \"Connection open\" at the end."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: The connection established at the end."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "sequence"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "timeline"
+     ],
+     "sketch": [
+      "Core: Client and server; SYN, SYN-ACK, ACK in that order.",
+      "Optional: Sequence and acknowledgement numbers (seq=x, ack=x+1, seq=y, ack=y+1)."
+     ]
+    }
+   },
+   "sourceId": "tcp-handshake"
+  },
+  {
+   "id": "atmosphere-p1",
+   "group": "structure",
+   "prompt": "How is the atmosphere around Earth arranged?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "flow",
+    "cycle",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "layers",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Layers stacked from the ground up, each with what happens there in plain words (weather at the bottom).",
+      "Optional: Layer names; planes, the ozone layer, satellites."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Troposphere, stratosphere, mesosphere, thermosphere (and exosphere), bottom to top.",
+      "Optional: One fact per layer: weather, ozone, meteors, aurora."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: The named layers bottom to top.",
+      "Optional: Heights in km; the temperature trend of each layer."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    }
+   },
+   "sourceId": "atmosphere"
+  },
+  {
+   "id": "atmosphere-p2",
+   "group": "structure",
+   "prompt": "What are the different parts of Earth's atmosphere and how are they arranged?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "flow",
+    "cycle",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "layers",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Layers stacked from the ground up, each with what happens there in plain words (weather at the bottom).",
+      "Optional: Layer names; planes, the ozone layer, satellites."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Troposphere, stratosphere, mesosphere, thermosphere (and exosphere), bottom to top.",
+      "Optional: One fact per layer: weather, ozone, meteors, aurora."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: The named layers bottom to top.",
+      "Optional: Heights in km; the temperature trend of each layer."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    }
+   },
+   "sourceId": "atmosphere"
+  },
+  {
+   "id": "atmosphere-p3",
+   "group": "structure",
+   "prompt": "I'm trying to get a handle on how Earth's atmosphere is organized.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "flow",
+    "cycle",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "layers",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Layers stacked from the ground up, each with what happens there in plain words (weather at the bottom).",
+      "Optional: Layer names; planes, the ozone layer, satellites."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Troposphere, stratosphere, mesosphere, thermosphere (and exosphere), bottom to top.",
+      "Optional: One fact per layer: weather, ozone, meteors, aurora."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: The named layers bottom to top.",
+      "Optional: Heights in km; the temperature trend of each layer."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    }
+   },
+   "sourceId": "atmosphere"
+  },
+  {
+   "id": "atmosphere-p4",
+   "group": "structure",
+   "prompt": "How is the air above our planet organized?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "flow",
+    "cycle",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "layers",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Layers stacked from the ground up, each with what happens there in plain words (weather at the bottom).",
+      "Optional: Layer names; planes, the ozone layer, satellites."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Troposphere, stratosphere, mesosphere, thermosphere (and exosphere), bottom to top.",
+      "Optional: One fact per layer: weather, ozone, meteors, aurora."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: The named layers bottom to top.",
+      "Optional: Heights in km; the temperature trend of each layer."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    }
+   },
+   "sourceId": "atmosphere"
+  },
+  {
+   "id": "atmosphere-p5",
+   "group": "structure",
+   "prompt": "Could you explain the structure of the atmosphere that surrounds Earth?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "flow",
+    "cycle",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "layers",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Layers stacked from the ground up, each with what happens there in plain words (weather at the bottom).",
+      "Optional: Layer names; planes, the ozone layer, satellites."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: Troposphere, stratosphere, mesosphere, thermosphere (and exosphere), bottom to top.",
+      "Optional: One fact per layer: weather, ozone, meteors, aurora."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "layers"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "matrix"
+     ],
+     "sketch": [
+      "Core: The named layers bottom to top.",
+      "Optional: Heights in km; the temperature trend of each layer."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
+     ]
+    }
+   },
+   "sourceId": "atmosphere"
+  },
+  {
+   "id": "bst-p1",
+   "group": "algorithm",
+   "prompt": "What are the rules a binary search tree follows?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "timeline"
+   ],
+   "regressionKind": "tree",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A small tree of numbers with smaller values to the left and bigger values to the right.",
+      "Optional: A search walking down the tree."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys where every left child is smaller and every right child larger than its parent.",
+      "Optional: A search or insert path."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys obeying left < node < right, with a search or insert path through it.",
+      "Optional: O(log n) and O(n) labels."
+     ]
+    }
+   },
+   "sourceId": "bst"
+  },
+  {
+   "id": "bst-p2",
+   "group": "algorithm",
+   "prompt": "I'm confused about how a binary search tree is supposed to work.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "timeline"
+   ],
+   "regressionKind": "tree",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A small tree of numbers with smaller values to the left and bigger values to the right.",
+      "Optional: A search walking down the tree."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys where every left child is smaller and every right child larger than its parent.",
+      "Optional: A search or insert path."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys obeying left < node < right, with a search or insert path through it.",
+      "Optional: O(log n) and O(n) labels."
+     ]
+    }
+   },
+   "sourceId": "bst"
+  },
+  {
+   "id": "bst-p3",
+   "group": "algorithm",
+   "prompt": "Can you walk me through how the BST data structure works?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "timeline"
+   ],
+   "regressionKind": "tree",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A small tree of numbers with smaller values to the left and bigger values to the right.",
+      "Optional: A search walking down the tree."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys where every left child is smaller and every right child larger than its parent.",
+      "Optional: A search or insert path."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys obeying left < node < right, with a search or insert path through it.",
+      "Optional: O(log n) and O(n) labels."
+     ]
+    }
+   },
+   "sourceId": "bst"
+  },
+  {
+   "id": "bst-p4",
+   "group": "algorithm",
+   "prompt": "How does a binary search tree organize the values it holds?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "timeline"
+   ],
+   "regressionKind": "tree",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A small tree of numbers with smaller values to the left and bigger values to the right.",
+      "Optional: A search walking down the tree."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys where every left child is smaller and every right child larger than its parent.",
+      "Optional: A search or insert path."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys obeying left < node < right, with a search or insert path through it.",
+      "Optional: O(log n) and O(n) labels."
+     ]
+    }
+   },
+   "sourceId": "bst"
+  },
+  {
+   "id": "bst-p5",
+   "group": "algorithm",
+   "prompt": "I came across binary search trees in class. What makes them work?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "timeline"
+   ],
+   "regressionKind": "tree",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A small tree of numbers with smaller values to the left and bigger values to the right.",
+      "Optional: A search walking down the tree."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys where every left child is smaller and every right child larger than its parent.",
+      "Optional: A search or insert path."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "tree"
+     ],
+     "acceptableKinds": [
+      "flow"
+     ],
+     "sketch": [
+      "Core: A binary tree of keys obeying left < node < right, with a search or insert path through it.",
+      "Optional: O(log n) and O(n) labels."
+     ]
+    }
+   },
+   "sourceId": "bst"
+  },
+  {
+   "id": "roman-empire-p1",
+   "group": "history",
+   "prompt": "How did the Roman Empire get started, and what led to its fall?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "figure"
+   ],
+   "regressionKind": "timeline",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: In order: Rome grows, becomes an empire, splits in two, the West falls.",
+      "Optional: Rough dates."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: the first emperor (27 BC), the split into East and West (285 or 395 AD), the fall of the West (476 AD).",
+      "Optional: The greatest extent (117 AD)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: 27 BC Augustus, the split into East and West (285 or 395 AD), 476 AD the fall of the West.",
+      "Optional: 117 AD peak, 235-284 crisis, 410 sack of Rome, 1453 fall of the East; causes in the details."
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    }
+   },
+   "sourceId": "roman-empire"
+  },
+  {
+   "id": "roman-empire-p2",
+   "group": "history",
+   "prompt": "I'd like to understand how the Roman Empire came to power and how it eventually collapsed.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "figure"
+   ],
+   "regressionKind": "timeline",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: In order: Rome grows, becomes an empire, splits in two, the West falls.",
+      "Optional: Rough dates."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: the first emperor (27 BC), the split into East and West (285 or 395 AD), the fall of the West (476 AD).",
+      "Optional: The greatest extent (117 AD)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: 27 BC Augustus, the split into East and West (285 or 395 AD), 476 AD the fall of the West.",
+      "Optional: 117 AD peak, 235-284 crisis, 410 sack of Rome, 1453 fall of the East; causes in the details."
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    }
+   },
+   "sourceId": "roman-empire"
+  },
+  {
+   "id": "roman-empire-p3",
+   "group": "history",
+   "prompt": "Can you walk me through the Roman Empire's rise and eventual downfall?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "figure"
+   ],
+   "regressionKind": "timeline",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: In order: Rome grows, becomes an empire, splits in two, the West falls.",
+      "Optional: Rough dates."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: the first emperor (27 BC), the split into East and West (285 or 395 AD), the fall of the West (476 AD).",
+      "Optional: The greatest extent (117 AD)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: 27 BC Augustus, the split into East and West (285 or 395 AD), 476 AD the fall of the West.",
+      "Optional: 117 AD peak, 235-284 crisis, 410 sack of Rome, 1453 fall of the East; causes in the details."
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    }
+   },
+   "sourceId": "roman-empire"
+  },
+  {
+   "id": "roman-empire-p4",
+   "group": "history",
+   "prompt": "What happened as Rome became an empire, and how did that empire come to an end?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "figure"
+   ],
+   "regressionKind": "timeline",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: In order: Rome grows, becomes an empire, splits in two, the West falls.",
+      "Optional: Rough dates."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: the first emperor (27 BC), the split into East and West (285 or 395 AD), the fall of the West (476 AD).",
+      "Optional: The greatest extent (117 AD)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: 27 BC Augustus, the split into East and West (285 or 395 AD), 476 AD the fall of the West.",
+      "Optional: 117 AD peak, 235-284 crisis, 410 sack of Rome, 1453 fall of the East; causes in the details."
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    }
+   },
+   "sourceId": "roman-empire"
+  },
+  {
+   "id": "roman-empire-p5",
+   "group": "history",
+   "prompt": "What led to the Roman Empire taking shape and later falling apart?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "figure"
+   ],
+   "regressionKind": "timeline",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: In order: Rome grows, becomes an empire, splits in two, the West falls.",
+      "Optional: Rough dates."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: the first emperor (27 BC), the split into East and West (285 or 395 AD), the fall of the West (476 AD).",
+      "Optional: The greatest extent (117 AD)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "flow",
+      "relationship",
+      "argument"
+     ],
+     "sketch": [
+      "Core: Dated events in order: 27 BC Augustus, the split into East and West (285 or 395 AD), 476 AD the fall of the West.",
+      "Optional: 117 AD peak, 235-284 crisis, 410 sack of Rome, 1453 fall of the East; causes in the details."
+     ],
+     "extraAcceptable": [
+      [
+       "P"
+      ]
+     ]
+    }
+   },
+   "sourceId": "roman-empire"
+  },
+  {
+   "id": "entropy-p1",
+   "group": "abstract",
+   "prompt": "When someone says entropy, what are they talking about?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "transformation",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy connected to disorder or spreading out: more ways to arrange things means more entropy.",
+      "Optional: An everyday example (ice melting, a shuffled deck)."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of possible arrangements (microstates) and to disorder; an isolated system's entropy does not decrease.",
+      "Optional: A before/after example; energy spreading out."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "transformation",
+      "bar-chart",
+      "coordinate-plot",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of microstates W (S = k_B ln W) and to the second law.",
+      "Optional: Delta S = Q / T; values of W; a chart of entropy against W."
+     ]
+    }
+   },
+   "sourceId": "entropy"
+  },
+  {
+   "id": "entropy-p2",
+   "group": "abstract",
+   "prompt": "What's meant by entropy?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "transformation",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy connected to disorder or spreading out: more ways to arrange things means more entropy.",
+      "Optional: An everyday example (ice melting, a shuffled deck)."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of possible arrangements (microstates) and to disorder; an isolated system's entropy does not decrease.",
+      "Optional: A before/after example; energy spreading out."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "transformation",
+      "bar-chart",
+      "coordinate-plot",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of microstates W (S = k_B ln W) and to the second law.",
+      "Optional: Delta S = Q / T; values of W; a chart of entropy against W."
+     ]
+    }
+   },
+   "sourceId": "entropy"
+  },
+  {
+   "id": "entropy-p3",
+   "group": "abstract",
+   "prompt": "I've heard of entropy, but I'm still unclear on what it is.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "transformation",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy connected to disorder or spreading out: more ways to arrange things means more entropy.",
+      "Optional: An everyday example (ice melting, a shuffled deck)."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of possible arrangements (microstates) and to disorder; an isolated system's entropy does not decrease.",
+      "Optional: A before/after example; energy spreading out."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "transformation",
+      "bar-chart",
+      "coordinate-plot",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of microstates W (S = k_B ln W) and to the second law.",
+      "Optional: Delta S = Q / T; values of W; a chart of entropy against W."
+     ]
+    }
+   },
+   "sourceId": "entropy"
+  },
+  {
+   "id": "entropy-p4",
+   "group": "abstract",
+   "prompt": "I could use some help understanding the idea of entropy.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "transformation",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy connected to disorder or spreading out: more ways to arrange things means more entropy.",
+      "Optional: An everyday example (ice melting, a shuffled deck)."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of possible arrangements (microstates) and to disorder; an isolated system's entropy does not decrease.",
+      "Optional: A before/after example; energy spreading out."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "transformation",
+      "bar-chart",
+      "coordinate-plot",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of microstates W (S = k_B ln W) and to the second law.",
+      "Optional: Delta S = Q / T; values of W; a chart of entropy against W."
+     ]
+    }
+   },
+   "sourceId": "entropy"
+  },
+  {
+   "id": "entropy-p5",
+   "group": "abstract",
+   "prompt": "Entropy is a term I recognize, but I don't know what it describes.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "layers",
+    "matrix",
+    "tree",
+    "timeline"
+   ],
+   "regressionKind": "transformation",
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy connected to disorder or spreading out: more ways to arrange things means more entropy.",
+      "Optional: An everyday example (ice melting, a shuffled deck)."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of possible arrangements (microstates) and to disorder; an isolated system's entropy does not decrease.",
+      "Optional: A before/after example; energy spreading out."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "transformation",
+      "bar-chart",
+      "coordinate-plot",
+      "relationship"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Entropy linked to the number of microstates W (S = k_B ln W) and to the second law.",
+      "Optional: Delta S = Q / T; values of W; a chart of entropy against W."
+     ]
+    }
+   },
+   "sourceId": "entropy"
+  },
+  {
+   "id": "gini-p1",
+   "group": "content-formula",
+   "prompt": "What's meant by Gini impurity?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "tree"
+     ],
+     "sketch": [
+      "Core: A pure node (one class) next to a mixed node, the mixed one more impure.",
+      "Optional: Counts per class."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison",
+      "tree"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: A node's class shares (bars or counts), the purer node having the lower impurity.",
+      "Optional: A split into purer children."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison",
+      "tree"
+     ],
+     "sketch": [
+      "Core: Gini = 1 - sum of squared class shares, as the curve 2p(1-p) over p or as bars with the value computed.",
+      "Optional: Worked numbers (3 A / 1 B gives 0.375); the peak 0.5 at p = 0.5."
+     ]
+    }
+   },
+   "sourceId": "gini"
+  },
+  {
+   "id": "gini-p2",
+   "group": "content-formula",
+   "prompt": "I ran into the term Gini impurity and I'm not sure what it refers to.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "tree"
+     ],
+     "sketch": [
+      "Core: A pure node (one class) next to a mixed node, the mixed one more impure.",
+      "Optional: Counts per class."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison",
+      "tree"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: A node's class shares (bars or counts), the purer node having the lower impurity.",
+      "Optional: A split into purer children."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison",
+      "tree"
+     ],
+     "sketch": [
+      "Core: Gini = 1 - sum of squared class shares, as the curve 2p(1-p) over p or as bars with the value computed.",
+      "Optional: Worked numbers (3 A / 1 B gives 0.375); the peak 0.5 at p = 0.5."
+     ]
+    }
+   },
+   "sourceId": "gini"
+  },
+  {
+   "id": "gini-p3",
+   "group": "content-formula",
+   "prompt": "Can you explain the idea of Gini impurity?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "tree"
+     ],
+     "sketch": [
+      "Core: A pure node (one class) next to a mixed node, the mixed one more impure.",
+      "Optional: Counts per class."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison",
+      "tree"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: A node's class shares (bars or counts), the purer node having the lower impurity.",
+      "Optional: A split into purer children."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison",
+      "tree"
+     ],
+     "sketch": [
+      "Core: Gini = 1 - sum of squared class shares, as the curve 2p(1-p) over p or as bars with the value computed.",
+      "Optional: Worked numbers (3 A / 1 B gives 0.375); the peak 0.5 at p = 0.5."
+     ]
+    }
+   },
+   "sourceId": "gini"
+  },
+  {
+   "id": "gini-p4",
+   "group": "content-formula",
+   "prompt": "What are people measuring when they use Gini impurity?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "tree"
+     ],
+     "sketch": [
+      "Core: A pure node (one class) next to a mixed node, the mixed one more impure.",
+      "Optional: Counts per class."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison",
+      "tree"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: A node's class shares (bars or counts), the purer node having the lower impurity.",
+      "Optional: A split into purer children."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison",
+      "tree"
+     ],
+     "sketch": [
+      "Core: Gini = 1 - sum of squared class shares, as the curve 2p(1-p) over p or as bars with the value computed.",
+      "Optional: Worked numbers (3 A / 1 B gives 0.375); the peak 0.5 at p = 0.5."
+     ]
+    }
+   },
+   "sourceId": "gini"
+  },
+  {
+   "id": "gini-p5",
+   "group": "content-formula",
+   "prompt": "What does a Gini impurity score tell you?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "tree"
+     ],
+     "sketch": [
+      "Core: A pure node (one class) next to a mixed node, the mixed one more impure.",
+      "Optional: Counts per class."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison",
+      "tree"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: A node's class shares (bars or counts), the purer node having the lower impurity.",
+      "Optional: A split into purer children."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison",
+      "tree"
+     ],
+     "sketch": [
+      "Core: Gini = 1 - sum of squared class shares, as the curve 2p(1-p) over p or as bars with the value computed.",
+      "Optional: Worked numbers (3 A / 1 B gives 0.375); the peak 0.5 at p = 0.5."
+     ]
+    }
+   },
+   "sourceId": "gini"
+  },
+  {
+   "id": "cross-entropy-p1",
+   "group": "content-formula",
+   "prompt": "What's the idea behind cross-entropy?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: The true answer next to the model's guess; a confident wrong guess costs more than a confident right one.",
+      "Optional: Example probabilities."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: The predicted probability of the true class against the loss: a low probability gives a high loss.",
+      "Optional: The one-hot true distribution next to the predictions."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: The loss -ln(p) of the true class's probability (or -sum p log q): large near 0, 0 at p = 1.",
+      "Optional: Worked values; a second curve for the other class."
+     ]
+    }
+   },
+   "sourceId": "cross-entropy"
+  },
+  {
+   "id": "cross-entropy-p2",
+   "group": "content-formula",
+   "prompt": "When people say cross entropy, what do they mean?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: The true answer next to the model's guess; a confident wrong guess costs more than a confident right one.",
+      "Optional: Example probabilities."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: The predicted probability of the true class against the loss: a low probability gives a high loss.",
+      "Optional: The one-hot true distribution next to the predictions."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: The loss -ln(p) of the true class's probability (or -sum p log q): large near 0, 0 at p = 1.",
+      "Optional: Worked values; a second curve for the other class."
+     ]
+    }
+   },
+   "sourceId": "cross-entropy"
+  },
+  {
+   "id": "cross-entropy-p3",
+   "group": "content-formula",
+   "prompt": "I'm having trouble understanding what cross-entropy is.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: The true answer next to the model's guess; a confident wrong guess costs more than a confident right one.",
+      "Optional: Example probabilities."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: The predicted probability of the true class against the loss: a low probability gives a high loss.",
+      "Optional: The one-hot true distribution next to the predictions."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: The loss -ln(p) of the true class's probability (or -sum p log q): large near 0, 0 at p = 1.",
+      "Optional: Worked values; a second curve for the other class."
+     ]
+    }
+   },
+   "sourceId": "cross-entropy"
+  },
+  {
+   "id": "cross-entropy-p4",
+   "group": "content-formula",
+   "prompt": "Can you unpack cross entropy for me?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: The true answer next to the model's guess; a confident wrong guess costs more than a confident right one.",
+      "Optional: Example probabilities."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: The predicted probability of the true class against the loss: a low probability gives a high loss.",
+      "Optional: The one-hot true distribution next to the predictions."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: The loss -ln(p) of the true class's probability (or -sum p log q): large near 0, 0 at p = 1.",
+      "Optional: Worked values; a second curve for the other class."
+     ]
+    }
+   },
+   "sourceId": "cross-entropy"
+  },
+  {
+   "id": "cross-entropy-p5",
+   "group": "content-formula",
+   "prompt": "I know the name cross entropy, but what does it actually measure?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: The true answer next to the model's guess; a confident wrong guess costs more than a confident right one.",
+      "Optional: Example probabilities."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "bar-chart",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: The predicted probability of the true class against the loss: a low probability gives a high loss.",
+      "Optional: The one-hot true distribution next to the predictions."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: The loss -ln(p) of the true class's probability (or -sum p log q): large near 0, 0 at p = 1.",
+      "Optional: Worked values; a second curve for the other class."
+     ]
+    }
+   },
+   "sourceId": "cross-entropy"
+  },
+  {
+   "id": "softmax-p1",
+   "group": "content-formula",
+   "prompt": "What happens when you apply softmax?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Raw scores become shares that add up to 100%, the biggest score keeping the biggest share.",
+      "Optional: Example numbers."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Logits -> exponentiate and normalise -> probabilities that sum to 1.",
+      "Optional: Example values (2.0, 1.0, 0.1 -> 0.66, 0.24, 0.10)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Probabilities e^z_i / sum_j e^z_j per class, summing to 1.",
+      "Optional: Worked values; two inputs compared."
+     ]
+    }
+   },
+   "sourceId": "softmax"
+  },
+  {
+   "id": "softmax-p2",
+   "group": "content-formula",
+   "prompt": "What's the softmax function supposed to do?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Raw scores become shares that add up to 100%, the biggest score keeping the biggest share.",
+      "Optional: Example numbers."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Logits -> exponentiate and normalise -> probabilities that sum to 1.",
+      "Optional: Example values (2.0, 1.0, 0.1 -> 0.66, 0.24, 0.10)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Probabilities e^z_i / sum_j e^z_j per class, summing to 1.",
+      "Optional: Worked values; two inputs compared."
+     ]
+    }
+   },
+   "sourceId": "softmax"
+  },
+  {
+   "id": "softmax-p3",
+   "group": "content-formula",
+   "prompt": "I keep seeing softmax mentioned and don't get what it does.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Raw scores become shares that add up to 100%, the biggest score keeping the biggest share.",
+      "Optional: Example numbers."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Logits -> exponentiate and normalise -> probabilities that sum to 1.",
+      "Optional: Example values (2.0, 1.0, 0.1 -> 0.66, 0.24, 0.10)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Probabilities e^z_i / sum_j e^z_j per class, summing to 1.",
+      "Optional: Worked values; two inputs compared."
+     ]
+    }
+   },
+   "sourceId": "softmax"
+  },
+  {
+   "id": "softmax-p4",
+   "group": "content-formula",
+   "prompt": "Could you explain the job that softmax does?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Raw scores become shares that add up to 100%, the biggest score keeping the biggest share.",
+      "Optional: Example numbers."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Logits -> exponentiate and normalise -> probabilities that sum to 1.",
+      "Optional: Example values (2.0, 1.0, 0.1 -> 0.66, 0.24, 0.10)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Probabilities e^z_i / sum_j e^z_j per class, summing to 1.",
+      "Optional: Worked values; two inputs compared."
+     ]
+    }
+   },
+   "sourceId": "softmax"
+  },
+  {
+   "id": "softmax-p5",
+   "group": "content-formula",
+   "prompt": "When you pass something through softmax, what happens to it?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Raw scores become shares that add up to 100%, the biggest score keeping the biggest share.",
+      "Optional: Example numbers."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "transformation",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "flow"
+     ],
+     "sketch": [
+      "Core: Logits -> exponentiate and normalise -> probabilities that sum to 1.",
+      "Optional: Example values (2.0, 1.0, 0.1 -> 0.66, 0.24, 0.10)."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Probabilities e^z_i / sum_j e^z_j per class, summing to 1.",
+      "Optional: Worked values; two inputs compared."
+     ]
+    }
+   },
+   "sourceId": "softmax"
+  },
+  {
+   "id": "sigmoid-p1",
+   "group": "content-formula",
+   "prompt": "What happens when you use sigmoid as an activation function?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "number-line",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Any input squashed to between 0 and 1: a big negative input near 0, a big positive input near 1.",
+      "Optional: The S shape."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "number-line"
+     ],
+     "sketch": [
+      "Core: An S-shaped curve of the output (0 to 1) against the input z, through 0.5 at z = 0.",
+      "Optional: Saturation at the ends."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: sigmoid(z) = 1 / (1 + e^-z) plotted as an S-curve from 0 to 1 through 0.5 at z = 0.",
+      "Optional: The derivative; saturation values."
+     ]
+    }
+   },
+   "sourceId": "sigmoid"
+  },
+  {
+   "id": "sigmoid-p2",
+   "group": "content-formula",
+   "prompt": "What's the role of the sigmoid activation function?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "number-line",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Any input squashed to between 0 and 1: a big negative input near 0, a big positive input near 1.",
+      "Optional: The S shape."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "number-line"
+     ],
+     "sketch": [
+      "Core: An S-shaped curve of the output (0 to 1) against the input z, through 0.5 at z = 0.",
+      "Optional: Saturation at the ends."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: sigmoid(z) = 1 / (1 + e^-z) plotted as an S-curve from 0 to 1 through 0.5 at z = 0.",
+      "Optional: The derivative; saturation values."
+     ]
+    }
+   },
+   "sourceId": "sigmoid"
+  },
+  {
+   "id": "sigmoid-p3",
+   "group": "content-formula",
+   "prompt": "Sigmoid as an activation function. What does it actually do?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "number-line",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Any input squashed to between 0 and 1: a big negative input near 0, a big positive input near 1.",
+      "Optional: The S shape."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "number-line"
+     ],
+     "sketch": [
+      "Core: An S-shaped curve of the output (0 to 1) against the input z, through 0.5 at z = 0.",
+      "Optional: Saturation at the ends."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: sigmoid(z) = 1 / (1 + e^-z) plotted as an S-curve from 0 to 1 through 0.5 at z = 0.",
+      "Optional: The derivative; saturation values."
+     ]
+    }
+   },
+   "sourceId": "sigmoid"
+  },
+  {
+   "id": "sigmoid-p4",
+   "group": "content-formula",
+   "prompt": "Can you explain what the sigmoid activation does to its input?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "number-line",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Any input squashed to between 0 and 1: a big negative input near 0, a big positive input near 1.",
+      "Optional: The S shape."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "number-line"
+     ],
+     "sketch": [
+      "Core: An S-shaped curve of the output (0 to 1) against the input z, through 0.5 at z = 0.",
+      "Optional: Saturation at the ends."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: sigmoid(z) = 1 / (1 + e^-z) plotted as an S-curve from 0 to 1 through 0.5 at z = 0.",
+      "Optional: The derivative; saturation values."
+     ]
+    }
+   },
+   "sourceId": "sigmoid"
+  },
+  {
+   "id": "sigmoid-p5",
+   "group": "content-formula",
+   "prompt": "I get the idea of activation functions, but I'm unclear on what sigmoid does.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "transformation",
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "number-line",
+      "comparison"
+     ],
+     "sketch": [
+      "Core: Any input squashed to between 0 and 1: a big negative input near 0, a big positive input near 1.",
+      "Optional: The S shape."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "number-line"
+     ],
+     "sketch": [
+      "Core: An S-shaped curve of the output (0 to 1) against the input z, through 0.5 at z = 0.",
+      "Optional: Saturation at the ends."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "transformation"
+     ],
+     "sketch": [
+      "Core: sigmoid(z) = 1 / (1 + e^-z) plotted as an S-curve from 0 to 1 through 0.5 at z = 0.",
+      "Optional: The derivative; saturation values."
+     ]
+    }
+   },
+   "sourceId": "sigmoid"
+  },
+  {
+   "id": "lr-schedule-p1",
+   "group": "content-formula",
+   "prompt": "What's meant by scheduling the learning rate?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "coordinate-plot",
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate starting large and getting smaller over training.",
+      "Optional: A warm-up first."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "timeline",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate (y) falling against the training step or epoch (x).",
+      "Optional: The named schedule (step, exponential, cosine); a warm-up."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: The learning rate against the step, following the schedule formula the prose states.",
+      "Optional: A warm-up; a second schedule compared; exact values."
+     ]
+    }
+   },
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "lr-schedule-p2",
+   "group": "content-formula",
+   "prompt": "I've seen the term learning rate schedule and don't know what it's referring to.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "coordinate-plot",
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate starting large and getting smaller over training.",
+      "Optional: A warm-up first."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "timeline",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate (y) falling against the training step or epoch (x).",
+      "Optional: The named schedule (step, exponential, cosine); a warm-up."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: The learning rate against the step, following the schedule formula the prose states.",
+      "Optional: A warm-up; a second schedule compared; exact values."
+     ]
+    }
+   },
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "lr-schedule-p3",
+   "group": "content-formula",
+   "prompt": "Could you explain what a schedule for the learning rate is?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "coordinate-plot",
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate starting large and getting smaller over training.",
+      "Optional: A warm-up first."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "timeline",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate (y) falling against the training step or epoch (x).",
+      "Optional: The named schedule (step, exponential, cosine); a warm-up."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: The learning rate against the step, following the schedule formula the prose states.",
+      "Optional: A warm-up; a second schedule compared; exact values."
+     ]
+    }
+   },
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "lr-schedule-p4",
+   "group": "content-formula",
+   "prompt": "What does it mean when the learning rate is on a schedule?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "coordinate-plot",
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate starting large and getting smaller over training.",
+      "Optional: A warm-up first."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "timeline",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate (y) falling against the training step or epoch (x).",
+      "Optional: The named schedule (step, exponential, cosine); a warm-up."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: The learning rate against the step, following the schedule formula the prose states.",
+      "Optional: A warm-up; a second schedule compared; exact values."
+     ]
+    }
+   },
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "lr-schedule-p5",
+   "group": "content-formula",
+   "prompt": "I get what a learning rate is. What does the schedule part mean?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "coordinate-plot",
+      "timeline"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate starting large and getting smaller over training.",
+      "Optional: A warm-up first."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "timeline",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The learning rate (y) falling against the training step or epoch (x).",
+      "Optional: The named schedule (step, exponential, cosine); a warm-up."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "bar-chart"
+     ],
+     "sketch": [
+      "Core: The learning rate against the step, following the schedule formula the prose states.",
+      "Optional: A warm-up; a second schedule compared; exact values."
+     ]
+    }
+   },
+   "sourceId": "lr-schedule"
+  },
+  {
+   "id": "gradient-descent-p1",
+   "group": "content-formula",
+   "prompt": "What's the idea behind gradient descent?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Steps going downhill on a slope or bowl, in order, until the bottom.",
+      "Optional: The look-at-the-slope, step, repeat loop."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot",
+      "cycle",
+      "flow"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down the loss curve toward the minimum (or the loop gradient -> step -> repeat).",
+      "Optional: The learning rate as the step size."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "cycle",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down L(w) toward the minimum, each step w - eta * dL/dw.",
+      "Optional: Worked values; a too-large learning rate overshooting."
+     ]
+    }
+   },
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "gradient-descent-p2",
+   "group": "content-formula",
+   "prompt": "I keep running into the term gradient descent, and it hasn't clicked for me.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Steps going downhill on a slope or bowl, in order, until the bottom.",
+      "Optional: The look-at-the-slope, step, repeat loop."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot",
+      "cycle",
+      "flow"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down the loss curve toward the minimum (or the loop gradient -> step -> repeat).",
+      "Optional: The learning rate as the step size."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "cycle",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down L(w) toward the minimum, each step w - eta * dL/dw.",
+      "Optional: Worked values; a too-large learning rate overshooting."
+     ]
+    }
+   },
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "gradient-descent-p3",
+   "group": "content-formula",
+   "prompt": "Can you help me understand what gradient descent means?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Steps going downhill on a slope or bowl, in order, until the bottom.",
+      "Optional: The look-at-the-slope, step, repeat loop."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot",
+      "cycle",
+      "flow"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down the loss curve toward the minimum (or the loop gradient -> step -> repeat).",
+      "Optional: The learning rate as the step size."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "cycle",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down L(w) toward the minimum, each step w - eta * dL/dw.",
+      "Optional: Worked values; a too-large learning rate overshooting."
+     ]
+    }
+   },
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "gradient-descent-p4",
+   "group": "content-formula",
+   "prompt": "What does it mean to do gradient descent?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Steps going downhill on a slope or bowl, in order, until the bottom.",
+      "Optional: The look-at-the-slope, step, repeat loop."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot",
+      "cycle",
+      "flow"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down the loss curve toward the minimum (or the loop gradient -> step -> repeat).",
+      "Optional: The learning rate as the step size."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "cycle",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down L(w) toward the minimum, each step w - eta * dL/dw.",
+      "Optional: Worked values; a too-large learning rate overshooting."
+     ]
+    }
+   },
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "gradient-descent-p5",
+   "group": "content-formula",
+   "prompt": "I've heard of gradient descent. What is it supposed to do?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "cycle"
+     ],
+     "acceptableKinds": [
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Steps going downhill on a slope or bowl, in order, until the bottom.",
+      "Optional: The look-at-the-slope, step, repeat loop."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "coordinate-plot",
+      "cycle",
+      "flow"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "relationship"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down the loss curve toward the minimum (or the loop gradient -> step -> repeat).",
+      "Optional: The learning rate as the step size."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "cycle",
+      "flow"
+     ],
+     "sketch": [
+      "Core: The descent path: points in order down L(w) toward the minimum, each step w - eta * dL/dw.",
+      "Optional: Worked values; a too-large learning rate overshooting."
+     ]
+    }
+   },
+   "sourceId": "gradient-descent"
+  },
+  {
+   "id": "attention-weights-p1",
+   "group": "content-formula",
+   "prompt": "How do you calculate the weights used in attention?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "relationship",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "bar-chart",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Each word looks at the other words and gives each a share of attention, the most relevant getting the most.",
+      "Optional: An example sentence."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "flow",
+      "transformation"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "relationship",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: The query compared with each key -> scores -> softmax -> weights that sum to 1 -> a mix of the values.",
+      "Optional: Example weights."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "flow",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Weights softmax(q · k / sqrt(d_k)) for one query over the keys, summing to 1.",
+      "Optional: Worked numbers; the weighted sum of the values."
+     ]
+    }
+   },
+   "sourceId": "attention-weights"
+  },
+  {
+   "id": "attention-weights-p2",
+   "group": "content-formula",
+   "prompt": "I'm stuck on where the attention weights come from.",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "relationship",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "bar-chart",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Each word looks at the other words and gives each a share of attention, the most relevant getting the most.",
+      "Optional: An example sentence."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "flow",
+      "transformation"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "relationship",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: The query compared with each key -> scores -> softmax -> weights that sum to 1 -> a mix of the values.",
+      "Optional: Example weights."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "flow",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Weights softmax(q · k / sqrt(d_k)) for one query over the keys, summing to 1.",
+      "Optional: Worked numbers; the weighted sum of the values."
+     ]
+    }
+   },
+   "sourceId": "attention-weights"
+  },
+  {
+   "id": "attention-weights-p3",
+   "group": "content-formula",
+   "prompt": "How does an attention mechanism get its weights?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "relationship",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "bar-chart",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Each word looks at the other words and gives each a share of attention, the most relevant getting the most.",
+      "Optional: An example sentence."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "flow",
+      "transformation"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "relationship",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: The query compared with each key -> scores -> softmax -> weights that sum to 1 -> a mix of the values.",
+      "Optional: Example weights."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "flow",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Weights softmax(q · k / sqrt(d_k)) for one query over the keys, summing to 1.",
+      "Optional: Worked numbers; the weighted sum of the values."
+     ]
+    }
+   },
+   "sourceId": "attention-weights"
+  },
+  {
+   "id": "attention-weights-p4",
+   "group": "content-formula",
+   "prompt": "What goes into figuring out the attention weights?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "relationship",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "bar-chart",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Each word looks at the other words and gives each a share of attention, the most relevant getting the most.",
+      "Optional: An example sentence."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "flow",
+      "transformation"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "relationship",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: The query compared with each key -> scores -> softmax -> weights that sum to 1 -> a mix of the values.",
+      "Optional: Example weights."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "flow",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Weights softmax(q · k / sqrt(d_k)) for one query over the keys, summing to 1.",
+      "Optional: Worked numbers; the weighted sum of the values."
+     ]
+    }
+   },
+   "sourceId": "attention-weights"
+  },
+  {
+   "id": "attention-weights-p5",
+   "group": "content-formula",
+   "prompt": "Could you go over how attention assigns its weights?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "flow",
+      "relationship",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "bar-chart",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Each word looks at the other words and gives each a share of attention, the most relevant getting the most.",
+      "Optional: An example sentence."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "flow",
+      "transformation"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "relationship",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: The query compared with each key -> scores -> softmax -> weights that sum to 1 -> a mix of the values.",
+      "Optional: Example weights."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "bar-chart",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "transformation",
+      "flow",
+      "token-links"
+     ],
+     "sketch": [
+      "Core: Weights softmax(q · k / sqrt(d_k)) for one query over the keys, summing to 1.",
+      "Optional: Worked numbers; the weighted sum of the values."
+     ]
+    }
+   },
+   "sourceId": "attention-weights"
+  },
+  {
+   "id": "precision-recall-p1",
+   "group": "content-formula",
+   "prompt": "How are precision and recall different?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision (of what you flagged, how much was right) and recall (of what was right, how much you found) side by side.",
+      "Optional: Example counts."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Confusion counts TP, FP, FN (and TN), with precision from TP and FP and recall from TP and FN; or a precision-recall curve.",
+      "Optional: Example numbers."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "matrix",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision = TP / (TP + FP) and recall = TP / (TP + FN) from shown counts, or a precision-recall curve over thresholds.",
+      "Optional: Worked values; F1."
+     ]
+    }
+   },
+   "sourceId": "precision-recall"
+  },
+  {
+   "id": "precision-recall-p2",
+   "group": "content-formula",
+   "prompt": "I keep mixing up precision and recall. Can you clear that up?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision (of what you flagged, how much was right) and recall (of what was right, how much you found) side by side.",
+      "Optional: Example counts."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Confusion counts TP, FP, FN (and TN), with precision from TP and FP and recall from TP and FN; or a precision-recall curve.",
+      "Optional: Example numbers."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "matrix",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision = TP / (TP + FP) and recall = TP / (TP + FN) from shown counts, or a precision-recall curve over thresholds.",
+      "Optional: Worked values; F1."
+     ]
+    }
+   },
+   "sourceId": "precision-recall"
+  },
+  {
+   "id": "precision-recall-p3",
+   "group": "content-formula",
+   "prompt": "What's the distinction between recall and precision?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision (of what you flagged, how much was right) and recall (of what was right, how much you found) side by side.",
+      "Optional: Example counts."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Confusion counts TP, FP, FN (and TN), with precision from TP and FP and recall from TP and FN; or a precision-recall curve.",
+      "Optional: Example numbers."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "matrix",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision = TP / (TP + FP) and recall = TP / (TP + FN) from shown counts, or a precision-recall curve over thresholds.",
+      "Optional: Worked values; F1."
+     ]
+    }
+   },
+   "sourceId": "precision-recall"
+  },
+  {
+   "id": "precision-recall-p4",
+   "group": "content-formula",
+   "prompt": "When people talk about precision and recall, what is each one telling me?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision (of what you flagged, how much was right) and recall (of what was right, how much you found) side by side.",
+      "Optional: Example counts."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Confusion counts TP, FP, FN (and TN), with precision from TP and FP and recall from TP and FN; or a precision-recall curve.",
+      "Optional: Example numbers."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "matrix",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision = TP / (TP + FP) and recall = TP / (TP + FN) from shown counts, or a precision-recall curve over thresholds.",
+      "Optional: Worked values; F1."
+     ]
+    }
+   },
+   "sourceId": "precision-recall"
+  },
+  {
+   "id": "precision-recall-p5",
+   "group": "content-formula",
+   "prompt": "Precision vs. recall. How do I tell them apart?",
+   "needsPicture": false,
+   "noPicture": false,
+   "badKinds": [
+    "timeline",
+    "figure"
+   ],
+   "deepPlot": true,
+   "best": [],
+   "acceptable": [],
+   "depths": {
+    "overview": {
+     "kinds": [
+      "comparison",
+      "matrix"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision (of what you flagged, how much was right) and recall (of what was right, how much you found) side by side.",
+      "Optional: Example counts."
+     ]
+    },
+    "standard": {
+     "kinds": [
+      "matrix",
+      "comparison"
+     ],
+     "acceptableKinds": [
+      "bar-chart",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Confusion counts TP, FP, FN (and TN), with precision from TP and FP and recall from TP and FN; or a precision-recall curve.",
+      "Optional: Example numbers."
+     ]
+    },
+    "deep": {
+     "kinds": [
+      "matrix",
+      "bar-chart"
+     ],
+     "acceptableKinds": [
+      "comparison",
+      "coordinate-plot"
+     ],
+     "sketch": [
+      "Core: Precision = TP / (TP + FP) and recall = TP / (TP + FN) from shown counts, or a precision-recall curve over thresholds.",
+      "Optional: Worked values; F1."
+     ]
+    }
+   },
+   "sourceId": "precision-recall"
+  }
+ ],
+ "relabels": [
+  "2026-11-08 owner relabel (v2): entropy, all depths: relationship moved from acceptable into kinds (right); atmosphere, all depths: P + D:layers is right. Nothing else changed.",
+  "2026-11-08 owner 2026-11-08 closing pass (v3): atmosphere picture acceptable at overview; Roman Empire picture acceptable at deep; entropy relationship stays right at every depth (v2), its sketches now describe a relationship; precision-recall coordinate-plot (precision-recall curve) acceptable at every depth; the Roman split accepts 285 or 395; every sketch is a Core line (what a ~450-character card must show) and an Optional line (extras), and faithfulness is judged on Core only (faithful-v2).",
+  "2026-11-09 owner (L4): the new kinds were built for this prompt: token-links (attention weights between tokens) added to acceptableKinds at every depth of attention-weights and its paraphrases p1-p5; nothing else changed."
+ ]
+}

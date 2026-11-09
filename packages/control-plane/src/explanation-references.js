@@ -1,4 +1,5 @@
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
+import { figureChapterReferences } from '../../web/src/tutor-diagrams/figure-chapter-references.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { usesNodeTensors, usesParallelPaths, usesTensorItems } from '../../web/src/tutor-diagrams/illustration-kinds.js';
 
@@ -48,11 +49,15 @@ function referenceVariants(ref, required) {
   }] : []);
 }
 
-export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [], depth = 'standard' } = {}) {
+// Bench arm 0 (EXPLANATION_EXCLUDE_FIGURE_CHAPTERS=on): the 212 figure-chapter references leave the pool; default off, production unchanged.
+const figureChapterIds = new Set(figureChapterReferences.map(ref => ref.id));
+export const excludeFigureChapters = env => env?.EXPLANATION_EXCLUDE_FIGURE_CHAPTERS === 'on';
+export const referencePool = exclude => (exclude ? diagramReferences.filter(ref => !figureChapterIds.has(ref.id)) : diagramReferences);
+export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [], depth = 'standard', excludeFigureChapters = false } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   const source = normalized(contextText(context));
   const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
-  const candidates = diagramReferences.flatMap(ref => referenceVariants(
+  const candidates = referencePool(excludeFigureChapters).flatMap(ref => referenceVariants(
     ref.depths?.[depth] ? { ...ref, ...ref.depths[depth] } : ref, required));
   const ranked = candidates.map((ref, index) => ({
     ref, index, direct: topicScore(query, ref), source: topicScore(source, ref),
