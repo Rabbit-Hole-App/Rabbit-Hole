@@ -1,10 +1,10 @@
 # Phase 02 reference coverage — correction and remaining work
 
-Audited against the owner's full 21-lesson reference-scene table and the registry shipped in `8aee76e5a10815b1e0e9c48dc1c4d876acfe303e`. Updated through Batch 3B on the rebased branch.
+Audited against the owner's full 21-lesson reference-scene table and the registry shipped in `8aee76e5a10815b1e0e9c48dc1c4d876acfe303e`. Updated through Batch 3C on the rebased branch.
 
 **The 13 renderer additions/extensions are implemented. The full requested reference-scene pack is not complete.** The earlier statement that nothing from the Phase 02 list remained, followed by a recommendation to move to the next phase, was too broad. Having a reference ID tagged with each lesson is not the same as covering each scene requested within that lesson.
 
-The branch author registry contains **154 references**. The offline catalogue has **178 references**, including 24 held for later integration, and the kind gallery has 21 neutral shapes. Seven Batch 3 curriculum references are open across Lessons 19 and 21. [Batch 3A](batch-3a.md#local-verification) · [Batch 3B](batch-3b.md#local-verification) · [AI/ML and offline SVG handoff](svg-offline.md)
+The branch author registry contains **159 references**. The offline catalogue has **183 references**, including 24 held for later integration, and the kind gallery has 21 neutral shapes. Two Batch 3 curriculum references are open in Lesson 21. [Batch 3A](batch-3a.md#local-verification) · [Batch 3B](batch-3b.md#local-verification) · [Batch 3C](batch-3c.md#local-verification) · [AI/ML and offline SVG handoff](svg-offline.md)
 
 ## Audit definitions
 
@@ -37,7 +37,7 @@ IDs below are existing entries in `packages/web/src/tutor-diagrams/reference-lib
 | 16 — Anomaly detection | `zscore-anomaly-band`, `iqr-fences-and-outliers`, `ml-isolation-tree`, `dbscan-density-neighbourhoods`, `contextual-time-anomaly`. Batch 3B adds `ml-zscore-distribution-tails`, `ml-local-outlier-factor`, `ml-collective-anomaly-run` and `ml-ranked-anomaly-scores`. | The requested reference patterns are present. All eight Batch 3B probes select the intended first example in the prepared author request. Live generation and browser acceptance remain pending. |
 | 17 — Imbalanced data | `class-imbalance-resampling`, `stratified-fold-counts`, `ml-label-prior-drift-comparison`, `smote-interpolation`, weight/PR/threshold/cost references. Batch 2C adds `ml-minority-accuracy-trap` and `ml-majority-undersampling`. | The requested reference patterns are present. Live generation and browser acceptance remain pending. |
 | 18 — Feature selection | Correlation/nonlinear dependence, `permutation-feature-importance`, `permutation-feature-matrix`, L1/L2 geometry and coefficient paths, `feature-selection-stability`. Batch 2C adds `ml-recursive-feature-elimination` with changing ranks and retained features across refits. | The requested reference patterns are present. Live generation and browser acceptance remain pending. |
-| 19 — ML system design | `ml-learning-taxonomy`, `regression-mean-baseline`, `classification-cost-matrix`, `ml-feature-store-architecture`, `ml-feedback-graph`, `ml-version-lineage` | Explicit goal → prediction → decision; batch-versus-online inference architecture; latency/cost trade-off; shadow/canary/A-B deployment; a failure/fallback route. Online/offline **feature storage** is related but is not the complete batch/online **prediction** comparison. |
+| 19 — ML system design | Batch 3C adds `ml-churn-goal-prediction-decision`, `ml-batch-vs-online-inference`, `ml-serving-latency-cost`, `ml-shadow-canary-ab-rollout` and `ml-batch-score-fallback`. Earlier references cover baselines, feature storage, feedback and version lineage. | The requested reference patterns are present. Live generation and browser acceptance remain pending. |
 | 20 — Monitoring and drift | Three distinct drift comparison references, `aligned-distribution-drift`, `ks-empirical-cdfs`, monitoring windows, `label-delay-monitoring`, `persistent-drift-alerts`. Batch 2C adds `ml-psi-bin-contributions` with the per-bin terms and their total. | The requested reference patterns are present. Live generation and browser acceptance remain pending. |
 | 21 — Feature stores | `ml-feature-store-architecture`, event/created/label timelines, `as-of-join-ttl-window`, `point-in-time-created-time`, `late-arrival-snapshot-matrix` | A historical backfill/recomputation example; training/serving skew with mismatched versus corrected feature computation. Late arrival is covered; that does not automatically cover backfills. |
 
@@ -47,7 +47,7 @@ Finish this reference content with the existing approved palette and components 
 
 1. **Batch 1 implemented — trees, neighbours and clustering (04–07):** worked information gain; SVM C and transformed geometry; weighted KNN/scaling/K boundaries/KD regions; assignment-update snapshots, DBSCAN border points and GMM responsibilities.
 2. **Batch 2 implemented — worked calculations and feature transforms (08–12, 17–18, 20).** Batches 2A and 2B delivered twelve references. Batch 2C completes the 16 with the accuracy trap, undersampling, RFE stages and PSI.
-3. **Batch 3 partly implemented — temporal and system mechanisms (15–16, 19–21).** Batches 3A and 3B fill four gaps each in Lessons 15 and 16. The seven remaining references cover ML system design (5) and feature stores (2).
+3. **Batch 3 partly implemented — temporal and system mechanisms (15–16, 19–21).** Batches 3A, 3B and 3C fill the Lesson 15, 16 and 19 gaps. The two remaining references cover historical backfills and training/serving skew in Lesson 21.
 4. **Introductory and regression contrasts (01–03):** remaining foundational comparisons, failure examples, convergence and logistic feature-space geometry.
 
 For each batch: add actual reference JSON and natural prompt keywords to the existing registry; independently check the numeric claims; export the actual SVG; verify the real author request selects a relevant example; update this table. Reuse a current reference where it already expresses the mechanism instead of producing duplicate cards. Live model runs remain distinct from fixed-reference checks.
@@ -63,6 +63,7 @@ For each batch: add actual reference JSON and natural prompt keywords to the exi
 - [x] Build the four Batch 2C references for Lessons 17, 18 and 20 and verify their arithmetic, sample membership, refit order and author selection.
 - [x] Build the four Batch 3A time-series references and verify the reconstruction, lag values, date windows, forecast inputs and author selection.
 - [x] Build the four Batch 3B anomaly-detection references and verify the tail cutoff, density ratios, first alert, score cutoffs and author selection.
+- [x] Build the five Batch 3C ML system design references and verify the scoring paths, serving-cost arithmetic, rollout distinctions, fallback routes and author selection.
 - [ ] Complete the remaining Batch 3 references and the missing/partial patterns listed above.
 - [ ] Real-model kind/reference choice and generated-card browser/save-reopen acceptance.
 

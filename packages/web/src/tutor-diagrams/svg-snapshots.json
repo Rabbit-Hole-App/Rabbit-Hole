@@ -966,6 +966,36 @@
       "width": 720,
       "height": 489
     },
+    "ml-batch-score-fallback/320": {
+      "sha256": "c2e7aaac83800d537e2fc601646b44a17aefaf86231efb49654bee2311956272",
+      "width": 320,
+      "height": 597
+    },
+    "ml-batch-score-fallback/408": {
+      "sha256": "f53044e69aad338acdcb570b160fed86f133738e572939072e499ce4b0ed16e7",
+      "width": 408,
+      "height": 571
+    },
+    "ml-batch-score-fallback/720": {
+      "sha256": "ebba8f4963a92059072d047bc775f4b956b1a731fabb24bb891ac45711624da4",
+      "width": 720,
+      "height": 552
+    },
+    "ml-batch-vs-online-inference/320": {
+      "sha256": "3562903c30ed799a383a761182a5d5ee6f52f491263c46b4f2587713c80ea3af",
+      "width": 440,
+      "height": 643
+    },
+    "ml-batch-vs-online-inference/408": {
+      "sha256": "3562903c30ed799a383a761182a5d5ee6f52f491263c46b4f2587713c80ea3af",
+      "width": 440,
+      "height": 643
+    },
+    "ml-batch-vs-online-inference/720": {
+      "sha256": "3db9d83379396d5a7204d4d0a1ca6b7284c73f5b0dc3324362aef62f21a2fe7b",
+      "width": 720,
+      "height": 457
+    },
     "ml-bayesian-acquisition-choice/320": {
       "sha256": "4552870355481e2e8d8f17d9219a565e834cc69f3c36677e855864e1e54f4b1e",
       "width": 320,
@@ -1010,6 +1040,21 @@
       "sha256": "7cc71708f8e4fb1684471940cb3bb58f88a8e41cfe601a98f66c4f24c5676347",
       "width": 720,
       "height": 1417
+    },
+    "ml-churn-goal-prediction-decision/320": {
+      "sha256": "66cc7b18174cbad8586e6409d1971a0841551e8f2380970940f88af6c3971e5a",
+      "width": 320,
+      "height": 445
+    },
+    "ml-churn-goal-prediction-decision/408": {
+      "sha256": "e498442d643639382773e3382785191a2f09476ed4229158d844d96659cf9c80",
+      "width": 408,
+      "height": 428
+    },
+    "ml-churn-goal-prediction-decision/720": {
+      "sha256": "778469ae85859964a171f051803184ed70a829aa8c0e5a02db02a41c64cffc21",
+      "width": 720,
+      "height": 411
     },
     "ml-clustering-comparison/320": {
       "sha256": "01a32abb9b03a5e0f6dc339089fab4cd6aae5f0caee3e78719b0e60ce5c710c9",
@@ -1670,6 +1715,36 @@
       "sha256": "8b5d5370bf7f267b9f92bc1320a4e7da33c7dea2bea7b1f1bd0604f0afcff0b7",
       "width": 720,
       "height": 319
+    },
+    "ml-serving-latency-cost/320": {
+      "sha256": "394f0ace578a3e57d5516f9e520331c69a03b097a66eec2120c4ce76abbd5ac6",
+      "width": 320,
+      "height": 686
+    },
+    "ml-serving-latency-cost/408": {
+      "sha256": "a9c459456d38d7d5c87a5f3d5d550049a9c94162a2017598f6fb64db173adb8a",
+      "width": 408,
+      "height": 539
+    },
+    "ml-serving-latency-cost/720": {
+      "sha256": "b262fe698cc37e572cacf23518705d650995c9d82fd57451908c2d4769cb6687",
+      "width": 720,
+      "height": 418
+    },
+    "ml-shadow-canary-ab-rollout/320": {
+      "sha256": "5d420cb50f6dc41ae2e85d3dab3d6e8273556127c39181bc7147f8e67d5a17bd",
+      "width": 356,
+      "height": 480
+    },
+    "ml-shadow-canary-ab-rollout/408": {
+      "sha256": "67fa31ffc401e65a196a331278834ffb902b22d22ef111a6361dbcb355ea7a15",
+      "width": 408,
+      "height": 427
+    },
+    "ml-shadow-canary-ab-rollout/720": {
+      "sha256": "fc2bb2680ae6fc42c99f44fdc323814df3f1e1fd703ebb30835706ecd3f0bcd3",
+      "width": 720,
+      "height": 320
     },
     "ml-soft-vote-probabilities/320": {
       "sha256": "062b154cde8a289e855be9ef20d31782c9c3a5a1308120a8209540005c97470c",
