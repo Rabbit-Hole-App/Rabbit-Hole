@@ -151,9 +151,9 @@ export function diagramScore(d, prose, kinds = null) {
     placeholderEdge: edgeLabels.filter(l => PLACEHOLDER_EDGE_LABELS.has(norm(l)) || labelSet.has(norm(l))),
     duplicateLabels,
     nounBoxFlow: d.kind === 'flow' && !(d.nodes || []).some(n => n.role === 'decision') && !(d.nodes || []).some(n => verbStart(n.label)),
-    bareMaths: (() => { let t = []; try { t = tutorDiagramVisibleText({ diagram: d }); } catch { t = L; } return t.filter(x => typeof x === 'string' && /[_^\\]/.test(x.replace(/\$[^$]*\$/g, ''))); })(),
+    bareMaths: (() => { let t = []; try { t = tutorDiagramVisibleText({ diagram: d }) ?? L; } catch { t = L; } return t.filter(x => typeof x === 'string' && /[_^\\]/.test(x.replace(/\$[^$]*\$/g, ''))); })(),
     // Any formula or maths in the drawn words (owner, overview depth): $...$, a subscript/power/backslash, or an equals sign.
-    formulaLabels: (() => { let t = []; try { t = tutorDiagramVisibleText({ diagram: d }); } catch { t = L; } return t.filter(x => typeof x === 'string' && /\$[^$]+\$|[_^\\=]/.test(x)); })(),
+    formulaLabels: (() => { let t = []; try { t = tutorDiagramVisibleText({ diagram: d }) ?? L; } catch { t = L; } return t.filter(x => typeof x === 'string' && /\$[^$]+\$|[_^\\=]/.test(x)); })(),
   };
   let describe = null; try { describe = describeTutorDiagram({ diagram: d }); } catch { /* an unexpected shape: no description */ }
   return {
