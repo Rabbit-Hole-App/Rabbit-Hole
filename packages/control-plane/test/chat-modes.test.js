@@ -121,7 +121,7 @@ function fixture(t, { migration = true } = {}) {
   sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention')");
   const objects = new Map(), calls = [], replies = [];
   const env = {
-    SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-only',
+    SMALL_ENV: 'test', CHAT_MODEL_PROFILE: 'anthropic', ANTHROPIC_API_KEY: 'test-only',
     DB: { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); } },
     LEARN_MEDIA: { put: async (key, bytes) => { objects.set(key, new Uint8Array(bytes)); }, get: async key => (objects.has(key) ? { arrayBuffer: async () => objects.get(key).buffer } : null), delete: async key => { objects.delete(key); } },
     LEARN_DB: { batch: async statements => Promise.all(statements.map(s => s.run())), prepare: sql => { const statement = sqlite.prepare(sql); return { bind: (...params) => ({
