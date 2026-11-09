@@ -7,7 +7,7 @@ import { runDueRoadmapEvents } from '../src/roadmap/roadmap-events.js';
 import { rows } from './roadmap-fixture.js';
 import { AT, BOARD, FULL, GOOD, ID_B, INSTRUCTION, KEY, MD, classify, loop, models, planInput, toolUse } from './roadmap-loop-fixture.js';
 
-const create = (h, extra = {}, source = {}) => h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' }, ...source }, instruction: INSTRUCTION, depth: 'balanced', actionKey: KEY('create'), ...extra });
+const create = (h, extra = {}, source = {}) => h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' }, ...source }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create'), ...extra });
 const QUESTION = { ...planInput([]), question: { kind: 'focus', text: 'This note covers several topics. Which should the explanation focus on?', options: [{ label: 'Gradients' }, { label: 'Learning rate' }] } };
 const R3 = `CREATE TABLE IF NOT EXISTS learn_source_refs (id TEXT PRIMARY KEY, org TEXT NOT NULL, owner_email TEXT NOT NULL, kind TEXT NOT NULL, source_key TEXT NOT NULL, source_home TEXT, source_name TEXT NOT NULL, source_rev TEXT NOT NULL,
   anchor_json TEXT NOT NULL, anchor_hash TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'current', checked_at INTEGER, created_at INTEGER NOT NULL);
@@ -180,10 +180,10 @@ test('UI.03: after acceptance a Depth change and a typed edit make new unaccepte
   const plan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: made.body.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
   let view = plan.body;
   assert.equal(view.planDraft, null, 'no draft once the plan is accepted');
-  const depth = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('depth'), settings: { depth: 'brief' } });
+  const depth = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('depth'), settings: { depth: 'overview' } });
   assert.equal(depth.status, 202);
-  assert.deepEqual([depth.body.roadmap.depth, depth.body.roadmap.ceiling], ['balanced', 10], 'the accepted roadmap keeps its Depth until a draft is accepted');
-  assert.deepEqual([depth.body.planDraft.version, depth.body.planDraft.settings.depth, depth.body.planDraft.acceptable], [2, 'brief', true]);
+  assert.deepEqual([depth.body.roadmap.depth, depth.body.roadmap.ceiling], ['standard', 10], 'the accepted roadmap keeps its Depth until a draft is accepted');
+  assert.deepEqual([depth.body.planDraft.version, depth.body.planDraft.settings.depth, depth.body.planDraft.acceptable], [2, 'overview', true]);
   assert.deepEqual([depth.body.plan.version, depth.body.acceptedPlan.version], [1, 1], 'the ToC still shows the accepted plan');
   assert.equal(depth.body.proposal.state, 'pending', 'the accepted plan\'s offer is untouched');
   view = depth.body;

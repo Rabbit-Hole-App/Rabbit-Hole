@@ -26,9 +26,6 @@ export function inView(apps, items, folderId, searching) {
   return searching ? apps : apps.filter((a) => !items[a.name]);
 }
 
-// The Library page draws its tiles and cards when it has either: a person who deleted every canvas still has their folders (owner bug 2026-11-09).
-export const libraryShows = (cards, folders) => cards > 0 || folders > 0;
-
 // "N items": what each folder holds that the Library lists, so a trashed or archived item (kept for Restore) is not counted.
 export function folderCounts(apps, items) {
   const counts = {};

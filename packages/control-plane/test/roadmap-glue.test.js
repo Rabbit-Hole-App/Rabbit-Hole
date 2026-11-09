@@ -202,7 +202,7 @@ test('Auto-suggest off, Ask mode, an unfinished roadmap and unsupported or forei
   assert.deepEqual((await offer(w, ['file:fs_foreignforeignforeignfor'])).body.suppressed, { reason: 'unsupported_source' }, 'another learner\'s file is no source');
   assert.equal(rows(w.sqlite, 'SELECT * FROM learn_roadmap_invitations').length, 0, 'nothing suppressed leaves a row');
   w.sqlite.prepare(`INSERT INTO learn_roadmaps (id, org, owner_user_id, owner_email, board_id, app, state, revision, depth, source_key, source_rev, scope_json, scope_fingerprint, ceiling, policy_version, created_at, updated_at)
-    VALUES ('rm_x', 'team', 'u-alice', 'u-alice@example.test', ?, 'learn', 'paused', 1, 'balanced', 'k', 'r', '{}', 'f', 10, 'p', 1, 1)`).run(w.access.boardId);
+    VALUES ('rm_x', 'team', 'u-alice', 'u-alice@example.test', ?, 'learn', 'paused', 1, 'standard', 'k', 'r', '{}', 'f', 10, 'p', 1, 1)`).run(w.access.boardId);
   assert.deepEqual((await offer(w, [`file:${ID_B}`])).body.suppressed, { reason: 'unfinished_roadmap' });
   await assert.rejects(offer(w, []), { code: 'invalid_request' });
   await assert.rejects(offerInvitation(w.LEARN_DB, w.access, { sourceKeys: [`file:${ID_A}`], idleKey: 'no' }), { code: 'invalid_request' });
@@ -289,7 +289,7 @@ test('an explicit drop is offered in Ask and with Auto-suggest off; an unsolicit
   assert.equal(drop.body.invitation.state, 'offered', 'the drop is acknowledged in Ask with Auto-suggest off');
   assert.deepEqual((await offer(w, [`file:${ID_A}`], { idleKey: `drop-file-${ID_A}` })).body.invitation.id, drop.body.invitation.id, 'a repeated drop report returns the same invitation');
   w.sqlite.prepare(`INSERT INTO learn_roadmaps (id, org, owner_user_id, owner_email, board_id, app, state, revision, depth, source_key, source_rev, scope_json, scope_fingerprint, ceiling, policy_version, created_at, updated_at)
-    VALUES ('rm_y', 'team', 'u-alice', 'u-alice@example.test', ?, 'learn', 'active', 1, 'balanced', 'k', 'r', '{}', 'f', 10, 'p', 1, 1)`).run(w.access.boardId);
+    VALUES ('rm_y', 'team', 'u-alice', 'u-alice@example.test', ?, 'learn', 'active', 1, 'standard', 'k', 'r', '{}', 'f', 10, 'p', 1, 1)`).run(w.access.boardId);
   assert.deepEqual((await offer(w, [`file:${ID_B}`], { idleKey: `drop-file-${ID_B}` })).body.suppressed, { reason: 'unfinished_roadmap' });
 });
 

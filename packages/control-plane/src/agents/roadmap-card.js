@@ -2,7 +2,7 @@
 // ARTIFACT_SYSTEM through generateArtifact's `systemSuffix` option. Server-only; pinned by test/roadmap-generate.test.js.
 // CORE.09: the Depth objective and character budget are no longer here; they come with the make_explanation tool (chat-depth.js explanationTarget),
 // the same words a direct question gets. The accepted step title is the card's title (generateArtifact's trusted `title`).
-// A table card has no make_explanation tool, so its Depth objective (Balanced included) rides in this suffix instead.
+// A table card has no make_explanation tool, so its Depth objective (Standard included) rides in this suffix instead.
 import { DEFAULT_DEPTH, EXPLANATION_OBJECTIVES, validDepth } from '../chat-depth.js';
 export const ROADMAP_CARD_VERSION = 'roadmap-card-6';
 

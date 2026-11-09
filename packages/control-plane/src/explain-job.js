@@ -283,8 +283,8 @@ export async function explainRoute(path, req, env, deps = {}) {
   // R2: Depth is the learner's selection when they pressed Generate (the client's snapshot), validated here; omitted, their saved Depth for
   // this canvas. It is stored on the job at create and never rebound to a later preference.
   if (action !== 'create') delete body.depth;
-  else if (body.depth !== undefined && !validDepth(body.depth)) return json({ error: 'depth must be brief, balanced or detailed' }, 400);
-  else body.depth = validDepth(body.depth) ?? await readDepth(env, { org: who.org, userId: who.userId, app: board.app, board: board.board });
+  else if (body.depth !== undefined && !validDepth(body.depth)) return json({ error: 'depth must be overview, standard or deep' }, 400);
+  else body.depth ??= await readDepth(env, { org: who.org, userId: who.userId, app: board.app, board: board.board });
   // Task 9.2: an Edit re-reads the sources its accepted base was made from (its private provenance), under this learner's access now.
   const lineage = action === 'create' && body.requestClass === 'edit' && typeof body.cardId === 'string' && typeof body.baseRevision === 'string'
     ? await stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'lineage', payload: { cardId: body.cardId, baseRevision: body.baseRevision }, board, user: who }) })
@@ -400,7 +400,7 @@ export class ExplainJobs {
   async create(payload, board, user, origin) {
     validateCreate(payload);
     // The resolved Depth is part of the request: the same request id with another Depth conflicts (409) instead of replaying a job made
-    // at a different one. Balanced (and no Depth, and a job made before Depth) adds nothing, so those fingerprints are unchanged.
+    // at a different one. Standard (and no Depth, and a job made before Depth) adds nothing, so those fingerprints are unchanged.
     const depth = validDepth(payload.depth) || DEFAULT_DEPTH;
     const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null, payload.examples ?? [], payload.image_context ?? null, payload.sourceRef?.id ?? null, ...(depth !== DEFAULT_DEPTH ? [depth] : [])]));
     const fence = await this.state.storage.get(`request:${payload.requestId}`);

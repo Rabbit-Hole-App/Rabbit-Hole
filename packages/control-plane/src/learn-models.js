@@ -14,11 +14,6 @@ import { emitTelemetry } from './telemetry-delivery.js'; // imports only the con
 export const MODEL = 'claude-opus-5';
 // Auto where spend is enforced (owner, 2026-10-12): exactly MODEL, without the server-side fallback, whose fallback
 // model cannot be priced before admission. Only unenforced test runs keep Auto's fallback (null: no model is sent).
-// Chat answers (Ask, Auto and Tutor; owner 2026-11-08): Gemini 3.5 Flash Lite at medium reasoning, no Opus for now. Auto, no pick and the old 'opus-5' pick all land on it;
-// the Sonnet and Haiku picks still run on Anthropic. CHAT_MODEL_PROFILE=anthropic is the one switch back (Auto = Opus again). Cards, the whiteboard and grading never
-// read this: they keep ASK_MODELS.auto, which stays Opus. The endpoint is the explanation chain's (CHAIN_ENDPOINTS.google, same key and price row).
-export const CHAT_GEMINI = 'gemini-3.5-flash-lite', CHAT_REASONING = 'medium', CHAT_GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-export const chatModel = (env, id) => (env.CHAT_MODEL_PROFILE === 'anthropic' ? id : !id || id === MODEL ? CHAT_GEMINI : id);
 export const autoModel = env => (spendEnforced(env) ? MODEL : null);
 // No Anthropic key on this deployment (a preview without one): no model request leaves the worker, and every AI
 // feature says so in these words (owner, 2026-10-08). anthropic() and review.js return or throw it before any fetch.
@@ -141,7 +136,7 @@ export function loggedModel(task, callModel) {
     const begun = clock();
     let line = null;
     try {
-      const provider = env.SUBSCRIPTION_ONLY === 'true' ? 'subscription' : model === CHAT_GEMINI ? 'google' : LEARN_TASKS[task].provider === 'plan' && planUsesOpenAI(env) ? 'openai' : 'anthropic';
+      const provider = env.SUBSCRIPTION_ONLY === 'true' ? 'subscription' : LEARN_TASKS[task].provider === 'plan' && planUsesOpenAI(env) ? 'openai' : 'anthropic';
       line = { event: 'learn_model', task, provider,
         requested: provider === 'openai' ? env.LEARN_PLAN_MODEL : model ?? (provider === 'anthropic' ? autoModel(env) : null) ?? 'auto',
         source: provider === 'openai' ? 'LEARN_PLAN_MODEL' : model == null ? 'auto' : model === LEARN_TASKS[task].model ? 'task' : 'request',

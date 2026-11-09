@@ -59,7 +59,7 @@ test('a body with a visual keeps its P/V pattern and passes the layout check', (
   const body = `${long}\n\n${DIAGRAM}\n\n${long}`;
   const out = settleExplanationBody(body);
   const card = { title: 'Trees', body: out };
-  const problem = explanationProblem(card, 'balanced', 'How does a decision tree work?');
+  const problem = explanationProblem(card, 'standard', 'How does a decision tree work?');
   assert.ok(!/layout|marker|prose part|before and after/i.test(String(problem || '')), `layout accepted: ${problem}`);
   for (const p of paragraphsOf(out).filter(p => !p.startsWith('```'))) assert.ok(p.length <= PARAGRAPH_MAX || p.split(/(?<=[.!?])\s+/).length === 1, p);
 });

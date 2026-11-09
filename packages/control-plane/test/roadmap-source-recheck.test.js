@@ -92,7 +92,7 @@ test('GEN1 the source changes while the author call runs: nothing is published, 
 });
 
 test('GEN1 a table step carries the explicit Depth objective, Standard included', async t => {
-  for (const [depth, objective] of [['balanced', /Depth: Balanced\. Explain how and why/], ['brief', /Depth: Brief\. Explain the central idea/], ['detailed', /Depth: Detailed\. Develop the reasoning/]]) {
+  for (const [depth, objective] of [['standard', /Depth: Standard\. Explain how and why/], ['overview', /Depth: Overview\. Explain the central idea/], ['deep', /Depth: Deep\. Develop the reasoning/]]) {
     await t.test(depth, async () => {
       const h = await workflow(t, { plans: [TABLE_FIRST], script: [table()] });
       const view = await started(h, { depth });

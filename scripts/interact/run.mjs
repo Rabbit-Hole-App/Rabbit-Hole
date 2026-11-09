@@ -2,7 +2,7 @@
 // scripts/interact/run.mjs: the offline entry to the SAME stage implementation the durable /interact job uses (packages/control-plane/src/
 // interact-runner.js). INT-07B-C06 to C10. Fixture mode (--fixture) has no provider transport at all: roles are scripted, capture runs the sealed
 // programs in the pinned engine in this process, and the run reports zero paid calls.
-//   node scripts/interact/run.mjs --fixture toss-drop-standard --depth balanced --until plan --run-dir .tmp/interact-plan
+//   node scripts/interact/run.mjs --fixture toss-drop-standard --depth standard --until plan --run-dir .tmp/interact-plan
 //   node scripts/interact/run.mjs --resume .tmp/interact-plan --until card --approve-plan-hash <the hash the first command printed>
 // Exit: 0 reached the requested stage; 1 failed, blocked or incomplete (no card); 2 usage error or a refused approval.
 import { parseArgs } from 'node:util';
@@ -11,7 +11,6 @@ import { fixtureRun, FIXTURE_IDS } from '../../packages/control-plane/src/intera
 import { resolveInteractProfile } from '../../packages/control-plane/src/interact-models.js';
 import { runInteract } from '../../packages/control-plane/src/interact-runner.js';
 import { createRunDirStore } from './run-dir-store.mjs';
-import { depthOf } from '../../packages/control-plane/src/chat-depth.js';
 
 const DEFAULT_PROMPT = { 'toss-drop-standard': 'Why does a ball thrown straight up still accelerate at the top, when its velocity is zero?', 'pendulum-period': 'Does a longer pendulum swing more slowly, and by how much?' };
 const say = line => console.log(line);
@@ -21,7 +20,7 @@ const { values: a } = parseArgs({ options: {
   prompt: { type: 'string' }, depth: { type: 'string' }, profile: { type: 'string' }, until: { type: 'string' }, 'run-dir': { type: 'string' }, resume: { type: 'string' },
   'approve-plan-hash': { type: 'string' }, fixture: { type: 'string' }, 'cap-usd': { type: 'string' }, help: { type: 'boolean' },
 }, strict: true });
-if (a.help) { say('usage: run.mjs (--fixture <id> --depth balanced|detailed | --prompt <text> --depth <d> --cap-usd <n>) --run-dir <dir> [--until plan|card] [--profile <id>]\n       run.mjs --resume <dir> --until card --approve-plan-hash <hash>\nfixtures: ' + FIXTURE_IDS.join(', ')); process.exit(0); }
+if (a.help) { say('usage: run.mjs (--fixture <id> --depth standard|deep | --prompt <text> --depth <d> --cap-usd <n>) --run-dir <dir> [--until plan|card] [--profile <id>]\n       run.mjs --resume <dir> --until card --approve-plan-hash <hash>\nfixtures: ' + FIXTURE_IDS.join(', ')); process.exit(0); }
 
 const dir = a.resume ?? a['run-dir'];
 if (!dir) die(2, 'give --run-dir <dir> (a new run) or --resume <dir>');
@@ -33,7 +32,7 @@ if (a.resume && !saved) die(2, `${dir} holds no run to resume`);
 if (!a.resume && saved) die(2, `${dir} already holds run ${saved.runId}; use --resume ${dir} to continue it, or choose a new --run-dir`);
 
 const fixture = saved?.request.fixture ?? a.fixture;
-const depth = depthOf(saved?.request.depth ?? a.depth ?? 'balanced'); // the old names still work on the command line and in a saved run
+const depth = saved?.request.depth ?? a.depth ?? 'standard';
 if (!fixture) {
   // ponytail: the paid standalone path needs the design stage (interact-design.js, the design lane) and an admitted transport with the product's
   // spending policy (INT-07B-C11); neither is wired into this script yet, and it never takes a raw key. Fixture runs are the supported path here.

@@ -65,8 +65,8 @@ test.after(async () => { console.error = realError; if (root) await B.act(async 
 let current = null, saved = [];
 const draw = (block, { readOnly = false } = {}) => B.act(async () => root.render(B.createElement(B.ExplanationHost.Provider, { value: host }, B.createElement(B.ChatWorkspace.Provider, { value: chat },
   B.createElement(B.LearningBlockBody, { block, readOnly, onChange: next => { saved.push(next); current = next; }, onChangeQuiet: next => { saved.push(next); current = next; }, onFile() {}, appName: 'demo', selected: true, onExpandHeight() {} })))));
-const notes = [], added = [], explores = [];
-const host = { ask: async request => { if (request.destination === 'explore') explores.push(request); return true; }, note: request => { notes.push(request); return 'note-1'; } };
+const notes = [], added = [], digs = [];
+const host = { ask: async () => true, note: request => { notes.push(request); return 'note-1'; }, dig: request => { digs.push(request); } };
 const chat = { addToChat: ref => { added.push(ref); }, ask() {}, composer: { focus() {}, prepare() {} } };
 async function mountInPlace(block) {
   if (root) await B.act(async () => root.unmount());
@@ -167,13 +167,13 @@ test('clicking a saved highlight after a reload offers Remove highlight; removin
   assert.equal($('[data-explanation-highlight-menu]'), null);
 });
 
-test('Explore is the app\'s primary blue Button; the + sits clear of the card\'s bottom connector port', async () => {
+test('Dig Rabbit Hole is the app\'s primary blue Button; the + sits clear of the card\'s bottom connector port', async () => {
   await mountInPlace(await v2Card());
   await click($('[data-term-id="t-1"]'));
-  const explore = $('[data-explore]');
-  assert.ok(explore && explore.textContent === 'Explore' && /\bbg-primary-fill\b/.test(explore.className) && /\btext-white\b/.test(explore.className), 'ui.jsx Button variant="primary"');
-  await click(explore);
-  assert.equal(explores.length, 1);
+  const dig = $('[data-dig-rabbit-hole]');
+  assert.ok(dig && /\bbg-primary-fill\b/.test(dig.className) && /\btext-white\b/.test(dig.className), 'ui.jsx Button variant="primary"');
+  await click(dig);
+  assert.equal(digs.length, 1);
   // The port is h-4 (16 px) centred on the bottom edge, so it reaches 8 px below the card; the + must start below it with a gap.
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(canvas, /data-port=\{side\}[\s\S]{0,200}className=\{`absolute left-1\/2 z-20 h-4 w-4 -translate-x-1\/2[^`]*'-bottom-2'/, 'the port as measured');

@@ -119,7 +119,7 @@ test('dev-worker.js sends every fall-through through the barrier', () => {
 
 test('a canvas Learn ask with an @-mention runs on dev storage and reads nothing from production D1', async t => {
   const f = fixture(t), original = globalThis.fetch, prompts = [];
-  f.env.ANTHROPIC_API_KEY = 'test'; f.env.CHAT_MODEL_PROFILE = 'anthropic';
+  f.env.ANTHROPIC_API_KEY = 'test';
   f.env.USAGE_PLATFORM_DAY_USD = '10'; // the preview's configured cap (wrangler.dev.jsonc): spend is enforced here
   f.env.AI_MONTHLY_ALLOWANCE_USD = '50'; // and its monthly allowance: the session user's allowance is enforced too (L12)
   globalThis.fetch = async (url, init) => {

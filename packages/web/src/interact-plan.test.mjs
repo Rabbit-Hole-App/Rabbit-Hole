@@ -446,7 +446,7 @@ test('DesignReview and DesignRevision are strict records', async () => {
   const noDescription = clone(revision); delete noDescription.plan.cardDescription;
   assert.equal(DesignRevisionSchema.safeParse(noDescription).success, false, 'the description is preserved');
   assert.deepEqual(revisionProblems(plans.standard, revision), []);
-  assert.equal(revisionProblems(plans.standard, { ...revision, plan: { ...revision.plan, depth: 'detailed' } })[0].code, 'depth_changed');
+  assert.equal(revisionProblems(plans.standard, { ...revision, plan: { ...revision.plan, depth: 'deep' } })[0].code, 'depth_changed');
 });
 
 test('maximum-size envelopes validate, and an over-limit envelope fails before sending without truncation', async () => {
@@ -477,7 +477,7 @@ test('only the legacy VisualBrief converts, and never into a reviewed plan', () 
   const converted = legacyBriefToDraft(brief, 'standard');
   assert.equal(converted.ok, true);
   assert.equal(converted.reviewed, false);
-  assert.equal(converted.draft.depth, 'balanced');
+  assert.equal(converted.draft.depth, 'standard');
   assert.equal(converted.draft.legacyMeaning, brief.meaning);
   for (const field of ['story', 'cardDescription', 'controls', 'mode', 'scene', 'title']) assert.equal(field in converted.draft, false, `${field} is not fabricated`);
   assert.equal(parse(converted.draft).ok, false, 'a legacy draft is not a ScenePlan');

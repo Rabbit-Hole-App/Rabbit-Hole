@@ -29,7 +29,7 @@ export default {
       outcome: { enum: ['ok', 'failed', 'cancelled'] },
       route: { type: 'route', required: true },
       mode: { enum: ['auto', 'ask', 'tutor'] },
-      depth: { enum: ['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep'] }, // the old names: an older page's queued events
+      depth: { enum: ['overview', 'standard', 'deep'] },
       path: { enum: ['greeting', 'routed', 'answer_only', 'fallback'] },
       size: { enum: ['xs', 's', 'm', 'l', 'xl'] },   // a bucket of the input: source characters or card count
       count: { type: 'int' },                          // steps in a draft

@@ -213,8 +213,8 @@ test('keyboard ownership: page, canvas surface and the overlay hold Tab; any oth
   assert.equal(keyboardOwned(el([], 'BUTTON')), false, 'a toolbar or ToC control keeps normal focus order');
 });
 
-test('Explain on canvas sends the selected Depth and the source revision; a missing Depth is Balanced', async () => {
-  for (const [selected, sent] of [['detailed', 'detailed'], ['brief', 'brief'], [undefined, 'balanced']]) {
+test('Explain on canvas sends the selected Depth and the source revision; a missing Depth is Standard', async () => {
+  for (const [selected, sent] of [['deep', 'deep'], ['overview', 'overview'], [undefined, 'standard']]) {
     const { controller, calls } = harness({ depth: selected && (() => selected), sourceRev: key => `rev-of-${key}`, routes: { 'GET ': () => ({ roadmap: null }), 'GET /invitations': () => view('invitation-offered'), 'POST /': () => view('create-response-draft') } });
     controller.start(); await settle();
     await controller.explain(); await settle();

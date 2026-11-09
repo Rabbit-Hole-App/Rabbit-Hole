@@ -16,7 +16,7 @@ test('RFE refits and reranks the remaining features before the next drop', () =>
     ['fit-4', 'Fit 4'], ['refit-3', 'Refit 3'], ['refit-2', 'Refit 2'],
   ]);
   const rankings = rows.map(({ cells: [scores] }) => scores.split(', ').map(pair => {
-    const [feature, score] = pair.split(':');
+    const [feature, score] = pair.split('=');
     return [feature, Number(score)];
   }));
   assert.deepEqual(rankings, [

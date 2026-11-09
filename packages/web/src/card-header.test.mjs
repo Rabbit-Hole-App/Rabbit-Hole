@@ -14,7 +14,7 @@ const tmp = mkdtempSync(join(tmpdir(), 'card-header-'));
 after(() => rmSync(tmp, { recursive: true, force: true }));
 const outfile = join(tmp, 'bundle.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as CardHeader, CardRename } from './CardHeader.jsx'; export { headerTitleOf, NARROW_CARD_PX, TITLE_TWO_LINES } from './card-rename.js'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: here, loader: 'jsx' },
+  stdin: { contents: "export { default as CardHeader, CardRename } from './CardHeader.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: here, loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
 const lib = createRequire(import.meta.url)(outfile);
@@ -76,53 +76,4 @@ test('sources: the dot Kicker is gone, every body hands its block to the header,
   assert.match(canvas, /rename: id => startRename\(id\),/, 'the right-click Rename and the header open the same editor');
   const file = read('FileDocCard.jsx');
   assert.match(file, /<CardHeader block=\{block\}[^]*meta=\{\[block\.label, KIND_LABEL\[block\.kind\]/, 'the file card: its title is the card title, the file name leads the meta line');
-});
-
-test('the title wraps (owner 2026-11-08 final): the whole 160-character title is in the markup, clamped to two lines (three when the header is narrower than 440 px), never one nowrap truncated line; the whole text is the tooltip', () => {
-  const long = 'How a gradient descent step uses the learning rate, the slope of the loss and the previous weights to choose the next weights in a model';
-  const full = `${long} ${long}`.slice(0, 160).trim();
-  for (const type of ['explanation', 'note', 'table']) {
-    const markup = render({ block: { id: 'b1', type, title: full }, meta: 'Card' }, () => {});
-    const h3 = markup.match(/<h3 data-card-title[^>]*>[^<]*<\/h3>/)[0];
-    assert.ok(h3.includes(`>${full}<`), `${type}: the whole title is rendered`);
-    assert.doesNotMatch(h3, /truncate|whitespace-nowrap|text-ellipsis/, 'not the one-line clip any more');
-    assert.match(h3, /line-clamp-2/, 'two lines');
-    assert.match(h3, /@max-\[405px\]:line-clamp-3/, 'three lines on a header narrower than a 440 px card (the minimized tile at 408 px, a narrow card)');
-    assert.match(h3, /break-words/);
-    assert.ok(h3.includes(`title="${full}"`), 'the whole text is the tooltip when it is long');
-    assert.doesNotMatch(markup, /…|\.\.\./, 'the ellipsis is drawn by CSS only when the clamp is hit, never written into the text');
-  }
-});
-
-test('a long unbroken token wraps too, and a title over 80 characters is not cut by the header name', () => {
-  const token = 'Supercalifragilisticexpialidocious'.repeat(5);
-  assert.match(render({ block: { id: 'b1', type: 'note', title: token } }), new RegExp(`>${token}</h3>`));
-  const eighty = 'word '.repeat(40).trim(); // 199 characters, far over the 80 the derived name used to be cut at
-  assert.equal(lib.headerTitleOf({ type: 'note', title: eighty }), eighty);
-  assert.equal(lib.headerTitleOf({ type: 'note', title: eighty, customTitle: 'Mine' }), 'Mine', 'the learner\'s name still wins');
-});
-
-test('the header grows with the title: the row is top-aligned, the icon and trailing controls sit on the first line, the meta line stays one line', () => {
-  const markup = render({ block: { id: 'b1', type: 'explanation', title: 'A title that needs more than one line at the narrowest card width, long enough for three' }, meta: 'Explanation', trailing: lib.createElement('span', null, 'T') });
-  assert.match(markup, /items-start gap-2/, 'top-aligned: the title may take several lines');
-  assert.match(markup, /shrink-0 text-ink-2 mt-0\.5/, 'the icon sits on the first line');
-  assert.match(markup, /shrink-0 items-center gap-1 h-5/, 'the trailing controls are one first-line high');
-  assert.match(markup, /data-card-meta="true" class="mt-0\.5 truncate/, 'the meta line is unchanged: one line');
-});
-
-test('the narrow breakpoint and the tooltip threshold are one named number each: the class says NARROW_CARD_PX - 3, a short title keeps the rename hint', () => {
-  const source = read('CardHeader.jsx');
-  assert.ok(source.includes(`@max-[${lib.NARROW_CARD_PX - 35}px]:line-clamp-3`), 'the container query is the header width of a card narrower than NARROW_CARD_PX (a container query measures the content box: 440 less the 2 px border and the 32 px padding, less 1)');
-  assert.match(source, /@container shrink-0/, 'the header is the query container');
-  const short = render({ block: { id: 'b1', type: 'note', title: 'Short title' } }, () => {});
-  assert.match(short, /<h3 data-card-title[^>]* title="Double-click to rename"/);
-  const edge = 'x'.repeat(lib.TITLE_TWO_LINES);
-  assert.match(render({ block: { id: 'b1', type: 'note', title: edge } }, () => {}), /title="Double-click to rename"/, 'at the threshold it still fits two lines');
-  assert.match(render({ block: { id: 'b1', type: 'note', title: edge + 'y' } }, () => {}), new RegExp('title="' + edge + 'y"'), 'one over: the whole text is the tooltip');
-});
-
-test('which headers are narrow: the 408 px tile and a 320 px card get three title lines, the 440 px card and the 546 px picture tile two (container query on the header content width)', () => {
-  const content = cardWidth => cardWidth - 2 - 32; // the 2 px border and the header's 32 px side padding
-  const narrow = cardWidth => content(cardWidth) <= lib.NARROW_CARD_PX - 35;
-  assert.deepEqual([320, 408, 440, 546].map(narrow), [true, true, false, false]);
 });

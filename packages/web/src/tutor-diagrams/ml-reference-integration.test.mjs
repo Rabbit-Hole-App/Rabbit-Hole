@@ -4,16 +4,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { diagramReferences, phase02LessonCoverage } from './reference-library.js';
 import { parseTutorDiagram, tutorDiagramSchema, tutorDiagramJsonSchema, tutorDiagramVisibleText, describeTutorDiagram } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
-import { usesTensorItems } from './illustration-kinds.js';
 
 test('the production schema, reference registry and renderer agree on every kind and all 21 lessons', () => {
   const kinds = (tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf).map(s => s.properties.kind.const);
-  assert.equal(kinds.length, 24);
+  assert.equal(kinds.length, 21);
   assert.equal(new Set(diagramReferences.map(r => r.id)).size, diagramReferences.length, 'unique stable reference IDs');
-  for (const kind of kinds) {
-    assert.ok(diagramReferences.some(({ spec: { diagram } }) => diagram.kind === kind
-      || (kind === 'tensor' && usesTensorItems(diagram))), `no author reference for ${kind}`);
-  }
+  for (const kind of kinds) assert.ok(diagramReferences.some(r => r.spec.diagram.kind === kind), `no author reference for ${kind}`);
   assert.equal(phase02LessonCoverage.length, 21);
   for (const row of phase02LessonCoverage) assert.ok(row.referenceIds.length, `lesson ${row.lesson} has no references`);
   // Providers receive a serializable, bounded, nonrecursive object schema.

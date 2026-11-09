@@ -11,7 +11,7 @@ import { STRINGS } from '../../web/src/roadmap-strings.js';
 import { BOARD, FAIL, FULL, GOOD, ID_B, INSTRUCTION, KEY, answer, calm, loop, planInput } from './roadmap-loop-fixture.js';
 
 async function toProposal(h) {
-  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'balanced', actionKey: KEY('create') });
+  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
   const id = created.body.roadmapId;
   const accepted = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: created.body.roadmap.revision, actionKey: KEY('plan'), planVersion: created.body.roadmap.planVersion });
   return { id, view: accepted.body, first: created.body };
@@ -125,7 +125,7 @@ const noGrounding = async role => { if (String(role).startsWith('roadmap_groundi
 test('CORE.06: an accepted learner revision is screened as the learner\'s own words; the same words quoted in the source are not personal risk', async t => {
   const seen = [];
   const h = await loop(t, { script: [GOOD], classifier: roleAware(seen) });
-  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'balanced', actionKey: KEY('create') });
+  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
   const revised = await h.json('POST', `/api/learn/roadmap/${created.body.roadmapId}/revise`, { boardId: BOARD, revision: created.body.roadmap.revision, actionKey: KEY('rev'), instruction: `${SIGN}. Keep it short.` });
   const plan = await h.json('POST', `/api/learn/roadmap/${created.body.roadmapId}/accept-plan`, { boardId: BOARD, revision: revised.body.roadmap.revision, actionKey: KEY('plan'), planVersion: revised.body.roadmap.planVersion });
   assert.equal(plan.status, 200, JSON.stringify(plan.body).slice(0, 400));

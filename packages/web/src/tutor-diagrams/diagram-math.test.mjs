@@ -102,10 +102,8 @@ test('the validator accepts maths in labels and counts a formula by what it show
   assert.equal(diagramProblem(body), null, 'the server delivers it');
 });
 
-test('the card\'s text alignment reads formulas once, including a caption with a native fallback', () => {
-  const spec = structuredClone(SOFTMAX);
-  spec.diagram.caption = 'Apply $x_p=e_p+PE_p$ to add the position.';
-  const { document } = parseHTML(`<!doctype html><html><body><div id="root">${markup(spec)}</div></body></html>`);
-  const words = tutorDiagramVisibleText(parseTutorDiagram(spec)).filter(Boolean).join(' ');
+test('the card\'s text alignment reads a typeset formula as the source written in the label', () => {
+  const { document } = parseHTML(`<!doctype html><html><body><div id="root">${markup(SOFTMAX)}</div></body></html>`);
+  const words = tutorDiagramVisibleText(parseTutorDiagram(SOFTMAX)).filter(Boolean).join(' ');
   assert.ok(alignField(document.getElementById('root'), words), 'the diagram island matches the canonical text');
 });

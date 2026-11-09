@@ -17,7 +17,7 @@ import { authorPicture, parseIllustration } from './learn-primitives.js';
 import { spendTransport } from './learn-spend.js';
 import { exclusiveOneOfToAnyOf } from './interact-model-adapters.js';
 import { chainSteps } from './explanation-models.js';
-import { NEW_KINDS, REFERENCE_MARK, bundledAuthorSchema, listForm } from './explanation-references.js';
+import { NEW_KINDS, REFERENCE_MARK, listForm } from './explanation-references.js';
 
 export const FALLBACK_SETTING = 'EXPLANATION_FALLBACK';
 export const STREAM_SETTING = 'EXPLANATION_STREAM';
@@ -36,7 +36,7 @@ export const CHAIN_ENDPOINTS = Object.freeze({
 });
 const TOOL = 'make_explanation';
 const ADDENDUM = `
-Answer format for this request (it replaces the tool call): reply with exactly one JSON object, the ${TOOL} input described above, matching the response schema. Use real line breaks between paragraphs, never the two characters backslash and n.`;
+Answer format for this request (it replaces the tool call): reply with exactly one JSON object, the ${TOOL} input described above, matching the response schema.`;
 
 const failure = (name, code, message, extra = {}) => Object.assign(new Error(message), { name, code, ...extra });
 export const providerBusy = () => failure('ProviderBusyError', 'provider_busy', 'The explanation model is busy right now, so nothing was added and no credits were used. Try again in a few seconds.', { retryable: true });
@@ -78,23 +78,6 @@ export const forGemini = (o, keep = new Set()) => {
   return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, forGemini(v, keep)]));
 };
 
-// The recorded Gemini request accepts up to 362 properties. Scoped
-// illustration bundles fit. If a broader schema exceeds that size, preserve
-// the legacy kinds and explicitly requested illustrations.
-const GEMINI_PROPERTY_LIMIT = 362;
-function schemaProperties(schema) {
-  if (!schema || typeof schema !== 'object') return 0;
-  return Object.keys(schema.properties ?? {}).length + Object.values(schema).reduce((count, child) => count + schemaProperties(child), 0);
-}
-function geminiRequestSchema(schema, keep) {
-  const reduced = forGemini(withoutBounds(schema), keep);
-  if (schemaProperties(reduced) <= GEMINI_PROPERTY_LIMIT) return reduced;
-  return bundledAuthorSchema(reduced, {
-    quant: true, fresh: true,
-    tensor: keep.has('tensor'), tokenLinks: keep.has('token-links'), blockStack: keep.has('block-stack'),
-  });
-}
-
 // Sampling (owner item 47, 2026-11-08): the author call is greedy, temperature 0, so the same request gives the same card. A fixed seed is sent only where the
 // provider documents it: Fireworks ("Random seed for deterministic sampling", https://docs.fireworks.ai/api-reference/post-chatcompletions) and Cerebras ("make a
 // best effort to sample deterministically", https://inference-docs.cerebras.ai/api-reference/chat-completions); Gemini's OpenAI-compatible page
@@ -109,9 +92,7 @@ const isRepair = body => body.messages.some(m => Array.isArray(m.content) && m.c
 export function assembledSystem(body, tool = body.tools?.find(t => t.name === TOOL)) {
   const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
   const at = system.indexOf(REFERENCE_MARK), head = at < 0 ? system : system.slice(0, at), refs = at < 0 ? '' : system.slice(at).trim();
-  // The tool description may end with its own "# Output format" part (the interaction guidance); the closing format line joins it under the same heading, after the references.
-  const [description, output] = String(tool?.description ?? '').split('\n\n# Output format\n');
-  return `${head}\n\n${description}${refs ? `\n\n${refs}` : ''}\n\n# Output format${output ? `\n${output}` : ''}${ADDENDUM}`;
+  return `${head}\n\n${tool?.description ?? ''}${refs ? `\n${refs}` : ''}\n${ADDENDUM}`;
 }
 export function stepRequest(step, effort, body, stream = false) {
   const tool = body.tools?.find(t => t.name === TOOL);
@@ -125,7 +106,7 @@ export function stepRequest(step, effort, body, stream = false) {
   const sampling = isRepair(body) ? { temperature: REPAIR_TEMPERATURE } : step.provider === 'google' ? {} : { temperature: AUTHOR_TEMPERATURE, ...(SEEDED.has(step.provider) ? { seed: AUTHOR_SEED } : {}) };
   return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort, ...sampling,
     messages: [{ role: 'system', content: system }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
-    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? geminiRequestSchema(schema, requiredKinds(body)) : schema } } };
+    response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? forGemini(withoutBounds(schema), requiredKinds(body)) : schema } } };
 }
 
 // OpenAI-shaped reply -> the Anthropic shape generateArtifact and spend settlement read. An unreadable answer is an empty input: the validator names what

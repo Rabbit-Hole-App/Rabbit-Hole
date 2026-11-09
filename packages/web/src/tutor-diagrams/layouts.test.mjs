@@ -2,9 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { sequenceBoundarySelfMessages, sequenceSelfMessage } from '../../scripts/batch-1-followup-fixtures.mjs';
 import { layouts } from './layouts.js';
-import { parseTutorDiagram } from './spec.js';
 
 const cases = {
   comparison: {
@@ -50,49 +48,6 @@ const cases = {
 function render(layout) {
   return renderToStaticMarkup(h('svg', { viewBox: `0 0 ${layout.width} ${layout.height}` }, ...layout.elements));
 }
-
-const coordinates = wire => wire.props.points.split(' ').map(point => point.split(',').map(Number));
-const sequenceArrows = layout => layout.elements.filter(element => element.type === 'g')
-  .map(element => coordinates(element.props.children[0]));
-
-test('a sequence self-message leaves and returns to the same lifeline between messages', () => {
-  const { diagram } = parseTutorDiagram(sequenceSelfMessage);
-  for (const width of [320, 408, 960]) {
-    const layout = layouts.sequence(diagram, width);
-    const wires = sequenceArrows(layout);
-    const [send, loop, reply] = wires;
-    assert.equal(wires.length, 3);
-    assert.equal(loop.length, 4);
-    assert.equal(loop[0][0], send.at(-1)[0]);
-    assert.equal(loop.at(-1)[0], reply[0][0]);
-    assert.ok(loop[1][0] < loop[0][0] && loop[1][0] > send[0][0]);
-    assert.ok(send[0][1] < loop[0][1] && loop[0][1] < loop.at(-1)[1] && loop.at(-1)[1] < reply[0][1]);
-    assert.match(render(layout).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' '), /Decrypt with private key/);
-  }
-});
-
-test('sequence boundary loops follow the headers and extend the last lifeline', () => {
-  const { diagram } = parseTutorDiagram(sequenceBoundarySelfMessages);
-  for (const width of [320, 408, 960]) {
-    const layout = layouts.sequence(diagram, width);
-    const arrows = sequenceArrows(layout);
-    assert.deepEqual(arrows.map(arrow => arrow.length), [4, 2, 4]);
-    const [leading, transfer, trailing] = arrows;
-    const [senderX, transferY] = transfer[0];
-    const [receiverX] = transfer[1];
-    const header = layout.elements.find(element => element.type === 'rect').props;
-    const receiverLifeline = layout.elements.filter(element => element.type === 'polyline')
-      .map(coordinates).find(points => points[0][0] === receiverX);
-    assert.deepEqual([leading[0][0], leading.at(-1)[0]], [senderX, senderX]);
-    assert.deepEqual([trailing[0][0], trailing.at(-1)[0]], [receiverX, receiverX]);
-    assert.ok(leading[0][1] > header.y + header.height);
-    assert.ok(leading.at(-1)[1] < transferY && transferY < trailing[0][1]);
-    assert.ok(receiverLifeline.at(-1)[1] > trailing.at(-1)[1]);
-    assert.ok(layout.height > receiverLifeline.at(-1)[1]);
-    const visible = render(layout).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-    assert.match(visible, /Encrypt with the receiver’s public key.*Send encrypted message.*Decrypt with private key/);
-  }
-});
 
 for (const [kind, { diagram, labels }] of Object.entries(cases)) {
   test(`${kind} keeps its content and valid bounds at narrow and wide widths`, () => {

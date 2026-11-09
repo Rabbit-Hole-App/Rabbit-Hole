@@ -3,19 +3,13 @@ import assert from 'node:assert/strict';
 import { MODEL_CHOICES } from './model-choices.js';
 import { ASK_MODELS } from '../../control-plane/src/learn-models.js';
 
-test('the picker offers the server allowlist keys but Opus 5 (chat runs on Gemini for now), each with a label and a hint, and no model ids', () => {
-  assert.deepEqual(MODEL_CHOICES.map(choice => choice.key), Object.keys(ASK_MODELS).filter(key => key !== 'opus-5'));
-  assert.equal(MODEL_CHOICES[0].hint, 'Gemini 3.5 Flash Lite');
+test('the picker offers exactly the server allowlist keys, each with a label and a hint, and no model ids', () => {
+  assert.deepEqual(MODEL_CHOICES.map(choice => choice.key), Object.keys(ASK_MODELS));
   for (const choice of MODEL_CHOICES) {
     assert.deepEqual(Object.keys(choice), ['key', 'label', 'hint']);
     assert.ok(choice.label && choice.hint, choice.key);
   }
   assert.equal(JSON.stringify(MODEL_CHOICES).includes('claude-'), false);
-});
-
-test('a saved pick the picker no longer offers (the old opus-5) reads as Auto; the others are kept', async () => {
-  const { savedModel } = await import('./model-choices.js');
-  assert.deepEqual(['opus-5', null, '', 'gpt-5', 'auto', 'sonnet-5', 'haiku-4.5'].map(savedModel), ['auto', 'auto', 'auto', 'auto', 'auto', 'sonnet-5', 'haiku-4.5']);
 });
 
 // models-5: where the model is chosen, the copy says it reaches chat answers only.

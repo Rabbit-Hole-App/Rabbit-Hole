@@ -22,11 +22,11 @@ import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
-import { MODEL_CHOICES, savedModel } from './model-choices.js';
+import { MODEL_CHOICES } from './model-choices.js';
 import { NO_REFS, canvasTargetField, tocAskProps } from './learn-ask-target.js';
 import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js';
 import CommandPill from './CommandPill.jsx';
@@ -78,7 +78,7 @@ const PRIVATE_SOURCE_OPTIONS = {
 };
 const SOURCE_ICON = { log: ScrollText, outputs: Package, runs: Play, requests: Globe, runbook: BookOpen, review: Shield, agent: FileText };
 // model rows carry a strength icon + one-word hint (Opus strongest, Haiku fastest)
-const MODEL_ICON = { auto: SlidersHorizontal, 'sonnet-5': Zap, 'haiku-4.5': Feather };
+const MODEL_ICON = { auto: SlidersHorizontal, 'opus-5': Crown, 'sonnet-5': Zap, 'haiku-4.5': Feather };
 const MODEL_META = Object.fromEntries(MODEL_CHOICES.map(({ key, hint }) => [key, [MODEL_ICON[key], hint]]));
 
 // Model picker keys → labels (server holds the allowlist; auto = default).
@@ -396,7 +396,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const [srcOn, setSrcOn] = useState(() => new Set(srcOpts.map(([k]) => k)));
   const [srcOpen, setSrcOpen] = useState(false);
   // Learn never shows a model: users choose intent, Rabbit Hole chooses the model (the server's auto routing).
-  const [model, setModel] = useState(() => privateChat || learnChat ? 'auto' : savedModel(localStorage.getItem('small.askModel'))); // Settings > Small AI sets the default
+  const [model, setModel] = useState(() => privateChat || learnChat ? 'auto' : localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
   const modelOptions = privateChat ? [['auto', 'Bedrock']] : MODELS;
   const [modelOpen, setModelOpen] = useState(false);
   const [appNames, setAppNames] = useState(null); // lazy, for @-mentions
@@ -790,7 +790,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
-        // R2: the learner's Depth for this canvas (Balanced sends nothing).
+        // R2: the learner's Depth for this canvas (Standard sends nothing).
         ...depthSnapshot,
         // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
         // An Edit target names its exact revision (edit: the server revises that one or refuses); otherwise the implicit latest live one.
@@ -906,7 +906,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             askedId(d.userMessageId != null ? String(d.userMessageId) : null);
             if (chatThread) { setMsgs(messages => withDone(messages, replyId, d)); chatThread.adopt(d.threadId, message.slice(0, 120)); }
             threadId.current = d.threadId;
-            if (lessonRequest) { const { instruction, source, scope } = lessonRequest; lessonRequest = null; roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'balanced', instruction, source: (lessonSources || []).find(s => s.key === source) || null, threadId: d.threadId, scope: scope && typeof scope === 'object' ? scope : null }); } // BE.01a: bound to the durable thread before it starts
+            if (lessonRequest) { const { instruction, source, scope } = lessonRequest; lessonRequest = null; roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'standard', instruction, source: (lessonSources || []).find(s => s.key === source) || null, threadId: d.threadId, scope: scope && typeof scope === 'object' ? scope : null }); } // BE.01a: bound to the durable thread before it starts
             if (panelAsk) { sheetThread.current = d.threadId; rememberSheetThread(appName, d.threadId); }
             if (repository && d.commit) setRepositoryCommit(d.commit);
             if (responseGraph && onGraph) onGraph(responseGraph);

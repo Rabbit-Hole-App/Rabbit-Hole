@@ -22,8 +22,9 @@ const observations = [[0, 1], [1, 2.2], [2, 4.8], [3, 7.2], [4, 9]];
 const fit = (title, values) => plot(title, fitX, fitY, [series('Observed samples', 'scatter', observations), series('Fitted prediction', 'line', values)]);
 const clusterX = axis('Feature 1', 0, 10), clusterY = axis('Feature 2', 0, 10);
 const clusterA = [[1, 1], [1, 2], [2, 1]], clusterB = [[7, 7], [7, 8], [8, 7]];
-const driftX = axis('Input $x$', 0, 5), driftY = axis('Target $y$', 0, 10);
+const driftX = axis('Input x', 0, 5), driftY = axis('Target y', 0, 10);
 const drift = (title, values) => plot(title, driftX, driftY, [series('Observed samples', 'scatter', values)]);
+const bars = (title, a, b) => ({ kind: 'bar-chart', title, unit: 'samples', bars: [{ label: 'Class 0', value: a }, { label: 'Class 1', value: b }] });
 const boostingX = axis('Sample position', 0, 4), boostingY = axis('Target or prediction', 0, 4);
 const targets = [[1, 1, 'a', 'A'], [2, 2, 'b', 'B'], [3, 3, 'c', 'C']];
 
@@ -31,7 +32,7 @@ export const references = [
   {
     id: 'ml-fit-quality-comparison', lessons: ['02', '10'],
     prompts: ['Compare underfitting, a reasonable fit, and overfitting on the same observations.'],
-    keywords: ['underfitting', 'overfitting', 'overfit', 'overfitted', 'what is overfitting', "what's overfitting", 'memorizes the training data', 'fits the noise', 'fit comparison', 'bias variance', 'polynomial fit'],
+    keywords: ['underfitting', 'overfitting', 'fit comparison', 'bias variance', 'polynomial fit'],
     useWhen: 'Compare fitted functions using the same observed data and exactly shared coordinate axes.',
     spec: panels('Fit quality on the same observations', [
       ['Underfit', fit('A constant misses the trend', [[0, 4.84], [4, 4.84]])],
@@ -44,9 +45,9 @@ export const references = [
     prompts: ['Show feature scaling while preserving each sample identity.'],
     keywords: ['feature scaling', 'standardization', 'standardisation', 'scaling knn', 'normalize features', 'batch normalization', 'batch normalisation', 'batch norm', 'batchnorm'],
     useWhen: 'Show exact before-and-after coordinates for a stated centering and scaling operation, keeping point IDs.',
-    spec: transform('Center and scale two features', String.raw`$x' = \frac{x-150}{50}$ and $y' = \frac{y-20}{10}$`,
-      plot('Original feature values', axis('Feature $x$', 80, 220), axis('Feature $y$', 0, 50), [series('Samples', 'scatter', [[100, 10, 'a', 'A'], [150, 20, 'b', 'B'], [200, 40, 'c', 'C']])]),
-      plot('Centered and scaled values', axis("Scaled feature $x'$", -2, 2), axis("Scaled feature $y'$", -2, 3), [series('Samples', 'scatter', [[-1, -1, 'a', 'A'], [0, 0, 'b', 'B'], [1, 2, 'c', 'C']])]),
+    spec: transform('Center and scale two features', 'x′ = (x − 150) / 50; y′ = (y − 20) / 10',
+      plot('Original feature values', axis('Feature x', 80, 220), axis('Feature y', 0, 50), [series('Samples', 'scatter', [[100, 10, 'a', 'A'], [150, 20, 'b', 'B'], [200, 40, 'c', 'C']])]),
+      plot('Centered and scaled values', axis('Scaled feature x', -2, 2), axis('Scaled feature y', -2, 3), [series('Samples', 'scatter', [[-1, -1, 'a', 'A'], [0, 0, 'b', 'B'], [1, 2, 'c', 'C']])]),
       { mode: 'preserved', note: 'A, B and C retain their sample IDs; only feature coordinates change.' },
       'The stated centers and scales are fixed teaching values, not estimates fitted from these three samples.'),
   },
@@ -65,22 +66,19 @@ export const references = [
     prompts: ['Show covariate drift where inputs shift while the target rule stays fixed.'],
     keywords: ['covariate drift', 'covariate shift', 'input distribution drift', 'three drift types'],
     useWhen: 'Contrast shifted input samples under an unchanged conditional target rule.',
-    spec: { version: 1, diagram: plot('Covariate drift: inputs shift', driftX, driftY, [
-      series('Reference window', 'scatter', [[1, 2], [1.5, 3], [2, 4]]),
-      series('Current window', 'scatter', [[2.5, 5], [3, 6], [3.5, 7]]),
-    ], 'Input values shift while the same illustrative conditional rule $y = 2x$ remains in force.') },
+    spec: panels('Covariate drift: inputs shift', [
+      ['Reference window', drift('Earlier input values', [[1, 2], [1.5, 3], [2, 4]])],
+      ['Current window', drift('Later input values', [[2.5, 5], [3, 6], [3.5, 7]])],
+    ], 'Input values shift while the same illustrative conditional rule y = 2x remains in force.', ['x', 'y']),
   },
   {
     id: 'ml-label-prior-drift-comparison', lessons: ['17', '20'],
     prompts: ['Show label-prior shift as a change in class prevalence.'],
     keywords: ['label shift', 'prior shift', 'class prevalence drift', 'three drift types'],
     useWhen: 'Compare class prevalence in equally sized windows; do not infer a changed conditional relationship from counts alone.',
-    spec: { version: 1, diagram: {
-      kind: 'bar-chart', variant: 'grouped', title: 'Label-prior shift: class balance changes', unit: 'samples',
-      categories: ['Class 0', 'Class 1'],
-      series: [{ label: 'Reference window', values: [7, 3] }, { label: 'Current window', values: [3, 7] }],
-      caption: 'Each window contains 10 samples. Label shift assumes the within-class feature distributions remain unchanged.',
-    } },
+    spec: panels('Label-prior shift: class balance changes', [
+      ['Reference window', bars('Class counts before', 7, 3)], ['Current window', bars('Class counts after', 3, 7)],
+    ], 'Each window contains 10 samples. Label shift assumes the within-class feature distributions remain unchanged.'),
   },
   {
     id: 'ml-concept-drift-comparison', lessons: ['20'],
@@ -88,8 +86,8 @@ export const references = [
     keywords: ['concept drift', 'conditional drift', 'target relationship changes', 'three drift types'],
     useWhen: 'Hold inputs fixed and show a changed conditional target relationship on the same axes.',
     spec: panels('Concept drift: the target rule changes', [
-      ['Reference window', drift('Targets follow $y = 2x$', [[1, 2], [2, 4], [3, 6]])],
-      ['Current window', drift('Targets follow $y = 8 - 2x$', [[1, 6], [2, 4], [3, 2]])],
+      ['Reference window', drift('Targets follow y = 2x', [[1, 2], [2, 4], [3, 6]])],
+      ['Current window', drift('Targets follow y = 8 − 2x', [[1, 6], [2, 4], [3, 2]])],
     ], 'The input values stay fixed; the illustrative relationship between input and target changes.', ['x', 'y']),
   },
   {
@@ -118,9 +116,9 @@ export const references = [
     prompts: ['Show one boosting update that adds a residual correction to current predictions.'],
     keywords: ['boosting residuals', 'residual correction', 'gradient boosting update', 'additive ensemble'],
     useWhen: 'Show a fixed additive prediction update on the same sample identities, with a stated learning rate.',
-    spec: transform('One residual correction step', 'Update predictions with $F_1 = F_0 + 0.5r$',
-      plot('Current predictions', boostingX, boostingY, [series('Targets', 'scatter', targets), series('Prediction $F_0$', 'line', [[1, 2, 'a'], [2, 2, 'b'], [3, 2, 'c']])]),
-      plot('Updated predictions', boostingX, boostingY, [series('Targets', 'scatter', targets), series('Prediction $F_1$', 'line', [[1, 1.5, 'a'], [2, 2, 'b'], [3, 2.5, 'c']])]),
+    spec: transform('One residual correction step', 'Add half the residual correction: F₁ = F₀ + 0.5r',
+      plot('Current predictions', boostingX, boostingY, [series('Targets', 'scatter', targets), series('Prediction F₀', 'line', [[1, 2, 'a'], [2, 2, 'b'], [3, 2, 'c']])]),
+      plot('Updated predictions', boostingX, boostingY, [series('Targets', 'scatter', targets), series('Prediction F₁', 'line', [[1, 1.5, 'a'], [2, 2, 'b'], [3, 2.5, 'c']])]),
       { mode: 'preserved', note: 'Samples A, B and C keep their targets and IDs. Residuals −1, 0 and 1 yield updates −0.5, 0 and 0.5.' },
       'This fixed example uses an exact residual correction to illustrate the additive update; no model training is performed.'),
   },
@@ -129,13 +127,13 @@ export const references = [
     prompts: ['Show first differencing and map each difference to its two source observations.'],
     keywords: ['first difference', 'time series differencing', 'stationarity transform', 'difference snapshots'],
     useWhen: 'Show exact consecutive differences and explicit many-to-one correspondence to source observation IDs.',
-    spec: transform('First-difference a short time series', String.raw`Subtract the previous observation to get $\Delta y_t = y_t - y_{t-1}$`,
-      plot('Original observations', axis('Time', 1, 4), axis('Observed value', 0, 20), [series('$y$', 'line', [[1, 10, 't1', 't1'], [2, 13, 't2', 't2'], [3, 15, 't3', 't3'], [4, 19, 't4', 't4']])]),
-      plot('Consecutive differences', axis('Time', 1, 4), axis('Difference', 0, 5), [series(String.raw`$\Delta y$`, 'line', [[2, 3, 'd2', 'd2'], [3, 2, 'd3', 'd3'], [4, 4, 'd4', 'd4']])]),
+    spec: transform('First-difference a short time series', 'Subtract the previous observation: Δyₜ = yₜ − yₜ₋₁',
+      plot('Original observations', axis('Time', 1, 4), axis('Observed value', 0, 20), [series('y', 'line', [[1, 10, 't1', 't1'], [2, 13, 't2', 't2'], [3, 15, 't3', 't3'], [4, 19, 't4', 't4']])]),
+      plot('Consecutive differences', axis('Time', 1, 4), axis('Difference', 0, 5), [series('Δy', 'line', [[2, 3, 'd2', 'd2'], [3, 2, 'd3', 'd3'], [4, 4, 'd4', 'd4']])]),
       { mode: 'mapped', note: 'Each output uses the current and previous observation. The first observation has no earlier value.', mappings: [
-        { from: 't1', to: 'd2', note: 'Subtract 10' }, { from: 't2', to: 'd2', note: '$13 - 10 = 3$' },
-        { from: 't2', to: 'd3', note: 'Subtract 13' }, { from: 't3', to: 'd3', note: '$15 - 13 = 2$' },
-        { from: 't3', to: 'd4', note: 'Subtract 15' }, { from: 't4', to: 'd4', note: '$19 - 15 = 4$' },
+        { from: 't1', to: 'd2', note: 'Subtract 10' }, { from: 't2', to: 'd2', note: '13 − 10 = 3' },
+        { from: 't2', to: 'd3', note: 'Subtract 13' }, { from: 't3', to: 'd3', note: '15 − 13 = 2' },
+        { from: 't3', to: 'd4', note: 'Subtract 15' }, { from: 't4', to: 'd4', note: '19 − 15 = 4' },
       ] }),
   },
 ];

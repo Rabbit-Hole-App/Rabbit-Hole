@@ -1,12 +1,11 @@
 import { subscriptionTransport } from './subscription-transport.js';
-import { anthropicStreamFromOpenAI } from './gemini-stream.js';
 import { platformCaps, spendEnforced, spendTransport, spendMessage } from './learn-spend.js';
 import { refusalBody } from './learn-spend-ledger.js';
 import { usageRefusal } from './learn-usage.js';
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
 import { base64 } from './token.js';
-import { MODEL, ASK_MODELS, CHAT_GEMINI, CHAT_GEMINI_URL, CHAT_REASONING, chatModel, autoModel, planUsesOpenAI, loggedModel, notConfiguredReply } from './learn-models.js';
+import { MODEL, autoModel, planUsesOpenAI, loggedModel, notConfiguredReply } from './learn-models.js';
 import { streamedMessage } from './anthropic-stream.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
@@ -213,14 +212,14 @@ function sseFromMessage(msg) {
 // the OpenAI API) power chat, search, review and the agents.
 export function toOpenAI(body, modelId) {
   const msgs = [];
-  if (body.system) msgs.push({ role: 'system', content: Array.isArray(body.system) ? body.system.map(b => (typeof b === 'string' ? b : b.text || '')).join('\n') : String(body.system) });
+  if (body.system) msgs.push({ role: 'system', content: String(body.system) });
   for (const m of body.messages || []) {
     if (typeof m.content === 'string') { msgs.push({ role: m.role, content: m.content }); continue; }
     const blocks = m.content || [];
     if (m.role === 'assistant') {
       const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('');
       const tool_calls = blocks.filter((b) => b.type === 'tool_use')
-        .map((b) => ({ id: b.id, type: 'function', function: { name: b.name, arguments: JSON.stringify(b.input || {}) }, ...(b.extra_content ? { extra_content: b.extra_content } : {}) })); // Gemini 3 thought signatures ride back here
+        .map((b) => ({ id: b.id, type: 'function', function: { name: b.name, arguments: JSON.stringify(b.input || {}) } }));
       msgs.push({ role: 'assistant', content: text || null, ...(tool_calls.length ? { tool_calls } : {}) });
       continue;
     }
@@ -243,7 +242,7 @@ export function toOpenAI(body, modelId) {
     // model is free to answer in prose and the caller sees no tool call.
     ...(body.tool_choice ? {
       tool_choice: body.tool_choice.type === 'tool' ? { type: 'function', function: { name: body.tool_choice.name } }
-        : body.tool_choice.type === 'any' ? 'required' : body.tool_choice.type === 'none' ? 'none' : 'auto', // the research loop's last step must not call a tool
+        : body.tool_choice.type === 'any' ? 'required' : 'auto',
       ...(body.tool_choice.disable_parallel_tool_use ? { parallel_tool_calls: false } : {}),
     } : {}),
   };
@@ -256,7 +255,7 @@ export function fromOpenAI(j) {
   for (const tc of m.tool_calls || []) {
     let input = {};
     try { input = JSON.parse(tc.function?.arguments || '{}'); } catch { /* a local model's malformed args become {} */ }
-    content.push({ type: 'tool_use', id: tc.id || `t_${crypto.randomUUID().slice(0, 8)}`, name: tc.function?.name, input, ...(tc.extra_content ? { extra_content: tc.extra_content } : {}) });
+    content.push({ type: 'tool_use', id: tc.id || `t_${crypto.randomUUID().slice(0, 8)}`, name: tc.function?.name, input });
   }
   return {
     model: j.model,
@@ -286,33 +285,6 @@ export async function planModel(env, body, model, org) {
   return Response.json(fromOpenAI(await response.json()));
 }
 
-// One chat call on Gemini 3.5 Flash Lite through its OpenAI-compatible endpoint (owner 2026-11-08). A stream:true request is streamed token by token (gemini-stream.js); when the stream cannot be established
-// (an error status, no event stream, a network error) it falls back to one whole call replayed as SSE (C.1).
-// Admission and settlement are the explanation chain's: provider 'google', its price row, Anthropic-shaped usage (output = the larger of completion and total - prompt, as thinking
-// may sit outside completion_tokens). No Opus fallback: a Gemini error is returned as it is and askStream shows its usual one-line error.
-async function geminiChat(env, body, org) {
-  if (!env.GEMINI_API_KEY) return notConfiguredReply();
-  const { stream, ...rest } = body, request = { ...toOpenAI(rest, CHAT_GEMINI), reasoning_effort: CHAT_REASONING };
-  const post = payload => fetch(CHAT_GEMINI_URL, { method: 'POST', headers: { Authorization: `Bearer ${env.GEMINI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  return spendTransport(env, body, CHAT_GEMINI, org, async () => {
-    if (stream) {
-      const live = await post({ ...request, stream: true, stream_options: { include_usage: true } }).catch(() => null);
-      if (live?.ok && live.body && live.headers.get('content-type')?.includes('text/event-stream')) return new Response(anthropicStreamFromOpenAI(live.body, CHAT_GEMINI), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
-    }
-    const sent = await post(request);
-    if (!sent.ok) {
-      const text = await sent.text().catch(() => '');
-      console.warn('gemini API error', sent.status, text.slice(0, 300), JSON.stringify({ model: CHAT_GEMINI, tools: (body.tools || []).map(t => t.name) }));
-      // Gemini's OpenAI endpoint answers an error as [{ error }]; the callers read { error }, so the reason shows (learn-research.js modelFailure)
-      let payload = null; try { payload = JSON.parse(text); } catch { /* not JSON */ }
-      return new Response(Array.isArray(payload) ? JSON.stringify(payload[0] ?? {}) : text, { status: sent.status, headers: { 'Content-Type': 'application/json' } });
-    }
-    const json = await sent.json(), u = json.usage || {};
-    const msg = { ...fromOpenAI(json), model: CHAT_GEMINI, usage: { input_tokens: u.prompt_tokens, output_tokens: Math.max(u.completion_tokens ?? 0, (u.total_tokens ?? 0) - (u.prompt_tokens ?? 0)) } };
-    return stream ? sseFromMessage(msg) : Response.json(msg);
-  }, { provider: 'google' });
-}
-
 // One chokepoint for every model call. Default: the platform's Anthropic key.
 // bedrock = the org's AWS pays; openai = any OpenAI-compatible endpoint (a
 // local LLM behind a tunnel, vLLM, a gateway). Non-Anthropic providers run
@@ -324,16 +296,10 @@ export async function anthropic(env, body, model, org) {
     return Response.json({ error: spendMessage('cap_unset'), code: 'spend_limited', reason: 'cap_unset' }, { status: 429 });
   }
   if (env.SUBSCRIPTION_ONLY === 'true') {
-    const response = await subscriptionTransport(env, body, model === CHAT_GEMINI ? MODEL : model || MODEL); // the bridge never leaves for Gemini
+    const response = await subscriptionTransport(env, body, model || MODEL);
     return body.stream ? sseFromMessage(await response.json()) : response;
   }
   const ai = await aiSettings(env, org);
-  // Chat on Gemini (learn-models.js chatModel): an org with its own provider keeps it. This path sends text and images only, so a call carrying a PDF (a chat attachment, or a paper
-  // the research tool read) is served by Sonnet 5, which reads PDFs.
-  if (model === CHAT_GEMINI && !ai?.provider) {
-    if (!JSON.stringify(body).includes('"type":"document"')) return geminiChat(env, body, org);
-    model = ASK_MODELS['sonnet-5'];
-  }
   // Unknown provider pricing fails closed; do not switch providers to manufacture a price.
   const provider = ai?.provider === 'bedrock' ? 'bedrock' : ai?.provider === 'openai'
     ? (ai.openai_base_url?.replace(/\/+$/, '') === 'https://api.openai.com/v1' ? 'openai' : 'unpriced') : 'anthropic';
@@ -427,7 +393,6 @@ export async function askOnce(env, context, question, maxTokens = 300, org = nul
 // split off there), and a stream that breaks after the answer exists (the client
 // stopped) calls onDone(full, true) once, best effort.
 export function askStream(env, context, history, message, onDone, meta = {}, extraBlocks = [], toolOpts = null, model = null, org = null, system = ASK_SYSTEM, research = null) {
-  model = chatModel(env, model); // every chat answer: Gemini unless a Sonnet or Haiku pick, or CHAT_MODEL_PROFILE=anthropic
   const turns = [
     ...history.map((m) => ({ role: m.role, content: m.content })),
     {

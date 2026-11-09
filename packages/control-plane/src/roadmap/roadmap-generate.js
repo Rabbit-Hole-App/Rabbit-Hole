@@ -12,7 +12,6 @@ import { explanationProfileBinding, resolveExplanationProfile } from '../explana
 import { roadmapCardSuffix } from '../agents/roadmap-card.js';
 import { deriveVisualRequirements, requirementText } from '../explanation-visuals.js';
 import { ROADMAP_LIMITS } from './roadmap-policy.js';
-import { depthOf } from '../chat-depth.js';
 import { ROADMAP_FORMATS } from './roadmap-tools.js';
 import { figuresBoundMicros } from '../explanation-figures.js';
 import { validateAccess } from './roadmap-contract.js';
@@ -51,7 +50,7 @@ export function authorInput(rec, limits = ROADMAP_LIMITS) {
   const visuals = rec.format === 'explanation' ? (rec.visualRequirements ?? deriveVisualRequirements(requirementText({ original: said?.original, revisions: said?.revisions }))) : null;
   if (visuals?.unsupported) return { failed: fail('unsupported_capability', 'required_visual_unsupported', { error: visuals.unsupported }) };
   // CORE.09: the frozen Depth rides as the request's Depth, so the roadmap gets the same Explanation target and budget as a direct question.
-  return { input: { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && depthOf(rec.depth) !== 'balanced' ? { depth: depthOf(rec.depth) } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
+  return { input: { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && rec.depth !== 'standard' ? { depth: rec.depth } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
     options: { only: [rec.format], systemSuffix: roadmapCardSuffix(rec), repairs: 0, title: rec.stepTitle } };
 }
 

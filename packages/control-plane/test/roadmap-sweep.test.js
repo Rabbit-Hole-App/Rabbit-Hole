@@ -13,7 +13,7 @@ const DEADLINE = ROADMAP_LIMITS.retention.deliveryDeadlineHours * 3600;
 // A generated, checked, undelivered card, accepted at `at` (the result row's created_at).
 async function undelivered(t, at = Math.floor(Date.now() / 1000)) {
   const h = await loop(t);
-  const made = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'balanced', actionKey: KEY('create') });
+  const made = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
   const id = made.body.roadmapId;
   const plan = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: made.body.roadmap.revision, actionKey: KEY('plan'), planVersion: 1 });
   const proposed = plan; // accepting the plan offers the first proposal

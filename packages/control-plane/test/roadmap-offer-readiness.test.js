@@ -12,8 +12,8 @@ test('offFormats reads the runtime switch: unset is none, commas and spaces both
 });
 
 test('a usable planned format is ready and carries the format, settings and source revision it was confirmed against', () => {
-  const ready = checkOffer({ step: step('table'), depth: 'detailed', sourceRevision: 'rev-1' });
-  assert.deepEqual(ready, { ready: true, format: 'table', settings: { depth: 'detailed' }, sourceRevision: 'rev-1' });
+  const ready = checkOffer({ step: step('table'), depth: 'deep', sourceRevision: 'rev-1' });
+  assert.deepEqual(ready, { ready: true, format: 'table', settings: { depth: 'deep' }, sourceRevision: 'rev-1' });
 });
 
 test('an unusable table step falls back to an explanation card only when the learner did not require a table', () => {

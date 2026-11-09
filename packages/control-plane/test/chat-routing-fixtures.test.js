@@ -58,7 +58,7 @@ function askFixture(setup) {
   sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention')");
   const calls = [], replies = [], fetched = [];
   const env = {
-    SMALL_ENV: 'test', CHAT_MODEL_PROFILE: 'anthropic', ANTHROPIC_API_KEY: 'test-only', ...S.availabilityEnv(setup), MOTION_ESTIMATE_USD: '1.00', MOTION_MAX_CHARGE_USD: '3.50', MOTION_JOB_RESERVATION_USD: '8.96',
+    SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-only', ...S.availabilityEnv(setup), MOTION_ESTIMATE_USD: '1.00', MOTION_MAX_CHARGE_USD: '3.50', MOTION_JOB_RESERVATION_USD: '8.96',
     DB: { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); } },
     LEARN_MEDIA: { put: async () => {}, get: async () => null, delete: async () => {} },
     LEARN_DB: { batch: async statements => Promise.all(statements.map(s => s.run())), prepare: sql => { const statement = sqlite.prepare(sql); return { bind: (...params) => ({

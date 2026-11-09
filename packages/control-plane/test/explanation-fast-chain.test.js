@@ -8,7 +8,6 @@ import { readFileSync } from 'node:fs';
 import { EXPLANATION_PROFILE_SETTING, EXPLANATION_REGISTRY, explanationProfileBinding, explanationProfileFor, resolveExplanationProfile } from '../src/explanation-models.js';
 import { CHAIN_ENDPOINTS, FALLBACK_SETTING, forGemini, stepRequest, withoutBounds } from '../src/explanation-fast-chain.js';
 import { ARTIFACT_SYSTEM, generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
-import { explanationSystem } from '../src/agents/learn-artifact.js';
 import { CORE_KINDS } from '../src/explanation-references.js';
 import { MATH_FORMAT } from '../src/agents/math-format.js';
 import { EXPLANATION_GUIDANCE, artifactBlock, explanationProblem, settleExplanationBody } from '../src/learn-primitives.js';
@@ -119,7 +118,7 @@ test('credentials: a chain with no step credential is refused before anything is
 
 test('the request: provider endpoint and key, model, reasoning_effort, strict json_schema of the make_explanation input, and the same guidance, request, Depth and required visuals', async t => {
   const sent = providers(t, ok(card));
-  const input = { depth: 'detailed', visualRequirements: { items: [{ id: 'v1', kind: 'diagram', diagramKind: 'flow', purpose: 'show the cooling' }] } };
+  const input = { depth: 'deep', visualRequirements: { items: [{ id: 'v1', kind: 'diagram', diagramKind: 'flow', purpose: 'show the cooling' }] } };
   await generateArtifact(offline('fireworks-high'), { command: 'explanation', args: 'Draw a diagram of why coffee cools', ...input }, { repairs: 0 }).catch(() => null); // validity is not under test here
   const [{ provider, init, body }] = sent;
   assert.equal(provider, 'fireworks');
@@ -133,10 +132,10 @@ test('the request: provider endpoint and key, model, reasoning_effort, strict js
   assert.ok(!JSON.stringify(schema).includes('"oneOf"'), 'every exclusive oneOf (the visual kinds, the diagram kinds) is sent as anyOf');
   assert.deepEqual(schema.properties.visuals.items.anyOf.map(b => b.properties.k.const), ['diagram', 'picture']);
   const [system, user] = body.messages;
-  for (const text of [EXPLANATION_GUIDANCE, explanationTarget('detailed')]) assert.ok(system.content.includes(text), 'the tool description is sent verbatim');
+  for (const text of [EXPLANATION_GUIDANCE, explanationTarget('deep')]) assert.ok(system.content.includes(text), 'the tool description is sent verbatim');
   assert.ok(!system.content.includes(INTERACTION_GUIDANCE), 'interactions off: no interaction guidance');
   const asked = JSON.parse(user.content);
-  assert.deepEqual([asked.learnerText, asked.depth, asked.requiredVisuals[0].id], ['Draw a diagram of why coffee cools', 'detailed', 'v1']);
+  assert.deepEqual([asked.learnerText, asked.depth, asked.requiredVisuals[0].id], ['Draw a diagram of why coffee cools', 'deep', 'v1']);
   assert.ok(!('tools' in body) && !('tool_choice' in body), 'json_schema mode, no tool call');
   // Interactions on: the guidance and the questions/terms fields ride in the same one call; a Cerebras profile sends to Cerebras with its key.
   const on = providers(t, ok(card));
@@ -149,7 +148,7 @@ test('the request: provider endpoint and key, model, reasoning_effort, strict js
 // Owner 2026-11-08 (A1-A3): "\frac" in a plain JS string was a form feed, so the model read "$rac{a}{b}$"; the json_schema chain has no tools, so it gets no
 // tool paragraph and no line asking for fences in the body. Built offline as it would be sent; nothing is sent.
 test('the system prompt as sent: LaTeX spelled out, no control character but newline, no tool paragraph on the fast chain, the tool paragraph kept on the tool route', () => {
-  const args = { command: 'explanation', args: 'Why does the sky look blue?' }; // an unmatched question: the attention question selects a reference, and the tool route is then not ARTIFACT_SYSTEM alone
+  const args = { command: 'explanation', args: 'How does attention work in a transformer?' };
   const fast = prepareArtifactAuthorRequest(offline('fireworks-low', { [INTERACTIONS_SETTING]: 'true' }), args);
   const sent = stepRequest({ provider: 'fireworks', model: FW }, 'low', fast.body).messages[0].content;
   const tools = prepareArtifactAuthorRequest({}, args).body;
@@ -167,7 +166,7 @@ test('the system prompt as sent: LaTeX spelled out, no control character but new
   assert.ok(sent.includes('reply with exactly one JSON object, the make_explanation input described above, matching the response schema.'));
   const google = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', fast.body).messages[0].content;
   assert.equal(google, sent, 'the Gemini step sends the same system text');
-  assert.equal(tools.system, explanationSystem('tools'), 'the tool route: the Explanation system head (no maths or number rule: they sit in the tool description)');
+  assert.equal(tools.system, ARTIFACT_SYSTEM, 'the tool route is unchanged');
 });
 
 test('an exclusive oneOf is sent as anyOf; a non-exclusive one is refused, not weakened; text documents are inlined, images and PDFs refused', () => {
@@ -220,20 +219,16 @@ test('the Gemini step request: array and numeric bounds dropped from its schema 
   // The largest bundle (every flag) is the whole schema: refused by Gemini without forGemini, accepted with it.
   const full = prepareArtifactAuthorRequest({ SMALL_ENV: 'test' }, { command: 'explanation', args: 'x' }).body.tools.find(t => t.name === 'make_explanation').input_schema;
   const whole = stepRequest({ provider: 'fireworks', model: FW }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }], messages: [{ role: 'user', content: '{}' }] });
-  assert.equal(kindsOf(whole).length, 24);
+  assert.equal(kindsOf(whole).length, 21);
   assert.ok(geminiRefuses({ ...gemini, response_format: withoutBounds(whole.response_format) }), 'the whole Phase 02 schema without bounds is the one Gemini refused');
   const plain = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }], messages: [{ role: 'user', content: '{}' }] });
-  assert.equal(kindsOf(plain).length, 17, 'the unsteered full schema reduces to the legacy Gemini bundle');
+  assert.equal(kindsOf(plain).length, 17, 'every kind but the four new ones');
   assert.ok(!JSON.stringify(plain.response_format).includes('"panels"') && diagramOf(plain).anyOf.find(b => b.properties.kind.const === 'tree').properties.highlightPath && !geminiRefuses(plain));
   // A request that names a new kind keeps it, list forms still.
   const named = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }],
     messages: [{ role: 'user', content: JSON.stringify({ request: 'x', requiredVisuals: [{ id: 'vr-1', kind: 'diagram', diagramKind: 'heatmap', purpose: 'x' }] }) }] });
   assert.deepEqual(kindsOf(named).filter(k => !kindsOf(plain).includes(k)), ['heatmap']);
   assert.ok(!geminiRefuses(named));
-  const stacks = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }],
-    messages: [{ role: 'user', content: JSON.stringify({ request: 'x', requiredVisuals: [{ id: 'vr-1', kind: 'diagram', diagramKind: 'block-stack', purpose: 'x' }] }) }] });
-  assert.deepEqual(kindsOf(stacks).filter(k => !kindsOf(plain).includes(k)), ['block-stack']);
-  assert.ok(!geminiRefuses(stacks));
   // A property NAMED like a bound is a field, not a keyword: it is kept.
   assert.deepEqual(withoutBounds({ type: 'object', properties: { maxItems: { type: 'number', maximum: 3 } }, minItems: 1 }), { type: 'object', properties: { maxItems: { type: 'number' } } });
 });
@@ -257,28 +252,6 @@ test('the fallback path end to end: Fireworks fails, the Gemini step request pas
   assert.deepEqual(out.block.title, card.title);
   // 1,000 input at $0.30/M + 2,000 output at $2.50/M = $0.0053, from the provider's own counts.
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.status, a.cost_micros]), [['fireworks', 'failed', null], ['google', 'settled', 5300]], 'the failed Fireworks call settles with no cost recorded, as any 5xx');
-});
-
-test('Gemini retains compact samples for the regression demo and fits a mixed explicit schema without them', () => {
-  const env = offline('fireworks-low');
-  const request = (args, kinds = []) => {
-    const { body } = prepareArtifactAuthorRequest(env, {
-      command: 'explanation', args,
-      visualRequirements: { items: kinds.map((diagramKind, index) => ({
-        id: `vr-${index + 1}`, kind: 'diagram', diagramKind, purpose: `Show the ${diagramKind}`,
-      })) },
-    });
-    return stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', body);
-  };
-  const plotSeries = sent => diagramOf(sent).anyOf.find(branch => branch.properties.kind.const === 'coordinate-plot').properties.series.items;
-  const mixed = request('Show the numeric summaries and their assembly', ['coordinate-plot', 'heatmap', 'block-stack']);
-  assert.ok(plotSeries(mixed).required.includes('points'));
-  assert.equal(plotSeries(mixed).properties.samples, undefined);
-  assert.equal(geminiRefuses(mixed), false);
-
-  const demo = request('how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?');
-  assert.ok(plotSeries(demo).properties.samples);
-  assert.equal(geminiRefuses(demo), false);
 });
 
 test('end to end on the real ledger: the card records who wrote it, and the call is reserved and settled at that provider\'s price', async t => {

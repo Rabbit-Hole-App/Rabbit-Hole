@@ -144,7 +144,7 @@ export const references = [
     matrix('TF-IDF: exact weights before normalization', ['red', 'blue', 'fox'], [
       row('d1', 'red red fox', ['$2 \\ln 2$', '0', '0']), row('d2', 'blue fox', ['0', '$\\ln 2$', '0']),
       row('df', 'Document frequency', ['1', '1', '2']),
-    ], { emphasis: { columns: [2] }, caption: String.raw`TF is the raw count. Use $\mathrm{IDF}=\ln(2/\mathrm{df})$ without smoothing or normalization. Fox is in both documents, so $\ln 1=0$.` })),
+    ], { emphasis: { columns: [2] }, caption: 'Here TF=count, $IDF=\\ln(2/df)$, with no smoothing or normalization. Fox appears in both documents, so its IDF is $\\ln 1=0$.' })),
 
   reference('bayes-class-token-counts', ['14'],
     ['How does multinomial naive Bayes estimate class-conditional token probabilities?'],

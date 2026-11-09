@@ -167,7 +167,7 @@ export function describeChange(change) {
 // Annotation placement (§9, A7): beside the target, in free space, inside what the learner can see when possible; never
 // moving anything. obstacles: the boxes of everything else on the canvas (obstaclesOf). The one placer for every result
 // the editor adds: a note, a card, their connector.
-export const GAP = 40, PAD = 12, STEP = 28;
+const GAP = 40, PAD = 12, STEP = 28;
 const overlaps = (a, b) => a.x < b.x + b.w + PAD && a.x + a.w + PAD > b.x && a.y < b.y + b.h + PAD && a.y + a.h + PAD > b.y;
 export const inside = (a, v) => a.x >= v.x && a.y >= v.y && a.x + a.w <= v.x + v.w && a.y + a.h <= v.y + v.h;
 // A spot is free when it keeps clear of every obstacle and the target (with PAD all round).

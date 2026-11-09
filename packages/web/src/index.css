@@ -1091,5 +1091,3 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 [data-explain-table] td { min-width: 5.5rem; padding: 8px 12px; text-align: left; vertical-align: top; overflow-wrap: break-word; border-bottom: 1px solid var(--color-line); }
 [data-explain-table] th { font-weight: 600; background: color-mix(in srgb, #a8bbd0 24%, var(--viz-surface)); }
 [data-explain-table] tbody tr:last-child td { border-bottom: 0; }
-/* The minimized Explanation tile (LearningBlocks ExplanationTile): its one visual is drawn at its full size, as in the card (explanation-card-width.js sets the tile's width from it); only the picture's own margin is dropped. */
-[data-explanation-tile] [data-illustration] { margin: 0 auto; }

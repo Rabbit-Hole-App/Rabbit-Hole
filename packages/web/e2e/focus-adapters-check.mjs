@@ -161,12 +161,7 @@ const roundTrip = async (id, name, during) => {
   const element = await page.evaluate(sel => { const node = document.querySelector(sel); node.__focusMark = 'kept'; return !!node; }, card(id));
   assert.ok(element, `${id} is on the canvas`);
   const [before, geo, prior] = [await rect(card(id)), await geometry(), counts()];
-  // An Explanation has Minimize where the others have Focus (owner 2026-11-08): its Focus is the card's right-click menu row.
-  if (id === 'ex') {
-    const at = await visiblePart(`${card(id)} [data-drag-handle]`);
-    await page.mouse.click((at.left + at.right) / 2, (at.top + at.bottom) / 2, { button: 'right' });
-    await tap(page.locator('[data-menu-focus]'), 'the menu Focus row');
-  } else await tap(focusButton(name), name);
+  await tap(focusButton(name), name);
   await until(async () => (await focused(id)) === true, `${name} focused ${id}`);
   await page.waitForTimeout(300);
   await during(before);
@@ -188,8 +183,6 @@ await settle();
 await check('1 Each supported kind, selected, shows its own labelled Focus control (a CAD card too, container Focus); a quiz shows none', async () => {
   for (const [id, name] of [['p1', 'Focus PDF'], ['ex', 'Focus explanation'], ['tb', 'Focus table'], ['st1', 'Focus note'], ['im', 'Focus image'], ['sl', 'Focus page'], ['vd', 'Focus video'], ['cad', 'Focus CAD model']]) {
     await select(id);
-    // An Explanation shows Minimize in that place; its Focus is in the right-click menu (checked by step 4).
-    if (id === 'ex') { await focusButton('Minimize').waitFor({ timeout: 5000 }); assert.equal(await page.locator('[data-selection-bar]').getByRole('button', { name: /^Focus / }).count(), 0, 'no Focus icon on an Explanation'); continue; }
     await focusButton(name).waitFor({ timeout: 5000 });
     assert.ok(await focusButton(name).isVisible(), `${id}: ${name}`);
     // Scoped to the selection actions: the canvas header's board-name button (this board is named Focus adapters <run>) is no Focus control.

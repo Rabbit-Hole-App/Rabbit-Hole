@@ -71,7 +71,6 @@ import { starsRoute } from '../control-plane/src/canvas-stars.js';
 import { analyticsRoute } from '../control-plane/src/publication-analytics.js';
 import { runCleanup } from '../control-plane/src/publication-analytics-purge.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
-import { explanationSummaryRoute } from '../control-plane/src/explanation-summary.js';
 import { chatRouteFetch } from '../control-plane/src/chat-capability-route.js';
 import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
@@ -367,8 +366,6 @@ const routes = {
     // (docs/features/learn-artifact-generation.md).
     // Both refuse a non-owner in subscription mode after their own authorization.
     if (path === '/api/learn/artifact') return artifactFetch(req, env);
-    // The collapsed Explanation card's summary: one small model call (explanation-summary.js), authorized like the artifact route.
-    if (path === '/api/learn/explanation-summary') return explanationSummaryRoute(path, req, env);
     // The inline AI editor (docs/features/inline-ai-editor.md): JEV routing, the streamed note or edit, and its telemetry.
     if (path === '/api/learn/inline/route') return inlineRouteFetch(req, env);
     if (path === '/api/learn/inline/decide') return inlineDecideFetch(req, env);

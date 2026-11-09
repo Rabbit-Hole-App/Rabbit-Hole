@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { convergingFlow } from '../../scripts/batch-1-followup-fixtures.mjs';
 import { layoutFlow } from './flow.js';
 import { textWidth } from './primitives.js';
 
@@ -78,42 +77,6 @@ function touches(points, rect) {
       : y < y1 && y1 < y + height && Math.max(x1, x2) > x && Math.min(x1, x2) < x + width;
   });
 }
-
-test('three labeled arrivals use separate, noncrossing approaches to the same outcome', () => {
-  const { diagram } = convergingFlow;
-  for (const width of [408, layoutFlow(diagram, 0).width, 960]) {
-    const { elements } = layoutFlow(diagram, width);
-    const wires = elements.filter(element => element.props['data-tutor-edge']);
-    const branches = wires.filter(wire => wire.props['data-tutor-edge'].endsWith(':dies'));
-    const arrivals = branches.map(pointsFor);
-    const target = elements.find(element => element.props['data-tutor-node'] === 'dies').props.children[0].props;
-    const tips = arrivals.map(points => points.at(-1));
-    const turns = arrivals.map(points => points.at(-2)[1]);
-    assert.equal(new Set(tips.map(([x]) => x)).size, 3);
-    assert.ok(tips.every(([x, y]) => target.x < x && x < target.x + target.width && y === target.y));
-    assert.equal(new Set(turns).size, 3);
-    assert.ok(arrivals.every(points => points.at(-3)[0] !== points.at(-2)[0]), 'each route has a horizontal approach');
-    for (const [index, points] of arrivals.entries()) {
-      for (const other of arrivals.slice(index + 1)) {
-        for (const [[x1, y1], [x2, y2]] of points.slice(1).map((p, i) => [points[i], p])) {
-          const bounds = {
-            x: Math.min(x1, x2) - 0.25, y: Math.min(y1, y2) - 0.25,
-            width: Math.abs(x1 - x2) + 0.5, height: Math.abs(y1 - y2) + 0.5,
-          };
-          assert.equal(touches(other, bounds), false, `arrival ${index + 1} crosses another route at ${width}`);
-        }
-      }
-    }
-    const annotations = elements.filter(item => Array.isArray(item.props.children)
-      && item.props.children[0]?.type === 'rect' && !item.props['data-tutor-node']);
-    const noLabels = annotations.filter(item => texts(item).some(({ lines }) => lines.join(' ') === 'No'));
-    assert.equal(noLabels.length, 3, 'all three No labels fit on the graph');
-    for (const [index, annotation] of noLabels.entries()) {
-      const bounds = annotation.props.children[0].props;
-      assert.ok(wires.every(wire => wire === branches[index] || !touches(pointsFor(wire), bounds)));
-    }
-  }
-});
 
 test('long branch labels never mask an unrelated connector in a nested flow', () => {
   const diagram = {

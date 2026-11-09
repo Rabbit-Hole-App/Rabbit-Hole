@@ -6,9 +6,6 @@ const matrix = (title, columns, rows, extras = {}) => ({
 });
 const decrease = String.raw`$e^{-\alpha}$`;
 const increase = String.raw`$e^\alpha$`;
-const quarter = String.raw`$\frac{1}{4}$`;
-const sixth = String.raw`$\frac{1}{6}$`;
-const half = String.raw`$\frac{1}{2}$`;
 
 export const references = [
   {
@@ -32,7 +29,7 @@ export const references = [
           ['soft', 'Soft', ['38.33%', '61.67%']],
         ], {
           emphasis: { cells: [{ row: 'hard', column: 0 }, { row: 'soft', column: 1 }] },
-          caption: String.raw`Hard voting picks A. Soft voting averages $\frac{55+55+5}{3}$ for A and $\frac{45+45+95}{3}$ for B. B wins. Averages are rounded.`,
+          caption: 'Hard voting picks A. For soft voting, average (55 + 55 + 5) ÷ 3 for A and (45 + 45 + 95) ÷ 3 for B. B wins. Averages are rounded.',
         }) },
       ],
       caption: 'Model 3’s strong support for B outweighs the two narrow leads for A when all models have equal weight.',
@@ -47,24 +44,24 @@ export const references = [
       kind: 'transformation', variant: 'visual', title: 'AdaBoost gives the missed row more weight',
       operation: 'Multiply by the factor for each row, then normalize',
       before: { label: 'Before the weight update', diagram: matrix('Equal weight on every row', ['Result', 'Weight'], [
-        ['r1', 'R1', ['Correct', quarter]],
-        ['r2', 'R2', ['Correct', quarter]],
-        ['r3', 'R3', ['Missed', quarter]],
-        ['r4', 'R4', ['Correct', quarter]],
+        ['r1', 'R1', ['Correct', '1/4']],
+        ['r2', 'R2', ['Correct', '1/4']],
+        ['r3', 'R3', ['Missed', '1/4']],
+        ['r4', 'R4', ['Correct', '1/4']],
       ], {
         emphasis: { rows: ['r3'] },
-        caption: String.raw`Only R3 is missed, so the weighted error is ${quarter}. The binary learner coefficient is $\alpha=\ln(3)/2$.`,
+        caption: String.raw`Only R3 is missed, so the weighted error is 1/4. The binary learner coefficient is $\alpha=\ln(3)/2$.`,
       }) },
       after: { label: 'After normalization', diagram: matrix('More weight on the missed row', ['Factor', 'Weight'], [
-        ['r1', 'R1', [decrease, sixth]],
-        ['r2', 'R2', [decrease, sixth]],
-        ['r3', 'R3', [increase, half]],
-        ['r4', 'R4', [decrease, sixth]],
+        ['r1', 'R1', [decrease, '1/6']],
+        ['r2', 'R2', [decrease, '1/6']],
+        ['r3', 'R3', [increase, '1/2']],
+        ['r4', 'R4', [decrease, '1/6']],
       ], {
         emphasis: { rows: ['r3'] },
         caption: 'Divide by the sum of the four scaled weights. The next learner uses these weights, which sum to 1.',
       }) },
-      identity: { mode: 'preserved', note: `R1–R4 are the same examples in both tables. R3 goes from ${quarter} to ${half}.` },
+      identity: { mode: 'preserved', note: 'R1–R4 are the same examples in both tables. R3 goes from 1/4 to 1/2.' },
     } },
   },
   {

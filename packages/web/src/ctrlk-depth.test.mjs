@@ -26,9 +26,9 @@ test('it is the same setting the Chat reads: one useLearnSettings in the workspa
 test('a Ctrl+K command line reaches Chat send, which attaches the Depth chosen at that moment (omitted for Standard)', () => {
   assert.match(read('LearnPage.jsx'), /handoff: async \(line, about = \{\}\) => \{[^}]*live\.ask\(/);
   assert.match(read('ask.jsx'), /const depthSnapshot = depthField\(chat\?\.settings\);/);
-  assert.deepEqual(depthField({ depth: 'balanced' }), {});
-  assert.deepEqual(depthField({ depth: 'brief' }), { depth: 'brief' });
-  assert.deepEqual(depthField({ depth: 'detailed' }), { depth: 'detailed' });
+  assert.deepEqual(depthField({ depth: 'standard' }), {});
+  assert.deepEqual(depthField({ depth: 'overview' }), { depth: 'overview' });
+  assert.deepEqual(depthField({ depth: 'deep' }), { depth: 'deep' });
 });
 
 test('Escape in the open Depth menu closes only that menu: the menu stops the key before the editor handler sees it', () => {

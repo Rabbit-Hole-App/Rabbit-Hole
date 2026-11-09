@@ -9,10 +9,6 @@ const LOADED = new Set(['wiki', 'webpage']); // their `title` names what they lo
 // the type icon (18 px at the Explanation head's text-xl size) plus its gap-2 take 26 px, leaving 262 px for the title; text-xl is 20 px, and semibold
 // English text (lowercase and spaces) averages about 0.52 em = 10.4 px a character: 262 / 10.4 = 25, taken down to 24 for the card's own actions.
 // At the card's default 560 px column the same arithmetic allows 45 (text-xl) or 66 (text-sm). The header also clips a longer legacy title (CardHeader.jsx).
-// Owner 2026-11-08: the header title wraps to TITLE_LINES lines (TITLE_LINES_NARROW when the header is narrower than NARROW_CARD_PX: a minimized tile or a narrow card: CardHeader.jsx, class
-// @max-[405px] = NARROW_CARD_PX - 35: a container query measures the content box, the card's 2 px border and the header's 32 px side padding come off a 440 px card; a 408 px tile is narrow), ellipsis only past that. TITLE_TWO_LINES: the title length above which the full text is the tooltip
-// (measured in the browser, 12 ordinary titles: two lines hold 66-68 characters at the 440 px Explanation card with the Prompt slot reserved, 90 without it).
-export const NARROW_CARD_PX = 440, TITLE_LINES = 2, TITLE_LINES_NARROW = 3, TITLE_TWO_LINES = 66;
 export const TITLE_MAX = 40; // a name the learner types: the rename editor, renameBlock and the (N) suffix (owner 2026-11-07 asked for a limit; 24, derived for the narrowest card at the Explanation title size, cut real Tutor titles, so 40)
 export const DERIVED_MAX = 80; // a generated or imported title shown as given up to the proposal title bound; the header is one clipped line with the full text as its tooltip, which is what stops wrapping
 const HEADING_MAX = 200; // a section heading is document content listed in the Table of contents at full width, not a pinned card header (learn-outline-model.js TITLE_MAX)
@@ -51,8 +47,7 @@ export function cardTitleOf(block) {
 // title, so its title is the learner's name or the placeholder; every other card shows cardTitleOf. placeholderTitle: true when no real title exists.
 const FILE_NAMED = new Set(['file', 'pdf', 'slide']);
 // A quiz question or a practice prompt is the card's CONTENT (it can hold TeX), drawn in the body: the header never repeats it as a title.
-// The header shows the title WHOLE (owner 2026-11-08: never truncated): flatOf, not short.
-const headerDerived = block => (FILE_NAMED.has(block?.type) ? '' : flatOf(block?.title) || flatOf(block?.label) || (block?.type === 'heading' ? flatOf(block.text) : ''));
+const headerDerived = block => (FILE_NAMED.has(block?.type) ? '' : short(block?.title) || short(block?.label) || (block?.type === 'heading' ? short(block.text) : ''));
 export const placeholderTitle = block => !customTitleOf(block) && !headerDerived(block);
 export const headerTitleOf = block => customTitleOf(block) || headerDerived(block) || PLACEHOLDERS[block?.type] || PLACEHOLDER;
 

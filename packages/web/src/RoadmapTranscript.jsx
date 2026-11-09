@@ -94,7 +94,7 @@ function runner(roadmap, chat, choose) {
     switch (r.kind) {
       case 'route_new': return choose('new');
       case 'route_stay': return choose('stay');
-      case 'explain_on_canvas': return c.explain({ depth: chat.settings?.depth || 'balanced', instruction: '' });
+      case 'explain_on_canvas': return c.explain({ depth: chat.settings?.depth || 'standard', instruction: '' });
       case 'keep_here': return c.dismiss();
       case 'accept_roadmap': return roadmap.acceptPlan();
       case 'depth': return c.revise({ settings: { depth: r.depth } });
