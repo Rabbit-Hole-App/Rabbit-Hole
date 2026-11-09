@@ -1,0 +1,32 @@
+[
+  {
+    "referenceId": "ml-churn-goal-prediction-decision",
+    "kind": "flow",
+    "prompt": "How does a churn prediction turn into an action that helps reduce cancellations?",
+    "paraphrase": "How do I turn the goal of reducing churn into a prediction and a decision?"
+  },
+  {
+    "referenceId": "ml-batch-vs-online-inference",
+    "kind": "sequence",
+    "prompt": "How is predicting on a schedule different from predicting when a request comes in?",
+    "paraphrase": "What changes between batch inference and online inference?"
+  },
+  {
+    "referenceId": "ml-serving-latency-cost",
+    "kind": "matrix",
+    "prompt": "How do I compare the latency and cost of batch and online predictions?",
+    "paraphrase": "How much does model serving cost for batch and real-time predictions on the same traffic?"
+  },
+  {
+    "referenceId": "ml-shadow-canary-ab-rollout",
+    "kind": "comparison",
+    "prompt": "When would I shadow a new model, canary it, or run an A/B test?",
+    "paraphrase": "What's the difference between shadow deployment, a canary rollout, and an A/B test for a model?"
+  },
+  {
+    "referenceId": "ml-batch-score-fallback",
+    "kind": "flow",
+    "prompt": "How should a churn system keep working if its nightly scoring job fails?",
+    "paraphrase": "When should we stop serving old scores after a batch scoring failure and switch to a rule?"
+  }
+]

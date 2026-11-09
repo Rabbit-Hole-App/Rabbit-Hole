@@ -2326,6 +2326,71 @@
       "kind": "bar-chart",
       "width": 408,
       "height": 330
+    },
+    {
+      "id": "ml-churn-goal-prediction-decision",
+      "lessons": [
+        "19"
+      ],
+      "prompts": [
+        "How does a churn prediction turn into an action that helps reduce cancellations?"
+      ],
+      "useWhen": "Separate the business goal, the per-user probability of cancelling within the next 30 days and the decision made each night. Rank eligible users by predicted risk before allocating retention offers.",
+      "kind": "flow",
+      "width": 408,
+      "height": 428
+    },
+    {
+      "id": "ml-batch-vs-online-inference",
+      "lessons": [
+        "19"
+      ],
+      "prompts": [
+        "How is predicting on a schedule different from predicting when a request comes in?"
+      ],
+      "useWhen": "Trace a scheduled feature snapshot through the model and store before requests. At request time, batch reads a stored score and online uses current features to compute a fresh score.",
+      "kind": "sequence",
+      "width": 440,
+      "height": 643
+    },
+    {
+      "id": "ml-serving-latency-cost",
+      "lessons": [
+        "19"
+      ],
+      "prompts": [
+        "How do I compare the latency and cost of batch and online predictions?"
+      ],
+      "useWhen": "Compare batch and online on one illustrative workload with shared freshness and latency limits. Batch pays for scores and reads. Online rounds up peak QPS divided by replica capacity and pays for 24 hours.",
+      "kind": "matrix",
+      "width": 408,
+      "height": 539
+    },
+    {
+      "id": "ml-shadow-canary-ab-rollout",
+      "lessons": [
+        "19"
+      ],
+      "prompts": [
+        "When would I shadow a new model, canary it, or run an A/B test?"
+      ],
+      "useWhen": "Compare who sees the new model, which model drives decisions and what each test measures. Use stable random user groups for the A/B comparison.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 427
+    },
+    {
+      "id": "ml-batch-score-fallback",
+      "lessons": [
+        "19"
+      ],
+      "prompts": [
+        "How should a churn system keep working if its nightly scoring job fails?"
+      ],
+      "useWhen": "On a successful batch, use the new scores. On failure, check whether a saved successful score set exists and is at most 25 hours old. If the set is missing or older, use the inactivity rule with the same nightly offer cap.",
+      "kind": "flow",
+      "width": 408,
+      "height": 571
     }
   ],
   "kindGallery": [
@@ -2841,7 +2906,12 @@
         "ml-version-lineage",
         "classification-cost-matrix",
         "regression-mean-baseline",
-        "event-created-label-time"
+        "event-created-label-time",
+        "ml-churn-goal-prediction-decision",
+        "ml-batch-vs-online-inference",
+        "ml-serving-latency-cost",
+        "ml-shadow-canary-ab-rollout",
+        "ml-batch-score-fallback"
       ]
     },
     {

@@ -40,4 +40,4 @@ Live `/explain` generation and browser acceptance remain pending. For a dev pass
 
 ## Remaining Batch 3 work
 
-Seven reference gaps remain, five in Lesson 19 (ML system design) and two in Lesson 21 (feature stores). [Coverage audit](coverage-audit.md#recommended-build-order)
+Batch 3C covers ML system design. The two remaining Batch 3 gaps are in feature stores. [Batch 3C](batch-3c.md) · [Coverage audit](coverage-audit.md#recommended-build-order)
