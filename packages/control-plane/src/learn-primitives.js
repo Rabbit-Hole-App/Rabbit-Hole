@@ -428,7 +428,9 @@ const parses = lines => { try { parseTutorDiagram(lines.join('\n')); return true
 // learn-artifact.js): 'cycle' for repeat words (2-7 steps), 'sequence' for messages between actors when the diagram names at least two actors and a message
 // between two of them, otherwise (or when that kind cannot be built) a straight flow (n1 -> n2 -> ..., each a process, the last the outcome).
 // -> the parsed spec, or null when the fence is not JSON or fewer than two labels can be read.
-const LABEL_LISTS = ['nodes', 'steps', 'events', 'layers', 'actors', 'messages', 'bars', 'changes', 'markers', 'callouts'];
+// 'columns' and 'rows' (a matrix or comparison, owner 2026-11-08: stack-vs-queue's invalid matrix had none of the other lists and was dropped, the card delivered with no visual): read by label, heading or name.
+const LABEL_LISTS = ['nodes', 'steps', 'events', 'layers', 'actors', 'messages', 'bars', 'changes', 'markers', 'callouts', 'rows', 'columns'];
+const labelOf = x => (typeof x === 'string' ? x : x?.label ?? x?.heading ?? x?.name);
 const fit = (s, max) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, ''); };
 const tryParse = spec => { try { return parseTutorDiagram(spec); } catch { return null; } };
 function simplifiedSequence(d, head) {
@@ -444,11 +446,22 @@ function simplifiedSequence(d, head) {
     .filter(m => m.from && m.to && m.from !== m.to && m.label).slice(0, 8);
   return actors.length >= 2 && messages.length ? tryParse({ version: 1, diagram: { ...head, kind: 'sequence', actors, messages } }) : null;
 }
+function matrixAsComparison(d, labels) {
+  const cols = (Array.isArray(d.columns) ? d.columns : []).map(labelOf).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 40)), rows = Array.isArray(d.rows) ? d.rows : [];
+  if (d.kind !== 'matrix' || cols.length < 2 || cols.length > 4 || !rows.length) return null;
+  const items = i => rows.slice(0, 5).map(r => { const cell = Array.isArray(r?.cells) ? labelOf(r.cells[i]) : null; const head = labelOf(r); return typeof cell === 'string' && cell.trim() ? fit(typeof head === 'string' && head.trim() ? `${head}: ${cell}` : cell, 60) : null; }).filter(Boolean);
+  const columns = cols.map((heading, i) => ({ heading, items: items(i) }));
+  if (columns.some(c => !c.items.length)) return null;
+  return tryParse({ version: 1, diagram: { kind: 'comparison', title: fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0] ?? cols[0]} and ${cols[1]}`, 90), ...(typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {}), columns } });
+}
 export function simplifiedDiagram(lines, prefer = 'flow') {
   let d; try { d = JSON.parse(lines.join('\n'))?.diagram; } catch { return null; }
   if (!d || typeof d !== 'object') return null;
   const list = LABEL_LISTS.map(k => d[k]).find(v => Array.isArray(v) && v.length >= 2) || [];
-  const labels = [...new Set(list.map(x => (typeof x === 'string' ? x : x?.label)).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60)))].slice(0, 12);
+  const labels = [...new Set(list.map(labelOf).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60)))].slice(0, 12);
+  // A matrix with two to four readable column headings keeps its grid as a comparison (each column its cells, prefixed by the row heading); otherwise its labels become a flow below.
+  const grid = matrixAsComparison(d, labels);
+  if (grid) return grid;
   if (labels.length < 2 && prefer !== 'sequence') return null;
   const title = fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0]} to ${labels.at(-1)}`, 90);
   const head = { title, ...(typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {}) };

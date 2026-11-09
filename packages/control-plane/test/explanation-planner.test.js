@@ -27,9 +27,9 @@ test('a kind with top probability >= 0.6 is fixed; below it the top two are offe
 test('picture and both map to the visuals in the author order; no second-visual decision (v2)', () => {
   assert.deepEqual(planFromAnswers(answers({ visualType: { choice: 'picture' } })).visuals, [{ type: 'picture' }]);
   assert.deepEqual(planFromAnswers(answers({ visualType: { choice: 'both' } })).visuals, [{ type: 'picture' }, { type: 'diagram', kind: 'sequence' }]);
-  // a stray secondVisual answer changes nothing: one diagram unless the type is both
+  // a stray non-numeric secondVisual answer changes nothing: one diagram unless the type is both (the narrow noul question is tested below)
   assert.deepEqual(planFromAnswers(answers({ secondVisual: { choice: 'comparison' } })).visuals, [{ type: 'diagram', kind: 'sequence' }]);
-  assert.ok(!('secondVisual' in QUESTIONS), 'the question is not even asked');
+  assert.equal(QUESTIONS.secondVisual.type, 'noul', 'the narrow second-visual question (owner 2026-11-08), not the v1 comparison choice');
   assert.match(planStatement(planFromAnswers(answers({ visualType: { choice: 'picture' } }))), /1\) a picture \(no diagram\)\. Depth treatment: mechanism/);
   assert.match(planStatement(planFromAnswers(answers())), /^# Visuals for this card\nThis card's visuals: 1\) a sequence diagram\. Depth treatment: mechanism\.$/);
 });
@@ -155,4 +155,18 @@ test('a physical subject planned as a diagram gets its picture: picture + diagra
   assert.equal(planFromAnswers(answers({ ...physical })).physicalOverride, true);
   assert.deepEqual(planFromAnswers(answers({ ...physical, visualType: { choice: 'both' } })).visuals, [{ type: 'picture' }, { type: 'diagram', kind: 'sequence' }]);
   assert.equal(planFromAnswers(answers({ ...physical, visualType: { choice: 'both' } })).physicalOverride, undefined);
+});
+
+test('narrow second visual (owner 2026-11-08): two separate structures or organisms (secondVisual >= 0.7) get one visual each; below 0.7, and a planned picture + diagram, are unchanged', () => {
+  const cmp = answers({ kind: { choice: 'comparison', confidence: 0.9, probabilities: { comparison: 0.9, layers: 0.05, flow: 0.03, sequence: 0.02 } }, secondVisual: { noul: 0.94 } });
+  const structures = planFromAnswers(cmp);
+  assert.equal(structures.visuals.length, 2);
+  assert.deepEqual(structures.visuals[0], { type: 'diagram', choose: ['layers', 'flow'] }); // a comparison cannot be one of two per-thing diagrams
+  assert.equal(structures.secondVisual, true); assert.equal(structures.kind, 'layers'); assert.equal(structures.fixed, false);
+  assert.match(planStatement(structures), /The question names two things: draw each one on its own, one visual per thing\./);
+  const organisms = planFromAnswers(answers({ visualType: { choice: 'picture' }, secondVisual: { noul: 0.97 } }));
+  assert.deepEqual(organisms.visuals, [{ type: 'picture' }, { type: 'picture' }]); assert.equal(organisms.kind, null);
+  assert.equal(planFromAnswers(answers({ ...cmp, secondVisual: { noul: 0.69 } })).visuals.length, 1, 'below the gate');
+  assert.deepEqual(planFromAnswers(answers({ visualType: { choice: 'both' }, secondVisual: { noul: 0.95 } })).visuals, [{ type: 'picture' }, { type: 'diagram', kind: 'sequence' }]);
+  assert.ok(!planStatement(planFromAnswers(answers())).includes('names two things'));
 });

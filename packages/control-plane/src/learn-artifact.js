@@ -263,7 +263,10 @@ export async function generateArtifact(env, input, { callModel: injected = null,
             const named = requiredMix(wanted)?.diagramKind;
             const simple = dropInvalidDiagrams(block, { simplify: true, prefer: ['flow', 'cycle', 'sequence'].includes(named) ? named : simplifiedKind(input) });
             // The simpler diagram must pass the card's own checks too (it may name nothing the prose names); if not, the prose card goes without it.
-            if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args)) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';          }
+            if (simple.simplified && !explanationProblem(simple.block, input.depth, input.args)) { trimmed = simple; fallback = 'simplified'; } else fallback = 'dropped';
+            // Owner 2026-11-08: a card whose plan had a visual never goes out with none. Nothing could be built from the author's own labels: the card fails here (a validation error, so
+            // the chain's next step gets its turn) instead of delivering empty. Without a plan (planner off or failed) the older rule stands: the prose card is delivered.
+            if (fallback === 'dropped' && input.plan?.visuals?.length) throw new Error('explanation_missing_visual: the card must keep one to three visuals; every diagram was invalid and none could be rebuilt from its labels.');          }
           // E1: only an OPTIONAL diagram may be dropped. With a required one, the drop stands only if the card still holds a valid diagram for each requirement
           // and no text points at the dropped figure; otherwise the card keeps its invalid diagram and fails the checks below, truthfully.
           if (trimmed.dropped && !requiredVisualProblem(trimmed.block, wanted)) {

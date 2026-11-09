@@ -8,7 +8,9 @@ import galleryDepths from '../../web/src/tutor-diagrams/kind-gallery-depths.json
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
 // 1.2 s (owner 2026-11-08; 4 of 42 timed out at 800 ms on the Gemini stack); every timeout is logged as reason 'timeout' (explanation_planner_failed)
-export const PLANNER_MODEL = 'jev-latest', PLANNER_TIMEOUT_MS = 1200, FIX_AT = 0.6, PHYSICAL_AT = 0.7;
+export const PLANNER_MODEL = 'jev-latest', PLANNER_TIMEOUT_MS = 1200, FIX_AT = 0.6, PHYSICAL_AT = 0.7, SECOND_AT = 0.7;
+// A two-things plan draws each thing as a structure: only these kinds are offered (a matrix is a grid and a comparison is the one-visual answer this plan replaces: stack-vs-queue got an invalid matrix, owner 2026-11-08).
+const EACH_KINDS = ['tree', 'flow', 'relationship', 'layers', 'cycle', 'sequence'];
 const KIND = {
   flow: 'Ordered steps of one process, with or without decisions; the default only when nothing below fits.',
   sequence: 'Two to four named parties sending things to each other: client/server, sender/receiver, protocols, handshakes, request/response.',
@@ -41,6 +43,7 @@ export const QUESTIONS = {
   needsPlot: { type: 'noul', instructions: 'Is this a question about a formula, a metric, a loss, an activation function, a schedule, or how one quantity changes with another?' },
   isPhysical: { type: 'noul', instructions: 'Is the subject a physical object, place, organism, 3D shape, repeating structure (molecule, lattice, gear train, mesh) or natural event? Software, algorithms, neural networks, protocols, a CPU versus a GPU and other digital or mathematical subjects are not physical.' },
   needsWorkedExample: { type: 'noul', instructions: 'Would a small worked numeric example (computed from the formula the explanation states) make the answer clearer?' },
+  secondVisual: { type: 'noul', instructions: "Does the question ask about TWO separate things, each of which is itself a structure or a living thing that can be drawn on its own: two data structures, two search or traversal algorithms, two organisms or life stages, two objects? Answer no for a metric, a formula, one process with steps, one thing with parts, or two technologies or protocols compared on properties." },
 };
 
 const TREATMENT = {
@@ -67,9 +70,16 @@ export function planFromAnswers(a, depth = null) {
   // shape). On the 42 baseline prompts every picture prompt scores isPhysical 0.83-0.93 and every no-picture prompt 0.04-0.10: pictures 19/19 where needed, 0/12 where not.
   let type = a.visualType?.choice, physical = false;
   if (type === 'diagram' && (a.isPhysical?.noul ?? 0) >= PHYSICAL_AT) { type = kind === 'figure' ? 'picture' : 'both'; physical = true; }
-  const visuals = type === 'picture' ? [{ type: 'picture' }] : type === 'both' ? [{ type: 'picture' }, diagram] : [diagram];
+  let visuals = type === 'picture' ? [{ type: 'picture' }] : type === 'both' ? [{ type: 'picture' }, diagram] : [diagram];
+  // Narrow second visual (owner 2026-11-08, after the clean-up): the question names two separate things that are each a structure or an organism (secondVisual >= 0.7): one visual per thing,
+  // a picture each for living things (type picture), else a diagram each of its own kind (never a comparison). A planned picture + diagram (both) is left as it is.
+  const pair = (a.secondVisual?.noul ?? 0) >= SECOND_AT && type !== 'both';
+  const eachRanked = Object.entries(a.kind?.probabilities || {}).filter(([k, p]) => EACH_KINDS.includes(k) && p > 0).sort((x, y) => y[1] - x[1]).map(([k]) => k);
+  // shortcut: fewer than two allowed kinds with any probability mass offers the planned kind (if allowed) and flow; upgrade when the planner gets its own two-things kind question.
+  const each = { type: 'diagram', choose: eachRanked.length >= 2 ? eachRanked.slice(0, 2) : [...new Set([eachRanked[0] ?? (EACH_KINDS.includes(kind) ? kind : 'flow'), 'flow'])].slice(0, 2) };
+  if (pair) visuals = type === 'picture' ? [{ type: 'picture' }, { type: 'picture' }] : [each, { ...each }];
   const inferred = TREATMENT[a.depthTreatment?.choice] ? a.depthTreatment.choice : 'mechanism';
-  return { visuals, depthTreatment: DEPTH_TREATMENT[depth] ?? inferred, inferredTreatment: inferred, kind: type === 'picture' ? null : kind, fixed: type === 'picture' ? null : fixed, planner: 'jev', ...(physical ? { physicalOverride: true } : {}), ...(briefReplaced ? { briefReplaced } : {}),
+  return { visuals, depthTreatment: DEPTH_TREATMENT[depth] ?? inferred, inferredTreatment: inferred, kind: type === 'picture' ? null : pair ? each.choose[0] ?? kind : kind, fixed: type === 'picture' ? null : pair ? false : fixed, planner: 'jev', ...(physical ? { physicalOverride: true } : {}), ...(briefReplaced ? { briefReplaced } : {}), ...(pair ? { secondVisual: true } : {}),
     flags: { needsPlot: a.needsPlot?.noul ?? null, isPhysical: a.isPhysical?.noul ?? null, needsWorkedExample: a.needsWorkedExample?.noul ?? null },
     confidence: { kind: p1 ?? null, visualType: a.visualType?.confidence ?? null }, probabilities: { kind: a.kind?.probabilities ?? null, visualType: a.visualType?.probabilities ?? null } };
 }
@@ -92,7 +102,7 @@ export const visualKinds = ({ visuals }) => { const d = visuals.find(v => v.type
 export function visualsStatement(plan, { source, visuals }) {
   if (source === 'rules') return null;
   const parts = visuals.map((v, i) => `${i + 1}) ${v.type === 'picture' ? 'a picture' : v.kind ? `a ${v.kind} diagram` : v.choose ? `a diagram of one of these kinds, the one that teaches the answer: ${v.choose.join(' or ')}` : 'a diagram'}`);
-  return `# Visuals for this card\nThis card's visuals: ${parts.join('; ')}${visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}.${plan?.depthTreatment ? ` Depth treatment: ${plan.depthTreatment}.` : ''}`;
+  return `# Visuals for this card\nThis card's visuals: ${parts.join('; ')}${visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}.${plan?.secondVisual && source === 'plan' ? ' The question names two things: draw each one on its own, one visual per thing.' : ''}${plan?.depthTreatment ? ` Depth treatment: ${plan.depthTreatment}.` : ''}`;
 }
 
 // The gallery example for the planned diagram (owner 2026-11-08): the kind-gallery-depths.json spec of its kind at the card's depth (Standard when the depth is
