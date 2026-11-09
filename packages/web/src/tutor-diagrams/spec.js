@@ -194,13 +194,14 @@ function checkFlow(diagram, issue) {
 function checkSequence({ actors, messages }, issue) {
   const ids = new Set(actors.map(actor => actor.id));
   if (ids.size !== actors.length) return issue(['actors'], 'Sequence actors need unique IDs');
+  if (messages.every(({ from, to }) => from === to)) {
+    issue(['messages'], 'A sequence needs at least one message between different actors');
+  }
   for (const [index, { from, to }] of messages.entries()) {
+    const previous = messages[index - 1];
     if (!ids.has(from) || !ids.has(to)) issue(['messages', index], 'Message refers to an unknown actor');
-    else if (from === to) {
-      const previous = messages[index - 1], next = messages[index + 1];
-      if (!previous || !next || previous.from === previous.to || next.from === next.to) {
-        issue(['messages', index], 'A self-message needs an ordinary message immediately before and after it');
-      }
+    else if (from === to && previous && previous.from === previous.to) {
+      issue(['messages', index], 'Consecutive self-messages need an ordinary message between them');
     }
   }
 }

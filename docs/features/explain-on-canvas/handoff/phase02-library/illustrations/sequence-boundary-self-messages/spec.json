@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "sequence",
+    "title": "Encrypt, send and decrypt a message",
+    "actors": [
+      {
+        "id": "sender",
+        "label": "Sender"
+      },
+      {
+        "id": "receiver",
+        "label": "Receiver"
+      }
+    ],
+    "messages": [
+      {
+        "from": "sender",
+        "to": "sender",
+        "label": "Encrypt with the receiver’s public key"
+      },
+      {
+        "from": "sender",
+        "to": "receiver",
+        "label": "Send encrypted message"
+      },
+      {
+        "from": "receiver",
+        "to": "receiver",
+        "label": "Decrypt with private key"
+      }
+    ]
+  }
+}

@@ -22,7 +22,7 @@ Every spec has the shape `{ "version": 1, "diagram": { "kind": "...", "title": "
 | `flow` | Nodes with `id`, `label`, `role`; directed edges with `from`, `to`, optional `label` | Process boxes, decision diamonds, outcome pills, elbow arrows, branch labels, skip lanes |
 | `comparison` | Columns with `heading` and `items` | Colored headers, outlined cells, dashed column dividers |
 | `timeline` | Events with `time`, `label`, optional `detail` | Time pills, event cards, connected markers |
-| `sequence` | Actors with `id` and `label`, messages with `from`, `to`, and `label`. A self-message needs an ordinary message immediately before and after it. | Actor boxes, lifelines, directed arrows, labelled loops for self-messages |
+| `sequence` | Actors with `id` and `label`, messages with `from`, `to`, and `label`. Self-messages may appear anywhere. At least one message must go between different actors, and ordinary messages separate self-messages. | Actor boxes, lifelines, directed arrows, labelled loops for self-messages |
 | `matrix` | Column labels; rows with `heading` and `cells` | Column headers, row headers, data cells |
 | `layers` | Ordered layers with `label`, optional `detail` | Stacked color blocks with wrapped labels and details |
 | `cycle` | Ordered step labels | Step boxes, arrows, outer return connector |

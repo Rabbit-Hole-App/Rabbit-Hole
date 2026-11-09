@@ -4270,6 +4270,21 @@
       "sha256": "83705eb11cc57ead3c6094b7d04c91c97979f75d1df0754d2654a5948ece71dc",
       "width": 320,
       "height": 277
+    },
+    "sequence-boundary-self-messages/408": {
+      "sha256": "3618c182aba6f263047e24f40641f470b1ab51bd60f3d181ed90bac2ecf205d0",
+      "width": 408,
+      "height": 336
+    },
+    "sequence-boundary-self-messages/960": {
+      "sha256": "78584a415076d09bb76d006269f1380af683150ca7309320bf6a7d87c13b34e6",
+      "width": 720,
+      "height": 280
+    },
+    "sequence-boundary-self-messages/natural": {
+      "sha256": "06c7b983a933349a770c371688ee56c6fae89cccaf22724d24b8625302e1577f",
+      "width": 320,
+      "height": 353
     }
   }
 }

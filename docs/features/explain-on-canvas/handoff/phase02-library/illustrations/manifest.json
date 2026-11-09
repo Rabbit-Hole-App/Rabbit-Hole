@@ -1548,5 +1548,25 @@
         "height": 277
       }
     }
+  },
+  "sequence-boundary-self-messages": {
+    "kind": "sequence",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 336
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 280
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 353
+      }
+    }
   }
 }

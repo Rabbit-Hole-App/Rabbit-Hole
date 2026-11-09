@@ -112,7 +112,7 @@ export const additionalCorrections = [
   pair('sequence-message-unknown-actor', retry, ['messages', 0], /refers to an unknown actor/, d => {
     d.messages[0].from = 'timre';
   }, retryWords, retryMessage),
-  pair('sequence-unbracketed-self-message', retry, ['messages', 0], /self-message.*ordinary/, d => {
+  pair('sequence-missing-ordinary-message', retry, ['messages'], /message between different actors/, d => {
     d.messages[0].from = 'worker';
   }, retryWords, retryMessage),
 

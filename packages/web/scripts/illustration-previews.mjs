@@ -10,7 +10,7 @@ import { tokenLinksNaturalWidth } from '../src/tutor-diagrams/token-links-layout
 import { layouts } from '../src/tutor-diagrams/layouts.js';
 import { panelsNaturalWidth } from '../src/tutor-diagrams/ml-composition-layouts.js';
 import { renderTutorDiagram } from '../src/tutor-diagrams/TutorDiagram.js';
-import { convergingFlow, sequenceSelfMessage } from './batch-1-followup-fixtures.mjs';
+import { convergingFlow, sequenceBoundarySelfMessages, sequenceSelfMessage } from './batch-1-followup-fixtures.mjs';
 
 const depthNames = { overview: 'brief', standard: 'balanced', deep: 'detailed' };
 
@@ -33,6 +33,7 @@ export function* illustrationSpecs() {
   }
   yield { id: 'flow-converging-arrivals', spec: convergingFlow };
   yield { id: 'sequence-self-message', spec: sequenceSelfMessage };
+  yield { id: 'sequence-boundary-self-messages', spec: sequenceBoundarySelfMessages };
 }
 
 function naturalWidth(diagram, { compact = false } = {}) {
