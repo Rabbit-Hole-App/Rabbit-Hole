@@ -72,3 +72,10 @@ test('item 3: one line under # Card layout - the sentence immediately before eac
   assert.equal(card().split(s).length, 2);
   assert.ok(card().indexOf(s) < card().indexOf('Every visual has a title or caption'));
 });
+
+test('item 4: the coordinate-plot entry carries the plot contract - two behaviours are two series, observed data once as scatter, models as lines, the called-out point annotated', () => {
+  const kinds = EXPLANATION_GUIDANCE.slice(EXPLANATION_GUIDANCE.indexOf('# Diagram kinds and their fields'));
+  const plot = kinds.slice(kinds.indexOf('coordinate-plot for data on two axes'), kinds.indexOf('bar-chart for comparing quantities'));
+  assert.match(plot, /when the prose compares two behaviours \(good fit vs overfit, train vs test, two schedules\), the plot carries both as separate series, and the point the prose calls out is an annotated point; plot observed data once, as scatter; models are lines only, never redraw the data as a second series/);
+  assert.equal(kinds.split('never redraw the data as a second series').length, 2);
+});
