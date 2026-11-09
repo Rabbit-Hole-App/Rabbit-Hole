@@ -1,12 +1,12 @@
 {
  "name": "demo-lesson04",
  "version": {
-  "prompts": "D1 2026-11-09 (the 13 Lesson 04 demo prompts, exact wording)",
-  "labels": "D1 2026-11-09 (expected reference id per prompt; expected kind = the reference spec.diagram.kind, \"pending\" until the reference exists)"
+  "prompts": "D2 2026-11-09 (the 13 Lesson 04 demo prompts, exact wording; all 13 at Balanced only (owner 2026-11-09: no Detailed cards))",
+  "labels": "D2 2026-11-09 (expected reference id per prompt; expected kind = the reference spec.diagram.kind at Codex 5de6a499f)"
  },
  "measures": "Live written /explain on the 13 Lesson 04 demo prompts: selector hit and first pick against the expected reference, planner and model kind against the reference kind, factual (judge factual-v2 only). Reviewed by hand from the pack scripts/explain-bench/demo-lesson04-pack.mjs writes.",
- "written": "2026-11-09 PT; reference ids and kinds from lesson-decision-trees-references.js (chatgpt/explain-phase02-library c3e409947); the five later references (gini-vs-entropy, cost-complexity-pruning, regression-step-fit, bootstrap-coverage, forest-size-accuracy) are not in that commit: kind pending",
- "notation": "Plain prompts, no sketch. referenceKind is the expected first-diagram kind or \"pending\". askDepths lists the bench depth keys a prompt is asked at: standard = Balanced (reference id <id>), deep = Detailed (reference id <id>-detailed). Run subsets with bench.mjs --only <ids>.",
+ "written": "2026-11-09 PT; reference ids and kinds from the illustrations/<id>/spec.json of chatgpt/explain-phase02-library (c3e409947 + 8ab8c20d3 + 06721c8bc + 5de6a499f); the five later references (gini-vs-entropy, cost-complexity-pruning, regression-step-fit, bootstrap-coverage, forest-size-accuracy) have Balanced and Detailed variants (5de6a499f); Detailed not run",
+ "notation": "Plain prompts, no sketch. referenceKind is the expected first-diagram kind (the pack re-reads it from the reference spec). askDepths lists the bench depth keys a prompt is asked at: standard = Balanced (reference id <id>), deep = Detailed (reference id <id>-detailed). Run subsets with bench.mjs --only <ids>.",
  "defaultRuns": 1,
  "defaultDepths": [
   "standard"
@@ -39,7 +39,7 @@
    "group": "demo-lesson04",
    "prompt": "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?",
    "referenceId": "ml-trees-gini-vs-entropy",
-   "referenceKind": "pending",
+   "referenceKind": "coordinate-plot",
    "askDepths": [
     "standard"
    ],
@@ -60,8 +60,7 @@
    "referenceId": "ml-trees-gini-split",
    "referenceKind": "matrix",
    "askDepths": [
-    "standard",
-    "deep"
+    "standard"
    ],
    "needsPicture": false,
    "noPicture": true,
@@ -135,7 +134,7 @@
    "group": "demo-lesson04",
    "prompt": "how does cost-complexity pruning trade tree size against accuracy as alpha increases?",
    "referenceId": "ml-trees-cost-complexity-pruning",
-   "referenceKind": "pending",
+   "referenceKind": "coordinate-plot",
    "askDepths": [
     "standard"
    ],
@@ -154,10 +153,9 @@
    "group": "demo-lesson04",
    "prompt": "how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?",
    "referenceId": "ml-trees-regression-step-fit",
-   "referenceKind": "pending",
+   "referenceKind": "coordinate-plot",
    "askDepths": [
-    "standard",
-    "deep"
+    "standard"
    ],
    "needsPicture": false,
    "noPicture": true,
@@ -193,7 +191,7 @@
    "group": "demo-lesson04",
    "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
    "referenceId": "ml-trees-bootstrap-coverage",
-   "referenceKind": "pending",
+   "referenceKind": "coordinate-plot",
    "askDepths": [
     "standard"
    ],
@@ -212,7 +210,7 @@
    "group": "demo-lesson04",
    "prompt": "how does a random forest combine the predictions of its trees into one answer?",
    "referenceId": "ml-trees-majority-vote",
-   "referenceKind": "bar-chart",
+   "referenceKind": "flow",
    "askDepths": [
     "standard"
    ],
@@ -231,7 +229,7 @@
    "group": "demo-lesson04",
    "prompt": "how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?",
    "referenceId": "ml-trees-forest-size-accuracy",
-   "referenceKind": "pending",
+   "referenceKind": "coordinate-plot",
    "askDepths": [
     "standard"
    ],

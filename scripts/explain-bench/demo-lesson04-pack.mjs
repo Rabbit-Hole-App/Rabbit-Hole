@@ -6,7 +6,7 @@
 // so the five later references are added by a second bench run without re-running the rest. No --run: dry run, prints the plan and which reference files are found, writes nothing.
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -22,6 +22,7 @@ const json = f => JSON.parse(readFileSync(f, 'utf8'));
 export const variantId = (id, depth) => (depth === 'deep' ? `${id}-detailed` : depth === 'overview' ? `${id}-brief` : id);
 export const baseId = id => String(id).replace(/--part.*$/, '').replace(/-(brief|detailed)$/, '');
 export const selectorCheck = (ids, want) => (ids ? { hit: ids.some(x => baseId(x) === want), first: ids.length > 0 && baseId(ids[0]) === want } : { hit: null, first: null });
+const steerText = (s, short) => (s === null || s === undefined ? 'not logged' : s.length ? s.map(e => Object.entries(e).filter(([k]) => k !== 'ts').map(([k, v]) => `${k} ${v}`).join(', ')).join('; ') : short ? 'no' : 'no (event absent)');
 const yn = v => (v === null || v === undefined ? 'not logged' : v ? 'yes' : 'no');
 
 export async function pack(o) {
@@ -48,20 +49,21 @@ export async function pack(o) {
   for (const p of set.prompts) for (const dep of p.askDepths) {
     const refId = variantId(p.referenceId, dep), refSpecText = refFile(refId, 'spec.json'), refSpec = refSpecText ? JSON.parse(refSpecText) : null;
     const refSvg = refFile(refId, '408.svg') ?? (refSpec ? svgOf(refSpec, 408) : null);
-    const wantKind = p.referenceKind !== 'pending' ? p.referenceKind : refSpec?.diagram?.kind ?? 'pending';
+    const wantKind = refSpec?.diagram?.kind ?? p.referenceKind; // the reference spec is the truth, the set's label the fallback
     const g = got.get(`${p.id}|${dep}`), c = g?.c ?? null, b = g?.saved?.response?.block ?? null, row = g?.saved?.row ?? null, ids = c?.references?.ids ?? null;
     const d0 = c?.diagrams?.[0] ?? null, pc = c?.planCheck ?? null, sel = selectorCheck(ids, p.referenceId);
     rows.push({ p, dep, name: `${p.n}-${p.referenceId.replace(/^ml-trees-/, '')}${dep === 'deep' ? '-detailed' : ''}`, refId, refSvg, refSpec, wantKind, c, b, row, ids, ...sel, run: g?.run ?? null,
       modelKind: d0?.kind ?? (c?.hasPicture ? 'picture' : c?.delivered ? 'none' : c ? 'FAILED' : null), planKind: pc?.planKind ?? c?.plan?.kind ?? null, offered: pc?.offered ?? null,
-      kindMatch: wantKind === 'pending' || !c ? null : d0?.kind === wantKind,
-      plannerMatch: wantKind === 'pending' || !pc ? null : pc.offered ? pc.offered.includes(wantKind) : pc.planKind === wantKind,
-      factual: c?.judge?.factual ?? null, factualError: (c?.judge?.factual?.errors || []).length > 0 });
+      kindMatch: !c ? null : d0?.kind === wantKind,
+      plannerMatch: !pc ? null : pc.offered ? pc.offered.includes(wantKind) : pc.planKind === wantKind,
+      steer: row ? row.steer ?? null : null, factual: c?.judge?.factual ?? null, factualError: (c?.judge?.factual?.errors || []).length > 0 });
   }
   if (!o.runs.length) { for (const r of rows) console.log(`${r.name.padEnd(36)} ${r.dep.padEnd(8)} expects ${r.refId} (${r.wantKind}); reference ${r.refSvg ? 'found' : 'NOT FOUND'}`); return { rows, written: false }; }
 
   mkdirSync(out, { recursive: true });
-  const stack = o.base && o.vars ? await openStack(o, root) : null;
-  const shot = !o.noPng || stack ? await (async () => { const { chromium } = createRequire('C:/Users/cyudhist/Desktop/workspace/tutor-r6/package.json')('playwright'); return chromium.launch({ headless: true }); })() : null;
+  for (const d of readdirSync(out, { withFileTypes: true })) if (d.isDirectory() && /^[0-9][0-9]-/.test(d.name)) rmSync(join(out, d.name), { recursive: true, force: true }); // a new run replaces the old cards
+  const stack = !o.noPng && o.base && o.vars ? await openStack(o, root) : null;
+  const shot = !o.noPng ? await (async () => { const { chromium } = createRequire('C:/Users/cyudhist/Desktop/workspace/tutor-r6/package.json')('playwright'); return chromium.launch({ headless: true }); })() : null;
   for (const r of rows.filter(x => x.c)) {
     const dir = join(out, r.name); mkdirSync(dir, { recursive: true });
     const { c, b, row } = r, vis = []; let body = '', last = 0, m;
@@ -72,7 +74,7 @@ export async function pack(o) {
       writeFileSync(join(dir, `visual-${v.n}.json`), JSON.stringify(v.spec, null, 1) + '\n');
       if (v.type !== 'diagram' || !v.spec) continue;
       const svg = svgOf(v.spec, 440); writeFileSync(join(dir, `visual-${v.n}.svg`), svg);
-      if (shot && !o.noPng) await pngOf(shot, svg, join(dir, `visual-${v.n}.png`));
+      if (shot) await pngOf(shot, svg, join(dir, `visual-${v.n}.png`));
     }
     if (r.refSvg) writeFileSync(join(dir, 'reference-408.svg'), r.refSvg);
     if (r.refSpec) writeFileSync(join(dir, 'reference-spec.json'), JSON.stringify(r.refSpec, null, 1) + '\n');
@@ -81,13 +83,15 @@ export async function pack(o) {
     writeFileSync(join(dir, 'pipeline.json'), JSON.stringify({ run: r.run, plan, raw: c.raw, row, response: { profile: row?.profile, attempts: row?.attempts, repaired: c.repaired }, tokens: tok, totalMs: c.totalMs, costUsd: c.costUsd }, null, 1) + '\n');
     writeFileSync(join(dir, 'card.md'), [`# ${b?.title ?? '(no card delivered)'}`, '',
       `- Prompt: ${r.p.prompt}`, `- Depth: ${r.dep === 'deep' ? 'Detailed (bench key deep)' : 'Balanced (bench key standard)'}`,
-      `- Expected reference: ${r.refId}; expected kind: ${r.wantKind}${r.wantKind === 'pending' ? ' (reference not available yet)' : ''}`,
+      `- Expected reference: ${r.refId}; expected kind: ${r.wantKind}`,
+      `- Sent bare: only the prompt (no lesson, no context, no selection); depth ${r.dep}`,
       `- Selector hit (expected reference among the references sent to the author): ${yn(r.hit)}; first pick (expected reference sent first): ${yn(r.first)}`,
       `- References sent to the author (attempt 0, selector order): ${r.ids ? r.ids.join(', ') || 'none' : 'not logged (no --log)'}`,
+      `- Steer (explanation_plan_kind_from_reference): ${steerText(r.steer)}`,
       `- Planner kind: ${r.planKind ?? 'none'}${plan && plan.fixed === false && r.offered ? ` (not fixed; offered ${r.offered.join(' | ')})` : plan?.fixed ? ' (fixed)' : ''}; planner kind = expected: ${yn(r.plannerMatch)}`,
       `- Model kind (first diagram): ${r.modelKind}; all visuals: ${vis.map(v => (v.type === 'diagram' ? v.spec?.diagram?.kind : 'picture')).join(', ') || 'none'}; model kind = expected: ${yn(r.kindMatch)}`,
       `- Picture routing: planner pictures ${plan?.pictures ?? 'n/a'}; pictures in the card ${vis.filter(v => v.type === 'picture').length}; dropped ${c.picturesDropped ? c.picturesDropped.join(', ') || 'none' : 'not logged'}`,
-      `- Repaired: ${c.repaired ? 'yes' : 'no'}${(c.repairCauses || []).length ? ` (${c.repairCauses.map(x => x.cause).join(', ')})` : ''}; visual fallback: ${c.visualFallback ? JSON.stringify(c.visualFallback) : 'no'}; server corrections: ${JSON.stringify(c.corrections ?? null)}`,
+      `- Repaired: ${c.repaired ? 'yes' : 'no'}${(c.repairCauses || []).length ? `; cause (first attempt error): ${c.repairCauses.map(x => `attempt ${x.attempt}: ${x.error}`).join(' | ')}` : ''}; visual fallback: ${c.visualFallback ? JSON.stringify(c.visualFallback) : 'no'}; server corrections: ${JSON.stringify(c.corrections ?? null)}`,
       `- Authored by ${c.authoredBy?.provider ?? b?.authoredBy?.provider ?? '-'} / ${c.authoredBy?.model ?? b?.authoredBy?.model ?? '-'}`,
       `- Time ${c.totalMs ?? '-'} ms${calls.length ? ` (model call(s) ${calls.join(' + ')} ms)` : ''}; tokens in/out ${tok ? `${tok.input}/${tok.output}` : '-'}; cost US$${c.costUsd ?? '-'}`,
       `- Factual (factual-v2): ${f ? `${f.score}/5, error ${r.factualError ? 'yes' : 'no'}${f.notes?.length ? ` - ${f.notes.join(' ')}` : ''}` : 'not judged'}`, '',
@@ -102,14 +106,20 @@ export async function pack(o) {
   for (const r of rows.filter(x => !x.c && x.refSvg)) { const dir = join(out, r.name); mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'reference-408.svg'), r.refSvg); }
 
   const ran = rows.filter(r => r.c), known = ran.filter(r => r.kindMatch !== null), judged = ran.filter(r => r.factual), pc = (n, d) => (d ? `${n}/${d}` : '-');
-  const cell = r => (r.c ? [r.modelKind, yn(r.hit), yn(r.first), (r.ids || []).join(' ') || '-', r.planKind ?? '-', r.factual ? `${r.factual.score}${r.factualError ? ' ERROR' : ''}` : '-', r.c.repaired ? 'yes' : 'no', `${r.c.totalMs} ms`, r.c.tokens ? `${r.c.tokens.input}/${r.c.tokens.output}` : '-'] : ['not run', '', '', '', '', '', '', '', '']);
+  const cell = r => (r.c ? [r.modelKind, yn(r.hit), yn(r.first), (r.ids || []).join(' ') || '-', r.planKind ?? '-', steerText(r.steer, true), r.factual ? `${r.factual.score}${r.factualError ? ' ERROR: ' + (r.factual.notes || []).join(' ') : ''}` : '-', r.c.repaired ? `yes: ${(r.c.repairCauses || []).map(x => x.error).join(' | ').slice(0, 200)}` : 'no', `${r.c.totalMs} ms`] : ['not run', '', '', '', '', '', '', '', '']);
   writeFileSync(join(out, 'index.md'), ['# Review pack demo-lesson04', '',
-    `The 13 Lesson 04 demo prompts, one run each, Balanced (bench key standard); prompts 03 and 08 also at Detailed (bench key deep). Set scripts/explain-bench/sets/demo-lesson04.json, judge factual-v2 only. Runs: ${[...new Set(ran.map(r => r.run))].join(', ')}. Nothing edited: what is here is what the pipeline produced.`, '',
-    '| # | Prompt | Depth | Expected reference | Expected kind | Model kind | Selector hit | First pick | References sent (order) | Planner kind | Factual (1-5) | Repaired | Time | Tokens in/out |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    `The 13 Lesson 04 demo prompts, one run each, Balanced only (bench key standard): 13 cards, no Detailed cards. **Every prompt is sent bare, as the owner types it: bench.mjs posts only command explanation, args = the prompt, board and depth, with no lesson attached, no context and no selection** (Codex's own live check passed only with the lesson attached, the context path). Set scripts/explain-bench/sets/demo-lesson04.json, judge factual-v2 only. Runs: ${[...new Set(ran.map(r => r.run))].join(', ')}. Nothing edited: what is here is what the pipeline produced.`, '',
+    '| # | Prompt | Depth | Expected reference | Expected kind | Model kind | Intended reference sent | First sent | References sent (order) | Planner kind | Steer | Factual (1-5, flags) | Repaired (cause) | Time |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
     ...rows.map(r => { const k = cell(r); return `| ${r.p.n} | ${r.c ? `[${r.p.prompt}](${r.name}/card.md)` : r.p.prompt} | ${r.dep === 'deep' ? 'Detailed' : 'Balanced'} | ${r.refId} | ${r.wantKind} | ${k[0]} | ${k[1]} | ${k[2]} | ${k[3]} | ${k[4]} | ${k[5]} | ${k[6]} | ${k[7]} | ${k[8]} |`; }), '',
-    `Cards run ${ran.length} of ${rows.length}; delivered ${pc(ran.filter(r => r.c.delivered).length, ran.length)}; selector hit ${pc(ran.filter(r => r.hit).length, ran.filter(r => r.hit !== null).length)}; first pick ${pc(ran.filter(r => r.first).length, ran.filter(r => r.first !== null).length)}; model kind = expected ${pc(known.filter(r => r.kindMatch).length, known.length)} (cards with a known expected kind); factual error ${pc(judged.filter(r => r.factualError).length, judged.length)}; repaired ${ran.filter(r => r.c.repaired).length}; planner routed to picture ${ran.filter(r => r.c.plan?.pictures > 0).length}; cost US$${ran.reduce((s, r) => s + (r.c.costUsd || 0), 0).toFixed(4)}.`, ''].join('\n'));
+    `Cards run ${ran.length} of ${rows.length}; delivered ${pc(ran.filter(r => r.c.delivered).length, ran.length)}; intended reference sent ${pc(ran.filter(r => r.hit).length, ran.filter(r => r.hit !== null).length)}; first sent ${pc(ran.filter(r => r.first).length, ran.filter(r => r.first !== null).length)}; model kind = expected ${pc(known.filter(r => r.kindMatch).length, known.length)} (cards with a known expected kind); factual error ${pc(judged.filter(r => r.factualError).length, judged.length)}; steer fired ${ran.filter(r => r.steer?.length).length}; repaired ${ran.filter(r => r.c.repaired).length}; planner routed to picture ${ran.filter(r => r.c.plan?.pictures > 0).length}; cost US$${ran.reduce((s, r) => s + (r.c.costUsd || 0), 0).toFixed(4)}.`, ''].join('\n'));
   writeFileSync(join(out, 'REVIEW.md'), ['# Review of demo-lesson04', '', 'To be filled by the lead after reading every card.md and visual. Columns: **kind** = the drawn kind against the expected one; **complete** = what the reference shows is on the visual; **labels** = placeholders, duplicates, maths outside `$...$`; **numbers** = values on the visual against the prose; **points** = the prose tells the reader what to look for.', '',
-    '| # | Card | Kind | Complete | Labels | Numbers | Points at visual |', '|---|---|---|---|---|---|---|', ...rows.map(r => `| ${r.p.n}${r.dep === 'deep' ? ' D' : ''} | ${r.c ? `[${r.p.referenceId}](${r.name}/card.md)` : r.p.referenceId} | | | | | |`), ''].join('\n'));
+    '| # | Card | Kind | Complete | Labels | Numbers | Points at visual |', '|---|---|---|---|---|---|---|', ...rows.map(r => `| ${r.p.n}${r.dep === 'deep' ? ' D' : ''} | ${r.c ? `[${r.p.referenceId}](${r.name}/card.md)` : r.p.referenceId} | | | | | |`), '', '## Notes under the body (not the visual)', '', '- 09 bootstrap-roots: body contradicts the visual the model had just written: prose says 6 rows and names C, E, G, H as omitted while the diagram shows them drawn; same defect class as batch-02 card 06; author-prompt rule #8c, separate measured run.', ''].join('\n'));
+  // A card whose intended reference was not sent, or whose kind differs from the reference's, prints its pipeline lines at once (planner raw plan, references sent, author raw visuals).
+  for (const r of ran.filter(x => x.hit === false || x.kindMatch === false)) { const a0 = (r.c.raw || [])[0]; console.log(`MISS ${r.name}: intended sent ${yn(r.hit)}, model kind ${r.modelKind} vs ${r.wantKind}
+  plan ${JSON.stringify(a0?.plan ?? r.c.plan)}
+  references ${JSON.stringify(r.ids)}
+  steer ${steerText(r.steer)}
+  author raw visuals ${JSON.stringify(a0?.visuals ?? null)}`); }
   return { rows, written: true };
 }
 
