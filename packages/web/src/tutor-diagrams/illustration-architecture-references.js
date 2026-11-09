@@ -15,10 +15,15 @@ const preNormDecoder = [
   { id: 'att', label: 'Causal GQA' },
   { id: 'fn', label: 'Pre-FFN RMSNorm' },
 ];
+const llamaBrief = [
+  { id: 'an', label: 'Input scaling for attention' },
+  { id: 'att', label: 'Attention to current and earlier tokens' },
+  { id: 'fn', label: 'Input scaling for token update' },
+];
 const llamaBalanced = [
-  { id: 'an', label: 'Pre-RMSNorm 1 (rescale input)' },
-  { id: 'att', label: 'Causal grouped-query attention (share key and value heads)' },
-  { id: 'fn', label: 'Pre-RMSNorm 2 (rescale before feed-forward)' },
+  { id: 'an', label: 'Pre-RMSNorm 1 (input scaling)' },
+  { id: 'att', label: 'Causal grouped-query attention (shared key and value heads)' },
+  { id: 'fn', label: 'Pre-RMSNorm 2 (feed-forward input scaling)' },
 ];
 const decoderResiduals = [residual('an', 'att'), residual('fn', 'ff')];
 
@@ -69,11 +74,11 @@ export const architectureReferences = [
       'llama block', 'llama 3 decoder', 'llama 3 8b decoder', 'llama 3.1 8b decoder',
     ],
     useWhen: 'Use Llama 3.1 8B for the example dimensions and count. Both sublayers add their output to the stream they received before normalization.',
-    spec: llamaSpec('Llama-style decoder block', llamaBalanced, { label: 'SwiGLU FFN (update each token)' },
+    spec: llamaSpec('Llama-style decoder block', llamaBalanced, { label: 'SwiGLU FFN (per-token update)' },
       'Each sublayer adds its result to the token stream.'),
     depths: {
       overview: {
-        spec: llamaSpec('Llama-style decoder block', briefDecoder, { label: 'Update token features' },
+        spec: llamaSpec('Llama-style decoder block', llamaBrief, { label: 'Per-token update' },
           'Attention reads the current token and earlier tokens. The final step updates each token on its own.'),
       },
       deep: {
@@ -123,9 +128,9 @@ export const architectureReferences = [
     ],
     useWhen: 'Use RMSNorm before and after attention and the feed-forward network. SWA means sliding-window attention. In Detailed put the gate in a separate visual. Config https://huggingface.co/mlx-community/gemma-3-27b-it-qat-3bit/blob/main/config.json',
     spec: gemmaSpec({
-      ...gemmaAttention, label: 'Grouped-query attention (share key and value heads)', role: 'attention',
+      ...gemmaAttention, label: 'Grouped-query attention (shared key and value heads)', role: 'attention',
     }, {
-      ...gemmaFeedForward, label: 'Gated GELU FFN (update each token)', role: 'feedforward',
+      ...gemmaFeedForward, label: 'Gated GELU FFN (per-token update)', role: 'feedforward',
     }, {
       caption: 'Five sliding-window layers precede each global layer. RMSNorm surrounds both sublayers.',
     }),
@@ -133,10 +138,10 @@ export const architectureReferences = [
       overview: {
         spec: versioned(stack(gemmaTitle, [
           gemmaEmbedding,
-          { ...gemmaAttention, label: 'Read current and earlier tokens', role: 'attention' },
-          { ...gemmaFeedForward, label: 'Update each token', role: 'feedforward' },
+          { ...gemmaAttention, label: 'Attention to current and earlier tokens', role: 'attention' },
+          { ...gemmaFeedForward, label: 'Per-token update', role: 'feedforward' },
           { id: 'norm', label: 'Final normalization', role: 'norm' },
-          { id: 'out', label: 'Score possible next tokens', role: 'output' },
+          { id: 'out', label: 'Next-token scores', role: 'output' },
         ])),
       },
       deep: {
@@ -145,16 +150,16 @@ export const architectureReferences = [
           label: 'Attention',
           inputs: [{ label: 'QK-Norm' }, { label: 'RoPE' }],
           diagram: flow(
-            { label: 'Apply Pre-RMSNorm 1', role: 'norm' },
-            { label: 'Use sliding-window and GQA attention (5:1 local to global)', role: 'attention' },
-            { label: 'Apply Post-RMSNorm 1', role: 'norm' },
+            { label: 'Pre-RMSNorm 1', role: 'norm' },
+            { label: 'Sliding-window + GQA attention (5:1 local:global)', role: 'attention' },
+            { label: 'Post-RMSNorm 1', role: 'norm' },
           ),
         }, {
           ...gemmaFeedForward, label: 'FFN', detail: 2,
           diagram: flow(
-            { label: 'Apply Pre-RMSNorm 2', role: 'norm' },
-            { label: 'Run Gated GELU FFN', role: 'feedforward' },
-            { label: 'Apply Post-RMSNorm 2', role: 'norm' },
+            { label: 'Pre-RMSNorm 2', role: 'norm' },
+            { label: 'Gated GELU FFN', role: 'feedforward' },
+            { label: 'Post-RMSNorm 2', role: 'norm' },
           ),
         }, {
           title: 'Gemma 3 27B',

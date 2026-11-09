@@ -28,6 +28,44 @@ test('flow labels start with actions and edges communicate their purpose', () =>
   assert.ok(issues.every(issue => issue.message.trim().length > 0));
 });
 
+const componentStack = steps => ({ kind: 'block-stack', title: 'Decoder components', blocks: [
+  { id: 'attention', label: 'Attention', diagram: { kind: 'flow', steps } },
+  { id: 'ffn', label: 'Feed-forward network' },
+] });
+
+test('role-tagged inset steps name components and legacy inset steps describe actions', () => {
+  assert.deepEqual(lint(componentStack([
+    { label: 'Pre-RMSNorm 1', role: 'norm' },
+    { label: 'Sliding-window + GQA attention (5:1 local:global)', role: 'attention' },
+    { label: 'Query projection', role: 'attention' },
+    'Pass the output',
+  ])), []);
+  const issues = lint(componentStack([
+    { label: 'Apply RMSNorm', role: 'norm' },
+    'Attention output',
+  ]));
+  assert.deepEqual(locations(issues), [
+    ['block-component-name', ['diagram', 'blocks', 0, 'diagram', 'steps', 0, 'label']],
+    ['flow-label-verb-first', ['diagram', 'blocks', 0, 'diagram', 'steps', 1]],
+  ]);
+});
+
+test('component name joins still require delimiters around arithmetic', () => {
+  const issues = lint(componentStack([
+    { label: 'GQA + FFN and x + y', role: 'attention' },
+    { label: 'Pre-RMSNorm 1 + 2', role: 'norm' },
+    { label: 'Gated GELU FFN $x+y$', role: 'feedforward' },
+    { label: 'Projection $x$ + $y$', role: 'attention' },
+    'Use sliding-window + GQA attention',
+  ]));
+  assert.deepEqual(locations(issues), [
+    ['math-delimiters', ['diagram', 'blocks', 0, 'diagram', 'steps', 0, 'label']],
+    ['math-delimiters', ['diagram', 'blocks', 0, 'diagram', 'steps', 1, 'label']],
+    ['math-delimiters', ['diagram', 'blocks', 0, 'diagram', 'steps', 3, 'label']],
+    ['math-delimiters', ['diagram', 'blocks', 0, 'diagram', 'steps', 4]],
+  ]);
+});
+
 test('sequence messages are checked without requiring verbs in actor labels', () => {
   const issues = lint({ kind: 'sequence', title: 'Read a record', actors: [
     { id: 'client', label: 'Client' }, { id: 'cache', label: 'Cache' },

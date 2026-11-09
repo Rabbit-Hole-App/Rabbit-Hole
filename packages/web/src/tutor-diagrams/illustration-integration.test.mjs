@@ -81,6 +81,17 @@ test('illustration and walkthrough references pass the content contract and per-
   }
 });
 
+test('embedding strips use one consistent value treatment at every depth', () => {
+  const reference = transformerWalkthroughReferences.find(ref => ref.id === 'ml-transformer-token-embeddings');
+  for (const { spec: { diagram } } of [reference, reference.depths.overview, reference.depths.deep]) {
+    assert.equal(diagram.blocks.length, 6);
+    const tensors = diagram.blocks.map(block => block.diagram.tensor);
+    assert.ok(tensors.every(tensor => tensor.columns === 4));
+    const valued = tensors.filter(tensor => tensor.values);
+    assert.ok(valued.length === 0 || valued.length === tensors.length, 'all six strips use the same value treatment');
+  }
+});
+
 test('the detailed Gemma uses numbered notes at 320 and four margin leaders at 960', () => {
   const gemma = illustrationReferences.find(ref => ref.id === 'ml-gemma-decoder-stack').depths.deep;
   const small = renderTutorDiagram(gemma.spec, 320);

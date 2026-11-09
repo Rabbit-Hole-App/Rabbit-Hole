@@ -1,13 +1,15 @@
 import { TEACHING_STYLE } from './teaching-theme.js';
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react';
 import { layouts } from './layouts.js';
-import { label, lineHeight, SURFACE, wrap } from './primitives.js';
+import { fitCaption, label, layoutCaption, lineHeight, SURFACE, wrap } from './primitives.js';
 import { describeTutorDiagram, parseTutorDiagram } from './spec.js';
 import { usesIllustrations } from './illustration-kinds.js';
 
 const DEFAULT_WIDTH = 408;
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 720;
+const CAPTION_SIZE = 13;
+const CAPTION_GUTTER = 32;
 
 export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   const document = parseTutorDiagram(spec);
@@ -15,13 +17,13 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   const requested = Number.isFinite(availableWidth) ? Math.round(availableWidth) : DEFAULT_WIDTH;
   const illustration = usesIllustrations(diagram);
   const preferredWidth = Math.max(MIN_WIDTH, Math.min(illustration ? 960 : MAX_WIDTH, requested));
-  const layout = layouts[diagram.kind](diagram, preferredWidth);
+  const layout = fitCaption(layouts[diagram.kind](diagram, preferredWidth), diagram.caption, CAPTION_GUTTER, CAPTION_SIZE);
   const teaching = illustration || isTeachingDiagram(diagram);
   const { width } = layout;
   const title = wrap(diagram.title, width - 32, 17);
   const titleHeight = title.length * lineHeight(17) + 17;
-  const caption = diagram.caption ? wrap(diagram.caption, width - 32, 13) : [];
-  const captionHeight = caption.length ? caption.length * lineHeight(13) + 14 : 0;
+  const caption = layoutCaption(diagram.caption, width - CAPTION_GUTTER, CAPTION_SIZE);
+  const captionHeight = caption.height ? caption.height + 14 : 0;
   const height = titleHeight + layout.height + captionHeight;
   const element = h('svg', {
     xmlns: 'http://www.w3.org/2000/svg', width, height, viewBox: `0 0 ${width} ${height}`, role: 'img',
@@ -35,7 +37,7 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
     fill: SURFACE, stroke: 'var(--color-line, #dedad4)' }),
   label(title, width / 2, titleHeight / 2 + 3, { size: 17, weight: 700 }),
   h('g', { transform: `translate(0 ${titleHeight})` }, ...layout.elements),
-  caption.length ? label(caption, width / 2, titleHeight + layout.height + captionHeight / 2 - 2, { size: 13, tone: 'muted' }) : null);
+  caption.height ? caption.draw(width / 2, titleHeight + layout.height + captionHeight / 2 - 2) : null);
   return { width, height, element };
 }
 

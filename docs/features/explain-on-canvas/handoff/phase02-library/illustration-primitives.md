@@ -60,16 +60,16 @@ The [walkthrough handoff](illustrated-transformer-walkthrough.md) records the ca
 
 ## Token budgets
 
-Counts use `cl100k_base` on compact JSON. Each cell gives diagram tokens, then the complete author packet including `id`, `useWhen` and `detailSpec` where present. The first number is the combined compact count for references with two visuals. All ten walkthrough references fit 300 tokens per visual. The older Detailed Gemma decoder is 320 tokens with the explicit roles, and its separate FFN visual is 70. [Token measurements](../../../../../packages/web/src/tutor-diagrams/illustration-token-budgets.json)
+Counts use `cl100k_base` on compact JSON. Each cell gives diagram tokens, then the complete author packet including `id`, `useWhen` and `detailSpec` where present. The first number is the combined compact count for references with two visuals. All ten walkthrough references fit 300 tokens per visual. The Detailed Gemma decoder is 315 tokens with the explicit roles, and its separate FFN visual is 70. [Token measurements](../../../../../packages/web/src/tutor-diagrams/illustration-token-budgets.json)
 
 | Reference | Brief | Balanced | Detailed |
 | --- | ---: | ---: | ---: |
 | QKV projections | 201 / 251 | 259 / 309 | 285 / 335 |
 | Self-attention links | — | 119 / 183 | — |
 | Encoder stack | 167 / 208 | 166 / 207 | 194 / 235 |
-| Llama-style decoder | 143 / 189 | 164 / 210 | 166 / 213 |
+| Llama-style decoder | 147 / 193 | 162 / 208 | 166 / 213 |
 | Dense vs MoE | 247 / 270 | 265 / 288 | 286 / 309 |
-| Gemma decoder | 109 / 181 | 169 / 241 | 391 / 465 |
+| Gemma decoder | 109 / 181 | 169 / 241 | 386 / 460 |
 | Top-two MoE routing | — | 300 / 335 | — |
 
 The gallery now has 24 kinds. All three new shapes have Brief, Balanced and Detailed specs. The saved depth keys remain `overview`, `standard` and `deep`. The preview manifest includes gallery variants, walkthrough examples, and both Gemma visuals. The dense-vs-MoE comparison also has a linked single-matrix alternative in the offline catalogue of variants.
@@ -77,6 +77,8 @@ The gallery now has 24 kinds. All three new shapes have Brief, Balanced and Deta
 ## Block-stack role colours
 
 Set `role` on a block or on an inset flow step written as `{ label, role }`. Norm uses the neutral inset, attention uses blue, feed-forward uses warm, and embedding and output use green. Output has a stronger green outline. `changed` uses the established blue emphasis. Omitted block roles and string steps retain their previous paint.
+
+Component labels are noun phrases, including role-tagged steps in an inset. Untagged inset flow steps and ordinary flows use verb-first action labels. Captions wrap, and captions with maths have an SVG text fallback for viewers without XHTML support.
 
 Detailed Gemma names the four pre/post RMSNorm stages, the sliding-window and GQA attention schedule, and the gated GELU FFN. Detailed Llama names its two pre-RMSNorm stages, causal grouped-query attention, and SwiGLU FFN. Balanced puts short plain-language glosses beside the component names.
 

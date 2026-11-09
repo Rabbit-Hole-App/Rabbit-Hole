@@ -1,4 +1,4 @@
-import { diagramReferences } from './reference-library.js';
+import { diagramReferences, illustrationReferences, transformerWalkthroughReferences } from './reference-library.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createElement } from 'react';
@@ -72,4 +72,51 @@ test('examples.json covers a binary tree, a highlighted search path and maths in
   const maths = renderToStaticMarkup(renderTutorDiagram(byTitle('One gradient descent step'), 408).element);
   assert.ok(maths.includes('foreignObject') && maths.includes('katex'), 'the formulas are typeset');
   assert.doesNotMatch(maths, /<tspan[^>]*>[^<]*[$]/, 'no drawn text keeps a raw delimiter');
+});
+
+test('a narrow embedding caption keeps its complete native SVG fallback and inline math', () => {
+  const reference = transformerWalkthroughReferences.find(({ id }) => id === 'ml-transformer-token-embeddings');
+  const spec = structuredClone(reference.depths.deep.spec);
+  spec.diagram.caption = 'Four entries shown per row. Add position with $x_p=e_p+PE_p$.';
+  const { element } = renderTutorDiagram(spec, 320);
+  const svg = renderToStaticMarkup(element);
+  const caption = svg.slice(svg.lastIndexOf('<switch'));
+  assert.match(caption, /requiredExtensions="http:\/\/www\.w3\.org\/1999\/xhtml"/);
+  assert.match(caption, /<div xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"[^>]*>/);
+  assert.match(caption, /data-tutor-tex="\$x_p=e_p\+PE_p\$"/);
+  const fallback = caption.slice(caption.lastIndexOf('data-explanation-skip'));
+  const lines = [...fallback.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map(([, line]) => line);
+  assert.equal(lines.join(' '), 'Four entries shown per row. Add position with x_p=e_p+PE_p.');
+});
+
+test('an unbreakable formula in a caption fits the SVG bounds, including in comparison panels', () => {
+  const caption = 'Before $' + 'W'.repeat(42) + '$ after.';
+  const tensor = { kind: 'tensor', title: 'Input', tensor: { dimensions: '1 × 2', rows: 1, columns: 2, values: [1, 2] } };
+  const main = { version: 1, diagram: { ...tensor, caption } };
+  const nested = { version: 1, diagram: { kind: 'comparison', variant: 'panels', title: 'Compare variants', panels: [
+    { heading: 'One', diagram: { kind: 'block-stack', title: 'One', caption, blocks: [
+      { id: 'a', label: 'Input' }, { id: 'b', label: 'Output' },
+    ] } },
+    { heading: 'Two', diagram: { kind: 'block-stack', title: 'Two', blocks: [
+      { id: 'a', label: 'Embedding' }, { id: 'b', label: 'Prediction' },
+    ] } },
+  ] } };
+  for (const spec of [main, nested]) {
+    const { element, width, height } = renderTutorDiagram(spec, 320);
+    const svg = renderToStaticMarkup(element);
+    const formula = svg.match(/<foreignObject x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"/);
+    assert.ok(formula);
+    const [x, y, formulaWidth, formulaHeight] = formula.slice(1).map(Number);
+    assert.ok(x >= 0 && x + formulaWidth <= width, svg.slice(0, 300));
+    assert.ok(y >= 0 && y + formulaHeight <= height);
+    assert.match(svg, /data-explanation-skip=""/);
+  }
+});
+
+test('the exact local:global component label still fits the minimized Gemma diagram', () => {
+  const reference = illustrationReferences.find(({ id }) => id === 'ml-gemma-decoder-stack');
+  const spec = structuredClone(reference.depths.deep.spec);
+  spec.diagram.blocks.find(({ id }) => id === 'att').diagram.steps[1].label =
+    'Sliding-window + GQA attention (5:1 local:global)';
+  assert.equal(renderTutorDiagram(spec, 320).width, 320);
 });

@@ -1,12 +1,10 @@
-import { embeddings, modelWidth, positions, queryIndex, sentence } from './transformer-walkthrough-data.js';
+import { modelWidth, positions, queryIndex, sentence, shownWidth } from './transformer-walkthrough-data.js';
 
 const numberedTokens = sentence.map((word, index) => index + ' ' + word);
-// Show both copies of “the” and the worked query, leaving the other strips shape-only.
-const numericRows = [0, queryIndex, 4];
 
 function embeddingSpec({
   caption, title = 'Token embeddings for ' + sentence.join(' '),
-  labels = numberedTokens, dimensions = String(modelWidth), rowsWithValues = numericRows,
+  labels = numberedTokens, dimensions = String(modelWidth),
 }) {
   return {
     version: 1,
@@ -19,8 +17,7 @@ function embeddingSpec({
         diagram: {
           kind: 'tensor',
           tensor: {
-            rows: 1, columns: embeddings[index].length, dimensions,
-            ...(rowsWithValues.includes(index) ? { values: embeddings[index] } : {}),
+            rows: 1, columns: shownWidth, dimensions,
           },
         },
       })),
@@ -58,22 +55,22 @@ export const transformerEmbeddingReference = {
     'word become a row of numbers before attention',
     'add position after looking up a word embedding',
   ],
-  useWhen: 'Read the independent lookups in sentence order, starting at position zero. Repeated tokens share an embedding. At Detailed, the second visual shows the position signal that is added to each embedding.',
+  useWhen: 'Show one shape-only strip per token in sentence order, starting at position zero. Repeated tokens share an embedding. At Detailed, the second visual shows the position signal that is added to each embedding.',
   spec: embeddingSpec({
-    caption: 'Four entries shown. Both “the” tokens start with the same row.',
+    caption: 'Four cells show the shape of each embedding. Both “the” tokens start with the same embedding.',
   }),
   depths: {
     overview: {
       spec: embeddingSpec({
-        title: 'A row of numbers for each word',
+        title: 'One strip for each word',
         labels: ['first the', 'cat', 'sat', 'on', 'second the', 'mat'],
-        dimensions: modelWidth + ' entries', rowsWithValues: [],
+        dimensions: modelWidth + ' entries',
         caption: 'Look up a row of numbers for each word. Both uses of “the” start with the same row.',
       }),
     },
     deep: {
       spec: embeddingSpec({
-        caption: 'Four entries shown per row. Add position with $x_p=e_p+PE_p$.',
+        caption: 'Four cells shown per strip. Add position with $x_p=e_p+PE_p$.',
       }),
       detailSpec: positionalEncodingSpec,
     },
