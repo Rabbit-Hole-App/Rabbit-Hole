@@ -115,6 +115,7 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
   const dir = join(rawDir, `${p.name}-r${r}`); mkdirSync(join(dir, 'cards'), { recursive: true });
   for (const q of p.prompts) {
     if (spent + WORST_CARD > cap) { stopped = true; console.log(`STOP cap: spent US$${spent.toFixed(4)} of US$${cap.toFixed(2)}`); break outer; }
+    try { // a stack that goes away mid-run stops the run; the cards so far are still scored and reported
     const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `explain-bench ${p.name} r${r} ${q.id}` }) })).body?.name;
     const logFrom = logSize(), before = (await api('/api/learn/usage')).body, startedAt = new Date().toISOString(), t0 = performance.now();
     const res = canvas ? await fetch(`${BASE}/api/learn/artifact`, { method: 'POST', headers, body: JSON.stringify({ app: canvas, command: 'explanation', args: q.prompt, board: 'main' }) }) : null;
@@ -141,6 +142,7 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
     appendFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n');
     console.log(`${p.name.padEnd(10)} r${r} ${q.id.padEnd(20)} http=${row.http} ${String(totalMs).padStart(6)}ms ${block ? 'CARD' : `FAIL ${row.failure.slice(0, 80)}`}${row.repaired ? ' REPAIRED' : ''} ${row.costSource} US$${costUsd} spent=US$${spent.toFixed(4)}`);
     await sleep(Number(a.gap));
+    } catch (e) { stopped = true; console.log(`STOP stack unreachable (${e.cause?.code || e.message}) after ${sent} cards, spent US$${spent.toFixed(4)}`); break outer; }
   }
 }
 if (a.persist) console.log(await tokensFromPersist(resolve(a.persist), email, rawDir).catch(e => `token counts skipped: ${e.message}`));
