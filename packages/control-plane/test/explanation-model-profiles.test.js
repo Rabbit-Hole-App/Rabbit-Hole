@@ -104,3 +104,12 @@ test('google-low: Gemini first with the Fireworks gpt-oss fallback, same effort 
   assert.equal(author.settings.reasoning_effort, 'low'); assert.equal(author.adapter, 'fast-chain');
   assert.deepEqual(chainSteps(EXPLANATION_REGISTRY.profiles['fireworks-low'].roles.author).map(s => s.provider), ['fireworks', 'google'], 'the fireworks-low profile is unchanged');
 });
+
+// BENCH ONLY (owner 2026-11-09, arm D): google-flash-detailed is the google-low author role with Gemini 3.5 Flash; it is on its own branch and not in the candidate.
+test('google-flash-detailed (bench only): google-low with the model gemini-3.5-flash, same effort, adapter and fallback', async () => {
+  const { EXPLANATION_REGISTRY, chainSteps } = await import('../src/explanation-models.js');
+  const low = EXPLANATION_REGISTRY.profiles['google-low'].roles.author, d = EXPLANATION_REGISTRY.profiles['google-flash-detailed'].roles.author;
+  assert.equal(d.model, 'gemini-3.5-flash'); assert.equal(low.model, 'gemini-3.5-flash-lite');
+  assert.deepEqual({ ...d, model: low.model }, low, 'every other setting is the same as google-low');
+  assert.deepEqual(chainSteps(d).map(s => s.provider), ['google', 'fireworks']);
+});

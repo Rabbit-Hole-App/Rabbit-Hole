@@ -68,6 +68,8 @@ export const EXPLANATION_REGISTRY = deepFreeze({
   profiles: {
     'plan-default': { version: 1, roles: { author: planRole('author') } },
     ...Object.fromEntries(['fireworks', 'cerebras', 'google'].flatMap(primary => REASONING_EFFORTS.map(effort => [`${primary}-${effort}`, { version: 1, roles: { author: chainRole(primary, effort) } }]))),
+    // BENCH ONLY (owner 2026-11-09, arm D): the google-low author role with Gemini 3.5 Flash instead of Flash-Lite. Never in the candidate or the production config.
+    'google-flash-detailed': { version: 1, roles: { author: { ...chainRole('google', 'low'), model: 'gemini-3.5-flash' } } },
   },
 });
 
