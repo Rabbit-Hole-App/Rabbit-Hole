@@ -26,7 +26,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { CHIP } from './ContextChips.jsx';
-import { cardContext, contextMessage, firstWords, placeBesideWords, scrimPath } from './inline-highlight.js';
+import { cardContext, contextMessage, firstWords, placeBesideWords, scrimPath, settleRects } from './inline-highlight.js';
 import { markClear, markSet } from './inline-highlight-mark.js';
 import { composerKey } from './composer-keys.js';
 import DepthMenu from './DepthMenu.jsx';
@@ -115,14 +115,17 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return () => { if (!handedOff.current) markClear(); };
   }, [highlight]);
   // The camera frames the words and the window beside them (a card made by a command takes over the camera itself; closed without sending, the camera goes back).
-  useEffect(() => {
+  // Owner 2026-11-09 ("it should just appear in one place"): in a layout effect, before the first paint, the words' rects are moved to where the glide will leave them and the window is placed
+  // against those, once (settled); it used to follow the live words, so it stood by their old spot until the glide ended and then snapped.
+  const [settled, setSettled] = useState(null);
+  useLayoutEffect(() => {
     const origin = overlay.current?.getBoundingClientRect();
     if (!highlight || !origin || !canvas.frameWords) return undefined;
     const rects = highlight.rects.map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
     const words = { left: Math.min(...rects.map(r => r.left)), top: Math.min(...rects.map(r => r.top)), right: Math.max(...rects.map(r => r.left + r.width)), bottom: Math.max(...rects.map(r => r.top + r.height)) };
     const restore = canvas.frameWords(words, { w: W, h: FRAME_ROOM, gap: 10 });
-    const again = setTimeout(() => tick(n => n + 1), 420);
-    return () => { clearTimeout(again); if (!handedOff.current) restore?.(); };
+    if (restore?.to) setSettled(settleRects(rects, restore.from, restore.to));
+    return () => { if (!handedOff.current) restore?.(); };
   }, [highlight]); // eslint-disable-line react-hooks/exhaustive-deps
   // The board's Depth (the Chat composer's own setting, one value for both): null on a page with no Chat workspace..
   const depthSettings = useChatWorkspace()?.settings ?? null;
@@ -151,7 +154,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [handoffError, setHandoffError] = useState('');
   const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && (explainTarget ? explainEditReason : cardEditSelectionReason(target.ids || [], canvas.board?.() || {}));
   const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
-  const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason || (highlight && !initialMode) ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain'); // owner 2026-11-09: Ctrl+K over highlighted words in a card is Explain selection (the card's words are read, not edited)
+  const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason || highlight ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain'); // owner 2026-11-09: Ctrl+K over highlighted words in a card is Explain selection (the card's words are read, not edited)
   // preset: { prompt, command? } from an opener that already knows the words (Explain on a highlighted passage: words only, no command, the router picks one).
   const [prompt, setPrompt] = useState(preset?.prompt ?? '');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
@@ -163,6 +166,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [selectionOnly, setSelectionOnly] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [modeOpen, setModeOpen] = useState(false);
+  const wordsSubject = !!highlight || !!preset; // the words are the subject: Explain only
   const [built, setPrepared] = useState(null);
   // The popover shows only a context built for the scope on screen. A Selection only change re-renders at once, and the
   // context for the new scope comes a task later, so until then it reads Preparing context, never the old scope's Supporting
@@ -318,7 +322,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // A window or visual-viewport resize (a phone's keyboard opening) re-places the popover inside what is left.
   const [, setViewport] = useState(0);
   useEffect(() => {
-    const moved = () => setViewport(n => n + 1);
+    const moved = () => { setSettled(null); setViewport(n => n + 1); };
     window.addEventListener('resize', moved);
     window.visualViewport?.addEventListener('resize', moved);
     return () => { window.removeEventListener('resize', moved); window.visualViewport?.removeEventListener('resize', moved); };
@@ -706,6 +710,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const marked = (() => {
     const origin = overlay.current?.getBoundingClientRect();
     if (!highlight || !origin) return null;
+    if (settled) return settled; // placed once, against where the camera glide leaves the words
     let rects = []; try { rects = [...highlight.live.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0); } catch { rects = []; }
     if (!rects.length) rects = highlight.rects.map(rect => ({ ...rect, right: rect.left + rect.width, bottom: rect.top + rect.height }));
     return rects.map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
@@ -1068,6 +1073,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <div className="relative ml-auto flex items-center gap-1.5">
             {/* Depth rides only on a command's line (handed to Chat, which sends the board's Depth); a plain Explain or Edit ignores it. */}
             {command && depthSettings && <DepthMenu settings={depthSettings} disabled={busy(status)} />}
+            {/* Owner 2026-11-09: over highlighted words (or a passage handed over by the Markdown bulb) the only mode is Explain selection: a fixed label, no dropdown. */}
+            {wordsSubject ? <span data-inline-mode-label data-inline-mode-current="explain" className="flex h-7 items-center px-1.5 text-xs text-ink-2">Explain selection</span> : <>
             <button type="button" data-inline-mode-toggle data-inline-mode-current={mode} aria-haspopup="menu" aria-expanded={modeOpen} disabled={busy(status)} title="Quick Edit mode"
               onClick={() => { setContextOpen(false); setModeOpen(open => !open); }}
               className="flex h-7 items-center gap-0.5 rounded-md px-1.5 text-xs text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ai disabled:opacity-40">
@@ -1087,6 +1094,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                 {cardEditReason && !fileLocked && <p data-inline-edit-disabled className="px-2 pt-0.5 pb-1 text-[11px] text-ink-3">{cardEditReason}</p>}
               </div>
             )}
+            </>}
             {busy(status) ? (
               // A second press of a double press lands here as detail 2: it never stops the request it just sent.
               <button type="button" data-inline-stop aria-label="Stop" title="Stop" onClick={event => { if (event.detail < 2) session.cancel(); }}

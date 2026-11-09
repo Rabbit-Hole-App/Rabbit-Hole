@@ -3842,7 +3842,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     boxOf: id => boxesOf([id])[0] || null,
     // Ctrl+K over highlighted words: the camera glides (the canvas's own short move, none under reduced motion) so the words and the window are centred in the visible area; the returned function brings the camera back.
     frameWords: (words, win) => { const free = visibleArea(), wide = surface.current.clientWidth, area = free.right >= wide - 40 ? { ...free, left: Math.min(free.left, wide - free.right) } : free; // only small controls on the left: the middle is the surface's middle
-      const target = cameraForWords(words, win, viewRef.current, area); if (!target) return () => {}; const was = { ...viewRef.current }; glideTo(target, true); return () => glideTo(was, true); },
+      const target = cameraForWords(words, win, viewRef.current, area); if (!target) return () => {}; const was = { ...viewRef.current }; glideTo(target, true); return Object.assign(() => glideTo(was, true), { from: was, to: target }); },
     // Every kind of thing on the board (A7): measured boxes, connectors along their drawn paths, group frames, areas and
     // comment pins, in world units.
     obstacles: exclude => boardObstacles(exclude).map(({ id: _id, ...box }) => box),
@@ -6178,10 +6178,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     },
   };
   const canAsk = !!chatWorkspace?.ask && !visiting, canNote = !readOnly && !localCopy;
+  const canQuick = !!inlineAi && !readOnly && !localCopy && !visiting;
+  const openInlineRef = useRef(null); openInlineRef.current = () => openInline(performance.now());
   const explanationHost = useMemo(() => ({
     ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
     ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
-  }), [canAsk, canNote]);
+    // The selection toolbar's Ctrl+K button: the same opener as the key (openInline reads the highlighted words from the page's selection).
+    ...(canQuick ? { quickAsk: () => openInlineRef.current() } : {}),
+  }), [canAsk, canNote, canQuick]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
   // An Explanation card has Minimize in the toolbar where other cards have Focus (its Focus is in its context menu); a minimized one has neither.
   const soleFocus = soleObject && !minimizable(soleObject) ? adapterFor(soleObject, { view, readOnly }) : null;

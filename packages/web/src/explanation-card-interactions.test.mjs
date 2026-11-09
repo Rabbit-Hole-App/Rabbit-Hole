@@ -300,22 +300,22 @@ const selection = (startContainer, startOffset, endContainer, endOffset, text) =
   return B.act(async () => { document.dispatchEvent(new window.Event('selectionchange')); await new Promise(resolve => setTimeout(resolve, 25)); });
 };
 
-test('selecting text offers exactly Ask in chat, Highlight, Create note in that order; Ask in chat prepares a draft and never sends', async () => {
+test('selecting text offers exactly Ctrl+K, Highlight, Create note in that order; Ctrl+K opens through the canvas host, adds nothing to the chat and sends nothing', async () => {
   const card = await envelope();
-  const added = [], sent = [];
+  const added = [], sent = [], opened = [];
   const chat = { addToChat: ref => { added.push(ref); }, ask: turn => { sent.push(turn); }, composer: { focus() {} } };
-  await mount(card, { host: { ask: async () => true, note: () => 'n' }, chat });
+  await mount(card, { host: { ask: async () => true, note: () => 'n', quickAsk: () => { opened.push(1); return true; } }, chat });
   const body = $('[data-explanation-field="body"]');
   const parts = textNodes(body.querySelector('p')); // "A ", "decision tree" (the pill), " makes a prediction ... a ", "leaf" (a pill), "."
   await selection(parts[0], 0, parts[2], ' makes a prediction'.length, 'A decision tree makes a prediction');
   const bar = $('[data-explanation-selection-toolbar]');
   assert.ok(bar, 'the toolbar');
-  assert.deepEqual([...bar.querySelectorAll('button')].map(b => b.getAttribute('aria-label')), ['Ask in chat', 'Highlight', 'Create note'], 'no Explain action on this surface');
-  await click(bar.querySelector('[aria-label="Ask in chat"]'));
-  assert.equal(added.length, 1);
-  assert.equal(added[0].range.quote, 'A decision tree makes a prediction', 'the exact text, across the pill');
-  assert.equal(added[0].sourceId, 'card:card-1');
-  assert.equal(sent.length, 0, 'waits for the learner\'s Send');
+  assert.deepEqual([...bar.querySelectorAll('button')].map(b => b.getAttribute('aria-label')), ['Ctrl+K', 'Highlight', 'Create note'], 'the key hint first; no Ask in chat, no Explain action on this surface');
+  assert.equal(bar.querySelector('button kbd').textContent, 'Ctrl+K', 'the first button shows the key hint');
+  await click(bar.querySelector('[aria-label="Ctrl+K"]'));
+  assert.equal(opened.length, 1, 'the canvas opener ran once');
+  assert.equal(added.length, 0, 'nothing is added to the chat');
+  assert.equal(sent.length, 0, 'nothing is sent');
   assert.equal($('[data-explanation-selection-toolbar]'), null, 'the toolbar closes');
 });
 
@@ -363,7 +363,7 @@ test('Create note hands over the exact captured quote; a read-only viewer\'s Hig
   const lone = textNodes($('[data-explanation-field="body"] p'));
   await selection(lone[2], 1, lone[2], 10, 'makes a pr');
   const buttons = [...$('[data-explanation-selection-toolbar]').querySelectorAll('button')];
-  assert.deepEqual(buttons.map(b => [b.getAttribute('aria-label'), b.disabled]), [['Ask in chat', false], ['Highlight', true], ['Create note', true]]);
+  assert.deepEqual(buttons.map(b => [b.getAttribute('aria-label'), b.disabled]), [['Ctrl+K', true], ['Highlight', true], ['Create note', true]]);
 });
 
 test('repeated text in two sections: a selection in the section is anchored to that section\'s field and offsets', async () => {
@@ -459,7 +459,7 @@ test('a body with a real diagram still aligns: terms before and after the drawin
   const trailing = textNodes($$('[data-explanation-field="body"] p').at(-1));
   await selection(label.firstChild, 0, trailing.at(-1), 3, 'x');
   const bar = $('[data-explanation-selection-toolbar]');
-  assert.ok(bar, 'the selection still offers Ask in chat and Create note');
+  assert.ok(bar, 'the selection still offers Ctrl+K and Create note');
   assert.equal(bar.querySelector('[aria-label="Highlight"]').disabled, true, 'but no highlight can start inside a drawing');
 });
 

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { firstWords, locate, scrimPath, cardContext, contextMessage, explainContext, BODY_CAP } from './inline-highlight.js';
+import { firstWords, locate, scrimPath, settleRects, cardContext, contextMessage, explainContext, BODY_CAP } from './inline-highlight.js';
 import { besideSpot } from './beside-placement.js';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8');
@@ -244,4 +244,37 @@ test('wiring: the window is placed by placeBesideWords against the live words, t
   assert.ok(canvas.includes('frameWords: (words, win) => { const free = visibleArea()') && canvas.includes('const target = cameraForWords(words, win, viewRef.current, area);'));
   assert.ok(editor.includes('canvas.frameWords(words, { w: W, h: FRAME_ROOM, gap: 10 })'), 'the camera centres the words and the first window height, not the whole reserve');
   assert.ok(canvas.includes('glideTo(target, true)'), 'the canvas\'s own short glide (none under reduced motion)');
+});
+
+test('the window is placed once, against where the camera glide leaves the words, and never again when its content grows', () => {
+  const words = [{ left: 300, top: 200, width: 120, height: 18 }];
+  const from = { x: 0, y: 0, z: 1 }, to = { x: -90, y: 40, z: 1.5 };
+  const [end] = settleRects(words, from, to);
+  assert.deepEqual(end, { left: 300 * 1.5 - 90, top: 200 * 1.5 + 40, width: 180, height: 27 }, 'the words as the glide leaves them (world point to the new camera)');
+  const SURF = { w: 1280, h: 900 };
+  const first = placeBesideWords([end], { w: 420, h: 300 }, SURF);
+  assert.deepEqual(placeBesideWords([end], { w: 420, h: 300 }, SURF), first, 'the same rects and size give the same place on every render');
+  const editor = read('InlineAiEditor.jsx');
+  assert.ok(editor.includes('if (settled) return settled;'), 'the rects the window follows are the settled ones, not the live words mid-glide');
+  assert.ok(/useLayoutEffect\(\(\) => \{\s+const origin = overlay\.current\?\.getBoundingClientRect\(\);\s+if \(!highlight \|\| !origin \|\| !canvas\.frameWords\) return undefined;/.test(editor), 'framed before the first paint');
+  assert.ok(!editor.includes('setTimeout(() => tick(n => n + 1), 420)'), 'no re-place when the glide ends');
+  assert.ok(read('AdaptiveCanvas.jsx').includes('{ from: was, to: target }'), 'the canvas hands back the camera the glide ends at');
+});
+
+test('over highlighted words the mode is only the label Explain selection: no dropdown, no Edit', () => {
+  const editor = read('InlineAiEditor.jsx');
+  assert.ok(editor.includes("cardEditReason || highlight ? 'explain'"), 'a highlight forces Explain even when a menu asked for edit');
+  assert.ok(editor.includes('{wordsSubject ? <span data-inline-mode-label') && editor.includes('Explain selection</span> : <>'), 'a fixed label, the toggle only in the other branch');
+  const label = editor.slice(editor.indexOf('{wordsSubject ? <span'), editor.indexOf(' : <>', editor.indexOf('{wordsSubject ? <span')));
+  assert.ok(!label.includes('data-inline-mode-toggle') && !label.includes('ChevronDown'), 'the label is plain text: not a control, no chevron');
+  assert.ok(editor.includes('const wordsSubject = !!highlight || !!preset;'));
+});
+
+test('the selection toolbar Ctrl+K button opens the same opener as the key, with the words and no pill', () => {
+  const canvas = read('AdaptiveCanvas.jsx'), layer = read('ExplanationInteractions.jsx'), editor = read('InlineAiEditor.jsx');
+  assert.ok(canvas.includes('quickAsk: () => openInlineRef.current()') && canvas.includes('openInlineRef.current = () => openInline(performance.now());'), 'openInline reads the page selection as the key path does (inlineTarget picks the highlight)');
+  assert.ok(layer.includes('const quickAsk = () => { if (bar && host?.quickAsk?.()) setBar(null); };') && layer.includes("chordLabel('quick-edit', mac)"));
+  assert.ok(!layer.includes('Ask in chat'.concat('"')) && !layer.includes('askInChat'), 'Ask in chat is gone from this toolbar');
+  assert.ok(editor.includes('cardEditReason || highlight'), 'a highlight opens as Explain selection');
+  assert.ok(editor.includes('useState(preset?.command ?? null)'), 'no preset means no command pill: the router picks the command on Send');
 });
