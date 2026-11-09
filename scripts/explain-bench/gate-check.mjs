@@ -59,7 +59,7 @@ export function gateCheck(dir, sha = '<SHA>', tier = null) {
   const dropped = cards.filter(c => Array.isArray(c.picturesDropped) && c.picturesDropped.length).length, invalid = dropped >= 5 ? `${dropped} cards lost their picture to the image provider` : '';
   const failed = rows.filter(g => !g.ok), first = invalid ? `GATE: INVALID ${sha} tier=${tier} provider outage: ${invalid}; the gate table below is not a verdict` : failed.length ? `GATE: FAIL ${sha} tier=${tier} ${failed.map(g => g.name).join('; ')}` : `GATE: PASS ${sha} tier=${tier}`;
   const carried = results.carry?.rubrics ? `judged ${Object.entries(results.carry.rubrics).map(([k, v]) => `${k} ${v.judged}`).join(', ')}; carried ${Object.entries(results.carry.rubrics).map(([k, v]) => `${k} ${v.carried}`).join(', ')}` : null;
-  const body = [first, `report: ${dir}`, `cards: ${cards.length} (${tier === 'smoke' ? 'smoke set, 1 run' : `${CORE.filter(s => sets.includes(s)).join(', ')}; ${runs.length} run${runs.length > 1 ? 's' : ''}`})`, ...(carried ? [carried] : []),
+  const body = [first, `report: ${dir}`, `cards: ${cards.length} (${tier === 'smoke' ? `smoke set, ${runs.length} run${runs.length > 1 ? 's' : ''}` : `${CORE.filter(s => sets.includes(s)).join(', ')}; ${runs.length} run${runs.length > 1 ? 's' : ''}`})`, ...(carried ? [carried] : []),
     ...rows.map(g => `${g.ok ? 'PASS' : 'FAIL'}  ${g.name}${g.hard && tier === 'smoke' ? ' [hard]' : ''}: ${g.detail}`), ...(tier === 'smoke' ? smokeReports(cards) : []), ''].join('\n');
   return { tier, first, body, rows, code: invalid ? 3 : failed.length ? 1 : 0 };
 }
