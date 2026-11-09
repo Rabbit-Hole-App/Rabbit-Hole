@@ -60,3 +60,15 @@ test('other leading marks go too; a clean question and the three-question cap st
   const kept = keptInteractions(block, { questions: ['  - Why does it matter?', '• How is it counted?', ';: ', 'What is a veto?', 'Why a fourth?'], terms: [] }).questions;
   assert.deepEqual(kept, ['Why does it matter?', 'How is it counted?', 'What is a veto?']);
 });
+
+// Batch-02 audit (owner 2026-11-09): one more sentence at the close of "# Visuals for this card", planned and unplanned forms, once each, no other layer.
+test('the body\'s-example rule closes "# Visuals for this card" in both forms, once, after the completeness sentence', () => {
+  const RULE = 'The body\'s example is the visual\'s example: the same objects, the same count, the same names, the same numbers; never introduce a scenario the visual does not show.';
+  assert.ok(VISUAL_COMPLETE.endsWith(` ${RULE}`));
+  const plan = planFromAnswers(answers);
+  for (const extra of [{ plan }, {}]) {
+    const d = description(prepareArtifactAuthorRequest(FAST, { command: 'explain', args: 'how does public-key encryption work?', depth: 'balanced', ...extra }));
+    assert.equal(count(d, RULE), 1, 'once in the whole tool description');
+    assert.ok(d.indexOf('# Visuals for this card') < d.indexOf(RULE), 'after the visuals heading');
+  }
+});
