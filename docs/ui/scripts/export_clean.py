@@ -50,7 +50,18 @@ EXPORTS=[
  ('43-library','navigation/library'),
  ('44-library-folder','navigation/library-folder'),
  ('45-library-empty','navigation/library-empty'),
- ('46-library-folder-empty','navigation/library-folder-empty')]
+ ('46-library-folder-empty','navigation/library-folder-empty'),
+ ('47-explore-empty','navigation/explore-empty'),
+ ('48-explore-canvases','navigation/explore'),
+ ('49-explore-canvas-search','navigation/explore-canvas-search'),
+ ('50-explore-creator-search','navigation/explore-creator-search'),
+ ('51-explore-library-search','navigation/explore-library-search'),
+ ('52-creator-profile','navigation/creator-profile'),
+ ('53-creator-profile-empty','navigation/creator-profile-empty'),
+ ('54-creator-profile-error','navigation/creator-profile-error'),
+ ('55-creator-profile-not-found','navigation/creator-profile-not-found'),
+ ('56-creator-profile-owner','navigation/creator-profile-owner'),
+ ('57-creator-profile-signed-out','navigation/creator-profile-signed-out')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:
@@ -85,7 +96,7 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
 #resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 @media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
 '''
-  if ident.startswith(('navigation/sidebar','navigation/settings','navigation/home','navigation/library')) or ident in ['cards/canvas-summary','navigation/home']:
+  if ident.startswith(('navigation/sidebar','navigation/settings','navigation/home','navigation/library','navigation/explore','navigation/creator-profile')) or ident == 'cards/canvas-summary':
    extra+='\nmain.clean-stage{max-width:none;margin:0;padding:0;}\n'
   if ident=='controls/toggle':
    # A single switch with its label, without availability and usage documentation.

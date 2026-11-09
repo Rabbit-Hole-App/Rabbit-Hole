@@ -1,0 +1,62 @@
+{
+  "id": "navigation/creator-profile-error",
+  "title": "Creator profile load failure",
+  "category": "navigation",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/CREATOR-PROFILE.md",
+  "source_file": "CREATOR-PROFILE.md",
+  "status": "Draft for owner review. App integration pending",
+  "styles": [
+    "standards",
+    "review-corrections",
+    "sidebar",
+    "canvas-card",
+    "home",
+    "library",
+    "explore",
+    "creator-profile"
+  ],
+  "scripts": [
+    "sidebar",
+    "sidebar-panels",
+    "public-browse",
+    "creator-profile",
+    "explore"
+  ],
+  "implementation": [
+    "packages/web/src/CreatorProfile.jsx",
+    "packages/web/src/Shell.jsx",
+    "packages/web/src/home/PublicCards.jsx",
+    "packages/web/src/home/LearningCard.jsx",
+    "packages/control-plane/src/creators.js"
+  ],
+  "notes": "Retry first shows the loading skeleton, then restores the sample profile.",
+  "issues": [
+    "The creator API needs an aggregate stars-received field"
+  ],
+  "templates": [],
+  "includes": [
+    "creator-profile",
+    "sidebar",
+    "home-fixtures",
+    "public-canvas-card",
+    "canvas-card",
+    "explore",
+    "creator-profile-view"
+  ],
+  "keywords": [
+    "creator",
+    "public profile",
+    "canvases",
+    "stars received",
+    "forks",
+    "sort",
+    "search",
+    "empty",
+    "error",
+    "retry",
+    "recovery"
+  ],
+  "path": "components/navigation/creator-profile-error",
+  "paletteRole": "shared",
+  "catalogVisible": true
+}

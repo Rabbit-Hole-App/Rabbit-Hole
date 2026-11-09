@@ -57,12 +57,20 @@ App mapping landmarks inspected for this reference: `packages/web/src/Sidebar.js
 
 | Panel | Placement and opening | Content and interaction | Closing |
 | --- | --- | --- | --- |
-| Search | Centered modal; focus search field; Ctrl/Cmd+Shift+F outside a text field | Sample canvas title filtering, type labels, empty result state; arrows browse and Enter selects | X, Escape or backdrop; return focus to trigger or selected recent row |
+| Search | Reviewed modal shell with input focus. Ctrl/Cmd+Shift+F opens it outside a text field. | Library items in recent-first order, optional Runbooks matches, and type labels. Arrow keys browse and Enter selects. | X, Escape or backdrop closes it and returns focus to the trigger or selected recent row. |
 | Trash | Centered modal | Deleted canvas rows, deletion time, secondary Restore action; concise empty state after last restore | X, Escape or backdrop |
 | Notifications | Floating beside sidebar, top-aligned; fit inside narrow viewport | Existing notification specimen, Claude-red unread count, Clear notifications and caught-up state; opening clears unread badge | X, Escape or outside press |
 | Feedback | Floating beside sidebar, bottom-aligned; focus textarea | Report a bug / Suggest a feature; visible field label; max 2,000 characters; Submit disabled for blank input | X, Escape or outside press; successful submit closes it |
 
 One utility surface opens at a time. Preserve focus containment, labels, keyboard behavior, active trigger states and pale scrollbars. Panels are content-sized, bounded by the viewport and scroll internally when needed.
+
+### Search
+
+The sidebar Search button opens the account Library modal from [Search.jsx](../../packages/web/src/Search.jsx), checked on main at `cf5f811cdaf013e7b9f0ae12ed27fe4793f94ee0`. It focuses the field with the placeholder “Describe what you are looking for.” A blank field shows accessible Library items, with recent items first. Typing matches the title or internal name and appends matching Runbooks in a separate group. Use the item title and type in the row. Arrow keys move the highlight while the input has focus, and Enter opens the selected item.
+
+The approved preview adds Clear search to the no-results state. It restores the Library list and returns focus to the field inside the open modal.
+
+The preview retains the reviewed dialog styling. It uses local canvas and project fixtures, including a sample Runbooks match for `confusion matrix`. The Rabbit Hole build’s flag keeps the sidebar’s model-backed results disabled. Explore has its own search and recommendation path. [Search open over Explore](clean/51-explore-library-search.html) · [Explore search](EXPLORE.md#search-previews)
 
 ### Feedback after Submit
 

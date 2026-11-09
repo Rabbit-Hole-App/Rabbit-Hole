@@ -1,0 +1,21 @@
+<div class="menu library-menu" id="public-canvas-menu" role="menu" aria-label="Card options" hidden>
+  <button class="menu-item" type="button" role="menuitem" id="public-canvas-copy">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Link2"></use></svg>Copy link
+  </button>
+</div>
+
+<template id="public-canvas-template"><!-- ui:include canvas-card --></template>
+<template id="public-canvas-actions-template">
+  <button class="button primary" type="button" data-card-start-rabbit-hole>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/explore.svg#explore-arrow-down-to-line"></use></svg>Start Rabbit Hole
+  </button>
+  <button class="button secondary" type="button" data-explore-fork>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-git-fork"></use></svg>Fork
+    <span class="star-count" data-fork-count></span>
+  </button>
+</template>
+<template id="public-canvas-more-template">
+  <button class="icon-button quiet home-more" type="button" aria-haspopup="menu" aria-controls="public-canvas-menu" aria-expanded="false" aria-label="Card options">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Ellipsis"></use></svg>
+  </button>
+</template>

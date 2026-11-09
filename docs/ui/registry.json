@@ -1395,6 +1395,709 @@
       "paletteRole": "shared"
     },
     {
+      "id": "navigation/creator-profile",
+      "title": "Creator profile with published canvases",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/CREATOR-PROFILE.md",
+      "source_file": "CREATOR-PROFILE.md",
+      "status": "Draft for owner review. App integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/CreatorProfile.jsx",
+        "packages/web/src/Shell.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/control-plane/src/creators.js"
+      ],
+      "notes": "Public profile with lifetime stars received and forks, published canvases, search, sort and a separate Stars collection. See CREATOR-PROFILE.md.",
+      "issues": [
+        "The creator API needs an aggregate stars-received field"
+      ],
+      "templates": [],
+      "includes": [
+        "creator-profile",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "explore",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "creator",
+        "public profile",
+        "canvases",
+        "stars received",
+        "forks",
+        "sort",
+        "search",
+        "empty"
+      ],
+      "path": "components/navigation/creator-profile",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/creator-profile-empty",
+      "title": "Creator profile without published canvases",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/CREATOR-PROFILE.md",
+      "source_file": "CREATOR-PROFILE.md",
+      "status": "Draft for owner review. App integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/CreatorProfile.jsx",
+        "packages/web/src/Shell.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/control-plane/src/creators.js"
+      ],
+      "notes": "The public identity remains visible when no canvases are published. The Stars collection can still have public canvases. See CREATOR-PROFILE.md.",
+      "issues": [
+        "The creator API needs an aggregate stars-received field"
+      ],
+      "templates": [],
+      "includes": [
+        "creator-profile",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "explore",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "creator",
+        "public profile",
+        "canvases",
+        "stars received",
+        "forks",
+        "sort",
+        "search",
+        "empty"
+      ],
+      "path": "components/navigation/creator-profile-empty",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/creator-profile-error",
+      "title": "Creator profile load failure",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/CREATOR-PROFILE.md",
+      "source_file": "CREATOR-PROFILE.md",
+      "status": "Draft for owner review. App integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/CreatorProfile.jsx",
+        "packages/web/src/Shell.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/control-plane/src/creators.js"
+      ],
+      "notes": "Retry first shows the loading skeleton, then restores the sample profile.",
+      "issues": [
+        "The creator API needs an aggregate stars-received field"
+      ],
+      "templates": [],
+      "includes": [
+        "creator-profile",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "explore",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "creator",
+        "public profile",
+        "canvases",
+        "stars received",
+        "forks",
+        "sort",
+        "search",
+        "empty",
+        "error",
+        "retry",
+        "recovery"
+      ],
+      "path": "components/navigation/creator-profile-error",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/creator-profile-not-found",
+      "title": "Creator profile not found",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/CREATOR-PROFILE.md",
+      "source_file": "CREATOR-PROFILE.md",
+      "status": "Draft for owner review. App integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/CreatorProfile.jsx",
+        "packages/web/src/Shell.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/control-plane/src/creators.js"
+      ],
+      "notes": "Unavailable handle with Browse creators as the recovery action.",
+      "issues": [
+        "The creator API needs an aggregate stars-received field"
+      ],
+      "templates": [],
+      "includes": [
+        "creator-profile",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "explore",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "creator",
+        "public profile",
+        "canvases",
+        "stars received",
+        "forks",
+        "sort",
+        "search",
+        "empty",
+        "missing",
+        "retry",
+        "recovery"
+      ],
+      "path": "components/navigation/creator-profile-not-found",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/creator-profile-owner",
+      "title": "Own creator profile",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/CREATOR-PROFILE.md",
+      "source_file": "CREATOR-PROFILE.md",
+      "status": "Draft for owner review. App integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/CreatorProfile.jsx",
+        "packages/web/src/Shell.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/control-plane/src/creators.js"
+      ],
+      "notes": "Owner-only Edit profile, Analytics, and ownership badge.",
+      "issues": [
+        "The creator API needs an aggregate stars-received field"
+      ],
+      "templates": [],
+      "includes": [
+        "creator-profile",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "explore",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "creator",
+        "public profile",
+        "canvases",
+        "stars received",
+        "forks",
+        "sort",
+        "search",
+        "empty",
+        "owner"
+      ],
+      "path": "components/navigation/creator-profile-owner",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/creator-profile-signed-out",
+      "title": "Signed-out creator profile",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/CREATOR-PROFILE.md",
+      "source_file": "CREATOR-PROFILE.md",
+      "status": "Draft for owner review. App integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/CreatorProfile.jsx",
+        "packages/web/src/Shell.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/control-plane/src/creators.js"
+      ],
+      "notes": "Public profile uses the compact Rabbit Hole header.",
+      "issues": [
+        "The creator API needs an aggregate stars-received field"
+      ],
+      "templates": [],
+      "includes": [
+        "creator-profile",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "explore",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "creator",
+        "public profile",
+        "canvases",
+        "stars received",
+        "forks",
+        "sort",
+        "search",
+        "empty",
+        "signed-out"
+      ],
+      "path": "components/navigation/creator-profile-signed-out",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/explore",
+      "title": "Explore with canvases",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/EXPLORE.md",
+      "source_file": "EXPLORE.md",
+      "status": "Draft for owner review. Browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/LibraryViews.jsx",
+        "packages/web/src/library-filter.js",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/WeeklyTop.jsx",
+        "packages/web/src/home/weekly-top.js",
+        "packages/web/src/home/card-sort.js",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/card-size.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/ForkButton.jsx",
+        "packages/web/src/RabbitHoleChoice.jsx"
+      ],
+      "notes": "Published canvas summaries and five code-derived weekly rows. Tabs, filtering, sorting, search and card size use local fixtures. See EXPLORE.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "explore",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "explore",
+        "public canvas",
+        "canvases",
+        "creators",
+        "weekly top",
+        "leaderboard",
+        "filters",
+        "sort",
+        "card size",
+        "empty"
+      ],
+      "path": "components/navigation/explore",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/explore-canvas-search",
+      "title": "Explore canvas search",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/EXPLORE.md",
+      "source_file": "EXPLORE.md",
+      "status": "Draft for owner review. Browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/LibraryViews.jsx",
+        "packages/web/src/library-filter.js",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/WeeklyTop.jsx",
+        "packages/web/src/home/weekly-top.js",
+        "packages/web/src/home/card-sort.js",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/card-size.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/ForkButton.jsx",
+        "packages/web/src/RabbitHoleChoice.jsx",
+        "packages/web/src/Search.jsx",
+        "packages/web/src/home/explore-find.js"
+      ],
+      "notes": "Canvas search is focused with a matching public canvas. The weekly list returns when the query is cleared. See EXPLORE.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "explore",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "explore",
+        "public canvas",
+        "canvases",
+        "creators",
+        "weekly top",
+        "leaderboard",
+        "filters",
+        "sort",
+        "card size",
+        "empty"
+      ],
+      "path": "components/navigation/explore-canvas-search",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/explore-creator-search",
+      "title": "Explore creator search",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/EXPLORE.md",
+      "source_file": "EXPLORE.md",
+      "status": "Draft for owner review. Browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/LibraryViews.jsx",
+        "packages/web/src/library-filter.js",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/WeeklyTop.jsx",
+        "packages/web/src/home/weekly-top.js",
+        "packages/web/src/home/card-sort.js",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/card-size.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/ForkButton.jsx",
+        "packages/web/src/RabbitHoleChoice.jsx",
+        "packages/web/src/Search.jsx",
+        "packages/web/src/home/explore-find.js"
+      ],
+      "notes": "Creators is selected with a matching creator. Clear the query to see Top creators this week and the creator list. See EXPLORE.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "explore",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "explore",
+        "public canvas",
+        "canvases",
+        "creators",
+        "weekly top",
+        "leaderboard",
+        "filters",
+        "sort",
+        "card size",
+        "empty"
+      ],
+      "path": "components/navigation/explore-creator-search",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/explore-empty",
+      "title": "Explore empty",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/EXPLORE.md",
+      "source_file": "EXPLORE.md",
+      "status": "Draft for owner review. Browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/LibraryViews.jsx",
+        "packages/web/src/library-filter.js",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/WeeklyTop.jsx",
+        "packages/web/src/home/weekly-top.js",
+        "packages/web/src/home/card-sort.js",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/card-size.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/ForkButton.jsx",
+        "packages/web/src/RabbitHoleChoice.jsx"
+      ],
+      "notes": "Canvases and Creators with empty discovery results. Search, Filters and Card size remain in place on Canvases. The weekly list and Sort are hidden. See EXPLORE.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "explore",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "explore",
+        "public canvas",
+        "canvases",
+        "creators",
+        "weekly top",
+        "leaderboard",
+        "filters",
+        "sort",
+        "card size",
+        "empty"
+      ],
+      "path": "components/navigation/explore-empty",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
+      "id": "navigation/explore-library-search",
+      "title": "Explore with sidebar Search open",
+      "category": "navigation",
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/EXPLORE.md",
+      "source_file": "EXPLORE.md",
+      "status": "Draft for owner review. Browser verification and app integration pending",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "sidebar",
+        "canvas-card",
+        "home",
+        "library",
+        "explore",
+        "creator-profile"
+      ],
+      "scripts": [
+        "sidebar",
+        "sidebar-panels",
+        "public-browse",
+        "creator-profile",
+        "explore"
+      ],
+      "implementation": [
+        "packages/web/src/Home.jsx",
+        "packages/web/src/Sidebar.jsx",
+        "packages/web/src/LibraryViews.jsx",
+        "packages/web/src/library-filter.js",
+        "packages/web/src/home/LearningCard.jsx",
+        "packages/web/src/home/PublicCards.jsx",
+        "packages/web/src/home/WeeklyTop.jsx",
+        "packages/web/src/home/weekly-top.js",
+        "packages/web/src/home/card-sort.js",
+        "packages/web/src/home/CardSize.jsx",
+        "packages/web/src/home/card-size.js",
+        "packages/web/src/CardStar.jsx",
+        "packages/web/src/ForkButton.jsx",
+        "packages/web/src/RabbitHoleChoice.jsx",
+        "packages/web/src/Search.jsx",
+        "packages/web/src/home/explore-find.js"
+      ],
+      "notes": "The sidebar Library search modal opens over Explore and focuses the input. The preview includes Library and Runbooks fixtures. See EXPLORE.md.",
+      "issues": [],
+      "templates": [],
+      "includes": [
+        "explore",
+        "sidebar",
+        "home-fixtures",
+        "public-canvas-card",
+        "canvas-card",
+        "creator-profile-view"
+      ],
+      "keywords": [
+        "explore",
+        "public canvas",
+        "canvases",
+        "creators",
+        "weekly top",
+        "leaderboard",
+        "filters",
+        "sort",
+        "card size",
+        "empty"
+      ],
+      "path": "components/navigation/explore-library-search",
+      "paletteRole": "shared",
+      "catalogVisible": true
+    },
+    {
       "id": "navigation/folders",
       "title": "Folder tiles and menus",
       "category": "navigation",

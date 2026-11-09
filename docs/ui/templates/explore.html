@@ -1,0 +1,146 @@
+<!-- ui:include sidebar -->
+<!-- ui:include home-fixtures -->
+
+<template id="explore-page-template">
+  <section class="home-main explore-page" id="explore-page" aria-labelledby="explore-title" data-explore>
+    <div class="home-content">
+      <header class="library-header explore-header">
+        <div>
+          <h1 id="explore-title">Explore</h1>
+          <p>Discover canvases and the people behind them.</p>
+        </div>
+      </header>
+      <div class="explore-tabs" role="tablist" aria-label="Explore" data-explore-tabs>
+        <button type="button" role="tab" class="explore-tab" id="explore-canvases-tab" aria-selected="true" aria-controls="explore-canvases-panel" data-explore-tab="canvases">Canvases</button>
+        <button type="button" role="tab" class="explore-tab" id="explore-creators-tab" aria-selected="false" aria-controls="explore-creators-panel" data-explore-tab="creators" tabindex="-1">Creators</button>
+      </div>
+      <div class="explore-toolbar" id="explore-toolbar" data-explore-toolbar>
+        <label class="library-search explore-search">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-search"></use></svg>
+          <input type="search" class="control" id="explore-search" data-explore-search aria-label="Search canvases" placeholder="Search canvases" autocomplete="off">
+        </label>
+        <button class="button secondary" id="explore-filter" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="explore-filter-menu">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-list-filter"></use></svg>
+          <span id="explore-filter-label">Filters</span>
+        </button>
+        <button class="button secondary" id="explore-sort" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="explore-sort-menu" hidden>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-arrow-down-up"></use></svg>
+          <span id="explore-sort-label">Sort: Newest</span>
+        </button>
+        <label class="home-size" for="explore-size">Card size
+          <input id="explore-size" type="range" min="0" max="3" step="1" value="3" aria-label="Card size" aria-valuetext="Large">
+          <output id="explore-size-value" for="explore-size">Large</output>
+        </label>
+      </div>
+      <section class="explore-weekly" id="explore-weekly" aria-labelledby="explore-weekly-heading" hidden>
+        <h2 id="explore-weekly-heading">Top canvases this week</h2>
+        <ol class="explore-weekly-list" id="explore-weekly-list" data-weekly-list role="list"></ol>
+      </section>
+      <section id="explore-canvases-panel" role="tabpanel" aria-labelledby="explore-canvases-tab">
+        <div class="library-chips" id="explore-filter-chip" hidden>
+          <span class="pill neutral library-chip">
+            <span id="explore-filter-chip-label"></span>
+            <button class="icon-button quiet" type="button" id="explore-filter-remove" aria-label="Remove filter">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-x"></use></svg>
+            </button>
+          </span>
+        </div>
+        <section class="explore-recommended" data-explore-recommended="canvases" aria-label="Recommended" hidden>
+          <h2 class="home-section-title">Recommended</h2>
+          <p class="explore-results-note" data-recommended-status role="status" hidden></p>
+          <div class="home-grid" data-recommended-items></div>
+        </section>
+        <p class="explore-results-note" id="explore-no-canvases" role="status" hidden></p>
+        <button type="button" class="button secondary compact" id="explore-clear-canvas-search" data-clear-explore-search hidden>Clear search</button>
+        <h2 class="explore-browse-heading" id="explore-browse-canvases" hidden>Browse canvases</h2>
+        <div class="home-grid" id="explore-card-grid" data-explore-list></div>
+      </section>
+      <section class="explore-creators" id="explore-creators-panel" role="tabpanel" aria-labelledby="explore-creators-tab" hidden>
+        <section class="explore-recommended" data-explore-recommended="creators" aria-label="Recommended" hidden>
+          <h2 class="home-section-title">Recommended</h2>
+          <p class="explore-results-note" data-recommended-status role="status" hidden></p>
+          <ul class="explore-creator-list" data-recommended-items role="list"></ul>
+        </section>
+        <h2 class="explore-browse-heading" id="explore-browse-creators" hidden>Browse creators</h2>
+        <p class="explore-results-note" id="explore-creator-count" role="status" hidden></p>
+        <p class="explore-results-note" id="explore-no-creators" role="status" hidden></p>
+        <button type="button" class="button secondary compact" id="explore-clear-creator-search" data-clear-explore-search hidden>Clear search</button>
+        <ul class="explore-creator-list" id="explore-creator-list" role="list"></ul>
+        <button class="button secondary" id="explore-show-more-creators" type="button" aria-controls="explore-creator-list" hidden>Show more creators</button>
+      </section>
+    </div>
+  </section>
+</template>
+
+<div class="menu library-menu" id="explore-filter-menu" role="menu" aria-label="Filters" hidden>
+  <p class="library-menu-heading">Type</p>
+  <button class="menu-item" type="button" role="menuitemcheckbox" aria-checked="false" data-explore-filter="projects">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-folder-git-2"></use></svg><span class="menu-label">Projects</span>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg>
+  </button>
+  <button class="menu-item" type="button" role="menuitemcheckbox" aria-checked="false" data-explore-filter="canvases">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Shapes"></use></svg><span class="menu-label">Canvas</span>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg>
+  </button>
+  <button class="menu-item" type="button" role="menuitem" id="explore-filter-clear" hidden>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-x"></use></svg><span class="menu-label">Clear filters</span>
+  </button>
+</div>
+<div class="menu library-menu" id="explore-sort-menu" role="menu" aria-label="Sort by" hidden>
+  <p class="library-menu-heading">Sort by</p>
+  <button class="menu-item" type="button" role="menuitemradio" aria-checked="true" data-explore-sort="newest">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-calendar-plus"></use></svg><span class="menu-label">Newest</span>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg>
+  </button>
+  <button class="menu-item" type="button" role="menuitemradio" aria-checked="false" data-explore-sort="updated">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-clock"></use></svg><span class="menu-label">Recently updated</span>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg>
+  </button>
+  <button class="menu-item" type="button" role="menuitemradio" aria-checked="false" data-explore-sort="forks">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-git-fork"></use></svg><span class="menu-label">Most forked</span>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg>
+  </button>
+</div>
+<template id="explore-weekly-row-template">
+  <li class="explore-weekly-row" data-weekly-row>
+    <span class="explore-rank" data-weekly-rank></span>
+    <a class="explore-weekly-picture" data-weekly-picture data-weekly-target tabindex="-1" aria-hidden="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Shapes"></use></svg>
+    </a>
+    <div class="explore-weekly-name">
+      <a data-weekly-title data-weekly-target></a>
+      <a data-weekly-creator data-weekly-target="profile"></a>
+    </div>
+    <div class="explore-weekly-counts">
+      <span class="explore-weekly-count" data-weekly-stars>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Star"></use></svg>
+        <span aria-hidden="true" data-weekly-number></span><span class="sr-only"></span>
+      </span>
+      <span class="explore-weekly-count" data-weekly-forks>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-git-fork"></use></svg>
+        <span aria-hidden="true" data-weekly-number></span><span class="sr-only"></span>
+      </span>
+    </div>
+    <a class="explore-weekly-action link" data-weekly-action data-weekly-target>
+      <span>Open</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ArrowRight"></use></svg>
+    </a>
+  </li>
+</template>
+<template id="explore-creator-template">
+  <li class="explore-creator-card">
+    <div class="explore-creator-identity">
+      <span class="avatar explore-creator-avatar" aria-hidden="true"></span>
+      <div class="explore-creator-details">
+        <p class="explore-creator-name" data-creator-name></p>
+        <a class="link" data-creator-handle></a>
+        <p class="explore-creator-description" data-creator-description></p>
+        <p class="explore-creator-counts" data-creator-counts></p>
+      </div>
+    </div>
+    <a class="link explore-profile-action" data-creator-view>View profile
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ArrowRight"></use></svg>
+    </a>
+  </li>
+</template>
+<!-- ui:include public-canvas-card -->
+<!-- ui:include creator-profile-view -->

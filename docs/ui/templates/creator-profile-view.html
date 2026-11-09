@@ -1,0 +1,130 @@
+<template id="creator-profile-template">
+  <section class="home-main creator-profile-page" id="creator-profile" aria-labelledby="profile-name" hidden>
+    <div class="home-content creator-profile-content">
+      <nav class="library-breadcrumb" aria-label="Profile navigation">
+        <a class="link creator-profile-back" id="profile-back" href="#explore-page">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ArrowRight"></use></svg>
+          <span id="profile-back-label">Browse creators</span>
+        </a>
+      </nav>
+      <div id="profile-loading" role="status" hidden>
+        <span id="profile-loading-label" class="sr-only">Loading creator profile</span>
+        <div class="home-loading-grid" aria-hidden="true">
+          <div class="skeleton spacious"><span class="skeleton-line"></span><div class="skeleton-visual"></div></div>
+        </div>
+      </div>
+      <div class="library-empty" id="profile-unavailable" hidden>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/sidebar.svg#sidebar-compass"></use></svg>
+        <h1 id="profile-state-title" tabindex="-1"></h1>
+        <button class="button secondary" id="profile-retry" type="button" hidden>Retry</button>
+      </div>
+      <div id="profile-content">
+        <header class="creator-profile-header">
+          <div class="creator-profile-person">
+            <span class="avatar creator-profile-avatar" id="profile-avatar" aria-hidden="true"></span>
+            <div class="creator-profile-identity">
+              <h1 id="profile-name" tabindex="-1"></h1>
+              <div class="creator-profile-handle">
+                <span class="creator-profile-handle-value">
+                  <span id="profile-handle"></span>
+                  <span class="creator-profile-owner" id="profile-owner" role="img" aria-label="Owned by you" title="Owned by you" hidden>
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                      <path fill="var(--primary)" d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"></path>
+                      <path d="m8.5 12.2 2.4 2.4 4.6-4.9" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </span>
+                </span>
+                <button class="button secondary compact" id="profile-copy" type="button">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <use href="../../../icons/standards.svg#i-Link2"></use>
+                    <use href="../../../icons/standards.svg#i-Check" hidden></use>
+                  </svg>
+                  <span aria-live="polite">Copy profile link</span>
+                </button>
+              </div>
+              <p id="profile-description"></p>
+              <p id="profile-stats" aria-live="polite"></p>
+            </div>
+          </div>
+          <div class="creator-profile-actions" id="profile-owner-actions" hidden>
+            <button class="button secondary" id="profile-edit" type="button">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/settings.svg#settings-circle-user"></use></svg>
+              Edit profile
+            </button>
+            <button class="button secondary" id="profile-analytics" type="button">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/icons.svg#icon-ChartLine"></use></svg>
+              Analytics
+            </button>
+          </div>
+        </header>
+
+        <div class="explore-tabs" role="tablist" aria-label="Creator profile">
+          <button class="explore-tab" id="profile-canvases-tab" data-profile-tab="canvases" type="button" role="tab" aria-selected="true" aria-controls="profile-canvases-panel">Canvases</button>
+          <button class="explore-tab" id="profile-stars-tab" data-profile-tab="stars" type="button" role="tab" aria-selected="false" aria-controls="profile-stars-panel" tabindex="-1">Stars <span id="profile-starred-count"></span></button>
+        </div>
+
+        <section id="profile-canvases-panel" role="tabpanel" aria-labelledby="profile-canvases-tab">
+          <div class="library-toolbar creator-profile-toolbar">
+            <h2 class="home-section-title">Public Learning Boards</h2>
+            <label class="library-search" id="profile-search-field">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-search"></use></svg>
+              <input class="control" id="profile-search" type="search" aria-label="Search projects and canvases" placeholder="Search projects and canvases" autocomplete="off">
+            </label>
+            <button class="button secondary" id="profile-sort" type="button" aria-haspopup="menu" aria-controls="profile-sort-menu" aria-expanded="false">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-arrow-down-up"></use></svg>
+              <span id="profile-sort-label">Sort: Newest</span>
+            </button>
+          </div>
+          <section class="creator-profile-projects" id="profile-projects" aria-labelledby="profile-projects-title" hidden>
+            <h3 class="home-section-title" id="profile-projects-title">Projects</h3>
+            <div id="profile-project-list"></div>
+          </section>
+          <h3 class="home-section-title" id="profile-matches-title" hidden>Canvases</h3>
+          <p class="explore-results-note" id="profile-no-matches" role="status" hidden></p>
+          <button class="button secondary compact" id="profile-clear-search" type="button" hidden>Clear search</button>
+          <div class="library-empty" id="profile-empty" hidden>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/sidebar.svg#sidebar-compass"></use></svg>
+            <p></p>
+          </div>
+          <div class="home-grid" id="profile-cards"></div>
+        </section>
+
+        <section id="profile-stars-panel" role="tabpanel" aria-labelledby="profile-stars-tab" hidden>
+          <div class="library-empty" id="profile-stars-empty" hidden>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Star"></use></svg>
+            <p>No starred public canvases.</p>
+          </div>
+          <div class="home-grid" id="profile-starred-cards"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+</template>
+
+<div class="menu library-menu" id="profile-sort-menu" role="menu" aria-label="Sort by" hidden>
+  <p class="library-menu-heading">Sort by</p>
+  <button class="menu-item" type="button" role="menuitemradio" aria-checked="true" data-profile-sort="newest">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-calendar-plus"></use></svg><span class="menu-label">Newest</span>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg>
+  </button>
+  <button class="menu-item" type="button" role="menuitemradio" aria-checked="false" data-profile-sort="forks">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-git-fork"></use></svg><span class="menu-label">Most forked</span>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Check"></use></svg>
+  </button>
+</div>
+
+<template id="profile-project-template">
+  <a class="button secondary compact">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-folder-git-2"></use></svg>
+    <span data-project-name></span><span class="muted" data-project-count></span>
+  </a>
+</template>
+
+<template id="profile-public-brand-template">
+  <header class="creator-profile-brand" id="profile-public-brand">
+    <a href="https://digrabbithole.com/" aria-label="Rabbit Hole home">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAFJElEQVR4nMRXeUjVaRQ9PtOylbIiK4psoQVaoYWyaI+IonLmj4oCBQUR/1IHEVEUFTeUccTtHxVxG1dccBkUF8QNV2bccQH3fU1QcX7njs+ZyucyM+aBj/d47333nu/cc+/3eyr8DWNl/aasaWUtbNCaXsxhrE6qvfjqqix/ZRkqSwcbB53FHD8qS1dZuVqLbH7F5uAHKvDzIqv/DG1tbSwsLKxniz4VYF30sE4YGBjg5cuXuH//Pq5cuYL9+/djfn4eKpUK/f39KCkpQWpqKpKSklYK81m13uRMFh4ejoqKCly4cAGRkZG4e/cu9PX1cfDgQSHy8OFDZGVl4cOHD6ipqcGLFy80hdOjAmvWzMPDA2/fvoWnpydCQkLkMyY9efIkdu/ejZmZGbS3t6Ojo2NpD8n5+/sjIiICPj4+38TcspbEhoaGEoCnPnXqlCR0dnbG69evoaenh6amJoyOjmLbtm3y/datW0UlLy8vFBQUCImcnBz09PQgKirqi9irKnD27FlkZGTAzc1NNru6usLY2FgUiImJQXNz8zd7Tpw4AUtLS5H+06dP4odLly5JnGPHjolX1GAXOGlKvmvXLmRmZkpSJuJ7dU2Liopw7do1KQmVuHfvngQfHBxEZ2cnsrOzpRRxcXFITExEfX09zp8/L16pqqpaG4Hg4GBJRIkZxNzcXAI6OjrK6Vn/3t5etLa2YmpqCpcvXxbZjx8/LmS5b3x8HKampoiPj5eY7JyEhITVS/Ds2TPY29vDzMwMhYWFcsoDBw4gKChIiHl7e2NsbGxZ4vzuzJkzkoxoaWnBgwcPoKOjg+joaFy/fn3ptypogJWVlbjdz88P1tbW4gUa7/nz54iNjRVytbW1IvnAwADy8/NhYmIie/n74eFhiUHwACzX7Owstmz50vfLEmAt6WYy5qauri7Y2Njg6dOnokRKSooMG56QfU9lbG1thVxoaKjE8PX1xfv37+U9Se7du1fiMtaqBG7fvo28vDx8/PgRgYGBooSFhYW8qvs+PT0dN2/exLt370Sd0tJS6Y7Dhw/LK83KQxAkODQ0hDt37qCsrGx1AkzQ2NgoG6gCTUZSHDSsb3JystSSzr9165aYiuUhOC+oFO8FdbvduHED1dXV0jEk/k8sO4g4SLiZg+Px48fIzc2Fk5OTBGatHRwclqRWo7y8HGlpaeJ6Dieajv3/5MkTdHd3i/FYtsrKytUV6Ovrw6FDh+QUrBt7l6d2d3cXg3HsssXY5/yMKC4uFucbGRlJn7NlqZKdnR0CAgLg4uIi8+RrLEuAp+Glw3pPTk7i6NGjmJ6elvpevHgRV69elfqz31km9j9/T+ezbakeTcfB09bWJp7gFCXJr6FxDnDu07EcMHQ6r9l9+/bJe6qiBiccr93Tp09jz5490vOvXr0SL7D29BL3chgtB42TkPV68+aNnJal4InYw5SfJ6QCYWFhQpCmpTojIyMy8+l0dgBV42dURRM0EmhoaJD2OXLkiATnkw7NqaurK/3+6NEjIbZz50454fbt22Uy0i8TExNChARp2JWw4nXM1mL/8iZkCzI5BxPJzM3NSXLWnSqQ7I4dO+Q77mGLsjyrYU0PJDQbr1derSRCElpaWlIKJiQRnpoXFs1WV1eHtWJdT0TEuXPnpL40HFWgV1gu9vq/wboJ/N9QYZNBAp+xeZDH8mJsHopJIAibhyAOoj/w1x9FI3xfuCnrF/W/41xl/a4sfWUZYOP+IdNvBcr6icn5wZ8AAAD//7KpOucAAAAGSURBVAMALElwBuWREWQAAAAASUVORK5CYII=" alt="" width="20" height="20">
+      Rabbit Hole
+    </a>
+  </header>
+</template>

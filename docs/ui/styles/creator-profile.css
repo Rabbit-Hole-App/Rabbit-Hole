@@ -1,0 +1,39 @@
+/* Profile composition. The sidebar, controls, tabs and canvas cards use the shared styles. */
+.creator-profile-content { max-width:1150px; }
+.creator-profile-back { display:inline-flex; align-items:center; gap:6px; min-height:28px; }
+.creator-profile-back .icon { transform:scaleX(-1); }
+@media (pointer:coarse) {
+  .creator-profile-back { min-height:44px; }
+}
+#profile-state-title { font-size:18px; letter-spacing:0; }
+#profile-retry { margin-top:4px; }
+.creator-profile-header { display:flex; align-items:flex-start; gap:24px; margin-bottom:32px; flex-wrap:wrap; }
+.creator-profile-avatar.avatar { width:128px; height:128px; font-size:48px; }
+.creator-profile-person { display:flex; align-items:flex-start; gap:inherit; flex:1 1 300px; min-width:0; }
+.creator-profile-identity { flex:1; min-width:0; display:grid; gap:4px; padding-top:4px; overflow-wrap:anywhere; }
+.creator-profile-identity h1 { font-size:32px; line-height:1.15; letter-spacing:-.01em; }
+.creator-profile-handle { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; color:var(--muted); font-size:14px; }
+.creator-profile-identity p { font-size:14px; }
+.creator-profile-handle-value, .creator-profile-owner { display:inline-flex; align-items:center; gap:6px; }
+.creator-profile-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.sidebar-stage[data-profile-viewer="signed-out"] { flex-direction:column; }
+.creator-profile-brand { flex:none; padding:8px 16px; border-bottom:1px solid var(--card-border); background:var(--card); }
+.creator-profile-brand a { display:inline-flex; align-items:center; gap:8px; color:var(--ink); font-size:14px; font-weight:650; text-decoration:none; }
+.creator-profile-brand img { display:block; border-radius:4px; }
+#profile-description { max-width:60ch; margin-top:4px; }
+#profile-stats { color:var(--muted); margin-top:8px; }
+#profile-starred-count { margin-left:4px; color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; }
+.creator-profile-toolbar .home-section-title { margin:0 auto 0 0; }
+.creator-profile-toolbar .library-search { flex:0 1 304px; }
+.creator-profile-toolbar input { min-width:0; }
+.creator-profile-projects { margin-bottom:24px; }
+#profile-project-list { display:flex; flex-wrap:wrap; gap:8px; }
+#profile-project-list .button { max-width:100%; }
+#profile-project-list [data-project-name] { overflow-wrap:anywhere; }
+#profile-project-list [data-project-count] { white-space:nowrap; }
+@media (max-width:700px) {
+  .creator-profile-header { gap:16px; }
+  .creator-profile-actions { flex-basis:100%; }
+  .creator-profile-avatar.avatar { width:96px; height:96px; font-size:36px; }
+  .creator-profile-toolbar .library-search { order:1; flex-basis:100%; }
+}

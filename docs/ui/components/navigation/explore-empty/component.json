@@ -1,0 +1,67 @@
+{
+  "id": "navigation/explore-empty",
+  "title": "Explore empty",
+  "category": "navigation",
+  "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/chatgpt/tutor/docs/ui/EXPLORE.md",
+  "source_file": "EXPLORE.md",
+  "status": "Draft for owner review. Browser verification and app integration pending",
+  "styles": [
+    "standards",
+    "review-corrections",
+    "sidebar",
+    "canvas-card",
+    "home",
+    "library",
+    "explore",
+    "creator-profile"
+  ],
+  "scripts": [
+    "sidebar",
+    "sidebar-panels",
+    "public-browse",
+    "creator-profile",
+    "explore"
+  ],
+  "implementation": [
+    "packages/web/src/Home.jsx",
+    "packages/web/src/Sidebar.jsx",
+    "packages/web/src/LibraryViews.jsx",
+    "packages/web/src/library-filter.js",
+    "packages/web/src/home/LearningCard.jsx",
+    "packages/web/src/home/PublicCards.jsx",
+    "packages/web/src/home/WeeklyTop.jsx",
+    "packages/web/src/home/weekly-top.js",
+    "packages/web/src/home/card-sort.js",
+    "packages/web/src/home/CardSize.jsx",
+    "packages/web/src/home/card-size.js",
+    "packages/web/src/CardStar.jsx",
+    "packages/web/src/ForkButton.jsx",
+    "packages/web/src/RabbitHoleChoice.jsx"
+  ],
+  "notes": "Canvases and Creators with empty discovery results. Search, Filters and Card size remain in place on Canvases. The weekly list and Sort are hidden. See EXPLORE.md.",
+  "issues": [],
+  "templates": [],
+  "includes": [
+    "explore",
+    "sidebar",
+    "home-fixtures",
+    "public-canvas-card",
+    "canvas-card",
+    "creator-profile-view"
+  ],
+  "keywords": [
+    "explore",
+    "public canvas",
+    "canvases",
+    "creators",
+    "weekly top",
+    "leaderboard",
+    "filters",
+    "sort",
+    "card size",
+    "empty"
+  ],
+  "path": "components/navigation/explore-empty",
+  "paletteRole": "shared",
+  "catalogVisible": true
+}

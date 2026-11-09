@@ -1,4 +1,9 @@
 <dialog class="dialog ui-dialog" id="search-panel" aria-labelledby="search-title">
 <div class="panel-heading"><h2 id="search-title">Search</h2><button type="button" class="icon-button quiet" data-close-surface aria-label="Close search"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"></use></svg></button></div>
-<div class="panel-body"><label class="field" for="search-query">Find a canvas<input id="search-query" class="control" type="search" autocomplete="off" placeholder="Search by title" aria-controls="search-results" autofocus></label><div class="search-list" id="search-results" aria-label="Search results"></div><div id="search-count" class="sr-only" role="status"></div></div>
+<div class="panel-body">
+  <label class="field" for="search-query"><span class="sr-only">Search your library</span><input id="search-query" class="control" type="search" autocomplete="off" placeholder="Describe what you are looking for" aria-controls="search-results" autofocus></label>
+  <div class="search-list" id="search-results" aria-label="Search results"></div>
+  <button type="button" class="button secondary compact search-clear" id="search-clear" hidden>Clear search</button>
+  <div id="search-count" class="sr-only" role="status"></div>
+</div>
 <div class="panel-footer">↑ ↓ to browse · Enter to select</div></dialog>
