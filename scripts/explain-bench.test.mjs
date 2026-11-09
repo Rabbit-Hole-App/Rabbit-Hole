@@ -109,7 +109,7 @@ test('delta marks each metric better, worse or same; the richness rule keeps or 
 });
 
 test('the judge is Sonnet, blind, shuffled, capped and cached', async () => {
-  const sent = [], call = async body => { sent.push(body); return new Response(JSON.stringify({ stop_reason: 'tool_use', usage: { input_tokens: 1000, output_tokens: 500 }, content: [{ type: 'tool_use', name: 'record_review', input: body.system.includes('FACTUAL') ? { score: 4, errors: [] } : { verdict: 'yes', reason: 'ok' } }] }), { status: 200 }); };
+  const sent = [], call = async body => { sent.push(body); return new Response(JSON.stringify({ stop_reason: 'tool_use', usage: { input_tokens: 1000, output_tokens: 500 }, content: [{ type: 'tool_use', name: 'record_review', input: body.system.includes('FACTUAL') ? { score: 4, errors: [] } : { verdict: body.tools[0].input_schema.properties.verdict.enum[0], reason: 'ok' } }] }), { status: 200 }); };
   const items = Array.from({ length: 6 }, (_, i) => ({ key: `baseline/r1/secret-id-${i}`, rubric: i < 5 ? 'factual' : 'faithful', text: `card ${i}` }));
   const dir = mkdtempSync(join(tmpdir(), 'bench-judge-')), cacheFile = join(dir, 'cache.json');
   let seed = 1; const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -122,7 +122,7 @@ test('the judge is Sonnet, blind, shuffled, capped and cached', async () => {
   assert.deepEqual([again.calls, again.cached, sent.length], [0, 6, 6], 'a second run reads the cache');
   const capped = await judgeItems(items, { call, cap: 0.03, random, judges: 2, cacheFile: null, log: () => {} });
   assert.equal(capped.stopped, true); assert.ok(capped.spent <= 0.03);
-  assert.deepEqual(combine('faithful', [{ verdict: 'yes', reason: 'a' }, { verdict: 'no', reason: 'b' }, { verdict: 'yes', reason: 'c' }]), { verdict: 'yes', reason: 'a', judges: 3 });
+  assert.deepEqual(combine('faithful', [{ verdict: 'fully', reason: 'a' }, { verdict: 'not', reason: 'b' }, { verdict: 'fully', reason: 'c' }]), { verdict: 'fully', reason: 'a', judges: 3 });
   assert.deepEqual(combine('factual', [{ score: 4, errors: [] }, { score: 2, errors: [{ claim: 'x', why: 'y' }] }]).score, 3);
 });
 
@@ -234,4 +234,36 @@ test('selector bench: the copy of the reference selector matches production on e
   const out = await selectorBench({ tree });
   assert.deepEqual(out.mismatches, []);
   assert.equal(out.rows.reduce((n, r) => n + r.prompts, 0), out.detail.length);
+});
+
+test('correct-svg v3 and the judge rubrics: Core/Optional sketches, faithful-v2 fully/partly/not, beyond-v1 per diagram, v3 acceptability', async () => {
+  const set = loadSet('correct-svg');
+  assert.match(set.version.labels, /^L3 /); assert.ok(set.relabels.some(r => r.includes('owner 2026-11-08 closing pass')));
+  assert.ok(set.prompts.every(p => Object.values(p.depths).every(d => d.sketch[0].startsWith('Core: ') && d.sketch[1].startsWith('Optional: '))));
+  assert.match(set.prompts.find(p => p.id === 'roman-empire').depths.deep.sketch[0], /285 or 395/);
+  assert.match(set.prompts.find(p => p.id === 'gradient-descent').depths.deep.sketch[0], /descent path: points in order/);
+  const v = (p, depth, ...d) => scoreCard(set.prompts.find(x => x.id === p), { set: 'correct-svg', run: 1, depth, id: p, delivered: true, block: block('p', ...d), totalMs: 1 }).score;
+  assert.equal(v('atmosphere', 'overview', pic('pic-1')), 'acceptable'); assert.equal(v('atmosphere', 'standard', pic('pic-1')), 'wrong');
+  assert.equal(v('roman-empire', 'deep', pic('pic-1')), 'acceptable');
+  const pr = fence(sigmoidPlot([0.1, 0.5, 0.9]));
+  for (const d of ['overview', 'standard', 'deep']) assert.equal(v('precision-recall', d, pr), 'acceptable', d);
+  assert.equal(v('entropy', 'overview', fence({ kind: 'relationship', title: 'r', nodes: [{ id: 'a', label: 'Entropy' }, { id: 'b', label: 'Disorder' }], edges: [{ from: 'a', to: 'b', label: 'measures' }] })), 'right');
+  const { RUBRICS, rubricHash } = await import('./explain-bench/judge.mjs');
+  assert.match(RUBRICS.faithful.version, /^faithful-v2/); assert.match(RUBRICS.faithful.text, /Core line only: fully/); assert.match(RUBRICS.beyond.version, /^beyond-v1/);
+  assert.notEqual(rubricHash('faithful'), rubricHash('beyond'));
+  // Report: faithful items for every sketched diagram and a beyond item for every diagram, verdicts fully/partly/not and counted claims beyond the prose.
+  const root = mkdtempSync(join(tmpdir(), 'bench-v3-')), dir = join(root, 'raw', 'correct-svg-r1-deep');
+  mkdirSync(join(dir, 'cards'), { recursive: true });
+  const row = { id: 'sigmoid', delivered: true, totalMs: 2000, repaired: false, repairCauses: [], costUsd: 0.01, ledgerUsd: 0.01 };
+  writeFileSync(join(dir, 'cards', 'sigmoid.json'), JSON.stringify({ row, response: { result: 'artifact', block: block('The sigmoid is $\sigma(z) = \frac{1}{1+e^{-z}}$.', fence(sigmoidPlot([0.12, 0.5, 0.88]))) } })); writeFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n');
+  const sent = [], call = async body => { sent.push(body); const name = body.system.includes('FACTUAL') ? 'factual' : body.system.includes('Core line') ? 'faithful' : 'beyond';
+    return new Response(JSON.stringify({ stop_reason: 'tool_use', usage: { input_tokens: 10, output_tokens: 10 }, content: [{ type: 'tool_use', name: 'record_review', input: name === 'factual' ? { score: 5, errors: [] } : name === 'faithful' ? { verdict: 'partly', reason: 'no 0.5 mark' } : { verdict: 'yes', reason: 'names a derivative' } }] })); };
+  const r = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'v3', judge: true, call });
+  assert.deepEqual(sent.map(b => b.system.includes('Core line') ? 'faithful' : b.system.includes('FACTUAL') ? 'factual' : 'beyond').sort(), ['beyond', 'factual', 'faithful']);
+  const s = r.results.summary.overall;
+  assert.deepEqual([s.content.faithful.fully, s.content.faithful.partly, s.content.faithful.not, s.content.beyond.yes, s.content.beyond.judged], [0, 1, 0, 1, 1]);
+  const md = readFileSync(join(r.runDir, 'report.md'), 'utf8');
+  assert.match(md, /\| diagrams with claims beyond the prose \(judge\) \| 1\/1 /);
+  assert.match(md, /\*\*beyond\*\* `beyond-v1 2026-11-08` \(hash `[0-9a-f]{16}`\)/);
+  assert.match(md, /Not fully faithful to the sketch \(Core\)/);
 });

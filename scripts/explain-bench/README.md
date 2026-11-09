@@ -120,8 +120,10 @@ prompts, plus 4 + 4 + 4.
 - **Arithmetic**: for coordinate-plot and bar-chart (numeric bar labels only), every plotted point is recomputed from
   the first one-variable formula in the prose's `$...$`; a point off by more than 0.01 after rounding to the plotted
   precision is an error. Formulas with a subscript, a sum or more than one variable are reported as not checked.
-- **Faithfulness** (judge, content set): yes / partly / no, "does this diagram show what the sketch says, with no claim
-  the prose does not make?", from the sketch, `describeTutorDiagram` text and the prose.
+- **Faithfulness** (judge, sketched sets; `faithful-v2`): fully / partly / not, judged on the sketch's Core line only
+  (the Optional line never lowers it), from the sketch, `describeTutorDiagram` text and the prose.
+- **Claims beyond the prose** (judge, every diagram; `beyond-v1`): yes / no, "does the diagram state any fact, number
+  or name that the prose does not?", counted next to the factual numbers.
 - **Picture content** (judge, every picture): yes / no, "does the described picture show what the question asks, from a
   view that teaches it?", from the question, the prose paragraphs either side of the picture and its prompt, alt and
   caption. Reported as the count and share of "no" per run and across runs; no gate yet.
@@ -153,9 +155,10 @@ line yet, so reports say "raw: not logged" until it does.
 Blind Sonnet reviews were the method used on 2026-11-08 (three blind Sonnet reviewers then). Here one judge per item
 by default for speed; `--judges N` runs N independent reviews (each in its own shuffled order; factual = mean score,
 verdicts = majority). Model `claude-sonnet-5-5` (owner rule: never Opus), `ANTHROPIC_API_KEY` read by name from the
-credentials file. Items are shuffled and carry no set, prompt id or label; only the question and the card text. Three
-versioned rubrics (text printed in the report): `factual` (1-5 and the factual errors, every card), `faithful`
-(content-set diagrams) and `picture` (every picture). Calls are cached by (content hash, rubric version, judge index)
+credentials file. Items are shuffled and carry no set, prompt id or label; only the question and the card text. Four
+versioned rubrics (text and hash printed in the report): `factual` (1-5 and the factual errors, every card), `faithful`
+(sketched diagrams, Core line only), `beyond` (every diagram: claims the prose does not make) and `picture` (every
+picture). Calls are cached by (content hash, rubric version, judge index)
 in `judge-cache.json`. A separate `--judge-cap` (default US$1.00) stops judging; its spend is printed.
 `--judge-dry-run` (report.mjs) builds every item, writes them to `judge-items.json`, and prints a cost range
 without any call.

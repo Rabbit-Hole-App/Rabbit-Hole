@@ -67,8 +67,10 @@ export const METRICS = [
   ['content: diagram kind right', s => pair(s.content.kindRight, s.content.kindJudged), 'up'],
   ['content: formula prompts with a plot that recomputes', s => pair(s.content.formulaPlotOk, s.content.formulaPrompts), 'up'],
   ['arithmetic: plotted points off', s => pair(s.content.pointErrors, s.content.points), 'down'],
-  ['faithful to the sketch: yes', s => s.content.faithful && pair(s.content.faithful.yes, s.content.faithful.judged), 'up'],
-  ['faithful to the sketch: no', s => s.content.faithful && pair(s.content.faithful.no, s.content.faithful.judged), 'down'],
+  // fully/not (faithful-v2); runs judged with faithful-v1 stored yes/no.
+  ['faithful to the sketch (Core): fully', s => s.content.faithful && pair(s.content.faithful.fully ?? s.content.faithful.yes, s.content.faithful.judged), 'up'],
+  ['faithful to the sketch (Core): not', s => s.content.faithful && pair(s.content.faithful.not ?? s.content.faithful.no, s.content.faithful.judged), 'down'],
+  ['diagrams with claims beyond the prose (judge)', s => s.content.beyond && pair(s.content.beyond.yes, s.content.beyond.judged), 'down'],
   ['picture shows what the question asks: no (judge)', s => s.pictures.content && pair(s.pictures.content.no, s.pictures.content.judged), 'down'],
   ['pictures present', s => s.pictures.present, null],
   ['pictures dropped (status dropped or fence removed) of planned', s => s.pictures.dropped && pair(s.pictures.dropped.count, s.pictures.present + s.pictures.dropped.count), 'down'],
@@ -113,7 +115,7 @@ export const GATE_RULES = [
   ['plot or chart on >= 5 of the 6 quantity prompts, every run', (s, byRun) => { const per = byRun.map(r => [r.summary.richness.quantityPlot.withPlot, r.summary.richness.quantityPlot.prompts]).filter(v => v[1]);
     return [per.map(v => `${v[0]}/${v[1]}`).join(', ') || '-', per.length ? per.every(v => v[1] === 6 && v[0] >= 5) : null]; }],
   ['noun-box or placeholder labels < 5% of diagrams', s => { const v = [s.content.flagged, s.content.diagrams]; return [v, v[1] ? share(v) < 0.05 : null]; }],
-  ['faithfulness to the sketch (reported; no threshold on record)', s => [s.content.faithful ? `yes ${s.content.faithful.yes}, partly ${s.content.faithful.partly}, no ${s.content.faithful.no} of ${s.content.faithful.judged}` : 'not judged', null]],
+  ['faithfulness to the sketch (reported; no threshold on record)', s => [s.content.faithful ? `fully ${s.content.faithful.fully ?? s.content.faithful.yes}, partly ${s.content.faithful.partly}, not ${s.content.faithful.not ?? s.content.faithful.no} of ${s.content.faithful.judged}` : 'not judged', null]],
 ];
 export const gates = (s, byRun) => GATE_RULES.map(([gate, f]) => { const [v, ok] = f(s, byRun); return { gate, value: show(v), ok }; });
 // Arms ranked: every gate passing first, then the owner's tie-break: fewer factual errors, then lower p90, then lower cost per card.
@@ -141,7 +143,7 @@ export function richnessVerdict(before, after) {
   if (!before || !after) return { verdict: 'no comparison run', reasons: [] };
   const r = (s, f) => value(f(s)), flags = [r(before, s => pair(s.content.flagged, s.content.diagrams)), r(after, s => pair(s.content.flagged, s.content.diagrams))];
   const quant = [r(before, s => pair(s.richness.quant.used, s.richness.quant.labelled)), r(after, s => pair(s.richness.quant.used, s.richness.quant.labelled))];
-  const faith = [r(before, s => s.content.faithful && pair(s.content.faithful.yes, s.content.faithful.judged)), r(after, s => s.content.faithful && pair(s.content.faithful.yes, s.content.faithful.judged))];
+  const faith = [r(before, s => s.content.faithful && pair(s.content.faithful.fully ?? s.content.faithful.yes, s.content.faithful.judged)), r(after, s => s.content.faithful && pair(s.content.faithful.fully ?? s.content.faithful.yes, s.content.faithful.judged))];
   const reasons = [];
   if (!(flags[1] < flags[0])) reasons.push('content flags not down');
   if (!(quant[1] > quant[0])) reasons.push('quantitative use not up');
@@ -159,14 +161,14 @@ function summaries(cards, setNames) {
       return nums.length ? { label, runs: per.map(([r]) => r), values: vs.map(show), min: Math.min(...nums), max: Math.max(...nums) } : null; }).filter(Boolean)];
   }));
   const judgedByRun = runsOf(cards).map(r => { const s = summarize(cards.filter(c => c.run === r)), pc = s.pictures.content, f = s.content.faithful;
-    return { run: r, picture: pc ? [pc.no, pc.judged] : null, faithful: f ? [f.no, f.judged] : null }; });
+    return { run: r, picture: pc ? [pc.no, pc.judged] : null, faithful: f ? [f.not ?? f.no, f.judged] : null, beyond: s.content.beyond ? [s.content.beyond.yes, s.content.beyond.judged] : null }; });
   const byRun = runsOf(cards).map(r => ({ run: r, summary: summarize(cards.filter(c => c.run === r)) }));
   // Examples A/B: every metric for cards the server gave 0 author references vs 1-2 (from explanation_author_raw); null when not logged.
   const refs = cards.some(c => c.references) ? { none: summarize(cards.filter(c => c.references && !c.references.count)), some: summarize(cards.filter(c => c.references?.count > 0)) } : null;
   // Per depth (--depths): the owner's correct-svg rows.
   const byDepth = Object.fromEntries([...new Set(cards.map(c => c.depth).filter(Boolean))].map(dep => { const cs = cards.filter(c => c.depth === dep), s = summarize(cs), deep = cs.filter(c => c.deepPlot);
     const faithfulCards = cs.filter(c => c.diagrams.some(d => d.faithful)), plots = cs.flatMap(c => c.diagrams.filter(d => PLOT_KINDS.includes(d.kind)).map(d => `${c.id} ${d.kind}: ${d.arithmetic?.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off` : `not checked (${d.arithmetic?.reason})`}`));
-    return [dep, { cards: cs.length, right: s.choice.right, faithful: faithfulCards.filter(c => c.diagrams.every(d => !d.faithful || d.faithful.verdict === 'yes')).length, faithfulJudged: faithfulCards.length,
+    return [dep, { cards: cs.length, right: s.choice.right, faithful: faithfulCards.filter(c => c.diagrams.every(d => !d.faithful || ['fully', 'yes'].includes(d.faithful.verdict))).length, beyond: s.content.beyond ? `${s.content.beyond.yes}/${s.content.beyond.judged}` : '-', faithfulJudged: faithfulCards.length,
       quantityPlots: deep.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length, quantityPrompts: deep.length, placeholders: s.content.placeholderEdge, duplicates: s.content.duplicateLabels, bareMaths: s.content.bareMaths,
       formulaLabelCards: s.content.formulaLabelCards, repaired: s.repairs.repaired, p50: s.speed.all.p50, p90: s.speed.all.p90, pointErrors: s.content.pointErrors, points: s.content.points, plots }]; }));
   return { overall: summarize(cards), sets, spread, judgedByRun, byRun, refs, byDepth };
@@ -187,13 +189,13 @@ export function markdown(r) {
     : `Model ${judge.model}, ${judge.judges} judge(s) per item, ${judge.calls} calls + ${judge.cached} cached, US$${judge.spent} spent of the US$${judge.cap} judge cap${judge.stopped ? ' (cap reached: some items unjudged)' : ''}${judge.failed ? `, ${judge.failed} failed calls` : ''}${judge.only ? `; rubrics run: ${judge.only.join(', ')}` : ''}.`,
   '', ...Object.entries(RUBRICS).map(([k, v]) => `- **${k}** \`${v.version}\` (hash \`${judge.rubrics[k]?.hash}\`): ${v.text}`), '');
   else out.push('## Judge', '', 'Not run (no --judge): factual, faithfulness and picture-content rows are empty.', '');
-  if (S.judgedByRun.some(x => x.picture || x.faithful)) out.push('### Picture content and diagram faithfulness ("no" counts)', '', table(['run', 'picture shows what the question asks: no', 'share', 'diagram faithful to the sketch: no', 'share'],
-    [...S.judgedByRun.map(x => [`r${x.run}`, ...[x.picture, x.faithful].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]),
-      ['all runs', ...[S.overall.pictures.content && [S.overall.pictures.content.no, S.overall.pictures.content.judged], S.overall.content.faithful && [S.overall.content.faithful.no, S.overall.content.faithful.judged]].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]]), '');
+  if (S.judgedByRun.some(x => x.picture || x.faithful || x.beyond)) out.push('### Picture content, diagram faithfulness and claims beyond the prose', '', table(['run', 'picture shows what the question asks: no', 'share', 'diagram faithful to the sketch: not', 'share', 'diagram claims beyond the prose: yes', 'share'],
+    [...S.judgedByRun.map(x => [`r${x.run}`, ...[x.picture, x.faithful, x.beyond].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]),
+      ['all runs', ...[S.overall.pictures.content && [S.overall.pictures.content.no, S.overall.pictures.content.judged], S.overall.content.faithful && [S.overall.content.faithful.not ?? S.overall.content.faithful.no, S.overall.content.faithful.judged], S.overall.content.beyond && [S.overall.content.beyond.yes, S.overall.content.beyond.judged]].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]]), '');
   out.push('## Pass criteria on record', '', C.length ? table(['set', 'criterion', 'result', 'detail'], C.map(c => [c.set, c.rule, c.ok ? 'PASS' : '**FAIL**', c.detail])) : 'None for these sets.', '');
   const BD = Object.entries(S.byDepth || {});
   if (BD.length) out.push('## By depth', '', table(['metric', ...BD.map(([d]) => d)], [
-    ['right kind', ...BD.map(([, v]) => `${v.right}/${v.cards}`)], ['faithful to the sketch (judge, cards)', ...BD.map(([, v]) => (v.faithfulJudged ? `${v.faithful}/${v.faithfulJudged}` : '-'))],
+    ['right kind', ...BD.map(([, v]) => `${v.right}/${v.cards}`)], ['faithful to the sketch, Core (judge, cards with every diagram fully)', ...BD.map(([, v]) => (v.faithfulJudged ? `${v.faithful}/${v.faithfulJudged}` : '-'))], ['diagrams with claims beyond the prose (judge)', ...BD.map(([, v]) => v.beyond)],
     ['plot or chart on the 6 quantity prompts', ...BD.map(([, v]) => `${v.quantityPlots}/${v.quantityPrompts}`)], ['placeholder edge labels (diagrams)', ...BD.map(([, v]) => v.placeholders)], ['duplicate node labels (diagrams)', ...BD.map(([, v]) => v.duplicates)],
     ['bare maths (diagrams)', ...BD.map(([, v]) => v.bareMaths)], ['cards with formulas/maths in diagram labels', ...BD.map(([, v]) => v.formulaLabelCards)], ['repaired', ...BD.map(([, v]) => `${v.repaired}/${v.cards}`)],
     ['p50 / p90 ms', ...BD.map(([, v]) => `${v.p50} / ${v.p90}`)], ['plotted points off (recomputed from the prose formula)', ...BD.map(([, v]) => `${v.pointErrors}/${v.points}`)]]), '',
@@ -220,10 +222,10 @@ export function markdown(r) {
   out.push(`Slowest card: ${O.speed.slowest ? `${O.speed.slowest.at} ${O.speed.slowest.ms} ms, ${O.speed.slowest.repaired ? `repaired (${O.speed.slowest.causes.join(', ')})` : 'not repaired'}, ${O.speed.slowest.pictures} picture(s)` : '-'}.`, '');
   out.push('## Lists', ...[list('Failed sends', O.cards.failures), list('Wrong mix', O.choice.wrongList), list('Right mix, wrong kind', O.choice.rightMixWrongKind), list('Bad kind used', O.choice.badKindUsed),
     list('Picture missing where needed', O.pictures.missing), list('Picture where none belongs', O.pictures.violations), list('Pictures dropped', O.pictures.dropped?.list), list('Quantitative-kind prompts', O.richness.quant.list),
-    list('Content flags', O.content.flaggedList), list('Plotted values', O.content.arithmeticList), list('Not faithful to the sketch', O.content.faithful?.list), list('Factual errors (judge)', O.factual?.list), list('Visual fallback', O.repairs.visualFallback)].filter(Boolean));
+    list('Content flags', O.content.flaggedList), list('Plotted values', O.content.arithmeticList), list('Not fully faithful to the sketch (Core)', O.content.faithful?.list), list('Claims beyond the prose (judge)', O.content.beyond?.list), list('Factual errors (judge)', O.factual?.list), list('Visual fallback', O.repairs.visualFallback)].filter(Boolean));
   out.push('## Cards', '', table(['set', 'run', 'id', 'mix', 'score', 'ms', 'repaired', 'US$', 'references', 'visuals (diagram kind: items, flags; picture check)'], r.cards.map(c => [c.set, c.depth ? `${c.run} ${c.depth}` : c.run, c.id, c.mix.join(' + ') || '-', c.score, c.totalMs ?? '-', c.repaired ? 'yes' : '', c.costUsd ?? '-',
     c.references ? `${c.references.count}${c.references.count ? ` (${c.references.ids.join(', ')})` : ''}` : '-',
-    c.diagrams.map(d => `${d.kind}: ${d.units}${d.flagged ? ' FLAG' : ''}${d.arithmetic?.errors ? ` ${d.arithmetic.errors} pts off` : ''}${d.faithful ? ` faithful=${d.faithful.verdict}` : ''}`).concat(c.pictures.map(p => `picture${p.content ? `: shows the question=${p.content.verdict}` : ''}`)).join('; ')])), '');
+    c.diagrams.map(d => `${d.kind}: ${d.units}${d.flagged ? ' FLAG' : ''}${d.arithmetic?.errors ? ` ${d.arithmetic.errors} pts off` : ''}${d.faithful ? ` faithful=${d.faithful.verdict}` : ''}${d.beyond?.verdict === 'yes' ? ' beyond-prose' : ''}`).concat(c.pictures.map(p => `picture${p.content ? `: shows the question=${p.content.verdict}` : ''}`)).join('; ')])), '');
   return out.join('\n');
 }
 
@@ -231,7 +233,8 @@ const itemText = {
   factual: (c, block) => [`Learner's question: ${c.prompt}`, `Card title: ${block.title || ''}`, String(block.body || ''),
     (block.interactions?.terms || []).length ? `Key terms:\n${block.interactions.terms.map(t => `- ${t.label}: ${t.definition}`).join('\n')}` : '',
     (block.interactions?.questions || []).length ? `Follow-up questions:\n${block.interactions.questions.map(q => `- ${q.text}`).join('\n')}` : ''].filter(Boolean).join('\n\n'),
-  faithful: (c, block, d) => [`Content sketch, written in advance:\n${c.sketch.map(l => `- ${l}`).join('\n')}`, `The diagram, as the renderer describes it:\n${d.describe}`, `The card's prose:\n${proseOf(block.body).trim()}`].join('\n\n'),
+  faithful: (c, block, d) => [`Content sketch, written in advance:\n${c.sketch.map(l => `- ${l}`).join('\n')}`, `The diagram, as the renderer describes it:\n${d.describe ?? JSON.stringify(d.spec)}`, `The card's prose:\n${proseOf(block.body).trim()}`].join('\n\n'),
+  beyond: (c, block, d) => [`The diagram, as the renderer describes it:\n${d.describe ?? JSON.stringify(d.spec)}`, `The card's prose:\n${proseOf(block.body).trim()}`].join('\n\n'),
   picture: (c, block, p) => [`Learner's question: ${c.prompt}`, `Card prose next to the picture:\n${[p.before, p.after].filter(Boolean).join('\n\n') || '(none)'}`,
     `The picture, as described:\nprompt: ${p.prompt ?? ''}\nalt text: ${p.alt ?? ''}\ncaption: ${p.caption ?? ''}`].join('\n\n'),
 };
@@ -254,11 +257,11 @@ export async function run(o) {
     for (const c of cards.filter(x => x.delivered)) {
       const key = cardKey(c), b = blocks.get(c);
       push(key, 'factual', itemText.factual(c, b), c);
-      if (c.sketch) c.diagrams.forEach((d, i) => { if (d.describe) push(`${key}#d${i}`, 'faithful', itemText.faithful(c, b, d), d); });
+      c.diagrams.forEach((d, i) => { if (c.sketch) push(`${key}#d${i}`, 'faithful', itemText.faithful(c, b, d), d); push(`${key}#d${i}b`, 'beyond', itemText.beyond(c, b, d), d); });
       c.pictures.forEach((p, i) => push(`${key}#p${i}`, 'picture', itemText.picture(c, b, p), p));
     }
     judge = await judgeItems(items, { judges: o.judges || 1, cap: o.judgeCap ?? 1, call: o.call || keyTransport(), cacheFile: join(out, 'judge-cache.json'), log: o.log || console.log, dryRun: !!o.judgeDryRun });
-    for (const [key, [rubric, target]] of ref) { const v = combine(rubric, judge.results[key]); if (!v) continue; if (rubric === 'factual') target.judge = { factual: v }; else if (rubric === 'faithful') target.faithful = v; else target.content = v; }
+    for (const [key, [rubric, target]] of ref) { const v = combine(rubric, judge.results[key]); if (!v) continue; if (rubric === 'factual') target.judge = { factual: v }; else if (rubric === 'faithful') target.faithful = v; else if (rubric === 'beyond') target.beyond = v; else target.content = v; }
     if (o.judgeDryRun) writeFileSync(join(runDir, 'judge-items.json'), JSON.stringify(items, null, 1)); // exactly what a real pass would send, for inspection
     judge = { ...judge, cap: o.judgeCap ?? 1, only: o.judgeOnly?.length ? o.judgeOnly : null, results: undefined };
   }

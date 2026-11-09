@@ -179,7 +179,7 @@ export const cardKey = c => `${c.set}/r${c.run}${c.depth ? `/${c.depth}` : ''}/$
 export function scoreCard(p, rec) {
   // A per-depth prompt (correct-svg): that depth's kinds, acceptable kinds and sketch, as best/acceptable mixes (a picture or a second diagram allowed beside).
   if (p.depths) { const dp = p.depths[rec.depth || 'standard'], k = `D:${dp.kinds.join('|')}`, a = dp.acceptableKinds.length ? `D:${dp.acceptableKinds.join('|')}` : null;
-    p = { ...p, kinds: dp.kinds, sketch: dp.sketch, best: [[k], [k, 'D:*'], [k, 'P'], ...(dp.extraBest || [])], acceptable: a ? [[a], [a, 'D:*'], [a, 'P']] : [] }; }
+    p = { ...p, kinds: dp.kinds, sketch: dp.sketch, best: [[k], [k, 'D:*'], [k, 'P'], ...(dp.extraBest || [])], acceptable: [...(a ? [[a], [a, 'D:*'], [a, 'P']] : []), ...(dp.extraAcceptable || [])] }; }
   const block = rec.delivered ? rec.block : null, vis = block ? visuals(block) : [], mix = mixOf(vis), prose = block ? proseOf(block.body) : '';
   const diagrams = vis.filter(v => v.diagram).map(v => diagramScore(v.diagram, prose, p.kinds || null));
   const score = block ? scoreMix(p, vis) : 'failed', it = block?.interactions;
@@ -255,8 +255,10 @@ export function summarize(cards) {
       formulaPrompts: formula.length, formulaPlotOk: formula.filter(c => c.formulaPlotOk).length, formulaWithPlot: formula.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length,
       plots: dg.filter(d => PLOT_KINDS.includes(d.kind)).length, plotsChecked: plots.length, points: plots.reduce((s, d) => s + d.arithmetic.points, 0), pointErrors: plots.reduce((s, d) => s + d.arithmetic.errors, 0),
       arithmeticList: dg.filter(d => d.arithmetic).map(d => `${d.at} ${d.kind}: ${d.arithmetic.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off, formula $${d.arithmetic.formula}$` : `not checked (${d.arithmetic.reason})`}`),
-      faithful: judgedF.length ? { judged: judgedF.length, yes: judgedF.filter(d => d.faithful.verdict === 'yes').length, partly: judgedF.filter(d => d.faithful.verdict === 'partly').length, no: judgedF.filter(d => d.faithful.verdict === 'no').length,
-        list: judgedF.filter(d => d.faithful.verdict !== 'yes').map(d => `${d.at} ${d.kind}: ${d.faithful.verdict} (${d.faithful.reason})`) } : null },
+      // Verdicts fully / partly / not (faithful-v2, Core line only); faithful-v1 verdicts yes / no are counted as fully / not.
+      faithful: judgedF.length ? { judged: judgedF.length, fully: judgedF.filter(d => ['fully', 'yes'].includes(d.faithful.verdict)).length, partly: judgedF.filter(d => d.faithful.verdict === 'partly').length, not: judgedF.filter(d => ['not', 'no'].includes(d.faithful.verdict)).length,
+        list: judgedF.filter(d => !['fully', 'yes'].includes(d.faithful.verdict)).map(d => `${d.at} ${d.kind}: ${d.faithful.verdict} (${d.faithful.reason})`) } : null,
+      beyond: (j => (j.length ? { judged: j.length, yes: j.filter(d => d.beyond.verdict === 'yes').length, list: j.filter(d => d.beyond.verdict === 'yes').map(d => `${d.at} ${d.kind}: ${d.beyond.reason}`) } : null))(dg.filter(d => d.beyond)) },
     repairs: { repaired: rep.length, of: cards.length, byCause, corrections: corr, correctionTotal: Object.values(corr).reduce((s, v) => s + v, 0),
       visualFallback: cards.filter(c => c.visualFallback).map(c => `${at(c)}: ${c.visualFallback}`),
       unknownKeysStripped: cards.some(c => c.unknownKeysStripped) ? { events: cards.reduce((s, c) => s + (c.unknownKeysStripped?.events || 0), 0), keys: cards.reduce((s, c) => s + (c.unknownKeysStripped?.keys || 0), 0), cards: cards.filter(c => c.unknownKeysStripped?.events).length } : null,
