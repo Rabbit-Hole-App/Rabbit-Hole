@@ -85,6 +85,19 @@ export function selectDiagramReferences({ prompt = '', context = '', requiredKin
   }
   return picked;
 }
+// Release 118 override (owner 2026-11-09), ported to the figure-chapters-02 branch: cherry-picking d8895b9f7 needs the 118 selector (plannedKinds, shortTopic, single variants), which this branch does not have.
+// The best TOPICAL reference (never shape-* or general-*) by its direct score qualifies at an exact documented prompt (+50) or direct >= TOPICAL_STEER_MIN; when it is also the first reference picked, its kind comes
+// back as steer { kind, source: 'reference', id, referenceKind, score }. A learner-named kind (requiredKinds) is never steered: null. No short-topic (+40) or single-variant reading here (not on this branch).
+export const TOPICAL_STEER_MIN = 12;
+export function selectWithSteer(options = {}) {
+  const { prompt = '', requiredKinds = [], depth = 'standard', excludeFigureChapters = false } = options;
+  const references = selectDiagramReferences(options), query = normalized(String(prompt).slice(0, 4000));
+  const best = requiredKinds.some(kind => typeof kind === 'string') || !query ? null : referencePool(excludeFigureChapters).filter(ref => !/^(?:shape|general)-/.test(ref.id))
+    .map((ref, index) => ({ ref: ref.depths?.[depth] ? { ...ref, ...ref.depths[depth] } : ref, index })).map(item => ({ ...item, score: topicScore(query, item.ref) }))
+    .filter(item => item.score >= TOPICAL_STEER_MIN).sort((x, y) => (y.score - x.score) || x.index - y.index)[0] ?? null;
+  const kind = best?.ref.spec.diagram.kind, steer = best && references[0]?.id === best.ref.id ? { kind, source: 'reference', id: best.ref.id, referenceKind: kind, score: best.score } : null;
+  return { references, steer };
+}
 
 // The start of the reference block in a system prompt; the fast chain moves the block to the end of its system message (assembledSystem).
 export const REFERENCE_MARK = '\nApproved diagram references';

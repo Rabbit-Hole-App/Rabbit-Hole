@@ -1,5 +1,5 @@
 import { planExplanation, planShape, planStatement, plannerEnabled } from './explanation-planner.js';
-import { selectDiagramReferences, excludeFigureChapters, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
+import { selectDiagramReferences, selectWithSteer, excludeFigureChapters, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -96,9 +96,23 @@ export function artifactPlan(command, { args = '', selection = null } = {}, env 
   return { request, ready };
 }
 
+// Release 118 override (owner 2026-11-09), ported from d8895b9f7: the planner's kind must not beat a selected worked example. When a JEV plan holds exactly one diagram and the learner named no diagram kind,
+// a topical reference that qualifies by its direct score (explanation-references.js selectWithSteer) sets the plan's diagram kind (kindSource 'reference', plannerKind kept); picture visuals and the plan's
+// `fixed` are untouched. Applied where the plan is made and again, idempotently, where the author request is built, so the statement, the shape example, the reference and every later check read one kind.
+export function planWithReferenceKind(input, env = null) {
+  const plan = input?.plan;
+  if (plan?.planner !== 'jev' || plan.kindSource || !input.args || (input.visualRequirements?.items ?? []).some(i => !i.implied && i.kind === 'diagram' && i.diagramKind)) return input;
+  const diagrams = (plan.visuals ?? []).filter(v => v?.type === 'diagram');
+  if (diagrams.length !== 1) return input;
+  const hit = selectWithSteer({ prompt: input.args, requiredKinds: [], depth: input.depth, excludeFigureChapters: excludeFigureChapters(env) }).steer;
+  if (!hit || [hit.kind, hit.referenceKind].includes(plan.kind)) return input;
+  console.log(JSON.stringify({ event: 'explanation_plan_kind_from_reference', plannerKind: plan.kind ?? null, reference: hit.id, referenceKind: hit.kind, steerSource: hit.source, score: hit.score }));
+  return { ...input, plan: { ...plan, plannerKind: plan.kind ?? null, kind: hit.kind, kindSource: 'reference', visuals: plan.visuals.map(v => (v === diagrams[0] ? { type: 'diagram', kind: hit.kind } : v)) } };
+}
 // CORE.05: the exact first author request (system with any trusted suffix, tools, messages, output cap), so a quote and the dispatch hash
 // the same full body. -> a plan refusal ({ result }) | { request, ready, messages, model, body }
 export function prepareArtifactAuthorRequest(env, input, { only = null, systemSuffix = '', profile = null } = {}) {
+  input = planWithReferenceKind(input, env); // the reference's kind over the planner's guess (a plan the caller supplied too; idempotent)
   const plan = artifactPlan(input.command, input, env, only);
   if (plan.result) return plan;
   const { request, ready } = plan;
@@ -148,6 +162,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   // JEV planner prototype (owner 2026-11-08, dev flag EXPLANATION_PLANNER=jev): planned once per card, before the first author call; the plan rides in `input` through every provider step and repair.
   if (!input.planned && (input.command === 'explain' || input.command === 'explanation') && String(input.args || '').trim() && plannerEnabled(env)) {
     input = { ...input, planned: true, plan: await planExplanation(env, { question: input.args, depth: input.depth || 'standard', context: input.context || null }) };
+    input = planWithReferenceKind(input, env);
   }
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
   if (prepared.result) return prepared;
@@ -187,7 +202,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       if (id === 'explanation' && (env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test')) {
         const visuals = call.input?.visuals ?? null;
         // references: the ids of the worked examples this request carried (0-2), so the bench can split results by them (owner 2026-11-08).
-        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, plan: input.plan ? { visuals: input.plan.visuals, depthTreatment: input.plan.depthTreatment, kind: input.plan.kind, fixed: input.plan.fixed, confidence: input.plan.confidence, flags: input.plan.flags, ms: input.plan.ms } : input.planned ? { planner: 'rules' } : null, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
+        console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, plan: input.plan ? { visuals: input.plan.visuals, depthTreatment: input.plan.depthTreatment, kind: input.plan.kind, ...(input.plan.kindSource ? { kindSource: input.plan.kindSource, plannerKind: input.plan.plannerKind } : {}), fixed: input.plan.fixed, confidence: input.plan.confidence, flags: input.plan.flags, ms: input.plan.ms } : input.planned ? { planner: 'rules' } : null, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
       }
       // Owner M3 (2026-11-08): keys the schema does not declare are removed from the visuals before the card is read, logged and counted, never a repair.
       let keysStripped = 0;
