@@ -7,7 +7,6 @@ import { prepareArtifactAuthorRequest, generateArtifact } from '../src/learn-art
 const answers = (over = {}) => ({
   visualType: { choice: 'diagram', confidence: 0.95, probabilities: { diagram: 0.95, picture: 0.03, both: 0.02 } },
   kind: { choice: 'sequence', confidence: 0.8, probabilities: { sequence: 0.8, flow: 0.15, cycle: 0.05 } },
-  secondVisual: { choice: 'none', confidence: 0.9, probabilities: {} },
   depthTreatment: { choice: 'mechanism', confidence: 0.8, probabilities: {} },
   needsPlot: { noul: 0.05 }, isPhysical: { noul: 0.02 }, needsWorkedExample: { noul: 0.1 }, ...over,
 });
@@ -23,11 +22,12 @@ test('a kind with top probability >= 0.6 is fixed; below it the top two are offe
   assert.match(planStatement(ambiguous), /one of these kinds, the one that teaches the answer: flow or relationship/);
 });
 
-test('picture, both and a second visual map to the visuals in the author order', () => {
+test('picture and both map to the visuals in the author order; no second-visual decision (v2)', () => {
   assert.deepEqual(planFromAnswers(answers({ visualType: { choice: 'picture' } })).visuals, [{ type: 'picture' }]);
   assert.deepEqual(planFromAnswers(answers({ visualType: { choice: 'both' } })).visuals, [{ type: 'picture' }, { type: 'diagram', kind: 'sequence' }]);
-  assert.deepEqual(planFromAnswers(answers({ secondVisual: { choice: 'comparison' } })).visuals, [{ type: 'diagram', kind: 'sequence' }, { type: 'diagram', kind: 'comparison' }]);
-  assert.deepEqual(planFromAnswers(answers({ secondVisual: { choice: 'picture' } })).visuals, [{ type: 'diagram', kind: 'sequence' }, { type: 'picture' }]);
+  // a stray secondVisual answer changes nothing: one diagram unless the type is both
+  assert.deepEqual(planFromAnswers(answers({ secondVisual: { choice: 'comparison' } })).visuals, [{ type: 'diagram', kind: 'sequence' }]);
+  assert.ok(!('secondVisual' in QUESTIONS), 'the question is not even asked');
   assert.match(planStatement(planFromAnswers(answers({ visualType: { choice: 'picture' } }))), /1\) a picture \(no diagram\)\. Depth treatment: mechanism/);
   assert.match(planStatement(planFromAnswers(answers())), /^Card plan, decided before you write; follow it\. Visuals, in this order: 1\) a sequence diagram\. Depth treatment: mechanism \(/);
 });
