@@ -48,10 +48,12 @@ const TREATMENT = {
   mechanism: 'the mechanism with its proper terms; a plot or chart if a quantity is central',
   quantitative: 'the formula or exact relationship in the labels; a plot or chart where a quantity is involved',
 };
+// Owner 2026-11-08 (prose pass): the card's Depth decides the treatment, the planner no longer infers it (its depthTreatment answer is kept for the log only: plan.inferredTreatment).
+export const DEPTH_TREATMENT = Object.freeze({ brief: 'plain', balanced: 'mechanism', detailed: 'quantitative' });
 const top2 = probabilities => Object.entries(probabilities || {}).sort((x, y) => y[1] - x[1]).slice(0, 2);
 
 // answers (System One) -> plan, no I/O. visuals: [{ type: 'picture' } | { type: 'diagram', kind } | { type: 'diagram', choose: [a, b] }], in the author's order.
-export function planFromAnswers(a) {
+export function planFromAnswers(a, depth = null) {
   const [[kind, p1] = [a.kind?.choice, a.kind?.confidence], second] = top2(a.kind?.probabilities);
   const fixed = p1 >= FIX_AT || !second, diagram = fixed ? { type: 'diagram', kind } : { type: 'diagram', choose: [kind, second[0]] };
   // v2 (owner 2026-11-08): no second-visual decision. One diagram, plus a picture only when the visual type is both; the author's own count rule stays the only source of a second diagram.
@@ -61,8 +63,8 @@ export function planFromAnswers(a) {
   let type = a.visualType?.choice, physical = false;
   if (type === 'diagram' && (a.isPhysical?.noul ?? 0) >= PHYSICAL_AT) { type = kind === 'figure' ? 'picture' : 'both'; physical = true; }
   const visuals = type === 'picture' ? [{ type: 'picture' }] : type === 'both' ? [{ type: 'picture' }, diagram] : [diagram];
-  const treatment = a.depthTreatment?.choice;
-  return { visuals, depthTreatment: TREATMENT[treatment] ? treatment : 'mechanism', kind: type === 'picture' ? null : kind, fixed: type === 'picture' ? null : fixed, planner: 'jev', ...(physical ? { physicalOverride: true } : {}),
+  const inferred = TREATMENT[a.depthTreatment?.choice] ? a.depthTreatment.choice : 'mechanism';
+  return { visuals, depthTreatment: DEPTH_TREATMENT[depth] ?? inferred, inferredTreatment: inferred, kind: type === 'picture' ? null : kind, fixed: type === 'picture' ? null : fixed, planner: 'jev', ...(physical ? { physicalOverride: true } : {}),
     flags: { needsPlot: a.needsPlot?.noul ?? null, isPhysical: a.isPhysical?.noul ?? null, needsWorkedExample: a.needsWorkedExample?.noul ?? null },
     confidence: { kind: p1 ?? null, visualType: a.visualType?.confidence ?? null }, probabilities: { kind: a.kind?.probabilities ?? null, visualType: a.visualType?.probabilities ?? null } };
 }
@@ -110,7 +112,7 @@ export async function planExplanation(env, { question, depth = DEFAULT_DEPTH, co
     const out = await response.json();
     const need = ['visualType', 'kind', 'depthTreatment', 'needsPlot', 'isPhysical', 'needsWorkedExample'];
     if (need.some(k => !out?.answers?.[k])) throw new Error('incomplete answers');
-    return { ...planFromAnswers(out.answers), ms: Date.now() - started, inputTokens: out.usage?.input_tokens ?? null };
+    return { ...planFromAnswers(out.answers, validDepth(depth) ?? DEFAULT_DEPTH), ms: Date.now() - started, inputTokens: out.usage?.input_tokens ?? null };
   } catch (error) {
     const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError' || /timeout|aborted/i.test(String(error?.message || ''));
     console.log(JSON.stringify({ event: 'explanation_planner_failed', reason: timedOut ? 'timeout' : String(error?.message || error).slice(0, 120), timeout: timedOut, ms: Date.now() - started }));
