@@ -1,0 +1,224 @@
+{
+ "name": "phase02-batch",
+ "version": {
+  "prompts": "P1 2026-11-08 (owner: Phase 02 reference batches 2a + 2b live acceptance, 13 prompts)",
+  "labels": "L1 2026-11-08 kinds, expected references and Core/Optional sketches written from the batch-2a (c629726824) and batch-2b (7988753b25) handoffs before any card"
+ },
+ "measures": "Live /explain acceptance of the batch 2a and 2b references: which references each card received, the chosen kind (two-panel composition or not), the card's own arithmetic, formula rendering, narrow-card fit and save/reload. Run once at --depth standard.",
+ "written": "2026-11-08, before any phase02-batch card was sent",
+ "notation": "As the content set: best/acceptable mixes (P = picture, D:<kind> = a TutorDiagram, D:a|b = either kind, D:* = any kind); kinds = the right kinds; sketch lines \"Core:\" = what the diagram must show, \"Optional:\" = extras. references = the reference ids the selector is expected to send (from the handoff tables; the dev log line explanation_author_raw records the actual ids). The reference numbers are illustrative: a card is checked on its own data.",
+ "defaultRuns": 1,
+ "estUsdPerCard": 0.012,
+ "pass": {},
+ "prompts": [
+  {
+   "id": "ordinal-encoding",
+   "group": "2a-encoding",
+   "prompt": "How can ordered categories be represented by numbers?",
+   "references": ["ml-ordinal-encoding"],
+   "kinds": ["comparison", "matrix"],
+   "sketch": [
+    "Core: A declared meaningful order of the categories (e.g. Low < Medium < High), its numeric codebook (0, 1, 2), and observations encoded consistently with that one codebook; the codes rank the categories but do not prove equal gaps between them.",
+    "Optional: A contrast with one-hot encoding for unordered categories."
+   ],
+   "best": [["D:comparison|matrix"], ["D:comparison|matrix", "D:*"]],
+   "acceptable": [["D:transformation|number-line|flow"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "value-binning",
+   "group": "2a-encoding",
+   "prompt": "Which bucket does a number on a bin edge belong to?",
+   "references": ["ml-value-binning"],
+   "kinds": ["comparison", "matrix", "number-line", "histogram"],
+   "sketch": [
+    "Core: The interval convention stated (e.g. [a, b) with a closed final bin), and every raw value assigned to an explicit bin, including a value exactly on an internal edge and one on the final boundary.",
+    "Optional: Bin counts that agree with the memberships (a histogram or a count column)."
+   ],
+   "best": [["D:comparison|matrix|number-line|histogram"], ["D:comparison|matrix|number-line|histogram", "D:*"]],
+   "acceptable": [["D:transformation|flow"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "feature-interaction",
+   "group": "2a-transform",
+   "prompt": "Why add a feature that multiplies two inputs?",
+   "references": ["ml-feature-interaction"],
+   "kinds": ["transformation", "matrix", "comparison"],
+   "sketch": [
+    "Core: Both original inputs (x1, x2) stay visible per row, the product x1 x2 is computed per row, and the card says why one feature changes the effect of the other.",
+    "Optional: The model term w x1 x2 or a plot of the effect at two values of the other input."
+   ],
+   "best": [["D:transformation|matrix|comparison"], ["D:transformation|matrix|comparison", "D:*"]],
+   "acceptable": [["D:coordinate-plot|flow|relationship"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "raw-log",
+   "group": "2a-transform",
+   "prompt": "What happens to a skewed distribution when we take logs?",
+   "references": ["ml-raw-log-distributions"],
+   "kinds": ["comparison", "histogram"],
+   "sketch": [
+    "Core: The same observations on the raw scale and after the stated log transform (e.g. log(1+x)), as matched histograms whose bins are explicit; the long right tail is compressed; the valid domain of the transform is stated.",
+    "Optional: The paired raw and transformed value of each observation."
+   ],
+   "best": [["D:comparison|histogram"], ["D:histogram", "D:histogram"], ["D:comparison|histogram", "D:*"]],
+   "acceptable": [["D:transformation|matrix|coordinate-plot|bar-chart"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure", "tree"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "confusion-denominators",
+   "group": "2a-evaluation",
+   "prompt": "Why do precision and recall divide by different totals?",
+   "references": ["ml-confusion-denominators"],
+   "kinds": ["comparison", "matrix"],
+   "sketch": [
+    "Core: One set of confusion-matrix counts; precision = TP / (TP + FP) over the predicted positives and recall = TP / (TP + FN) over the actual positives, each denominator's population named, with the two rates computed from those counts.",
+    "Optional: Specificity TN / (TN + FP) over the actual negatives."
+   ],
+   "best": [["D:comparison|matrix"], ["D:comparison|matrix", "D:*"]],
+   "acceptable": [["D:bar-chart|tree|flow"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "regression-errors",
+   "group": "2a-evaluation",
+   "prompt": "Why is RMSE bigger than MAE when one prediction is far off?",
+   "references": ["ml-regression-error-metrics"],
+   "kinds": ["comparison", "matrix", "coordinate-plot"],
+   "sketch": [
+    "Core: One shared residual set with each absolute and squared error; MAE = mean |e| and RMSE = sqrt(mean e^2) computed from it; the one large residual dominates the squares, so RMSE > MAE.",
+    "Optional: MSE stated before the square root; the residuals drawn as segments on a plot."
+   ],
+   "best": [["D:comparison|matrix|coordinate-plot"], ["D:comparison|matrix|coordinate-plot", "D:*"]],
+   "acceptable": [["D:bar-chart|transformation"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "two-histograms",
+   "group": "2a-required-kind",
+   "prompt": "Show two histograms comparing raw and log-transformed values.",
+   "references": ["ml-raw-log-distributions--part-1", "ml-raw-log-distributions--part-2"],
+   "kinds": ["histogram", "comparison"],
+   "sketch": [
+    "Core: Two histograms of the same observations, one raw and one log-transformed, each with explicit bins; the raw one is right-skewed and the log one is more even; the transform is stated.",
+    "Optional: The transform's valid domain and the paired values."
+   ],
+   "best": [["D:histogram", "D:histogram"], ["D:comparison"], ["D:histogram"]],
+   "acceptable": [["D:comparison|histogram", "D:*"], ["D:bar-chart", "D:bar-chart"]],
+   "badKinds": ["timeline", "cycle", "figure", "tree", "flow"],
+   "needsPicture": false,
+   "noPicture": true,
+   "note": "Required-kind path: a comparison counts as right only when its panels are histograms; a single histogram diagram counts only if it shows both distributions (checked by hand)."
+  },
+  {
+   "id": "repeated-fits",
+   "group": "2b-fits",
+   "prompt": "Why does fitting the same model on different samples give different predictions?",
+   "references": ["ml-repeated-sample-fits"],
+   "kinds": ["comparison", "coordinate-plot"],
+   "sketch": [
+    "Core: Lines fitted to different training samples drawn on matching axes; their predictions at one x differ; the mean and the observed range of those predictions.",
+    "Optional: The training points of each fit; the link to variance."
+   ],
+   "best": [["D:comparison|coordinate-plot"], ["D:comparison|coordinate-plot", "D:*"]],
+   "acceptable": [["D:matrix|bar-chart|number-line"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure", "tree"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "soft-vote",
+   "group": "2b-ensembles",
+   "prompt": "How can soft voting pick a different class from the majority vote?",
+   "references": ["ml-soft-vote-probabilities"],
+   "kinds": ["comparison", "matrix", "bar-chart"],
+   "sketch": [
+    "Core: Each model's normalized class probabilities; the hard vote counts each model's top class and the soft vote averages the probabilities, and the two pick different classes.",
+    "Optional: The averaged probability of each class stated as a percentage."
+   ],
+   "best": [["D:comparison|matrix|bar-chart"], ["D:comparison|matrix|bar-chart", "D:*"]],
+   "acceptable": [["D:flow|transformation"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "adaboost",
+   "group": "2b-ensembles",
+   "prompt": "What happens to the training weights after AdaBoost gets one example wrong?",
+   "references": ["ml-adaboost-weight-update"],
+   "kinds": ["transformation", "matrix", "comparison", "bar-chart"],
+   "sketch": [
+    "Core: The same rows before and after; the weighted error of the miss, the coefficient alpha = (1/2) ln((1 - err) / err), the missed row's weight raised and the correct rows' lowered, renormalized to sum 1.",
+    "Optional: The next weak learner focusing on the missed row."
+   ],
+   "best": [["D:transformation|matrix|comparison|bar-chart"], ["D:transformation|matrix|comparison|bar-chart", "D:*"]],
+   "acceptable": [["D:flow|cycle"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "stacking-oof",
+   "group": "2b-ensembles",
+   "prompt": "Where do the out-of-fold predictions for the stacking model come from?",
+   "references": ["ml-stacking-oof-predictions"],
+   "kinds": ["comparison", "matrix", "flow"],
+   "sketch": [
+    "Core: Which rows train each base model in each fold and which held-out rows it predicts; each held-out row's base-model predictions joined with its target into one meta-training row.",
+    "Optional: The meta-model trained on those rows."
+   ],
+   "best": [["D:comparison|matrix|flow"], ["D:comparison|matrix|flow", "D:*"]],
+   "acceptable": [["D:transformation|layers|tree"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "bayes-acquisition",
+   "group": "2b-tuning",
+   "prompt": "How does Bayesian optimization decide which setting to try next?",
+   "references": ["ml-bayesian-acquisition-choice"],
+   "kinds": ["matrix", "coordinate-plot", "comparison"],
+   "sketch": [
+    "Core: Candidate settings with the surrogate's mean and uncertainty, an acquisition score per candidate computed from them (e.g. UCB = mean + k x sd), and the highest-scoring candidate chosen even when another has a higher mean.",
+    "Optional: The new result updating the surrogate."
+   ],
+   "best": [["D:matrix|coordinate-plot|comparison"], ["D:matrix|coordinate-plot|comparison", "D:*"]],
+   "acceptable": [["D:bar-chart|cycle|flow"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "figure", "tree"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "successive-halving",
+   "group": "2b-tuning",
+   "prompt": "How does successive halving decide which trials get more training?",
+   "references": ["ml-successive-halving-rounds"],
+   "kinds": ["matrix", "tree", "flow", "comparison"],
+   "sketch": [
+    "Core: Trials ranked on a small budget, the top share kept with a larger cumulative budget and the rest stopped, repeated until one remains; the cumulative limit is distinguished from the extra training in each round.",
+    "Optional: The total budget used."
+   ],
+   "best": [["D:matrix|tree|flow|comparison"], ["D:matrix|tree|flow|comparison", "D:*"]],
+   "acceptable": [["D:bar-chart|timeline|layers"], ["D:*", "D:*"]],
+   "badKinds": ["cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  }
+ ]
+}

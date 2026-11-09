@@ -1,0 +1,123 @@
+{
+ "name": "sequence",
+ "version": {
+  "prompts": "P1 2026-11-08 15:12 PT",
+  "labels": "L2 2026-11-08 16:20 PT (owner relabels: entropy, DNS, decision tree)"
+ },
+ "measures": "Message exchanges between actors: the sequence kind (for DNS also a flow with a decision) and no picture.",
+ "source": "C:/s/spec/benchmarks/explain-visual-choice-2026-11-08/prompts-D.json",
+ "written": "2026-11-08 15:12 PT, sequence positive checks: handshake pass 3/3 sequence; DNS and email pass >=2/3 each; no picture on any",
+ "relabels": [
+  "2026-11-08 ~16:20 PT owner relabel (applied before scoring 5e, 5d re-scored): DNS lookup: sequence OR flow-with-decision = right (a flow without a decision node stays acceptable)"
+ ],
+ "notation": "A mix is a list of visuals: P = a Recraft picture, D:<kind> = a TutorDiagram of that kind (D:a|b = either kind, D:* = any kind). best = the mixes judged right; acceptable = a weaker mix that still teaches; anything else is wrong. badKinds = diagram kinds that cannot draw this subject (flagged wherever they appear, even beside a picture).",
+ "defaultRuns": 1,
+ "estUsdPerCard": 0.0107,
+ "pass": {
+  "rightShare": {
+   "tcp-handshake": 1,
+   "dns-lookup": 0.66,
+   "send-email": 0.66
+  },
+  "maxNoPictureViolations": 0
+ },
+ "prompts": [
+  {
+   "id": "tcp-handshake",
+   "group": "process",
+   "prompt": "how does the TCP handshake work?",
+   "best": [
+    [
+     "D:sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow|timeline"
+    ],
+    [
+     "D:sequence",
+     "D:*"
+    ],
+    [
+     "D:sequence",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "matrix",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Messages between two actors in order: sequence. A picture can only be decoration.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "dns-lookup",
+   "group": "sequence",
+   "prompt": "how does a DNS lookup work?",
+   "best": [
+    [
+     "D:sequence"
+    ],
+    [
+     "D:flow"
+    ],
+    [
+     "D:sequence",
+     "D:*"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:tree"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "cycle",
+    "timeline",
+    "figure"
+   ],
+   "why": "Resolver, root, TLD and authoritative servers exchange queries and answers: a sequence.",
+   "flowNeedsDecision": true,
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "send-email",
+   "group": "sequence",
+   "prompt": "what happens when I send an email?",
+   "best": [
+    [
+     "D:sequence"
+    ],
+    [
+     "D:sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ]
+   ],
+   "badKinds": [
+    "layers",
+    "cycle",
+    "timeline",
+    "figure"
+   ],
+   "why": "Your client, your mail server, the recipient server and their client pass the message along: a sequence. Digital: no picture.",
+   "needsPicture": false,
+   "noPicture": true
+  }
+ ]
+}

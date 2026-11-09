@@ -22,10 +22,7 @@ function matches(h, phrase) {
 }
 function scored(query, ref) {
   let score = 0;
-  const short = ref.shortKeywords?.map(normalized), shortTopic = query.replace(/^(?:please )?(?:(?:can you )?(?:explain|show me|describe|tell me about|help me understand) )?(?:the |an? )?/u, '');
-  for (const k of new Set(ref.keywords.map(normalized).filter(Boolean))) {
-    if (short?.includes(k)) { if (shortTopic === k) score += 40; } else if (matches(query, k)) score += Math.min(12, 2 + k.split(' ').length * 2);
-  }
+  for (const k of new Set(ref.keywords.map(normalized).filter(Boolean))) if (matches(query, k)) score += Math.min(12, 2 + k.split(' ').length * 2);
   if (ref.prompts.some(p => normalized(p) === query)) score += 50;
   return score;
 }
@@ -81,9 +78,9 @@ export async function selectorBench({ tree, setDir = SET_DIR } = {}) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
-  const tree = arg('--tree', resolve(HERE, '../..')), setDir = arg('--set-dir', SET_DIR);
+  const tree = arg('--tree', resolve(HERE, '../..'));
   if (!existsSync(resolve(tree, SELECTOR_FILE))) { console.error(`no ${SELECTOR_FILE} under ${tree}; pass --tree <repo root with the selector>`); process.exit(2); }
-  const out = await selectorBench({ tree, setDir });
+  const out = await selectorBench({ tree });
   if (out.mismatches.length) { console.error('the copy differs from production:', JSON.stringify(out.mismatches)); process.exit(1); }
   console.table(out.rows);
   for (const d of out.detail) if (d.refs.length) console.log(`${d.set.padEnd(12)} ${d.id.padEnd(20)} ${d.refs.map(r => `${r.id}:${r.kind}`).join(', ')}`);
