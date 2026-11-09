@@ -42,26 +42,31 @@ function factorial(title, caption, details) {
 
 const growthCurves = [
   { plain: 'Same work', notation: '$O(1)$', work: () => 1 },
-  { plain: 'Slow growth', notation: '$O(\\log n)$', work: n => 1 + Math.log2(n), endLabel: true },
+  { plain: 'Slow growth', notation: '$O(\\log n)$', work: (n, logAxis) => Math.log2(n) + (logAxis ? 1 : 0), endLabel: true },
   { plain: 'One pass', notation: '$O(n)$', work: n => n },
   { plain: 'All pairs', notation: '$O(n^2)$', work: n => n * n, endLabel: true },
   { plain: 'Sort-like growth', notation: '$O(n\\log n)$', work: n => n * (1 + Math.log2(n)) },
 ];
 
-function growth(title, caption, { brief = false, detailed = false } = {}) {
+function growth(title, caption, { brief = false, logAxis = false } = {}) {
+  const maxInput = logAxis ? 16 : 10;
+  const y = logAxis ? { min: 1, max: 256, scale: 'log' } : { min: 0, max: 100 };
   return {
     version: 1,
     diagram: {
       kind: 'coordinate-plot', title, caption,
-      x: { label: brief ? 'Items' : 'Input size $n$', min: 1, max: 16 },
-      y: { label: 'Example work', min: 1, max: 256, scale: 'log' },
-      series: growthCurves.slice(0, detailed ? 5 : 4).map(({ plain, notation, work, endLabel }) => ({
+      x: { label: brief ? 'Items' : 'Input size $n$', min: 1, max: maxInput },
+      y: { label: 'Example work', ...y },
+      series: growthCurves.slice(0, logAxis ? 5 : 4).map(({ plain, notation, work, endLabel }) => ({
         label: brief ? plain : notation, kind: 'line', ...(endLabel ? { endLabel } : {}),
-        points: Array.from({ length: 16 }, (_, i) => ({ x: i + 1, y: Math.round(work(i + 1) * 100) / 100 })),
+        points: Array.from({ length: maxInput }, (_, i) => ({ x: i + 1, y: Math.round(work(i + 1, logAxis) * 100) / 100 })),
       })),
     },
   };
 }
+
+const linearGrowth = growth('Big-O growth rates',
+  'At $n=10$, linear work reaches 10 and squared work reaches 100. The linear axis shows the size of the gap.');
 
 export const references = [
   {
@@ -151,16 +156,17 @@ export const references = [
     ],
     keywords: ['big-o notation', 'big o growth rates', 'what does big o tell me',
       'how fast algorithms grow', 'constant logarithmic linear and quadratic growth'],
-    useWhen: 'Compare representative work counts as input grows. Sample all curves at the same input sizes. Explain that Big-O gives an upper growth bound and these curves illustrate familiar growth classes.',
-    spec: growth('Big-O growth rates', 'The log axis shows all four rates. The logarithmic curve uses $1+\\log_2 n$ to keep its first value positive.'),
+    useWhen: 'Lead with the linear plot to show how quickly squared work pulls away. At Detailed depth, add detailSpec as Visual 2 to compare the smaller counts on a log axis. Big-O gives an upper growth bound.',
+    spec: linearGrowth,
     depths: {
       overview: {
         spec: growth('How work grows with input size',
-          'The same task can grow slowly or quickly as items are added. The vertical scale uses ratios so the smaller curves stay visible.', { brief: true }),
+          'With 10 items, one pass takes 10 units of work. All pairs take 100 units.', { brief: true }),
       },
       deep: {
-        spec: growth('Five common Big-O growth rates',
-          'The log axis uses representative counts $1$, $L=1+\\log_2 n$, $n$, $n^2$, and $nL$. Big-O bounds growth up to constant factors.', { detailed: true }),
+        spec: linearGrowth,
+        detailSpec: growth('Growth rates on a log scale',
+          'A log axis compresses large counts so smaller curves can be compared. Use $L=1+\\log_2 n$ and $nL$ to keep the counts positive.', { logAxis: true }),
       },
     },
   },

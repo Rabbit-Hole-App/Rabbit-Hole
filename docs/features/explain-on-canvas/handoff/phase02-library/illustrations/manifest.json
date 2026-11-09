@@ -1275,6 +1275,26 @@
       "408": {
         "requested": 408,
         "width": 425,
+        "height": 584
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 567
+      },
+      "natural": {
+        "requested": 425,
+        "width": 425,
+        "height": 584
+      }
+    }
+  },
+  "big-o-growth-rates-detailed": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
         "height": 601
       },
       "960": {
@@ -1283,13 +1303,13 @@
         "height": 584
       },
       "natural": {
-        "requested": 425,
-        "width": 425,
+        "requested": 420,
+        "width": 420,
         "height": 601
       }
     }
   },
-  "big-o-growth-rates-detailed": {
+  "big-o-growth-rates-detailed-detail": {
     "kind": "coordinate-plot",
     "renders": {
       "408": {
