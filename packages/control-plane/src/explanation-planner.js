@@ -9,6 +9,8 @@ import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
 // 1.2 s (owner 2026-11-08; 4 of 42 timed out at 800 ms on the Gemini stack); every timeout is logged as reason 'timeout' (explanation_planner_failed)
 export const PLANNER_MODEL = 'jev-latest', PLANNER_TIMEOUT_MS = 1200, FIX_AT = 0.6, PHYSICAL_AT = 0.7, SECOND_AT = 0.7;
+// A two-things plan draws each thing as a structure: only these kinds are offered (a matrix is a grid and a comparison is the one-visual answer this plan replaces: stack-vs-queue got an invalid matrix, owner 2026-11-08).
+const EACH_KINDS = ['tree', 'flow', 'relationship', 'layers', 'cycle', 'sequence'];
 const KIND = {
   flow: 'Ordered steps of one process, with or without decisions; the default only when nothing below fits.',
   sequence: 'Two to four named parties sending things to each other: client/server, sender/receiver, protocols, handshakes, request/response.',
@@ -65,7 +67,9 @@ export function planFromAnswers(a) {
   // Narrow second visual (owner 2026-11-08, after the clean-up): the question names two separate things that are each a structure or an organism (secondVisual >= 0.7): one visual per thing,
   // a picture each for living things (type picture), else a diagram each of its own kind (never a comparison). A planned picture + diagram (both) is left as it is.
   const pair = (a.secondVisual?.noul ?? 0) >= SECOND_AT && type !== 'both';
-  const each = { type: 'diagram', choose: Object.entries(a.kind?.probabilities || {}).filter(([k]) => k !== 'comparison').sort((x, y) => y[1] - x[1]).slice(0, 2).map(([k]) => k) };
+  const ranked = Object.entries(a.kind?.probabilities || {}).filter(([k, p]) => EACH_KINDS.includes(k) && p > 0).sort((x, y) => y[1] - x[1]).map(([k]) => k);
+  // shortcut: fewer than two allowed kinds with any probability mass offers the planned kind (if allowed) and flow; upgrade when the planner gets its own two-things kind question.
+  const each = { type: 'diagram', choose: ranked.length >= 2 ? ranked.slice(0, 2) : [...new Set([ranked[0] ?? (EACH_KINDS.includes(kind) ? kind : 'flow'), 'flow'])].slice(0, 2) };
   if (pair) visuals = type === 'picture' ? [{ type: 'picture' }, { type: 'picture' }] : [each, { ...each }];
   const treatment = a.depthTreatment?.choice;
   return { visuals, depthTreatment: TREATMENT[treatment] ? treatment : 'mechanism', kind: type === 'picture' ? null : pair ? each.choose[0] ?? kind : kind, fixed: type === 'picture' ? null : pair ? false : fixed, planner: 'jev', ...(physical ? { physicalOverride: true } : {}), ...(pair ? { secondVisual: true } : {}),

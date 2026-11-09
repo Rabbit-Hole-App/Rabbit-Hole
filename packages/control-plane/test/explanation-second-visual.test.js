@@ -68,3 +68,16 @@ test('requiredVisuals from the learner still win over a two-visual plan, and the
   assert.deepEqual(resolved.visuals, [{ type: 'diagram', kind: 'timeline' }]);
   assert.ok(!visualsStatement(plan, resolved).includes('names two things'));
 });
+
+test('two-things kinds are structure kinds only: matrix and comparison are never offered; the top two allowed kinds by probability; too few allowed kinds offers the planned kind and flow', () => {
+  const offered = probabilities => planFromAnswers(answers({ kind: { choice: Object.keys(probabilities)[0], confidence: 0.5, probabilities } })).visuals[0].choose;
+  // stack-vs-queue: comparison 0.4, matrix 0.3, flow 0.2, tree 0.1 -> flow and tree
+  assert.deepEqual(offered({ comparison: 0.4, matrix: 0.3, flow: 0.2, tree: 0.1 }), ['flow', 'tree']);
+  for (const p of [{ matrix: 0.5, comparison: 0.3, 'bar-chart': 0.2 }, { comparison: 0.6, matrix: 0.4 }, { matrix: 0.9, flow: 0.1 }]) {
+    const got = offered(p);
+    assert.ok(got.length >= 1 && got.every(k => ['tree', 'flow', 'relationship', 'layers', 'cycle', 'sequence'].includes(k)), JSON.stringify(got));
+    assert.ok(!got.includes('matrix') && !got.includes('comparison'));
+  }
+  assert.deepEqual(offered({ matrix: 0.9, flow: 0.1 }), ['flow'], 'one allowed kind with mass: that kind (flow is the other fallback, same kind)');
+  assert.deepEqual(offered({ matrix: 0.6, comparison: 0.4 }), ['flow'], 'no allowed kind with mass: flow');
+});
