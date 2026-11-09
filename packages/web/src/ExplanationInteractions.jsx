@@ -128,9 +128,9 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     (now.onChangeQuiet || now.onChange)?.(withConsumed(now.block, captured.revision, { id: captured.actionId, question: captured.question, destination: captured.destination }));
   };
   const askSuggestion = (question, destination) => send({ text: question.text, qid: question.id, destination, afterAdmit: consume });
-  // Owner 2026-11-08: a follow-up typed under the card makes a new written /explain card linked to this one (the same route as a suggested question's "Ask in a new card"):
-  // the Chat shows the question and its progress, the camera frames the new card (insertBlock fit), and the Depth is the Chat composer's.
-  const askFollowUp = text => send({ text, destination: 'card' });
+  // Owner 2026-11-08: a follow-up typed under the card makes a new written /explain card (the same route as a suggested question's "Ask in a new card" but with no
+  // arrow to this card): the Chat shows the question and its progress, the camera frames the new card (insertBlock fit), and the Depth is the Chat composer's.
+  const askFollowUp = text => send({ text, destination: 'follow-up' });
 
   // ---- selection toolbar ----
   const evaluate = () => {

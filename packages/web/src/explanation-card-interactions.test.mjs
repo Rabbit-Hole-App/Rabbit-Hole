@@ -251,7 +251,7 @@ test('a read-only viewer sees the definitions but none of the edit-only controls
   assert.equal($('[data-follow-up-toggle]'), null);
 });
 
-test('the bottom + opens Ask a follow-up with the round send inside; outside press closes it and keeps the words; sending makes a new linked /explain card (destination card) and clears once admitted', async () => {
+test('the bottom + opens Ask a follow-up with the round send inside; outside press closes it and keeps the words; sending makes a new /explain card with no link arrow (destination follow-up) and clears once admitted', async () => {
   const card = await envelope();
   const calls = [];
   let outcome = false;
@@ -276,7 +276,7 @@ test('the bottom + opens Ask a follow-up with the round send inside; outside pre
   await fire($('[data-follow-up]'), 'submit');
   await settle();
   assert.equal(calls.length, 1);
-  assert.deepEqual({ ...calls[0], actionId: typeof calls[0].actionId }, { id: 'card-1', revision: card.interactions.contentRevision, question: 'Why does the gini matter?', destination: 'card', actionId: 'string' });
+  assert.deepEqual({ ...calls[0], actionId: typeof calls[0].actionId }, { id: 'card-1', revision: card.interactions.contentRevision, question: 'Why does the gini matter?', destination: 'follow-up', actionId: 'string' });
   assert.ok($('[data-follow-up]'), 'still open after a refusal');
   assert.equal($('[data-follow-up] input').value, 'Why does the gini matter?');
   outcome = true;
