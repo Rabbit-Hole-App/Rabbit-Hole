@@ -456,7 +456,9 @@ export const droppedElement = (kind, label, reason, sink = null) => {
 };
 const fit = (s, max) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, ''); };
 const tryParse = spec => { try { return parseTutorDiagram(spec); } catch { return null; } };
-// A message from an actor to itself (the receiver's own step: "Decrypt with private key") is not valid in the sequence kind (from !== to), so its text is kept: folded into the
+// Codex 9580d7a4 (owner 2026-11-09): the sequence kind now draws a self-message as a loop on one lifeline WHEN an ordinary message sits immediately before and after it (spec.js). The server follows the
+// schema, not a flag: a sequence whose self-steps the schema accepts is left as written (correctedSequence returns null when it parses; simplifiedSequence tries the parse first); only a self-step the
+// schema refuses (the first or last message, or two in a row: card 01's trailing "Decrypt with private key") is folded. A message from an actor to itself that the schema refuses is kept as text: folded into the
 // next message's label ("<self> -> <next>"), else the previous one's, else the caption when the label would pass its 60 characters. A self-step with nothing to attach to is the only
 // one removed, and droppedElement names it. -> { messages, caption }. The proper self-message (a loop arrow on one lifeline) is the renderer's, a batch-2 item.
 function foldSelfSteps(list, caption, sink = null) {
@@ -500,6 +502,12 @@ function simplifiedSequence(d, head, sink = null) {
     if (!label) droppedElement('message', m?.label, 'no label', sink);
     else if (!from || !target) droppedElement('message', label, 'names an actor that is not in the diagram', sink);
     else list.push({ from, to: target, label });
+  }
+  // The schema accepts the self-messages as written (loop arrows): keep them, fold nothing.
+  const asWritten = list.slice(0, 8);
+  if (asWritten.some(m => m.from === m.to) && actors.length >= 2) {
+    const loops = tryParse({ version: 1, diagram: { ...head, kind: 'sequence', actors, messages: asWritten } });
+    if (loops) { list.slice(8).forEach(m => droppedElement('message', m.label, 'over the 8-message limit', sink)); return loops; }
   }
   const { messages: folded, caption } = foldSelfSteps(list, head.caption, sink);
   folded.slice(8).forEach(m => droppedElement('message', m.label, 'over the 8-message limit', sink));

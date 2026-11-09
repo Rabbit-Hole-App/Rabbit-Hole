@@ -14,7 +14,7 @@ const dropped = lines => lines.map(l => { try { return JSON.parse(l); } catch { 
 const bodyOf = md => JSON.parse(md.split('\n').slice(1, -1).join('\n'));
 
 test('card 01 raw spec is invalid because of the self-step (the premise)', () => {
-  assert.throws(() => parseTutorDiagram(raw), /cannot send a message to itself/);
+  assert.throws(() => parseTutorDiagram(raw), /needs an ordinary message immediately before and after/);
 });
 
 test('the pre-repair correction folds the self-step onto the previous message: no model call, nothing dropped, no log line', () => {
@@ -80,4 +80,23 @@ test('the other corrections that cut content name it: matrix cells trimmed, a te
   assert.deepEqual(m.value.corrections, { matrix_cells_trimmed: 1 });
   assert.deepEqual(dropped(m.lines).map(e => e.kind), ['matrix cells', 'matrix cells']);
   assert.ok(dropped(m.lines)[0].reason.includes('extra one'));
+});
+
+test('Codex 9580d7a4: a self-step with an ordinary message before and after it is accepted by the schema, so the server leaves it as a loop and folds nothing', () => {
+  const flanked = { version: 1, diagram: { ...raw.diagram, messages: [raw.diagram.messages[0], { from: 'bob', to: 'bob', label: 'Decrypt with private key' }, { from: 'bob', to: 'alice', label: 'Send the reply' }] } };
+  assert.ok(parseTutorDiagram(flanked), 'the schema accepts it');
+  const { value, lines } = logs(() => correctDiagrams(fence(flanked)));
+  assert.deepEqual(value.corrections ?? {}, {}, 'no fold counted');
+  assert.deepEqual(bodyOf(value.md).diagram.messages.map(m => m.label), ['Share public key', 'Decrypt with private key', 'Send the reply']);
+  assert.ok(bodyOf(value.md).diagram.messages.some(m => m.from === m.to), 'the self-message stays a message from bob to bob');
+  assert.equal(dropped(lines).length, 0);
+});
+
+test('the last-resort simplification keeps an accepted self-step as a loop, and still folds the one the schema refuses (card 01 ends with it)', () => {
+  const withBlank = { version: 1, diagram: { ...raw.diagram, messages: [raw.diagram.messages[0], { from: 'bob', to: 'bob', label: 'Decrypt with private key' }, { from: 'bob', to: 'alice', label: 'Send the reply' }, { from: 'alice', to: 'bob', label: '' }] } };
+  const kept = logs(() => simplifiedDiagram([JSON.stringify(withBlank)], 'sequence'));
+  assert.ok(kept.value.diagram.messages.some(m => m.from === m.to && m.label === 'Decrypt with private key'));
+  assert.deepEqual(dropped(kept.lines).map(e => e.reason), ['no label'], 'only the blank message is dropped, and it is logged');
+  const trailing = logs(() => simplifiedDiagram([JSON.stringify(raw)], 'sequence'));
+  assert.ok(trailing.value.diagram.messages.every(m => m.from !== m.to), 'card 01: the trailing self-step is refused by the schema, so it is folded');
 });
