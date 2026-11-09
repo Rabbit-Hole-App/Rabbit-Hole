@@ -13,7 +13,8 @@ import { SETS_DIR, SET_NAMES, availableSets, loadSet } from './score.mjs';
 import { DEFAULT_OUT, run as report, runDirName } from './report.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const WORST_CARD = 0.05; // a card is sent only while this much of the cap is left: 2 author calls (~US$0.006) + 3 pictures at the US$0.01 maximum, rounded up
+const WORST_CARD = 0.05; // --cap covers the whole invocation: the judge gets min(--judge-cap, what generation left)
+ // a card is sent only while this much of the cap is left: 2 author calls (~US$0.006) + 3 pictures at the US$0.01 maximum, rounded up
 const EST = { authorCall: 0.008, picture: 0.007 }; // the 2026-11-08 study's estimate where the stack ledger records nothing: measured p50 US$0.005 a call, rounded up
 const JUDGE_EST = { card: 0.008, diagram: 0.006 }; // Sonnet 5.5 at low effort: ~1.5k tokens in, ~500 out per card (estimate, not measured)
 const PROBE = 'how does the water cycle work?'; // the fixed question the prompt hash is built for
@@ -154,7 +155,7 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
 }
 if (a.persist) console.log(await tokensFromPersist(resolve(a.persist), email, rawDir).catch(e => `token counts skipped: ${e.message}`));
 writeFileSync(join(runDir, 'provenance.json'), JSON.stringify({ ...prov, ...(a.note ? { note: a.note } : {}), invocation: { base: BASE, sets: plan.map(p => ({ set: p.name, prompts: p.prompts.length, runs: p.runs, depths: p.depths })), cap, spentUsd: +spent.toFixed(4), cards: sent, stoppedByCap: stopped, user: email } }, null, 1));
-const r = await report({ raw: rawDir, runId, out, label: a.label, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge, judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges, judgeCap, richnessChange: a['richness-change'] });
+const r = await report({ raw: rawDir, runId, out, label: a.label, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge, judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges, judgeCap: Math.min(judgeCap, Math.max(0, +(cap - spent).toFixed(4))), richnessChange: a['richness-change'] });
 for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
 if (r.results.judge) console.log(`judge: ${r.results.judge.calls} calls, ${r.results.judge.cached} cached, US$${r.results.judge.spent} of US$${judgeCap.toFixed(2)}`);
 console.log(`RESULT ${r.code ? 'FAIL' : 'PASS'} cards=${sent} spent=US$${spent.toFixed(4)}${stopped ? ' STOPPED-BY-CAP' : ''} report=${join(r.runDir, 'report.md')}`);
