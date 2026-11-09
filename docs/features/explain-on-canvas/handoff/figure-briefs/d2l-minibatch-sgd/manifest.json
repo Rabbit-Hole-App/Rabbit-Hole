@@ -1,0 +1,170 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_optimization/minibatch-sgd.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:10:34.928Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_111_1.svg",
+      "file": "01-output-minibatch-sgd-f4d60f-111-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_111_1.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_114_1.svg",
+      "file": "02-output-minibatch-sgd-f4d60f-114-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_114_1.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_117_1.svg",
+      "file": "03-output-minibatch-sgd-f4d60f-117-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_117_1.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_123_1.svg",
+      "file": "04-output-minibatch-sgd-f4d60f-123-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_123_1.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_126_1.svg",
+      "file": "05-output-minibatch-sgd-f4d60f-126-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_126_1.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_129_1.svg",
+      "file": "06-output-minibatch-sgd-f4d60f-129-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_129_1.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_135_1.svg",
+      "file": "07-output-minibatch-sgd-f4d60f-135-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_135_1.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_138_1.svg",
+      "file": "08-output-minibatch-sgd-f4d60f-138-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_138_1.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_141_1.svg",
+      "file": "09-output-minibatch-sgd-f4d60f-141-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_141_1.svg"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_147_1.svg",
+      "file": "10-output-minibatch-sgd-f4d60f-147-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_147_1.svg"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_150_1.svg",
+      "file": "11-output-minibatch-sgd-f4d60f-150-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_150_1.svg"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_153_1.svg",
+      "file": "12-output-minibatch-sgd-f4d60f-153-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_153_1.svg"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_159_0.svg",
+      "file": "13-output-minibatch-sgd-f4d60f-159-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_159_0.svg"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_162_0.svg",
+      "file": "14-output-minibatch-sgd-f4d60f-162-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_162_0.svg"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_165_0.svg",
+      "file": "15-output-minibatch-sgd-f4d60f-165-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_165_0.svg"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_183_1.svg",
+      "file": "16-output-minibatch-sgd-f4d60f-183-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_183_1.svg"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_186_1.svg",
+      "file": "17-output-minibatch-sgd-f4d60f-186-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_186_1.svg"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_189_1.svg",
+      "file": "18-output-minibatch-sgd-f4d60f-189-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_minibatch-sgd_f4d60f_189_1.svg"
+    }
+  ]
+}

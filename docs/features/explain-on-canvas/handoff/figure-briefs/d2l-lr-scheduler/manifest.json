@@ -1,0 +1,278 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_optimization/lr-scheduler.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:11:47.041Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_15_1.svg",
+      "file": "01-output-lr-scheduler-1dfeb6-15-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_15_1.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_18_1.svg",
+      "file": "02-output-lr-scheduler-1dfeb6-18-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_18_1.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_21_2.svg",
+      "file": "03-output-lr-scheduler-1dfeb6-21-2.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_21_2.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_51_0.svg",
+      "file": "04-output-lr-scheduler-1dfeb6-51-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_51_0.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_54_0.svg",
+      "file": "05-output-lr-scheduler-1dfeb6-54-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_54_0.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_57_0.svg",
+      "file": "06-output-lr-scheduler-1dfeb6-57-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_57_0.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_63_1.svg",
+      "file": "07-output-lr-scheduler-1dfeb6-63-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_63_1.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_66_1.svg",
+      "file": "08-output-lr-scheduler-1dfeb6-66-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_66_1.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_69_2.svg",
+      "file": "09-output-lr-scheduler-1dfeb6-69-2.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_69_2.svg"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_75_0.svg",
+      "file": "10-output-lr-scheduler-1dfeb6-75-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_75_0.svg"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_78_0.svg",
+      "file": "11-output-lr-scheduler-1dfeb6-78-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_78_0.svg"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_81_0.svg",
+      "file": "12-output-lr-scheduler-1dfeb6-81-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_81_0.svg"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_87_0.svg",
+      "file": "13-output-lr-scheduler-1dfeb6-87-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_87_0.svg"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_90_0.svg",
+      "file": "14-output-lr-scheduler-1dfeb6-90-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_90_0.svg"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_93_0.svg",
+      "file": "15-output-lr-scheduler-1dfeb6-93-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_93_0.svg"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_99_1.svg",
+      "file": "16-output-lr-scheduler-1dfeb6-99-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_99_1.svg"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_102_1.svg",
+      "file": "17-output-lr-scheduler-1dfeb6-102-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_102_1.svg"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_105_2.svg",
+      "file": "18-output-lr-scheduler-1dfeb6-105-2.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_105_2.svg"
+    },
+    {
+      "order": 19,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_111_0.svg",
+      "file": "19-output-lr-scheduler-1dfeb6-111-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_111_0.svg"
+    },
+    {
+      "order": 20,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_114_0.svg",
+      "file": "20-output-lr-scheduler-1dfeb6-114-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_114_0.svg"
+    },
+    {
+      "order": 21,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_117_0.svg",
+      "file": "21-output-lr-scheduler-1dfeb6-117-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_117_0.svg"
+    },
+    {
+      "order": 22,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_123_1.svg",
+      "file": "22-output-lr-scheduler-1dfeb6-123-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_123_1.svg"
+    },
+    {
+      "order": 23,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_126_1.svg",
+      "file": "23-output-lr-scheduler-1dfeb6-126-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_126_1.svg"
+    },
+    {
+      "order": 24,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_129_2.svg",
+      "file": "24-output-lr-scheduler-1dfeb6-129-2.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_129_2.svg"
+    },
+    {
+      "order": 25,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_135_0.svg",
+      "file": "25-output-lr-scheduler-1dfeb6-135-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_135_0.svg"
+    },
+    {
+      "order": 26,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_138_0.svg",
+      "file": "26-output-lr-scheduler-1dfeb6-138-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_138_0.svg"
+    },
+    {
+      "order": 27,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_141_0.svg",
+      "file": "27-output-lr-scheduler-1dfeb6-141-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_141_0.svg"
+    },
+    {
+      "order": 28,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_147_1.svg",
+      "file": "28-output-lr-scheduler-1dfeb6-147-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_147_1.svg"
+    },
+    {
+      "order": 29,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_150_1.svg",
+      "file": "29-output-lr-scheduler-1dfeb6-150-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_150_1.svg"
+    },
+    {
+      "order": 30,
+      "figureUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_153_2.svg",
+      "file": "30-output-lr-scheduler-1dfeb6-153-2.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_lr-scheduler_1dfeb6_153_2.svg"
+    }
+  ]
+}

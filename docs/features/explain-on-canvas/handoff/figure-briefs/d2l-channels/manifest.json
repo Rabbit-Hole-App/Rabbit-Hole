@@ -1,0 +1,26 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_convolutional-neural-networks/channels.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:12:34.718Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/conv-multi-in.svg",
+      "file": "01-conv-multi-in.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/conv-multi-in.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/conv-1x1.svg",
+      "file": "02-conv-1x1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/conv-1x1.svg"
+    }
+  ]
+}

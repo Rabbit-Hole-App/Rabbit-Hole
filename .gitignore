@@ -40,6 +40,9 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
+docs/features/explain-on-canvas/handoff/figure-briefs/*/_working/
+docs/features/explain-on-canvas/handoff/figure-briefs/*/[0-9]*.*
+!docs/features/explain-on-canvas/handoff/figure-briefs/briefs/*.md
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/

@@ -1,0 +1,1133 @@
+{
+  "sourceUrl": "https://sebastianraschka.com/llm-architecture-gallery/",
+  "group": "raschka",
+  "retrievedAt": "2026-11-09T10:14:45.322Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/hero/architecture-gallery-hero-640w.webp",
+      "file": "01-architecture-gallery-hero-640w.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/hero/architecture-gallery-hero-640w.webp"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/poster/redbubble-1-320w.webp",
+      "file": "02-redbubble-1-320w.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/poster/redbubble-1-320w.webp"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-2-xl.webp",
+      "file": "03-gpt-2-xl.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-2-xl.webp"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-8b.webp",
+      "file": "04-llama-3-8b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-8b.webp"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-2-1b.webp",
+      "file": "05-llama-3-2-1b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-2-1b.webp"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-2-7b.webp",
+      "file": "06-olmo-2-7b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-2-7b.webp"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-r1-671-billion.webp",
+      "file": "07-deepseek-v3-r1-671-billion.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-r1-671-billion.webp"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-r1-671-billion.webp",
+      "file": "08-deepseek-v3-r1-671-billion.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-r1-671-billion.webp"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-3-27b.webp",
+      "file": "09-gemma-3-27b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-3-27b.webp"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-3-1-small-24b.webp",
+      "file": "10-mistral-3-1-small-24b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-3-1-small-24b.webp"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-4-maverick-400b.webp",
+      "file": "11-llama-4-maverick-400b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-4-maverick-400b.webp"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-0-6b.webp",
+      "file": "12-qwen3-0-6b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-0-6b.webp"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-235b-a22b.webp",
+      "file": "13-qwen3-235b-a22b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-235b-a22b.webp"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-30b-a3b.webp",
+      "file": "14-qwen3-30b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-30b-a3b.webp"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-32b.webp",
+      "file": "15-qwen3-32b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-32b.webp"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-4b.webp",
+      "file": "16-qwen3-4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-4b.webp"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8b.webp",
+      "file": "17-qwen3-8b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8b.webp"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/smollm3-3b.webp",
+      "file": "18-smollm3-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/smollm3-3b.webp"
+    },
+    {
+      "order": 19,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-1-trillion.webp",
+      "file": "19-kimi-k2-1-trillion.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-1-trillion.webp"
+    },
+    {
+      "order": 20,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-5-355b.webp",
+      "file": "20-glm-4-5-355b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-5-355b.webp"
+    },
+    {
+      "order": 21,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-oss-120b.webp",
+      "file": "21-gpt-oss-120b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-oss-120b.webp"
+    },
+    {
+      "order": 22,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-oss-20b.webp",
+      "file": "22-gpt-oss-20b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-oss-20b.webp"
+    },
+    {
+      "order": 23,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-3-270m.webp",
+      "file": "23-gemma-3-270m.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-3-270m.webp"
+    },
+    {
+      "order": 24,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/grok-2-5-270b.webp",
+      "file": "24-grok-2-5-270b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/grok-2-5-270b.webp"
+    },
+    {
+      "order": 25,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-next-80b-a3b.webp",
+      "file": "25-qwen3-next-80b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-next-80b-a3b.webp"
+    },
+    {
+      "order": 26,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-230b.webp",
+      "file": "26-minimax-m2-230b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-230b.webp"
+    },
+    {
+      "order": 27,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-linear-48b-a3b.webp",
+      "file": "27-kimi-linear-48b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-linear-48b-a3b.webp"
+    },
+    {
+      "order": 28,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-3-32b.webp",
+      "file": "28-olmo-3-32b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-3-32b.webp"
+    },
+    {
+      "order": 29,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-3-7b.webp",
+      "file": "29-olmo-3-7b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-3-7b.webp"
+    },
+    {
+      "order": 30,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-2-671b.webp",
+      "file": "30-deepseek-v3-2-671b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-2-671b.webp"
+    },
+    {
+      "order": 31,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-3-large-673-billion.webp",
+      "file": "31-mistral-3-large-673-billion.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-3-large-673-billion.webp"
+    },
+    {
+      "order": 32,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-nano-30b-a3b.webp",
+      "file": "32-nemotron-3-nano-30b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-nano-30b-a3b.webp"
+    },
+    {
+      "order": 33,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo-v2-flash-309b.webp",
+      "file": "33-xiaomi-mimo-v2-flash-309b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo-v2-flash-309b.webp"
+    },
+    {
+      "order": 34,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-7-355b.webp",
+      "file": "34-glm-4-7-355b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-7-355b.webp"
+    },
+    {
+      "order": 35,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/arcee-ai-trinity-large-400b.webp",
+      "file": "35-arcee-ai-trinity-large-400b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/arcee-ai-trinity-large-400b.webp"
+    },
+    {
+      "order": 36,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5-744b.webp",
+      "file": "36-glm-5-744b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5-744b.webp"
+    },
+    {
+      "order": 37,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-super-120b-a12b.webp",
+      "file": "37-nemotron-3-super-120b-a12b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-super-120b-a12b.webp"
+    },
+    {
+      "order": 38,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-31b.webp",
+      "file": "38-gemma-4-31b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-31b.webp"
+    },
+    {
+      "order": 39,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-26b-a4b.webp",
+      "file": "39-gemma-4-26b-a4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-26b-a4b.webp"
+    },
+    {
+      "order": 40,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-12b.webp",
+      "file": "40-gemma-4-12b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-12b.webp"
+    },
+    {
+      "order": 41,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-2-3b.webp",
+      "file": "41-llama-3-2-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-2-3b.webp"
+    },
+    {
+      "order": 42,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-coder-flash-30b-a3b-mixture-of-experts.webp",
+      "file": "42-qwen3-coder-flash-30b-a3b-mixture-of-experts.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-coder-flash-30b-a3b-mixture-of-experts.webp"
+    },
+    {
+      "order": 43,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-5.webp",
+      "file": "43-kimi-k2-5.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-5.webp"
+    },
+    {
+      "order": 44,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/step-3-5-flash-196b.webp",
+      "file": "44-step-3-5-flash-196b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/step-3-5-flash-196b.webp"
+    },
+    {
+      "order": 45,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nanbeige-4-1-3b.webp",
+      "file": "45-nanbeige-4-1-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nanbeige-4-1-3b.webp"
+    },
+    {
+      "order": 46,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-5-230b.webp",
+      "file": "46-minimax-m2-5-230b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-5-230b.webp"
+    },
+    {
+      "order": 47,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tiny-aya-3-35b.webp",
+      "file": "47-tiny-aya-3-35b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tiny-aya-3-35b.webp"
+    },
+    {
+      "order": 48,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-2-5-1t.webp",
+      "file": "48-ling-2-5-1t.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-2-5-1t.webp"
+    },
+    {
+      "order": 49,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-5-397b.webp",
+      "file": "49-qwen3-5-397b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-5-397b.webp"
+    },
+    {
+      "order": 50,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/sarvam-30b.webp",
+      "file": "50-sarvam-30b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/sarvam-30b.webp"
+    },
+    {
+      "order": 51,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/sarvam-105b.webp",
+      "file": "51-sarvam-105b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/sarvam-105b.webp"
+    },
+    {
+      "order": 52,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/phi-4.webp",
+      "file": "52-phi-4.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/phi-4.webp"
+    },
+    {
+      "order": 53,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xlstm-7b.webp",
+      "file": "53-xlstm-7b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xlstm-7b.webp"
+    },
+    {
+      "order": 54,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-5-air.webp",
+      "file": "54-glm-4-5-air.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-5-air.webp"
+    },
+    {
+      "order": 55,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ouro-2-6b.webp",
+      "file": "55-ouro-2-6b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ouro-2-6b.webp"
+    },
+    {
+      "order": 56,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/intellect-3.webp",
+      "file": "56-intellect-3.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/intellect-3.webp"
+    },
+    {
+      "order": 57,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/longcat-flash-lite-68-5b-a3b.webp",
+      "file": "57-longcat-flash-lite-68-5b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/longcat-flash-lite-68-5b-a3b.webp"
+    },
+    {
+      "order": 58,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-small-4.webp",
+      "file": "58-mistral-small-4.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-small-4.webp"
+    },
+    {
+      "order": 59,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-nano-4b.webp",
+      "file": "59-nemotron-3-nano-4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-nano-4b.webp"
+    },
+    {
+      "order": 60,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-7-230b.webp",
+      "file": "60-minimax-m2-7-230b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-7-230b.webp"
+    },
+    {
+      "order": 61,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-e2b.webp",
+      "file": "61-gemma-4-e2b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-e2b.webp"
+    },
+    {
+      "order": 62,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-e4b.webp",
+      "file": "62-gemma-4-e4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-e4b.webp"
+    },
+    {
+      "order": 63,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-flash.webp",
+      "file": "63-deepseek-v4-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-flash.webp"
+    },
+    {
+      "order": 64,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-pro.webp",
+      "file": "64-deepseek-v4-pro.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-pro.webp"
+    },
+    {
+      "order": 65,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-xs2.webp",
+      "file": "65-laguna-xs2.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-xs2.webp"
+    },
+    {
+      "order": 66,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/zaya1-8b.webp",
+      "file": "66-zaya1-8b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/zaya1-8b.webp"
+    },
+    {
+      "order": 67,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5-1.webp",
+      "file": "67-glm-5-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5-1.webp"
+    },
+    {
+      "order": 68,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-6-35b-a3b.webp",
+      "file": "68-qwen3-6-35b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-6-35b-a3b.webp"
+    },
+    {
+      "order": 69,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-6.webp",
+      "file": "69-kimi-k2-6.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-6.webp"
+    },
+    {
+      "order": 70,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-6-27b.webp",
+      "file": "70-qwen3-6-27b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-6-27b.webp"
+    },
+    {
+      "order": 71,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo-v2-5-310b.webp",
+      "file": "71-xiaomi-mimo-v2-5-310b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo-v2-5-310b.webp"
+    },
+    {
+      "order": 72,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo25-pro.webp",
+      "file": "72-xiaomi-mimo25-pro.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo25-pro.webp"
+    },
+    {
+      "order": 73,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-2-6-1t.webp",
+      "file": "73-ling-2-6-1t.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-2-6-1t.webp"
+    },
+    {
+      "order": 74,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tencent-hy3.webp",
+      "file": "74-tencent-hy3.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tencent-hy3.webp"
+    },
+    {
+      "order": 75,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/granite-4.1.webp",
+      "file": "75-granite-4-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/granite-4.1.webp"
+    },
+    {
+      "order": 76,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/command-a-plus.webp",
+      "file": "76-command-a-plus.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/command-a-plus.webp"
+    },
+    {
+      "order": 77,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-1-2b.webp",
+      "file": "77-lfm2-5-1-2b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-1-2b.webp"
+    },
+    {
+      "order": 78,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-350m.webp",
+      "file": "78-lfm2-5-350m.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-350m.webp"
+    },
+    {
+      "order": 79,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-8b-a1b.webp",
+      "file": "79-lfm2-5-8b-a1b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-8b-a1b.webp"
+    },
+    {
+      "order": 80,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mellum2.webp",
+      "file": "80-mellum2.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mellum2.webp"
+    },
+    {
+      "order": 81,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-ultra-550b-a55b.webp",
+      "file": "81-nemotron-3-ultra-550b-a55b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-ultra-550b-a55b.webp"
+    },
+    {
+      "order": 82,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/north-mini-code.webp",
+      "file": "82-north-mini-code.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/north-mini-code.webp"
+    },
+    {
+      "order": 83,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-7-code.webp",
+      "file": "83-kimi-k2-7-code.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-7-code.webp"
+    },
+    {
+      "order": 84,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m3.webp",
+      "file": "84-minimax-m3.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m3.webp"
+    },
+    {
+      "order": 85,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/vibethinker-3b.webp",
+      "file": "85-vibethinker-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/vibethinker-3b.webp"
+    },
+    {
+      "order": 86,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5.2.webp",
+      "file": "86-glm-5-2.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5.2.webp"
+    },
+    {
+      "order": 87,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-xs-2-1.webp",
+      "file": "87-laguna-xs-2-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-xs-2-1.webp"
+    },
+    {
+      "order": 88,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/soofi.webp",
+      "file": "88-soofi.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/soofi.webp"
+    },
+    {
+      "order": 89,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/inkling.webp",
+      "file": "89-inkling.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/inkling.webp"
+    },
+    {
+      "order": 90,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/btl-3-27b.webp",
+      "file": "90-btl-3-27b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/btl-3-27b.webp"
+    },
+    {
+      "order": 91,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/antares-1b.webp",
+      "file": "91-antares-1b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/antares-1b.webp"
+    },
+    {
+      "order": 92,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-s-2-1.webp",
+      "file": "92-laguna-s-2-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-s-2-1.webp"
+    },
+    {
+      "order": 93,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/motif-3-beta.webp",
+      "file": "93-motif-3-beta.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/motif-3-beta.webp"
+    },
+    {
+      "order": 94,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nanbeige-4-2-3b.webp",
+      "file": "94-nanbeige-4-2-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nanbeige-4-2-3b.webp"
+    },
+    {
+      "order": 95,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/solar-open-2.webp",
+      "file": "95-solar-open-2.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/solar-open-2.webp"
+    },
+    {
+      "order": 96,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k3.webp",
+      "file": "96-kimi-k3.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k3.webp"
+    },
+    {
+      "order": 97,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-3-0-flash.webp",
+      "file": "97-ling-3-0-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-3-0-flash.webp"
+    },
+    {
+      "order": 98,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/muse-glimmer-30b.webp",
+      "file": "98-muse-glimmer-30b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/muse-glimmer-30b.webp"
+    },
+    {
+      "order": 99,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-5-lightning-30b-a3b.webp",
+      "file": "99-nemotron-3-5-lightning-30b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-5-lightning-30b-a3b.webp"
+    },
+    {
+      "order": 100,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8-27b.webp",
+      "file": "100-qwen3-8-27b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8-27b.webp"
+    },
+    {
+      "order": 101,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ornith-1-5-35b-a3b.webp",
+      "file": "101-ornith-1-5-35b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ornith-1-5-35b-a3b.webp"
+    },
+    {
+      "order": 102,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5.3-flash.webp",
+      "file": "102-glm-5-3-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5.3-flash.webp"
+    },
+    {
+      "order": 103,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8-flash-next.webp",
+      "file": "103-qwen3-8-flash-next.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8-flash-next.webp"
+    },
+    {
+      "order": 104,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tencent-hy4.webp",
+      "file": "104-tencent-hy4.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tencent-hy4.webp"
+    },
+    {
+      "order": 105,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-1-flash.webp",
+      "file": "105-deepseek-v4-1-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-1-flash.webp"
+    },
+    {
+      "order": 106,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/step-5.webp",
+      "file": "106-step-5.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/step-5.webp"
+    },
+    {
+      "order": 107,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mimo-2.6-flash.webp",
+      "file": "107-mimo-2-6-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mimo-2.6-flash.webp"
+    },
+    {
+      "order": 108,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mimo-2.6-pro.webp",
+      "file": "108-mimo-2-6-pro.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mimo-2.6-pro.webp"
+    },
+    {
+      "order": 109,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ember-1.webp",
+      "file": "109-ember-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ember-1.webp"
+    },
+    {
+      "order": 110,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/naive-n0-5-flash-309b.webp",
+      "file": "110-naive-n0-5-flash-309b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/naive-n0-5-flash-309b.webp"
+    },
+    {
+      "order": 111,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kolibri-1.webp",
+      "file": "111-kolibri-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kolibri-1.webp"
+    },
+    {
+      "order": 112,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-3-1-flash.webp",
+      "file": "112-ling-3-1-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-3-1-flash.webp"
+    },
+    {
+      "order": 113,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/muse-spark-open.webp",
+      "file": "113-muse-spark-open.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/muse-spark-open.webp"
+    },
+    {
+      "order": 114,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-5-super-vl-120b-a12b.webp",
+      "file": "114-nemotron-3-5-super-vl-120b-a12b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-5-super-vl-120b-a12b.webp"
+    },
+    {
+      "order": 115,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/reflection-beam.webp",
+      "file": "115-reflection-beam.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/reflection-beam.webp"
+    },
+    {
+      "order": 116,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/dory-1-0-4b.webp",
+      "file": "116-dory-1-0-4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/dory-1-0-4b.webp"
+    },
+    {
+      "order": 117,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/recursive-flint.webp",
+      "file": "117-recursive-flint.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/recursive-flint.webp"
+    },
+    {
+      "order": 118,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m3.1-flash.webp",
+      "file": "118-minimax-m3-1-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m3.1-flash.webp"
+    },
+    {
+      "order": 119,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm3-1-7b.webp",
+      "file": "119-lfm3-1-7b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm3-1-7b.webp"
+    },
+    {
+      "order": 120,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-large-4.webp",
+      "file": "120-mistral-large-4.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-large-4.webp"
+    },
+    {
+      "order": 121,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k3-1-pro.webp",
+      "file": "121-kimi-k3-1-pro.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k3-1-pro.webp"
+    },
+    {
+      "order": 122,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/the-big-llm-architecture-comparison.webp",
+      "file": "122-the-big-llm-architecture-comparison.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/the-big-llm-architecture-comparison.webp"
+    },
+    {
+      "order": 123,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/from-gpt-2-to-gpt-oss.webp",
+      "file": "123-from-gpt-2-to-gpt-oss.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/from-gpt-2-to-gpt-oss.webp"
+    },
+    {
+      "order": 124,
+      "figureUrl": "https://sebastianraschka.com/images/blog/2025/technical-deepseek/hero.webp",
+      "file": "124-hero.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/images/blog/2025/technical-deepseek/hero.webp"
+    },
+    {
+      "order": 125,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/a-dream-of-spring-for-open-weight.webp",
+      "file": "125-a-dream-of-spring-for-open-weight.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/a-dream-of-spring-for-open-weight.webp"
+    }
+  ]
+}
