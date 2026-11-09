@@ -62,7 +62,7 @@ test('the picture wins over an earlier diagram; with no picture the first diagra
   assert.match(none, /data-explanation-open/);
   const css = read('./index.css');
   assert.match(css, /\[data-explanation-tile\] \[data-tile-visual="diagram"\] > div \{ overflow: hidden !important; \}/, 'a dense diagram scales down, it does not scroll sideways, in the tile');
-  assert.match(css, /\[data-explanation-tile\] \[data-tile-visual="diagram"\] svg \{ width: 100%; height: auto; max-width: 100% !important; \}/);
+  assert.match(css, /\[data-explanation-tile\] \[data-tile-visual="diagram"\] svg \{ width: 100%; height: auto; max-width: 100% !important; max-height: 14rem; \}/);
 });
 
 test('minimizedVisual: the legacy illustration, a ready figure or a diagram; never a figure that is not ready or a diagram that does not parse; More sections count', () => {
@@ -126,8 +126,8 @@ test('requestSummary: sends the title and prose only; an old card with no summar
 test('the tile\'s footprint: its own width and the content\'s height, no saved size or layout, no resize handle, no footer rows; the saved size stays on the block', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
   assert.match(canvas, /const tile = isMinimized\(block\);/);
+  assert.match(canvas, /autoMax=\{tile \? null : /, 'a tile has no maximum height (null: undefined would take CanvasNode\'s 420 default), so it is never cut off');
   assert.match(canvas, /width=\{tile \? tileWidth\(block\) : sized\?\.width \?\? BLOCK_TYPES\[block\.type\]\?\.width\} resizable=\{!tile\}/);
   assert.match(canvas, /cardLayout=\{supportsCardLayout\(block\) && !tile \? block\.cardLayout : null\} saved=\{tile \? null : \{ w: block\.w, h: block\.h \}\}/);
-  assert.match(canvas, /\{block\.sources && !tile && <SourcesDisclosure/);
-  assert.match(canvas, /!cadPermissions\.localCopy && !tile && <CardFeedback/);
+  assert.match(canvas, /\{!tile && <>\s+\{block\.sources && <SourcesDisclosure[^]*?<CardFeedback block=\{block\} \/>\}\s+<\/>\}/, 'the rows under the body (sources, source chip, prompt, rating) are not drawn on a tile');
 });

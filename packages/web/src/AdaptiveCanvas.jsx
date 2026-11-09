@@ -946,7 +946,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
       fitContent={!!BLOCK_TYPES[block.type]?.fitContent}
-      autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
+      autoMax={tile ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={tile ? tileWidth(block) : sized?.width ?? BLOCK_TYPES[block.type]?.width} resizable={!tile}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
@@ -959,10 +959,13 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
       </PromptSlot.Provider></PerfContext.Provider>
-      {block.sources && !tile && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
-      {block.sourceRef && !headerSource(block) && !tile && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
-      {block.promptUsed && !slotted && !tile && <CardPrompt text={block.promptUsed} selected={selected} />}
-      {!cadPermissions.readOnly && !cadPermissions.localCopy && !tile && <CardFeedback block={block} />}
+      {/* A tile shows none of the rows under a card's body: its sources, source chip, prompt and rating. */}
+      {!tile && <>
+      {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
+      {block.sourceRef && !headerSource(block) && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
+      {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
+      {!cadPermissions.readOnly && !cadPermissions.localCopy && <CardFeedback block={block} />}
+      </>}
     </CanvasNode>
   );
 }
