@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, mixName, expectedMix, mixMatrix, useSpecTree, visuals, planOf, kindStatus, SET_NAMES } from './explain-bench/score.mjs';
+import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, diagramWidthOf, mixName, expectedMix, mixMatrix, useSpecTree, visuals, planOf, kindStatus, SET_NAMES } from './explain-bench/score.mjs';
 import { delta, g3CardText, rankArms, richnessVerdict, run } from './explain-bench/report.mjs';
 import { combine, judgeItems, JUDGE_MODEL, requestBody, useRubrics, RUBRICS, RUBRIC_VERSIONS } from './explain-bench/judge.mjs';
 // Answers every rubric's request shape: no tools = the JSON text of factual-v2, else a record_review call (verdict = the first enum value unless `pick` says otherwise).
@@ -435,4 +435,20 @@ test('visual-mix matrix (owner 2026-11-08): rows = expected mix, columns = made;
   assert.equal(m.counts['svg-svg']['svg-svg'], 1);
   assert.deepEqual(m.off.map(o => o.cards), [['s/b#r1'], ['s/d#r1']]);
   assert.deepEqual(m.twoVisuals, { expected: 3, madeTwoOfExpected: 1, madeTwo: 1, madeTwoNotExpected: 0 });
+});
+
+test('diagram natural width (card width follows it, owner 2026-11-08): recorded per diagram from the tree\'s own renderer at the usual 408 px, summarised in four buckets plus the max, no gate', async () => {
+  const flowSpec = { kind: 'flow', title: 'F', nodes: [{ id: 'a', label: 'Do a', role: 'process' }, { id: 'b', label: 'Done', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] };
+  const dense = { kind: 'comparison', title: 'Four', columns: ['A', 'B', 'C', 'D'].map(h => ({ heading: `${h} thing`, items: ['one item here', 'second item here', 'third item'] })) };
+  assert.equal(diagramWidthOf(flowSpec), 408, 'an ordinary diagram fits the usual room');
+  assert.ok(diagramWidthOf(dense) > 408, 'a four-column comparison needs more');
+  assert.equal(diagramWidthOf({ kind: 'nonsense' }), null, 'an undrawable spec has no width');
+  const scored = [flowSpec, dense].map(d => diagramScore(d, ''));
+  assert.deepEqual(scored.map(d => d.width), [408, diagramWidthOf(dense)]);
+  const cards = [flowSpec, dense].map((d, i) => card('content', 1, P.content[i].id, block('x', fence(d))));
+  const s = summarize(cards);
+  assert.equal(s.widths.measured, 2);
+  assert.equal(s.widths.le408, 1);
+  assert.equal(s.widths.to700 + s.widths.to960 + s.widths.over960, 1);
+  assert.equal(s.widths.max, Math.max(...scored.map(d => d.width)));
 });

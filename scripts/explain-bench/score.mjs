@@ -8,7 +8,13 @@ import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 // The diagram words and descriptions come from this tree's spec.js unless useSpecTree points at the tree the cards were made on (its newer kinds and wording).
 let spec = ownSpec;
-export async function useSpecTree(tree) { const file = tree && join(tree, 'packages/web/src/tutor-diagrams/spec.js'); spec = file && existsSync(file) ? await import(pathToFileURL(file).href) : ownSpec; return file && existsSync(file) ? file : null; }
+// The card's width follows its widest diagram (owner 2026-11-08): each diagram's natural width is what the stack tree's own renderer draws at the card's usual 408 px of room (renderTutorDiagram,
+// pure, no DOM); null where the tree has no renderer or the spec is not drawable. Recorded as `width`, no gate.
+let renderer = null;
+const loadRenderer = async tree => { const file = tree && join(tree, 'packages/web/src/tutor-diagrams/TutorDiagram.js'); try { renderer = file && existsSync(file) ? (await import(pathToFileURL(file).href)).renderTutorDiagram : null; } catch { renderer = null; } };
+await loadRenderer(join(dirname(fileURLToPath(import.meta.url)), '../..'));
+export const diagramWidthOf = d => { try { return renderer ? Math.round(renderer({ version: 1, diagram: d }, 408).width) : null; } catch { return null; } };
+export async function useSpecTree(tree) { const file = tree && join(tree, 'packages/web/src/tutor-diagrams/spec.js'); spec = file && existsSync(file) ? await import(pathToFileURL(file).href) : ownSpec; await loadRenderer(file ? tree : join(dirname(fileURLToPath(import.meta.url)), '../..')); return file && existsSync(file) ? file : null; }
 
 // The words a diagram draws (spec.js tutorDiagramVisibleText); a kind newer than this copy of spec.js falls back to the caller's own label list.
 export const visibleText = (d, fallback = []) => { let t; try { t = spec.tutorDiagramVisibleText({ diagram: d }); } catch { /* unknown kind */ } return (Array.isArray(t) ? t : fallback).filter(x => typeof x === 'string' && x.trim()); };
@@ -220,7 +226,7 @@ export function diagramScore(d, prose, kinds = null, plotRule = 'strict') {
   };
   let describe = null; try { describe = spec.describeTutorDiagram({ diagram: d }); } catch { /* an unexpected shape: no description */ }
   return {
-    kind: d.kind, kindRight: kinds ? kinds.includes(d.kind) : null, units, edges: edges.length, labelledEdges: labelled, optional,
+    kind: d.kind, width: diagramWidthOf(d), kindRight: kinds ? kinds.includes(d.kind) : null, units, edges: edges.length, labelledEdges: labelled, optional,
     numericLabels: L.filter(x => /\$[^$]+\$|\d/.test(x)).length, labels: L.length,
     // 2026-11-08 study rule: every node label <= 4 words, found verbatim in the prose, and no edge label.
     proseNounBox: NODE_KINDS.includes(d.kind) && nodeLabels.length > 0 && nodeLabels.every(l => l.trim().split(/\s+/).length <= 4 && p.includes(l.trim().toLowerCase())) && labelled === 0,
@@ -345,6 +351,8 @@ export function summarize(cards) {
       quantityPlot: { prompts: D.filter(c => c.category === 'quantity').length, withPlot: D.filter(c => c.category === 'quantity' && c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length, withCorrectPlot: D.filter(c => c.category === 'quantity' && c.diagrams.some(d => PLOT_KINDS.includes(d.kind)) && !c.plotWrong).length },
       binaryLayout: dg.filter(d => d.kind === 'tree' && d.spec?.layout === 'binary').length },
     references: (k => (k.length ? { known: k.length, none: k.filter(c => !c.references.count).length, some: k.filter(c => c.references.count > 0).length } : null))(cards.filter(c => c.references)),
+    // Natural diagram width (card width follows it): how many diagrams fit the usual 408 px, need up to 700, up to 960, or more (they scroll); no gate.
+    widths: (w => ({ measured: w.length, le408: w.filter(x => x <= 408).length, to700: w.filter(x => x > 408 && x <= 700).length, to960: w.filter(x => x > 700 && x <= 960).length, over960: w.filter(x => x > 960).length, max: w.length ? Math.max(...w) : null }))(dg.map(d => d.width).filter(Number.isFinite)),
     content: { diagrams: dg.length, flagged: dg.filter(d => d.flagged).length, placeholderEdge: dg.filter(d => d.flags.placeholderEdge.length).length, duplicateLabels: dg.filter(d => d.flags.duplicateLabels.length).length,
       nounBoxFlow: dg.filter(d => d.flags.nounBoxFlow).length, bareMaths: dg.filter(d => d.flags.bareMaths.length).length,
       relationships: dg.filter(d => d.kind === 'relationship').length, duplicatedRelationshipNodes: dg.filter(d => d.duplicatedRelationshipNodes.length).length,

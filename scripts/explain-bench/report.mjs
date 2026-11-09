@@ -52,6 +52,7 @@ export const METRICS = [
   ['picture where none belongs', s => pair(s.pictures.violations.length, s.pictures.noPictureSubjects), 'down'],
   ['diagrams', s => s.richness.diagrams, null],
   ['size: median items per diagram', s => s.richness.sizeMedian, null],
+  ['diagram natural width (card width follows it): <= 408 / 409-700 / 701-960 / > 960, max px (no gate)', s => (s.widths?.measured ? `${s.widths.le408} / ${s.widths.to700} / ${s.widths.to960} / ${s.widths.over960}, max ${s.widths.max}` : null), null],
   ['size: graph diagrams outside 3-8 items', s => pair(s.richness.graphOutside3to8, s.richness.graphDiagrams), 'down'],
   ['fields: edges labelled', s => pair(s.richness.labelledEdges, s.richness.edges), 'up'],
   ...['caption', 'detail', 'highlightPath', 'units', 'point labels'].map(k => [`fields: ${k} used`, s => pair(s.richness.fieldUse[k], s.richness.diagrams), 'up']),
