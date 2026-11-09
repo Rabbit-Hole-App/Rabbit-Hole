@@ -36,11 +36,13 @@ test('the fallback is off when a plan supplies the kind (shapeFallback: false)',
   }
 });
 
-test('the author receives the fallback through the normal flowchart request path', () => {
+test('the author receives the fallback through the normal flowchart request path, only when the planner was asked and gave no plan', () => {
   const args = 'Draw a flowchart for sorting mail.';
-  const prepared = prepareArtifactAuthorRequest({}, {
-    command: 'explanation', args, visualRequirements: deriveVisualRequirements(args),
-  });
+  const input = { command: 'explanation', args, visualRequirements: deriveVisualRequirements(args) };
+  // planner off (never asked): no learner-word fallback (owner 2026-11-08); a plan present is covered by the shapeFallback: false test above
+  assert.ok(!prepareArtifactAuthorRequest({}, input).diagramReferences.some(ref => ref.id.startsWith('shape-')));
+  // planner asked, timed out or failed: no plan, the fallback runs
+  const prepared = prepareArtifactAuthorRequest({}, { ...input, planned: true, plan: null });
   assert.ok(!prepared.result);
   assert.equal(prepared.diagramReferences[0]?.id, 'shape-flow');
   assert.ok(prepared.body.system.includes(JSON.stringify(prepared.diagramReferences[0].spec)));

@@ -73,8 +73,9 @@ test('with a plan the example is the planned kind at the card depth, before any 
   // a plan whose kind differs from the learner's own words: the planner wins (no shape-flow from "flowchart" beside shape-tree)
   const tree = planFromAnswers(answers({ kind: { choice: 'tree', probabilities: { tree: 0.9 } } }));
   assert.deepEqual(ask('Draw a flowchart for sorting mail.', { plan: tree, planned: true }).diagramReferences.map(r => r.id), ['shape-tree']);
-  // no plan (planner off, timed out or failed: plan null): the learner words give the fallback as before
-  for (const input of [{}, { plan: null, planned: true }]) assert.deepEqual(ask('Draw a flowchart for sorting mail.', input).diagramReferences.map(r => r.id), ['shape-flow']);
+  // the planner was asked and timed out or failed (plan null): the learner words give the fallback; planner off (never asked): none (owner 2026-11-08)
+  assert.deepEqual(ask('Draw a flowchart for sorting mail.', { plan: null, planned: true }).diagramReferences.map(r => r.id), ['shape-flow']);
+  assert.deepEqual(ask('Draw a flowchart for sorting mail.', {}).diagramReferences.map(r => r.id).filter(id => id.startsWith('shape-')), []);
 });
 
 test('a two-panel reference goes out as its single-diagram variant unless the planned kind is the comparison (or the learner required that kind)', () => {

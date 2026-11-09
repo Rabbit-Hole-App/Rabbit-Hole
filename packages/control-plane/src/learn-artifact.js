@@ -126,11 +126,11 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const maxTokens = Math.max(bound ? bound.roles.author.maxOutputTokens : LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
   const requiredKinds = asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind);
   // Owner 2026-11-08: with a plan, the gallery example comes from the planner's chosen kind (below); the learner-word shape fallback (explanation-references.js) is used
-  // only when there is no plan (the planner timed out, failed or is off). A two-panel reference goes out as its single-diagram variant unless the planned kind is the comparison.
+  // only when the planner was asked and gave no plan (it timed out or failed; owner 2026-11-08), never when it is off or a plan exists. A two-panel reference goes out as its single-diagram variant unless the planned kind is the comparison.
   const topicalReferences = ready.includes('explanation') ? preferSingleVariants(selectDiagramReferences({
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
-    requiredKinds, shapeFallback: !input.plan,
+    requiredKinds, shapeFallback: !!input.planned && !input.plan,
   }), { plannedKind: input.plan?.kind, requiredKinds }) : [];
   // Planner prototype: the gallery example of the planned kind, at the card's depth, goes first, before any topical reference.
   const shape = input.plan ? planShape(input.plan, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
