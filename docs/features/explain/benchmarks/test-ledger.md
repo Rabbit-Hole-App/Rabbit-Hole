@@ -223,3 +223,20 @@ Queue after the correct-SVG closing pass freezes:
 1. Model comparison, production conditions (references on), 42 cards each, judge on: arm A gpt-oss low (reuse the frozen run), arm C Gemini 3.5 Flash Lite, arm D the next Gemini tier on the same OpenAI-compatible endpoint if the account lists it (skip if not). Per arm: right kind per depth, Deep plots, fully / partly / not, claims beyond the prose, repairs, p50/p90, cost, each split with-reference / no-reference. Decision: best right kind + faithfulness with p90 <= 7 s becomes primary for all cards, the other the fallback (tested end to end); route by reference only if the winner is worse than gpt-oss on with-reference cards.
 2. Prototype only, not production: a planning call (small fast model returning {kind, depthTreatment, mustShow[3-5]}) feeding the author call a narrowed bundle and the matching shape example; one 42-card run as arm E on the chosen primary; keep only if right kind or faithfulness rises by more than the run spread and p90 stays under 7 s. Note: this is a second model call on the main path, which "Do not build" rule 1 excludes; the owner asked for it as a measured prototype, so it is built only behind a dev flag and never ships unless it passes.
 3. The no-example path plan (references-off run, then a fixed shape gallery in the cached prefix) stays queued behind these unless the owner reorders.
+
+## Correct-SVG closing pass (2026-11-08 ~18:13 PT): reverted, frozen state unchanged
+
+Run `C:/s/spec/benchmarks/explain-bench/2026-11-08T181258-correct-svg-closing-4716572f3/report.md` (4716572f3: rule-2 depth precedence + coordinate-plot steps/path sentences), set correct-svg v3 (Core/Optional sketches, faithful-v2, beyond-v1), against the frozen run re-scored under v3 (`rescored/2026-11-08T181307-frozen-eb6661166-under-v3-labels`).
+
+| check | closing 4716572f3 | frozen eb6661166 under v3 |
+|---|---|---|
+| right kind O / S / D | 10 / 12 / 10 | 11 / 10 / 9 |
+| Deep plot or chart | 3/6 (softmax transformation, attention-weights flow, precision-recall comparison) | 4/6 |
+| placeholders + duplicates | 0 | 0 |
+| Overview formula-label cards | 0 | 0 |
+| repairs | 2/42 | 3/42 |
+| p50 / p90 | 4.46 / 8.00 s | 3.58 / 4.40 s |
+
+Owner rule: not >= 11 at every depth (two depths short), Overview and Deep plots worse than frozen, p90 above the 7 s gate: reverted the two sentences on explain/correct-svg; v3 labels and sketches kept. Caveat: the run shared the machine with the release-115 preview build, two full test suites and the JEV planner bench, so the p50/p90 rise is not attributable to the prompt.
+Judge coverage was partial (the judge share of the $0.50 cap ran out; picture items also used it): faithful-v2 23 of 42 judged (fully 19, partly 2, not 2: Deep entropy without W and S = k_B ln W; Standard gradient descent contours without the path); claims beyond the prose 22 of 30 judged diagrams (plotted values, axis ranges, counts, dates, heights not in the prose; this is the factual gate for diagram labels); factual: 24 of 30 judged cards flagged at least one error (mean 4.13), far above the 8.9% measured by the G3 judge on 5d cards; not yet explained (judge strictness vs real errors) and must be re-judged in full before anyone relies on it. Spend $0.48.
+Frozen state for release stays fd10d3515 (shipped as release 115 candidate cf5f811cd).
