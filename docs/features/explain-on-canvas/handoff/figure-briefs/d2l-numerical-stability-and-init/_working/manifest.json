@@ -1,0 +1,137 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_multilayer-perceptrons/numerical-stability-and-init.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:39:12.415Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_numerical-stability-and-init_e60514_18_0.svg",
+      "context": {
+        "alt": "../_images/output_numerical-stability-and-init_e60514_18_0.svg",
+        "caption": "",
+        "heading": "5.4.1.1. Vanishing Gradients",
+        "before": "One frequent culprit causing the vanishing gradient problem is the choice of the activation function \\(\\sigma\\) that is appended following each layer’s linear operations. Historically, the sigmoid function \\(1/(1 + \\exp(-x))\\) (introduced in Section 5.1) was popular because it resembles a thresholding function. Since early artificial neural networks were inspired by biological neural networks, the idea of neurons that fire either fully or not at all (like biological neurons) seemed appealing. Let’s take a closer look at the sigmoid to see why it can cause vanishing gradients.",
+        "after": "As you can see, the sigmoid’s gradient vanishes both when its inputs are large and when they are small. Moreover, when backpropagating through many layers, unless we are in the Goldilocks zone, where the inputs to many of the sigmoids are close to zero, the gradients of the overall product may vanish. When our network boasts many layers, unless we are careful, the gradient will likely be cut off at some layer. Indeed, this problem used to plague deep network training. Consequently, ReLUs, which are more stable (but less neurally plausible), have emerged as the default choice for practitioners.",
+        "svgText": [
+          "1.0 5",
+          "— sigmoid",
+          "0.84777 gradient",
+          "0.6 5",
+          "0.4 5",
+          "oats",
+          "0.2 5",
+          "0.0 5",
+          "-75 -5.0 -2.5",
+          "0.0",
+          "25",
+          "5.0",
+          "7.5"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "01-output-numerical-stability-and-init-e60514-18-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_numerical-stability-and-init_e60514_18_0.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_numerical-stability-and-init_e60514_21_1.svg",
+      "context": {
+        "alt": "../_images/output_numerical-stability-and-init_e60514_21_1.svg",
+        "caption": "",
+        "heading": "5.4.1.1. Vanishing Gradients",
+        "before": "One frequent culprit causing the vanishing gradient problem is the choice of the activation function \\(\\sigma\\) that is appended following each layer’s linear operations. Historically, the sigmoid function \\(1/(1 + \\exp(-x))\\) (introduced in Section 5.1) was popular because it resembles a thresholding function. Since early artificial neural networks were inspired by biological neural networks, the idea of neurons that fire either fully or not at all (like biological neurons) seemed appealing. Let’s take a closer look at the sigmoid to see why it can cause vanishing gradients.",
+        "after": "As you can see, the sigmoid’s gradient vanishes both when its inputs are large and when they are small. Moreover, when backpropagating through many layers, unless we are in the Goldilocks zone, where the inputs to many of the sigmoids are close to zero, the gradients of the overall product may vanish. When our network boasts many layers, unless we are careful, the gradient will likely be cut off at some layer. Indeed, this problem used to plague deep network training. Consequently, ReLUs, which are more stable (but less neurally plausible), have emerged as the default choice for practitioners.",
+        "svgText": [
+          "1.0 5",
+          "— sigmoid",
+          "0.84777 gradient",
+          "0.6 5",
+          "0.4 5",
+          "oats",
+          "0.2 5",
+          "0.0 5",
+          "-75 -5.0 -2.5",
+          "0.0",
+          "25",
+          "5.0",
+          "7.5"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "02-output-numerical-stability-and-init-e60514-21-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_numerical-stability-and-init_e60514_21_1.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_numerical-stability-and-init_e60514_24_0.svg",
+      "context": {
+        "alt": "../_images/output_numerical-stability-and-init_e60514_24_0.svg",
+        "caption": "",
+        "heading": "5.4.1.1. Vanishing Gradients",
+        "before": "One frequent culprit causing the vanishing gradient problem is the choice of the activation function \\(\\sigma\\) that is appended following each layer’s linear operations. Historically, the sigmoid function \\(1/(1 + \\exp(-x))\\) (introduced in Section 5.1) was popular because it resembles a thresholding function. Since early artificial neural networks were inspired by biological neural networks, the idea of neurons that fire either fully or not at all (like biological neurons) seemed appealing. Let’s take a closer look at the sigmoid to see why it can cause vanishing gradients.",
+        "after": "As you can see, the sigmoid’s gradient vanishes both when its inputs are large and when they are small. Moreover, when backpropagating through many layers, unless we are in the Goldilocks zone, where the inputs to many of the sigmoids are close to zero, the gradients of the overall product may vanish. When our network boasts many layers, unless we are careful, the gradient will likely be cut off at some layer. Indeed, this problem used to plague deep network training. Consequently, ReLUs, which are more stable (but less neurally plausible), have emerged as the default choice for practitioners.",
+        "svgText": [
+          "1.0 5",
+          "— sigmoid",
+          "0.84777 gradient",
+          "0.6 5",
+          "0.4 5",
+          "oats",
+          "0.2 5",
+          "0.0 5",
+          "-75 -5.0 -2.5",
+          "0.0",
+          "25",
+          "5.0",
+          "7.5"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "03-output-numerical-stability-and-init-e60514-24-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_numerical-stability-and-init_e60514_24_0.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_numerical-stability-and-init_e60514_27_0.svg",
+      "context": {
+        "alt": "../_images/output_numerical-stability-and-init_e60514_27_0.svg",
+        "caption": "",
+        "heading": "5.4.1.1. Vanishing Gradients",
+        "before": "One frequent culprit causing the vanishing gradient problem is the choice of the activation function \\(\\sigma\\) that is appended following each layer’s linear operations. Historically, the sigmoid function \\(1/(1 + \\exp(-x))\\) (introduced in Section 5.1) was popular because it resembles a thresholding function. Since early artificial neural networks were inspired by biological neural networks, the idea of neurons that fire either fully or not at all (like biological neurons) seemed appealing. Let’s take a closer look at the sigmoid to see why it can cause vanishing gradients.",
+        "after": "As you can see, the sigmoid’s gradient vanishes both when its inputs are large and when they are small. Moreover, when backpropagating through many layers, unless we are in the Goldilocks zone, where the inputs to many of the sigmoids are close to zero, the gradients of the overall product may vanish. When our network boasts many layers, unless we are careful, the gradient will likely be cut off at some layer. Indeed, this problem used to plague deep network training. Consequently, ReLUs, which are more stable (but less neurally plausible), have emerged as the default choice for practitioners.",
+        "svgText": [
+          "1.0 5",
+          "— sigmoid",
+          "0.84777 gradient",
+          "0.6 5",
+          "0.4 5",
+          "oats",
+          "0.2 5",
+          "0.0 5",
+          "-75 -5.0 -2.5",
+          "0.0",
+          "25",
+          "5.0",
+          "7.5"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "04-output-numerical-stability-and-init-e60514-27-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_numerical-stability-and-init_e60514_27_0.svg"
+    }
+  ],
+  "title": "5.4. Numerical Stability and Initialization SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

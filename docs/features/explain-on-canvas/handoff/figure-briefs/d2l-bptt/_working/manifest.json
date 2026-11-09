@@ -1,0 +1,71 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_recurrent-neural-networks/bptt.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:37:31.349Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/truncated-bptt.svg",
+      "context": {
+        "alt": "../_images/truncated-bptt.svg",
+        "caption": "Fig. 9.7.1 Comparing strategies for computing gradients in RNNs. From top to bottom: randomized truncation, regular truncation, and full computation.",
+        "heading": "9.7.1.4. Comparing Strategies",
+        "before": "It follows from the definition of \\(\\xi_t\\) that \\(E[z_t] = \\partial h_t/\\partial w_\\textrm{h}\\). Whenever \\(\\xi_t = 0\\) the recurrent computation terminates at that time step \\(t\\). This leads to a weighted sum of sequences of varying lengths, where long sequences are rare but appropriately overweighted. This idea was proposed by Tallec and Ollivier (2017).",
+        "after": "Fig. 9.7.1 illustrates the three strategies when analyzing the first few characters of The Time Machine using backpropagation through time for RNNs:",
+        "svgText": [
+          "the time machine by h g wells",
+          "7-0 <<",
+          "a",
+          "~",
+          ">",
+          "~",
+          "-",
+          "~",
+          ">",
+          "~",
+          "-",
+          "~",
+          ">",
+          "~",
+          ">",
+          "~",
+          "~",
+          "Las"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "01-truncated-bptt.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/truncated-bptt.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/rnn-bptt.svg",
+      "context": {
+        "alt": "../_images/rnn-bptt.svg",
+        "caption": "Fig. 9.7.2 Computational graph showing dependencies for an RNN model with three time steps. Boxes represent variables (not shaded) or parameters (shaded) and circles represent operators.",
+        "heading": "9.7.2. Backpropagation Through Time in Detail",
+        "before": "In order to visualize the dependencies among model variables and parameters during computation of the RNN, we can draw a computational graph for the model, as shown in Fig. 9.7.2. For example, the computation of the hidden states of time step 3, \\(\\mathbf{h}_3\\), depends on the model parameters \\(\\mathbf{W}_\\textrm{hx}\\) and \\(\\mathbf{W}_\\textrm{hh}\\), the hidden state of the previous time step \\(\\mathbf{h}_2\\), and the input of the current time step \\(\\mathbf{x}_3\\).",
+        "after": "As just mentioned, the model parameters in Fig. 9.7.2 are \\(\\mathbf{W}_\\textrm{hx}\\), \\(\\mathbf{W}_\\textrm{hh}\\), and \\(\\mathbf{W}_\\textrm{qh}\\). Generally, training this model requires gradient computation with respect to these parameters \\(\\partial L/\\partial \\mathbf{W}_\\textrm{hx}\\), \\(\\partial L/\\partial \\mathbf{W}_\\textrm{hh}\\), and \\(\\partial L/\\partial \\mathbf{W}_\\textrm{qh}\\). According to the dependencies in Fig. 9.7.2, we can traverse in the opposite direction of the arrows to calculate and store the gradients in turn. To flexibly express the multiplication of matrices, vectors, and scalars of different shapes in the chain rule, we continue to use the \\(\\textrm{prod}\\) operator as described in Section 5.3.",
+        "svgText": [
+          "0;",
+          "L",
+          "Ys",
+          "TIAL",
+          ">",
+          "y"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "02-rnn-bptt.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/rnn-bptt.svg"
+    }
+  ],
+  "title": "9.7. Backpropagation Through Time SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

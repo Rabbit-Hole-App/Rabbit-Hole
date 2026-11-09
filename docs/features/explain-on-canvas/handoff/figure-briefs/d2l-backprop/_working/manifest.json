@@ -1,0 +1,33 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_multilayer-perceptrons/backprop.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:34:24.163Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/forward.svg",
+      "context": {
+        "alt": "../_images/forward.svg",
+        "caption": "Fig. 5.3.1 Computational graph of forward propagation.",
+        "heading": "5.3.2. Computational Graph of Forward Propagation",
+        "before": "Plotting computational graphs helps us visualize the dependencies of operators and variables within the calculation. Fig. 5.3.1 contains the graph associated with the simple network described above, where squares denote variables and circles denote operators. The lower-left corner signifies the input and the upper-right corner is the output. Notice that the directions of the arrows (which illustrate data flow) are primarily rightward and upward.",
+        "after": "Backpropagation refers to the method of calculating the gradient of neural network parameters. In short, the method traverses the network in reverse order, from the output to the input layer, according to the chain rule from calculus. The algorithm stores any intermediate variables (partial derivatives) required while calculating the gradient with respect to some parameters. Assume that we have functions \\(\\mathsf{Y}=f(\\mathsf{X})\\) and \\(\\mathsf{Z}=g(\\mathsf{Y})\\), in which the input and the output \\(\\mathsf{X}, \\mathsf{Y}, \\mathsf{Z}\\) are tensors of arbitrary shapes. By using the chain rule, we can compute the derivative of \\(\\mathsf{Z}\\) with respect to \\(\\mathsf{X}\\) via",
+        "svgText": [
+          "(+)",
+          "4",
+          "Ne)",
+          "\\e)",
+          "6"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "01-forward.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/forward.svg"
+    }
+  ],
+  "title": "5.3. Forward Propagation, Backward Propagation, and Computational Graphs SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

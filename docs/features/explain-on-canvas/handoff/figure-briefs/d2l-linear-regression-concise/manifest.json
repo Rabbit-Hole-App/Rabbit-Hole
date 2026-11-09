@@ -1,0 +1,44 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_linear-regression/linear-regression-concise.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:38:58.349Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_linear-regression-concise_bee6dc_87_0.svg",
+      "file": "01-output-linear-regression-concise-bee6dc-87-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_linear-regression-concise_bee6dc_87_0.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_linear-regression-concise_bee6dc_90_0.svg",
+      "file": "02-output-linear-regression-concise-bee6dc-90-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_linear-regression-concise_bee6dc_90_0.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_linear-regression-concise_bee6dc_93_0.svg",
+      "file": "03-output-linear-regression-concise-bee6dc-93-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_linear-regression-concise_bee6dc_93_0.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_linear-regression-concise_bee6dc_96_0.svg",
+      "file": "04-output-linear-regression-concise-bee6dc-96-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_linear-regression-concise_bee6dc_96_0.svg"
+    }
+  ]
+}

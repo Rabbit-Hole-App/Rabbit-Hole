@@ -1,0 +1,33 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_recurrent-modern/encoder-decoder.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:39:42.434Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/encoder-decoder.svg",
+      "context": {
+        "alt": "../_images/encoder-decoder.svg",
+        "caption": "Fig. 10.6.1 The encoder–decoder architecture.",
+        "heading": "10.6. The Encoder–Decoder Architecture SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+        "before": "In general sequence-to-sequence problems like machine translation (Section 10.5), inputs and outputs are of varying lengths that are unaligned. The standard approach to handling this sort of data is to design an encoder–decoder architecture (Fig. 10.6.1) consisting of two major components: an encoder that takes a variable-length sequence as input, and a decoder that acts as a conditional language model, taking in the encoded input and the leftwards context of the target sequence and predicting the subsequent token in the target sequence.",
+        "after": "Let’s take machine translation from English to French as an example. Given an input sequence in English: “They”, “are”, “watching”, “.”, this encoder–decoder architecture first encodes the variable-length input into a state, then decodes the state to generate the translated sequence, token by token, as output: “Ils”, “regardent”, “.”. Since the encoder–decoder architecture forms the basis of different sequence-to-sequence models in subsequent sections, this section will convert this architecture into an interface that will be implemented later.",
+        "svgText": [
+          "Input",
+          "Encoder",
+          "State",
+          "Decoder",
+          "Output"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "01-encoder-decoder.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/encoder-decoder.svg"
+    }
+  ],
+  "title": "10.6. The Encoder–Decoder Architecture SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

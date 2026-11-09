@@ -1,0 +1,256 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_optimization/sgd.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:35:02.318Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_sgd_baca77_15_1.svg",
+      "context": {
+        "alt": "../_images/output_sgd_baca77_15_1.svg",
+        "caption": "",
+        "heading": "12.4.1. Stochastic Gradient Updates",
+        "before": "Now, we will compare it with gradient descent by adding random noise with a mean of 0 and a variance of 1 to the gradient to simulate a stochastic gradient descent.",
+        "after": "As we can see, the trajectory of the variables in the stochastic gradient descent is much more noisy than the one we observed in gradient descent in Section 12.3. This is due to the stochastic nature of the gradient. That is, even when we arrive near the minimum, we are still subject to the uncertainty injected by the instantaneous gradient via \\(\\eta \\nabla f_i(\\mathbf{x})\\). Even after 50 steps the quality is still not so good. Even worse, it will not improve after additional steps (we encourage you to experiment with a larger number of steps to confirm this). This leaves us with the only alternative: change the learning rate \\(\\eta\\). However, if we pick this too small, we will not make any meaningful progress initially. On the other hand, if we pick it too large, we will not get a good solution, as seen above. The only way to resolve these conflicting goals is to reduce the learning rate dynamically as optimization progresses.",
+        "svgText": [
+          "0-",
+          "N -1-",
+          "—2-",
+          "nN",
+          "~4",
+          "-2",
+          "0",
+          "x1"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "01-output-sgd-baca77-15-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_sgd_baca77_15_1.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_sgd_baca77_18_1.svg",
+      "context": {
+        "alt": "../_images/output_sgd_baca77_18_1.svg",
+        "caption": "",
+        "heading": "12.4.1. Stochastic Gradient Updates",
+        "before": "Now, we will compare it with gradient descent by adding random noise with a mean of 0 and a variance of 1 to the gradient to simulate a stochastic gradient descent.",
+        "after": "As we can see, the trajectory of the variables in the stochastic gradient descent is much more noisy than the one we observed in gradient descent in Section 12.3. This is due to the stochastic nature of the gradient. That is, even when we arrive near the minimum, we are still subject to the uncertainty injected by the instantaneous gradient via \\(\\eta \\nabla f_i(\\mathbf{x})\\). Even after 50 steps the quality is still not so good. Even worse, it will not improve after additional steps (we encourage you to experiment with a larger number of steps to confirm this). This leaves us with the only alternative: change the learning rate \\(\\eta\\). However, if we pick this too small, we will not make any meaningful progress initially. On the other hand, if we pick it too large, we will not get a good solution, as seen above. The only way to resolve these conflicting goals is to reduce the learning rate dynamically as optimization progresses.",
+        "svgText": [
+          "0-",
+          "-1>",
+          "—2-",
+          "aN",
+          "—4",
+          "—2",
+          "x1"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "02-output-sgd-baca77-18-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_sgd_baca77_18_1.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_sgd_baca77_21_1.svg",
+      "context": {
+        "alt": "../_images/output_sgd_baca77_21_1.svg",
+        "caption": "",
+        "heading": "12.4.1. Stochastic Gradient Updates",
+        "before": "Now, we will compare it with gradient descent by adding random noise with a mean of 0 and a variance of 1 to the gradient to simulate a stochastic gradient descent.",
+        "after": "As we can see, the trajectory of the variables in the stochastic gradient descent is much more noisy than the one we observed in gradient descent in Section 12.3. This is due to the stochastic nature of the gradient. That is, even when we arrive near the minimum, we are still subject to the uncertainty injected by the instantaneous gradient via \\(\\eta \\nabla f_i(\\mathbf{x})\\). Even after 50 steps the quality is still not so good. Even worse, it will not improve after additional steps (we encourage you to experiment with a larger number of steps to confirm this). This leaves us with the only alternative: change the learning rate \\(\\eta\\). However, if we pick this too small, we will not make any meaningful progress initially. On the other hand, if we pick it too large, we will not get a good solution, as seen above. The only way to resolve these conflicting goals is to reduce the learning rate dynamically as optimization progresses.",
+        "svgText": [
+          "0-",
+          "N -1-",
+          "—2-",
+          "nN",
+          "~4",
+          "-2",
+          "0",
+          "x1"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "03-output-sgd-baca77-21-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_sgd_baca77_21_1.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_sgd_baca77_27_1.svg",
+      "context": {
+        "alt": "../_images/output_sgd_baca77_27_1.svg",
+        "caption": "",
+        "heading": "12.4.2. Dynamic Learning Rate",
+        "before": "Let’s see what the exponential decay looks like in practice.",
+        "after": "As expected, the variance in the parameters is significantly reduced. However, this comes at the expense of failing to converge to the optimal solution \\(\\mathbf{x} = (0, 0)\\). Even after 1000 iteration steps are we are still very far away from the optimal solution. Indeed, the algorithm fails to converge at all. On the other hand, if we use a polynomial decay where the learning rate decays with the inverse square root of the number of steps, convergence gets better after only 50 steps.",
+        "svgText": [
+          "0-",
+          "N -1-",
+          "—2-",
+          "nN",
+          "~4",
+          "-2",
+          "0",
+          "x1"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "04-output-sgd-baca77-27-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_sgd_baca77_27_1.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_sgd_baca77_30_1.svg",
+      "context": {
+        "alt": "../_images/output_sgd_baca77_30_1.svg",
+        "caption": "",
+        "heading": "12.4.2. Dynamic Learning Rate",
+        "before": "Let’s see what the exponential decay looks like in practice.",
+        "after": "As expected, the variance in the parameters is significantly reduced. However, this comes at the expense of failing to converge to the optimal solution \\(\\mathbf{x} = (0, 0)\\). Even after 1000 iteration steps are we are still very far away from the optimal solution. Indeed, the algorithm fails to converge at all. On the other hand, if we use a polynomial decay where the learning rate decays with the inverse square root of the number of steps, convergence gets better after only 50 steps.",
+        "svgText": [
+          "0-",
+          "-1>5",
+          "—_2-",
+          "-3",
+          "-5",
+          "—4",
+          "-3",
+          "—2",
+          "—l",
+          "0",
+          "x1"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "05-output-sgd-baca77-30-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_sgd_baca77_30_1.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_sgd_baca77_33_1.svg",
+      "context": {
+        "alt": "../_images/output_sgd_baca77_33_1.svg",
+        "caption": "",
+        "heading": "12.4.2. Dynamic Learning Rate",
+        "before": "Let’s see what the exponential decay looks like in practice.",
+        "after": "As expected, the variance in the parameters is significantly reduced. However, this comes at the expense of failing to converge to the optimal solution \\(\\mathbf{x} = (0, 0)\\). Even after 1000 iteration steps are we are still very far away from the optimal solution. Indeed, the algorithm fails to converge at all. On the other hand, if we use a polynomial decay where the learning rate decays with the inverse square root of the number of steps, convergence gets better after only 50 steps.",
+        "svgText": [
+          "0-",
+          "N -1-",
+          "—2-",
+          "nN",
+          "~4",
+          "-2",
+          "0",
+          "x1"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "06-output-sgd-baca77-33-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_sgd_baca77_33_1.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_sgd_baca77_39_1.svg",
+      "context": {
+        "alt": "../_images/output_sgd_baca77_39_1.svg",
+        "caption": "",
+        "heading": "12.4.2. Dynamic Learning Rate",
+        "before": "As expected, the variance in the parameters is significantly reduced. However, this comes at the expense of failing to converge to the optimal solution \\(\\mathbf{x} = (0, 0)\\). Even after 1000 iteration steps are we are still very far away from the optimal solution. Indeed, the algorithm fails to converge at all. On the other hand, if we use a polynomial decay where the learning rate decays with the inverse square root of the number of steps, convergence gets better after only 50 steps.",
+        "after": "There exist many more choices for how to set the learning rate. For instance, we could start with a small rate, then rapidly ramp up and then decrease it again, albeit more slowly. We could even alternate between smaller and larger learning rates. There exists a large variety of such schedules. For now let’s focus on learning rate schedules for which a comprehensive theoretical analysis is possible, i.e., on learning rates in a convex setting. For general nonconvex problems it is very difficult to obtain meaningful convergence guarantees, since in general minimizing nonlinear nonconvex problems is NP hard. For a survey see e.g., the excellent lecture notes of Tibshirani 2015.",
+        "svgText": [
+          "0-",
+          "N -1-",
+          "—2-",
+          "nN",
+          "~4",
+          "-2",
+          "0",
+          "x1"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "07-output-sgd-baca77-39-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_sgd_baca77_39_1.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_sgd_baca77_42_1.svg",
+      "context": {
+        "alt": "../_images/output_sgd_baca77_42_1.svg",
+        "caption": "",
+        "heading": "12.4.2. Dynamic Learning Rate",
+        "before": "As expected, the variance in the parameters is significantly reduced. However, this comes at the expense of failing to converge to the optimal solution \\(\\mathbf{x} = (0, 0)\\). Even after 1000 iteration steps are we are still very far away from the optimal solution. Indeed, the algorithm fails to converge at all. On the other hand, if we use a polynomial decay where the learning rate decays with the inverse square root of the number of steps, convergence gets better after only 50 steps.",
+        "after": "There exist many more choices for how to set the learning rate. For instance, we could start with a small rate, then rapidly ramp up and then decrease it again, albeit more slowly. We could even alternate between smaller and larger learning rates. There exists a large variety of such schedules. For now let’s focus on learning rate schedules for which a comprehensive theoretical analysis is possible, i.e., on learning rates in a convex setting. For general nonconvex problems it is very difficult to obtain meaningful convergence guarantees, since in general minimizing nonlinear nonconvex problems is NP hard. For a survey see e.g., the excellent lecture notes of Tibshirani 2015.",
+        "svgText": [
+          "0-",
+          "-1>5",
+          "—2-",
+          "-—3",
+          "—5",
+          "~4",
+          "-3",
+          "—2",
+          "-l",
+          "x1"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "08-output-sgd-baca77-42-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_sgd_baca77_42_1.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_sgd_baca77_45_1.svg",
+      "context": {
+        "alt": "../_images/output_sgd_baca77_45_1.svg",
+        "caption": "",
+        "heading": "12.4.2. Dynamic Learning Rate",
+        "before": "As expected, the variance in the parameters is significantly reduced. However, this comes at the expense of failing to converge to the optimal solution \\(\\mathbf{x} = (0, 0)\\). Even after 1000 iteration steps are we are still very far away from the optimal solution. Indeed, the algorithm fails to converge at all. On the other hand, if we use a polynomial decay where the learning rate decays with the inverse square root of the number of steps, convergence gets better after only 50 steps.",
+        "after": "There exist many more choices for how to set the learning rate. For instance, we could start with a small rate, then rapidly ramp up and then decrease it again, albeit more slowly. We could even alternate between smaller and larger learning rates. There exists a large variety of such schedules. For now let’s focus on learning rate schedules for which a comprehensive theoretical analysis is possible, i.e., on learning rates in a convex setting. For general nonconvex problems it is very difficult to obtain meaningful convergence guarantees, since in general minimizing nonlinear nonconvex problems is NP hard. For a survey see e.g., the excellent lecture notes of Tibshirani 2015.",
+        "svgText": [
+          "0-",
+          "N -1-",
+          "—2-",
+          "nN",
+          "~4",
+          "-2",
+          "0",
+          "x1"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "09-output-sgd-baca77-45-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_sgd_baca77_45_1.svg"
+    }
+  ],
+  "title": "12.4. Stochastic Gradient Descent SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

@@ -1,0 +1,60 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_linear-classification/environment-and-distribution-shift.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:33:54.267Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/cat-dog-train.png",
+      "context": {
+        "alt": "../_images/cat-dog-train.png",
+        "caption": "Fig. 4.7.1 Training data for distinguishing cats and dogs (illustrations: Lafeez Hossain / 500px / Getty Images; ilkermetinkursova / iStock / Getty Images Plus; GlobalP / iStock / Getty Images Plus; Musthafa Aboobakuru / 500px / Getty Images).",
+        "heading": "4.7.1.1. Covariate Shift",
+        "before": "Consider the challenge of distinguishing cats and dogs. Our training data might consist of images of the kind in Fig. 4.7.1.",
+        "after": "At test time we are asked to classify the images in Fig. 4.7.2.",
+        "svgText": []
+      },
+      "file": "01-cat-dog-train.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/cat-dog-train.png"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/cat-dog-test.png",
+      "context": {
+        "alt": "../_images/cat-dog-test.png",
+        "caption": "Fig. 4.7.2 Test data for distinguishing cats and dogs (illustrations: SIBAS_minich / iStock / Getty Images Plus; Ghrzuzudu / iStock / Getty Images Plus; id-work / DigitalVision Vectors / Getty Images; Yime / iStock / Getty Images Plus).",
+        "heading": "4.7.1.1. Covariate Shift",
+        "before": "At test time we are asked to classify the images in Fig. 4.7.2.",
+        "after": "The training set consists of photos, while the test set contains only cartoons. Training on a dataset with substantially different characteristics from the test set can spell trouble absent a coherent plan for how to adapt to the new domain.",
+        "svgText": []
+      },
+      "file": "02-cat-dog-test.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/cat-dog-test.png"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/popvssoda.png",
+      "context": {
+        "alt": "../_images/popvssoda.png",
+        "caption": "Fig. 4.7.3 Concept shift for soft drink names in the United States (CC-BY: Alan McConchie, PopVsSoda.com).",
+        "heading": "4.7.1.3. Concept Shift",
+        "before": "We may also encounter the related problem of concept shift, which arises when the very definitions of labels can change. This sounds weird—a cat is a cat, no? However, other categories are subject to changes in usage over time. Diagnostic criteria for mental illness, what passes for fashionable, and job titles, are all subject to considerable amounts of concept shift. It turns out that if we navigate around the United States, shifting the source of our data by geography, we will find considerable concept shift regarding the distribution of names for soft drinks as shown in Fig. 4.7.3.",
+        "after": "If we were to build a machine translation system, the distribution \\(P(y \\mid \\mathbf{x})\\) might be different depending on our location. This problem can be tricky to spot. We might hope to exploit knowledge that shift only takes place gradually either in a temporal or geographic sense.",
+        "svgText": []
+      },
+      "file": "03-popvssoda.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/popvssoda.png"
+    }
+  ],
+  "title": "4.7. Environment and Distribution Shift SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

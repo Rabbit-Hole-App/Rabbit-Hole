@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { build, createServer, normalizePath } from 'vite';
 import { pageFigures, scrapeSources, selectSources, sourcePages } from './figure-briefs.mjs';
 
 test('keeps source order, a private exact context manifest, and an index with no artwork or prose', async t => {
@@ -106,4 +108,52 @@ test('refuses a sign-in form returned at the original page URL', () => {
   const html = '<main><h1>Sign in to read this lesson</h1><img src="/logo.png">' +
     '<form><input type="password"></form></main>';
   assert.throws(() => pageFigures(source, html, source.url), { message: 'Login wall', status: 'login-wall' });
+});
+
+const webConfig = fileURLToPath(new URL('../vite.config.js', import.meta.url));
+const fixtureFolder = 'docs/features/explain-on-canvas/handoff/figure-briefs';
+
+async function assetFixture(t) {
+  const root = await mkdtemp(join(tmpdir(), 'rabbit-hole-asset-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, fixtureFolder), { recursive: true });
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jGfQAAAAASUVORK5CYII=', 'base64');
+  await writeFile(join(root, fixtureFolder, '01-fixture.png'), pixel);
+  await writeFile(join(root, 'ordinary.png'), pixel);
+  return root;
+}
+
+test('the web dev server denies filesystem imports from the figure folder', async t => {
+  const workspace = await assetFixture(t);
+  const root = join(workspace, 'app');
+  await mkdir(root);
+  const server = await createServer({
+    root, configFile: webConfig, logLevel: 'silent', optimizeDeps: { noDiscovery: true },
+    server: { host: '127.0.0.1', port: 0, ws: false, watch: null, fs: { allow: [workspace] } },
+  });
+  try {
+    await server.listen();
+    const base = `http://127.0.0.1:${server.httpServer.address().port}`;
+    const fsUrl = file => base + '/@fs/' + encodeURI(normalizePath(join(workspace, file)).replace(/^\//, ''));
+    const ordinary = await fetch(fsUrl('ordinary.png') + '?import&inline');
+    assert.equal(ordinary.status, 200);
+    assert.match(await ordinary.text(), /data:image\/png/);
+    for (const query of ['', '?import', '?import&inline']) {
+      const privateAsset = await fetch(fsUrl(fixtureFolder + '/01-fixture.png') + query);
+      await privateAsset.body?.cancel();
+      assert.equal(privateAsset.status, 403, query);
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test('the web build rejects stylesheet URLs to the figure folder', async t => {
+  const root = await assetFixture(t);
+  const input = join(root, 'index.html');
+  await writeFile(input, '<link rel="stylesheet" href="/style.css">');
+  await writeFile(join(root, 'style.css'), `.sample { background: url(/${fixtureFolder}/01-fixture.png?inline) }`);
+  await assert.rejects(build({
+    root, configFile: webConfig, logLevel: 'silent', build: { write: false, rolldownOptions: { input } },
+  }), /Internal figure briefs are excluded/);
 });

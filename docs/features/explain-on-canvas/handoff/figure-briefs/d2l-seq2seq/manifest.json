@@ -1,0 +1,71 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_recurrent-modern/seq2seq.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:39:44.289Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/seq2seq.svg",
+      "file": "01-seq2seq.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/seq2seq.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/seq2seq-details.svg",
+      "file": "02-seq2seq-details.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/seq2seq-details.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_seq2seq_13725e_123_0.svg",
+      "file": "03-output-seq2seq-13725e-123-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_seq2seq_13725e_123_0.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_seq2seq_13725e_126_0.svg",
+      "file": "04-output-seq2seq-13725e-126-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_seq2seq_13725e_126_0.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_seq2seq_13725e_129_0.svg",
+      "file": "05-output-seq2seq-13725e-129-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_seq2seq_13725e_129_0.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_seq2seq_13725e_132_0.svg",
+      "file": "06-output-seq2seq-13725e-132-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_seq2seq_13725e_132_0.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/seq2seq-predict.svg",
+      "file": "07-seq2seq-predict.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/seq2seq-predict.svg"
+    }
+  ]
+}

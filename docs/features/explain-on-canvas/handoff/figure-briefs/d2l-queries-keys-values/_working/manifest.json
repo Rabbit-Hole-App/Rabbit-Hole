@@ -1,0 +1,155 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_attention-mechanisms-and-transformers/queries-keys-values.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:37:34.355Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/qkv.svg",
+      "context": {
+        "alt": "../_images/qkv.svg",
+        "caption": "Fig. 11.1.1 The attention mechanism computes a linear combination over values \\(\\mathbf{v}_\\mathit{i}\\) via attention pooling, where weights are derived according to the compatibility between a query \\(\\mathbf{q}\\) and keys \\(\\mathbf{k}_\\mathit{i}\\).",
+        "heading": "11.1. Queries, Keys, and Values SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+        "before": "This operation is readily available in all deep learning frameworks. It is differentiable and its gradient never vanishes, all of which are desirable properties in a model. Note though, the attention mechanism introduced above is not the only option. For instance, we can design a non-differentiable attention model that can be trained using reinforcement learning methods (Mnih et al., 2014). As one would expect, training such a model is quite complex. Consequently the bulk of modern attention research follows the framework outlined in Fig. 11.1.1. We thus focus our exposition on this family of differentiable mechanisms.",
+        "after": "What is quite remarkable is that the actual “code” for executing on the set of keys and values, namely the query, can be quite concise, even though the space to operate on is significant. This is a desirable property for a network layer as it does not require too many parameters to learn. Just as convenient is the fact that attention can operate on arbitrarily large databases without the need to change the way the attention pooling operation is performed.",
+        "svgText": [
+          "Attention",
+          "Values",
+          "Keys",
+          "weights",
+          "Output",
+          "Le Fd",
+          "—",
+          "a(q, k,,) } -",
+          "Attention",
+          "Query",
+          "Pooling"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "01-qkv.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/qkv.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_33_0.svg",
+      "context": {
+        "alt": "../_images/output_queries-keys-values_7fe0e8_33_0.svg",
+        "caption": "",
+        "heading": "11.1.1. Visualization",
+        "before": "As a quick sanity check let’s visualize the identity matrix, representing a case where the attention weight is \\(1\\) only when the query and the key are the same.",
+        "after": "The attention mechanism allows us to aggregate data from many (key, value) pairs. So far our discussion was quite abstract, simply describing a way to pool data. We have not explained yet where those mysterious queries, keys, and values might arise from. Some intuition might help here: for instance, in a regression setting, the query might correspond to the location where the regression should be carried out. The keys are the locations where past data was observed and the values are the (regression) values themselves. This is the so-called Nadaraya–Watson estimator (Nadaraya, 1964, Watson, 1964) that we will be studying in the next section.",
+        "svgText": [
+          "1.00",
+          "2-",
+          "0.75",
+          "4-4",
+          "0.50",
+          "O 6-",
+          "0.25",
+          "8 -",
+          "0.00",
+          "Keys"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "02-output-queries-keys-values-7fe0e8-33-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_33_0.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_36_1.svg",
+      "context": {
+        "alt": "../_images/output_queries-keys-values_7fe0e8_36_1.svg",
+        "caption": "",
+        "heading": "11.1.1. Visualization",
+        "before": "As a quick sanity check let’s visualize the identity matrix, representing a case where the attention weight is \\(1\\) only when the query and the key are the same.",
+        "after": "The attention mechanism allows us to aggregate data from many (key, value) pairs. So far our discussion was quite abstract, simply describing a way to pool data. We have not explained yet where those mysterious queries, keys, and values might arise from. Some intuition might help here: for instance, in a regression setting, the query might correspond to the location where the regression should be carried out. The keys are the locations where past data was observed and the values are the (regression) values themselves. This is the so-called Nadaraya–Watson estimator (Nadaraya, 1964, Watson, 1964) that we will be studying in the next section.",
+        "svgText": [
+          "1.00",
+          "2-",
+          "0.75",
+          "4-4",
+          "0.50",
+          "O 6-",
+          "0.25",
+          "8 -",
+          "0.00",
+          "Keys"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "03-output-queries-keys-values-7fe0e8-36-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_36_1.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_39_0.svg",
+      "context": {
+        "alt": "../_images/output_queries-keys-values_7fe0e8_39_0.svg",
+        "caption": "",
+        "heading": "11.1.1. Visualization",
+        "before": "As a quick sanity check let’s visualize the identity matrix, representing a case where the attention weight is \\(1\\) only when the query and the key are the same.",
+        "after": "The attention mechanism allows us to aggregate data from many (key, value) pairs. So far our discussion was quite abstract, simply describing a way to pool data. We have not explained yet where those mysterious queries, keys, and values might arise from. Some intuition might help here: for instance, in a regression setting, the query might correspond to the location where the regression should be carried out. The keys are the locations where past data was observed and the values are the (regression) values themselves. This is the so-called Nadaraya–Watson estimator (Nadaraya, 1964, Watson, 1964) that we will be studying in the next section.",
+        "svgText": [
+          "1.00",
+          "2-",
+          "0.75",
+          "4-4",
+          "0.50",
+          "O 6-",
+          "0.25",
+          "8 -",
+          "0.00",
+          "Keys"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "04-output-queries-keys-values-7fe0e8-39-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_39_0.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_42_0.svg",
+      "context": {
+        "alt": "../_images/output_queries-keys-values_7fe0e8_42_0.svg",
+        "caption": "",
+        "heading": "11.1.1. Visualization",
+        "before": "As a quick sanity check let’s visualize the identity matrix, representing a case where the attention weight is \\(1\\) only when the query and the key are the same.",
+        "after": "The attention mechanism allows us to aggregate data from many (key, value) pairs. So far our discussion was quite abstract, simply describing a way to pool data. We have not explained yet where those mysterious queries, keys, and values might arise from. Some intuition might help here: for instance, in a regression setting, the query might correspond to the location where the regression should be carried out. The keys are the locations where past data was observed and the values are the (regression) values themselves. This is the so-called Nadaraya–Watson estimator (Nadaraya, 1964, Watson, 1964) that we will be studying in the next section.",
+        "svgText": [
+          "1.00",
+          "2-",
+          "0.75",
+          "4-4",
+          "0.50",
+          "O 6-",
+          "0.25",
+          "8 -",
+          "0.00",
+          "Keys"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "05-output-queries-keys-values-7fe0e8-42-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_42_0.svg"
+    }
+  ],
+  "title": "11.1. Queries, Keys, and Values SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}
