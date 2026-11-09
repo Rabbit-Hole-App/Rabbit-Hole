@@ -150,14 +150,6 @@ test('the tile\'s footprint: its own width and the content\'s height, no saved s
   assert.match(canvas, /\{!tile && <>\s+\{block\.sources && <SourcesDisclosure[^]*?<CardFeedback block=\{block\} \/>\}\s+<\/>\}/, 'the rows under the body (sources, source chip, prompt, rating) are not drawn on a tile');
 });
 
-test('requestSummary: a card the server is summarising (summaryPending) asks under its token, so the server\'s call is shared or stored, never made twice', async () => {
-  const sent = [];
-  await requestSummary(async (path, init) => { sent.push(JSON.parse(init.body)); return { summary: 'A short one.' }; }, { app: 'canvas', block: card({ summaryPending: 'tok123' }) });
-  await requestSummary(async (path, init) => { sent.push(JSON.parse(init.body)); return { summary: 'A short one.' }; }, { app: 'canvas', block: card() });
-  assert.equal(sent[0].id, 'tok123');
-  assert.equal(sent[1].id, String(card().id));
-});
-
 test('Enter or Space on the focused tile itself expands it, never on an inner control or a read-only board; a card that is not minimized keeps Enter = open, Space = select', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
   assert.match(canvas, /if \(\(event\.key === 'Enter' \|\| event\.key === ' '\) && focusedCard && !readOnlyRef\.current && isMinimized\(blocksRef\.current\.find\(entry => entry\.id === focusedCard\)\)\) \{ event\.preventDefault\(\); expandTileRef\.current\?\.\(focusedCard\); return; \}/);

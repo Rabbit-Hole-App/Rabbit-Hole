@@ -44,12 +44,12 @@ export function minimizedVisual(block) {
   return diagram ? { kind: 'diagram', spec: diagram } : null;
 }
 
-// The summary request: fire and forget. A card the server is summarising (summaryPending) asks under its token, so the server's call is shared or stored, never made twice. -> the summary text or null; it never throws and never raises a notice (the tile keeps its fallback text).
+// The summary request: fire and forget. -> the summary text or null; it never throws and never raises a notice (the tile keeps its fallback text).
 export async function requestSummary(post, { app, block }) {
   const input = summaryInput(block);
   if (!input || !app) return null;
   try {
-    const answer = await post('/api/learn/explanation-summary', { method: 'POST', body: JSON.stringify({ app, id: String(block.summaryPending || block.id), ...input }) });
+    const answer = await post('/api/learn/explanation-summary', { method: 'POST', body: JSON.stringify({ app, id: String(block.id), ...input }) });
     return typeof answer?.summary === 'string' && answer.summary.trim() ? capSummary(answer.summary) : null;
   } catch { return null; }
 }

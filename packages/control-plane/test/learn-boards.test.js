@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
 import { liveDb, liveRuns } from './live-storage-spy.js';
-import { fillSavedCard, fillSavedSummary } from '../src/explanation-figures.js';
+import { fillSavedCard } from '../src/explanation-figures.js';
 import { illustrationFence } from './explanation-layout-fixture.js';
 
 const PEOPLE = { owner: { email: 'owner@test', org: 'team' }, friend: { email: 'friend@elsewhere', org: 'elsewhere' } };
@@ -434,19 +434,4 @@ test('a picture whose card the page deleted is not written back', async t => {
   await call('PUT', OWN, { as: 'owner', body: { state: STATE, version: 1 } });
   assert.deepEqual(await fill(env, READY), []);
   assert.deepEqual(JSON.parse(sqlite.prepare('SELECT state_json FROM learn_boards').get().state_json), STATE);
-});
-
-// Owner 2026-11-08 (minimize tile): the summary written after delivery lands in the saved card like a picture; the open page, still holding summaryPending, saves on and keeps it.
-test('the server-written summary lands on the saved card holding the token (token dropped); a save from a page that still holds it pending keeps the summary and the learner\'s edit', async t => {
-  const { call, sqlite, env } = setup(t);
-  const TOKEN = 'a1b2c3d4e5f6a7b8c9d0', SUMMARY = 'Ice floats because it is less dense than water.';
-  const card = body => ({ id: 'c1', type: 'explanation', title: 'Ice', body, summaryPending: TOKEN });
-  const store = { org: 'team', email: 'owner@test', app: 'demo-app', board: 'main' };
-  await call('PUT', OWN, { as: 'owner', body: { state: pageState(card('Ice floats.')), version: 0 } });
-  assert.deepEqual(await fillSavedSummary(env, store, { token: 'another-token', summary: 'x' }, { waits: [] }), [], 'no card holds that token: no write');
-  assert.deepEqual(await fillSavedSummary(env, store, { token: TOKEN, summary: SUMMARY }, { waits: [] }), ['c1']);
-  assert.deepEqual(savedCard(sqlite), { id: 'c1', type: 'explanation', title: 'Ice', body: 'Ice floats.', summary: SUMMARY });
-  const saved = await call('PUT', OWN, { as: 'owner', body: { state: pageState(card('Ice floats on water.')), version: 1 } });
-  assert.deepEqual([saved.status, saved.body.version], [200, 2], 'no conflict: the server write did not change the version');
-  assert.deepEqual(savedCard(sqlite), { id: 'c1', type: 'explanation', title: 'Ice', body: 'Ice floats on water.', summary: SUMMARY }, 'the edit and the summary; the token is gone');
 });

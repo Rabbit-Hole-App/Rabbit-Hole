@@ -4,8 +4,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { CHAIN_ENDPOINTS } from '../src/explanation-fast-chain.js';
-import { SUMMARY_INSTRUCTION, SUMMARY_MAX_TOKENS, explanationSummaryRoute, summarizeSaved, summaryRequest } from '../src/explanation-summary.js';
-import { artifactFetch } from '../src/learn-artifact.js';
+import { SUMMARY_INSTRUCTION, SUMMARY_MAX_TOKENS, explanationSummaryRoute, summaryRequest } from '../src/explanation-summary.js';
 import { capSummary } from '../../web/src/explanation-summary-text.js';
 
 const PATH = '/api/learn/explanation-summary';
@@ -171,42 +170,4 @@ test('a summary is never billed to the learner: the feature is FREE_FEATURES, th
   const source = readFileSync(new URL('../src/learn-usage.js', import.meta.url), 'utf8'), free = source.match(/const FREE_FEATURES = new Set\(([^)]*)\)/)?.[1] ?? '';
   assert.ok(free.includes("'explanation_summary'"), 'billing default off until the owner says otherwise');
   assert.match(readFileSync(new URL('../src/explanation-summary.js', import.meta.url), 'utf8'), /category: 'explanation_summary'/);
-});
-
-test('server-side write (owner 2026-11-08): summarizeSaved makes one model call per token, shares it with the route (id = the token), and a stored summary is never asked for twice', async t => {
-  const seen = providers(t, reply('A hot cup loses heat fastest at first because the room is much cooler.'));
-  const token = 'tok-server-1';
-  const block = { title: BODY.title, body: BODY.body };
-  const first = await summarizeSaved(KEYS, { block, token, app: BODY.app, org: access.org, identity: { userId: 'user-1' }, store: null });
-  assert.equal(first.summary, 'A hot cup loses heat fastest at first because the room is much cooler.');
-  assert.equal(seen.sent.length, 1);
-  assert.ok(!/rh-diagram|"kind"/.test(seen.sent[0].body.messages[1].content), 'prose only');
-  const again = await summarizeSaved(KEYS, { block, token, app: BODY.app, org: access.org, identity: {}, store: null });
-  assert.deepEqual([again.summary, again.outcome], [first.summary, 'stored']);
-  const asked = await call({ ...BODY, id: token });
-  assert.deepEqual(await asked.json(), { summary: first.summary });
-  assert.equal(seen.sent.length, 1, 'the route found the server\'s record under the token: no second call');
-  assert.ok(seen.events().some(line => line.where === 'server' && line.outcome === 'ok'));
-});
-
-test('server-side write: a card with no prose, or a failing provider, writes nothing and never throws', async t => {
-  providers(t, 500);
-  assert.equal((await summarizeSaved(KEYS, { block: { title: 'T', body: '```rh-diagram\n{}\n```' }, token: 'tok-server-2', app: 'a', org: 'o', store: null })).outcome, 'no_prose');
-  const failed = await summarizeSaved(KEYS, { block: { title: 'T', body: 'Some prose here.' }, token: 'tok-server-3', app: 'a', org: 'o', store: null });
-  assert.equal(failed.summary, null);
-});
-
-test('the artifact route marks a new Explanation summaryPending and schedules the server write only where it has waitUntil', async t => {
-  const seen = providers(t, reply('A hot cup loses heat fastest at first because the room is much cooler.'));
-  const env = { ...KEYS, CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo' }) } };
-  const generate = async () => ({ result: 'artifact', block: { type: 'explanation', title: BODY.title, body: BODY.body } });
-  const post = () => new Request('https://dev.example/api/learn/artifact', { method: 'POST', headers: { cookie: 's' }, body: JSON.stringify({ app: 'demo', command: 'explanation', args: 'why does coffee cool' }) });
-  const plain = await (await artifactFetch(post(), env, generate)).json();
-  assert.equal(plain.block.summaryPending, undefined, 'no waitUntil: nothing scheduled, no token');
-  const work = [];
-  const out = await (await artifactFetch(post(), env, generate, { waitUntil: promise => work.push(promise) })).json();
-  assert.match(out.block.summaryPending, /^[a-f0-9]{20}$/);
-  assert.equal(work.length, 1);
-  await Promise.all(work);
-  assert.equal(seen.sent.length, 1, 'one model call for the card');
 });

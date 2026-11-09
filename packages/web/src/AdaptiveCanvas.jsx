@@ -2320,7 +2320,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
         }
         if (fit) added = fullLength(added, BLOCK_TYPES[added.type]?.width);
-        if (added.type === 'explanation' && !added.summaryPending) fillSummary(added.id, added); // a card the server summarises after delivery carries summaryPending: no browser call
+        if (added.type === 'explanation') fillSummary(added.id, added);
         if (after == null) return framed(insertAtView(added, into));
         perfMark(added.id, 'insert');
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });

@@ -2,11 +2,9 @@
 //
 //   POST /api/learn/explanation-summary { app, id, title, body } -> { summary } (one or two whole sentences, at most 160 characters, ending in a full stop; plain words), or { summary: null, outcome } when no step answered (still 200: the card keeps its fallback text)
 //
-// ONE small model call per card, off the critical path. A NEW card (the /explain route has waitUntil) is summarised by the server after it is delivered: summarizeSaved
-// below writes the summary into the saved card like a picture (explanation-figures.js fillSavedSummary; the delivered card carries summaryPending: <token>). This route is
-// for a card the server did not summarise (an old one, on its first minimize, or a pending one the learner minimized before the write landed: id = its token, so the call
-// is shared or stored, never made twice): the card's title and body prose come in the request (no diagram JSON, no questions) and the client lands the answer
-// (explanation-minimize.js landSummary).
+// ONE small model call per card, off the critical path: the client calls it after a new Explanation is on the canvas (and on the first minimize of an old card with none),
+// then writes the answer onto the card it already holds through its normal save path (explanation-minimize.js landSummary). The server never writes a board: canvas
+// content is browser-only, so the card's title and body prose come in the request (no diagram JSON, no questions) and nothing is stored here.
 // Provider: the cheapest steps of the written /explain chain (the fireworks-low profile: gpt-oss-120b at low effort, then Gemini Flash Lite), each only when its credential is
 // set on this server; the endpoints, deadlines and key handling are explanation-fast-chain.js's. Every call is admitted, priced and settled by spendTransport under the
 // category explanation_summary (its ledger row is the cost); a log line `explanation_summary` carries latency, provider, size and outcome. Access: the signed-in owner of
@@ -17,7 +15,6 @@ import { spendTransport } from './learn-spend.js';
 import { CHAIN_ENDPOINTS, anthropicReply } from './explanation-fast-chain.js';
 import { chainSteps, resolveExplanationProfile } from './explanation-models.js';
 import { capSummary } from '../../web/src/explanation-summary-text.js';
-import { fillSavedSummary } from './explanation-figures.js';
 
 // Owner 2026-11-08: one COMPLETE sentence of about 150 characters (never cut, never an ellipsis); the server's hard cap is the shared rule (explanation-summary-text.js capSummary: 160, whole sentences only).
 export const SUMMARY_INSTRUCTION = 'Summarise this explanation in one complete sentence of at most about 150 characters, plain words, no maths or markup, ending with a full stop, for a collapsed preview.';
@@ -31,7 +28,7 @@ const json = (body, status = 200) => Response.json(body, { status, headers: { 'C
 // One model call per card (owner 2026-11-08): the answer is kept per (org, canvas, card id) in LEARN_DB explanation_summaries (learn-migrations/0043, applied by an owner
 // command), and a second request for the same card returns it with no model call. Until the table exists the same record lives in this isolate (`memo`), and two requests
 // in flight for one card share one call (`pending`). shortcut: the isolate record is lost on a restart or lives in another isolate, so a card may be summarised twice
-// until 0043 is applied; a failed call stores nothing, so the card may ask again.
+// until 0043 is applied; a failed call stores nothing, so the card may ask again. The server-side write into the saved card replaces all of this when pictures-async lands.
 const memo = new Map(), pending = new Map(), MEMO_MAX = 500;
 const recordKey = (org, app, id) => `${org}|${app}|${id}`;
 async function storedSummary(env, org, app, id) {
@@ -78,24 +75,6 @@ export async function writeSummary(env, input, org, identity = {}) {
     } catch (error) { outcome = error?.name === 'AbortError' ? 'timeout' : 'error'; }
   }
   return { summary: null, outcome };
-}
-
-// A delivered card's summary written by the server (route: learn-artifact.js, only where waitUntil exists): one call per (org, canvas, token) shared with the route above,
-// recorded, then written into the saved card that holds the token. Never throws: a card without a summary keeps its fallback text. -> { summary, outcome }.
-export async function summarizeSaved(env, { block, token, app, org, identity = {}, store }) {
-  const prose = String(block?.body ?? '').replace(/```[\s\S]*?```/g, ' ').trim(), key = recordKey(org, app, token), started = Date.now();
-  if (!prose) return { summary: null, outcome: 'no_prose' };
-  try {
-    let done = { summary: await storedSummary(env, org, app, token), outcome: 'stored' };
-    if (!done.summary) {
-      if (!pending.has(key)) pending.set(key, writeSummary(env, { title: String(block.title ?? '').slice(0, 300), body: prose.slice(0, BODY_CHARS) }, org, identity).finally(() => pending.delete(key)));
-      done = await pending.get(key);
-      if (done.summary) await keepSummary(env, org, app, token, done.summary);
-    }
-    const written = done.summary ? await fillSavedSummary(env, store, { token, summary: done.summary }) : [];
-    console.log(JSON.stringify({ event: 'explanation_summary', where: 'server', ms: Date.now() - started, provider: done.provider ?? null, model: done.model ?? null, chars: done.summary?.length ?? 0, outcome: done.outcome, written: written.length }));
-    return done;
-  } catch { return { summary: null, outcome: 'error' }; }
 }
 
 export async function explanationSummaryRoute(path, req, env, deps = {}) {

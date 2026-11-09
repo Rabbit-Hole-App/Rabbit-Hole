@@ -181,38 +181,26 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 // so the learner's open page is never told its board changed; its next save keeps this write (keepSavedFigures). A card deleted (or not saved within CARD_WAITS)
 // gets no write; the learner's edits, moves and other cards are whatever is stored and are kept. -> the card ids written ([] when none).
 export async function fillSavedCard(env, store, { spec, sourceId, figure }, { log = console.log, waits = CARD_WAITS, wait = pause } = {}) {
-  const entry = figure || { status: 'dropped', source: sourceId };
-  const cards = await writeSavedCards(env, store, card => holds(card, spec.id, sourceId), card => settleCard(card, spec.id, entry), { waits, wait });
-  if (!figure) dropped(log, { card: cards[0] ?? null, spec, sourceId, reason: 'failed' });
-  return cards;
-}
-
-// The same narrow write for any change to the cards that match: `match(card)` finds them in the stored board, `change(card)` is the new card. -> the card ids written.
-async function writeSavedCards(env, store, match, change, { waits = CARD_WAITS, wait = pause } = {}) {
-  const owner = typeof store === 'function' ? await store() : store, db = env?.LEARN_DB;
+  const owner = typeof store === 'function' ? await store() : store, db = env?.LEARN_DB, entry = figure || { status: 'dropped', source: sourceId };
   let cards = [];
   for (let waited = 0, races = 0; owner?.org && owner.email && owner.app && db && races < 5;) {
     const row = await db.prepare('SELECT id, version, state_json FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?').bind(owner.org, owner.email, owner.app, owner.board || 'main').first();
     let state = null;
     try { state = row ? JSON.parse(row.state_json) : null; } catch { /* unreadable: no write */ }
-    const ids = (Array.isArray(state?.blocks) ? state.blocks : []).filter(match).map(card => card.id);
+    const ids = (Array.isArray(state?.blocks) ? state.blocks : []).filter(card => holds(card, spec.id, sourceId)).map(card => card.id);
     if (!ids.length) { if (waited >= waits.length) break; await wait(waits[waited++]); continue; }
-    const next = { ...state, blocks: state.blocks.map(card => (match(card) ? change(card) : card)) }, text = JSON.stringify(next);
+    const next = { ...state, blocks: state.blocks.map(card => (holds(card, spec.id, sourceId) ? settleCard(card, spec.id, entry) : card)) }, text = JSON.stringify(next);
     const [{ meta }] = await db.batch([db.prepare('UPDATE learn_boards SET state_json = ? WHERE id = ? AND version = ? AND state_json = ?').bind(text, row.id, row.version, row.state_json),
       ...fileRefStatements(db, row.id, text, row.version, next, { org: owner.org, email: owner.email })]);
     if (meta.changes) { cards = ids; break; }
     races++;
   }
+  if (!figure) dropped(log, { card: cards[0] ?? null, spec, sourceId, reason: 'failed' });
   return cards;
 }
 
-// The card's summary written after delivery (owner 2026-11-08, minimize tile): the delivered card carries `summaryPending: <token>`; the summary lands on the saved card(s) holding that
-// token (the token is dropped), by the same guarded write as a picture. -> the card ids written.
-const summaryHeld = token => card => card?.summaryPending === token;
-export const fillSavedSummary = (env, store, { token, summary }, opts) => writeSavedCards(env, store, summaryHeld(token), ({ summaryPending, ...card }) => ({ ...card, summary }), opts);
-
 // Whether a page's board save still holds a picture as pending (learn-boards.js saveOwn then keeps fillSavedCard's writes and guards against one landing mid-save).
-export const holdsPendingFigure = state => Array.isArray(state?.blocks) && state.blocks.some(card => card?.summaryPending || Object.values(card?.figures || {}).some(f => f?.status === 'pending'));
+export const holdsPendingFigure = state => Array.isArray(state?.blocks) && state.blocks.some(card => Object.values(card?.figures || {}).some(f => f?.status === 'pending'));
 
 // A save from a page that still holds a picture as pending (the page never reads its card back) keeps what fillSavedCard wrote into the saved card since: the ready
 // entry, or the drop with its fence removed. Matched by card id, fence id and source id; everything else is saved as the page sent it. -> the state to save.
@@ -220,8 +208,7 @@ export function keepSavedFigures(storedText, state) {
   if (!storedText || !holdsPendingFigure(state)) return state;
   let stored;
   try { stored = new Map((JSON.parse(storedText).blocks || []).map(card => [card?.id, card])); } catch { return state; }
-  const withSummary = card => { const saved = card?.summaryPending ? stored.get(card.id) : null; if (!(saved && typeof saved.summary === 'string' && !saved.summaryPending)) return card; const { summaryPending, ...rest } = card; return { ...rest, summary: saved.summary }; };
-  return { ...state, blocks: state.blocks.map(card => withSummary(card)).map(card => Object.entries(card?.figures || {}).reduce((out, [id, entry]) => {
+  return { ...state, blocks: state.blocks.map(card => Object.entries(card?.figures || {}).reduce((out, [id, entry]) => {
     const saved = entry?.status === 'pending' ? stored.get(card.id)?.figures?.[id] : null, sourceId = entry?.fileRef?.source?.id;
     return (saved?.status === 'ready' && saved.fileRef?.source?.id === sourceId) || (saved?.status === 'dropped' && saved.source === sourceId) ? settleCard(out, id, saved) : out;
   }, card)) };

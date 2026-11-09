@@ -422,13 +422,6 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
       return { org: owner.org, email: owner.email, app: body.app, board, boardId: row?.id ?? null };
     };
     const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store, ...(waitUntil ? { later: waitUntil } : {}) } });
-    // Owner 2026-11-08: a new Explanation's collapsed-preview summary is written by the server after delivery, into the saved card (explanation-summary.js summarizeSaved); the card carries
-    // summaryPending: <token> until it lands. Only where the route has waitUntil (the same place a late picture is written).
-    if (out?.result === 'artifact' && out.block?.type === 'explanation' && waitUntil && !out.block.summary) {
-      const token = crypto.randomUUID().replaceAll('-', '').slice(0, 20), { summarizeSaved } = await import('./explanation-summary.js');
-      out.block = { ...out.block, summaryPending: token };
-      waitUntil(summarizeSaved(env, { block: out.block, token, app: body.app, org: access.org, identity: { userId: access.user_id || access.email }, store }).catch(() => {}));
-    }
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     const done = celeris ? { ...out, devModel: celeris.served() } : out;
