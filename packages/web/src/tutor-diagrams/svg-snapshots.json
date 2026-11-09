@@ -3897,47 +3897,62 @@
       "height": 697
     },
     "big-o-growth-rates/408": {
-      "sha256": "b4fe71d5e06b10d90d788418f71a4c4c50d677b13c42e96fc61d89ca55d4cca6",
+      "sha256": "98d59a6ff54a5495a45733805d524cccfe98470a832dd76fe5e0fb92e51a82b0",
       "width": 420,
       "height": 601
     },
     "big-o-growth-rates/960": {
-      "sha256": "748144e096ba0d6bba57177fd0dcfbe8bc9beb44f6aee2c905462d38cee09596",
+      "sha256": "227717368ccf9087235c4eb6661630d1a05d1150338f261f94eb1ac49bdedabb",
       "width": 720,
       "height": 584
     },
     "big-o-growth-rates/natural": {
-      "sha256": "b4fe71d5e06b10d90d788418f71a4c4c50d677b13c42e96fc61d89ca55d4cca6",
+      "sha256": "98d59a6ff54a5495a45733805d524cccfe98470a832dd76fe5e0fb92e51a82b0",
       "width": 420,
       "height": 601
     },
     "big-o-growth-rates-brief/408": {
-      "sha256": "e9171a7021d226d1671414b12aa4fa0a15913a2c34df83f6bdb33be69829f7a6",
+      "sha256": "ef191d813fc017158179fd4db6c0ed6100e34c7742ab24925aa15bb0a8589f4c",
       "width": 425,
-      "height": 601
+      "height": 584
     },
     "big-o-growth-rates-brief/960": {
-      "sha256": "a59890e3044d1513a82411cc3ddfe8af64b9d9c45851a4194916b62fb61e3696",
+      "sha256": "f9805f3e171d9aff0a78072183be09f926f7af31c195d56450d059af003559d6",
+      "width": 720,
+      "height": 567
+    },
+    "big-o-growth-rates-brief/natural": {
+      "sha256": "ef191d813fc017158179fd4db6c0ed6100e34c7742ab24925aa15bb0a8589f4c",
+      "width": 425,
+      "height": 584
+    },
+    "big-o-growth-rates-detailed/408": {
+      "sha256": "98d59a6ff54a5495a45733805d524cccfe98470a832dd76fe5e0fb92e51a82b0",
+      "width": 420,
+      "height": 601
+    },
+    "big-o-growth-rates-detailed/960": {
+      "sha256": "227717368ccf9087235c4eb6661630d1a05d1150338f261f94eb1ac49bdedabb",
       "width": 720,
       "height": 584
     },
-    "big-o-growth-rates-brief/natural": {
-      "sha256": "e9171a7021d226d1671414b12aa4fa0a15913a2c34df83f6bdb33be69829f7a6",
-      "width": 425,
+    "big-o-growth-rates-detailed/natural": {
+      "sha256": "98d59a6ff54a5495a45733805d524cccfe98470a832dd76fe5e0fb92e51a82b0",
+      "width": 420,
       "height": 601
     },
-    "big-o-growth-rates-detailed/408": {
-      "sha256": "e690a51d27665f4b8d1959227d3e39718b695565d2bb79469ccf060ebe16dbf9",
+    "big-o-growth-rates-detailed-detail/408": {
+      "sha256": "e3efe09bcd36ef28da4ea54df6519f1b8fc9dc1f1c4078f58072ca179262c52a",
       "width": 420,
       "height": 629
     },
-    "big-o-growth-rates-detailed/960": {
-      "sha256": "7712349d83045a3c865195fe02db36be67372f6b952051512ae658a0e057fe80",
+    "big-o-growth-rates-detailed-detail/960": {
+      "sha256": "811518ee6c7287d5a682a7f7a380b36edeabbbc08d99d84d0896c3ab7c0bf7bf",
       "width": 720,
       "height": 612
     },
-    "big-o-growth-rates-detailed/natural": {
-      "sha256": "e690a51d27665f4b8d1959227d3e39718b695565d2bb79469ccf060ebe16dbf9",
+    "big-o-growth-rates-detailed-detail/natural": {
+      "sha256": "e3efe09bcd36ef28da4ea54df6519f1b8fc9dc1f1c4078f58072ca179262c52a",
       "width": 420,
       "height": 629
     },
