@@ -1,0 +1,61 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "layout": "teaching",
+  "title": "Total and active weights in a routed layer",
+  "columns": [
+   "Small bank",
+   "Larger bank",
+   "Wider experts"
+  ],
+  "rows": [
+   {
+    "id": "r1",
+    "heading": "Experts in bank",
+    "cells": [
+     "4",
+     "8",
+     "4"
+    ]
+   },
+   {
+    "id": "r2",
+    "heading": "Experts used per token",
+    "cells": [
+     "2",
+     "2",
+     "2"
+    ]
+   },
+   {
+    "id": "r3",
+    "heading": "Expert inner width",
+    "cells": [
+     "32",
+     "32",
+     "64"
+    ]
+   },
+   {
+    "id": "r4",
+    "heading": "Stored expert weights",
+    "cells": [
+     "18432",
+     "36864",
+     "36864"
+    ]
+   },
+   {
+    "id": "r5",
+    "heading": "Expert weights used",
+    "cells": [
+     "9216",
+     "9216",
+     "18432"
+    ]
+   }
+  ],
+  "caption": "The router and shared branches are counted separately. Each toy token still uses two routed experts."
+ }
+}

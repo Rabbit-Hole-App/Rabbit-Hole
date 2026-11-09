@@ -1,0 +1,20 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Center the units of one profile trait",
+  "caption": "On the old scale, Jun scored 80. On the centered scale, the same result sits on the positive side.",
+  "kind": "number-line",
+  "min": -1,
+  "max": 1,
+  "markers": [
+   {
+    "value": 0,
+    "label": "Middle of the original scale"
+   },
+   {
+    "value": 0.6,
+    "label": "Jun's centered sociability"
+   }
+  ]
+ }
+}

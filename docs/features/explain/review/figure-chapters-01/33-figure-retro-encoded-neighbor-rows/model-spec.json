@@ -1,0 +1,23 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Neighbor features become attention keys and values",
+  "caption": "One set of features scores how useful a word is. Another set carries the context it can contribute.",
+  "kind": "transformation",
+  "before": {
+   "label": "Inputs to the passage reader",
+   "items": [
+    "Neighbor chunks and continuations",
+    "Decoder features of current text"
+   ]
+  },
+  "after": {
+   "label": "One row per neighbor token",
+   "items": [
+    "Key rows for matching",
+    "Value rows for context"
+   ]
+  },
+  "operation": "Encode neighbors and project their token features"
+ }
+}

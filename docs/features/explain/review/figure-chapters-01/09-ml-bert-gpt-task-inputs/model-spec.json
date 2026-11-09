@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Task inputs for the original GPT",
+  "caption": "The format changes with the task. A shared model reads the resulting word sequence.",
+  "kind": "matrix",
+  "columns": [
+   "Text inside markers",
+   "How to use the readout"
+  ],
+  "rows": [
+   {
+    "heading": "Classify text",
+    "cells": [
+     "a seal glides",
+     "Score the note class"
+    ]
+   },
+   {
+    "heading": "Check entailment",
+    "cells": [
+     "Premise then hypothesis",
+     "Score whether it follows"
+    ]
+   },
+   {
+    "heading": "Compare meaning",
+    "cells": [
+     "Both orders of two texts",
+     "Combine the two readings"
+    ]
+   },
+   {
+    "heading": "Choose an answer",
+    "cells": [
+     "Context with one option each",
+     "Score each candidate separately"
+    ]
+   }
+  ]
+ }
+}

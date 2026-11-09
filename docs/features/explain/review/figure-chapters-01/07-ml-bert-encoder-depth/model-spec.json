@@ -1,0 +1,28 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "BERT Base and BERT Large compared",
+  "caption": "Large scales up depth, width, and attention heads.",
+  "kind": "comparison",
+  "columns": [
+   {
+    "heading": "BERT Base",
+    "items": [
+     "$12$ encoder layers",
+     "$768$ hidden size",
+     "$12$ attention heads",
+     "$110$M parameters"
+    ]
+   },
+   {
+    "heading": "BERT Large",
+    "items": [
+     "$24$ encoder layers",
+     "$1024$ hidden size",
+     "$16$ attention heads",
+     "$340$M parameters"
+    ]
+   }
+  ]
+ }
+}

@@ -54,7 +54,7 @@ export function stats({ res, rows }) {
 
 const fac = r => (r.factual ? `${r.factual.score}${r.factualError ? ' ERROR' : ''}` : '-');
 const table = (rows, link) => ['| # | reference id | source | intended kind | planner kind | model kind | selector hit | structure | factual (1-5) |', '|---|---|---|---|---|---|---|---|---|',
-  ...rows.map(r => `| ${r.n} | ${link ? `[${r.p.referenceId}](${r.n}-${r.p.referenceId}/card.md)` : r.p.referenceId} | ${r.p.chapter} | ${r.p.want} | ${r.planKind ?? '-'}${r.offered ? ` (offered ${r.offered.join('|')})` : ''} | ${r.modelKind} | ${r.hit === null ? '-' : r.hit ? 'yes' : 'no'} | ${r.structure} | ${fac(r)} |`)].join('\n');
+  ...rows.map(r => `| ${r.n} | ${link ? `[${r.p.referenceId}](${r.n}-${r.p.referenceId}/card.md)` : r.p.referenceId} | ${r.p.chapter} | ${r.p.want} | ${r.planKind ?? '-'}${r.offered ? ` (offered ${r.offered.join(' / ')})` : ''} | ${r.modelKind} | ${r.hit === null ? '-' : r.hit ? 'yes' : 'no'} | ${r.structure} | ${fac(r)} |`)].join('\n');
 const statRows = (R, Z) => [['cards delivered', s => `${s.delivered}/${s.cards}`], ['selector hit', s => s.selectorHit], ['kind match (first diagram = reference kind)', s => s.kindMatch], ['planner kind match', s => s.plannerKindMatch],
   ['kind misses: planner wrong / author wrong, planner right / no plan', s => `${s.kindMissByStage.plannerWrong} / ${s.kindMissByStage.authorWrongPlannerRight} / ${s.kindMissByStage.noPlan}`],
   ['structure (judge faithful-ref-v1): fully / partly / not / none', s => `${s.structure.fully} / ${s.structure.partly} / ${s.structure.not} / ${s.structure.none}`], ['structure fully', s => s.structureFully], ['factual error (factual-v2)', s => s.factualError], ['factual mean score', s => s.factualMean],
@@ -78,7 +78,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('figure-chap
       `- Model kind (first diagram): ${r.modelKind}; all diagrams: ${diagrams.map(d => d.kind).join(', ') || 'none'}`, `- Selector hit (intended reference among the references sent): ${r.hit === null ? 'not logged' : r.hit ? 'yes' : 'no'}`,
       `- References sent to the author (attempt 0): ${r.ids ? r.ids.join(', ') || 'none' : 'not logged'}`,
       `- Structure (faithful-ref-v1, reference vs model spec): ${r.structure}${r.structureReason ? ` - ${r.structureReason}` : ''}`, `- Factual (factual-v2): ${f ? `${f.score}/5, error ${r.factualError ? 'yes' : 'no'}${f.notes?.length ? ` - ${f.notes.join(' ')}` : ''}` : 'not judged'}`,
-      `- Repaired: ${c?.repaired ? 'yes' : 'no'}${(c?.repairCauses || []).length ? ` (${c.repairCauses.map(x => x.cause).join(', ')})` : ''}; visual fallback: ${c?.visualFallback ? JSON.stringify(c.visualFallback) : 'no'}; authored by ${c?.authoredBy?.provider ?? '-'} / ${c?.authoredBy?.model ?? '-'}`,
+      `- Repaired: ${c?.repaired ? 'yes' : 'no'}${(c?.repairCauses || []).length ? ` (${c.repairCauses.map(x => x.cause).join(', ')})` : ''}; visual fallback: ${c?.visualFallback ? JSON.stringify(c.visualFallback) : 'no'}; authored by ${(c?.authoredBy ?? r.saved?.row?.authoredBy)?.provider ?? '-'} / ${(c?.authoredBy ?? r.saved?.row?.authoredBy)?.model ?? '-'}`,
       `- Time ${c?.totalMs ?? '-'} ms; author tokens in/out ${c?.tokens ? `${c.tokens.input}/${c.tokens.output}` : '-'}; cost US$${c?.costUsd ?? '-'}`, '',
       '| model (408 px) | reference (408 px) |', '|---|---|', `| ![model](model-408.svg) | ![reference](reference-408.svg) |`, '', '## Card body (as saved)', '', b?.body ?? '', ''].join('\n'));
   }

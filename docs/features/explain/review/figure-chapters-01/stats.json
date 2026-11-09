@@ -1,0 +1,213 @@
+{
+ "armR": {
+  "cards": 48,
+  "delivered": 48,
+  "failed": [],
+  "selectorHit": "48/48 (100%)",
+  "kindMatch": "37/48 (77.1%)",
+  "plannerKindMatch": "13/47 (27.7%)",
+  "kindMissByStage": {
+   "plannerWrong": 11,
+   "authorWrongPlannerRight": 0,
+   "noPlan": 0
+  },
+  "structure": {
+   "fully": 36,
+   "partly": 4,
+   "not": 7,
+   "none": 1
+  },
+  "structureFully": "36/48 (75%)",
+  "factualError": "6/48 (12.5%)",
+  "factualMean": 4.29,
+  "repairedCards": 11,
+  "visualFallbackCards": 0,
+  "modelFallbackCards": 1,
+  "providers": {
+   "google": 47,
+   "fireworks": 1
+  },
+  "routedToPicture": [],
+  "cardsWithPicture": [
+   "ml-stable-diffusion-clip-two-encoders",
+   "ml-stable-diffusion-image-caption-pairs"
+  ],
+  "ms": {
+   "p50": 3873,
+   "p90": 7150,
+   "mean": 4654
+  },
+  "authorInputTokensMean": 5413,
+  "authorOutputTokensMean": 609,
+  "tokenCards": 48,
+  "spendUsd": 0.1671,
+  "judge": {
+   "calls": 95,
+   "cached": 0,
+   "spentUsd": 0.3875,
+   "rubrics": {
+    "factual": "factual-v2 2026-11-08 (G3 strict fact-checker)",
+    "faithful": "faithful-ref-v1 2026-11-09",
+    "beyond": "beyond-v2 2026-11-08",
+    "picture": "picture-v1 2026-11-08"
+   }
+  },
+  "avgRefsSent": 2
+ },
+ "arm0": {
+  "cards": 48,
+  "delivered": 48,
+  "failed": [],
+  "selectorHit": "0/48 (0%)",
+  "kindMatch": "13/48 (27.1%)",
+  "plannerKindMatch": "15/47 (31.9%)",
+  "kindMissByStage": {
+   "plannerWrong": 31,
+   "authorWrongPlannerRight": 3,
+   "noPlan": 1
+  },
+  "structure": {
+   "fully": 3,
+   "partly": 17,
+   "not": 26,
+   "none": 2
+  },
+  "structureFully": "3/48 (6.3%)",
+  "factualError": "6/47 (12.8%)",
+  "factualMean": 4.15,
+  "repairedCards": 8,
+  "visualFallbackCards": 1,
+  "modelFallbackCards": 0,
+  "providers": {
+   "google": 48
+  },
+  "routedToPicture": [],
+  "cardsWithPicture": [
+   "ml-stable-diffusion-clip-two-encoders",
+   "ml-stable-diffusion-image-caption-pairs"
+  ],
+  "ms": {
+   "p50": 2744,
+   "p90": 4580,
+   "mean": 3123
+  },
+  "authorInputTokensMean": 4444,
+  "authorOutputTokensMean": 492,
+  "tokenCards": 48,
+  "spendUsd": 0.1371,
+  "judge": {
+   "calls": 1,
+   "cached": 93,
+   "spentUsd": 0.0037,
+   "rubrics": {
+    "factual": "factual-v2 2026-11-08 (G3 strict fact-checker)",
+    "faithful": "faithful-ref-v1 2026-11-09",
+    "beyond": "beyond-v2 2026-11-08",
+    "picture": "picture-v1 2026-11-08"
+   }
+  },
+  "avgRefsSent": 1
+ },
+ "worstR": [
+  {
+   "n": "26",
+   "id": "ml-stable-diffusion-clip-two-encoders",
+   "structure": "none",
+   "reason": "",
+   "intended": "transformation",
+   "model": "picture",
+   "planner": "block-stack",
+   "factual": "5"
+  },
+  {
+   "n": "18",
+   "id": "ml-gpt2-tied-output-weights",
+   "structure": "not",
+   "reason": "The reference is a matrix of vocabulary words with logits and probabilities. The diagram is a three-layer list titled \"web application\". It has none of the words, scores or probabilities, and it uses a different structure.",
+   "intended": "matrix",
+   "model": "layers",
+   "planner": "layers",
+   "factual": "3 ERROR"
+  },
+  {
+   "n": "27",
+   "id": "ml-stable-diffusion-forward-noise",
+   "structure": "not",
+   "reason": "The reference is a heatmap of forward diffusion with Clean, Sampled noise and Noisy result columns. The diagram instead shows a tensor reshape from 2×3 to 3×2, which has none of that structure.",
+   "intended": "heatmap",
+   "model": "transformation",
+   "planner": "transformation",
+   "factual": "4"
+  },
+  {
+   "n": "37",
+   "id": "d2l-forecast-feedback-error",
+   "structure": "not",
+   "reason": "The reference is a coordinate plot with three series over target time: Observed, a Refreshed estimate, and a Recursive estimate that starts at the same point and flattens. The diagram is a cyclic flow of four steps. It has no axes, no series and no comparison of estimates against observations, so it shows none of the reference structure.",
+   "intended": "coordinate-plot",
+   "model": "cycle",
+   "planner": "cycle",
+   "factual": "4"
+  },
+  {
+   "n": "45",
+   "id": "figure-latent-expert-widths",
+   "structure": "not",
+   "reason": "The diagram shows only a single projection from full state x to latent z. It has none of the reference's parallel paths: the shared expert at full size, the selected experts on the smaller state, the projection back, or the merge and output. It also routes from the compressed state, which contradicts the reference's choosing experts from the full state.",
+   "intended": "flow",
+   "model": "transformation",
+   "planner": "transformation",
+   "factual": "4"
+  },
+  {
+   "n": "05",
+   "id": "ml-transformer-positionwise-feedforward",
+   "structure": "not",
+   "reason": "The reference is a relationship graph with six nodes. It shows tokens contributing their own value and nearby context, then a shared per-position update. The diagram is an attention-weights view for one query, \"kite\". It has no context-mixed nodes, no shared update step and no per-position after-update nodes. It shows none of the reference structure.",
+   "intended": "relationship",
+   "model": "token-links",
+   "planner": "token-links",
+   "factual": "5"
+  },
+  {
+   "n": "07",
+   "id": "ml-bert-encoder-depth",
+   "structure": "not",
+   "reason": "The reference is a block-stack: token vectors, then a repeated encoder layer, then contextual token vectors. The diagram is a Base vs Large comparison of specs. It has no input, repeated layer or output flow, so it shows none of the reference structure.",
+   "intended": "block-stack",
+   "model": "comparison",
+   "planner": "comparison",
+   "factual": "5"
+  },
+  {
+   "n": "30",
+   "id": "ml-stable-diffusion-unet-timestep-and-skips",
+   "structure": "not",
+   "reason": "The diagram lacks the reference graph. It has no noisy latent, down block, bottleneck, up block or noise estimate. It shows only a timestep embedding and a skip connection with generic notes, plus an unsupported \"Timestep embedding → Skip connection\" edge. The timestep-to-down/up edges and the down-to-up skip path are missing.",
+   "intended": "relationship",
+   "model": "block-stack",
+   "planner": "block-stack",
+   "factual": "5"
+  },
+  {
+   "n": "02",
+   "id": "ml-transformer-autoregressive-prefix",
+   "structure": "partly",
+   "reason": "The diagram is a cycle (flowchart-like), not a sequence diagram with three actors (Encoder memory, Decoder, Growing text). It does capture the ideas of encoder memory, feeding the prefix, generating a token and appending it. But it has no separate actors and no message directions between them. The prefix growing across calls is only implicit in the loop.",
+   "intended": "sequence",
+   "model": "cycle",
+   "planner": "cycle",
+   "factual": "4"
+  },
+  {
+   "n": "21",
+   "id": "ml-word2vec-sampled-training-rows",
+   "structure": "partly",
+   "reason": "The diagram is a matrix with the same columns. Its batch one rows match the reference's structure (Observed/1, then two Sampled/0). It leaves out batch two entirely, so it has only 3 of the 6 rows. It also uses generic candidates (\"target\", \"noise\") instead of specific words.",
+   "intended": "matrix",
+   "model": "matrix",
+   "planner": "sample-set",
+   "factual": "4"
+  }
+ ]
+}

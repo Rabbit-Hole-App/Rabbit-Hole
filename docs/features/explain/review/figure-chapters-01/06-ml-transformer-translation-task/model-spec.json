@@ -1,0 +1,35 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Machine translation pipeline",
+  "caption": "The same task maps one ordered sentence to another.",
+  "kind": "block-stack",
+  "blocks": [
+   {
+    "id": "source",
+    "label": "Encoder reads the source sentence",
+    "dims": "input",
+    "diagram": {
+     "kind": "flow",
+     "steps": [
+      "Embed tokens",
+      "Apply self-attention"
+     ]
+    }
+   },
+   {
+    "id": "target",
+    "label": "Decoder generates the target sentence",
+    "dims": "output",
+    "diagram": {
+     "kind": "flow",
+     "steps": [
+      "Masked attention",
+      "Cross-attention",
+      "Predict next token"
+     ]
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,28 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "title": "Paired image-caption training examples",
+  "caption": "Each pattern has a short description. When pairing the examples, keep the matching row identities.",
+  "columns": [
+   "Original toy pattern",
+   "Associated caption"
+  ],
+  "rows": [
+   {
+    "heading": "Pair 1",
+    "cells": [
+     "Diagonal lights",
+     "two bright corners"
+    ]
+   },
+   {
+    "heading": "Pair 2",
+    "cells": [
+     "Lower-left light",
+     "lower left light"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,51 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "heatmap",
+  "title": "Forward diffusion with known noise",
+  "caption": "Each cell combines part of the clean value with part of the known noise. The noise is kept as the target.",
+  "columns": [
+   "Clean",
+   "Sampled noise",
+   "Noisy result"
+  ],
+  "rows": [
+   {
+    "label": "Top left",
+    "cells": [
+     0.8,
+     -0.5,
+     0.34
+    ]
+   },
+   {
+    "label": "Top right",
+    "cells": [
+     0.2,
+     0.5,
+     0.46
+    ]
+   },
+   {
+    "label": "Bottom left",
+    "cells": [
+     0.2,
+     -0.25,
+     0.01
+    ]
+   },
+   {
+    "label": "Bottom right",
+    "cells": [
+     0.8,
+     0.25,
+     0.79
+    ]
+   }
+  ],
+  "range": {
+   "min": -1,
+   "max": 1
+  }
+ }
+}

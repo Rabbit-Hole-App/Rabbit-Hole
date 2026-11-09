@@ -1,0 +1,21 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Three layers of a web application",
+  "kind": "layers",
+  "layers": [
+   {
+    "label": "Token Embeddings",
+    "detail": "Maps input tokens to vector space."
+   },
+   {
+    "label": "Transformer Blocks",
+    "detail": "Processes representations through attention."
+   },
+   {
+    "label": "Tied Output Weights",
+    "detail": "Reuses embedding matrix to project logits."
+   }
+  ]
+ }
+}

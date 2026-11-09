@@ -1,0 +1,40 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Reuse keys and values during GPT-2 decoding",
+  "caption": "Reuse what earlier tokens computed. Add one pair for the current token at each step.",
+  "kind": "sequence",
+  "actors": [
+   {
+    "id": "block",
+    "label": "Decoder block"
+   },
+   {
+    "id": "cache",
+    "label": "Key and value cache"
+   }
+  ],
+  "messages": [
+   {
+    "from": "block",
+    "to": "cache",
+    "label": "Append the key and value for light"
+   },
+   {
+    "from": "cache",
+    "to": "block",
+    "label": "Return pairs for the whole prefix"
+   },
+   {
+    "from": "block",
+    "to": "cache",
+    "label": "Append the key and value for flickers"
+   },
+   {
+    "from": "cache",
+    "to": "block",
+    "label": "Return earlier entries and the new pair"
+   }
+  ]
+ }
+}

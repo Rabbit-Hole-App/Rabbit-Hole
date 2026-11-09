@@ -1,0 +1,23 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Autoregressive text generation in GPT-2",
+  "caption": "Each choice becomes part of what the model reads on the next step.",
+  "kind": "timeline",
+  "events": [
+   {
+    "time": "Prompt",
+    "label": "Read “the hall light”",
+    "detail": "An empty prompt can start from a special token."
+   },
+   {
+    "time": "First step",
+    "label": "Choose “flickers”"
+   },
+   {
+    "time": "Second step",
+    "label": "Use “the hall light flickers” as the prefix"
+   }
+  ]
+ }
+}

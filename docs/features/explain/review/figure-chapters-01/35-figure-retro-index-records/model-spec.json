@@ -1,0 +1,58 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Matched text and continuation in the index",
+  "caption": "The highlighted records contribute their matching words and what comes right after.",
+  "kind": "matrix",
+  "layout": "teaching",
+  "columns": [
+   "Embedding key",
+   "Matching words",
+   "Following words"
+  ],
+  "rows": [
+   {
+    "id": "A",
+    "heading": "Record A",
+    "cells": [
+     "$[2,3]$",
+     "Cedar’s archive",
+     "opens Tuesday"
+    ]
+   },
+   {
+    "id": "B",
+    "heading": "Record B",
+    "cells": [
+     "$[4,2]$",
+     "Archive doors",
+     "open Tuesday"
+    ]
+   },
+   {
+    "id": "C",
+    "heading": "Record C",
+    "cells": [
+     "$[6,5]$",
+     "Cedar saplings",
+     "need water"
+    ]
+   },
+   {
+    "id": "D",
+    "heading": "Record D",
+    "cells": [
+     "$[5,0]$",
+     "Maple Clinic",
+     "opens Friday"
+    ]
+   }
+  ],
+  "emphasis": {
+   "rows": [
+    "A",
+    "B"
+   ]
+  }
+ }
+}

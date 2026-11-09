@@ -1,0 +1,47 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "How GPT-2-style model sizes scale",
+  "caption": "These are toy sizes. A wider layer uses larger matrices, and each extra layer adds its own weights.",
+  "kind": "matrix",
+  "columns": [
+   "Decoder layers",
+   "Model width",
+   "Toy parameters"
+  ],
+  "rows": [
+   {
+    "heading": "Small toy",
+    "cells": [
+     "2",
+     "4",
+     "552"
+    ]
+   },
+   {
+    "heading": "Medium toy",
+    "cells": [
+     "3",
+     "6",
+     "1626"
+    ]
+   },
+   {
+    "heading": "Large toy",
+    "cells": [
+     "4",
+     "8",
+     "3616"
+    ]
+   },
+   {
+    "heading": "Extra-large toy",
+    "cells": [
+     "5",
+     "10",
+     "6810"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,33 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "U-Net architecture with timestep and skip inputs",
+  "kind": "block-stack",
+  "blocks": [
+   {
+    "id": "embed",
+    "label": "Timestep embedding",
+    "dims": "vector",
+    "diagram": {
+     "kind": "flow",
+     "steps": [
+      "Encode timestep t",
+      "Inject into residual blocks"
+     ]
+    }
+   },
+   {
+    "id": "skip",
+    "label": "Skip connection",
+    "dims": "tensor",
+    "diagram": {
+     "kind": "flow",
+     "steps": [
+      "Capture early spatial features",
+      "Concatenate in decoder"
+     ]
+    }
+   }
+  ]
+ }
+}

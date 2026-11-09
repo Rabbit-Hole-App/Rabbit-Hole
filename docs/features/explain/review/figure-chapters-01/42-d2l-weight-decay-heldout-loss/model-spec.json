@@ -1,0 +1,93 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Weight decay changes the fit trade-off",
+  "caption": "With a penalty, training loss ends higher and held-out loss ends lower in this example.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Epoch",
+   "min": 0,
+   "max": 6,
+   "scale": "linear"
+  },
+  "y": {
+   "label": "Data loss",
+   "min": 0,
+   "max": 0.9
+  },
+  "series": [
+   {
+    "label": "Train without penalty",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0.76
+     },
+     {
+      "x": 2,
+      "y": 0.19
+     },
+     {
+      "x": 6,
+      "y": 0.03
+     }
+    ]
+   },
+   {
+    "label": "Held-out without penalty",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0.8
+     },
+     {
+      "x": 2,
+      "y": 0.73
+     },
+     {
+      "x": 6,
+      "y": 0.73
+     }
+    ]
+   },
+   {
+    "label": "Train with penalty",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0.76
+     },
+     {
+      "x": 2,
+      "y": 0.39
+     },
+     {
+      "x": 6,
+      "y": 0.18
+     }
+    ]
+   },
+   {
+    "label": "Held-out with penalty",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0.8
+     },
+     {
+      "x": 2,
+      "y": 0.56
+     },
+     {
+      "x": 6,
+      "y": 0.34
+     }
+    ]
+   }
+  ]
+ }
+}

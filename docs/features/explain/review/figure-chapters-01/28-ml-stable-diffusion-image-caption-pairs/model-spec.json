@@ -1,0 +1,31 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Illustrative CLIP training pair",
+  "caption": "Each row shows one image and its matching text caption.",
+  "kind": "matrix",
+  "layout": "teaching",
+  "columns": [
+   "Image",
+   "Caption"
+  ],
+  "rows": [
+   {
+    "id": "pair-1",
+    "heading": "Pair 1",
+    "cells": [
+     "toy car photo",
+     "a red toy car on a table"
+    ]
+   },
+   {
+    "id": "pair-2",
+    "heading": "Pair 2",
+    "cells": [
+     "mountain landscape",
+     "snow‑capped peaks under a blue sky"
+    ]
+   }
+  ]
+ }
+}

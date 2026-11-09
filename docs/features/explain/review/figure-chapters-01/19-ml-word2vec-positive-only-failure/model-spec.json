@@ -1,0 +1,39 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Positive pairs alone cannot teach contrast",
+  "caption": "Always guessing yes on observed pairs fails to penalize unrelated words.",
+  "kind": "matrix",
+  "columns": [
+   "Candidate",
+   "Training label",
+   "Always says yes"
+  ],
+  "rows": [
+   {
+    "heading": "Observed pair one",
+    "cells": [
+     "robot",
+     "Neighbor",
+     "Right"
+    ]
+   },
+   {
+    "heading": "Observed pair two",
+    "cells": [
+     "seeds",
+     "Neighbor",
+     "Right"
+    ]
+   },
+   {
+    "heading": "Sampled comparison",
+    "cells": [
+     "bulbs",
+     "Negative",
+     "Wrong"
+    ]
+   }
+  ]
+ }
+}

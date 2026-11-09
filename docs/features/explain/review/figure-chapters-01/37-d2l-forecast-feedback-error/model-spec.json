@@ -1,0 +1,13 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Recursive forecasting loop",
+  "kind": "cycle",
+  "steps": [
+   "Compute model prediction",
+   "Feed prediction as input",
+   "Accumulate prediction errors",
+   "Drift away from reality"
+  ]
+ }
+}

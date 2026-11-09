@@ -1,0 +1,45 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "flow",
+  "title": "Pretrain, then fine-tune BERT",
+  "nodes": [
+   {
+    "id": "text",
+    "label": "Read text without task labels",
+    "role": "process"
+   },
+   {
+    "id": "pretrain",
+    "label": "Train on masked-token prediction",
+    "role": "process"
+   },
+   {
+    "id": "train",
+    "label": "Update encoder and head on labelled notes",
+    "role": "process"
+   },
+   {
+    "id": "output",
+    "label": "Predict the class of a new note",
+    "role": "outcome"
+   }
+  ],
+  "edges": [
+   {
+    "from": "text",
+    "to": "pretrain"
+   },
+   {
+    "from": "pretrain",
+    "to": "train",
+    "label": "Reuse learned weights"
+   },
+   {
+    "from": "train",
+    "to": "output"
+   }
+  ],
+  "caption": "The first stage learns from text. The second learns to tell wildlife notes from repair notes."
+ }
+}

@@ -1,0 +1,47 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Learn image and text matches together",
+  "caption": "Each image is scored against both captions. Training pulls the correct matches ahead of the others.",
+  "kind": "matrix",
+  "columns": [
+   "Pair type",
+   "Before learning",
+   "After learning"
+  ],
+  "rows": [
+   {
+    "heading": "Image 1, caption 1",
+    "cells": [
+     "Match",
+     "0.6",
+     "0.956"
+    ]
+   },
+   {
+    "heading": "Image 1, caption 2",
+    "cells": [
+     "Mismatch",
+     "0.8",
+     "0.098"
+    ]
+   },
+   {
+    "heading": "Image 2, caption 1",
+    "cells": [
+     "Mismatch",
+     "0.8",
+     "0.098"
+    ]
+   },
+   {
+    "heading": "Image 2, caption 2",
+    "cells": [
+     "Match",
+     "0.6",
+     "0.956"
+    ]
+   }
+  ]
+ }
+}

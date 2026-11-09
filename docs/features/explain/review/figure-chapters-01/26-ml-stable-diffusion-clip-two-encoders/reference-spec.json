@@ -1,0 +1,47 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "transformation",
+  "title": "Encode one CLIP image-caption pair",
+  "caption": "One reader sees the picture. The other reads the description. Their outputs use the same number of entries.",
+  "before": {
+   "label": "Matched original example",
+   "items": [
+    "Diagonal lights",
+    "two bright corners"
+   ]
+  },
+  "operation": "Encode the image and text separately",
+  "after": {
+   "label": "Comparable rows",
+   "items": [
+    {
+     "tensor": {
+      "name": "Picture vector",
+      "rows": 1,
+      "columns": 2,
+      "dimensions": "1 × 2",
+      "role": "input",
+      "values": [
+       1,
+       0
+      ]
+     }
+    },
+    {
+     "tensor": {
+      "name": "Caption vector",
+      "rows": 1,
+      "columns": 2,
+      "dimensions": "1 × 2",
+      "role": "output",
+      "values": [
+       0.6,
+       0.8
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

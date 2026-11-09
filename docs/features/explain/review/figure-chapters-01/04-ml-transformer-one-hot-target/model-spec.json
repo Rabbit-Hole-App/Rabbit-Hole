@@ -1,0 +1,61 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Prediction and target share a vocabulary",
+  "caption": "Every word keeps the same row. The answer column marks just the observed next word.",
+  "kind": "matrix",
+  "layout": "teaching",
+  "columns": [
+   "Predicted share",
+   "One-hot target"
+  ],
+  "rows": [
+   {
+    "id": "r1",
+    "heading": "the",
+    "cells": [
+     "0.134",
+     "0"
+    ]
+   },
+   {
+    "id": "r2",
+    "heading": "cat",
+    "cells": [
+     "0.073",
+     "0"
+    ]
+   },
+   {
+    "id": "r3",
+    "heading": "sat",
+    "cells": [
+     "0.178",
+     "0"
+    ]
+   },
+   {
+    "id": "r4",
+    "heading": "on",
+    "cells": [
+     "0.465",
+     "1"
+    ]
+   },
+   {
+    "id": "r5",
+    "heading": "mat",
+    "cells": [
+     "0.1",
+     "0"
+    ]
+   }
+  ],
+  "emphasis": {
+   "columns": [
+    0,
+    1
+   ]
+  }
+ }
+}

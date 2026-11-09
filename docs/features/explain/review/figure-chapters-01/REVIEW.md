@@ -1,0 +1,148 @@
+# Figure-chapter references, live /explain, review pack figure-chapters-01
+
+Set: scripts/explain-bench/sets/figure-chapters.json (48 prompts, 6 per chapter, seed figure-chapters-2026-11-09). One pass per arm, Balanced (bench depth key standard). Arm R = full reference library; arm 0 = the same code with EXPLANATION_EXCLUDE_FIGURE_CHAPTERS=on (the 212 figure-chapter references removed from the selector pool).
+Arm R run: 2026-11-09T110036-figchap-armr-judged; arm 0 run: 2026-11-09T110933-figchap-arm0-judged2. Structure = judge faithful-ref-v1 (faithful-v2 with the reference spec as the Core), first diagram only; fully is the threshold. Per-card files exist for arm R only: card.md, model-spec.json, model-408.svg, reference-408.svg, reference-spec.json.
+
+## Per-arm numbers
+
+| metric | arm R | arm 0 |
+|---|---|---|
+| cards delivered | 48/48 | 48/48 |
+| selector hit | 48/48 (100%) | 0/48 (0%) |
+| kind match (first diagram = reference kind) | 37/48 (77.1%) | 13/48 (27.1%) |
+| planner kind match | 13/47 (27.7%) | 15/47 (31.9%) |
+| kind misses: planner wrong / author wrong, planner right / no plan | 11 / 0 / 0 | 31 / 3 / 1 |
+| structure (judge faithful-ref-v1): fully / partly / not / none | 36 / 4 / 7 / 1 | 3 / 17 / 26 / 2 |
+| structure fully | 36/48 (75%) | 3/48 (6.3%) |
+| factual error (factual-v2) | 6/48 (12.5%) | 6/47 (12.8%) |
+| factual mean score | 4.29 | 4.15 |
+| repaired cards | 11 | 8 |
+| visual fallback cards | 0 | 1 |
+| cards authored by a non-Google provider (model fallback) | 1 | 0 |
+| planner routed to picture | 0 | 0 |
+| cards with a picture | 2 | 2 |
+| latency p50 / p90 (ms) | 3873 / 7150 | 2744 / 4580 |
+| mean author input tokens | 5413 | 4444 |
+| mean author output tokens | 609 | 492 |
+| mean references sent | 2 | 1 |
+| generation spend (US$) | 0.1671 | 0.1371 |
+| judge spend (US$) | 0.3875 | 0.0037 |
+
+## Arm R
+
+| # | reference id | source | intended kind | planner kind | model kind | selector hit | structure | factual (1-5) |
+|---|---|---|---|---|---|---|---|---|
+| 01 | [ml-transformer-attention-across-distance](01-ml-transformer-attention-across-distance/card.md) | Transformer | token-links | - | token-links | yes | fully | 4 |
+| 02 | [ml-transformer-autoregressive-prefix](02-ml-transformer-autoregressive-prefix/card.md) | Transformer | sequence | cycle | cycle | yes | partly | 4 |
+| 03 | [ml-transformer-batched-qkv](03-ml-transformer-batched-qkv/card.md) | Transformer | matrix | transformation (offered transformation / tensor) | matrix | yes | fully | 5 |
+| 04 | [ml-transformer-one-hot-target](04-ml-transformer-one-hot-target/card.md) | Transformer | matrix | comparison (offered comparison / bar-chart) | matrix | yes | fully | 3 ERROR |
+| 05 | [ml-transformer-positionwise-feedforward](05-ml-transformer-positionwise-feedforward/card.md) | Transformer | relationship | token-links | token-links | yes | not | 5 |
+| 06 | [ml-transformer-translation-task](06-ml-transformer-translation-task/card.md) | Transformer | flow | block-stack | block-stack | yes | fully | 5 |
+| 07 | [ml-bert-encoder-depth](07-ml-bert-encoder-depth/card.md) | BERT | block-stack | comparison | comparison | yes | not | 5 |
+| 08 | [ml-bert-fine-tuning](08-ml-bert-fine-tuning/card.md) | BERT | flow | flow (offered flow / layers) | flow | yes | fully | 5 |
+| 09 | [ml-bert-gpt-task-inputs](09-ml-bert-gpt-task-inputs/card.md) | BERT | matrix | transformation (offered transformation / flow) | matrix | yes | fully | 4 |
+| 10 | [ml-bert-masked-token](10-ml-bert-masked-token/card.md) | BERT | relationship | flow (offered flow / token-links) | relationship | yes | fully | 5 |
+| 11 | [ml-bert-pretraining-families](11-ml-bert-pretraining-families/card.md) | BERT | matrix | comparison | matrix | yes | fully | 3 ERROR |
+| 12 | [ml-bert-task-heads](12-ml-bert-task-heads/card.md) | BERT | matrix | comparison (offered comparison / block-stack) | matrix | yes | fully | 3 ERROR |
+| 13 | [ml-gpt2-context-architecture](13-ml-gpt2-context-architecture/card.md) | GPT-2 | matrix | comparison | comparison | yes | fully | 5 |
+| 14 | [ml-gpt2-continue-prefix](14-ml-gpt2-continue-prefix/card.md) | GPT-2 | timeline | cycle (offered cycle / flow) | timeline | yes | fully | 5 |
+| 15 | [ml-gpt2-decode-cache](15-ml-gpt2-decode-cache/card.md) | GPT-2 | sequence | token-links (offered token-links / block-stack) | sequence | yes | fully | 4 |
+| 16 | [ml-gpt2-parameter-counts](16-ml-gpt2-parameter-counts/card.md) | GPT-2 | matrix | comparison (offered comparison / block-stack) | matrix | yes | fully | 5 |
+| 17 | [ml-gpt2-task-separators](17-ml-gpt2-task-separators/card.md) | GPT-2 | matrix | transformation (offered transformation / flow) | matrix | yes | fully | 5 |
+| 18 | [ml-gpt2-tied-output-weights](18-ml-gpt2-tied-output-weights/card.md) | GPT-2 | matrix | layers (offered layers / block-stack) | layers | yes | not | 3 ERROR |
+| 19 | [ml-word2vec-positive-only-failure](19-ml-word2vec-positive-only-failure/card.md) | Word2vec | matrix | coordinate-plot (offered coordinate-plot / token-links) | matrix | yes | fully | 4 |
+| 20 | [ml-word2vec-profile-directions](20-ml-word2vec-profile-directions/card.md) | Word2vec | coordinate-plot | coordinate-plot | coordinate-plot | yes | fully | 4 |
+| 21 | [ml-word2vec-sampled-training-rows](21-ml-word2vec-sampled-training-rows/card.md) | Word2vec | matrix | sample-set (offered sample-set / flow) | matrix | yes | partly | 4 |
+| 22 | [ml-word2vec-signed-embedding-heatmap](22-ml-word2vec-signed-embedding-heatmap/card.md) | Word2vec | heatmap | heatmap | heatmap | yes | fully | 4 |
+| 23 | [ml-word2vec-trait-rescale](23-ml-word2vec-trait-rescale/card.md) | Word2vec | number-line | transformation (offered transformation / coordinate-plot) | number-line | yes | fully | 4 |
+| 24 | [ml-word2vec-vocabulary-versus-pair](24-ml-word2vec-vocabulary-versus-pair/card.md) | Word2vec | comparison | comparison (offered comparison / bar-chart) | comparison | yes | fully | 4 |
+| 25 | [ml-stable-diffusion-clip-contrastive-scores](25-ml-stable-diffusion-clip-contrastive-scores/card.md) | Stable Diffusion | matrix | transformation (offered transformation / flow) | matrix | yes | fully | 4 |
+| 26 | [ml-stable-diffusion-clip-two-encoders](26-ml-stable-diffusion-clip-two-encoders/card.md) | Stable Diffusion | transformation | block-stack (offered block-stack / comparison) | picture | yes | none | 5 |
+| 27 | [ml-stable-diffusion-forward-noise](27-ml-stable-diffusion-forward-noise/card.md) | Stable Diffusion | heatmap | transformation (offered transformation / waterfall) | transformation | yes | not | 4 |
+| 28 | [ml-stable-diffusion-image-caption-pairs](28-ml-stable-diffusion-image-caption-pairs/card.md) | Stable Diffusion | matrix | sample-set | matrix | yes | fully | 3 ERROR |
+| 29 | [ml-stable-diffusion-unet-text-attention](29-ml-stable-diffusion-unet-text-attention/card.md) | Stable Diffusion | block-stack | block-stack | block-stack | yes | fully | 5 |
+| 30 | [ml-stable-diffusion-unet-timestep-and-skips](30-ml-stable-diffusion-unet-timestep-and-skips/card.md) | Stable Diffusion | relationship | block-stack | block-stack | yes | not | 5 |
+| 31 | [figure-retro-chunk-attention](31-figure-retro-chunk-attention/card.md) | Retrieval Transformer | token-links | token-links | token-links | yes | partly | 4 |
+| 32 | [figure-retro-chunk-embedding](32-figure-retro-chunk-embedding/card.md) | Retrieval Transformer | transformation | transformation | transformation | yes | fully | 5 |
+| 33 | [figure-retro-encoded-neighbor-rows](33-figure-retro-encoded-neighbor-rows/card.md) | Retrieval Transformer | transformation | flow (offered flow / transformation) | transformation | yes | fully | 5 |
+| 34 | [figure-retro-fact-versus-pattern](34-figure-retro-fact-versus-pattern/card.md) | Retrieval Transformer | comparison | comparison (offered comparison / token-links) | comparison | yes | fully | 5 |
+| 35 | [figure-retro-index-records](35-figure-retro-index-records/card.md) | Retrieval Transformer | matrix | tree (offered tree / relationship) | matrix | yes | fully | 5 |
+| 36 | [figure-retro-layer-placement](36-figure-retro-layer-placement/card.md) | Retrieval Transformer | block-stack | layers | block-stack | yes | fully | 5 |
+| 37 | [d2l-forecast-feedback-error](37-d2l-forecast-feedback-error/card.md) | D2L | coordinate-plot | cycle | cycle | yes | not | 4 |
+| 38 | [d2l-newton-convex-curvature-steps](38-d2l-newton-convex-curvature-steps/card.md) | D2L | coordinate-plot | coordinate-plot | coordinate-plot | yes | fully | 3 ERROR |
+| 39 | [d2l-recurrent-translation-fixed-context](39-d2l-recurrent-translation-fixed-context/card.md) | D2L | relationship | block-stack (offered block-stack / relationship) | relationship | yes | fully | 4 |
+| 40 | [d2l-softmax-affine-class-scores](40-d2l-softmax-affine-class-scores/card.md) | D2L | relationship | layers (offered layers / flow) | relationship | yes | fully | 4 |
+| 41 | [d2l-transformer-encoder-head-weight-grids](41-d2l-transformer-encoder-head-weight-grids/card.md) | D2L | heatmap | comparison | heatmap | yes | fully | 4 |
+| 42 | [d2l-weight-decay-heldout-loss](42-d2l-weight-decay-heldout-loss/card.md) | D2L | coordinate-plot | coordinate-plot | coordinate-plot | yes | fully | 4 |
+| 43 | [figure-attention-output-gate](43-figure-attention-output-gate/card.md) | Architecture gallery | block-stack | flow (offered flow / token-links) | block-stack | yes | fully | 4 |
+| 44 | [figure-gallery-hybrid-state-and-cache-growth](44-figure-gallery-hybrid-state-and-cache-growth/card.md) | Architecture gallery | matrix | block-stack (offered block-stack / token-links) | matrix | yes | fully | 5 |
+| 45 | [figure-latent-expert-widths](45-figure-latent-expert-widths/card.md) | Architecture gallery | flow | transformation (offered transformation / block-stack) | transformation | yes | not | 4 |
+| 46 | [figure-routed-expert-parameter-split](46-figure-routed-expert-parameter-split/card.md) | Architecture gallery | matrix | token-links (offered token-links / comparison) | matrix | yes | partly | 5 |
+| 47 | [figure-routed-vs-shared-experts](47-figure-routed-vs-shared-experts/card.md) | Architecture gallery | matrix | block-stack (offered block-stack / transformation) | matrix | yes | fully | 4 |
+| 48 | [ml-architecture-shared-core](48-ml-architecture-shared-core/card.md) | Architecture gallery | block-stack | block-stack | block-stack | yes | fully | 4 |
+
+## Arm 0 (no per-card files)
+
+| # | reference id | source | intended kind | planner kind | model kind | selector hit | structure | factual (1-5) |
+|---|---|---|---|---|---|---|---|---|
+| 01 | ml-transformer-attention-across-distance | Transformer | token-links | token-links | token-links | no | partly | 4 |
+| 02 | ml-transformer-autoregressive-prefix | Transformer | sequence | cycle | cycle | no | not | 5 |
+| 03 | ml-transformer-batched-qkv | Transformer | matrix | transformation (offered transformation / tensor) | transformation | no | not | 4 |
+| 04 | ml-transformer-one-hot-target | Transformer | matrix | comparison (offered comparison / bar-chart) | comparison | no | not | - |
+| 05 | ml-transformer-positionwise-feedforward | Transformer | relationship | token-links | token-links | no | not | 4 |
+| 06 | ml-transformer-translation-task | Transformer | flow | block-stack | block-stack | no | partly | 5 |
+| 07 | ml-bert-encoder-depth | BERT | block-stack | comparison | comparison | no | not | 5 |
+| 08 | ml-bert-fine-tuning | BERT | flow | flow (offered flow / layers) | flow | no | not | 5 |
+| 09 | ml-bert-gpt-task-inputs | BERT | matrix | transformation (offered transformation / flow) | transformation | no | not | 4 |
+| 10 | ml-bert-masked-token | BERT | relationship | flow (offered flow / token-links) | flow | no | not | 4 |
+| 11 | ml-bert-pretraining-families | BERT | matrix | comparison | comparison | no | partly | 5 |
+| 12 | ml-bert-task-heads | BERT | matrix | comparison (offered comparison / block-stack) | comparison | no | partly | 5 |
+| 13 | ml-gpt2-context-architecture | GPT-2 | matrix | comparison | comparison | no | partly | 5 |
+| 14 | ml-gpt2-continue-prefix | GPT-2 | timeline | cycle (offered cycle / flow) | cycle | no | partly | 5 |
+| 15 | ml-gpt2-decode-cache | GPT-2 | sequence | token-links (offered token-links / block-stack) | token-links | no | not | 4 |
+| 16 | ml-gpt2-parameter-counts | GPT-2 | matrix | comparison (offered comparison / block-stack) | comparison | no | partly | 3 ERROR |
+| 17 | ml-gpt2-task-separators | GPT-2 | matrix | transformation | transformation | no | not | 4 |
+| 18 | ml-gpt2-tied-output-weights | GPT-2 | matrix | - | layers | no | not | 3 ERROR |
+| 19 | ml-word2vec-positive-only-failure | Word2vec | matrix | token-links (offered token-links / sample-set) | token-links | no | not | 4 |
+| 20 | ml-word2vec-profile-directions | Word2vec | coordinate-plot | coordinate-plot | coordinate-plot | no | fully | 4 |
+| 21 | ml-word2vec-sampled-training-rows | Word2vec | matrix | sample-set (offered sample-set / flow) | flow | no | not | 5 |
+| 22 | ml-word2vec-signed-embedding-heatmap | Word2vec | heatmap | heatmap | heatmap | no | partly | 4 |
+| 23 | ml-word2vec-trait-rescale | Word2vec | number-line | transformation (offered transformation / coordinate-plot) | transformation | no | not | 4 |
+| 24 | ml-word2vec-vocabulary-versus-pair | Word2vec | comparison | comparison (offered comparison / layers) | comparison | no | fully | 5 |
+| 25 | ml-stable-diffusion-clip-contrastive-scores | Stable Diffusion | matrix | flow (offered flow / coordinate-plot) | flow | no | not | 4 |
+| 26 | ml-stable-diffusion-clip-two-encoders | Stable Diffusion | transformation | block-stack (offered block-stack / comparison) | picture | no | none | 4 |
+| 27 | ml-stable-diffusion-forward-noise | Stable Diffusion | heatmap | transformation (offered transformation / waterfall) | transformation | no | not | 4 |
+| 28 | ml-stable-diffusion-image-caption-pairs | Stable Diffusion | matrix | sample-set | picture | no | none | 5 |
+| 29 | ml-stable-diffusion-unet-text-attention | Stable Diffusion | block-stack | block-stack | block-stack | no | not | 5 |
+| 30 | ml-stable-diffusion-unet-timestep-and-skips | Stable Diffusion | relationship | block-stack | block-stack | no | partly | 3 ERROR |
+| 31 | figure-retro-chunk-attention | Retrieval Transformer | token-links | token-links | token-links | no | not | 4 |
+| 32 | figure-retro-chunk-embedding | Retrieval Transformer | transformation | transformation | transformation | no | partly | 4 |
+| 33 | figure-retro-encoded-neighbor-rows | Retrieval Transformer | transformation | flow (offered flow / transformation) | flow | no | not | 4 |
+| 34 | figure-retro-fact-versus-pattern | Retrieval Transformer | comparison | comparison (offered comparison / token-links) | comparison | no | fully | 4 |
+| 35 | figure-retro-index-records | Retrieval Transformer | matrix | tree (offered tree / relationship) | tree | no | not | 2 ERROR |
+| 36 | figure-retro-layer-placement | Retrieval Transformer | block-stack | layers | layers | no | not | 4 |
+| 37 | d2l-forecast-feedback-error | D2L | coordinate-plot | cycle | cycle | no | not | 4 |
+| 38 | d2l-newton-convex-curvature-steps | D2L | coordinate-plot | coordinate-plot | coordinate-plot | no | partly | 4 |
+| 39 | d2l-recurrent-translation-fixed-context | D2L | relationship | block-stack (offered block-stack / relationship) | block-stack | no | partly | 5 |
+| 40 | d2l-softmax-affine-class-scores | D2L | relationship | layers (offered layers / transformation) | layers | no | partly | 4 |
+| 41 | d2l-transformer-encoder-head-weight-grids | D2L | heatmap | comparison | heatmap | no | partly | 4 |
+| 42 | d2l-weight-decay-heldout-loss | D2L | coordinate-plot | coordinate-plot | coordinate-plot | no | partly | 4 |
+| 43 | figure-attention-output-gate | Architecture gallery | block-stack | flow (offered flow / block-stack) | flow | no | partly | 3 ERROR |
+| 44 | figure-gallery-hybrid-state-and-cache-growth | Architecture gallery | matrix | block-stack (offered block-stack / token-links) | block-stack | no | not | 5 |
+| 45 | figure-latent-expert-widths | Architecture gallery | flow | transformation (offered transformation / block-stack) | transformation | no | not | 3 ERROR |
+| 46 | figure-routed-expert-parameter-split | Architecture gallery | matrix | token-links (offered token-links / comparison) | token-links | no | not | 4 |
+| 47 | figure-routed-vs-shared-experts | Architecture gallery | matrix | transformation (offered transformation / block-stack) | transformation | no | not | 4 |
+| 48 | ml-architecture-shared-core | Architecture gallery | block-stack | block-stack | block-stack | no | partly | 4 |
+
+## Ten lowest structure scores, arm R (structure, then kind miss, then factual)
+
+- 26 ml-stable-diffusion-clip-two-encoders: structure none, intended transformation, model picture, factual 5
+- 18 ml-gpt2-tied-output-weights: structure not, intended matrix, model layers, factual 3 ERROR
+- 27 ml-stable-diffusion-forward-noise: structure not, intended heatmap, model transformation, factual 4
+- 37 d2l-forecast-feedback-error: structure not, intended coordinate-plot, model cycle, factual 4
+- 45 figure-latent-expert-widths: structure not, intended flow, model transformation, factual 4
+- 05 ml-transformer-positionwise-feedforward: structure not, intended relationship, model token-links, factual 5
+- 07 ml-bert-encoder-depth: structure not, intended block-stack, model comparison, factual 5
+- 30 ml-stable-diffusion-unet-timestep-and-skips: structure not, intended relationship, model block-stack, factual 5
+- 02 ml-transformer-autoregressive-prefix: structure partly, intended sequence, model cycle, factual 4
+- 21 ml-word2vec-sampled-training-rows: structure partly, intended matrix, model matrix, factual 4

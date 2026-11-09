@@ -1,0 +1,68 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Encoder head B weights",
+  "caption": "The available positions stay the same. The head can give them different weights.",
+  "kind": "heatmap",
+  "rowLabel": "Query",
+  "columnLabel": "Key",
+  "columns": [
+   "1 the",
+   "2 cat",
+   "3 sat",
+   "4 on",
+   "Padding one",
+   "Padding two"
+  ],
+  "rows": [
+   {
+    "label": "1 the",
+    "cells": [
+     0.563,
+     0.244,
+     0.111,
+     0.082,
+     null,
+     null
+    ]
+   },
+   {
+    "label": "2 cat",
+    "cells": [
+     0.469,
+     0.261,
+     0.156,
+     0.114,
+     null,
+     null
+    ]
+   },
+   {
+    "label": "3 sat",
+    "cells": [
+     0.551,
+     0.248,
+     0.131,
+     0.07,
+     null,
+     null
+    ]
+   },
+   {
+    "label": "4 on",
+    "cells": [
+     0.525,
+     0.25,
+     0.115,
+     0.11,
+     null,
+     null
+    ]
+   }
+  ],
+  "range": {
+   "min": 0,
+   "max": 1
+  }
+ }
+}

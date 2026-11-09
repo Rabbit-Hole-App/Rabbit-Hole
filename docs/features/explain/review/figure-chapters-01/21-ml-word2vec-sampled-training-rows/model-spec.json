@@ -1,0 +1,39 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Assemble skip-gram negative-sampling rows",
+  "caption": "Draw candidates from the vocabulary for positive and negative labels.",
+  "kind": "matrix",
+  "columns": [
+   "Candidate",
+   "Pair source",
+   "Training label"
+  ],
+  "rows": [
+   {
+    "heading": "Batch one, pair 1",
+    "cells": [
+     "target",
+     "Observed",
+     "1"
+    ]
+   },
+   {
+    "heading": "Batch one, pair 2",
+    "cells": [
+     "noise",
+     "Sampled",
+     "0"
+    ]
+   },
+   {
+    "heading": "Batch one, pair 3",
+    "cells": [
+     "noise",
+     "Sampled",
+     "0"
+    ]
+   }
+  ]
+ }
+}

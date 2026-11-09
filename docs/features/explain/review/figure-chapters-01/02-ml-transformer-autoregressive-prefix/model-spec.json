@@ -1,0 +1,13 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "The decoding cycle",
+  "kind": "cycle",
+  "steps": [
+   "Provide encoder memory",
+   "Feed prefix to decoder",
+   "Generate next token",
+   "Append token to prefix"
+  ]
+ }
+}

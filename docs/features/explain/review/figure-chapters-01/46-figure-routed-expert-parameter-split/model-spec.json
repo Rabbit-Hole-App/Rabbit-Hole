@@ -1,0 +1,47 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Total and active weights in a routed layer",
+  "caption": "The router selects a constant number of experts per token regardless of bank size.",
+  "kind": "matrix",
+  "layout": "teaching",
+  "columns": [
+   "Small bank",
+   "Larger bank"
+  ],
+  "rows": [
+   {
+    "id": "r1",
+    "heading": "Experts in bank",
+    "cells": [
+     "4",
+     "8"
+    ]
+   },
+   {
+    "id": "r2",
+    "heading": "Experts used per token",
+    "cells": [
+     "2",
+     "2"
+    ]
+   },
+   {
+    "id": "r3",
+    "heading": "Stored expert weights",
+    "cells": [
+     "18432",
+     "36864"
+    ]
+   },
+   {
+    "id": "r4",
+    "heading": "Expert weights used",
+    "cells": [
+     "9216",
+     "9216"
+    ]
+   }
+  ]
+ }
+}

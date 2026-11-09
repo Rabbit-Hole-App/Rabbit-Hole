@@ -1,0 +1,50 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "block-stack",
+  "title": "Cross-attention routes text into the U-Net",
+  "caption": "Image stages receive the noise level. The attention stages pull in information from the prompt.",
+  "blocks": [
+   {
+    "id": "b0",
+    "label": "Residual block A",
+    "role": "feedforward",
+    "inputs": [
+     {
+      "label": "Noise level"
+     }
+    ]
+   },
+   {
+    "id": "b1",
+    "label": "Cross-attention A",
+    "role": "attention",
+    "inputs": [
+     {
+      "label": "Prompt embeddings"
+     }
+    ]
+   },
+   {
+    "id": "b2",
+    "label": "Residual block B",
+    "role": "feedforward",
+    "inputs": [
+     {
+      "label": "Noise level"
+     }
+    ]
+   },
+   {
+    "id": "b3",
+    "label": "Cross-attention B",
+    "role": "attention",
+    "inputs": [
+     {
+      "label": "Prompt embeddings"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Full vocabulary versus sampled pair objective",
+  "caption": "Full prediction scores every choice. Pair training scores one observed neighbor and some sampled alternatives.",
+  "kind": "comparison",
+  "columns": [
+   {
+    "heading": "Full softmax",
+    "items": [
+     "Start with one center word",
+     "Score all vocabulary choices",
+     "Normalize the scores together"
+    ]
+   },
+   {
+    "heading": "Negative sampling",
+    "items": [
+     "Supply a center and candidate",
+     "Score only the chosen pairs",
+     "Check each pair separately"
+    ]
+   }
+  ]
+ }
+}

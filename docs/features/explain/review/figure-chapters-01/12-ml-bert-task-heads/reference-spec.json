@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "title": "Which BERT positions does each task head read?",
+  "columns": [
+   "Positions read",
+   "Toy output"
+  ],
+  "rows": [
+   {
+    "heading": "Classify a sentence",
+    "cells": [
+     "CLS state",
+     "Wildlife"
+    ]
+   },
+   {
+    "heading": "Classify a pair",
+    "cells": [
+     "CLS state for the pair",
+     "Both describe animals"
+    ]
+   },
+   {
+    "heading": "Tag each word",
+    "cells": [
+     "One state per token",
+     "“seal” is a noun"
+    ]
+   },
+   {
+    "heading": "Find an answer span",
+    "cells": [
+     "Start and end scores per token",
+     "“a seal”"
+    ]
+   }
+  ],
+  "caption": "The same reading layers return a vector for every position. Different tasks read different positions."
+ }
+}

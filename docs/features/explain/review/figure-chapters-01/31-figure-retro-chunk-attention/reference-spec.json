@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "token-links",
+  "title": "Chunked attention over both retrieved passages",
+  "source": [
+   "Archive",
+   "opens"
+  ],
+  "target": [
+   "Cedar’s A",
+   "archive A",
+   "opens A",
+   "Tuesday A",
+   "Archive B",
+   "doors B",
+   "open B",
+   "Tuesday B"
+  ],
+  "queries": [
+   {
+    "index": 1,
+    "weights": [
+     0.03,
+     0.03,
+     0.03,
+     0.6,
+     0.03,
+     0.03,
+     0.03,
+     0.221
+    ]
+   }
+  ],
+  "normalized": true,
+  "caption": "“opens” weighs words from both retrieved passages before the next word is predicted. The completed chunk chose the passages."
+ }
+}

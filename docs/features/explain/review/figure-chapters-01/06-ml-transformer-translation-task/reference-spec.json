@@ -1,0 +1,35 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "flow",
+  "title": "Machine translation with a Transformer",
+  "caption": "The same task maps one ordered sentence to another.",
+  "nodes": [
+   {
+    "id": "source",
+    "label": "Read “the cat sat on the mat”",
+    "role": "process"
+   },
+   {
+    "id": "convert",
+    "label": "Translate with an encoder and decoder",
+    "role": "process"
+   },
+   {
+    "id": "target",
+    "label": "Return “le chat est assis sur le tapis”",
+    "role": "outcome"
+   }
+  ],
+  "edges": [
+   {
+    "from": "source",
+    "to": "convert"
+   },
+   {
+    "from": "convert",
+    "to": "target"
+   }
+  ]
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Reshape a tensor",
+  "kind": "transformation",
+  "before": {
+   "label": "2 × 3",
+   "items": [
+    "a, b, c",
+    "d, e, f"
+   ]
+  },
+  "after": {
+   "label": "3 × 2",
+   "items": [
+    "a, b",
+    "c, d",
+    "e, f"
+   ]
+  },
+  "operation": "Regroup the same values in row order",
+  "links": [
+   {
+    "from": 0,
+    "to": 0,
+    "label": "a, b"
+   },
+   {
+    "from": 0,
+    "to": 1,
+    "label": "c"
+   },
+   {
+    "from": 1,
+    "to": 1,
+    "label": "d"
+   },
+   {
+    "from": 1,
+    "to": 2,
+    "label": "e, f"
+   }
+  ]
+ }
+}

@@ -1,0 +1,58 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "layout": "teaching",
+  "title": "Experts available and experts used",
+  "columns": [
+   "Small pool",
+   "Large pool",
+   "Plus shared"
+  ],
+  "rows": [
+   {
+    "id": "r1",
+    "heading": "Routed experts in pool",
+    "cells": [
+     "4",
+     "6",
+     "6"
+    ]
+   },
+   {
+    "id": "r2",
+    "heading": "Chosen for this token",
+    "cells": [
+     "2",
+     "2",
+     "2"
+    ]
+   },
+   {
+    "id": "r3",
+    "heading": "Shared update",
+    "cells": [
+     "Absent",
+     "Absent",
+     "0.30"
+    ]
+   },
+   {
+    "id": "r4",
+    "heading": "Combined update",
+    "cells": [
+     "0.50",
+     "0.50",
+     "0.80"
+    ]
+   }
+  ],
+  "caption": "The larger pool still uses two choices per token. A shared expert runs for every token.",
+  "emphasis": {
+   "rows": [
+    "r2",
+    "r3"
+   ]
+  }
+ }
+}

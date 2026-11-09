@@ -1,0 +1,84 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "flow",
+  "title": "Only selected experts use the smaller state",
+  "nodes": [
+   {
+    "id": "x",
+    "label": "Read the full state",
+    "role": "fork"
+   },
+   {
+    "id": "r",
+    "label": "Choose experts from the full state",
+    "role": "process"
+   },
+   {
+    "id": "z",
+    "label": "Project to a smaller state",
+    "role": "process"
+   },
+   {
+    "id": "e",
+    "label": "Run the selected experts",
+    "role": "process"
+   },
+   {
+    "id": "up",
+    "label": "Project the routed sum back",
+    "role": "process"
+   },
+   {
+    "id": "s",
+    "label": "Run the shared expert at full size",
+    "role": "process"
+   },
+   {
+    "id": "j",
+    "label": "Add the two results",
+    "role": "merge"
+   },
+   {
+    "id": "o",
+    "label": "Return the update",
+    "role": "outcome"
+   }
+  ],
+  "edges": [
+   {
+    "from": "x",
+    "to": "r"
+   },
+   {
+    "from": "r",
+    "to": "z"
+   },
+   {
+    "from": "z",
+    "to": "e"
+   },
+   {
+    "from": "e",
+    "to": "up"
+   },
+   {
+    "from": "x",
+    "to": "s"
+   },
+   {
+    "from": "up",
+    "to": "j"
+   },
+   {
+    "from": "s",
+    "to": "j"
+   },
+   {
+    "from": "j",
+    "to": "o"
+   }
+  ],
+  "caption": "The shared branch works at the original size throughout. The other branch works on the smaller copy."
+ }
+}

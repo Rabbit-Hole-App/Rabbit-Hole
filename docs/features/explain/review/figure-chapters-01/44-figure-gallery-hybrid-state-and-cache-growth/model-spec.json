@@ -1,0 +1,39 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Carried state and cached history during decoding",
+  "caption": "The recurrent state stays fixed in size, while the attention cache grows with each new token.",
+  "kind": "matrix",
+  "layout": "teaching",
+  "columns": [
+   "State vector",
+   "Cached token codes"
+  ],
+  "rows": [
+   {
+    "id": "r0",
+    "heading": "After token 1",
+    "cells": [
+     "1.0, -1.0",
+     "0"
+    ]
+   },
+   {
+    "id": "r1",
+    "heading": "After token 2",
+    "cells": [
+     "2.5, 0.5",
+     "0, 1.5"
+    ]
+   },
+   {
+    "id": "r2",
+    "heading": "After token 3",
+    "cells": [
+     "1.25, 2.25",
+     "0, 1.5, 1"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,49 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Each class has its own affine score",
+  "caption": "Every class reads the same inputs through different weights. The scores become probabilities together.",
+  "kind": "relationship",
+  "layout": "graph",
+  "nodes": [
+   {
+    "id": "a",
+    "label": "First input"
+   },
+   {
+    "id": "b",
+    "label": "Second input"
+   },
+   {
+    "id": "x",
+    "label": "Class A score"
+   },
+   {
+    "id": "y",
+    "label": "Class B score"
+   }
+  ],
+  "edges": [
+   {
+    "from": "a",
+    "to": "x",
+    "label": "Uses first class weight"
+   },
+   {
+    "from": "b",
+    "to": "x",
+    "label": "Uses second class weight"
+   },
+   {
+    "from": "a",
+    "to": "y",
+    "label": "Uses a separate weight"
+   },
+   {
+    "from": "b",
+    "to": "y",
+    "label": "Uses another weight"
+   }
+  ]
+ }
+}

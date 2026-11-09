@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Compress the state into a smaller representation",
+  "caption": "Projecting the full state down allows routed experts to process compressed tokens.",
+  "kind": "transformation",
+  "before": {
+   "label": "Full State",
+   "items": [
+    "$x \\in \\mathbb{R}^{d}$",
+    "Original dimension"
+   ]
+  },
+  "after": {
+   "label": "Latent State",
+   "items": [
+    "$z \\in \\mathbb{R}^{m}$",
+    "$m < d$ compressed"
+   ]
+  },
+  "operation": "Project down to a lower-dimensional latent space",
+  "links": [
+   {
+    "from": 0,
+    "to": 0,
+    "label": "Linear projection"
+   }
+  ]
+ }
+}

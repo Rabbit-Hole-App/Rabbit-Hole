@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "block-stack",
+  "title": "A miniature BERT encoder stack",
+  "blocks": [
+   {
+    "id": "input",
+    "label": "Token vectors",
+    "role": "embedding"
+   },
+   {
+    "id": "layer",
+    "label": "BERT encoder layer",
+    "role": "attention",
+    "repeat": 3
+   },
+   {
+    "id": "output",
+    "label": "Contextual token vectors",
+    "role": "output"
+   }
+  ],
+  "caption": "Base uses fewer layers and narrower vectors than Large. Both return one vector for each input position."
+ }
+}

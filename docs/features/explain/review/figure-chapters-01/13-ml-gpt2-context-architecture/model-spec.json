@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Context in GPT-2, BERT, and Transformer-XL",
+  "caption": "The context rule determines what each architecture can consult during processing.",
+  "kind": "comparison",
+  "columns": [
+   {
+    "heading": "GPT-2",
+    "items": [
+     "Causal attention within context",
+     "Predict the next token",
+     "Autoregressive masking"
+    ]
+   },
+   {
+    "heading": "BERT",
+    "items": [
+     "Bidirectional encoder",
+     "Recover hidden words",
+     "Masked language modeling"
+    ]
+   },
+   {
+    "heading": "Transformer-XL",
+    "items": [
+     "Causal plus memory",
+     "Predict across segments",
+     "Recurrence state reuse"
+    ]
+   }
+  ]
+ }
+}
