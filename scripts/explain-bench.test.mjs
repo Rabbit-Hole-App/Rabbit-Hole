@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, useSpecTree, visuals, planOf, kindStatus, SET_NAMES } from './explain-bench/score.mjs';
+import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, diagramWidthOf, mixName, expectedMix, mixMatrix, useSpecTree, visuals, planOf, kindStatus, SET_NAMES } from './explain-bench/score.mjs';
 import { delta, g3CardText, rankArms, richnessVerdict, run } from './explain-bench/report.mjs';
 import { combine, judgeItems, JUDGE_MODEL, requestBody, useRubrics, RUBRICS, RUBRIC_VERSIONS } from './explain-bench/judge.mjs';
 // Answers every rubric's request shape: no tools = the JSON text of factual-v2, else a record_review call (verdict = the first enum value unless `pick` says otherwise).
@@ -58,6 +58,8 @@ test('content flags follow the written rules', () => {
   assert.deepEqual(maths.flags.bareMaths, ['Compute p_i']);
   const rel = diagramScore({ kind: 'relationship', title: 'r', nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }], edges: [{ from: 'a', to: 'b', label: 'feeds' }, { from: 'a', to: 'c', label: 'trains' }] }, '');
   assert.deepEqual(rel.duplicatedRelationshipNodes, ['A']);
+  const graph = diagramScore({ kind: 'relationship', layout: 'graph', title: 'r', nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }], edges: [{ from: 'a', to: 'b', label: 'feeds' }, { from: 'a', to: 'c', label: 'trains' }] }, '');
+  assert.deepEqual(graph.duplicatedRelationshipNodes, [], 'graph layout draws each node once (owner 2026-11-08 finding 1)');
   assert.match(rel.describe, /A — feeds → B/);
   assert.equal(diagramScore(flow(['A', 'B']), '', ['cycle']).kindRight, false);
 });
@@ -419,4 +421,34 @@ test('keep checks (owner 2026-11-08): right kind at Standard and Deep vs the com
   assert.equal(k.pass, false); assert.equal(k.p50, 7400);
   assert.deepEqual(k.rows.find(x => x.check === 'repairs').limit, '<= 2 (compared run 0 + 2)');
   assert.match(readFileSync(join(b.runDir, 'report.md'), 'utf8'), /\*\*Keep checks\*\* against `a`: right kind at Standard 1 \(>= 1\) PASS; right kind at Deep 1 \(>= 1\) PASS; repairs 2\/2 \(<= 2 \(compared run 0 \+ 2\)\) PASS; p90 ms 7400 \(<= 7000\) FAIL; p50 7400 ms \(reported\)\. \*\*DO NOT KEEP\*\*/);
+});
+
+test('visual-mix matrix (owner 2026-11-08): rows = expected mix, columns = made; the alternative-shape label lands on the made shape; off-diagonal cards listed; two expected / two made', () => {
+  assert.deepEqual(['P', 'D:flow'].map(t => mixName([t])), ['pic', 'svg']);
+  assert.equal(mixName(['D:tree', 'P']), 'svg-pic');
+  assert.equal(mixName([]), 'none');
+  assert.equal(expectedMix([['D:a'], ['D:a', 'D:b']], 'svg-svg'), 'svg-svg');
+  assert.equal(expectedMix([['D:a'], ['D:a', 'D:b']], 'pic'), 'svg');
+  const c = (expected, made, id) => ({ set: 's', run: 1, id, depth: null, expectedMix: expected, madeMix: made });
+  const m = mixMatrix([c('svg-svg', 'svg-svg', 'a'), c('svg-svg', 'svg', 'b'), c('svg', 'svg', 'c'), c('svg-pic', 'none', 'd')]);
+  assert.equal(m.counts['svg-svg']['svg'], 1);
+  assert.equal(m.counts['svg-svg']['svg-svg'], 1);
+  assert.deepEqual(m.off.map(o => o.cards), [['s/b#r1'], ['s/d#r1']]);
+  assert.deepEqual(m.twoVisuals, { expected: 3, madeTwoOfExpected: 1, madeTwo: 1, madeTwoNotExpected: 0 });
+});
+
+test('diagram natural width (card width follows it, owner 2026-11-08): recorded per diagram from the tree\'s own renderer at the usual 408 px, summarised in four buckets plus the max, no gate', async () => {
+  const flowSpec = { kind: 'flow', title: 'F', nodes: [{ id: 'a', label: 'Do a', role: 'process' }, { id: 'b', label: 'Done', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] };
+  const dense = { kind: 'comparison', title: 'Four', columns: ['A', 'B', 'C', 'D'].map(h => ({ heading: `${h} thing`, items: ['one item here', 'second item here', 'third item'] })) };
+  assert.equal(diagramWidthOf(flowSpec), 408, 'an ordinary diagram fits the usual room');
+  assert.ok(diagramWidthOf(dense) > 408, 'a four-column comparison needs more');
+  assert.equal(diagramWidthOf({ kind: 'nonsense' }), null, 'an undrawable spec has no width');
+  const scored = [flowSpec, dense].map(d => diagramScore(d, ''));
+  assert.deepEqual(scored.map(d => d.width), [408, diagramWidthOf(dense)]);
+  const cards = [flowSpec, dense].map((d, i) => card('content', 1, P.content[i].id, block('x', fence(d))));
+  const s = summarize(cards);
+  assert.equal(s.widths.measured, 2);
+  assert.equal(s.widths.le408, 1);
+  assert.equal(s.widths.to700 + s.widths.to960 + s.widths.over960, 1);
+  assert.equal(s.widths.max, Math.max(...scored.map(d => d.width)));
 });

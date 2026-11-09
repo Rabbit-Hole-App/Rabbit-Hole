@@ -240,7 +240,8 @@
    "why": "Training error keeps falling while validation error rises: two curves, or a good-fit vs overfit comparison.",
    "needsPicture": false,
    "noPicture": true,
-   "category": "quantity"
+   "category": "quantity",
+   "minSeries": 2
   },
   {
    "id": "beam-search",

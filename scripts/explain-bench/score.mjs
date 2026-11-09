@@ -8,12 +8,18 @@ import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 // The diagram words and descriptions come from this tree's spec.js unless useSpecTree points at the tree the cards were made on (its newer kinds and wording).
 let spec = ownSpec;
-export async function useSpecTree(tree) { const file = tree && join(tree, 'packages/web/src/tutor-diagrams/spec.js'); spec = file && existsSync(file) ? await import(pathToFileURL(file).href) : ownSpec; return file && existsSync(file) ? file : null; }
+// The card's width follows its widest diagram (owner 2026-11-08): each diagram's natural width is what the stack tree's own renderer draws at the card's usual 408 px of room (renderTutorDiagram,
+// pure, no DOM); null where the tree has no renderer or the spec is not drawable. Recorded as `width`, no gate.
+let renderer = null;
+const loadRenderer = async tree => { const file = tree && join(tree, 'packages/web/src/tutor-diagrams/TutorDiagram.js'); try { renderer = file && existsSync(file) ? (await import(pathToFileURL(file).href)).renderTutorDiagram : null; } catch { renderer = null; } };
+await loadRenderer(join(dirname(fileURLToPath(import.meta.url)), '../..'));
+export const diagramWidthOf = d => { try { return renderer ? Math.round(renderer({ version: 1, diagram: d }, 408).width) : null; } catch { return null; } };
+export async function useSpecTree(tree) { const file = tree && join(tree, 'packages/web/src/tutor-diagrams/spec.js'); spec = file && existsSync(file) ? await import(pathToFileURL(file).href) : ownSpec; await loadRenderer(file ? tree : join(dirname(fileURLToPath(import.meta.url)), '../..')); return file && existsSync(file) ? file : null; }
 
 // The words a diagram draws (spec.js tutorDiagramVisibleText); a kind newer than this copy of spec.js falls back to the caller's own label list.
 export const visibleText = (d, fallback = []) => { let t; try { t = spec.tutorDiagramVisibleText({ diagram: d }); } catch { /* unknown kind */ } return (Array.isArray(t) ? t : fallback).filter(x => typeof x === 'string' && x.trim()); };
 export const SETS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'sets');
-export const SET_NAMES = ['regression', 'baseline', 'aiml', 'sequence', 'content'];
+export const SET_NAMES = ['regression', 'baseline', 'aiml', 'sequence', 'content', 'illustrations'];
 export const loadSet = (name, dir = SETS_DIR) => JSON.parse(readFileSync(join(dir, `${name}.json`), 'utf8'));
 export const availableSets = (dir = SETS_DIR) => readdirSync(dir).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5));
 
@@ -55,6 +61,10 @@ export const proseOf = body => String(body || '').replace(FENCE, ' ');
 const tokenOk = (pat, got) => pat === got || (pat.startsWith('D:') && got.startsWith('D:') && (pat === 'D:*' || pat.slice(2).split('|').includes(got.slice(2))));
 const perms = a => (a.length <= 1 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map(r => [x, ...r])));
 export const matches = (pattern, mix) => pattern.length === mix.length && perms(mix).some(m => m.every((t, i) => tokenOk(pattern[i], t)));
+// Visual-mix matrix (owner 2026-11-08): a mix by what it holds, not which kinds: svg, pic, svg-svg, svg-pic, pic-pic (none = nothing delivered).
+export const mixName = m => (m.length ? [...m.filter(t => t !== 'P').map(() => 'svg'), ...m.filter(t => t === 'P').map(() => 'pic')].join('-') : 'none');
+// The expected row is the label's best mix; a label that lists best mixes of several shapes puts the card on the shape it made when that is one of them, else on the first.
+export const expectedMix = (best, made) => { const shapes = [...new Set((best || []).map(mixName))]; return shapes.includes(made) ? made : shapes[0] || 'none'; };
 const mixClass = m => m.map(t => (t === 'P' ? 'pic' : 'svg')).sort().join('-');
 // One rule: right = matches a best mix including the diagram kind; acceptable = matches an acceptable mix; else wrong.
 export function scoreMix(p, vis) {
@@ -216,13 +226,14 @@ export function diagramScore(d, prose, kinds = null, plotRule = 'strict') {
   };
   let describe = null; try { describe = spec.describeTutorDiagram({ diagram: d }); } catch { /* an unexpected shape: no description */ }
   return {
-    kind: d.kind, kindRight: kinds ? kinds.includes(d.kind) : null, units, edges: edges.length, labelledEdges: labelled, optional,
+    kind: d.kind, width: diagramWidthOf(d), kindRight: kinds ? kinds.includes(d.kind) : null, units, edges: edges.length, labelledEdges: labelled, optional,
     numericLabels: L.filter(x => /\$[^$]+\$|\d/.test(x)).length, labels: L.length,
     // 2026-11-08 study rule: every node label <= 4 words, found verbatim in the prose, and no edge label.
     proseNounBox: NODE_KINDS.includes(d.kind) && nodeLabels.length > 0 && nodeLabels.every(l => l.trim().split(/\s+/).length <= 4 && p.includes(l.trim().toLowerCase())) && labelled === 0,
     flags, flagged: flags.placeholderEdge.length > 0 || flags.duplicateLabels.length > 0 || flags.nounBoxFlow,
     // The relationship layout (teaching-layouts.js) draws one row per edge, so a node in 2+ edges is drawn as 2+ boxes.
-    duplicatedRelationshipNodes: Object.entries(degree).filter(([, n]) => n >= 2).map(([id]) => (d.nodes || []).find(n => n.id === id)?.label ?? id),
+    // Graph layout (the server sets it on every relationship since release 115, relationshipsAsGraphs) draws each node once; only the pairs layout repeats a node that is in 2+ edges.
+    duplicatedRelationshipNodes: d.layout === 'graph' ? [] : Object.entries(degree).filter(([, n]) => n >= 2).map(([id]) => (d.nodes || []).find(n => n.id === id)?.label ?? id),
     arithmetic: PLOT_KINDS.includes(d.kind) ? arithmetic(d, prose, plotRule === 'strict' ? 'strict' : 'legacy') : null,
     describe, spec: d,
   };
@@ -241,7 +252,7 @@ export function planOf(raw) {
   if (e.plan.planner === 'rules') return { planner: 'rules' };
   const d = (e.plan.visuals || []).find(v => v.type === 'diagram');
   // physical = the planner's isPhysical probability; pictures = pictures in the plan; physicalOverride only when the server logs it (the raw line does not carry it yet: see the summary's physical counts).
-  return { planner: 'jev', ms: e.plan.ms ?? null, kind: e.plan.kind ?? null, fixed: e.plan.fixed ?? null, offered: d?.choose || null, treatment: e.plan.depthTreatment ?? null, confidence: e.plan.confidence?.kind ?? null,
+  return { planner: 'jev', ms: e.plan.ms ?? null, kind: e.plan.kind ?? null, kindSource: e.plan.kindSource ?? null, plannerKind: e.plan.plannerKind ?? null, fixed: e.plan.fixed ?? null, offered: d?.choose || null, treatment: e.plan.depthTreatment ?? null, confidence: e.plan.confidence?.kind ?? null,
     physical: e.plan.flags?.isPhysical ?? null, pictures: (e.plan.visuals || []).filter(v => v.type === 'picture').length, diagrams: (e.plan.visuals || []).filter(v => v.type === 'diagram').length, physicalOverride: e.plan.physicalOverride ?? null };
 }
 // A kind's label against a prompt's labels, as one diagram of a card: right = in a best pattern with one diagram token, acceptable = in an acceptable one, else wrong (pictures are ignored).
@@ -258,10 +269,13 @@ export function scoreCard(p, rec, opts = {}) {
   const block = rec.delivered ? rec.block : null, vis = block ? visuals(block) : [], mix = mixOf(vis), prose = block ? proseOf(block.body) : '', plan = planOf(rec.raw);
   const diagrams = vis.filter(v => v.diagram).map(v => diagramScore(v.diagram, prose, p.kinds || null, plotRule));
   const plotWrong = plotRule.startsWith('strict') && diagrams.some(d => PLOT_KINDS.includes(d.kind) && d.arithmetic?.errors > 0);
-  const score = block ? (plotWrong ? 'wrong' : scoreMix(p, vis)) : 'failed', it = block?.interactions;
+  // minSeries (owner 2026-11-08, overfitting card): a coordinate-plot with fewer series than the label asks for (one line through the points, the data drawn once more as a model) is wrong
+  const thinPlot = !!p.minSeries && diagrams.some(d => d.kind === 'coordinate-plot' && (d.spec?.series?.length ?? 0) < p.minSeries);
+  const score = block ? (plotWrong || thinPlot ? 'wrong' : scoreMix(p, vis)) : 'failed', it = block?.interactions;
   return {
     set: rec.set, run: rec.run, depth: rec.depth || null, plotRule, plotWrong, deepPlot: !!p.deepPlot, id: p.id, prompt: p.prompt, group: p.group, category: p.category || null, sketch: p.sketch || null, regressionKind: p.regressionKind || null,
     delivered: !!block, failure: rec.failure || null, title: block?.title || null, mix, score,
+    expectedMix: expectedMix(p.best, mixName(mix)), madeMix: block ? mixName(mix) : 'none', expectedShapes: [...new Set((p.best || []).map(mixName))],
     mixRight: !!block && p.best.some(b => mixClass(b) === mixClass(mix)), badKinds: mix.filter(t => t.startsWith('D:') && (p.badKinds || []).includes(t.slice(2))).map(t => t.slice(2)),
     needsPicture: !!p.needsPicture, noPicture: !!p.noPicture, hasPicture: mix.includes('P'), pictures: vis.filter(v => v.type === 'picture').map(({ type, id, ...v }) => v),
     diagrams, quantKind: diagrams.some(d => QUANT_KINDS.includes(d.kind)),
@@ -287,6 +301,19 @@ export const quantile = (a, p) => { const s = a.filter(Number.isFinite).sort((x,
 const timing = xs => ({ n: xs.length, p50: quantile(xs, 0.5), p90: quantile(xs, 0.9) });
 const tally = (xs, key) => xs.reduce((o, x) => ((o[key(x)] = (o[key(x)] || 0) + 1), o), {});
 
+const MIX_ORDER = ['svg', 'pic', 'svg-svg', 'svg-pic', 'pic-pic'];
+// rows = expected mix, columns = what the card got; off-diagonal cells list their cards so the missing mixes (a 'X vs Y' that got one comparison) are findable.
+export function mixMatrix(cards) {
+  const sent = cards.filter(c => c.expectedMix), rows = [...new Set([...MIX_ORDER, ...sent.map(c => c.expectedMix)])].filter(r => sent.some(c => c.expectedMix === r));
+  const colsAll = [...new Set([...MIX_ORDER, ...sent.map(c => c.madeMix)])].filter(m => MIX_ORDER.includes(m) || sent.some(c => c.madeMix === m)), cols = [...colsAll.filter(m => m !== 'none'), ...(colsAll.includes('none') || sent.some(c => c.madeMix === 'none') ? ['none'] : [])];
+  const cell = (r, m) => sent.filter(c => c.expectedMix === r && c.madeMix === m), two = m => m.split('-').length === 2;
+  const key = c => `${c.set}/${c.id}${c.depth ? '@' + c.depth : ''}#r${c.run}`;
+  const expTwo = sent.filter(c => two(c.expectedMix)), madeTwo = sent.filter(c => two(c.madeMix));
+  return { cards: sent.length, rows, cols, counts: Object.fromEntries(rows.map(r => [r, Object.fromEntries(cols.map(m => [m, cell(r, m).length]))])),
+    off: rows.flatMap(r => cols.filter(m => m !== r).flatMap(m => (cell(r, m).length ? [{ expected: r, made: m, cards: cell(r, m).map(key) }] : []))),
+    twoVisuals: { expected: expTwo.length, madeTwoOfExpected: expTwo.filter(c => two(c.madeMix)).length, madeTwo: madeTwo.length, madeTwoNotExpected: madeTwo.filter(c => !two(c.expectedMix)).length } };
+}
+
 // Every metric of a group of scored cards (counts with their denominators).
 export function summarize(cards) {
   const D = cards.filter(c => c.delivered), dg = D.flatMap(c => c.diagrams.map(d => ({ ...d, at: cardKey(c) }))), graph = dg.filter(d => GRAPH_KINDS.includes(d.kind));
@@ -310,6 +337,7 @@ export function summarize(cards) {
     choice: { right: n(c => c.score === 'right'), acceptable: n(c => c.score === 'acceptable'), wrong: n(c => c.score === 'wrong'), of: D.length,
       rightMixWrongKind: D.filter(c => c.mixRight && c.score !== 'right').map(c => `${at(c)}: ${c.mix.join('+')} (${c.score})`), badKindUsed: D.filter(c => c.badKinds.length).map(c => `${at(c)}: ${c.badKinds.join(', ')}`),
       wrongList: D.filter(c => c.score === 'wrong').map(c => `${at(c)}: ${c.mix.join('+') || 'no visual'}`), kinds: tally(D.flatMap(c => c.mix), k => k) },
+    mixMatrix: mixMatrix(cards),
     regression: regression && { prompts: regression.length, pass: regression.filter(r => r.hits === r.runs).length, list: regression },
     pictures: { needed: need.length, given: need.filter(c => c.hasPicture).length, missing: need.filter(c => !c.hasPicture).map(c => `${at(c)}: ${c.mix.join('+')}`),
       noPictureSubjects: none.length, violations: none.filter(c => c.hasPicture).map(c => `${at(c)}: ${c.mix.join('+')}`),
@@ -325,6 +353,8 @@ export function summarize(cards) {
       quantityPlot: { prompts: D.filter(c => c.category === 'quantity').length, withPlot: D.filter(c => c.category === 'quantity' && c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length, withCorrectPlot: D.filter(c => c.category === 'quantity' && c.diagrams.some(d => PLOT_KINDS.includes(d.kind)) && !c.plotWrong).length },
       binaryLayout: dg.filter(d => d.kind === 'tree' && d.spec?.layout === 'binary').length },
     references: (k => (k.length ? { known: k.length, none: k.filter(c => !c.references.count).length, some: k.filter(c => c.references.count > 0).length } : null))(cards.filter(c => c.references)),
+    // Natural diagram width (card width follows it): how many diagrams fit the usual 408 px, need up to 700, up to 960, or more (they scroll); no gate.
+    widths: (w => ({ measured: w.length, le408: w.filter(x => x <= 408).length, to700: w.filter(x => x > 408 && x <= 700).length, to960: w.filter(x => x > 700 && x <= 960).length, over960: w.filter(x => x > 960).length, max: w.length ? Math.max(...w) : null }))(dg.map(d => d.width).filter(Number.isFinite)),
     content: { diagrams: dg.length, flagged: dg.filter(d => d.flagged).length, placeholderEdge: dg.filter(d => d.flags.placeholderEdge.length).length, duplicateLabels: dg.filter(d => d.flags.duplicateLabels.length).length,
       nounBoxFlow: dg.filter(d => d.flags.nounBoxFlow).length, bareMaths: dg.filter(d => d.flags.bareMaths.length).length,
       relationships: dg.filter(d => d.kind === 'relationship').length, duplicatedRelationshipNodes: dg.filter(d => d.duplicatedRelationshipNodes.length).length,

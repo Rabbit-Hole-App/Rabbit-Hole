@@ -20,21 +20,24 @@ const KIND = {
   timeline: 'Events ordered by dates, years or eras.',
   tree: 'A hierarchy, parts of one thing, splits, recursive calls; binary trees, BSTs, heaps, decision trees as structures.',
   relationship: 'Named things linked by labelled relations, including feedback and cycles between them; causes and effects.',
-  transformation: 'The same thing before and after an operation: reshape, encode, normalise, differencing.',
+  transformation: 'The same thing before and after an operation: reshape, encode, normalise, differencing. Never for a function, wave or encoding over position or time.',
   comparison: 'Two to four separate things set side by side on shared attributes.',
-  layers: 'A real ordered stack: network layers, atmosphere, software tiers, a transformer block.',
+  layers: 'A real ordered stack: network layers, atmosphere, software tiers, a transformer block. A stack: frames or levels pushed and popped (a call stack, a protocol stack), even when the question mentions recursion.',
   matrix: 'A grid of values with row and column headings: truth table, confusion matrix.',
-  'coordinate-plot': 'How one quantity varies with another: a function\'s curve, a loss curve, a decision boundary, points in a plane.',
-  'bar-chart': 'Comparing a few quantities by size, one worked example.',
+  'coordinate-plot': 'How one quantity varies with another: a function\'s curve, a loss curve, a decision boundary, points in a plane. A function, wave or periodic quantity over a position or time (sinusoidal position encoding), or a set of points with centroids or a fitted line (k-means clustering); its x is a quantity that varies continuously (time, epochs, p, size), never categories or indices.',
+  'bar-chart': 'Comparing a few quantities by size, one worked example; also any series over categories or indices (folds, classes, models, runs), such as training vs validation error per fold, grouped when comparing series.',
   histogram: 'The distribution of one numeric variable in bins.',
   'box-plot': 'Quartiles, median, whiskers, outliers of one or more groups.',
   heatmap: 'A numeric grid coloured by value, with an explicit scale.',
   'number-line': 'Values and intervals on one axis.',
-  figure: 'A labelled schematic of a cell, a free-body force diagram, or a layered cross-section only.',
-  'sample-set': 'Identifiable samples and their group membership, replacement or weights (bootstrap, folds).',
+  figure: 'A labelled schematic of a cell, a free-body force diagram, or a layered cross-section only; a device or machine (a lens, an engine, a camera) is a flow or sequence of what it does, not a figure.',
+  'sample-set': 'Identifiable samples and their group membership, replacement or weights (bootstrap, which sample falls in which fold); not the error or score measured per fold.',
   argument: 'A claim with supporting and opposing evidence and a conclusion.',
   't-account': 'Debits and credits.',
   waterfall: 'An opening value changed by signed steps to a closing value.',
+  tensor: 'The shape or values of a vector or matrix: an embedding, a projection, a weight matrix, a batch of activations.',
+  'token-links': 'Attention or any weighted relation between two rows of tokens: which words a word attends to, and how strongly.',
+  'block-stack': 'A layered architecture of blocks, often repeated, with skip connections: a transformer layer, an encoder or decoder stack, mixture-of-experts feed-forward; also a row of tokens, words or values read left to right (embeddings of a sentence, weighted values), drawn as one horizontal strip per item, not a vertical stack of layers.',
 };
 export const QUESTIONS = {
   visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only.",
@@ -72,6 +75,8 @@ export function cases(setDir = join(HERE, 'sets')) {
   const ai = JSON.parse(readFileSync(join(setDir, 'aiml.json'), 'utf8'));
   for (const p of ai.prompts) out.push({ set: 'aiml', id: p.id, depth: 'standard', prompt: p.prompt, best: p.best, acceptable: p.acceptable,
     quantity: [...kindsIn([p.best[0] || []])].some(k => k === 'coordinate-plot' || k === 'bar-chart') });
+  // The review loop's batch-01 prompts (owner 2026-11-09): same best/acceptable notation as aiml.json; read when the file is there.
+  try { for (const p of JSON.parse(readFileSync(join(setDir, 'review-batch-01.json'), 'utf8')).prompts) out.push({ set: 'review-batch-01', id: p.id, depth: 'standard', prompt: p.prompt, best: p.best, acceptable: p.acceptable, quantity: [...kindsIn([p.best[0] || []])].some(k => k === 'coordinate-plot' || k === 'bar-chart') }); } catch { /* shortcut: a missing set file is skipped, the bench keeps its two original sets */ }
   return out.map(c => ({ ...c, rightKinds: kindsIn(c.best), okKinds: new Set([...kindsIn(c.best), ...kindsIn(c.acceptable)]),
     expectType: (ms => (ms.some(m => m.includes('P') && m.some(t => t.startsWith('D:'))) ? ['both'] : []).concat(ms.some(m => m.length && m.every(t => t === 'P')) ? ['picture'] : [], ms.some(m => m[0]?.startsWith('D:')) ? ['diagram'] : []))(c.best) }));
 }
@@ -111,7 +116,7 @@ export function summarize(rows) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
-  const only = arg('--only'), all = cases().filter(c => !only || c.set === only);
+  const only = arg('--only'), all = cases(arg('--set-dir', join(HERE, 'sets'))).filter(c => !only || c.set === only);
   if (process.argv.includes('--dry-run')) { console.log(`${all.length} plans; request size ${JSON.stringify({ model: 'jev-latest', state: {}, questions: QUESTIONS }).length} chars`); process.exit(0); }
   const key = ((readFileSync(ENV_FILE, 'utf8').match(/^TYPESAFE_API_KEY=(.*)$/m) || [])[1] || '').trim().replace(/^["']|["']$/g, '');
   if (!key) { console.error('TYPESAFE_API_KEY missing from the credentials file'); process.exit(2); }

@@ -52,6 +52,7 @@ export const METRICS = [
   ['picture where none belongs', s => pair(s.pictures.violations.length, s.pictures.noPictureSubjects), 'down'],
   ['diagrams', s => s.richness.diagrams, null],
   ['size: median items per diagram', s => s.richness.sizeMedian, null],
+  ['diagram natural width (card width follows it): <= 408 / 409-700 / 701-960 / > 960, max px (no gate)', s => (s.widths?.measured ? `${s.widths.le408} / ${s.widths.to700} / ${s.widths.to960} / ${s.widths.over960}, max ${s.widths.max}` : null), null],
   ['size: graph diagrams outside 3-8 items', s => pair(s.richness.graphOutside3to8, s.richness.graphDiagrams), 'down'],
   ['fields: edges labelled', s => pair(s.richness.labelledEdges, s.richness.edges), 'up'],
   ...['caption', 'detail', 'highlightPath', 'units', 'point labels'].map(k => [`fields: ${k} used`, s => pair(s.richness.fieldUse[k], s.richness.diagrams), 'up']),
@@ -164,7 +165,7 @@ function summaries(cards, setNames) {
   const sets = Object.fromEntries(setNames.map(n => [n, summarize(cards.filter(c => c.set === n))]));
   const spread = Object.fromEntries(setNames.filter(n => runsOf(cards.filter(c => c.set === n)).length > 1).map(n => {
     const per = runsOf(cards.filter(c => c.set === n)).map(r => [r, summarize(cards.filter(c => c.set === n && c.run === r))]);
-    return [n, METRICS.map(([label, get]) => { const vs = per.map(([, s]) => get(s)); const nums = vs.map(v => (Array.isArray(v) ? v[0] : v)).filter(x => x !== null && x !== undefined); // counts, not rates (owner: report counts per run)
+    return [n, METRICS.map(([label, get]) => { const vs = per.map(([, s]) => get(s)); const nums = vs.map(v => (Array.isArray(v) ? v[0] : v)).filter(x => Number.isFinite(x)); // counts, not rates (owner: report counts per run); a text row (the width buckets) has no min-max
       return nums.length ? { label, runs: per.map(([r]) => r), values: vs.map(show), min: Math.min(...nums), max: Math.max(...nums) } : null; }).filter(Boolean)];
   }));
   const judgedByRun = runsOf(cards).map(r => { const s = summarize(cards.filter(c => c.run === r)), pc = s.pictures.content, f = s.content.faithful;
@@ -227,6 +228,10 @@ export function markdown(r) {
   for (const [n, rows] of Object.entries(S.spread)) out.push(`### Spread over runs: ${n}`, '', table(['metric', ...rows[0].runs.map(r => `r${r}`), 'min-max'], rows.map(x => [x.label, ...x.values, `${x.min}-${x.max}`])), '');
   const O = S.overall;
   out.push('## Output tokens by diagram kind', '', O.tokens ? table(['kind in card', 'cards', 'output tokens mean', 'output tokens p90', 'ms p50', 'ms p90'], Object.entries(O.tokens.byKind).sort((a, b) => b[1].outputMean - a[1].outputMean).map(([k, v]) => [k, v.cards, v.outputMean, v.outputP90, v.msP50, v.msP90])) : 'No token counts (run bench.mjs with --persist <stack persist dir>).', '');
+  out.push('## Visual-mix matrix (rows: expected mix from the labels; columns: what the card got)', '', 'A label that lists best mixes of several shapes counts on the shape the card made when it is one of them, else on its first listed shape. Diagonal = the expected shape was made.', '');
+  for (const n of cols) { const M = at(n).mixMatrix; if (!M?.cards) continue; const T = M.twoVisuals, PG = at(n).pictures;
+    out.push(`### ${n}: ${M.cards} cards`, '', table(['expected / made', ...M.cols, 'cards'], M.rows.map(r => [r, ...M.cols.map(m => (M.counts[r][m] ? (m === r ? `**${M.counts[r][m]}**` : M.counts[r][m]) : '.')), M.cols.reduce((s, m) => s + M.counts[r][m], 0)])), '',
+      `Two expected / two made: ${T.madeTwoOfExpected}/${T.expected} cards expected to have two visuals got two; ${T.madeTwoNotExpected} cards got two where the label expects one. Picture needed / given: ${PG.given}/${PG.needed}; picture where none belongs: ${PG.violations.length}/${PG.noPictureSubjects}.`, list('Off-diagonal cards (expected -> made)', M.off.map(o => `${o.expected} -> ${o.made}: ${o.cards.join(', ')}`))); }
   out.push('## Repairs', '', table(['cause (first attempt)', 'cards'], Object.entries(O.repairs.byCause).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, v])), '',
     `Server corrections: ${Object.entries(O.repairs.corrections).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}. Unknown keys stripped: ${O.repairs.unknownKeysStripped ? `${O.repairs.unknownKeysStripped.events} events, ${O.repairs.unknownKeysStripped.keys} keys, on ${O.repairs.unknownKeysStripped.cards} cards` : 'not logged'}. Raw pre-correction specs: ${O.repairs.rawLogged ? `logged for ${O.repairs.rawLogged}/${O.cards.sent} cards` : 'raw: not logged (no explanation_author_raw event in the app log)'}.`, '');
   out.push(`Slowest card: ${O.speed.slowest ? `${O.speed.slowest.at} ${O.speed.slowest.ms} ms, ${O.speed.slowest.repaired ? `repaired (${O.speed.slowest.causes.join(', ')})` : 'not repaired'}, ${O.speed.slowest.pictures} picture(s)` : '-'}.`, '');
