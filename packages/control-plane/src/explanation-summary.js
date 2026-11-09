@@ -1,6 +1,6 @@
 // The collapsed Explanation card's summary (owner spec "minimize an Explanation card to a compact tile", branch explain/minimize-card).
 //
-//   POST /api/learn/explanation-summary { app, id, title, body } -> { summary } (at most 220 characters, plain words), or { summary: null, outcome } when no step answered (still 200: the card keeps its fallback text)
+//   POST /api/learn/explanation-summary { app, id, title, body } -> { summary } (one or two whole sentences, at most 160 characters, ending in a full stop; plain words), or { summary: null, outcome } when no step answered (still 200: the card keeps its fallback text)
 //
 // ONE small model call per card, off the critical path: the client calls it after a new Explanation is on the canvas (and on the first minimize of an old card with none),
 // then writes the answer onto the card it already holds through its normal save path (explanation-minimize.js landSummary). The server never writes a board: canvas
@@ -16,7 +16,8 @@ import { CHAIN_ENDPOINTS, anthropicReply } from './explanation-fast-chain.js';
 import { chainSteps, resolveExplanationProfile } from './explanation-models.js';
 import { capSummary } from '../../web/src/explanation-summary-text.js';
 
-export const SUMMARY_INSTRUCTION = 'Summarise this explanation in at most two sentences and 220 characters, plain words, no maths, for a collapsed preview.';
+// Owner 2026-11-08: one COMPLETE sentence of about 150 characters (never cut, never an ellipsis); the server's hard cap is the shared rule (explanation-summary-text.js capSummary: 160, whole sentences only).
+export const SUMMARY_INSTRUCTION = 'Summarise this explanation in one complete sentence of at most about 150 characters, plain words, no maths or markup, ending with a full stop, for a collapsed preview.';
 // The output cap. The spec asks for about 80 tokens, but gpt-oss spends hidden reasoning tokens inside max_tokens (explanation-models.js CHAIN_MAX_TOKENS), and 80 leaves none
 // for them: an empty answer. 300 is still under a tenth of a cent a call.
 export const SUMMARY_MAX_TOKENS = 300;

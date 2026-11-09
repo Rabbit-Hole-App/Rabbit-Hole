@@ -38,7 +38,7 @@ test('one small call after delivery: the instruction, the title and body prose o
   assert.equal(url, CHAIN_ENDPOINTS.fireworks.url, 'the cheapest step of the chain: gpt-oss on Fireworks');
   assert.equal(headers.Authorization, 'Bearer fw-synthetic');
   assert.equal(body.messages[0].content, SUMMARY_INSTRUCTION);
-  assert.match(SUMMARY_INSTRUCTION, /at most two sentences and 220 characters, plain words, no maths, for a collapsed preview/);
+  assert.match(SUMMARY_INSTRUCTION, /one complete sentence of at most about 150 characters, plain words, no maths or markup, ending with a full stop, for a collapsed preview/);
   assert.match(body.messages[1].content, /^Title: Why coffee cools\n\nA hot cup loses heat/);
   assert.ok(!/rh-diagram|"kind"/.test(body.messages[1].content), 'the diagram fence is not sent');
   assert.equal(body.max_tokens, SUMMARY_MAX_TOKENS);
@@ -47,19 +47,25 @@ test('one small call after delivery: the instruction, the title and body prose o
   assert.equal(body.stream, false);
 });
 
-test('the 220-character cap is enforced on the answer: cut at a sentence, else at a word; maths and markup never reach the tile', async t => {
+test('the 160-character cap is enforced on the answer: whole sentences only, else the first clause closed with a full stop; maths, markup and ellipses never reach the tile', async t => {
   const sentences = 'Heat leaves a hot cup quickly at first, because the gap to the room is wide. '.repeat(6).trim();
   providers(t, reply(sentences));
   const first = (await (await call(BODY)).json()).summary;
-  assert.ok(first.length <= 220 && /\.$/.test(first), `a sentence end: ${first.length} ${first}`);
+  assert.ok(first.length <= 160 && /\.$/.test(first), `a sentence end: ${first.length} ${first}`);
   const run = 'word '.repeat(80).trim();
   providers(t, reply(run));
   const second = (await (await call(BODY)).json()).summary;
-  assert.ok(second.length <= 220 && !/\s$/.test(second) && second.split(' ').every(w => w === 'word'), 'cut at a word, not inside one');
+  assert.ok(second.length <= 160 && /\.$/.test(second) && second.slice(0, -1).split(' ').every(w => w === 'word'), 'cut at a word, not inside one, and closed with a full stop');
   providers(t, reply('The rate is $\\frac{dT}{dt}=-k(T-T_0)$, so **faster** at first.'));
   assert.equal((await (await call(BODY)).json()).summary, 'The rate is , so faster at first.');
   assert.equal(capSummary('Short.'), 'Short.');
-  assert.equal(capSummary(`${'a'.repeat(300)}`).length, 220, 'one unbroken word is cut at the cap');
+  assert.equal(capSummary(`${'a'.repeat(300)}`).length, 161, 'one unbroken word is cut at the cap and closed with a full stop');
+  // The owner's example: a model answer that trails off ends as a complete sentence at its semicolon, never with an ellipsis.
+  const example = 'Cross entropy tells how many extra bits are needed when we encode real data using a model; it adds the ideal bits of the true distribution to a penalty for...';
+  assert.equal(capSummary(example), 'Cross entropy tells how many extra bits are needed when we encode real data using a model.');
+  assert.equal(capSummary('A single sentence that runs on and on, with clauses and more clauses, and still more words after that to pass the cap, never stopping at all before the end.').match(/[.]$/)?.length, 1);
+  assert.equal(capSummary('Water moves from oceans to the air. It then falls as rain and returns to the sea. A third sentence must not appear.'), 'Water moves from oceans to the air. It then falls as rain and returns to the sea.', 'at most two whole sentences');
+  assert.ok(!/\.\.\.|\u2026/.test(capSummary(example)));
 });
 
 test('Fireworks failing falls to Gemini Flash Lite; each call is logged with its latency, provider, size and outcome', async t => {

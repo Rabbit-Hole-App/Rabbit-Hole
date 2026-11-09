@@ -2102,7 +2102,7 @@ function ExplanationTile({ block, onChange, readOnly = false }) {
         <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2">Explanation</Kicker>
       </div>
       <div className="flex flex-col gap-2.5 px-4 pb-3">
-        {summary && <p data-tile-summary className="m-0 line-clamp-3 text-sm text-ink-2">{summary}</p>}
+        {summary && <p data-tile-summary className="m-0 text-sm text-ink-2">{summary}</p>}
         {visual && <div data-tile-visual={visual.kind}>{visual.kind === 'picture' ? <IllustrationFigure illustration={visual.illustration} /> : <TutorDiagram spec={visual.spec} fallback={null} />}</div>}
         {!readOnly && <Button variant="secondary" size="sm" data-explanation-open className="self-center border! border-ink/50!" onPointerDown={event => event.stopPropagation()} onClick={() => onChange({ ...block, minimized: false })}>Open</Button>}
       </div>

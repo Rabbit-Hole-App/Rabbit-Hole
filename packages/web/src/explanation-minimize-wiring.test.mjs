@@ -9,7 +9,7 @@ const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'u
 test('a new Explanation is summarised in the background after it is inserted; minimize asks only if the card has none; never twice, never on a view-only canvas', () => {
   assert.match(canvas, /if \(added\.type === 'explanation'\) fillSummary\(added\.id, added\);/);
   assert.match(canvas, /const minimizeCard = id => \{ patchBlockNow\(id, \{ minimized: true \}\); fillSummary\(id\); \};/, 'minimize is one saved step; it never waits for the summary');
-  assert.match(canvas, /if \(!card \|\| card\.summary \|\| summaryAsked\.current\.has\(id\) \|\| readOnlyRef\.current \|\| localCopyRef\.current\) return;/);
+  assert.match(canvas, /if \(!card \|\| goodSummary\(card\.summary\) \|\| summaryAsked\.current\.has\(id\) \|\| readOnlyRef\.current \|\| localCopyRef\.current\) return;/);
 });
 
 test('the summary lands through landSummary on the latest blocks, quietly: no undo step, no toast, and a failed request may be asked again', () => {

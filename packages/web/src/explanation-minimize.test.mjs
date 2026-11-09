@@ -25,7 +25,7 @@ await esbuild.build({
 });
 const B = createRequire(import.meta.url)(outfile);
 
-import { SUMMARY_CHARS, capSummary, isMinimized, landSummary, minimizable, minimizedVisual, requestSummary, summaryInput, tileSummary, tileWidth } from './explanation-minimize.js';
+import { SUMMARY_CHARS, capSummary, goodSummary, isMinimized, landSummary, minimizable, minimizedVisual, requestSummary, summaryInput, tileSummary, tileWidth } from './explanation-minimize.js';
 import { patchBlock } from './card-layout.js';
 
 const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
@@ -41,7 +41,8 @@ test('the tile: title, summary clamped to three lines, the picture when there is
   const html = draw(card({ minimized: true, summary: 'A hot cup cools fastest first.', body: `${PROSE}\n\n${PICTURE}`, figures: FIGURES }));
   assert.match(html, /data-explanation-tile/);
   assert.match(html, /Why coffee cools/);
-  assert.match(html, /<p data-tile-summary="true" class="[^"]*line-clamp-3[^"]*">A hot cup cools fastest first\.<\/p>/);
+  assert.match(html, /<p data-tile-summary="true" class="[^"]*">A hot cup cools fastest first\.<\/p>/);
+  assert.doesNotMatch(html.match(/<p data-tile-summary[^>]*>/)[0], /line-clamp|truncate|ellipsis/, 'the summary is sized by its text, never cut by the tile');
   assert.match(html, /data-tile-visual="picture"/);
   assert.match(html, /<img src="data:image\/png;base64,AAAA" alt="A steaming cup"/);
   assert.doesNotMatch(html, /data-illustration-caption/, 'no caption on the tile');
@@ -80,13 +81,23 @@ test('minimizedVisual: the legacy illustration, a ready figure or a diagram; nev
   assert.equal(minimizedVisual(card()), null);
 });
 
-test('the summary: the saved one, else the first sentences of the body cut at 220 characters at a sentence, else at a word', () => {
+test('the summary (owner 2026-11-08): the saved one when it is good, else the first whole sentence(s) of the body that fit in 160 characters; never an ellipsis, never a dangling clause', () => {
   assert.equal(tileSummary(card({ summary: 'Saved words.' })), 'Saved words.');
   assert.equal(tileSummary(card()), PROSE, 'under the cap the body is whole');
   const long = card({ body: `# Heading\n\n${fence('rh-diagram', SPEC)}\n\n${'Heat leaves a hot cup quickly at first, since the gap to the room is wide. '.repeat(6)}` });
   const fallback = tileSummary(long);
   assert.ok(fallback.length <= SUMMARY_CHARS && fallback.endsWith('.') && !/Heading|rh-diagram/.test(fallback), fallback);
-  assert.ok(capSummary('word '.repeat(100)).length <= 220 && !capSummary('word '.repeat(100)).endsWith(' '));
+  assert.ok(capSummary('word '.repeat(100)).length <= SUMMARY_CHARS + 1 && capSummary('word '.repeat(100)).endsWith('word.'));
+  assert.equal(SUMMARY_CHARS, 160);
+  // a stored summary that is too long or does not end in . ! or ? is bad: the tile shows the body's first whole sentence(s) instead, and a new one may land
+  assert.equal(goodSummary('A whole sentence.'), true);
+  assert.equal(goodSummary('Cross entropy tells how many extra bits are needed when we encode real data using a model; it adds the ideal bits of the true distribution to a penalty for...'), false);
+  assert.equal(goodSummary('x'.repeat(161) + '.'), false);
+  const bad = card({ summary: 'Cross entropy tells how many extra bits are needed when we encode real data using a model; it adds the ideal bits of the true distribution to a penalty for...' });
+  assert.equal(tileSummary(bad), PROSE, 'the body\'s first sentence(s), not the trailing-off summary');
+  assert.equal(landSummary([bad], 'c1', 'A new whole sentence.')[0].summary, 'A new whole sentence.', 'a bad stored summary is replaced when a new one lands');
+  assert.equal(landSummary([card({ summary: 'Kept as it is.' })], 'c1', 'Other words.')[0].summary, 'Kept as it is.');
+  assert.ok(tileSummary(card({ summary: 'It ends here.' })).endsWith('.'));
   assert.equal(capSummary('It is $x^2$ here.'), 'It is here.');
 });
 
