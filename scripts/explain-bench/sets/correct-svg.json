@@ -2,7 +2,7 @@
  "name": "correct-svg",
  "version": {
   "prompts": "P1 2026-11-08 (owner: 6 regression + 8 content formula prompts)",
-  "labels": "L1 2026-11-08 per-depth kinds, acceptable kinds and sketches, written before any run"
+  "labels": "L2 2026-11-08 owner relabel: entropy relationship = right (as the regression relabel); atmosphere picture + layers = right (a physical thing gets a picture first)"
  },
  "measures": "Does the author write correct diagram JSON at each depth (overview: plain-word labels, no formulas, simplest kind; standard: the mechanism with its terms; deep: the formula or exact relationship in labels, a plot or chart when a quantity is involved, maths in $...$). Run with --depths overview,standard,deep.",
  "written": "2026-11-08, before any correct-svg card was sent",
@@ -165,6 +165,12 @@
      "sketch": [
       "Layers from the ground up in plain words: where weather happens, where planes fly and the ozone sits, where meteors burn up, where satellites orbit.",
       "Bottom to top; numbers not needed."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
      ]
     },
     "standard": {
@@ -178,6 +184,12 @@
      "sketch": [
       "Troposphere, stratosphere (ozone layer), mesosphere, thermosphere, exosphere, bottom to top.",
       "One fact per layer: weather, ozone absorbs UV, meteors burn up, aurora and the ISS."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
      ]
     },
     "deep": {
@@ -191,6 +203,12 @@
      "sketch": [
       "The five layers with heights: troposphere 0-12 km, stratosphere 12-50 km, mesosphere 50-85 km, thermosphere 85-600 km, exosphere above.",
       "The temperature trend of each layer (falls, rises, falls, rises) in its label or detail."
+     ],
+     "extraBest": [
+      [
+       "P",
+       "D:layers"
+      ]
      ]
     }
    }
@@ -327,10 +345,10 @@
    "depths": {
     "overview": {
      "kinds": [
-      "transformation"
+      "transformation",
+      "relationship"
      ],
      "acceptableKinds": [
-      "relationship",
       "comparison"
      ],
      "sketch": [
@@ -340,10 +358,10 @@
     },
     "standard": {
      "kinds": [
-      "transformation"
+      "transformation",
+      "relationship"
      ],
      "acceptableKinds": [
-      "relationship",
       "comparison",
       "bar-chart"
      ],
@@ -356,10 +374,10 @@
      "kinds": [
       "transformation",
       "bar-chart",
-      "coordinate-plot"
+      "coordinate-plot",
+      "relationship"
      ],
      "acceptableKinds": [
-      "relationship",
       "comparison"
      ],
      "sketch": [
@@ -824,5 +842,8 @@
     }
    }
   }
+ ],
+ "relabels": [
+  "2026-11-08 owner relabel (v2): entropy, all depths: relationship moved from acceptable into kinds (right); atmosphere, all depths: P + D:layers is right. Nothing else changed."
  ]
 }
