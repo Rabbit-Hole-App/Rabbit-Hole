@@ -109,3 +109,37 @@ test('integer axis ticks show each depth when space allows and reject noninteger
   spec.diagram.x.max = 2.5;
   assert.throws(() => parseTutorDiagram(spec));
 });
+
+test('compact sample grids keep all 25 coordinates while preserving the stored spec', () => {
+  const series = { label: 'Samples', kind: 'line',
+    samples: { x: { start: 0, step: 1, divisor: 24 }, y: Array.from({ length: 25 }, (_, index) => index), divisor: 24 } };
+  const spec = { version: 1, diagram: { kind: 'coordinate-plot', title: 'Compact samples',
+    x: { label: 'X', min: 0, max: 1 }, y: { label: 'Y', min: 0, max: 1 }, series: [series],
+  } };
+  assert.deepEqual(parseTutorDiagram(spec), spec);
+  const svg = renderToStaticMarkup(renderTutorDiagram(spec, 408).element);
+  const [curve] = svg.match(/<path d="M[^"]+C[^"]+"/) ?? [];
+  assert.equal(curve?.split('C').length, 25);
+  assert.match(svg, /\(0\.5, 0\.5\)/);
+});
+
+test('compact steps match explicit coordinates and label only the leaf starts', () => {
+  const series = { label: 'Leaf means', kind: 'step',
+    samples: { x: [0, 2, 5], y: [125, 500, 500], divisor: 1000, showValues: true } };
+  const spec = { version: 1, diagram: { kind: 'coordinate-plot', title: 'Step means',
+    x: { label: 'X', min: 0, max: 5 }, y: { label: 'Y', min: 0, max: 1 }, series: [series],
+  } };
+  const explicit = { ...spec, diagram: { ...spec.diagram, series: [{ label: series.label, kind: series.kind,
+    points: [{ x: 0, y: 0.125, label: '0.125' }, { x: 2, y: 0.5, label: '0.5' }, { x: 5, y: 0.5 }],
+  }] } };
+  const render = diagram => renderToStaticMarkup(renderTutorDiagram(parseTutorDiagram(diagram), 408).element);
+  assert.equal(render(spec), render(explicit));
+  assert.throws(() => parseTutorDiagram({ ...spec, diagram: { ...spec.diagram,
+    series: [{ ...series, points: explicit.diagram.series[0].points }],
+  } }));
+  for (const x of [[0, 2], [0, 2, 6], [0, 2, 2]]) {
+    assert.throws(() => parseTutorDiagram({ ...spec, diagram: { ...spec.diagram,
+      series: [{ ...series, samples: { ...series.samples, x } }],
+    } }));
+  }
+});

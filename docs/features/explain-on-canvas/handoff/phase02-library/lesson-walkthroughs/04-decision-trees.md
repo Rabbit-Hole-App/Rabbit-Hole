@@ -147,6 +147,40 @@ For the separate two-feature worked forest, multiply each node’s Gini gain by 
 
 For a single permutation example, hold the trees fixed and swap one feature’s values between the held-out rows. Before the swap, the forest gets 2/2 labels right. Swapping x gives 0/2 correct, a drop of 100 percentage points. Swapping y gives 2/2 correct, a drop of 0 points. These are results for this one swap on the small held-out set.
 
+## Additional demo figures
+
+These five `coordinate-plot` references answer related questions from the lesson. The probability curves follow their formulas. The regression example fits its own sine samples. The pruning and forest-size curves use illustrative results.
+
+### Compare Gini and entropy
+
+Both scores are zero for a pure node and peak when the classes are equally frequent. Gini peaks at 0.5 and binary entropy at 1 bit. The plot samples the formulas at 11 equally spaced class fractions.
+
+`ml-trees-gini-vs-entropy` · [Balanced 408 px SVG](../illustrations/ml-trees-gini-vs-entropy/408.svg)
+
+### Measure bootstrap coverage
+
+Each of the n draws misses a given row with probability `1 − 1/n`. The probability that all n draws miss it approaches `1/e`, so the expected share of distinct rows drawn approaches 63.2%.
+
+`ml-trees-bootstrap-coverage` · [Balanced 408 px SVG](../illustrations/ml-trees-bootstrap-coverage/408.svg)
+
+### Choose a pruning penalty
+
+At the marked penalty α = 0.01, the tree has six leaves and retains 90% held-out accuracy. The log axis shows equal ratios in α. Leaf count is shown as a share of the initial ten leaves so both curves use a percent scale.
+
+`ml-trees-cost-complexity-pruning` · [Balanced 408 px SVG](../illustrations/ml-trees-cost-complexity-pruning/408.svg)
+
+### Compare forest sizes
+
+In this illustrative run, increasing the forest from one tree to 50 raises test accuracy from 78% to 92%. The next 150 trees add half a percentage point. The log axis shows equal ratios in tree count.
+
+`ml-trees-forest-size-accuracy` · [Balanced 408 px SVG](../illustrations/ml-trees-forest-size-accuracy/408.svg)
+
+### Fit sine with regression trees
+
+Both trees fit the same 25 equally spaced samples from 0 through 2π. The plotted x coordinates count units of π/24. The fits choose midpoint cuts by squared-error reduction, with limits of four leaves at depth two and sixteen at depth five. Each step is the mean of the rounded samples in its leaf.
+
+`ml-trees-regression-step-fit` · [Balanced 408 px SVG](../illustrations/ml-trees-regression-step-fit/408.svg)
+
 ## Pilot choices
 
 All ten suggested figures are included. The split figures use Gini for exact arithmetic, with entropy and regression worked through alongside the figures. Figure 5 uses the coordinate plot’s filled rectangles. Figure 10 is included because the lesson covers MDI and permutation importance.

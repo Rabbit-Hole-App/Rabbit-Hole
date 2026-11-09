@@ -1908,5 +1908,105 @@
         "height": 418
       }
     }
+  },
+  "ml-trees-gini-vs-entropy": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 593
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 576
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 593
+      }
+    }
+  },
+  "ml-trees-bootstrap-coverage": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 563
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 524
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 563
+      }
+    }
+  },
+  "ml-trees-cost-complexity-pruning": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 552
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 535
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 552
+      }
+    }
+  },
+  "ml-trees-forest-size-accuracy": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 603
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 603
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 603
+      }
+    }
+  },
+  "ml-trees-regression-step-fit": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 539
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 539
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 539
+      }
+    }
   }
 }

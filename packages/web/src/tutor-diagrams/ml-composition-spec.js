@@ -1,3 +1,5 @@
+import { plotSeriesPoints } from './ml-plot-spec.js';
+
 // Composition is deliberately one level deep. The integration owner supplies a
 // union containing every supported leaf kind, excluding both composition kinds.
 export function createShapes({ z, titled, text, id, itemList, leafDiagram, panelDiagram = leafDiagram }) {
@@ -52,7 +54,7 @@ function validateComparison(diagram, issue) {
 function identities(diagram) {
   const entries = diagram.kind === 'matrix' ? diagram.rows
     : diagram.kind === 'sample-set' ? diagram.samples
-      : diagram.kind === 'coordinate-plot' ? diagram.series.flatMap(series => series.points) : null;
+      : diagram.kind === 'coordinate-plot' ? diagram.series.flatMap(plotSeriesPoints) : null;
   return entries ? { ids: new Set(entries.map(entry => entry.id).filter(Boolean)), complete: entries.every(entry => entry.id) } : null;
 }
 

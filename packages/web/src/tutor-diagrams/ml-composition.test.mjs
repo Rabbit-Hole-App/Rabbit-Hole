@@ -143,6 +143,14 @@ test('mapped transformations reject unknown IDs, duplicate mappings and unmapped
   assert.equal(schema.safeParse({ ...input, identity: { ...input.identity, mode: 'preserved' } }).success, false);
 });
 
+test('compact plots in transformations report the missing sample identities', () => {
+  const input = transformation();
+  input.before.diagram.series = [{ label: 'Samples', kind: 'scatter', samples: { x: [1, 3], y: [2, 6] } }];
+  const result = tutorDiagramSchema.safeParse({ version: 1, diagram: input });
+  assert.equal(result.success, false);
+  assert.ok(result.error.issues.some(issue => issue.message.includes('stable ID')));
+});
+
 test('comparison includes real child marks and titles at native sizes without nested SVG shells', () => {
   const input = comparison({ sharedAxes: ['x', 'y'], panels: [
     { heading: 'First', diagram: plot() },

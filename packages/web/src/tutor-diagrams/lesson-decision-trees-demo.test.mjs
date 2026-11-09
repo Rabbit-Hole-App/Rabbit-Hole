@@ -12,6 +12,11 @@ const demo = [
   ['bootstrap-roots', 'what does a bootstrap sample of the training rows look like, and which rows repeat?'],
   ['majority-vote', 'how does a random forest combine the predictions of its trees into one answer?'],
   ['feature-importance', 'compare impurity-based feature importance with permutation importance when one feature is random noise'],
+  ['gini-vs-entropy', 'how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?'],
+  ['cost-complexity-pruning', 'how does cost-complexity pruning trade tree size against accuracy as alpha increases?'],
+  ['regression-step-fit', 'how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?'],
+  ['bootstrap-coverage', 'why does a bootstrap sample contain only about 63% of the unique training rows?'],
+  ['forest-size-accuracy', 'how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?'],
 ];
 
 for (const [name, prompt] of demo) {

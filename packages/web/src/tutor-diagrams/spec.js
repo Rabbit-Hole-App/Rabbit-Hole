@@ -285,6 +285,7 @@ function checkPlot({ x, y, series }, issue) {
     if (axis.min >= axis.max) issue([name, 'max'], 'The maximum must be greater than the minimum');
   }
   series.forEach(({ kind, points }, i) => {
+    if (!points) return; // The plot schema validates compact samples.
     if (kind === 'line' && points.length < 2) issue(['series', i, 'points'], 'A line needs at least two points');
     points.forEach((point, j) => {
       if (point.x < x.min || point.x > x.max || point.y < y.min || point.y > y.max) {

@@ -201,6 +201,106 @@
           "sha256": "7907ee561a36baa4a900045e5bc34761ae33da66d2a731449eb35629431c5eba"
         }
       ]
+    },
+    "ml-trees-gini-vs-entropy": {
+      "overview": [
+        {
+          "tokens": 276,
+          "sha256": "fd59983a0f195bba2918325e3531fddc727bcefa0ea20e0f9e99348481c6850b"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 276,
+          "sha256": "fd59983a0f195bba2918325e3531fddc727bcefa0ea20e0f9e99348481c6850b"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 276,
+          "sha256": "fd59983a0f195bba2918325e3531fddc727bcefa0ea20e0f9e99348481c6850b"
+        }
+      ]
+    },
+    "ml-trees-bootstrap-coverage": {
+      "overview": [
+        {
+          "tokens": 215,
+          "sha256": "7e8df697a3c27d3cc1dc29d475190dbc3a5c7f9e982ff995c33293d53b92f5d6"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 215,
+          "sha256": "7e8df697a3c27d3cc1dc29d475190dbc3a5c7f9e982ff995c33293d53b92f5d6"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 215,
+          "sha256": "7e8df697a3c27d3cc1dc29d475190dbc3a5c7f9e982ff995c33293d53b92f5d6"
+        }
+      ]
+    },
+    "ml-trees-cost-complexity-pruning": {
+      "overview": [
+        {
+          "tokens": 239,
+          "sha256": "33c6d27d5359c7238eda41fe9b8ad7b1767cd8a79894bec7c1307882da3e554f"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 239,
+          "sha256": "33c6d27d5359c7238eda41fe9b8ad7b1767cd8a79894bec7c1307882da3e554f"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 239,
+          "sha256": "33c6d27d5359c7238eda41fe9b8ad7b1767cd8a79894bec7c1307882da3e554f"
+        }
+      ]
+    },
+    "ml-trees-forest-size-accuracy": {
+      "overview": [
+        {
+          "tokens": 164,
+          "sha256": "bd41250a5864b8545c89de13df6f40ba5d93d47ada1bd2b478d51f9b39a462a2"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 164,
+          "sha256": "bd41250a5864b8545c89de13df6f40ba5d93d47ada1bd2b478d51f9b39a462a2"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 164,
+          "sha256": "bd41250a5864b8545c89de13df6f40ba5d93d47ada1bd2b478d51f9b39a462a2"
+        }
+      ]
+    },
+    "ml-trees-regression-step-fit": {
+      "overview": [
+        {
+          "tokens": 288,
+          "sha256": "441f2dda13eeff55079a00e84b8388c9160a627da6c233229c76657fec11fb9b"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 288,
+          "sha256": "441f2dda13eeff55079a00e84b8388c9160a627da6c233229c76657fec11fb9b"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 288,
+          "sha256": "441f2dda13eeff55079a00e84b8388c9160a627da6c233229c76657fec11fb9b"
+        }
+      ]
     }
   }
 }

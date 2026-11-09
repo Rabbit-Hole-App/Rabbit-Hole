@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 import { tokenizeMath } from '../math-tokens.js';
+import { plotSeriesPoints } from './ml-plot-spec.js';
 
 // Authored display text in the v1 shapes. Structural strings and numeric data stay out of the check.
 const TEXT_FIELDS = new Set([
@@ -137,14 +138,15 @@ function mergeablePlots(a, b) {
   if (!sameAxis(a.x, b.x) || !sameAxis(a.y, b.y) || a.annotations?.length || b.annotations?.length
     || a.series?.length !== 1 || b.series?.length !== 1) return false;
   const [left] = a.series, [right] = b.series;
-  if ([left, right].some(series => series.points.some(point => point.label !== undefined
+  const leftPoints = plotSeriesPoints(left), rightPoints = plotSeriesPoints(right);
+  if ([leftPoints, rightPoints].some(points => points.some(point => point.label !== undefined
     || point.low !== undefined || point.high !== undefined))) return false;
   if (left.kind === 'scatter' && right.kind === 'scatter') {
-    const coordinates = new Set(left.points.map(({ x, y }) => `${x},${y}`));
-    return right.points.every(({ x, y }) => !coordinates.has(`${x},${y}`));
+    const coordinates = new Set(leftPoints.map(({ x, y }) => `${x},${y}`));
+    return rightPoints.every(({ x, y }) => !coordinates.has(`${x},${y}`));
   }
   if (left.kind !== 'line' || right.kind !== 'line') return false;
-  const leftX = left.points.map(point => point.x), rightX = right.points.map(point => point.x);
+  const leftX = leftPoints.map(point => point.x), rightX = rightPoints.map(point => point.x);
   return Math.max(...leftX) < Math.min(...rightX) || Math.max(...rightX) < Math.min(...leftX);
 }
 

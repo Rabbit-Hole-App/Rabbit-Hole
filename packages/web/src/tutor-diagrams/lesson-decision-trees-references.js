@@ -1,4 +1,7 @@
 import { decisionTreesLesson as lesson } from './lesson-decision-trees-data.js';
+import { lessonDecisionTreesAnalyticDemos } from './lesson-decision-trees-analytic-demos.js';
+import { lessonDecisionTreesIllustrativeDemos } from './lesson-decision-trees-illustrative-demos.js';
+import { lessonDecisionTreesRegressionDemo } from './lesson-decision-trees-regression-demo.js';
 
 const { train, holdout, tree, trials, errors, forest, vote } = lesson;
 const spec = diagram => ({ version: 1, diagram });
@@ -65,6 +68,13 @@ function reference(name, prompt, paraphrase, phrase, useWhen, atDepth) {
     paraphrases: [paraphrase], keywords: [phrase, ...route.keywords], shortKeywords: route.keywords, useWhen,
     spec: spec(atDepth('standard')),
     depths: { overview: { spec: spec(atDepth('overview')) }, deep: { spec: spec(atDepth('deep')) } },
+  };
+}
+
+function demoReference({ name, prompt, paraphrase, keywords, useWhen, diagramAt }) {
+  return {
+    id: `ml-trees-${name}`, lessons: ['04'], prompts: [prompt, paraphrase], paraphrases: [paraphrase],
+    keywords, shortKeywords: keywords, useWhen, spec: spec(diagramAt('standard')), depths: {},
   };
 }
 
@@ -302,4 +312,9 @@ export const lessonDecisionTreesReferences = Object.freeze([
   reference('feature-importance', 'Can you compute forest Gini decrease by feature for these trees?',
     'Show the forest Gini decrease by feature and compare the two totals.', 'forest gini decrease by feature',
     'Contrast normalized illustrative impurity and held-out permutation scores when a high-cardinality feature is noise.', importanceChart),
+  ...[
+    ...lessonDecisionTreesAnalyticDemos,
+    ...lessonDecisionTreesIllustrativeDemos,
+    lessonDecisionTreesRegressionDemo,
+  ].map(demoReference),
 ]);

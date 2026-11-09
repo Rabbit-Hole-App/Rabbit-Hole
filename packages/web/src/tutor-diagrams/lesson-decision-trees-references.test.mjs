@@ -16,6 +16,7 @@ const visual = (ref, depth) => ref.depths[depth]?.spec ?? ref.spec;
 const diagram = (name, depth) => visual(references.find(ref => ref.id === `ml-trees-${name}`), depth).diagram;
 const size = counts => counts.reduce((sum, count) => sum + count, 0);
 const rule = (split, right = false) => `${split.feature} ${right ? 'above' : 'at most'} ${split.threshold}`;
+const illustrativeIds = ['ml-trees-feature-importance', 'ml-trees-cost-complexity-pruning', 'ml-trees-forest-size-accuracy'];
 
 for (const ref of references) {
   test(`${ref.id} validates, meets the budget and is picked first at all depths`, () => {
@@ -28,7 +29,7 @@ for (const ref of references) {
       const parsed = parseTutorDiagram(spec);
       assert.deepEqual(parsed, parseTutorDiagram(json));
       assert.deepEqual(lintDiagramContent(spec), []);
-      const illustrative = ref.id === 'ml-trees-feature-importance' || (ref.id === 'ml-trees-depth-overfit' && depth !== 'deep');
+      const illustrative = illustrativeIds.includes(ref.id) || (ref.id === 'ml-trees-depth-overfit' && depth !== 'deep');
       assert.match(spec.diagram.caption, illustrative ? /^Illustrative\b/ : /^Worked example\./);
       const [measured] = budgets.refs[ref.id][depth];
       assert.equal(createHash('sha256').update(json).digest('hex'), measured.sha256);
@@ -42,20 +43,21 @@ for (const ref of references) {
   });
 }
 
-test('the pilot has ten measured figures with no stale budget entries', () => {
-  assert.equal(references.length, 10);
+test('the pilot and demo have fifteen measured figures with no stale budget entries', () => {
+  assert.equal(references.length, 15);
   assert.equal(budgets.encoding, 'cl100k_base');
   assert.equal(budgets.maxSpecTokens, 300);
   assert.deepEqual(Object.keys(budgets.refs), references.map(ref => ref.id));
 });
 
-test('the walkthrough publishes the same ten data rows and three previews per reference', () => {
+test('the walkthrough publishes the same ten data rows and a preview for each authored variant', () => {
   const document = new URL('../../../../docs/features/explain-on-canvas/handoff/phase02-library/lesson-walkthroughs/04-decision-trees.md', import.meta.url);
   const markdown = readFileSync(document, 'utf8');
   const rows = markdown.match(/^\| [A-Z] \| .*$/gm);
   assert.deepEqual(rows, lesson.rows.map(row => `| ${row.id} | ${row.x} | ${row.y} | ${row.label} | ${lesson.train.includes(row) ? 'Training' : 'Held out'} |`));
   for (const ref of references) {
-    for (const suffix of ['-brief', '', '-detailed']) {
+    for (const [depth, suffix] of [['overview', '-brief'], ['standard', ''], ['deep', '-detailed']]) {
+      if (depth !== 'standard' && !ref.depths[depth]) continue;
       const path = `../illustrations/${ref.id}${suffix}/408.svg`;
       assert.ok(markdown.includes(`(${path})`), path);
       assert.match(readFileSync(new URL(path, document), 'utf8'), /^<svg /);

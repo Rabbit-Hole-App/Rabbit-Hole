@@ -4406,6 +4406,81 @@
       "width": 420,
       "height": 418
     },
+    "ml-trees-gini-vs-entropy/408": {
+      "sha256": "491e4132049f33502e574eda79c27821e22cc7056fe9837a3b40f792d2e5ad01",
+      "width": 420,
+      "height": 593
+    },
+    "ml-trees-gini-vs-entropy/960": {
+      "sha256": "199312dd68380d804d93a279b4edc6147da5aa3e5c917994b1efbd002c4052ed",
+      "width": 720,
+      "height": 576
+    },
+    "ml-trees-gini-vs-entropy/natural": {
+      "sha256": "491e4132049f33502e574eda79c27821e22cc7056fe9837a3b40f792d2e5ad01",
+      "width": 420,
+      "height": 593
+    },
+    "ml-trees-bootstrap-coverage/408": {
+      "sha256": "9b1e29f086dbb7e98782ca42d18e6ee367ea6afbe9f44bc28a2834684b9d6416",
+      "width": 420,
+      "height": 563
+    },
+    "ml-trees-bootstrap-coverage/960": {
+      "sha256": "9954f165293350257d20537bc7b06d7cced181232bacf9154215d69fe06ee617",
+      "width": 720,
+      "height": 524
+    },
+    "ml-trees-bootstrap-coverage/natural": {
+      "sha256": "9b1e29f086dbb7e98782ca42d18e6ee367ea6afbe9f44bc28a2834684b9d6416",
+      "width": 420,
+      "height": 563
+    },
+    "ml-trees-cost-complexity-pruning/408": {
+      "sha256": "7d564950a20cf00b9a080826ca971c1df27c8a58e3276f54c67f1734d9e4a633",
+      "width": 420,
+      "height": 552
+    },
+    "ml-trees-cost-complexity-pruning/960": {
+      "sha256": "916fb3fb3b7782a44f960983e1020c043b4cca07662f677708f0f2a4f62b4208",
+      "width": 720,
+      "height": 535
+    },
+    "ml-trees-cost-complexity-pruning/natural": {
+      "sha256": "7d564950a20cf00b9a080826ca971c1df27c8a58e3276f54c67f1734d9e4a633",
+      "width": 420,
+      "height": 552
+    },
+    "ml-trees-forest-size-accuracy/408": {
+      "sha256": "ff59fcc9198d5b1e0cc4b2cd72da82bdfac7fb506f2fa2c4de2d1716a4dcfcb2",
+      "width": 420,
+      "height": 603
+    },
+    "ml-trees-forest-size-accuracy/960": {
+      "sha256": "30f1c57bce85a7bc5c147b00d346f9aaafd809bbde724472890235b681cefef4",
+      "width": 720,
+      "height": 603
+    },
+    "ml-trees-forest-size-accuracy/natural": {
+      "sha256": "ff59fcc9198d5b1e0cc4b2cd72da82bdfac7fb506f2fa2c4de2d1716a4dcfcb2",
+      "width": 420,
+      "height": 603
+    },
+    "ml-trees-regression-step-fit/408": {
+      "sha256": "6326368462e23954d8bac266f1a9582a341a59c5112620aaf4b859862d9dec25",
+      "width": 420,
+      "height": 539
+    },
+    "ml-trees-regression-step-fit/960": {
+      "sha256": "13613f19018a8bc090badfb5e1158bedd50f33d01ea24dded3c5cd83cc7f9fb5",
+      "width": 720,
+      "height": 539
+    },
+    "ml-trees-regression-step-fit/natural": {
+      "sha256": "6326368462e23954d8bac266f1a9582a341a59c5112620aaf4b859862d9dec25",
+      "width": 420,
+      "height": 539
+    },
     "shape-tensor-brief/408": {
       "sha256": "90b81acc0f291ee235f82a54012add26879bb7f4cf99ef9569a6be200317c1e1",
       "width": 408,

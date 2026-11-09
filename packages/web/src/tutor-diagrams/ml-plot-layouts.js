@@ -3,7 +3,7 @@ import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.
 import { monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { TEACHING as T, TEACHING_SERIES, teachingConnector } from './teaching-theme.js';
-import { annotationDescription, axisName, isExtendedPlot } from './ml-plot-spec.js';
+import { annotationDescription, axisName, isExtendedPlot, plotSeriesPoints } from './ml-plot-spec.js';
 
 const PAD = 12;
 const SMALL = 12;
@@ -50,7 +50,7 @@ function plotEndLabels(series) {
     Math.max(Math.min(128, textWidth(entry.label, SMALL)), widestFormula(entry.label, SMALL)))));
   const labels = endSeries.map(({ entry, color }) => {
     const lines = wrap(entry.label, endLabelWidth, SMALL);
-    return { name: entry.label, value: entry.points.at(-1).y, color, lines, height: lines.length * lineHeight(SMALL) };
+    return { name: entry.label, value: (entry.points ?? plotSeriesPoints(entry)).at(-1).y, color, lines, height: lines.length * lineHeight(SMALL) };
   }).sort((a, b) => b.value - a.value);
   return {
     labels,
@@ -67,7 +67,10 @@ export function sharedPlotLabelSpace(diagrams) {
   };
 }
 
-function coordinatePlot(d, requested, { sharedLabelSpace } = {}) {
+function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
+  const d = diagram.series.some(series => series.samples) ? { ...diagram,
+    series: diagram.series.map(series => series.samples ? { ...series, points: plotSeriesPoints(series) } : series),
+  } : diagram;
   const endLabels = plotEndLabels(d.series);
   const endGutter = Math.max(endLabels.gutter, sharedLabelSpace?.gutter ?? 0);
   let remainingLabels = endLabels.height;
