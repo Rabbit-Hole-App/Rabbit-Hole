@@ -48,7 +48,7 @@ test('the card is placed clear of the source and of every obstacle: no overlap a
 
 test('wiring: Ask in a new card and Explore ask for a card beside the source with no connector; the slot is as tall as the source; an anchored slot puts the card on its place; reload keeps dx, dy', () => {
   const canvas = src('./AdaptiveCanvas.jsx'), slash = src('./learn-slash.js');
-  assert.match(canvas, /\.\.\.\(destination === 'card' \|\| destination === 'explore' \? \{ beside: true \} : \{\}\)/);
+  assert.match(canvas, /\.\.\.\(destination === 'card' \|\| destination === 'follow-up' \|\| destination === 'explore' \? \{ beside: true \} : \{\}\)/);
   assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[beside\]\)\)/);
   assert.match(canvas, /if \(spot\) size = \{ \.\.\.size, h: Math\.round\(source\.h\) \}/);
   assert.match(canvas, /if \(slot\?\.at\) pendingAt\.current\.set\(block\.id, slot\.at\)/);
