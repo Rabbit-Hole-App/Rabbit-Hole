@@ -118,3 +118,11 @@ Sequence (owner): G3 -> Phase 02 + A1 + cleanup + pictures-async merge -> bench 
 ## Pictures-async (explain/pictures-async c46ac4dbb): merge condition
 
 Merge only after, on a deployed Worker in a browser: one card appears first and its picture fills in; one card whose picture is forced to fail has its marker removed cleanly and the `explanation_figure_dropped` log line fires. Then it merges with the Phase 02 batch. Drops are counted in the bench's picture column.
+
+Batch-1 conditions added by the owner (2026-11-08):
+- **Cherry-pick, never merge** the branch: it is on Codex's older base (missing item 47's `title` field in `spec.js`/`flow.js`, the diagram-corrections and binary-guard tests), so a merge would drop item 47 and fix A. Take only the 4 reference files, the registry imports/spreads and the batch-1 tests; run the handoff's focused tests plus `explanation-diagram-corrections.test.js` and `explanation-binary-guard.test.js`.
+- All 10 references are composed kinds (9 `comparison` variant `panels`, 1 `transformation` variant `visual`), each exactly 2 panels (panels cap 2 holds). The 10 prompts will steer the panels bundle (29.7k-character schema); the one steered sample so far wrote 966 output tokens in 5.03 s on Fireworks, so most are expected to miss 4 s. Measure, report speed separately.
+- Gemini's reduced schema excludes panels: if G3 makes Gemini primary, batch-1 steers a kind the primary cannot emit. Decide this from the G3 result before integrating.
+- The worked values (Gini 0.375, gain 0.125, GMM 0.8808/0.1192) are values from a selected reference, labelled illustrative: within N1.
+- Report: right/acceptable/wrong, judge faithfulness, repair rate, input tokens and bundle, output tokens, model-call and whole-card p50/p90, cost per card.
+- If panels cards are consistently over 4 s, the owner decides; the prepared alternative (not built) is two separate visuals instead of one panels comparison: same content, core bundle, loses shared-axis alignment only.
