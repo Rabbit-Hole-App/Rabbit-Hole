@@ -1087,5 +1087,31 @@ export function settleExplanationBody(md, mix = null) {
       changed = true;
     }
   }
-  return changed ? renumberDetails(joinBlocks(blocks), visuals.map(i => keep.has(i))) : md;
+  return stripBadDetails(changed ? renumberDetails(joinBlocks(blocks), visuals.map(i => keep.has(i))) : md);
+}
+
+// Owner 2026-11-09: a card never fails on a bad block-stack detail marker. A marker that points at its own visual, or at one that is missing or invalid, is removed
+// and logged (explanationLayoutProblem's explanation_bad_detail then never fires for a settled body).
+function stripBadDetails(md) {
+  if (!/"detail"\s*:\s*[1-3]/.test(md)) return md;
+  const blocks = bodyBlocks(md), visuals = blocks.filter(b => b.visual); let changed = false, at = 0;
+  for (const b of blocks) {
+    if (!b.visual) continue;
+    const own = ++at;
+    if (b.visual !== 'diagram' || !b.ok || b.lines.length < 2 || !/^\s*```/.test(b.lines.at(-1))) continue;
+    let spec; try { spec = parseTutorDiagram(b.lines.slice(1, -1).join('\n')); } catch { continue; }
+    const before = changed, strip = diagram => {
+      if (diagram.kind === 'comparison' && diagram.variant === 'panels') return { ...diagram, panels: diagram.panels.map(panel => ({ ...panel, diagram: strip(panel.diagram) })) };
+      if (diagram.kind !== 'block-stack') return diagram;
+      return { ...diagram, blocks: diagram.blocks.map(block => {
+        const { detail, ...rest } = block;
+        if (!detail || (detail !== own && visuals[detail - 1]?.ok)) return block;
+        droppedElement('block-stack', block.label, `detail marker for visual ${detail} on visual ${own}: that visual is itself, missing or invalid`);
+        changed = true; return rest;
+      }) };
+    };
+    const diagram = strip(spec.diagram);
+    if (changed !== before) b.lines = [b.lines[0], JSON.stringify({ ...spec, diagram }), b.lines.at(-1)];
+  }
+  return changed ? joinBlocks(blocks) : md;
 }
