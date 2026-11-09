@@ -46,12 +46,21 @@ export function plotTicks(axis, position, { horizontal = false, labelWidth = Inf
     const first = Math.ceil(Math.log10(min));
     const last = Math.floor(Math.log10(max));
     const decades = Array.from({ length: last - first + 1 }, (_, i) => Number(`1e${first + i}`));
-    // Thin crowded decades without replacing them with fractional ticks.
-    for (let step = 1; step <= decades.length; step *= 2) {
-      const labels = format(withEndpoints(decades.filter((_, i) => i % step === 0)));
-      if (fits(labels, horizontal, horizontal ? 0 : GAP)) return labels;
+    // Release 118 (owner): fewer than three ticks (the endpoints and the powers of ten between them) are completed with a 1-2-5 progression inside the range, and, when a domain
+    // too narrow for any, its geometric midpoint, until there are three; three or more ticks are never given sub-ticks.
+    let pool = decades;
+    if (withEndpoints(decades).length < 3) {
+      pool = Array.from({ length: last - first + 3 }, (_, i) => [1, 2, 5].map(m => Number(`${m}e${first - 1 + i}`))).flat().filter(value => value > min && value < max);
+      if (withEndpoints(pool).length < 3) { const mid = Math.sqrt(min * max), rounded = Number(mid.toPrecision(6)); pool = [...pool, rounded > min && rounded < max && Math.abs(position(rounded) - position(mid)) <= 1 ? rounded : mid].sort((x, y) => x - y); }
     }
-    return format([start, end]);
+    // Thin crowded decades without replacing them with fractional ticks. A domain narrower than float precision has no interior tick at all: the generic path below labels its visual midpoint.
+    if (withEndpoints(pool).length >= 3) {
+      for (let step = 1; step <= pool.length; step *= 2) {
+        const labels = format(withEndpoints(pool.filter((_, i) => i % step === 0)));
+        if (fits(labels, horizontal, horizontal ? 0 : GAP)) return labels;
+      }
+      return format([start, end]);
+    }
   }
   if (axis.integerTicks) {
     const range = max - min;

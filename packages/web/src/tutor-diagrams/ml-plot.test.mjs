@@ -114,7 +114,7 @@ test('a dense extended line marks its first and last point and labelled points, 
   });
 });
 
-// logX (release 118, Codex ae9bf069d): a log x axis is labelled at its powers of ten plus the exact endpoints, thinned only when crowded, so it carries 2 to 7 ticks (a domain inside one decade: the two endpoints); linear axes keep 3 to 5.
+// logX (release 118, Codex ae9bf069d): a log x axis is labelled at its powers of ten plus the exact endpoints, thinned only when crowded, so it carries 3 to 7 ticks (a domain inside two decades is completed with 1-2-5 sub-ticks, plot-ticks.js); linear axes keep 3 to 5.
 function checkAxisTicks(frame, xDomain, yDomain, logX = false) {
   const labels = frame.elements.filter(({ type, props }) => type === 'text' && props.fontSize === 12).map(({ props }) => props);
   const bottomRow = Math.max(...labels.map(p => p.y));
@@ -122,7 +122,7 @@ function checkAxisTicks(frame, xDomain, yDomain, logX = false) {
   const y = labels.filter(p => p.y !== bottomRow).sort((a, b) => b.y - a.y);
   const lines = p => [p.children].flat().map(span => span.props.children);
   for (const [ticks, domain] of [[x, xDomain], [y, yDomain]]) {
-    const [few, many] = logX && ticks === x ? [2, 7] : [3, 5];
+    const [few, many] = logX && ticks === x ? [3, 7] : [3, 5];
     assert.ok(ticks.length >= few && ticks.length <= many, `expected ${few}–${many} ticks, found ${ticks.length}`);
     const text = ticks.map(tick => lines(tick).join(''));
     assert.equal(new Set(text).size, ticks.length, 'each tick has a distinct label');
