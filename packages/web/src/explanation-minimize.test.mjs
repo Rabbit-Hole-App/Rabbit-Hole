@@ -37,7 +37,7 @@ const PROSE = 'A hot cup loses heat faster at first because the gap to the room 
 const card = (extra = {}) => ({ id: 'c1', type: 'explanation', title: 'Why coffee cools', body: PROSE, w: 440, h: 700, cardLayout: { mode: 'scrollable', scrollableSize: { w: 440, h: 700 }, fullWidth: 720, slot: { w: 440, h: 700 } }, ...extra });
 const draw = block => B.renderToStaticMarkup(B.createElement(B.LearningBlockBody, { block, onChange() {}, onChangeQuiet() {}, onFile() {}, appName: 'x', selected: true }));
 
-test('the tile: title, summary clamped to three lines, the picture when there is one, Open; the full card is not drawn', () => {
+test('the tile: title, summary clamped to three lines, the picture when there is one, Expand; the full card is not drawn', () => {
   const html = draw(card({ minimized: true, summary: 'A hot cup cools fastest first.', body: `${PROSE}\n\n${PICTURE}`, figures: FIGURES }));
   assert.match(html, /data-explanation-tile/);
   assert.match(html, /Why coffee cools/);
@@ -46,10 +46,13 @@ test('the tile: title, summary clamped to three lines, the picture when there is
   assert.match(html, /data-tile-visual="picture"/);
   assert.match(html, /<img src="data:image\/png;base64,AAAA" alt="A steaming cup"/);
   assert.doesNotMatch(html, /data-illustration-caption/, 'no caption on the tile');
-  assert.match(html, /<button[^>]*data-explanation-open[^>]*>Open<\/button>/);
+  assert.match(html, /<button[^>]*data-explanation-open[^>]*aria-label="Expand card"[^>]*>(<svg[^>]*>[^]*?<\/svg>)Expand<\/button>/, 'Expand with an icon to its left, named Expand card');
+  assert.match(html.match(/<button[^>]*data-explanation-open[^>]*>[^]*?<\/button>/)[0], /lucide-chevrons-up-down/, 'ChevronsUpDown');
+  assert.match(html.match(/<button[^>]*data-explanation-open[^>]*>[^]*?<\/button>/)[0], /width="16" height="16"/, 'icon 16 px');
   const open = html.match(/<button[^>]*data-explanation-open[^>]*>/)[0];
   assert.match(open, /class="[^"]*border border-line-strong bg-surface text-ink[^"]*"/, 'a white button with black text (the secondary variant; the one-line switch is variant="inverse")');
   assert.match(open, /class="[^"]*\bself-center\b[^"]*"/, 'centred at the bottom of the tile');
+  assert.match(open, /class="[^"]*text-\[13px\][^"]*"/, 'label 13 px');
   assert.match(open, /class="[^"]*border! border-ink\/50![^"]*"/, 'a visible border: the base button has border-0, so the width is forced too');
   assert.doesNotMatch(html, /data-explanation(?!-)|data-explanation-flow|data-explain-more/, 'the full card is not drawn under the tile');
 });
@@ -66,9 +69,8 @@ test('the picture wins over an earlier diagram; with no picture the first diagra
   assert.match(none, /data-tile-summary/);
   assert.match(none, /data-explanation-open/);
   const css = read('./index.css');
-  assert.match(css, /\[data-explanation-tile\] \[data-tile-visual="diagram"\] > div \{ overflow: hidden !important; \}/, 'a dense diagram scales down, it does not scroll sideways, in the tile');
-  assert.match(css, /\[data-explanation-tile\] \[data-tile-visual="diagram"\] svg \{ width: 100%; height: auto; max-width: 100% !important; max-height: 26rem; \}/);
-  assert.match(css, /\[data-explanation-tile\] \[data-illustration-frame\] \{ max-height: 30rem; \}/, 'the picture is drawn large: 480 px wide at 100%');
+  assert.doesNotMatch(css, /data-tile-visual="diagram"\] (> div|svg)/, 'the tile never scales or clips its diagram (owner 2026-11-08): the tile is as wide as the diagram is');
+  assert.doesNotMatch(css, /data-illustration-frame\] \{ max-height/, 'nor caps its picture');
 });
 
 test('minimizedVisual: the legacy illustration, a ready figure or a diagram; never a figure that is not ready or a diagram that does not parse; More sections count', () => {
@@ -101,19 +103,17 @@ test('the summary (owner 2026-11-08): the saved one when it is good, else the fi
   assert.equal(capSummary('It is $x^2$ here.'), 'It is here.');
 });
 
-test('minimized round-trips through the card save path and Open restores the full card at its saved size', () => {
+test('minimized round-trips through the card save path and Expand restores the full card at its saved size', () => {
   const before = [card(), { id: 'other', type: 'explanation', title: 'Other', body: PROSE }];
   const saved = JSON.parse(JSON.stringify(patchBlock(before, 'c1', { minimized: true })));
   assert.equal(isMinimized(saved[0]), true, 'it survives the board being saved and loaded');
   assert.equal(isMinimized(saved[1]), false, 'the default is false');
   assert.deepEqual({ w: saved[0].w, h: saved[0].h, cardLayout: saved[0].cardLayout }, { w: 440, h: 700, cardLayout: before[0].cardLayout }, 'its own size is untouched, so Open restores it');
-  assert.equal(tileWidth(saved[0]), 512, 'one tile width, whatever the card\'s own width: 480 px of picture inside 16 px of padding');
-  assert.equal(tileWidth({ w: 300 }), 512);
-  assert.equal(tileWidth({ w: 900 }), 512);
+  assert.equal(tileWidth(saved[0]), tileWidth({ ...saved[0], w: 900 }), 'the tile\'s width comes from its visual, whatever the card\'s own saved width');
   const opened = { ...saved[0], minimized: false };
   assert.match(draw(opened), /data-explanation="true"/);
   assert.doesNotMatch(draw(opened), /data-explanation-tile/);
-  assert.match(read('./LearningBlocks.jsx'), /onClick=\{\(\) => onChange\(\{ \.\.\.block, minimized: false \}\)\}>Open<\/Button>/, 'Open un-minimizes through the card\'s own change');
+  assert.match(read('./LearningBlocks.jsx'), /onClick=\{\(\) => onChange\(\{ \.\.\.block, minimized: false \}\)\}><ChevronsUpDown size=\{16\} aria-hidden="true" \/>Expand<\/Button>/, 'Expand un-minimizes through the card\'s own change');
   for (const not of [{ type: 'explanation', anchor: { source: 'x' }, minimized: true }, { type: 'explanation', excerpt: { kind: 'text' }, minimized: true }, { type: 'quiz', minimized: true }]) assert.equal(isMinimized(not), false);
   assert.equal(minimizable({ type: 'explanation' }), true);
 });
@@ -144,7 +144,8 @@ test('the tile\'s footprint: its own width and the content\'s height, no saved s
   const canvas = read('./AdaptiveCanvas.jsx');
   assert.match(canvas, /const tile = isMinimized\(block\);/);
   assert.match(canvas, /autoMax=\{tile \? null : /, 'a tile has no maximum height (null: undefined would take CanvasNode\'s 420 default), so it is never cut off');
-  assert.match(canvas, /width=\{tile \? tileWidth\(block\) : sized\?\.width \?\? BLOCK_TYPES\[block\.type\]\?\.width\} resizable=\{!tile\}/);
+  assert.match(canvas, /const cardWidth = tile \? tileWidth\(block\) : sized\?\.width \?\? explanationCardWidth\(block\) \?\? BLOCK_TYPES\[block\.type\]\?\.width;/);
+  assert.match(canvas, /width=\{cardWidth\} wide=\{cardWidth > COLUMN\} resizable=\{!tile\}/);
   assert.match(canvas, /cardLayout=\{supportsCardLayout\(block\) && !tile \? block\.cardLayout : null\} saved=\{tile \? null : \{ w: block\.w, h: block\.h \}\}/);
   assert.match(canvas, /\{!tile && <>\s+\{block\.sources && <SourcesDisclosure[^]*?<CardFeedback block=\{block\} \/>\}\s+<\/>\}/, 'the rows under the body (sources, source chip, prompt, rating) are not drawn on a tile');
 });
@@ -155,4 +156,13 @@ test('requestSummary: a card the server is summarising (summaryPending) asks und
   await requestSummary(async (path, init) => { sent.push(JSON.parse(init.body)); return { summary: 'A short one.' }; }, { app: 'canvas', block: card() });
   assert.equal(sent[0].id, 'tok123');
   assert.equal(sent[1].id, String(card().id));
+});
+
+test('Enter or Space on the focused tile itself expands it, never on an inner control or a read-only board; a card that is not minimized keeps Enter = open, Space = select', () => {
+  const canvas = read('./AdaptiveCanvas.jsx');
+  assert.match(canvas, /if \(\(event\.key === 'Enter' \|\| event\.key === ' '\) && focusedCard && !readOnlyRef\.current && isMinimized\(blocksRef\.current\.find\(entry => entry\.id === focusedCard\)\)\) \{ event\.preventDefault\(\); expandTileRef\.current\?\.\(focusedCard\); return; \}/);
+  assert.match(canvas, /const focusedCard = document\.activeElement\?\.matches\?\.\('\[data-block-id\]'\) \? document\.activeElement\.dataset\.blockId : null;/, 'focusedCard is the card element itself: focus inside the tile (its Prompt pill, the Expand button) is not it');
+  assert.match(canvas, /expandTileRef\.current = id => patchBlockNow\(id, \{ minimized: false \}\);/, 'the same patch the Expand button makes');
+  const keys = canvas.indexOf("if ((event.key === 'Enter' || event.key === ' ') && focusedCard && !readOnlyRef.current"), space = canvas.indexOf("if (event.key === ' ' && focusedCard) {");
+  assert.ok(keys > 0 && keys < space, 'checked before the card\'s own Space-selects and Enter-opens');
 });
