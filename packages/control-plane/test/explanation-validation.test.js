@@ -29,7 +29,7 @@ const AFTER = 'Go on.'; // the prose after the visual: 6 code points, joined to 
 const lead = n => 'Go ' + 'é'.repeat(n - 'Go '.length - 1 - AFTER.length); // 'Go' is a diagram label, so the visual names its prose
 const SHAPES = {
   prose: n => ({ title: 'T', body: lead(n) + '\n\n' + fence() + '\n\n' + AFTER }),
-  'a long title is free': n => ({ title: 'T'.repeat(120), body: lead(n) + '\n\n' + fence() + '\n\n' + AFTER }),
+  'a title at its 60-character cap is free': n => ({ title: 'T'.repeat(60), body: lead(n) + '\n\n' + fence() + '\n\n' + AFTER }),
   // The code span's displayed text is its content: emphasis, link and underscore markers inside it are drawn literally.
   'inline code': n => { const code = 'a**b**c [d](e) f__g__h'; return { title: 'T', body: 'Go `' + code + '` ' + 'é'.repeat(n - 'Go '.length - code.length - 1 - 1 - AFTER.length) + '\n\n' + fence() + '\n\n' + AFTER }; },
   'a list item and a heading count': n => ({ title: 'T', body: '## Go\n\n- ' + 'é'.repeat(n - 'Go '.length - 1 - AFTER.length) + '\n\n' + fence() + '\n\n' + AFTER }),
@@ -169,4 +169,15 @@ test('one card over its prose budget AND with an invalid diagram: both problems 
   assert.match(feedback.content, new RegExp(`explanation_over_budget: the card has ${used} characters of prose .*the limit is ${EXPLANATION_BUDGET.hard}`), 'the measured length and the limit');
   assert.match(feedback.content, /explanation_bad_diagram: the rh-diagram spec is not valid \(.*unknown node/i, 'and the specific diagram error, in the same message');
   assert.deepEqual([out.result, out.repaired, out.block.body.includes('rh-diagram')], ['artifact', true, true], 'the repaired card keeps its now-valid diagram');
+});
+
+test('the author title cap is 60 characters (owner 2026-11-08: two header lines hold 66-68): one over is a validation error for the repair path, never cut; the prompt says so', async () => {
+  const card = title => ({ title, body: lead(300) + '\n\n' + fence() + '\n\n' + AFTER });
+  const ok = await viaDirect('balanced', card('T'.repeat(60)));
+  assert.equal(ok.out.result, 'artifact');
+  assert.equal(ok.out.block.title, 'T'.repeat(60));
+  const over = await viaDirect('balanced', card('T'.repeat(61)));
+  assert.equal(over.out.result, 'validation_error', 'not delivered: the title is not shortened by the server');
+  assert.match(over.out.error, /title/i);
+  assert.match(JSON.stringify(ok.m.seen[0].tools), /write the title [(]at most 60 characters[)]/, 'the author is told the cap');
 });

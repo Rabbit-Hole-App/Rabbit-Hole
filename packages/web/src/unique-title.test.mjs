@@ -111,11 +111,11 @@ test('TITLE_MAX is the one limit: renameBlock, the rename editor input, uniqueTi
   assert.equal(renameBlock([{ id: 'x', type: 'quiz' }], 'x', 'a'.repeat(TITLE_MAX + 10))[0].customTitle.length, TITLE_MAX);
 });
 
-test('the card header title is one line (clipped, never wrapped) and carries the full text as its tooltip when the shown name is a cut', () => {
+test('the card header title wraps (owner 2026-11-08): two lines, three on a narrow header, an ellipsis only past that, the whole text as the tooltip; never the one nowrap line', () => {
   const header = read('CardHeader.jsx');
-  assert.match(header, /className=\{`min-w-0 flex-1 truncate whitespace-nowrap /);
-  assert.ok(!/min-w-0 flex-1 break-words/.test(header), 'no wrapping class remains on the title');
-  assert.ok(header.includes("title={cut ? full : canRename ? 'Double-click to rename' : undefined}"));
+  assert.match(header, /className=\{`min-w-0 flex-1 line-clamp-2 break-words @max-\[405px\]:line-clamp-3 /);
+  assert.ok(!/min-w-0 flex-1 truncate whitespace-nowrap/.test(header), 'the one-line clip is gone');
+  assert.ok(header.includes("title={full.length > TITLE_TWO_LINES ? full : canRename ? 'Double-click to rename' : undefined}"));
 });
 
 test('the rename editor refuses a name another card has, in the editor, and keeps the old name; a ToC section does the same', () => {
