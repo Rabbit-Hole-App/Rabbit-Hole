@@ -12,7 +12,11 @@ const GEMINI_HOST = 'generativelanguage.googleapis.com';
 const env = { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', GEMINI_API_KEY: 'g' };
 const usage = { prompt_tokens: 100, completion_tokens: 20, total_tokens: 150 };
 
-function recordFetch(t, { gemini = () => Response.json({ model: CHAT_GEMINI, choices: [{ finish_reason: 'stop', message: { content: 'ok from gemini' } }], usage }) } = {}) {
+// A stream:true request is answered as Gemini streams (two chunks, then the usage chunk); any other as one JSON answer.
+const streamed = chunks => new Response(chunks.map(c => `data: ${JSON.stringify(c)}\n\n`).join('') + 'data: [DONE]\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+const okAnswer = body => (body.stream ? streamed([{ model: CHAT_GEMINI, choices: [{ delta: { role: 'assistant', content: 'ok from gemini' } }] }, { choices: [{ delta: {}, finish_reason: 'stop' }] }, { choices: [], usage }])
+  : Response.json({ model: CHAT_GEMINI, choices: [{ finish_reason: 'stop', message: { content: 'ok from gemini' } }], usage }));
+function recordFetch(t, { gemini = okAnswer } = {}) {
   const calls = [], original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async (url, options = {}) => {
@@ -38,16 +42,18 @@ test('chat on Auto, with no pick and with the old Opus pick, is one Gemini call 
   }
 });
 
-test('the tool-less Tutor path and the tools path both ride Gemini (plain stream request replayed as SSE, tools call non-streamed)', async t => {
+test('the tool-less Tutor path streams from Gemini and the tools path both ride Gemini (plain stream request streamed token by token, tools call non-streamed)', async t => {
   let calls = recordFetch(t);
   const plain = await askStream(env, 'context', [], 'q', async () => {}, {}, [], null, null, null, 'system', null).text();
   assert.match(plain, /ok from gemini/);
   assert.deepEqual(calls.map(c => c.host), [GEMINI_HOST]);
-  assert.equal('stream' in calls[0].body, false);
+  assert.equal(calls[0].body.stream, true);
+  assert.deepEqual(calls[0].body.stream_options, { include_usage: true });
   calls = recordFetch(t);
   const withTools = await askStream(env, 'context', [], 'q', async () => {}, {}, [], { tools: [{ name: 'run', description: 'd', input_schema: { type: 'object', properties: { app: { type: 'string' } }, required: ['app'] } }], onProposal: async () => ({}) }, null, null, 'system', null).text();
   assert.match(withTools, /ok from gemini/);
   assert.deepEqual(calls.map(c => c.host), [GEMINI_HOST]);
+  assert.equal('stream' in calls[0].body, false);
 });
 
 test('a Sonnet or Haiku pick still runs on Anthropic, and CHAT_MODEL_PROFILE=anthropic puts Auto back on Opus', async t => {
