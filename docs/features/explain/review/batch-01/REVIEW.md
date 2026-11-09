@@ -7,7 +7,7 @@ Columns: **kind** = the planned and drawn kind against the expected shape; **com
 | # | Card | Kind | Complete | Labels | Numbers | Points at visual | Balanced voice | Verdict |
 |---|---|---|---|---|---|---|---|---|
 | 01 | public-key encryption | yes (sequence) | **no**: the decrypt-with-private-key step is missing | ok | n/a | no | ok | fix |
-| 02 | hash table | yes (flow) | yes (hash, slot, collision branch); the collision branch ends at "Handle collision" with no result | ok | n/a | no | ok | ship |
+| 02 | hash table | yes (flow) | **no, and wrong as drawn**: "Slot occupied? No -> Return stored value; Yes -> Handle collision" conflates a lookup with an insertion (on a lookup an empty slot means not found; on an insert, empty means store) | ok | n/a | no | ok | **fix** (owner audit overturned ship) |
 | 03 | positional encoding | **no** (transformation; expected a plot of sinusoids) | **no**: no sinusoid is drawn | **6 bare maths** (`P_0`, `P_1`, `P_2`) and an auto "Item mappings Before 1 / After 1" block that repeats the lists | n/a | no | ok | wrong |
 | 04 | k-means | acceptable (cycle; expected a scatter) | partial: four steps, no points or centroids; "Repeat until assignments stabilize" is a step node plus the loop arrow | ok | n/a | no | ok | fix |
 | 05 | supply and demand | yes (coordinate-plot) | partial: the equilibrium point is a marker with no annotation | ok | **correct** (crosses at 4 units and 6 USD, as the prose says) | partly (caption) | ok | ship, annotate the point |
@@ -17,7 +17,7 @@ Columns: **kind** = the planned and drawn kind against the expected shape; **com
 | 09 | database index | acceptable (tree) | **no**: it is a binary search tree labelled "B-Tree" (one key per node, two children); the scan-versus-index contrast is absent | ok | the prose's "thousands to just a few steps" is not on the visual | no | ok | fix |
 | 10 | confusion matrix | yes (matrix) | partial: the four cells and axes are right; precision and recall are not derived | ok | n/a | no | ok | fix |
 
-Totals: kind right or acceptable 8 of 10 (wrong: 03, 08); complete 2 of 10 (02, 05 nearly); ship 2 (02, 05); fix 6; wrong 2. No picture on any card (0 of 10, as expected for diagram-only subjects).
+Totals (revised after the owner audit): kind right or acceptable 8 of 10 (wrong: 03, 08); ship 1 (05, annotate the point); fix 7 (01, 02, 04, 06, 07, 09, 10); wrong 2 (03, 08). 02 was first marked ship: the decision is backwards for a lookup, a logic contradiction the first pass read as merely incomplete. No picture on any card (0 of 10, as expected for diagram-only subjects).
 
 ## Defects and the layer that fixes each
 
@@ -51,3 +51,11 @@ Totals: kind right or acceptable 8 of 10 (wrong: 03, 08); complete 2 of 10 (02, 
 - server correction: strip leading punctuation and white space from question text, test from card 07's own questions;
 - renderer: none in this pass (sequence self-step and edge routing are batch-2 candidates);
 - reference or keyword: none in this pass (B-tree, call stack and fit-quality references are batch-2 candidates).
+
+## Owner audit additions (2026-11-09)
+
+- **02 hash table: ship -> fix.** The decision is backwards (a lookup on an empty slot is not-found; an insert on an empty slot is a store). Layer: flow content contract: "a decision's branches must each lead to the outcome that follows from that answer; name the operation the flow describes (lookup, insert) in the title"; also a judge calibration example ("logic contradicts prose": the faithfulness judge should catch it).
+- **04 k-means: the cycle returns to "Initialize k centroids".** A cycle always returns last to first, so a setup step re-initialises every loop. Layer: cycle content contract: "steps in a cycle are only the ones that repeat; setup or initialisation is stated in the prose or as the title, never as a step" (same prompt commit as the decisive-step line).
+- **09 database index: the tree is an indented outline.** The binary guard removed , so the tree fell to the legacy indented list. Layer: server rule: a non-binary tree with short key labels gets the Phase 02 top-down  layout; the outline stays for long-text hierarchies.
+- **10 confusion matrix: the first follow-up asks for what the visual omits.** "How do you calculate precision and recall" is the card's own first follow-up; the visual omitted exactly that. Bench flag, log-only: "first follow-up asks for what the visual omitted".
+- **Confirmed as written:** 01, 03, 05 (numbers correct, point unannotated), 06 (3-point polyline; O(1) and O(log n) missing), 07, 08. Pictures 0 of 10.
