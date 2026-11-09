@@ -1,5 +1,5 @@
 // E2: the interaction layer of the delivered Explanation card (docs/features/explain.md section 4, "Approved interaction contract - E2"; approved card
-// 07). It lives INSIDE LearningBlocks.jsx::ExplanationBody and adds only what the spec names: orange term pills with a definition and Dig Rabbit Hole, the
+// 07). It lives INSIDE LearningBlocks.jsx::ExplanationBody and adds only what the spec names: orange term pills with a definition and Explore (a new /explain card about the term), the
 // three suggested questions, the bottom + with the Ask a follow-up field, and the selection toolbar (Ask in chat, Highlight, Create note). Everything here
 // is gated on `block.interactions` (written only while the server switch EXPLANATION_INTERACTIONS is on): a card without the envelope renders exactly as
 // before, with no wrapper, no spacer row and no listener. Actions go through the canvas host (explanation-host.js) and the Chat workspace; a surface
@@ -12,7 +12,7 @@ import { ToolButton } from './selection-toolbar.jsx';
 import { selectionRef } from './selection-ref.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { ExplanationHost } from './explanation-host.js';
-import { alignField, anchorsFromRange, contentRevision, contentRevisionInput, decorate, fieldText, fieldsOf, highlightsFor, quoteOf, suggestionsFor, termsFor, undecorate, withConsumed, withHighlight, withoutHighlight } from './explanation-interactions.js';
+import { alignField, anchorsFromRange, exploreQuestion, termSentence, contentRevision, contentRevisionInput, decorate, fieldText, fieldsOf, highlightsFor, quoteOf, suggestionsFor, termsFor, undecorate, withConsumed, withHighlight, withoutHighlight } from './explanation-interactions.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const newId = () => crypto.randomUUID();
@@ -52,7 +52,7 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
   const flowRef = useRef(null), rootRef = useRef(null), fields = useRef(new Map());
   const [openTerm, setOpenTerm] = useState(null); // { id, via }
   const [pending, setPending] = useState(null);   // { qid, destination } while a send waits for admission
-  const inflight = useRef(null);
+  const inflight = useRef(null), hoverTimer = useRef(0);
   const [bar, setBar] = useState(null);           // { rect, quote, segments } for the selection offered the toolbar
   const barEl = useRef(null), noteEl = useRef(null);
   const [menu, setMenu] = useState(null);         // { id, rect }: the saved highlight offered Remove highlight (the file and webpage cards' highlight menu)
@@ -67,12 +67,21 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     });
   }, []);
   const pillOf = event => event.target?.closest?.('[data-term-id]');
+  // Owner 2026-11-09: the term's note (definition + Explore) shows on HOVER, not only on a click. A short open delay keeps a pointer crossing the text from popping it, a close delay lets the pointer
+  // travel from the term onto the note without flicker, and keyboard focus opens it too. A click pins it (via 'pointer'); touch has no hover and keeps the tap.
+  const later = (fn, ms) => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(fn, ms); };
+  const holdTerm = () => clearTimeout(hoverTimer.current);
+  const leaveTerm = () => later(() => setOpenTerm(current => (current?.via === 'hover' || current?.via === 'focus' ? null : current)), 250);
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
   const flowProps = {
+    onPointerOver: event => { const pill = event.pointerType === 'touch' ? null : pillOf(event); if (pill && !pill.contains(event.relatedTarget)) { const id = pill.getAttribute('data-term-id'); later(() => setOpenTerm(current => (current && current.via !== 'hover' && current.via !== 'focus' ? current : { id, via: 'hover' })), 120); } },
+    onPointerOut: event => { const pill = pillOf(event); if (pill && !pill.contains(event.relatedTarget) && !noteEl.current?.contains(event.relatedTarget)) leaveTerm(); },
+    onFocus: event => { const pill = pillOf(event); if (pill && event.target.matches?.(':focus-visible')) { const id = pill.getAttribute('data-term-id'); setOpenTerm(current => (current ? current : { id, via: 'focus' })); } },
     // Pointer handlers on a pill never reach the card (it would select or start a drag): the pill is a control, like the section toggles.
     onPointerDown: event => { if (pillOf(event)) event.stopPropagation(); },
     onClick: event => {
       const pill = pillOf(event);
-      if (pill) { const id = pill.getAttribute('data-term-id'); setOpenTerm(current => (current?.id === id ? null : { id, via: event.detail === 0 ? 'key' : 'pointer' })); return; }
+      if (pill) { const id = pill.getAttribute('data-term-id'); clearTimeout(hoverTimer.current); setOpenTerm(current => (current?.id === id ? (current.via === 'hover' || current.via === 'focus' ? { id, via: event.detail === 0 ? 'key' : 'pointer' } : null) : { id, via: event.detail === 0 ? 'key' : 'pointer' })); return; }
       // A press on a saved highlight (not a drag that selected text) offers Remove highlight, as the file and webpage cards do.
       const mark = event.target?.closest?.('[data-highlight-ids]'), selection = window.getSelection?.();
       if (mark && canEdit && (!selection || selection.isCollapsed)) setMenu({ id: mark.getAttribute('data-highlight-ids').split(' ')[0], rect: mark.getBoundingClientRect() });
@@ -80,7 +89,7 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     onKeyDown: event => {
       const pill = pillOf(event);
       // Enter on a pill opens its definition, never the card (the canvas opens the selected card on Enter).
-      if (pill && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); const id = pill.getAttribute('data-term-id'); setOpenTerm(current => (current?.id === id ? null : { id, via: 'key' })); }
+      if (pill && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); const id = pill.getAttribute('data-term-id'); clearTimeout(hoverTimer.current); setOpenTerm(current => (current?.id === id ? (current.via === 'hover' || current.via === 'focus' ? { id, via: 'key' } : null) : { id, via: 'key' })); }
     },
     onScroll: () => { setOpenTerm(null); },
   };
@@ -130,6 +139,8 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
   };
   const askSuggestion = (question, destination) => send({ text: question.text, qid: question.id, destination, afterAdmit: consume });
   const askFollowUp = text => send({ text, destination: 'here' });
+  // Explore (owner 2026-11-09): a new written /explain card about the term, asked in the context of this card; same route as the bottom follow-up (no connector, camera frames the card, the Chat composer's Depth).
+  const explore = term => send({ text: exploreQuestion({ term: term.label, title: latest.current.block.title, sentence: termSentence(latest.current.block, term) }), destination: 'explore' });
 
   // ---- selection toolbar ----
   const evaluate = () => {
@@ -179,7 +190,7 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
   };
 
   if (!enabled) return null;
-  return { block, revision, host, chat, canEdit, flowRef, rootRef, fields, flowProps, openTerm, closeTerm, noteEl, barEl, bar, pending, askSuggestion, askFollowUp, askInChat, highlight, createNote, menu, menuEl, removeHighlight,
+  return { block, revision, host, chat, canEdit, flowRef, rootRef, fields, flowProps, openTerm, closeTerm, noteEl, barEl, bar, pending, askSuggestion, askFollowUp, explore, holdTerm, leaveTerm, askInChat, highlight, createNote, menu, menuEl, removeHighlight,
     terms: termsFor(block, revision), suggestions: suggestionsFor(block, revision), highlights: highlightsFor(block, revision) };
 }
 
@@ -217,7 +228,7 @@ export function InteractiveField({ layer, field, children }) {
   return <div ref={ref} data-explanation-field={field}>{children}</div>;
 }
 
-// The definition of the open term, under it (approved card 07 .term-note): its name, a short definition the learner can select, and Dig Rabbit Hole.
+// The definition of the open term, under it (approved card 07 .term-note): its name, a short definition the learner can select, and Explore (owner 2026-11-09: it replaced the Rabbit Hole dig).
 export function TermNote({ layer }) {
   const { openTerm, host, block, revision, noteEl, flowRef } = layer;
   const term = openTerm && layer.terms.find(entry => entry.id === openTerm.id);
@@ -233,11 +244,11 @@ export function TermNote({ layer }) {
   if (!term) return null;
   return (
     <div ref={noteEl} data-term-note data-explanation-ui role="dialog" aria-label={term.label} tabIndex={-1} style={{ left: 0, top: 0 }}
-      onPointerDown={event => event.stopPropagation()}
+      onPointerDown={event => event.stopPropagation()} onPointerEnter={layer.holdTerm} onPointerLeave={layer.leaveTerm}
       className="absolute z-30 w-[265px] max-w-[calc(100%-12px)] rounded-lg border border-line bg-white p-3 text-left shadow-pop outline-none select-text">
       <strong className="block text-sm text-ink">{term.label}</strong>
       <p className="mt-1 mb-2 text-[13px] leading-snug text-ink">{term.definition}</p>
-      {host?.dig && <Button type="button" size="sm" variant="primary" data-dig-rabbit-hole onClick={() => { host.dig({ id: block.id, term: term.label, termId: term.id, revision }); layer.closeTerm(false); }}>Dig Rabbit Hole</Button>}
+      {host?.ask && layer.canEdit && <Button type="button" size="sm" variant="primary" data-explore onClick={() => { layer.explore(term); layer.closeTerm(false); }}>Explore</Button>}
     </div>
   );
 }
