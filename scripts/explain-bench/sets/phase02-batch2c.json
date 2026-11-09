@@ -1,0 +1,95 @@
+{
+ "name": "phase02-batch2c",
+ "version": {
+  "prompts": "P1 2026-11-08 (owner: Phase 02 reference batch 2c live acceptance, 5 prompts)",
+  "labels": "L1 2026-11-08 kinds, expected references (offline selector result from the coordinator) and Core/Optional sketches written from the 2c references (c679771ab) before any card"
+ },
+ "measures": "Live /explain acceptance of the batch 2c references: references received, chosen kind, the card's own arithmetic, formula rendering, narrow-card fit and save/reload. Run once at --depth standard.",
+ "written": "2026-11-08, before any phase02-batch2c card was sent",
+ "notation": "As phase02-batch.json. references = the ids the selector is expected to send (the coordinator's offline check); the dev log line explanation_author_raw records the actual ids. Reference numbers are illustrative: a card is checked on its own data.",
+ "defaultRuns": 1,
+ "estUsdPerCard": 0.012,
+ "pass": {},
+ "prompts": [
+  {
+   "id": "accuracy-trap",
+   "group": "2c-imbalance",
+   "prompt": "How can a classifier get 95% accuracy and still miss every minority case?",
+   "references": ["ml-minority-accuracy-trap"],
+   "kinds": ["comparison", "matrix", "heatmap"],
+   "sketch": [
+    "Core: An imbalanced test set (e.g. 95 majority, 5 minority) with a classifier that predicts the majority for every case; accuracy (e.g. 95/100) and minority recall (e.g. 0/5) computed from the same counts.",
+    "Optional: A better metric to watch (recall, F1, balanced accuracy)."
+   ],
+   "best": [["D:comparison|matrix|heatmap"], ["D:comparison|matrix|heatmap", "D:*"]],
+   "acceptable": [["D:bar-chart|flow"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "undersampling-removes",
+   "group": "2c-imbalance",
+   "prompt": "What does majority undersampling actually remove from the training set?",
+   "references": ["ml-majority-undersampling"],
+   "kinds": ["sample-set", "comparison", "transformation", "matrix"],
+   "sketch": [
+    "Core: The training rows before (e.g. six majority, two minority) and after (every minority row kept, a subset of majority rows kept), with the exact dropped majority row IDs named.",
+    "Optional: The test set left untouched; the information lost."
+   ],
+   "best": [["D:sample-set|comparison|transformation|matrix"], ["D:sample-set|comparison|transformation|matrix", "D:*"]],
+   "acceptable": [["D:bar-chart|flow"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "rfe-refit",
+   "group": "2c-elimination",
+   "prompt": "Why does recursive feature elimination refit after each drop?",
+   "references": ["ml-recursive-feature-elimination"],
+   "kinds": ["matrix", "flow", "comparison"],
+   "sketch": [
+    "Core: Feature scores at each fit; the lowest feature dropped, the survivors refitted and re-ranked (a ranking that changes after the refit, e.g. C overtaking B), repeated to the requested subset size, with feature identities tracked.",
+    "Optional: Why one fit's ranking would mislead (correlated features)."
+   ],
+   "best": [["D:matrix|flow|comparison"], ["D:matrix|flow|comparison", "D:*"]],
+   "acceptable": [["D:bar-chart|transformation|cycle|tree"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "psi-bins",
+   "group": "2c-psi",
+   "prompt": "How do I calculate the population stability index one bin at a time?",
+   "references": ["ml-psi-bin-contributions", "aligned-distribution-drift"],
+   "kinds": ["comparison", "matrix", "histogram"],
+   "sketch": [
+    "Core: Reference and current shares on shared bins; each bin's term (current - reference) x ln(current / reference); an unchanged bin contributes 0; the terms summed to the PSI.",
+    "Optional: The usual thresholds (0.1, 0.25) and zero-share handling."
+   ],
+   "best": [["D:comparison|matrix|histogram"], ["D:comparison|matrix|histogram", "D:*"]],
+   "acceptable": [["D:bar-chart|waterfall"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure", "tree"],
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "undersampling",
+   "group": "2c-imbalance",
+   "prompt": "Explain undersampling.",
+   "references": ["ml-majority-undersampling"],
+   "kinds": ["sample-set", "comparison", "transformation", "matrix"],
+   "sketch": [
+    "Core: An imbalanced training set; majority rows reduced to balance the classes while every minority row is kept; which rows are dropped.",
+    "Optional: The trade-off (lost majority information) and the contrast with oversampling."
+   ],
+   "best": [["D:sample-set|comparison|transformation|matrix"], ["D:sample-set|comparison|transformation|matrix", "D:*"]],
+   "acceptable": [["D:bar-chart|flow"], ["D:*", "D:*"]],
+   "badKinds": ["timeline", "cycle", "figure"],
+   "needsPicture": false,
+   "noPicture": true
+  }
+ ]
+}
