@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Three-day rolling mean before prediction",
+    "caption": "Illustrative values. For Day 4, (10 + 13 + 16) ÷ 3 = 13. Each feature uses the three days before its prediction day.",
+    "kind": "matrix",
+    "layout": "teaching",
+    "columns": [
+      "Past values",
+      "Mean"
+    ],
+    "rows": [
+      {
+        "id": "day-4",
+        "heading": "Day 4",
+        "cells": [
+          "D1=10 D2=13 D3=16",
+          "13"
+        ]
+      },
+      {
+        "id": "day-5",
+        "heading": "Day 5",
+        "cells": [
+          "D2=13 D3=16 D4=19",
+          "16"
+        ]
+      },
+      {
+        "id": "day-6",
+        "heading": "Day 6",
+        "cells": [
+          "D3=16 D4=19 D5=22",
+          "19"
+        ]
+      },
+      {
+        "id": "day-7",
+        "heading": "Day 7",
+        "cells": [
+          "D4=19 D5=22 D6=25",
+          "22"
+        ]
+      }
+    ],
+    "emphasis": {
+      "columns": [
+        1
+      ]
+    }
+  }
+}

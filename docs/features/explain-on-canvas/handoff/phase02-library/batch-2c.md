@@ -36,4 +36,4 @@ The library handoff has the replay commands. [Focused local checks](README.md#fo
 
 ## Next reference work
 
-Batch 3 covers time series, anomaly detection and ML systems. The coverage audit lists the remaining scene gaps and keeps live acceptance separate. [Coverage audit](coverage-audit.md#recommended-build-order)
+Batch 3A covers the four time-series references. The coverage audit tracks the remaining anomaly detection, ML system design and feature-store examples. [Batch 3A](batch-3a.md) · [Coverage audit](coverage-audit.md#recommended-build-order)

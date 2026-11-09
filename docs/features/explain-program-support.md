@@ -7,6 +7,10 @@ receipts; "not released" means not on `main`.
 
 ## Note for Claude Code
 
+### Batch 3A · Four written Explanation references for time series
+
+The registry adds the aligned additive components, ACF/PACF comparison, prior-three-day rolling feature and recursive/direct forecast comparison. It now contains 160 references. The handoff records the natural prompts, numeric targets and live dev acceptance steps. [Batch 3A handoff](explain-on-canvas/handoff/phase02-library/batch-3a.md)
+
 ### Batch 2C · Final four written Explanation references in Batch 2
 
 The accuracy trap, majority undersampling, recursive feature elimination and worked PSI calculation are registered in the actual author path and use the existing SVG components and palette. The library has 156 references. The handoff includes the dev acceptance prompts, expected results and the undersampling selection check. [Batch 2C handoff](explain-on-canvas/handoff/phase02-library/batch-2c.md)
@@ -29,7 +33,7 @@ The approved **four new kinds and nine existing-kind extensions are implemented*
 
 - [Implementation and dev acceptance handoff](explain-on-canvas/handoff/phase02-library/README.md)
 - [Coverage correction: remaining scenes from the full 21-lesson list](explain-on-canvas/handoff/phase02-library/coverage-audit.md)
-- [All 156 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
+- [All 160 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
 - [Executable source/extension guide](../../packages/web/src/tutor-diagrams/README.md)
 - [Plan and completed implementation checklist](../superpowers/plans/2026-11-08-explain-phase02-library.md)
 

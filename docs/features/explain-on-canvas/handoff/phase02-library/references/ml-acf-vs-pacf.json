@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Population ACF and PACF for one stationary AR(1)",
+    "caption": "Both plots use $X_t=0.6X_{t-1}+\\varepsilon_t$ with white-noise innovations. The lag-2 ACF is carried through lag 1.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "ACF · Autocorrelation",
+        "diagram": {
+          "title": "ACF · Autocorrelation",
+          "caption": "ACF measures the full correlation at each lag. For lags 1–4, the values are 0.6, 0.36, 0.216 and 0.1296.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Lag",
+            "min": 1,
+            "max": 4
+          },
+          "y": {
+            "label": "Correlation",
+            "min": -1,
+            "max": 1
+          },
+          "series": [
+            {
+              "label": "Population ACF",
+              "kind": "stem",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 0.6
+                },
+                {
+                  "x": 2,
+                  "y": 0.36
+                },
+                {
+                  "x": 3,
+                  "y": 0.216
+                },
+                {
+                  "x": 4,
+                  "y": 0.1296
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "heading": "PACF · Partial autocorrelation",
+        "diagram": {
+          "title": "PACF · Partial autocorrelation",
+          "caption": "PACF adjusts for intervening lags. Lag 1 stays at 0.6. At lag 2, $\\frac{0.36-0.6^2}{1-0.6^2}=0$. Lags 3 and 4 are also zero.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Lag",
+            "min": 1,
+            "max": 4
+          },
+          "y": {
+            "label": "Correlation",
+            "min": -1,
+            "max": 1
+          },
+          "series": [
+            {
+              "label": "Population PACF",
+              "kind": "stem",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 0.6
+                },
+                {
+                  "x": 2,
+                  "y": 0
+                },
+                {
+                  "x": 3,
+                  "y": 0
+                },
+                {
+                  "x": 4,
+                  "y": 0
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "sharedAxes": [
+      "x",
+      "y"
+    ]
+  }
+}

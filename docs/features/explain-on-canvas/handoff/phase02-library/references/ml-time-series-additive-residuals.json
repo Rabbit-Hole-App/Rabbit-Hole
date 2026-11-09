@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Additive time series with residuals",
+    "caption": "Illustrative daily values. Observed = trend + seasonality + residual. On Day 4, 3.5 − 1 + 0.5 = 3.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Observed and trend",
+        "diagram": {
+          "title": "Observed and trend",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Day",
+            "min": 1,
+            "max": 8,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Value",
+            "min": 0,
+            "max": 7
+          },
+          "series": [
+            {
+              "label": "Observed",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 3.25
+                },
+                {
+                  "x": 2,
+                  "y": 1.25
+                },
+                {
+                  "x": 3,
+                  "y": 4
+                },
+                {
+                  "x": 4,
+                  "y": 3
+                },
+                {
+                  "x": 5,
+                  "y": 4.5
+                },
+                {
+                  "x": 6,
+                  "y": 3.5
+                },
+                {
+                  "x": 7,
+                  "y": 6.25
+                },
+                {
+                  "x": 8,
+                  "y": 4.25
+                }
+              ]
+            },
+            {
+              "label": "Trend",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 2
+                },
+                {
+                  "x": 2,
+                  "y": 2.5
+                },
+                {
+                  "x": 3,
+                  "y": 3
+                },
+                {
+                  "x": 4,
+                  "y": 3.5
+                },
+                {
+                  "x": 5,
+                  "y": 4
+                },
+                {
+                  "x": 6,
+                  "y": 4.5
+                },
+                {
+                  "x": 7,
+                  "y": 5
+                },
+                {
+                  "x": 8,
+                  "y": 5.5
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "Day 4 · observed 3, trend 3.5",
+              "axis": "x",
+              "value": 4
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Seasonal contribution",
+        "diagram": {
+          "title": "Seasonal contribution",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Day",
+            "min": 1,
+            "max": 8,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Contribution",
+            "min": -1,
+            "max": 1
+          },
+          "series": [
+            {
+              "label": "Seasonal contribution",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "x": 2,
+                  "y": -1
+                },
+                {
+                  "x": 3,
+                  "y": 1
+                },
+                {
+                  "x": 4,
+                  "y": -1
+                },
+                {
+                  "x": 5,
+                  "y": 1
+                },
+                {
+                  "x": 6,
+                  "y": -1
+                },
+                {
+                  "x": 7,
+                  "y": 1
+                },
+                {
+                  "x": 8,
+                  "y": -1
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "Day 4 · seasonality −1",
+              "axis": "x",
+              "value": 4
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Residuals",
+        "diagram": {
+          "title": "Residuals",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Day",
+            "min": 1,
+            "max": 8,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Contribution",
+            "min": -1,
+            "max": 1
+          },
+          "series": [
+            {
+              "label": "Residual",
+              "kind": "stem",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 0.25
+                },
+                {
+                  "x": 2,
+                  "y": -0.25
+                },
+                {
+                  "x": 3,
+                  "y": 0
+                },
+                {
+                  "x": 4,
+                  "y": 0.5
+                },
+                {
+                  "x": 5,
+                  "y": -0.5
+                },
+                {
+                  "x": 6,
+                  "y": 0
+                },
+                {
+                  "x": 7,
+                  "y": 0.25
+                },
+                {
+                  "x": 8,
+                  "y": -0.25
+                }
+              ]
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "Day 4 · residual +0.5",
+              "axis": "x",
+              "value": 4
+            }
+          ]
+        }
+      }
+    ],
+    "sharedAxes": [
+      "x"
+    ]
+  }
+}

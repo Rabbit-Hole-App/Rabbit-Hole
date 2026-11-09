@@ -1041,9 +1041,9 @@
         "15"
       ],
       "prompts": [
-        "How should I read an ACF or PACF stem plot?"
+        "How should I read an ACF stem plot?"
       ],
-      "useWhen": "Each stem preserves the lag and signed correlation; the band is an illustrative significance guide.",
+      "useWhen": "Show signed autocorrelation at each lag. The band is an illustrative reference guide.",
       "kind": "coordinate-plot",
       "width": 420,
       "height": 524
@@ -1960,6 +1960,58 @@
       "height": 1233
     },
     {
+      "id": "ml-time-series-additive-residuals",
+      "lessons": [
+        "15"
+      ],
+      "prompts": [
+        "How do trend, seasonality and residuals add up to the original time series?"
+      ],
+      "useWhen": "Decompose an additive series into trend, seasonal contribution and residuals. Align the dates and reconstruct an observed value from the three components at the same date.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1632
+    },
+    {
+      "id": "ml-rolling-mean-feature",
+      "lessons": [
+        "15"
+      ],
+      "prompts": [
+        "Which past values go into a three-day rolling average before a prediction?"
+      ],
+      "useWhen": "Show a rolling mean feature alongside its prediction date and the three preceding dated observations. Keep the prediction day outside the feature window.",
+      "kind": "matrix",
+      "width": 408,
+      "height": 414
+    },
+    {
+      "id": "ml-acf-vs-pacf",
+      "lessons": [
+        "15"
+      ],
+      "prompts": [
+        "What is the difference between ACF and PACF for the same series?"
+      ],
+      "useWhen": "Compare the population ACF and PACF of one stationary process on shared axes. Work lag 2 by adjusting for lag 1.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1180
+    },
+    {
+      "id": "ml-recursive-vs-direct-forecast",
+      "lessons": [
+        "15"
+      ],
+      "prompts": [
+        "How are recursive and direct multi-step forecasts different?"
+      ],
+      "useWhen": "Start from one observed forecast origin. Trace the repeated one-step model and compare separate horizon models that use the same observed history.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 801
+    },
+    {
       "id": "general-sequence-1",
       "lessons": [],
       "prompts": [
@@ -2288,7 +2340,11 @@
         "sliding-window-validation",
         "lag-feature-matrix",
         "first-difference-matrix",
-        "ml-differencing-transformation"
+        "ml-differencing-transformation",
+        "ml-time-series-additive-residuals",
+        "ml-rolling-mean-feature",
+        "ml-acf-vs-pacf",
+        "ml-recursive-vs-direct-forecast"
       ]
     },
     {

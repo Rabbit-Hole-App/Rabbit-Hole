@@ -6,11 +6,11 @@ Task: `96d13bbb-6cd1-45be-b27a-95820d3495b0` · branch: `chatgpt/explain-phase02
 
 Four new diagram kinds and nine additive extensions are implemented in the **written `/explain`** path. The model receives relevant, valid JSON examples; Rabbit Hole renders the resulting semantic JSON using the existing SVG component. These are reusable layouts and reference data, not fixed lesson cards returned in place of generation. The `/interact` fixtures and `/animation` renderer are separate and unchanged.
 
-There are **156 registered references**, including 142 with Phase 02 lesson tags and 14 general examples. The registry covers all 21 supported kinds and maps all 21 lessons to concrete IDs. The per-lesson audit tracks which requested scenes are still missing. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Coverage audit](coverage-audit.md)
+There are **160 registered references**, including 146 with Phase 02 lesson tags and 14 general examples. The registry covers all 21 supported kinds and maps all 21 lessons to concrete IDs. The per-lesson audit tracks which requested scenes are still missing. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Coverage audit](coverage-audit.md)
 
-The batch handoffs record the prompts, expected math and dev acceptance steps. Batch 1 covers ten references for Lessons 04–07. Batch 2 covers all 16 planned references across Lessons 08–12, 17–18 and 20. [Batch 1](batch-1.md) · [Batch 2A](batch-2a.md) · [Batch 2B](batch-2b.md) · [Batch 2C](batch-2c.md)
+The batch handoffs record the prompts, expected math and dev acceptance steps. Batch 1 covers ten references for Lessons 04–07. Batch 2 covers all 16 planned references across Lessons 08–12, 17–18 and 20. Batch 3A covers the four time-series gaps in Lesson 15. [Batch 1](batch-1.md) · [Batch 2A](batch-2a.md) · [Batch 2B](batch-2b.md) · [Batch 2C](batch-2c.md) · [Batch 3A](batch-3a.md)
 
-The batch receipts record focused test results, the web build and inspection of the exported SVGs for each implementation snapshot. Live generation, browser appearance and save/reopen have separate acceptance steps. [Latest receipt](batch-2c.md#local-verification)
+The batch receipts record focused test results, the web build and inspection of the exported SVGs for each implementation snapshot. Live generation, browser appearance and save/reopen have separate acceptance steps. [Latest receipt](batch-3a.md#local-verification)
 
 ## Implemented scope
 
