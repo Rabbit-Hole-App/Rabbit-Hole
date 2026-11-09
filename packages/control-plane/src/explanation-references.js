@@ -31,11 +31,27 @@ function contextText(context) {
   try { return JSON.stringify(context).slice(0, 6000); } catch { return ''; }
 }
 
+// Required visuals still validate against their top-level kind. When a useful
+// reference is a composition, give the author its matching real leaf examples
+// rather than a wrapper that would fail that requirement. Conceptual requests
+// continue to receive the complete comparison/transformation.
+function referenceVariants(ref, required) {
+  const diagram = ref.spec.diagram;
+  if (!required.size || required.has(diagram.kind)) return [ref];
+  const parts = diagram.kind === 'comparison' && diagram.variant === 'panels' ? diagram.panels
+    : diagram.kind === 'transformation' && diagram.variant === 'visual' ? [diagram.before, diagram.after] : [];
+  return parts.flatMap((part, partIndex) => required.has(part.diagram.kind) ? [{
+    ...ref, id: `${ref.id}--part-${partIndex + 1}`, sourceId: ref.id, partIndex,
+    useWhen: `${ref.useWhen} This is the ${part.heading ?? part.label} panel. Use its ${part.diagram.kind} kind directly when that kind is required.`,
+    spec: { version: ref.spec.version, diagram: part.diagram },
+  }] : []);
+}
+
 export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [] } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   const source = normalized(contextText(context));
   const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
-  const candidates = diagramReferences.filter(ref => !required.size || required.has(ref.spec.diagram.kind));
+  const candidates = diagramReferences.flatMap(ref => referenceVariants(ref, required));
   const ranked = candidates.map((ref, index) => ({
     ref, index, direct: topicScore(query, ref), source: topicScore(source, ref),
   }));
@@ -51,7 +67,8 @@ export function selectDiagramReferences({ prompt = '', context = '', requiredKin
   let chars = 600;
   for (const { ref } of pool) {
     const spec = parseTutorDiagram(ref.spec);
-    const compact = { id: ref.id, useWhen: ref.useWhen, spec };
+    const compact = { id: ref.id, useWhen: ref.useWhen, spec,
+      ...(ref.sourceId ? { sourceId: ref.sourceId, partIndex: ref.partIndex } : {}) };
     const length = JSON.stringify(compact).length;
     if (chars + length > MAX_CONTEXT) continue;
     picked.push(compact);
