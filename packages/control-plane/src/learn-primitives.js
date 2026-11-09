@@ -667,6 +667,10 @@ export function diagramSmells(md) {
   mapDiagrams(md, doc => { for (const t of tutorDiagramVisibleText(doc)) if (typeof t === 'string' && bareMaths(t)) labels.push(t); return null; });
   return labels;
 }
+// Owner C1.1 (2026-11-08): a relationship draws each node once. The server sets the graph layout on every relationship; the graph layout refuses a
+// disconnected one (each component would float apart), so that one keeps the pairs layout, unchanged.
+const graphRelationship = doc => { const d = doc?.diagram; if (d?.kind !== 'relationship' || d.layout === 'graph') return null; try { return parseTutorDiagram({ ...doc, diagram: { ...d, layout: 'graph' } }); } catch { return null; } };
+export const relationshipsAsGraphs = md => mapDiagrams(md, graphRelationship);
 
 // E1: the tables and diagrams a Markdown string really holds, for the required-visual check (explanation-visuals.js). A pipe table is complete only with a header row, a
 // separator row, at least one body row, at least two columns, the same cell count in every row and no empty header cell; a closed rh-diagram fence is ok only if

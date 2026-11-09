@@ -4,7 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { diagramProblem, explanationProblem, explanationProseChars, EXPLANATION_GUIDANCE } from '../src/learn-primitives.js';
+import { diagramProblem, explanationProblem, explanationProseChars, EXPLANATION_GUIDANCE, relationshipsAsGraphs } from '../src/learn-primitives.js';
+// Owner C1.1 (2026-11-08): a relationship is delivered with the graph layout the server sets; every other example verbatim.
+const delivered = body => relationshipsAsGraphs(body);
 import { generateArtifact } from '../src/learn-artifact.js';
 import { ARTIFACT_SYSTEM } from '../src/agents/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
@@ -63,9 +65,9 @@ for (const [i, example] of ORDINARY.entries()) {
     assert.ok(words(example).length > 0, 'a kind with no visible words could hide text');
     const body = { title: 'T', body: around(example) };
     const direct = await viaDirect('deep', body);
-    assert.deepEqual([direct.out.result, direct.out.block?.body, direct.out.diagramsDropped], ['artifact', body.body, undefined], 'direct');
+    assert.deepEqual([direct.out.result, direct.out.block?.body, direct.out.diagramsDropped], ['artifact', delivered(body.body), undefined], 'direct');
     const road = await viaRoadmap('deep', body);
-    assert.deepEqual([road.out.outcome, road.out.block?.body, road.out.diagramsDropped], ['ok', body.body, undefined], 'roadmap');
+    assert.deepEqual([road.out.outcome, road.out.block?.body, road.out.diagramsDropped], ['ok', delivered(body.body), undefined], 'roadmap');
 
     // invalid variant: the schema is strict, so an unknown key refuses every kind
     const bad = { ...example, diagram: { ...example.diagram, bogus: 1 } };
@@ -73,9 +75,9 @@ for (const [i, example] of ORDINARY.entries()) {
     assert.match(diagramProblem(fence(bad)) || '', /^explanation_bad_diagram:/);
     const badBlock = { title: 'T', body: around(example, `\n\n${fence(bad)}\n\nDone.`) };
     const d = await viaDirect('deep', badBlock);
-    assert.deepEqual([d.out.result, d.out.block?.body, d.out.diagramsDropped, d.m.seen.length], ['artifact', around(example, '\n\nDone.'), 1, 2], 'direct drop after one repair');
+    assert.deepEqual([d.out.result, d.out.block?.body, d.out.diagramsDropped, d.m.seen.length], ['artifact', delivered(around(example, '\n\nDone.')), 1, 2], 'direct drop after one repair');
     const r = await viaRoadmap('deep', badBlock);
-    assert.deepEqual([r.out.outcome, r.out.block?.body, r.out.diagramsDropped, r.m.seen.length], ['ok', around(example, '\n\nDone.'), 1, 1], 'roadmap drop, one call');
+    assert.deepEqual([r.out.outcome, r.out.block?.body, r.out.diagramsDropped, r.m.seen.length], ['ok', delivered(around(example, '\n\nDone.')), 1, 1], 'roadmap drop, one call');
   });
 }
 
@@ -120,7 +122,7 @@ test('single-call roadmap path: an authored rh-diagram fence (every example but 
     assert.equal(m.seen.length, 1, 'one author call, repairs 0');
     assert.equal(out.repaired, false);
     assert.equal(out.diagramsDropped, undefined);
-    assert.equal(out.block.body, block.body, 'the fence is delivered verbatim');
+    assert.equal(out.block.body, delivered(block.body), 'the fence is delivered verbatim (a relationship with its graph layout)');
     assert.deepEqual(JSON.parse(JSON.stringify(out.block)), out.block, 'board JSON round trip');
   }
 });

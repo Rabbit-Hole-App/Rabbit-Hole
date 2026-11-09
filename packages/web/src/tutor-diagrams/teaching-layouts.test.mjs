@@ -211,3 +211,17 @@ test('the remaining layouts wrap long labels and fit the original 320-pixel widt
     fits(scene);
   }
 });
+
+// Owner 2026-11-08 (arrow gap): the link lane is sized to its label with a minimum, so a short label leaves no ~124 px empty gap at 408 px.
+test('a relationship link lane is as wide as its label needs, never a fixed third', () => {
+  const lane = label => {
+    const scene = teachingLayouts.relationship({ ...relationship, edges: [{ from: 'a', to: 'b', label }] }, 408);
+    fits(scene);
+    const [[x1], [x2]] = points(tags(scene, 'polyline')[0].props.points);
+    return x2 - x1;
+  };
+  const short = lane('uses'), long = lane('Requests the latest data');
+  assert.ok(short <= 64, `a short label: ${short} px of arrow`);
+  assert.ok(long > short && long <= 124, `a longer label gets more room, at most the old third: ${long}`);
+  assert.ok(lane('uses') >= 50, 'the arrow keeps its minimum');
+});
