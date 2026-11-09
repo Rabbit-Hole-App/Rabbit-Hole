@@ -145,3 +145,36 @@ test('compact steps match explicit coordinates and label only the leaf starts', 
     assert.throws(() => parseTutorDiagram(withSampleX(x)));
   }
 });
+
+const contour = {
+  label: 'Loss level', kind: 'line', closed: true, smooth: false,
+  points: [{ x: 0, y: 1, label: 'Start' }, { x: 1, y: 2 }, { x: 2, y: 1 }, { x: 1, y: 0 }],
+};
+const contourPlot = series => ({ version: 1, diagram: {
+  kind: 'coordinate-plot', title: 'A loss contour',
+  x: { label: 'Weight 1', min: 0, max: 2 }, y: { label: 'Weight 2', min: 0, max: 2 },
+  series: [series],
+} });
+
+test('a closed plot line joins the last vertex to the first and only marks labeled samples', () => {
+  const spec = parseTutorDiagram(contourPlot(contour));
+  assert.deepEqual(spec.diagram.series[0].points, contour.points);
+  const svg = renderToStaticMarkup(renderTutorDiagram(spec, 408).element);
+  const path = svg.match(/<path[^>]*data-tutor-plot-series="Loss level"[^>]*>/)?.[0];
+  assert.ok(path);
+  assert.deepEqual(path.match(/\bd="([^"]+)"/)[1].match(/[MLZ]/g), ['M', 'L', 'L', 'L', 'Z']);
+  assert.deepEqual([...svg.matchAll(/data-tutor-coordinate-point="([^"]+)"/g)].map(match => match[1]), ['0,1']);
+});
+
+test('closed lines reject ambiguous geometry and the explicit false option keeps an open line', () => {
+  for (const changes of [
+    { kind: 'step' }, { kind: 'scatter' }, { kind: 'stem' }, { endLabel: true },
+    { points: [contour.points[0], contour.points[1], contour.points[0]] },
+    { points: contour.points.map(point => ({ ...point, low: point.y, high: point.y })) },
+  ]) {
+    assert.throws(() => parseTutorDiagram(contourPlot({ ...contour, ...changes })), /closed/i);
+  }
+  const { closed, ...open } = contour;
+  const render = series => renderToStaticMarkup(renderTutorDiagram(contourPlot(series), 408).element);
+  assert.equal(render({ ...open, closed: false }), render(open));
+});
