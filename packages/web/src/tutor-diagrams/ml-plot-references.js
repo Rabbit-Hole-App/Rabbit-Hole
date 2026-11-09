@@ -15,6 +15,8 @@ const circle = (x, y, radius, label) => ({ kind: 'circle', center: { x, y }, rad
 const ref = (id, lessons, prompt, keywords, useWhen, diagram) => ({ id, lessons, prompts: [prompt], keywords, useWhen,
   spec: { version: 1, diagram } });
 
+const lossContour = (label, radius) => ({ label, kind: 'line', closed: true, samples: { radius, count: 16 } });
+
 export const references = [
   ref('nearest-centroid-boundary', ['01'], 'How does a nearest-centroid classifier draw its boundary?', ['centroid', 'classification', 'boundary'],
     'Show labelled clusters, their centers and a perpendicular equal-distance boundary.',
@@ -34,11 +36,11 @@ export const references = [
     'Show the constant mean prediction against a small set of targets.',
     plot('A constant mean baseline', axis('Sample', 1, 5), axis('Target', 0, 6), [series('Targets', [[1, 1], [2, 4], [3, 2], [4, 5], [5, 3]], 'scatter')], [line('y', 3, 'Mean prediction of 3')])),
   ref('gradient-descent-contours', ['02'], 'How does gradient descent move through a loss contour map?', ['gradient descent', 'contour', 'optimization'],
-    'Use explicit contour polylines and a sequence of decreasing-loss steps.',
+    'Use closed loss contours and mark the sequence of decreasing-loss steps.',
     plot('A descent path on a quadratic loss', axis('Weight 1', -3, 3), axis('Weight 2', -3, 3), [
-      series('Outer loss contour', [[-2, 0], [-1.4, 1.4], [0, 2], [1.4, 1.4], [2, 0], [1.4, -1.4], [0, -2], [-1.4, -1.4], [-2, 0]]),
-      series('Inner loss contour', [[-1, 0], [0, 1], [1, 0], [0, -1], [-1, 0]]),
-    ], [vector([2.5, 2], [1.4, 1.1], 'Step 1'), vector([1.4, 1.1], [0.6, 0.5], 'Step 2'), vector([0.6, 0.5], [0, 0], 'Step 3')])),
+      lossContour('Outer loss contour', 2),
+      lossContour('Inner loss contour', 1),
+    ], [vector([-1.5, 1.1], [-0.9, 0.7], 'Step 1'), vector([-0.9, 0.7], [-0.4, 0.3], 'Step 2'), vector([-0.4, 0.3], [0, 0], 'Step 3')])),
   ref('polynomial-regression-curve', ['02'], 'How can a linear model in polynomial features fit a curve?', ['polynomial', 'regression', 'nonlinear'],
     'Compare a fixed quadratic curve with observed targets.',
     plot('A quadratic feature gives a curved fit', axis('Input x', -2, 2), axis('Target', 0, 5), [
