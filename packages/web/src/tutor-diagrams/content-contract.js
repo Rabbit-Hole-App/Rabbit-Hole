@@ -33,6 +33,12 @@ const FLOW_VERBS = new Set(`
   trim truncate tune unroll update upload use validate verify vote wait warn was weigh weight will wrap write
 `.trim().split(/\s+/u));
 const FLOW_NOUN_PHRASE = /^(?:bootstrap draws|model (?:output|results|training|weights)|record (?:accepted|rejected))[.!?]?$/iu;
+const COMPONENT_ACTION_PREFIX = /^(?:apply|execute|perform|run|use)\s+/iu;
+const COMPONENT_NAME_JOIN = /(?<=\p{L}{2})\s+\+\s+(?=\p{L}{2})/gu;
+
+// String steps describe actions. Role-tagged inset steps name components.
+const isInsetComponentLabel = path => path.at(-6) === 'blocks' && path.at(-4) === 'diagram'
+  && path.at(-3) === 'steps' && path.at(-1) === 'label';
 
 const MATH_NOTATION = [
   /\\[A-Za-z]+\b/u, // TeX command
@@ -51,17 +57,20 @@ const MATH_NOTATION = [
 ];
 const FRACTION = /(?<![\p{L}\d/])\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?(?![\p{L}\d/])|(?<![\p{L}\d])[a-z]\s*\/\s*[a-z\d](?![\p{L}\d])/u;
 
-function needsMathDelimiters(value, field) {
+function needsMathDelimiters(value, field, componentName) {
   // A tensor's dimension label and a block's dimension note are literal shape metadata.
   if (field === 'dimensions' && /^\d+(?:\s*[×x]\s*\d+)+$/u.test(value)) return false;
   if (field === 'dims' && /^[A-Za-z]\s*=\s*[\d,]+$/u.test(value)) return false;
   const { source, math } = tokenizeMath(value);
   if (math.some(({ raw }) => !raw.startsWith('$') || raw.startsWith('$$'))) return true;
   // Keep a neutral operand in place of each valid token to catch expressions like "$x$ + 1".
-  const plain = source.replace(/\uE000\d+\uE001/gu, '\uFFFC')
+  let plain = source.replace(/\uE000\d+\uE001/gu, '\uFFFC')
     .replace(/\b\d{1,4}[/-]\d{1,2}[/-]\d{1,4}\b/gu, ' ')
     .replace(/\b\d{1,2}\/\d{1,2}\s*(?:[-–—]|to|through|until)\s*\d{1,2}\/\d{1,2}\b/giu, ' ')
     .replace(/\b[12]\d{3}\s*[-−–—/]\s*[12]\d{3}\b/gu, ' ');
+  // A spaced plus can join textual component names. Numeric, one-letter,
+  // and typeset operands still need to be inside one complete formula.
+  if (componentName) plain = plain.replace(COMPONENT_NAME_JOIN, ' and ');
   if (MATH_NOTATION.some(pattern => pattern.test(plain))) return true;
   if (field === 'unit' || (field === 'time' && /^\d{1,2}\/\d{1,2}$/u.test(plain.trim()))) return false;
   return FRACTION.test(plain);
@@ -110,7 +119,10 @@ function lintNodes(diagram, path, report) {
     if (seen.has(label)) report('duplicate-node-label', labelPath,
       `This label repeats ${list}[${seen.get(label)}]. Name the distinction between the two nodes.`, raw);
     else seen.set(label, index);
-    if (diagram.kind === 'flow') {
+    if (isInsetComponentLabel(labelPath)) {
+      if (COMPONENT_ACTION_PREFIX.test(label)) report('block-component-name', labelPath,
+        'Use the component name without an action prefix.', raw);
+    } else if (diagram.kind === 'flow') {
       const first = label.match(/^[a-z]+(?:-[a-z]+)*/iu)?.[0]?.toLowerCase();
       if (!FLOW_VERBS.has(first) || FLOW_NOUN_PHRASE.test(label)) report('flow-label-verb-first', labelPath,
         'Start with the action or the verb of a decision question.', raw);
@@ -163,7 +175,7 @@ export function lintDiagramContent(spec) {
     const key = path.at(-1);
     if (typeof value === 'string') {
       const visible = Number.isInteger(key) ? TEXT_LISTS.has(path.at(-2)) : TEXT_FIELDS.has(key);
-      if (visible && needsMathDelimiters(value, key)) report('math-delimiters', path,
+      if (visible && needsMathDelimiters(value, key, isInsetComponentLabel(path))) report('math-delimiters', path,
         'Put each complete mathematical expression inside $…$ delimiters.', value);
     } else if (Array.isArray(value)) {
       value.forEach((entry, index) => visit(entry, [...path, index]));
