@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "tensor",
+    "title": "Weighted value output",
+    "caption": "Multiply each strip by its weight and add corresponding entries. Each strip shows two of 256 entries.",
+    "tensor": {
+      "rows": 1,
+      "columns": 2,
+      "dimensions": "256",
+      "values": [
+        0.362,
+        1.115
+      ],
+      "role": "output"
+    }
+  }
+}

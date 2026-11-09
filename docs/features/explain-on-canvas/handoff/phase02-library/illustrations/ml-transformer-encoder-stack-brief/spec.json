@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "How the sentence gains context",
+    "caption": "Bring the input back after each update. The next layer starts with the result.",
+    "blocks": [
+      {
+        "id": "emb",
+        "label": "Words in “the cat sat on the mat”",
+        "role": "embedding"
+      },
+      {
+        "id": "att",
+        "label": "Mix information across words",
+        "role": "attention",
+        "repeat": 6,
+        "repeatTo": "fn"
+      },
+      {
+        "id": "an",
+        "label": "Keep the combined features in scale",
+        "role": "norm"
+      },
+      {
+        "id": "ff",
+        "label": "Update each word separately",
+        "role": "feedforward"
+      },
+      {
+        "id": "fn",
+        "label": "Keep the updated features in scale",
+        "role": "norm"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "att",
+        "to": "att"
+      },
+      {
+        "kind": "residual",
+        "from": "ff",
+        "to": "ff"
+      }
+    ]
+  }
+}

@@ -7,20 +7,24 @@
       {
         "id": "an",
         "label": "Normalize for attention",
+        "role": "norm",
         "repeat": 32,
         "repeatTo": "ff"
       },
       {
         "id": "att",
-        "label": "Look back at tokens"
+        "label": "Look back at tokens",
+        "role": "attention"
       },
       {
         "id": "fn",
-        "label": "Normalize for feed-forward"
+        "label": "Normalize for feed-forward",
+        "role": "norm"
       },
       {
         "id": "ff",
-        "label": "Update token features"
+        "label": "Update token features",
+        "role": "feedforward"
       }
     ],
     "edges": [

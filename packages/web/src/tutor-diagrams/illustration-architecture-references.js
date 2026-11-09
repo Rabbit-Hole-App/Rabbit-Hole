@@ -24,10 +24,10 @@ const decoderResiduals = [residual('an', 'att'), residual('fn', 'ff')];
 
 function llamaSpec(title, [attentionNorm, attention, feedForwardNorm], feedForward, caption) {
   return versioned(stack(title, [
-    { ...attentionNorm, repeat: 32, repeatTo: 'ff' },
-    attention,
-    feedForwardNorm,
-    { id: 'ff', ...feedForward },
+    { ...attentionNorm, role: 'norm', repeat: 32, repeatTo: 'ff' },
+    { ...attention, role: 'attention' },
+    { ...feedForwardNorm, role: 'norm' },
+    { id: 'ff', ...feedForward, role: 'feedforward' },
   ], { edges: decoderResiduals, caption }));
 }
 
@@ -44,7 +44,7 @@ function decoderComparison(sharedBlocks, dense, moe, caption) {
 }
 
 const gemmaTitle = 'Gemma 3 27B decoder';
-const gemmaEmbedding = { id: 'emb', label: 'Token embeddings' };
+const gemmaEmbedding = { id: 'emb', label: 'Token embeddings', role: 'embedding' };
 const gemmaAttention = { id: 'att', label: 'Grouped-query attention', repeat: 62, repeatTo: 'ff' };
 const gemmaFeedForward = { id: 'ff', label: 'Gated feed-forward' };
 
@@ -53,8 +53,8 @@ function gemmaSpec(attention, feedForward, notes) {
     gemmaEmbedding,
     attention,
     feedForward,
-    { id: 'norm', label: 'Final RMSNorm' },
-    { id: 'out', label: 'Output linear' },
+    { id: 'norm', label: 'Final RMSNorm', role: 'norm' },
+    { id: 'out', label: 'Output linear', role: 'output' },
   ], { edges: [residual('att'), residual('ff')], ...notes }));
 }
 
@@ -123,9 +123,9 @@ export const architectureReferences = [
     ],
     useWhen: 'Use RMSNorm before and after attention and the feed-forward network. SWA means sliding-window attention. In Detailed put the gate in a separate visual. Config https://huggingface.co/mlx-community/gemma-3-27b-it-qat-3bit/blob/main/config.json',
     spec: gemmaSpec({
-      ...gemmaAttention, label: 'Grouped-query attention (share key and value heads)',
+      ...gemmaAttention, label: 'Grouped-query attention (share key and value heads)', role: 'attention',
     }, {
-      ...gemmaFeedForward, label: 'Gated GELU FFN (update each token)',
+      ...gemmaFeedForward, label: 'Gated GELU FFN (update each token)', role: 'feedforward',
     }, {
       caption: 'Five sliding-window layers precede each global layer. RMSNorm surrounds both sublayers.',
     }),
@@ -133,10 +133,10 @@ export const architectureReferences = [
       overview: {
         spec: versioned(stack(gemmaTitle, [
           gemmaEmbedding,
-          { ...gemmaAttention, label: 'Read current and earlier tokens' },
-          { ...gemmaFeedForward, label: 'Update each token' },
-          { id: 'norm', label: 'Final normalization' },
-          { id: 'out', label: 'Score possible next tokens' },
+          { ...gemmaAttention, label: 'Read current and earlier tokens', role: 'attention' },
+          { ...gemmaFeedForward, label: 'Update each token', role: 'feedforward' },
+          { id: 'norm', label: 'Final normalization', role: 'norm' },
+          { id: 'out', label: 'Score possible next tokens', role: 'output' },
         ])),
       },
       deep: {
@@ -144,10 +144,18 @@ export const architectureReferences = [
           ...gemmaAttention,
           label: 'Attention',
           inputs: [{ label: 'QK-Norm' }, { label: 'RoPE' }],
-          diagram: flow('Apply Pre-RMSNorm 1', 'Use sliding-window and GQA attention (5:1 local to global)', 'Apply Post-RMSNorm 1'),
+          diagram: flow(
+            { label: 'Apply Pre-RMSNorm 1', role: 'norm' },
+            { label: 'Use sliding-window and GQA attention (5:1 local to global)', role: 'attention' },
+            { label: 'Apply Post-RMSNorm 1', role: 'norm' },
+          ),
         }, {
           ...gemmaFeedForward, label: 'FFN', detail: 2,
-          diagram: flow('Apply Pre-RMSNorm 2', 'Run Gated GELU FFN', 'Apply Post-RMSNorm 2'),
+          diagram: flow(
+            { label: 'Apply Pre-RMSNorm 2', role: 'norm' },
+            { label: 'Run Gated GELU FFN', role: 'feedforward' },
+            { label: 'Apply Post-RMSNorm 2', role: 'norm' },
+          ),
         }, {
           title: 'Gemma 3 27B',
           callouts: [
@@ -158,9 +166,9 @@ export const architectureReferences = [
           ],
         }),
         detailSpec: versioned(stack('Gated FFN', [
-          { id: 'gate', label: 'Hidden state', merge: 'multiply',
+          { id: 'gate', label: 'Hidden state', role: 'feedforward', merge: 'multiply',
             inputs: [{ label: 'Linear then GELU' }, { label: 'Linear' }] },
-          { id: 'out', label: 'Linear' },
+          { id: 'out', label: 'Linear', role: 'output' },
         ])),
       },
     },

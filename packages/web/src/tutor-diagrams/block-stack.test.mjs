@@ -7,6 +7,8 @@ import { createBlockStackShape, validateBlockStack, blockStackText, describeBloc
 import { blockStackNaturalWidth, layoutBlockStack } from './block-stack-layout.js';
 import { layouts } from './layouts.js';
 import { layoutTensor } from './tensor-layout.js';
+import { PALETTE } from './primitives.js';
+import { TEACHING } from './teaching-theme.js';
 import { createTensorPayload, tensorText, validateTensor } from './tensor-spec.js';
 
 const text = max => z.string().min(1).max(max);
@@ -106,6 +108,38 @@ test('block-stack text and description preserve authored annotations and the mea
   assert.match(description, /Self-attention.*Self-attention.*add/i);
   assert.match(description, /Self-attention.*Gated MLP.*multiply/i);
   assert.match(description, /Attention heads.*8/);
+});
+
+test('explicit block and inset roles change paint without moving the geometry', () => {
+  const roles = ['norm', 'attention', 'feedforward', 'embedding', 'output', 'changed'];
+  const labels = ['Read state', 'Mix tokens', 'Update features', 'Read embeddings', 'Return output', 'Compare block'];
+  const steps = ['Normalize input', 'Mix tokens', 'Update features', 'Return output'];
+  const blocks = labels.map((label, index) => ({ id: `block-${index}`, label }));
+  blocks[1].diagram = { kind: 'flow', steps };
+  const plain = { kind: 'block-stack', title: 'Role colours', blocks };
+  const coloured = { ...plain, blocks: blocks.map((block, index) => ({ ...block, role: roles[index] })) };
+  coloured.blocks[1].diagram = { kind: 'flow', steps: [steps[0],
+    { label: steps[1], role: 'attention' }, { label: steps[2], role: 'feedforward' }, { label: steps[3], role: 'norm' },
+  ] };
+  const original = draw(plain, 408);
+  const styled = draw(coloured, 408);
+  const rects = (scene, key) => findAll(scene.elements, key).map(element => element.props.children[0].props);
+  const outer = rects(styled, 'data-block-stack-node');
+  const inner = rects(styled, 'data-tutor-node');
+  assert.deepEqual(outer.map(({ fill }) => fill), [TEACHING.inset, TEACHING.blueSoft, TEACHING.warmSoft,
+    TEACHING.greenSoft, TEACHING.greenSoft, TEACHING.blueSoft]);
+  assert.equal(outer[4].stroke, TEACHING.green);
+  assert.equal(outer[5].stroke, TEACHING.blue);
+  assert.equal(outer[5].strokeWidth, 2);
+  assert.deepEqual(inner.map(({ fill }) => fill), [PALETTE.process, TEACHING.blueSoft, TEACHING.warmSoft, TEACHING.inset]);
+  const geometry = ({ x, y, width, height, rx }) => ({ x, y, width, height, rx });
+  assert.deepEqual(outer.map(geometry), rects(original, 'data-block-stack-node').map(geometry));
+  assert.deepEqual(inner.map(geometry), rects(original, 'data-tutor-node').map(geometry));
+  assert.deepEqual(blockStackText(coloured), blockStackText(plain));
+  assert.ok(describeBlockStack(coloured).includes(steps.join(' → ')));
+  const invalid = structuredClone(coloured);
+  invalid.blocks[1].diagram.steps[1].role = 'process';
+  assert.equal(shape.safeParse(invalid).success, false);
 });
 
 test('residuals leave before their source block, route outside it and rejoin after their inclusive target', () => {

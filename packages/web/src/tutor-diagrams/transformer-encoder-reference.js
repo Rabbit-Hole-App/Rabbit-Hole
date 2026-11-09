@@ -14,11 +14,11 @@ function encoderSpec(title, input, labels, caption) {
     diagram: {
       kind: 'block-stack', title, caption,
       blocks: [
-        { id: 'emb', ...input },
-        { id: 'att', label: labels.attention, repeat: 6, repeatTo: 'fn' },
-        { id: 'an', label: labels.attentionNorm },
-        { id: 'ff', label: labels.feedForward },
-        { id: 'fn', label: labels.feedForwardNorm },
+        { id: 'emb', ...input, role: 'embedding' },
+        { id: 'att', label: labels.attention, role: 'attention', repeat: 6, repeatTo: 'fn' },
+        { id: 'an', label: labels.attentionNorm, role: 'norm' },
+        { id: 'ff', label: labels.feedForward, role: 'feedforward' },
+        { id: 'fn', label: labels.feedForwardNorm, role: 'norm' },
       ],
       edges: [
         { kind: 'residual', from: 'att', to: 'att' },

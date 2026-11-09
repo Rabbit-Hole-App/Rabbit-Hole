@@ -101,7 +101,7 @@ function labelBounds(route, others, width) {
   return null;
 }
 
-export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
+export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, paintNode) {
   const paths = flowPaths(highlightPath);
   const onPath = new Set(paths.flat());
   const pathEdge = ({ from, to }) => paths.some(path => path.some((id, index) => id === from && path[index + 1] === to));
@@ -231,9 +231,10 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
     const { id, cx, y, width, height, role, lines, offset, title, strip, stripOffset, labelHeight, contentHeight } = node;
     const x = cx - width / 2;
     const active = onPath.has(id);
-    const shape = role === 'decision'
+    const baseShape = role === 'decision'
       ? diamond(x, y, width, height, { active })
       : box(x, y, width, height, { role, radius: role === 'outcome' && !strip ? height / 2 : 7, active });
+    const shape = paintNode ? paintNode(baseShape, node) : baseShape;
     // title: the full label when the server trimmed it to fit (item 47), shown as the node's tooltip.
     const props = { 'data-tutor-node': id, ...(active ? { 'data-tutor-path': '' } : {}) };
     const tooltip = title ? [h('title', null, title)] : [];

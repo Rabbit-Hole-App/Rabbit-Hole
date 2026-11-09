@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Softmax over the toy vocabulary",
+    "caption": "$p_i=e^{z_i}/\\sum_{j=1}^{6}e^{z_j}$. The winner is on, with $\\log p_{\\mathrm{on}}\\approx -0.766$.",
+    "bars": [
+      {
+        "label": "the",
+        "value": 0.134
+      },
+      {
+        "label": "cat",
+        "value": 0.073
+      },
+      {
+        "label": "sat",
+        "value": 0.178
+      },
+      {
+        "label": "on",
+        "value": 0.465
+      },
+      {
+        "label": "mat",
+        "value": 0.1
+      },
+      {
+        "label": "slept",
+        "value": 0.05
+      }
+    ]
+  }
+}

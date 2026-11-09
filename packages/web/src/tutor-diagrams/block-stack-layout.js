@@ -1,4 +1,5 @@
 import { cloneElement, createElement as h } from 'react';
+import { blockStackStepLabel } from './block-stack-spec.js';
 import { layoutFlow } from './flow.js';
 import { connector, label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { skipLanePoints, skipLaneX } from './skip-lanes.js';
@@ -19,6 +20,17 @@ const ROW_GAP = 6;
 const REPEAT_LANE = 50;
 const JOIN_RADIUS = 10;
 const BADGE_RADIUS = 9;
+const STACK_PAINT = {
+  norm: { fill: TEACHING.inset, stroke: TEACHING.line, strokeWidth: 1 },
+  attention: { fill: TEACHING.blueSoft, stroke: TEACHING.line, strokeWidth: 1 },
+  feedforward: { fill: TEACHING.warmSoft, stroke: TEACHING.line, strokeWidth: 1 },
+  embedding: { fill: TEACHING.greenSoft, stroke: TEACHING.line, strokeWidth: 1 },
+  output: { fill: TEACHING.greenSoft, stroke: TEACHING.green, strokeWidth: 1.5 },
+  changed: { fill: TEACHING.blueSoft, stroke: TEACHING.blue, strokeWidth: 2 },
+};
+
+const paintBlock = (shape, role) => role ? cloneElement(shape, STACK_PAINT[role]) : shape;
+const paintInsetStep = (shape, node) => paintBlock(shape, node.stackRole);
 
 const repeatText = repeat => `×${repeat}`;
 const lineBlock = (text, width, size = 14) => {
@@ -29,7 +41,10 @@ const lineBlock = (text, width, size = 14) => {
 function fullChild({ label: title, diagram }) {
   if (!diagram) return null;
   if (diagram.kind !== 'flow') return { ...diagram, title };
-  const nodes = diagram.steps.map((label, index) => ({ id: `step-${index + 1}`, label, role: 'process' }));
+  const nodes = diagram.steps.map((step, index) => ({
+    id: `step-${index + 1}`, label: blockStackStepLabel(step), role: 'process',
+    stackRole: typeof step === 'string' ? undefined : step.role,
+  }));
   const edges = nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id }));
   return { kind: 'flow', title, nodes, edges };
 }
@@ -121,7 +136,7 @@ function drawBlock(block, content, x, top, width, height, numbered) {
   const center = x + width / 2;
   const badgeHeight = numbered.length ? 2 * BADGE_RADIUS + ROW_GAP : 0;
   let y = top + INSET + (height - content.height - badgeHeight) / 2;
-  const elements = [box(x, top, width, height, { active: block.role === 'changed', role: block.role === 'changed' ? 'process' : 'plain' }),
+  const elements = [paintBlock(box(x, top, width, height), block.role),
     label(title.lines, center, y + title.height / 2, { weight: 700 })];
   y += title.height;
   for (const row of rows) {
@@ -215,7 +230,11 @@ export function layoutBlockStack(diagram, preferredWidth, renderChild) {
   const noteBand = noteWidth ? noteWidth + NOTE_GAP : 0;
   const side = rightBand ? 'left' : 'right';
   const requested = Math.max(minBlockWidth, Math.min(PREFERRED_BLOCK_WIDTH, available - fixed - noteBand));
-  const scenes = children.map(child => child ? renderChild(child, requested - 2 * INSET) : null);
+  const childWidth = requested - 2 * INSET;
+  const scenes = children.map(child => {
+    if (!child) return null;
+    return child.kind === 'flow' ? layoutFlow(child, childWidth, paintInsetStep) : renderChild(child, childWidth);
+  });
   const blockWidth = Math.max(requested, ...scenes.map(scene => scene ? scene.width + 2 * INSET : 0));
   const occupied = fixed + blockWidth + noteBand;
   const width = Math.max(available, occupied, noteWidth ? 0 : ledgerMinWidth);
