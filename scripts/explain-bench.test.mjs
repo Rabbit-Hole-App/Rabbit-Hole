@@ -350,3 +350,52 @@ test('planner arm: plan from explanation_author_raw (fixed, two offered, rules f
   assert.match(md, /## Planner \(JEV\)/); assert.match(md, /planner failures \(planner: rules, the author ran without a plan\) \| 1 \|/); assert.match(md, /two kinds offered: cards, right \/ acceptable \/ wrong \| 1: 0 \/ 0 \/ 1 \|/);
   assert.equal(kindStatus({ best: [['D:coordinate-plot'], ['D:coordinate-plot', 'D:*']], acceptable: [['D:transformation']] }, 'transformation'), 'acceptable'); // a D:* second slot does not make every kind right
 });
+
+test('plot rule (owner 2026-11-08): any wrong point makes the card wrong; every stated formula is tried so a derivative plot is not a wrong point; strict-first and legacy keep old runs re-scorable; the header lists the point errors', async () => {
+  const prose = String.raw`The sigmoid is $\sigma(z)=\frac{1}{1+e^{-z}}$ and its slope is $\sigma'(z)=\sigma(z)(1-\sigma(z))$.`;
+  const good = sigmoidPlot([0.12, 0.5, 0.88]), oneWrong = sigmoidPlot([0.12, 0.6, 0.88]), derivative = sigmoidPlot([0.1049, 0.25, 0.1049]);
+  assert.equal(arithmetic(good, prose).errors, 0);
+  assert.equal(arithmetic(oneWrong, prose).errors, 1);
+  assert.deepEqual([arithmetic(derivative, prose).checked, arithmetic(derivative, prose, 'legacy').errors], [false, 3]); // strict: a different function, not checked; legacy: first formula only
+  assert.match(arithmetic(derivative, prose).reason, /different function/);
+  const sig = loadSet('correct-svg').prompts.find(p => p.id === 'sigmoid');
+  const card = (rule, ...plots) => scoreCard(sig, { set: 'correct-svg', run: 1, depth: 'deep', id: 'sigmoid', delivered: true, block: block(prose, ...plots.map(fence)), totalMs: 1 }, { plotRule: rule });
+  assert.deepEqual([card('strict', good).score, card('strict', good).plotWrong], ['right', false]);
+  assert.deepEqual([card('strict', oneWrong).score, card('strict', oneWrong).plotWrong], ['wrong', true]);
+  assert.equal(card('strict', good, oneWrong).score, 'wrong', 'a wrong point in a second plot counts');
+  assert.equal(card('strict', good, derivative).score, 'right', 'the derivative is a different function, not a wrong point');
+  assert.equal(card('strict-first', good, derivative).score, 'wrong', 'strict-first compares with the first stated formula only');
+  assert.equal(card('legacy', oneWrong).score, 'right', 'legacy: points are reported, the score is unchanged');
+  assert.equal(card('legacy', oneWrong).diagrams[0].arithmetic.errors, 1);
+  // The deep-plot gate counts only plots with no wrong point and says how many were drawn.
+  const set = loadSet('correct-svg'), cards = set.prompts.filter(p => p.deepPlot).map(p => scoreCard(p, { set: 'correct-svg', run: 1, depth: 'deep', id: p.id, delivered: true, block: block(prose, fence(p.id === 'sigmoid' ? oneWrong : good)), totalMs: 1 }));
+  const c = criteria({ name: 'correct-svg', pass: { deepPlots: { min: 5, maxPointErrors: 0 } } }, cards).find(x => x.rule.startsWith('deep'));
+  assert.deepEqual([c.ok, c.detail], [false, '5/6 (6 drawn, 1 with a wrong point), 1 point errors']);
+  // The report header lists the plots, checked and not, and which.
+  const root = mkdtempSync(join(tmpdir(), 'bench-plotrule-')), dir = join(root, 'raw', 'correct-svg-r1-deep');
+  mkdirSync(join(dir, 'cards'), { recursive: true });
+  const row = { id: 'sigmoid', delivered: true, totalMs: 1000, repaired: false, repairCauses: [], costUsd: 0.01, ledgerUsd: 0.01 };
+  writeFileSync(join(dir, 'cards', 'sigmoid.json'), JSON.stringify({ row, response: { result: 'artifact', block: block(prose, fence(good), fence(derivative)) } })); writeFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n');
+  const r = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'pr' });
+  const md = readFileSync(join(r.runDir, 'report.md'), 'utf8');
+  assert.match(md, /Plot point errors \(rule: strict;[^)]*\): 2 plots drawn, 1 checked \(3 points, 0 wrong\), 1 not checked\./);
+  assert.match(md, /- correct-svg\/r1\/deep\/sigmoid coordinate-plot: not checked \(no stated formula fits half the points/);
+  assert.equal(r.results.meta.plotRule, 'strict'); assert.equal(r.results.summary.byDepth.deep.quantityPlotsCorrect, 1);
+  const legacy = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'pr-legacy', plotRule: 'legacy' });
+  assert.match(readFileSync(join(legacy.runDir, 'report.md'), 'utf8'), /rule: legacy; points reported, the score unchanged/);
+});
+
+test('planner bench v2: no second-visual question, one diagram unless the type is both, kind fixed at 0.6 else the top two offered, no plot override', async () => {
+  const { planOf: benchPlan, QUESTIONS: Q, FIX_AT } = await import('./explain-bench/planner.mjs');
+  assert.equal(Q.secondVisual, undefined); assert.deepEqual(Object.keys(Q), ['visualType', 'kind', 'depthTreatment', 'needsPlot', 'isPhysical', 'needsWorkedExample']); assert.equal(FIX_AT, 0.6);
+  const a = (type, probabilities, extra = {}) => ({ visualType: { choice: type, confidence: 0.9 }, kind: { choice: Object.keys(probabilities)[0], confidence: Object.values(probabilities)[0], probabilities }, depthTreatment: { choice: 'mechanism' },
+    needsPlot: { noul: extra.needsPlot ?? 0.9 }, isPhysical: { noul: 0.1 }, needsWorkedExample: { noul: 0.1 } });
+  const fixed = benchPlan(a('diagram', { flow: 0.7, cycle: 0.2 }));
+  assert.deepEqual([fixed.fixed, fixed.kinds, fixed.mixes, fixed.offered], [true, ['flow'], [['D:flow']], null]);
+  const two = benchPlan(a('diagram', { flow: 0.5, cycle: 0.4, tree: 0.1 }));
+  assert.deepEqual([two.fixed, two.kinds, two.mixes, two.offered], [false, ['flow', 'cycle'], [['D:flow'], ['D:cycle']], ['flow', 'cycle']]);
+  assert.deepEqual(benchPlan(a('both', { cycle: 0.9, flow: 0.1 })).mixes, [['P', 'D:cycle']]);
+  assert.deepEqual(benchPlan(a('picture', { cycle: 0.9, flow: 0.1 })).mixes, [['P']]);
+  const noOverride = benchPlan(a('diagram', { flow: 0.9, cycle: 0.1 }, { needsPlot: 0.95 }));
+  assert.deepEqual([noOverride.kind, noOverride.overridden], ['flow', false], 'a high needsPlot no longer turns the kind into a plot');
+});

@@ -1,6 +1,7 @@
 // JEV planner bench (owner 2026-11-08): offline, no author call. Every labelled prompt (correct-svg x 3 depths, AI/ML at Standard) goes once through
 // TypeSafe System One (jev-latest) with the owner's planner questions; the answers are mapped to a plan with the owner's server rules and scored against the
-// pre-written labels. Price: $0.042 per million input tokens, output free (docs.typesafe.ai/models, read 2026-11-08).
+// pre-written labels. PLANNER v2 (owner 2026-11-08, packages/control-plane/src/explanation-planner.js on explain/correct-svg 8e861fdb3): no second-visual question, one diagram unless the visual type is both,
+// no plot override, the kind FIXED when its top probability is >= 0.6 else the top two kinds OFFERED (the author chooses). Price: $0.042 per million input tokens, output free (docs.typesafe.ai/models, read 2026-11-08).
 // Usage: node scripts/explain-bench/planner.mjs [--out dir] [--only correct-svg|aiml] [--dry-run]
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -35,14 +36,10 @@ const KIND = {
   't-account': 'Debits and credits.',
   waterfall: 'An opening value changed by signed steps to a closing value.',
 };
-const SECOND = ['flow', 'sequence', 'cycle', 'timeline', 'tree', 'relationship', 'transformation', 'comparison', 'layers', 'matrix', 'coordinate-plot', 'bar-chart', 'histogram', 'box-plot', 'heatmap', 'number-line'];
-const QUANT = new Set(['coordinate-plot', 'bar-chart', 'histogram', 'box-plot', 'heatmap', 'number-line', 'waterfall']);
 export const QUESTIONS = {
   visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only.",
     criteria: { picture: 'A drawn illustration of a physical thing, place, organism or natural event.', diagram: 'A schematic: process, relationship, comparison, structure, quantity or formula.', both: 'A physical thing that also has a mechanism to explain (volcano erupting, engine, eclipse).' } },
   kind: { type: 'choice', instructions: 'If a diagram is used, which kind best teaches the answer? Judge by the shape of the answer, not by words in the question.', criteria: KIND },
-  secondVisual: { type: 'choice', instructions: 'Is a second visual needed, and of what kind? Two visuals when the question names two things (X and Y, X vs Y) or asks both how something looks and how it works; otherwise none.',
-    criteria: { none: 'One visual is enough.', picture: 'A picture alongside the diagram.', ...Object.fromEntries(SECOND.map(k => [k, KIND[k]])) } },
   depthTreatment: { type: 'choice', instructions: 'How technical should the explanation and its visual be for this depth? Overview: plain words, no formulas or jargon, the simplest visual with plain labels. Standard: the mechanism with its proper terms; a plot or chart if a quantity is central. Deep: precise terms, the formula or exact relationship in the labels, the quantitative view.',
     criteria: { plain: 'No formulas, no jargon, plain-word labels.', mechanism: 'Proper terms, the mechanism; a plot if a quantity is central.', quantitative: 'Formula and exact relationships in labels; plot or chart where a quantity is involved.' } },
   needsPlot: { type: 'noul', instructions: 'Is this a question about a formula, a metric, a loss, an activation function, a schedule, or how one quantity changes with another?' },
@@ -50,14 +47,14 @@ export const QUESTIONS = {
   needsWorkedExample: { type: 'noul', instructions: 'Would a small worked numeric example (computed from the formula the explanation states) make the answer clearer?' },
 };
 
-// The owner's mapping rules: answers -> plan (visuals as a bench mix: 'P' and 'D:<kind>').
+// The server's mapping (explanation-planner.js planFromAnswers, v2): answers -> plan (visuals as bench mixes: 'P' and 'D:<kind>'). Offered kinds give one candidate mix each (the author picks one).
+export const FIX_AT = 0.6;
+const top2 = probabilities => Object.entries(probabilities || {}).sort((x, y) => y[1] - x[1]).slice(0, 2);
 export function planOf(a) {
-  let kind = a.kind.choice;
-  const plain = a.depthTreatment.choice === 'plain';
-  if (a.needsPlot.noul >= 0.7 && !plain && !QUANT.has(kind)) kind = a.needsWorkedExample.noul >= 0.7 && a.needsPlot.noul < 0.85 ? 'bar-chart' : 'coordinate-plot';
-  const type = a.visualType.choice, second = a.secondVisual.choice;
-  const mix = type === 'picture' ? ['P'] : type === 'both' ? ['P', `D:${kind}`] : [`D:${kind}`, ...(second === 'none' ? [] : second === 'picture' ? ['P'] : [`D:${second}`])];
-  return { mix, kind, overridden: kind !== a.kind.choice, depthTreatment: a.depthTreatment.choice, ambiguous: a.kind.confidence < 0.5,
+  const [[kind, p1] = [a.kind?.choice, a.kind?.confidence], second] = top2(a.kind?.probabilities);
+  const fixed = p1 >= FIX_AT || !second, kinds = fixed ? [kind] : [kind, second[0]], type = a.visualType.choice;
+  const mixes = kinds.map(k => (type === 'picture' ? ['P'] : type === 'both' ? ['P', `D:${k}`] : [`D:${k}`]));
+  return { mix: mixes[0], mixes, kind, kinds, fixed, offered: fixed ? null : kinds, overridden: false, depthTreatment: a.depthTreatment.choice, ambiguous: a.kind.confidence < 0.5,
     physicalDisagrees: a.isPhysical.noul >= 0.7 && type === 'diagram', confidence: { kind: a.kind.confidence, visualType: a.visualType.confidence } };
 }
 
@@ -95,13 +92,14 @@ export function summarize(rows) {
   const by = set => rows.filter(r => !set || r.set === set), lines = [];
   for (const set of [null, 'correct-svg', 'aiml']) {
     const rs = by(set).filter(r => r.answers); if (!rs.length) continue;
-    const kindOk = rs.filter(r => r.okKinds.has(r.plan.kind)), kindRight = rs.filter(r => r.rightKinds.has(r.plan.kind));
+    const kindOk = rs.filter(r => r.plan.kinds.some(k => r.okKinds.has(k))), kindRight = rs.filter(r => r.plan.kinds.some(k => r.rightKinds.has(k)));
     const typeRight = rs.filter(r => r.expectType.includes(r.answers.visualType.choice));
-    const mixRight = rs.filter(r => r.best.some(b => matches(b, r.plan.mix))), mixOk = rs.filter(r => r.best.some(b => matches(b, r.plan.mix)) || r.acceptable.some(a => matches(a, r.plan.mix)));
+    const mixRight = rs.filter(r => r.plan.mixes.some(m => r.best.some(b => matches(b, m)))), mixOk = rs.filter(r => r.plan.mixes.some(m => r.best.some(b => matches(b, m)) || r.acceptable.some(a => matches(a, m))));
+    const fixedRs = rs.filter(r => r.plan.fixed), offeredRs = rs.filter(r => !r.plan.fixed);
     const treat = rs.filter(r => r.answers.depthTreatment.choice === TREAT[r.depth]), plot = rs.filter(r => (r.answers.needsPlot.noul >= 0.5) === r.quantity);
     const conf = (xs) => (xs.length ? (xs.reduce((s, r) => s + r.answers.kind.confidence, 0) / xs.length).toFixed(2) : '-');
-    const wrongK = rs.filter(r => !r.okKinds.has(r.plan.kind));
-    lines.push({ set: set || 'all', plans: rs.length, 'kind right': pct(kindRight.length, rs.length), 'kind right or acceptable': pct(kindOk.length, rs.length),
+    const wrongK = rs.filter(r => !r.plan.kinds.some(k => r.okKinds.has(k)));
+    lines.push({ set: set || 'all', plans: rs.length, 'kind fixed: kind right': pct(fixedRs.filter(r => kindRight.includes(r)).length, fixedRs.length), 'two offered: a right kind among them': pct(offeredRs.filter(r => kindRight.includes(r)).length, offeredRs.length), 'kind right': pct(kindRight.length, rs.length), 'kind right or acceptable': pct(kindOk.length, rs.length),
       'visualType right': pct(typeRight.length, rs.length), 'plan (type+kind+count) right': pct(mixRight.length, rs.length), 'plan right or acceptable': pct(mixOk.length, rs.length),
       'depthTreatment right': pct(treat.length, rs.length), 'needsPlot agrees': pct(plot.length, rs.length),
       'kind confidence right / wrong': `${conf(kindOk)} / ${conf(wrongK)}`, 'ambiguous (<0.5)': rs.filter(r => r.plan.ambiguous).length, 'kind overridden to a plot': rs.filter(r => r.plan.overridden).length,
@@ -127,6 +125,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   writeFileSync(join(out, 'rows.json'), JSON.stringify(rows, (k, v) => (v instanceof Set ? [...v] : v), 1));
   const table = summarize(rows); writeFileSync(join(out, 'summary.json'), JSON.stringify(table, null, 1));
   console.log(`out: ${out}; errors: ${rows.filter(r => r.error).length}`); console.table(table);
-  for (const r of rows.filter(r => r.answers && !r.okKinds.has(r.plan.kind))) console.log(`wrong kind  ${r.set}/${r.id}/${r.depth}: ${r.plan.kind} (${r.answers.kind.confidence}) expected ${[...r.rightKinds].join('|')}`);
+  for (const r of rows.filter(r => r.answers && !r.plan.kinds.some(k => r.okKinds.has(k)))) console.log(`wrong kind  ${r.set}/${r.id}/${r.depth}: ${r.plan.kinds.join(' or ')} (${r.answers.kind.confidence}) expected ${[...r.rightKinds].join('|')}`);
   for (const r of rows.filter(r => r.error)) console.log(`error ${r.set}/${r.id}/${r.depth}: ${r.error}`);
 }

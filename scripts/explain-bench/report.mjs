@@ -99,6 +99,7 @@ export const METRICS = [
   ['cost per card US$', s => s.cost.perCard, 'down'],
   ['cost total US$', s => s.cost.total, null],
   ['quantity prompts with a plot or chart (the 6 quantity prompts)', s => pair(s.richness.quantityPlot.withPlot, s.richness.quantityPlot.prompts), 'up'],
+  ['quantity prompts with a plot or chart and no wrong point', s => (s.richness.quantityPlot.withCorrectPlot == null ? null : pair(s.richness.quantityPlot.withCorrectPlot, s.richness.quantityPlot.prompts)), 'up'],
   ['server rewrite: flow -> sequence', s => s.repairs.corrections.flow_to_sequence ?? 0, null],
   ['server rewrite: flow loop -> cycle', s => s.repairs.corrections.flow_loop_to_cycle ?? 0, null],
   ['binary tree layout used', s => s.richness.binaryLayout, null],
@@ -118,7 +119,7 @@ export const GATE_RULES = [
   ['pictures both ways: none missing where needed, none where none belongs', s => [`missing ${s.pictures.missing.length}/${s.pictures.needed}, unwanted ${s.pictures.violations.length}/${s.pictures.noPictureSubjects}`,
     s.pictures.needed + s.pictures.noPictureSubjects ? s.pictures.missing.length === 0 && s.pictures.violations.length === 0 : null]],
   ['right kind >= 80% of delivered cards', s => { const v = [s.choice.right, s.choice.of]; return [v, v[1] ? share(v) >= 0.8 : null]; }],
-  ['plot or chart on >= 5 of the 6 quantity prompts, every run', (s, byRun) => { const per = byRun.map(r => [r.summary.richness.quantityPlot.withPlot, r.summary.richness.quantityPlot.prompts]).filter(v => v[1]);
+  ['plot or chart on >= 5 of the 6 quantity prompts, every run', (s, byRun) => { const per = byRun.map(r => [r.summary.richness.quantityPlot.withCorrectPlot ?? r.summary.richness.quantityPlot.withPlot, r.summary.richness.quantityPlot.prompts]).filter(v => v[1]);
     return [per.map(v => `${v[0]}/${v[1]}`).join(', ') || '-', per.length ? per.every(v => v[1] === 6 && v[0] >= 5) : null]; }],
   ['noun-box or placeholder labels < 5% of diagrams', s => { const v = [s.content.flagged, s.content.diagrams]; return [v, v[1] ? share(v) < 0.05 : null]; }],
   ['faithfulness to the sketch (reported; no threshold on record)', s => [s.content.faithful ? `fully ${s.content.faithful.fully ?? s.content.faithful.yes}, partly ${s.content.faithful.partly}, not ${s.content.faithful.not ?? s.content.faithful.no} of ${s.content.faithful.judged}` : 'not judged', null]],
@@ -175,7 +176,7 @@ function summaries(cards, setNames) {
   const byDepth = Object.fromEntries([...new Set(cards.map(c => c.depth).filter(Boolean))].map(dep => { const cs = cards.filter(c => c.depth === dep), s = summarize(cs), deep = cs.filter(c => c.deepPlot);
     const faithfulCards = cs.filter(c => c.diagrams.some(d => d.faithful)), plots = cs.flatMap(c => c.diagrams.filter(d => PLOT_KINDS.includes(d.kind)).map(d => `${c.id} ${d.kind}: ${d.arithmetic?.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off` : `not checked (${d.arithmetic?.reason})`}`));
     return [dep, { cards: cs.length, right: s.choice.right, faithful: faithfulCards.filter(c => c.diagrams.every(d => !d.faithful || ['fully', 'yes'].includes(d.faithful.verdict))).length, beyond: s.content.beyond ? `${s.content.beyond.yes}/${s.content.beyond.judged}` : '-', faithfulJudged: faithfulCards.length,
-      quantityPlots: deep.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length, quantityPrompts: deep.length, placeholders: s.content.placeholderEdge, duplicates: s.content.duplicateLabels, bareMaths: s.content.bareMaths,
+      quantityPlots: deep.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length, quantityPlotsCorrect: deep.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind)) && !c.plotWrong).length, quantityPrompts: deep.length, placeholders: s.content.placeholderEdge, duplicates: s.content.duplicateLabels, bareMaths: s.content.bareMaths,
       formulaLabelCards: s.content.formulaLabelCards, repaired: s.repairs.repaired, p50: s.speed.all.p50, p90: s.speed.all.p90, pointErrors: s.content.pointErrors, points: s.content.points, plots }]; }));
   return { overall: summarize(cards), sets, spread, judgedByRun, byRun, refs, byDepth };
 }
@@ -199,10 +200,12 @@ export function markdown(r) {
     [...S.judgedByRun.map(x => [`r${x.run}`, ...[x.picture, x.faithful, x.beyond].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]),
       ['all runs', ...[S.overall.pictures.content && [S.overall.pictures.content.no, S.overall.pictures.content.judged], S.overall.content.faithful && [S.overall.content.faithful.not ?? S.overall.content.faithful.no, S.overall.content.faithful.judged], S.overall.content.beyond && [S.overall.content.beyond.yes, S.overall.content.beyond.judged]].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]]), '');
   out.push('## Pass criteria on record', '', C.length ? table(['set', 'criterion', 'result', 'detail'], C.map(c => [c.set, c.rule, c.ok ? 'PASS' : '**FAIL**', c.detail])) : 'None for these sets.', '');
+  const PC = S.overall.content.plotChecks;
+  if (PC) out.push(`Plot point errors (rule: ${meta.plotRule}; ${meta.plotRule === 'strict' ? 'a plot with any wrong point makes its card wrong; every stated formula is tried and a plot matching fewer than half its points on all of them is a different function, not checked' : meta.plotRule === 'strict-first' ? 'a plot with any wrong point makes its card wrong; first stated formula only' : 'points reported, the score unchanged, first stated formula only'}): ${PC.plots} plots drawn, ${PC.checked} checked (${PC.points} points, ${PC.errors} wrong), ${PC.unchecked} not checked.`, '', ...PC.list.map(x => `- ${x}`), '');
   const BD = Object.entries(S.byDepth || {});
   if (BD.length) out.push('## By depth', '', table(['metric', ...BD.map(([d]) => d)], [
     ['right kind', ...BD.map(([, v]) => `${v.right}/${v.cards}`)], ['faithful to the sketch, Core (judge, cards with every diagram fully)', ...BD.map(([, v]) => (v.faithfulJudged ? `${v.faithful}/${v.faithfulJudged}` : '-'))], ['diagrams with claims beyond the prose (judge)', ...BD.map(([, v]) => v.beyond)],
-    ['plot or chart on the 6 quantity prompts', ...BD.map(([, v]) => `${v.quantityPlots}/${v.quantityPrompts}`)], ['placeholder edge labels (diagrams)', ...BD.map(([, v]) => v.placeholders)], ['duplicate node labels (diagrams)', ...BD.map(([, v]) => v.duplicates)],
+    ['plot or chart on the 6 quantity prompts (drawn / with no wrong point)', ...BD.map(([, v]) => `${v.quantityPlots} / ${v.quantityPlotsCorrect}`)], ['placeholder edge labels (diagrams)', ...BD.map(([, v]) => v.placeholders)], ['duplicate node labels (diagrams)', ...BD.map(([, v]) => v.duplicates)],
     ['bare maths (diagrams)', ...BD.map(([, v]) => v.bareMaths)], ['cards with formulas/maths in diagram labels', ...BD.map(([, v]) => v.formulaLabelCards)], ['repaired', ...BD.map(([, v]) => `${v.repaired}/${v.cards}`)],
     ['p50 / p90 ms', ...BD.map(([, v]) => `${v.p50} / ${v.p90}`)], ['plotted points off (recomputed from the prose formula)', ...BD.map(([, v]) => `${v.pointErrors}/${v.points}`)]]), '',
     ...BD.flatMap(([d, v]) => (v.plots.length ? [`- ${d} plots: ${v.plots.join('; ')}`] : [])), '');
@@ -274,7 +277,7 @@ export async function run(o) {
   for (const rec of recs) {
     const p = defs[rec.set].prompts.find(x => x.id === rec.id);
     if (!p) { notes.push(`skipped ${rec.set}/r${rec.run}/${rec.id}: not in the current ${rec.set} set`); continue; }
-    const c = scoreCard(p, rec); cards.push(c); blocks.set(c, rec.block);
+    const c = scoreCard(p, rec, { plotRule: o.plotRule }); cards.push(c); blocks.set(c, rec.block);
   }
   let judge = null;
   const restoreRubrics = o.rubrics ? useRubrics(o.rubrics) : null; // --rubrics factual=factual-v1: an older version, for re-scoring
@@ -296,7 +299,7 @@ export async function run(o) {
     judge = { ...judge, cap: o.judgeCap ?? 1, only: o.judgeOnly?.length ? o.judgeOnly : null, results: undefined };
   }
   const summary = summaries(cards, setNames), crit = setNames.flatMap(n => criteria(defs[n], cards.filter(c => c.set === n)));
-  const meta = { runId, label: o.label || 'run', specTree, scored: runDirName('').slice(0, 17), raw: resolve(o.raw), baseline: !!o.tagBaseline, notes,
+  const meta = { runId, label: o.label || 'run', plotRule: o.plotRule || 'strict', specTree, scored: runDirName('').slice(0, 17), raw: resolve(o.raw), baseline: !!o.tagBaseline, notes,
     sets: Object.fromEntries(setNames.map(n => [n, { prompts: defs[n].prompts.length, runs: runsOf(cards.filter(c => c.set === n)).length, version: defs[n].version }])) };
   const recorded = existsSync(join(runDir, 'provenance.json')) ? json(join(runDir, 'provenance.json')) : null;
   const provenance = judge ? { ...(recorded || { stack: 'not recorded for this run (imported saved cards)' }), judgeRubrics: judge.rubrics } : recorded;
@@ -320,10 +323,10 @@ export async function run(o) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const { values: a } = parseArgs({ options: { raw: { type: 'string' }, 'run-id': { type: 'string' }, label: { type: 'string' }, out: { type: 'string' }, against: { type: 'string' }, baseline: { type: 'string' }, 'tag-baseline': { type: 'boolean' },
-    judge: { type: 'boolean' }, judges: { type: 'string' }, 'judge-cap': { type: 'string' }, 'judge-only': { type: 'string' }, 'judge-dry-run': { type: 'boolean' }, rubrics: { type: 'string' }, 'spec-tree': { type: 'string' }, folders: { type: 'string' }, 'judge-diagrams': { type: 'string' }, 'same-as': { type: 'string' }, 'richness-change': { type: 'boolean' } } });
-  if (!a.raw) { console.error('usage: node scripts/explain-bench/report.mjs --raw <dir> [--label ...] [--out ...] [--against <dir>] [--baseline <run id>] [--tag-baseline] [--judge [--judge-dry-run] [--judge-only factual,faithful,beyond,picture] [--same-as <run dir>] [--rubrics factual=factual-v1,beyond=beyond-v1] [--spec-tree <the stack worktree>] [--folders B,C] [--judge-diagrams 1] [--judges N] [--judge-cap 1.00]] [--richness-change]'); process.exit(2); }
+    judge: { type: 'boolean' }, judges: { type: 'string' }, 'judge-cap': { type: 'string' }, 'judge-only': { type: 'string' }, 'judge-dry-run': { type: 'boolean' }, rubrics: { type: 'string' }, 'spec-tree': { type: 'string' }, folders: { type: 'string' }, 'judge-diagrams': { type: 'string' }, 'plot-rule': { type: 'string' }, 'same-as': { type: 'string' }, 'richness-change': { type: 'boolean' } } });
+  if (!a.raw) { console.error('usage: node scripts/explain-bench/report.mjs --raw <dir> [--label ...] [--out ...] [--against <dir>] [--baseline <run id>] [--tag-baseline] [--judge [--judge-dry-run] [--judge-only factual,faithful,beyond,picture] [--same-as <run dir>] [--rubrics factual=factual-v1,beyond=beyond-v1] [--spec-tree <the stack worktree>] [--folders B,C] [--judge-diagrams 1] [--plot-rule strict|strict-first|legacy] [--judges N] [--judge-cap 1.00]] [--richness-change]'); process.exit(2); }
   const r = await run({ raw: a.raw, runId: a['run-id'], label: a.label, out: a.out, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge || a['judge-dry-run'], judgeDryRun: a['judge-dry-run'],
-    judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), rubrics: a.rubrics, specTree: a['spec-tree'], folders: (a.folders || '').split(',').filter(Boolean), judgeDiagrams: Number(a['judge-diagrams'] || 0), sameAs: a['same-as'], judges: Number(a.judges || 1), judgeCap: Number(a['judge-cap'] || 1), richnessChange: a['richness-change'] });
+    judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), rubrics: a.rubrics, specTree: a['spec-tree'], folders: (a.folders || '').split(',').filter(Boolean), judgeDiagrams: Number(a['judge-diagrams'] || 0), plotRule: a['plot-rule'], sameAs: a['same-as'], judges: Number(a.judges || 1), judgeCap: Number(a['judge-cap'] || 1), richnessChange: a['richness-change'] });
   for (const n of r.results.meta.notes) console.log(`note: ${n}`);
   for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
   const J = r.results.judge;

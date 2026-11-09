@@ -103,10 +103,23 @@ export function compileFormula(tex) {
 }
 const decimals = y => (String(y).split('.')[1] || '').length;
 // Every plotted point recomputed from the first one-variable formula ($...$) in the prose; an error = off by more than 0.01 after rounding to the plotted precision.
-export function arithmetic(d, prose) {
+// mode 'strict' (default, owner 2026-11-08): the plot is compared with EVERY one-variable formula the prose states and judged against the best fit; a plot that matches fewer than
+// half its points on every stated formula is a different function (the derivative in a second plot, say): not checked. Any remaining wrong point is an error. mode 'legacy': the first formula only (runs scored before 2026-11-08).
+export function arithmetic(d, prose, mode = 'strict') {
   const points = d.kind === 'coordinate-plot' ? (d.series || []).flatMap(s => s.points || []).map(p => [p.x, p.y])
     : d.kind === 'bar-chart' && (d.bars || []).length && d.bars.every(b => String(b.label).trim() !== '' && Number.isFinite(Number(b.label))) ? d.bars.map(b => [Number(b.label), b.value]) : null;
   if (!points) return { checked: false, reason: 'bars are not numeric inputs' };
+  if (mode === 'strict') {
+    let best = null;
+    for (const m of String(prose).matchAll(/\$([^$]+)\$/g)) for (const rhs of m[1].split('=').slice(1)) {
+      const c = compileFormula(rhs); if (!c) continue;
+      const bad = points.map(([x, y]) => { const e = c.f(x); return Number.isFinite(e) ? Math.abs(y - +e.toFixed(decimals(y))) > 0.01 : null; }).filter(e => e !== null);
+      if (bad.length && (!best || bad.filter(Boolean).length / bad.length < best.errors / best.points)) best = { checked: true, formula: rhs.trim(), variable: c.variable, points: bad.length, errors: bad.filter(Boolean).length };
+    }
+    if (!best) return { checked: false, reason: 'no one-variable formula in the prose' };
+    if (best.errors / best.points > 0.5) return { checked: false, reason: `no stated formula fits half the points (best: ${best.formula}, ${best.errors}/${best.points} off): a different function` };
+    return best;
+  }
   for (const m of String(prose).matchAll(/\$([^$]+)\$/g)) {
     for (const rhs of m[1].split('=').slice(1)) {
       const c = compileFormula(rhs); if (!c) continue;
@@ -124,7 +137,7 @@ const verbStart = label => {
 };
 const norm = s => String(s ?? '').trim().toLowerCase();
 // One diagram's richness and content columns (never blended into one score).
-export function diagramScore(d, prose, kinds = null) {
+export function diagramScore(d, prose, kinds = null, plotRule = 'strict') {
   const L = [], edges = [];
   const add = (...xs) => xs.flat().filter(x => typeof x === 'string' && x.trim()).forEach(x => L.push(x));
   switch (d.kind) {
@@ -171,7 +184,7 @@ export function diagramScore(d, prose, kinds = null) {
     flags, flagged: flags.placeholderEdge.length > 0 || flags.duplicateLabels.length > 0 || flags.nounBoxFlow,
     // The relationship layout (teaching-layouts.js) draws one row per edge, so a node in 2+ edges is drawn as 2+ boxes.
     duplicatedRelationshipNodes: Object.entries(degree).filter(([, n]) => n >= 2).map(([id]) => (d.nodes || []).find(n => n.id === id)?.label ?? id),
-    arithmetic: PLOT_KINDS.includes(d.kind) ? arithmetic(d, prose) : null,
+    arithmetic: PLOT_KINDS.includes(d.kind) ? arithmetic(d, prose, plotRule === 'strict' ? 'strict' : 'legacy') : null,
     describe, spec: d,
   };
 }
@@ -194,15 +207,19 @@ export function planOf(raw) {
 export const kindStatus = (p, k) => { const hit = list => list.some(b => { const d = b.filter(t => t !== 'P'); return d.length === 1 && tokenOk(d[0], `D:${k}`); }); return hit(p.best) ? 'right' : hit(p.acceptable) ? 'acceptable' : 'wrong'; };
 const RANK = { right: 2, acceptable: 1, wrong: 0 }, bestOf = xs => xs.reduce((a, b) => (RANK[b] > RANK[a] ? b : a), 'wrong');
 export const cardKey = c => `${c.set}/r${c.run}${c.depth ? `/${c.depth}` : ''}/${c.id}`;
-export function scoreCard(p, rec) {
+// opts.plotRule: 'strict' (default, owner 2026-11-08) = a coordinate-plot or bar-chart with ANY wrong point (second plots too) makes the card "wrong", each plot compared with its best-fitting stated formula;
+// 'strict-first' = the same rule against the FIRST stated formula only (a second plot of a derivative then counts as wrong); 'legacy' = points are reported, the score is unchanged.
+export function scoreCard(p, rec, opts = {}) {
+  const plotRule = opts.plotRule || 'strict';
   // A per-depth prompt (correct-svg): that depth's kinds, acceptable kinds and sketch, as best/acceptable mixes (a picture or a second diagram allowed beside).
   if (p.depths) { const dp = p.depths[rec.depth || 'standard'], k = `D:${dp.kinds.join('|')}`, a = dp.acceptableKinds.length ? `D:${dp.acceptableKinds.join('|')}` : null;
     p = { ...p, kinds: dp.kinds, sketch: dp.sketch, best: [[k], [k, 'D:*'], [k, 'P'], ...(dp.extraBest || [])], acceptable: [...(a ? [[a], [a, 'D:*'], [a, 'P']] : []), ...(dp.extraAcceptable || [])] }; }
   const block = rec.delivered ? rec.block : null, vis = block ? visuals(block) : [], mix = mixOf(vis), prose = block ? proseOf(block.body) : '', plan = planOf(rec.raw);
-  const diagrams = vis.filter(v => v.diagram).map(v => diagramScore(v.diagram, prose, p.kinds || null));
-  const score = block ? scoreMix(p, vis) : 'failed', it = block?.interactions;
+  const diagrams = vis.filter(v => v.diagram).map(v => diagramScore(v.diagram, prose, p.kinds || null, plotRule));
+  const plotWrong = plotRule.startsWith('strict') && diagrams.some(d => PLOT_KINDS.includes(d.kind) && d.arithmetic?.errors > 0);
+  const score = block ? (plotWrong ? 'wrong' : scoreMix(p, vis)) : 'failed', it = block?.interactions;
   return {
-    set: rec.set, run: rec.run, depth: rec.depth || null, deepPlot: !!p.deepPlot, id: p.id, prompt: p.prompt, group: p.group, category: p.category || null, sketch: p.sketch || null, regressionKind: p.regressionKind || null,
+    set: rec.set, run: rec.run, depth: rec.depth || null, plotRule, plotWrong, deepPlot: !!p.deepPlot, id: p.id, prompt: p.prompt, group: p.group, category: p.category || null, sketch: p.sketch || null, regressionKind: p.regressionKind || null,
     delivered: !!block, failure: rec.failure || null, title: block?.title || null, mix, score,
     mixRight: !!block && p.best.some(b => mixClass(b) === mixClass(mix)), badKinds: mix.filter(t => t.startsWith('D:') && (p.badKinds || []).includes(t.slice(2))).map(t => t.slice(2)),
     needsPicture: !!p.needsPicture, noPicture: !!p.noPicture, hasPicture: mix.includes('P'), pictures: vis.filter(v => v.type === 'picture').map(({ type, id, ...v }) => v),
@@ -231,7 +248,7 @@ const tally = (xs, key) => xs.reduce((o, x) => ((o[key(x)] = (o[key(x)] || 0) + 
 
 // Every metric of a group of scored cards (counts with their denominators).
 export function summarize(cards) {
-  const D = cards.filter(c => c.delivered), dg = D.flatMap(c => c.diagrams.map(d => ({ ...d, at: `${c.set}/r${c.run}/${c.id}` }))), graph = dg.filter(d => GRAPH_KINDS.includes(d.kind));
+  const D = cards.filter(c => c.delivered), dg = D.flatMap(c => c.diagrams.map(d => ({ ...d, at: cardKey(c) }))), graph = dg.filter(d => GRAPH_KINDS.includes(d.kind));
   const n = f => D.filter(f).length, at = cardKey;
   const regCards = cards.filter(c => c.regressionKind);
   const regression = regCards.length ? Object.entries(regCards.reduce((o, c) => ((o[c.id] ||= []).push(c), o), {}))
@@ -264,7 +281,7 @@ export function summarize(cards) {
       labels: dg.reduce((s, d) => s + d.labels, 0), numericLabels: dg.reduce((s, d) => s + d.numericLabels, 0), proseNounBox: dg.filter(d => d.proseNounBox).length,
       quant: { labelled: labelled.length, used: labelled.filter(c => c.quantKind).length, list: labelled.map(c => `${at(c)}: ${c.diagrams.map(d => d.kind).join('+') || 'no diagram'}`) },
       // The 6 quantity prompts (baseline + aiml category "quantity"): a coordinate-plot or bar-chart drawn.
-      quantityPlot: { prompts: D.filter(c => c.category === 'quantity').length, withPlot: D.filter(c => c.category === 'quantity' && c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length },
+      quantityPlot: { prompts: D.filter(c => c.category === 'quantity').length, withPlot: D.filter(c => c.category === 'quantity' && c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length, withCorrectPlot: D.filter(c => c.category === 'quantity' && c.diagrams.some(d => PLOT_KINDS.includes(d.kind)) && !c.plotWrong).length },
       binaryLayout: dg.filter(d => d.kind === 'tree' && d.spec?.layout === 'binary').length },
     references: (k => (k.length ? { known: k.length, none: k.filter(c => !c.references.count).length, some: k.filter(c => c.references.count > 0).length } : null))(cards.filter(c => c.references)),
     content: { diagrams: dg.length, flagged: dg.filter(d => d.flagged).length, placeholderEdge: dg.filter(d => d.flags.placeholderEdge.length).length, duplicateLabels: dg.filter(d => d.flags.duplicateLabels.length).length,
@@ -274,6 +291,8 @@ export function summarize(cards) {
       kindRight: withKinds.filter(d => d.kindRight).length, kindJudged: withKinds.length,
       formulaLabelCards: n(c => c.diagrams.some(d => d.flags.formulaLabels.length)),
       formulaPrompts: formula.length, formulaPlotOk: formula.filter(c => c.formulaPlotOk).length, formulaWithPlot: formula.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length,
+      plotChecks: (ps => ({ plots: ps.length, checked: ps.filter(d => d.arithmetic.checked).length, unchecked: ps.filter(d => !d.arithmetic.checked).length, points: ps.reduce((s, d) => s + (d.arithmetic.points || 0), 0), errors: ps.reduce((s, d) => s + (d.arithmetic.errors || 0), 0),
+        list: ps.map(d => `${d.at} ${d.kind}: ${d.arithmetic.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off (${d.arithmetic.formula})` : `not checked (${d.arithmetic.reason})`}`) }))(dg.filter(d => d.arithmetic)),
       plots: dg.filter(d => PLOT_KINDS.includes(d.kind)).length, plotsChecked: plots.length, points: plots.reduce((s, d) => s + d.arithmetic.points, 0), pointErrors: plots.reduce((s, d) => s + d.arithmetic.errors, 0),
       arithmeticList: dg.filter(d => d.arithmetic).map(d => `${d.at} ${d.kind}: ${d.arithmetic.checked ? `${d.arithmetic.errors}/${d.arithmetic.points} points off, formula $${d.arithmetic.formula}$` : `not checked (${d.arithmetic.reason})`}`),
       // Verdicts fully / partly / not (faithful-v2, Core line only); faithful-v1 verdicts yes / no are counted as fully / not.
@@ -315,8 +334,8 @@ export function criteria(setDef, cards) {
   // correct-svg (owner 2026-11-08): per-depth pass line.
   const depths = [...new Set(cards.map(c => c.depth).filter(Boolean))], of = dep => cards.filter(c => c.depth === dep);
   if (p.minRightPerDepth !== undefined) add(`right kind >= ${p.minRightPerDepth}/14 at every depth`, depths.length > 0 && depths.every(dep => of(dep).filter(c => c.score === 'right').length >= p.minRightPerDepth), depths.map(dep => `${dep} ${of(dep).filter(c => c.score === 'right').length}/${of(dep).length}`).join(', '));
-  if (p.deepPlots) { const deep = of('deep').filter(c => c.deepPlot), plots = deep.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))), errs = deep.reduce((s, c) => s + c.diagrams.reduce((t, d) => t + (d.arithmetic?.errors || 0), 0), 0);
-    add(`deep: plot or chart on >= ${p.deepPlots.min}/6 quantity prompts with ${p.deepPlots.maxPointErrors} point errors`, deep.length > 0 && plots.length >= p.deepPlots.min && errs <= p.deepPlots.maxPointErrors, `${plots.length}/${deep.length}, ${errs} point errors`); }
+  if (p.deepPlots) { const deep = of('deep').filter(c => c.deepPlot), drawn = deep.filter(c => c.diagrams.some(d => PLOT_KINDS.includes(d.kind))), plots = drawn.filter(c => !c.plotWrong), errs = deep.reduce((s, c) => s + c.diagrams.reduce((t, d) => t + (d.arithmetic?.errors || 0), 0), 0);
+    add(`deep: plot or chart on >= ${p.deepPlots.min}/6 quantity prompts with ${p.deepPlots.maxPointErrors} point errors`, deep.length > 0 && plots.length >= p.deepPlots.min && errs <= p.deepPlots.maxPointErrors, `${plots.length}/${deep.length}${drawn.length !== plots.length ? ` (${drawn.length} drawn, ${drawn.length - plots.length} with a wrong point)` : ''}, ${errs} point errors`); }
   if (p.maxPlaceholdersPlusDuplicates !== undefined) add(`placeholder + duplicate labels <= ${p.maxPlaceholdersPlusDuplicates} across all cards`, s.content.placeholderEdge + s.content.duplicateLabels <= p.maxPlaceholdersPlusDuplicates, `${s.content.placeholderEdge} + ${s.content.duplicateLabels} of ${s.content.diagrams} diagrams`);
   if (p.overviewFormulaLabels !== undefined) { const o = of('overview').filter(c => c.diagrams.some(d => d.flags.formulaLabels.length)).length; add(`overview: cards with formulas in diagram labels <= ${p.overviewFormulaLabels}`, depths.includes('overview') && o <= p.overviewFormulaLabels, `${o}/${of('overview').length}`); }
   if (p.maxRepairRate !== undefined) add(`repairs <= ${100 * p.maxRepairRate}% (merged baseline)`, s.repairs.of > 0 && s.repairs.repaired / s.repairs.of <= p.maxRepairRate, `${s.repairs.repaired}/${s.repairs.of}`);
