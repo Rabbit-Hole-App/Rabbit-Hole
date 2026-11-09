@@ -179,7 +179,7 @@ export const cardKey = c => `${c.set}/r${c.run}${c.depth ? `/${c.depth}` : ''}/$
 export function scoreCard(p, rec) {
   // A per-depth prompt (correct-svg): that depth's kinds, acceptable kinds and sketch, as best/acceptable mixes (a picture or a second diagram allowed beside).
   if (p.depths) { const dp = p.depths[rec.depth || 'standard'], k = `D:${dp.kinds.join('|')}`, a = dp.acceptableKinds.length ? `D:${dp.acceptableKinds.join('|')}` : null;
-    p = { ...p, kinds: dp.kinds, sketch: dp.sketch, best: [[k], [k, 'D:*'], [k, 'P']], acceptable: a ? [[a], [a, 'D:*'], [a, 'P']] : [] }; }
+    p = { ...p, kinds: dp.kinds, sketch: dp.sketch, best: [[k], [k, 'D:*'], [k, 'P'], ...(dp.extraBest || [])], acceptable: a ? [[a], [a, 'D:*'], [a, 'P']] : [] }; }
   const block = rec.delivered ? rec.block : null, vis = block ? visuals(block) : [], mix = mixOf(vis), prose = block ? proseOf(block.body) : '';
   const diagrams = vis.filter(v => v.diagram).map(v => diagramScore(v.diagram, prose, p.kinds || null));
   const score = block ? scoreMix(p, vis) : 'failed', it = block?.interactions;
