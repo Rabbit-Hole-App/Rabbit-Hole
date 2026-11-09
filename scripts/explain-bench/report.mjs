@@ -165,7 +165,7 @@ function summaries(cards, setNames) {
   const sets = Object.fromEntries(setNames.map(n => [n, summarize(cards.filter(c => c.set === n))]));
   const spread = Object.fromEntries(setNames.filter(n => runsOf(cards.filter(c => c.set === n)).length > 1).map(n => {
     const per = runsOf(cards.filter(c => c.set === n)).map(r => [r, summarize(cards.filter(c => c.set === n && c.run === r))]);
-    return [n, METRICS.map(([label, get]) => { const vs = per.map(([, s]) => get(s)); const nums = vs.map(v => (Array.isArray(v) ? v[0] : v)).filter(x => x !== null && x !== undefined); // counts, not rates (owner: report counts per run)
+    return [n, METRICS.map(([label, get]) => { const vs = per.map(([, s]) => get(s)); const nums = vs.map(v => (Array.isArray(v) ? v[0] : v)).filter(x => Number.isFinite(x)); // counts, not rates (owner: report counts per run); a text row (the width buckets) has no min-max
       return nums.length ? { label, runs: per.map(([r]) => r), values: vs.map(show), min: Math.min(...nums), max: Math.max(...nums) } : null; }).filter(Boolean)];
   }));
   const judgedByRun = runsOf(cards).map(r => { const s = summarize(cards.filter(c => c.run === r)), pc = s.pictures.content, f = s.content.faithful;
