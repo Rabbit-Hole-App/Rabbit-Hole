@@ -79,3 +79,9 @@ test('item 4: the coordinate-plot entry carries the plot contract - two behaviou
   assert.match(plot, /when the prose compares two behaviours \(good fit vs overfit, train vs test, two schedules\), the plot carries both as separate series, and the point the prose calls out is an annotated point; plot observed data once, as scatter; models are lines only, never redraw the data as a second series/);
   assert.equal(kinds.split('never redraw the data as a second series').length, 2);
 });
+
+test('item 5: one line next to the visual-pointer line - every number or name in a diagram label appears in the prose or on the plot', () => {
+  const s = 'Every number or name in a diagram label appears in the prose or on the plot.';
+  assert.equal(card().split(s).length, 2);
+  assert.ok(card().indexOf('says what to look for in it.') < card().indexOf(s) && card().indexOf(s) < card().indexOf('Every visual has a title or caption'));
+});
