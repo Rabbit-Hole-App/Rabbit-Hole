@@ -534,14 +534,25 @@ function correctedFlow(raw) {
   const spec = kinds.length ? tryParse({ version: 1, diagram: d }) : null;
   return spec ? { spec, kinds } : null;
 }
-// -> { md, corrections: { [kind]: count } }: every rh-diagram fence corrected where it can be (correctedFlow), the same string when none is.
+// Owner 2026-11-08 (correct-SVG closing pass): a plain timeline (top-level events with dated text such as "27 BC") sent with the scaled-lanes layout and only
+// empty lanes is the plain timeline the author wrote: the layout, domain and empty lanes are dropped. Kept only when the result parses. -> { spec, kinds } or null.
+function correctedTimeline(raw) {
+  if (tryParse(raw)) return null;
+  const d = raw?.diagram;
+  if (d?.kind !== 'timeline' || d.layout !== 'scaled-lanes' || !Array.isArray(d.events) || !d.events.length || !d.events.every(e => typeof e?.time === 'string')
+    || (Array.isArray(d.lanes) && d.lanes.some(l => l?.intervals?.length || l?.events?.length))) return null;
+  const { layout, domain, lanes, ...plain } = d;
+  const spec = tryParse({ version: 1, diagram: plain });
+  return spec ? { spec, kinds: ['timeline_plain'] } : null;
+}
+// -> { md, corrections: { [kind]: count } }: every rh-diagram fence corrected where it can be (correctedFlow, correctedTimeline), the same string when none is.
 export function correctDiagrams(md) {
   const out = [], corrections = {}; let open = null;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       if (/^\s*```/.test(line)) {
         let raw = null; try { raw = JSON.parse(open.lines.join('\n')); } catch { /* not JSON: the repair's */ }
-        const fixed = raw && correctedFlow(raw);
+        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw));
         if (fixed) for (const kind of fixed.kinds) corrections[kind] = (corrections[kind] || 0) + 1;
         out.push(open.raw, ...(fixed ? [JSON.stringify(fixed.spec)] : open.lines), line); open = null;
       } else open.lines.push(line);

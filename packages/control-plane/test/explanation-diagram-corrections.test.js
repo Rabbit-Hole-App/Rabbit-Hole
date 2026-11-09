@@ -241,3 +241,18 @@ test('C1.1: relationships are drawn as graphs, each node once; a disconnected on
   const md = `Before.\n\n${fence(apart)}\n\nAfter.`;
   assert.equal(relationshipsAsGraphs(md), md, 'the graph layout refuses a disconnected relationship, so it is left as written');
 });
+
+// Owner 2026-11-08 (correct-SVG closing pass): the Roman Empire spec gpt-oss wrote at two depths (bench run 61e02eca9): a plain dated timeline sent with the
+// scaled-lanes layout and empty lanes. The server drops the layout, domain and empty lanes; a timeline with real lane content is left for the repair.
+test('a plain dated timeline sent with scaled-lanes and empty lanes becomes the plain timeline, without a repair', () => {
+  const roman = { version: 1, diagram: { title: 'Roman Empire Timeline', kind: 'timeline', layout: 'scaled-lanes', events: [{ time: '753 BC', label: 'Founding of Rome' }, { time: '27 BC', label: 'Augustus becomes first emperor' }, { time: '117 AD', label: 'Empire at its greatest extent' }, { time: '284 AD', label: 'Diocletian splits empire' }, { time: '476 AD', label: 'Western empire falls' }], domain: { min: -800, max: 500, unit: 'year', label: 'Calendar years' }, lanes: [{ id: 'west', label: 'Western Empire' }, { id: 'east', label: 'Eastern Empire' }] } };
+  const md = `Rome grew, split and fell.\n\n\`\`\`rh-diagram\n${JSON.stringify(roman)}\n\`\`\`\n\nThe East lasted longer.`;
+  const out = correctDiagrams(md);
+  assert.deepEqual(out.corrections, { timeline_plain: 1 });
+  const fixed = JSON.parse(out.md.split('\n')[3]).diagram;
+  assert.equal(fixed.layout, undefined); assert.equal(fixed.lanes, undefined); assert.equal(fixed.domain, undefined);
+  assert.deepEqual(fixed.events.map(e => e.time), ['753 BC', '27 BC', '117 AD', '284 AD', '476 AD']);
+  // a lane that holds content is a real scaled timeline: not touched here
+  const real = structuredClone(roman); real.diagram.lanes[0].events = [{ at: -27, label: 'Augustus' }];
+  assert.deepEqual(correctDiagrams(md.replace(JSON.stringify(roman), JSON.stringify(real))).corrections, {});
+});
