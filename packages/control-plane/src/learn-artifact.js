@@ -43,7 +43,8 @@ const interactiveSchema = schema => ({ ...schema, required: [...schema.required,
 const authorSchema = env => {
   const { schema } = PRIMITIVES.explanation;
   const s = { ...schema, required: Object.keys(schema.properties), properties: { ...schema.properties, visuals: { ...schema.properties.visuals, maxItems: 3 } } };
-  return interactionsEnabled(env) ? interactiveSchema(s) : s;
+  const formula = formulaSamplerEnabled(env) ? withFormulaSeries(s) : s; // EXPLANATION_FORMULA_SAMPLER=on only
+  return interactionsEnabled(env) ? interactiveSchema(formula) : formula;
 };
 const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 // A long text field's limit, said in words in the tool's description: a schema maxLength alone was overrun twice, repair
@@ -67,6 +68,7 @@ const GATES = {
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 import { celerisExplainRoute } from './explain-celeris-dev.js';
 import { generateWithFallbacks } from './explanation-fast-chain.js';
+import { formulaSamplerEnabled, withFormulaSeries, fillFormulaSeries, FORMULA_SERIES_GUIDANCE } from './explanation-formula-series.js';
 export { ARTIFACT_SYSTEM };
 
 // A paid renderer this deployment has not provisioned is unavailable BEFORE it is proposed, so no proposal, hold or charge
@@ -108,7 +110,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   if (ready.length === 1 && ready[0] === 'explanation') { try { bound = profile ?? explanationProfileFor(env); } catch (error) { return { result: 'unsupported', message: error.message }; } }
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${PHASE02_DIAGRAM_GUIDANCE} ${explanationTarget(input.depth)}${interactionsEnabled(env) ? ` ${INTERACTION_GUIDANCE}` : ''}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
+    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? ` ${EXPLANATION_GUIDANCE} ${PHASE02_DIAGRAM_GUIDANCE} ${explanationTarget(input.depth)}${formulaSamplerEnabled(env) ? FORMULA_SERIES_GUIDANCE : ''}${interactionsEnabled(env) ? ` ${INTERACTION_GUIDANCE}` : ''}` : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
     input_schema: id === 'explanation' ? authorSchema(env) : PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Standard sends nothing.
@@ -187,6 +189,8 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         // references: the ids of the worked examples this request carried (0-2), so the bench can split results by them (owner 2026-11-08).
         console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, plan: input.plan ? { visuals: input.plan.visuals, depthTreatment: input.plan.depthTreatment, kind: input.plan.kind, fixed: input.plan.fixed, confidence: input.plan.confidence, flags: input.plan.flags, ms: input.plan.ms } : input.planned ? { planner: 'rules' } : null, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
       }
+      // EXPLANATION_FORMULA_SAMPLER=on: a plot series written as a formula and range gets its points here, before any other step reads the visuals.
+      if (id === 'explanation' && formulaSamplerEnabled(env) && Array.isArray(call.input?.visuals)) call = { ...call, input: { ...call.input, visuals: fillFormulaSeries(call.input.visuals) } };
       // Owner M3 (2026-11-08): keys the schema does not declare are removed from the visuals before the card is read, logged and counted, never a repair.
       let keysStripped = 0;
       if (id === 'explanation' && Array.isArray(call.input?.visuals)) {
