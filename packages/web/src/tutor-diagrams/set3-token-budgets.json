@@ -649,6 +649,18 @@
         "tokens": 121,
         "sha256": "69063ef7d5141b7da0dfe7fbaee2db8eff80977b6ffd83d329cb3bed30de6252"
       }
+    },
+    "ml-fit-quality-comparison": {
+      "panel": {
+        "tokens": 529,
+        "sha256": "f3c4f174919c83e0111c6a5416f58aab9beadf01171023663109cf05cf4d7dbb",
+        "estimated": true
+      },
+      "single": {
+        "tokens": 254,
+        "sha256": "31b8c1ccc3864e897da332a6d20b950eac397b3e7244b7b1d8e5bfa840ecb20b",
+        "estimated": true
+      }
     }
   }
 }

@@ -31,7 +31,7 @@ export const references = [
   {
     id: 'ml-fit-quality-comparison', lessons: ['02', '10'],
     prompts: ['Compare underfitting, a reasonable fit, and overfitting on the same observations.'],
-    keywords: ['underfitting', 'overfitting', 'fit comparison', 'bias variance', 'polynomial fit'],
+    keywords: ['underfitting', 'overfitting', 'overfit', 'overfitted', 'what is overfitting', "what's overfitting", 'memorizes the training data', 'fits the noise', 'fit comparison', 'bias variance', 'polynomial fit'],
     useWhen: 'Compare fitted functions using the same observed data and exactly shared coordinate axes.',
     spec: panels('Fit quality on the same observations', [
       ['Underfit', fit('A constant misses the trend', [[0, 4.84], [4, 4.84]])],

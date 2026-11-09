@@ -24,6 +24,20 @@ export const singleSpecs = {
       caption: 'Counts include self. A core has at least 4 neighbors. B has only itself and C2 within radius 1. N’s nearest core is 2.915 away.',
     } },
   },
+  'ml-fit-quality-comparison': {
+    useWhen: 'Show underfitting, a reasonable fit and overfitting as separate lines on one plot of the same observed points, with one labelled held-out point the overfit curve misses. Plot the observed data once, as scatter (the held-out point is one labelled point of it); models are lines only, at most three series.',
+    spec: { version: 1, diagram: {
+      kind: 'coordinate-plot', title: 'A simple fit versus an overfit curve',
+      x: { label: 'Input x', min: 0, max: 4 },
+      y: { label: 'Target y', min: 0, max: 10 },
+      series: [
+        { kind: 'scatter', label: 'Observed points', points: [{ x: 0, y: 1 }, { x: 1, y: 2.2 }, { x: 2, y: 4.8 }, { x: 3, y: 7.2 }, { x: 4, y: 9 }, { id: 'held', x: 1.5, y: 3.5, label: 'Held-out point' }] },
+        { kind: 'line', label: 'Simple fit', points: [{ x: 0, y: 0.8 }, { x: 1, y: 2.4 }, { x: 2, y: 4.7 }, { x: 3, y: 7 }, { x: 4, y: 9.1 }] },
+        { kind: 'line', label: 'Overfit curve', points: [{ x: 0, y: 1 }, { x: 0.5, y: 4 }, { x: 1, y: 2.2 }, { x: 1.5, y: 1 }, { x: 2, y: 4.8 }, { x: 2.5, y: 9 }, { x: 3, y: 7.2 }, { x: 3.5, y: 5 }, { x: 4, y: 9 }] },
+      ],
+      caption: 'Illustrative fits. The overfit curve passes through every training point but misses the held-out point; the simple fit stays close to it.',
+    } },
+  },
   'ml-gmm-responsibilities': {
     useWhen: 'Show component densities and normalized GMM memberships together for each sample. State the fixed priors, means and covariance.',
     spec: { version: 1, diagram: {
