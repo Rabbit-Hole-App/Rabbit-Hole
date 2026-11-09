@@ -48,6 +48,7 @@ Local arithmetic/schema/render tests and scripted author preparation do not esta
 
 ## Local execution receipt — 2026-11-09
 
+- Implementation pushed as `086cf065709248e2eb6c7a45abc748da65bae3ba` on `chatgpt/explain-phase02-library`. Published head and tree were read back; tree `fd646483a2646f202f83efebf83161bc1d09bcc2` matches the checked local implementation. This receipt update changes documentation only.
 - **452/452 focused tests passed**, zero failed or skipped. This includes all registered references through the real SVG renderer at 320, 408 and 720 px, independent arithmetic for these six datasets, documented prompts and distinct paraphrases through actual author-message preparation, and strict-kind excerpt regressions.
 - Web build passed, with its existing bundle-size warning. No broad CI was run.
 - Exported all **146 JSON/SVG pairs** and refreshed the self-contained gallery. Statically inspected all six new scenes: table values, histogram bins and plot geometry remain readable in the established palette. The raster converter omits KaTeX foreignObjects; these images do not establish browser formula appearance. The SVGs retain the actual KaTeX markup and existing renderer behavior.

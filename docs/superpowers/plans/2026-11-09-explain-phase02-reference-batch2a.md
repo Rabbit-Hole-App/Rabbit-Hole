@@ -32,7 +32,7 @@ Every module exports `references` using the existing `{id, lessons, prompts, key
 - [x] Export JSON/SVGs and inspect all six rendered scenes. Static conversion does not establish browser/KaTeX glyph acceptance.
 - [x] Run affected diagram/reference/author checks and the web build; no broad CI or model calls in this content batch.
 - [x] Update coverage, counts and Claude's dev handoff. Keep live generated-card acceptance pending.
-- [ ] Commit and push `chatgpt/explain-phase02-library`; verify the published tree matches the checked local tree.
+- [x] Commit and push `chatgpt/explain-phase02-library`; verify the published tree matches the checked local tree.
 
 ## Review focus
 
@@ -43,3 +43,5 @@ Check ordinal meaning, bin-edge inclusion, row identity, original/log bin counts
 The actual author-message test showed that explicitly requiring a histogram excluded the matching raw/log comparison. The bounded selector now excerpts matching leaf diagrams from comparisons and visual transformations as standalone valid examples. This preserves strict required-kind validation and leaves renderer/schema/routing/budgets unchanged. A failing-before/passing-after test covers the two raw/log histogram leaves, and another covers transformation matrix leaves. A distinct feature-interaction paraphrase also exposed a missing keyword phrase, now included.
 
 Final local verification: 452/452 focused tests and the web build pass; all 146 references exported; all six new scenes statically inspected. Independent review reported no critical or important findings and checked an additional 124 whole/excerpt selections. See [the batch handoff receipt](../../features/explain-on-canvas/handoff/phase02-library/batch-2a.md#local-execution-receipt--2026-11-09) for the browser/formula and live-generation limitations.
+
+Implementation published as `086cf065709248e2eb6c7a45abc748da65bae3ba`. The remote branch head and tree were read back: tree `fd646483a2646f202f83efebf83161bc1d09bcc2` exactly matches the checked local implementation tree. This completion receipt changes documentation only.
