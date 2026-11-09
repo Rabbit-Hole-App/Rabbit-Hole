@@ -54,7 +54,7 @@ test('only the owner binds, and only a saved Chat thread of theirs on this canva
 
 test('route: POST /:rm/thread answers the view with the bound thread', async t => {
   const h = await loop(t);
-  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: 'Teach me', depth: 'standard', actionKey: KEY('create') });
+  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: 'Teach me', depth: 'balanced', actionKey: KEY('create') });
   saveThread(h.w.sqlite, T1);
   const bound = await h.json('POST', `/api/learn/roadmap/${created.body.roadmapId}/thread`, { boardId: BOARD, threadId: T1 });
   assert.equal(bound.status, 200);
@@ -66,7 +66,7 @@ test('route: POST /:rm/thread answers the view with the bound thread', async t =
 test('the view names the invitation the roadmap was made from (null without one), so a device binds that invitation\'s thread only', async t => {
   const h = await loop(t);
   const invitation = (await h.json('POST', '/api/learn/roadmap/invitations', { boardId: BOARD, sourceKeys: [`file:${ID_B}`], idleKey: 'idle-1-aaaaaaaa' })).body.invitation;
-  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, invitationId: invitation.id, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: '', depth: 'standard', actionKey: KEY('create') });
+  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, invitationId: invitation.id, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: '', depth: 'balanced', actionKey: KEY('create') });
   assert.equal(created.body.roadmap.invitationId, invitation.id);
   const w = world(t);
   const o = await offered(w, w.access);

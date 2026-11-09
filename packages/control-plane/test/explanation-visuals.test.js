@@ -53,7 +53,7 @@ test('EX-01 and the explicit flowchart variant produce their required records, w
 });
 
 test('EX-01 at every Depth: the early/late table is required, present succeeds inside the cap, omitted or malformed fails with a stable reason', async () => {
-  for (const depth of ['overview', 'standard', 'deep']) {
+  for (const depth of ['brief', 'balanced', 'detailed']) {
     const ok = await generate(EX01, [withTable], { depth });
     assert.equal(ok.out.result, 'artifact', depth);
     assert.equal(ok.out.block.visualRequirements.items[0].satisfied, true);
@@ -83,17 +83,17 @@ test('EX-01 at every Depth: the early/late table is required, present succeeds i
   const inSection = await quiet(() => generate(EX01, [{ ...proseOnly, more: [{ label: 'Compare', text: TABLE }] }]));
   assert.equal(inSection.out.result, 'validation_error', 'a new card with a folded section is refused');
   // Without a request for one, a card without a table is a success at every Depth, and carries no record.
-  for (const depth of ['overview', 'standard', 'deep']) { const r = await generate('Why does coffee cool faster at first?', [proseOnly], { depth }); assert.equal(r.out.result, 'artifact'); assert.equal('visualRequirements' in r.out.block, false); assert.doesNotMatch(r.m.seen[0].messages[0].content, /requiredVisuals/); }
+  for (const depth of ['brief', 'balanced', 'detailed']) { const r = await generate('Why does coffee cool faster at first?', [proseOnly], { depth }); assert.equal(r.out.result, 'artifact'); assert.equal('visualRequirements' in r.out.block, false); assert.doesNotMatch(r.m.seen[0].messages[0].content, /requiredVisuals/); }
 });
 
 test('over-budget output fails exactly one code point over the 700 hard limit; the table and the diagram do not count (EXP-13)', async () => {
   const fits = n => ({ title: 'T', body: `${'x'.repeat(n)}\n\n${TABLE}\n\n${COOLING}\n\n${AFTER}` });
   const room = EXPLANATION_BUDGET.hard - AFTER.length - 1; // the two prose parts join with one space
-  const exact = await generate(EX01, [fits(room)], { depth: 'overview' });
+  const exact = await generate(EX01, [fits(room)], { depth: 'brief' });
   assert.equal(explanationProseChars(exact.out.block), EXPLANATION_BUDGET.hard);
   assert.equal(exact.out.result, 'artifact');
   assert.match(exact.m.seen[0].tools[0].description, new RegExp(`at most ${EXPLANATION_BUDGET.target} characters of prose`), 'the author is asked for the 600 target');
-  const over = await quiet(() => generate(EX01, [fits(room + 1)], { depth: 'overview' }));
+  const over = await quiet(() => generate(EX01, [fits(room + 1)], { depth: 'brief' }));
   assert.equal(over.out.result, 'validation_error');
   assert.match(over.out.error, /explanation_over_budget/);
 });
@@ -244,7 +244,7 @@ test('the route reads the requirement from the learner\'s own args on the server
 test('the Tutor roadmap path: the accepted learner instruction carries the requirement, one call, zero repairs, a stable terminal reason, and the accepted title wins', async () => {
   const access = { org: 'o', actorUserId: 'u1', actorEmail: 'a@x.test', boardId: 'b1', boardOwnerEmail: 'a@x.test', role: 'owner', payerUserId: 'u1' };
   const ref = { authorizationId: 'auth_00000001', resultId: 'res_00000001', resultVersion: 1 };
-  const record = over => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Why coffee cools', stepGoal: 'Explain the gap.', passageText: 'Coffee cools.', language: 'en', depth: 'standard', retry: 0,
+  const record = over => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Why coffee cools', stepGoal: 'Explain the gap.', passageText: 'Coffee cools.', language: 'en', depth: 'balanced', retry: 0,
     learnerInstruction: { original: 'Include a small table comparing early and late cooling.', revisions: [] }, ...over });
   const run = async (rec, inputs) => { const m = scripted(...inputs); const out = await generateRoadmapCard({}, access, ref, { loadAccepted: async () => rec, withProviderCall: async e => e, callModel: m.callModel }); return { out, m }; };
   const ok = await run(record(), [{ ...withTable, title: 'A different model title' }]);

@@ -107,7 +107,7 @@ function interactStack(t, { design, build, fit, depth = 'standard', plan = depth
 }
 const designed = async (t, build, depth = 'standard', plan = depth) => {
   const s = interactStack(t, { build, depth, plan });
-  const { body } = await s.create(depth === 'standard' ? {} : { depth }), id = body.job.id;
+  const { body } = await s.create(depth === 'balanced' ? {} : { depth }), id = body.job.id;
   const { job } = await s.design(id);
   assert.equal(job.stage, 'awaiting_approval', JSON.stringify([job.stopReason, job.failure]));
   return { s, id, proposal: postedProposal(s.sqlite, id) };

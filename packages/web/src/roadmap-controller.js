@@ -185,7 +185,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     const iv = state.invitation;
     if (!iv) return Promise.resolve(null);
     const key = iv.sourceKeys[0];
-    return act(`create:${iv.id}${suffix}`, actionKey => routes.create(boardId, { invitationId: iv.id, source: { key, rev: host.sourceRev?.(key), scope }, instruction: chosen.instruction ?? host.instruction?.() ?? '', depth: chosen.depth || host.depth?.() || 'standard' }, actionKey)).then(applyView);
+    return act(`create:${iv.id}${suffix}`, actionKey => routes.create(boardId, { invitationId: iv.id, source: { key, rev: host.sourceRev?.(key), scope }, instruction: chosen.instruction ?? host.instruction?.() ?? '', depth: chosen.depth || host.depth?.() || 'balanced' }, actionKey)).then(applyView);
   }
 
   return {
@@ -216,7 +216,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
       if (!text) return null;
       let body;
       if (iv && (!source || iv.sourceKeys[0] === source.key)) { chosen = { depth, instruction: text }; body = await createWith(named, named.kind === 'whole' ? '' : `:${named.kind}:${named.start ?? ''}:${named.end ?? ''}`); }
-      else if (source?.key && source.rev) body = await act(`create:${source.key}@${source.rev}`, actionKey => routes.create(boardId, { source: { key: source.key, rev: source.rev, scope: named }, instruction: text, depth: depth || host.depth?.() || 'standard' }, actionKey)).then(applyView);
+      else if (source?.key && source.rev) body = await act(`create:${source.key}@${source.rev}`, actionKey => routes.create(boardId, { source: { key: source.key, rev: source.rev, scope: named }, instruction: text, depth: depth || host.depth?.() || 'balanced' }, actionKey)).then(applyView);
       else return null;
       if (threadId) { await refresh(); if (state.view && !state.view.roadmap.threadId) await call(routes.thread(state.view, threadId)).then(applyView, () => {}); }
       return body;

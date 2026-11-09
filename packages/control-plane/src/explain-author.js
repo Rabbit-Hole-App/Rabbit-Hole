@@ -14,7 +14,7 @@ import { programFitProblems } from './explain-program-stage.js';
 import { ExplainPolicyError, callExplainRole } from './explain-policy.js';
 import { learnMedia } from './learn-storage.js';
 import { modelEvidence } from './explain-evidence.js';
-import { depthInstruction } from './chat-depth.js';
+import { depthInstruction, depthOf } from './chat-depth.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // The spec and scene limits the author is told and the compiler enforces (explain-contract.js visualSpecSchema;
@@ -115,8 +115,8 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
   if (program) cat = cat.filter(entry => !Object.keys(entry.controls || {}).length);
   const content = JSON.stringify({
     request: input.prompt, brief: input.brief ?? null, context: input.context ?? null, ...(input.edit ? { edit: input.edit } : {}),
-    // R2: the learner's Depth, beside the sentence in the system prompt below (Standard sends neither).
-    ...(depthInstruction(input.depth, 'card') ? { depth: input.depth } : {}),
+    // R2: the learner's Depth, beside the sentence in the system prompt below (Balanced sends neither).
+    ...(depthInstruction(input.depth, 'card') ? { depth: depthOf(input.depth) } : {}),
     evidence: modelEvidence(input.evidence),
     catalogue: cat, composition: authorComposition(), supported: compilerSupport(), limits,
     ...(program ? { program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful }) } : {}),

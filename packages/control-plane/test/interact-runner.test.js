@@ -14,7 +14,7 @@ import { fixtureCaptureCard, fixtureRun, fixtureScript, scriptedAdapter } from '
 import { createRunDirStore } from '../../../scripts/interact/run-dir-store.mjs';
 
 const profile = resolveInteractProfile('opus-baseline');
-const REQUEST = { runId: 'run-1', prompt: 'Why does a thrown ball still accelerate at the top?', depth: 'standard', fixture: 'toss-drop-standard' };
+const REQUEST = { runId: 'run-1', prompt: 'Why does a thrown ball still accelerate at the top?', depth: 'balanced', fixture: 'toss-drop-standard' };
 const ROOT = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 let fetches;
 test.beforeEach(t => {
@@ -219,7 +219,7 @@ test('the run-directory store writes atomically, refuses a stale revision and re
 test('the script builds every reference row and a different subject from the same stages: the printed hash, zero paid calls, the matching oracle compared', () => {
   const dir = mkdtempSync(join(tmpdir(), 'interact-cli-rows-'));
   const cli = (...args) => spawnSync(process.execPath, [join(ROOT, 'scripts/interact/run.mjs'), ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ANTHROPIC_API_KEY: '', CELERIS_API_KEY: '' } });
-  const rows = [['toss-drop-standard', 'overview', 2, 'static', null], ['toss-drop-standard', 'deep', 20, 'experiment', 'Time since launch'], ['pendulum-period', 'standard', 6, 'experiment', null]];
+  const rows = [['toss-drop-standard', 'brief', 2, 'static', null], ['toss-drop-standard', 'detailed', 20, 'experiment', 'Time since launch'], ['pendulum-period', 'balanced', 6, 'experiment', null]];
   try {
     for (const [fixture, depth, minimum, mode, label] of rows) {
       const run = join(dir, `${fixture}-${depth}`);
@@ -233,7 +233,7 @@ test('the script builds every reference row and a different subject from the sam
       const composition = JSON.parse(readFileSync(join(run, 'composition.json'), 'utf8'));
       assert.deepEqual([composition.main.mode, composition.main.timeline?.label ?? null], [mode, label], `${fixture} ${depth}`);
     }
-    assert.notEqual(cli('--fixture', 'pendulum-period', '--depth', 'deep', '--until', 'plan', '--run-dir', join(dir, 'bad')).status, 0, 'a depth the fixture does not have makes no plan');
+    assert.notEqual(cli('--fixture', 'pendulum-period', '--depth', 'detailed', '--until', 'plan', '--run-dir', join(dir, 'bad')).status, 0, 'a depth the fixture does not have makes no plan');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -241,7 +241,7 @@ test('the script runs the same stages: plan only, then the printed hash builds a
   const dir = mkdtempSync(join(tmpdir(), 'interact-cli-')), run = dir2 => join(dir, dir2);
   const cli = (...args) => spawnSync(process.execPath, [join(ROOT, 'scripts/interact/run.mjs'), ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ANTHROPIC_API_KEY: '', CELERIS_API_KEY: '' } });
   try {
-    const plan = cli('--fixture', 'toss-drop-standard', '--depth', 'standard', '--until', 'plan', '--run-dir', run('p'));
+    const plan = cli('--fixture', 'toss-drop-standard', '--depth', 'balanced', '--until', 'plan', '--run-dir', run('p'));
     assert.equal(plan.status, 0, plan.stderr); assert.match(plan.stdout, /zero paid calls/); assert.match(plan.stdout, /plan_ready \(a plan only, no card was built\)/);
     const hash = plan.stdout.match(/planHash=([0-9a-f]{64})/)[1];
     assert.equal(JSON.parse(readFileSync(run('p/result.json'), 'utf8')).builtCard, false);

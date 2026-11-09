@@ -62,7 +62,7 @@ test('the bounds are author 2, reviewer 4, reviser 3 per plan attempt (one extra
 });
 
 // ---- INT-02-C01: authorDesign and reviewDesign as units (a scripted ctx.interact, no job) ----
-const unit = (output, over = {}) => ({ job: { prompt: 'Is acceleration zero at the top?', depth: 'standard', context: null, evidence: [], design: { ...freshDesign(), ...over } }, ctx: { capabilities: fixtures.capabilities, interact: async () => ({ output }) } });
+const unit = (output, over = {}) => ({ job: { prompt: 'Is acceleration zero at the top?', depth: 'balanced', context: null, evidence: [], design: { ...freshDesign(), ...over } }, ctx: { capabilities: fixtures.capabilities, interact: async () => ({ output }) } });
 
 test('authorDesign rejects a plan missing Mode or Controls, or changing the requested depth, and never completes or strips it', async () => {
   const { mode: _mode, ...noMode } = PLAN.standard;

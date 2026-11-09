@@ -9,7 +9,7 @@ import { assembledSystem } from './explanation-fast-chain.js';
 import { PRIMITIVES } from './learn-primitives.js';
 import { ARTIFACT_REPAIRS } from './learn-models.js';
 import { VISUAL_REQUIREMENTS_VERSION, deriveVisualRequirements, requirementText } from './explanation-visuals.js';
-import { DEFAULT_DEPTH } from './chat-depth.js';
+import { DEFAULT_DEPTH, depthOf } from './chat-depth.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { normalizeProviderResult } from './explanation-benchmark-adapters.js';
 import { DETERMINISTIC_EVALUATOR, calibrationSummary, calibrationVerdict, deterministicEvaluator, reportMarkdown, summarize, summaryCsv } from './explanation-benchmark-eval.js';
@@ -85,7 +85,7 @@ export function authorInput(c) {
   const visuals = deriveVisualRequirements(requirementText({ args: c.args }));
   if (visuals.unsupported) throw new BenchmarkError('bad_case', `Case ${c.id}: ${visuals.unsupported}`);
   // shortcut: this repeats how artifactFetch builds its generate() input (the route needs auth and a board); upgrade by extracting that builder if the route changes.
-  return { command: c.command, args: c.args, selection: null, context: null, ...(c.depth !== DEFAULT_DEPTH ? { depth: c.depth } : {}), ...(visuals.items.length ? { visualRequirements: visuals } : {}) };
+  return { command: c.command, args: c.args, selection: null, context: null, ...(depthOf(c.depth) !== DEFAULT_DEPTH ? { depth: depthOf(c.depth) } : {}), ...(visuals.items.length ? { visualRequirements: visuals } : {}) };
 }
 const caseOf = (corpus, id) => corpus.cases.find(c => c.id === id);
 const baseOf = (corpus, c) => (c.base ? caseOf(corpus, c.base) : c);

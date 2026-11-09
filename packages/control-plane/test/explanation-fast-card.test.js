@@ -41,7 +41,9 @@ test('fix 2: visuals are fields; the server writes the same rh-diagram / rh-illu
   assert.deepEqual([picture.p.maxLength, picture.a.maxLength, picture.c.maxLength], [200, 120, 100], 'terse picture fields (owner review 2026-11-08)');
   const description = m.seen[0].tools.find(t => t.name === 'make_explanation').description;
   assert.match(description, /\[\[visual:1\]\]/, 'the author is told to place visuals by marker');
-  assert.match(description, /leave out exact numbers, formulas, named parts and historical particulars unless they are standard textbook facts you are certain of, and never invent the name of an object, tool or part/, 'the factual-specifics rule (owner review 2026-11-08)');
+  // Owner 2026-11-08 (clean-up): "Be factual: leave out exact numbers..." is gone (Depth governs precision); its never-invent half is its own line under "# Numbers and maths".
+  assert.doesNotMatch(description, /leave out exact numbers, formulas, named parts and historical particulars/, 'the factual-specifics sentence is removed');
+  assert.match(description, /Never invent the name of an object, tool, part, person or source; state only what you are certain is standard knowledge or what the request supplies\./, 'the never-invent line');
   // A picture fence the server wrote is the saved rh-illustration format, with a server-numbered id.
   assert.deepEqual(markdownIllustrations(composeVisuals('A. [[visual:1]] B.', [PICTURE])).map(p => p.spec), [{ version: 1, id: 'pic-1', prompt: PICTURE.p, alt: PICTURE.a, caption: PICTURE.c }]);
   // An unknown or repeated marker is removed; a visual without a marker goes to the end (then the layout is settled).

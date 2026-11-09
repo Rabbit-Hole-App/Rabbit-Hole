@@ -53,16 +53,16 @@ test('a planned card has its visuals stated as fact and no type / kind / count r
 
 test('# Depth: the shared line, this Depth\'s paragraph and the precision hint, the 450 budget, and neither of the other two paragraphs; the old objective sentences are gone', () => {
   const L = EXPLANATION_DEPTH_LINES;
-  for (const depth of ['overview', 'standard', 'deep']) {
-    const text = description(prepareArtifactAuthorRequest(FAST, { command: 'explanation', args: 'What is Gini impurity?', planned: true, plan: plan('coordinate-plot'), ...(depth === 'standard' ? {} : { depth }) }));
+  for (const depth of ['brief', 'balanced', 'detailed']) {
+    const text = description(prepareArtifactAuthorRequest(FAST, { command: 'explanation', args: 'What is Gini impurity?', planned: true, plan: plan('coordinate-plot'), ...(depth === 'balanced' ? {} : { depth }) }));
     const section = text.slice(text.indexOf('# Depth\n'), text.indexOf('# Visuals for this card'));
     assert.ok(section.includes(L.shared) && section.includes(L[depth]) && section.includes(L.hint), depth);
-    for (const other of ['overview', 'standard', 'deep'].filter(d => d !== depth)) assert.ok(!text.includes(L[other]), `${depth}: not the ${other} paragraph`);
+    for (const other of ['brief', 'balanced', 'detailed'].filter(d => d !== depth)) assert.ok(!text.includes(L[other]), `${depth}: not the ${other} paragraph`);
     assert.ok(section.includes('at most 450 characters of prose'), 'the budget is as before');
-    assert.ok(!/Depth: (Overview|Standard|Deep)\./.test(text), 'the old objective sentence is gone');
+    assert.ok(!/Depth: (Brief|Balanced|Detailed)\./.test(text), 'the old objective sentence is gone');
   }
-  assert.ok(EXPLANATION_DEPTH_LINES.overview.startsWith('**Overview** — Written for someone meeting the subject for the first time.'));
-  assert.ok(EXPLANATION_DEPTH_LINES.deep.includes('Add the one or two properties, limits or failure modes that matter in practice.'));
+  assert.ok(EXPLANATION_DEPTH_LINES.brief.startsWith('**Brief** — Written for someone meeting the subject for the first time.'));
+  assert.ok(EXPLANATION_DEPTH_LINES.detailed.includes('Add the one or two properties, limits or failure modes that matter in practice.'));
 });
 
 test('the arm-E Depth-precedence sentence is gone from the guidance and from the rules block', () => {
@@ -149,7 +149,7 @@ test('owner 2026-11-08 decisions: "Be factual: leave out exact numbers..." is go
   assert.ok(!EXPLANATION_GUIDANCE.includes('Be factual') && !EXPLANATION_GUIDANCE.includes('leave out exact numbers'));
   const numbers = EXPLANATION_GUIDANCE.slice(EXPLANATION_GUIDANCE.indexOf('# Numbers and maths'), EXPLANATION_GUIDANCE.indexOf('# Diagram kinds and their fields'));
   assert.ok(numbers.includes('Never invent the name of an object, tool, part, person or source; state only what you are certain is standard knowledge or what the request supplies.'));
-  const d = description(prepareArtifactAuthorRequest(FAST, { command: 'explain', args: 'how does the TCP handshake work?', depth: 'standard', plan: plan() }));
+  const d = description(prepareArtifactAuthorRequest(FAST, { command: 'explain', args: 'how does the TCP handshake work?', depth: 'balanced', plan: plan() }));
   const transition = 'Based on the rules above, this card:';
   assert.equal(d.split(transition).length, 2, 'once');
   assert.ok(d.indexOf('# Numbers and maths') < d.indexOf(transition) && d.indexOf(transition) < d.indexOf('# Depth') && d.indexOf('# Depth') < d.indexOf('# Visuals for this card'));

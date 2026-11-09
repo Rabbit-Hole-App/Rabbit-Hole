@@ -25,7 +25,7 @@ const PLAN_RULES = `Plan a finite sequence of explanation steps for the learner 
 - Every step has a format of explanation (a text card) or table (a standalone comparison or lookup). No other format exists yet: no practice, quiz, code run, image or video.
 - An explanation step is one card that may use prose, a Markdown table or a diagram inside it; plan the step, not its layout.
 - The format is only a suggestion. Set formatRequired to true on a step only when the learner's own words explicitly require that format for it; otherwise leave it out.
-- The step ceiling is a maximum, never a target. Use as few steps as the outcome needs, usually fewer than the ceiling. One step is one coherent learning idea that fits one card within the selected Depth's character budget (Overview 600, Standard 1,000, Deep 1,500 characters, title and folded sections included).
+- The step ceiling is a maximum, never a target. Use as few steps as the outcome needs, usually fewer than the ceiling. One step is one coherent learning idea that fits one card within the selected Depth's character budget (Brief 600, Balanced 1,000, Detailed 1,500 characters, title and folded sections included).
 - Each step's passage is a character range inside the given scope, at most the stated passage limit long. Cover every part of the scope with a step passage, or list the part in coverage.uncovered with a reason (for example the learner already knows it).
 - outcome is something the learner will be able to do. stoppingPoint says when the learner can stop. The roadmap must end there.
 - Never mention prices or credits. Do not add facts, links or citations that are not in the source.

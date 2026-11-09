@@ -1,5 +1,7 @@
 # /explain and /interactive test ledger
 
+Depth names: Brief = Overview, Balanced = Standard, Detailed = Deep (renamed 2026-11-08). Rows written before that keep the old names.
+
 Every test run for the written `/explain` (and `/interactive`) work, with its result, the fix it led to and whether that fix is approved for production. Owner rule (2026-11-08): no test without a fix decision; report every test in this table.
 
 Columns: **Pass/Fail** is the test's own verdict against its goal. **Prod** says whether the fix it led to is approved for and/or live in production: LIVE (in a released build), APPROVED (owner approved, not released yet), NOT YET (built or proposed, not approved or not released), n/a.

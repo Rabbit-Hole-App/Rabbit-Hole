@@ -12,7 +12,7 @@ import { withVisual } from './explanation-layout-fixture.js';
 
 const access = { org: 'o', actorUserId: 'u1', actorEmail: 'a@x.test', boardId: 'b1', boardOwnerEmail: 'a@x.test', role: 'owner', payerUserId: 'u1' };
 const ref = { authorizationId: 'auth_00000001', resultId: 'res_00000001', resultVersion: 1 };
-const record = (over = {}) => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Slopes', stepGoal: 'Read the slope.', passageText: 'The gradient points uphill.', sourceRef: { v: 1, id: 'sref_abc' }, language: 'en', depth: 'standard', retry: 0, ...over });
+const record = (over = {}) => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Slopes', stepGoal: 'Read the slope.', passageText: 'The gradient points uphill.', sourceRef: { v: 1, id: 'sref_abc' }, language: 'en', depth: 'balanced', retry: 0, ...over });
 const explanation = { title: 'Slopes', body: withVisual('The gradient points uphill.') }; // EXP-13, owner 2026-11-08: prose, a visual, prose
 const table = { title: 'Rates', caption: '', columns: ['rate', 'effect'], rows: [['small', 'slow'], ['large', 'diverges']] };
 // A provider double that answers each call with the next scripted tool call and records the body and the env it was given.
@@ -193,7 +193,7 @@ const scriptedArtifact = (...replies) => { const seen = []; return { seen, callM
 test('CORE.09: a direct question and a roadmap step get the same Explanation guidance, Depth objective and budget; the roadmap keeps its accepted title', async () => {
   for (const [depth, cap] of Object.entries(EXPLANATION_CAPS)) {
     const direct = scriptedArtifact(['make_explanation', { title: 'Why trees split', body: withVisual('Prose with a table.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |') }]);
-    const out = await generateArtifact({}, { command: 'explain', args: 'Why do decision trees split on one feature?', ...(depth === 'standard' ? {} : { depth }) }, { callModel: direct.callModel });
+    const out = await generateArtifact({}, { command: 'explain', args: 'Why do decision trees split on one feature?', ...(depth === 'balanced' ? {} : { depth }) }, { callModel: direct.callModel });
     assert.equal(out.result, 'artifact', depth);
     const desc = direct.seen[0].tools.find(t => t.name === 'make_explanation').description;
     assert.ok(desc.includes(EXPLANATION_GUIDANCE) && desc.includes(explanationTarget(depth)) && desc.includes(`at most ${cap.toLocaleString('en-US')} characters`), depth);

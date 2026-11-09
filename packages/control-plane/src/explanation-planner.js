@@ -3,6 +3,7 @@
 // decides the card's visual type, kind, second visual and depth treatment; the server states the plan to the author in the request. A timeout or any error means no
 // plan and the author prompt as today: the card is never blocked on the planner. The questions are the bench's (scripts/explain-bench/planner.mjs on explain/quality-bench).
 // Mapping (owner 2026-11-08): no plot override; the kind is FIXED when its top probability is >= 0.6, otherwise the top two kinds are offered and the author chooses.
+import { DEFAULT_DEPTH, validDepth } from './chat-depth.js';
 import shapeExamples from '../../web/src/tutor-diagrams/examples.json' with { type: 'json' };
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
@@ -35,7 +36,7 @@ export const QUESTIONS = {
   visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only.",
     criteria: { picture: 'A drawn illustration of a physical thing, place, organism or natural event.', diagram: 'A schematic: process, relationship, comparison, structure, quantity or formula.', both: 'A physical thing that also has a mechanism to explain (volcano erupting, engine, eclipse).' } },
   kind: { type: 'choice', instructions: 'If a diagram is used, which kind best teaches the answer? Judge by the shape of the answer, not by words in the question.', criteria: KIND },
-  depthTreatment: { type: 'choice', instructions: 'How technical should the explanation and its visual be for this depth? Overview: plain words, no formulas or jargon, the simplest visual with plain labels. Standard: the mechanism with its proper terms; a plot or chart if a quantity is central. Deep: precise terms, the formula or exact relationship in the labels, the quantitative view.',
+  depthTreatment: { type: 'choice', instructions: 'How technical should the explanation and its visual be for this depth? Brief: plain words, no formulas or jargon, the simplest visual with plain labels. Balanced: the mechanism with its proper terms; a plot or chart if a quantity is central. Detailed: precise terms, the formula or exact relationship in the labels, the quantitative view.',
     criteria: { plain: 'No formulas, no jargon, plain-word labels.', mechanism: 'Proper terms, the mechanism; a plot if a quantity is central.', quantitative: 'Formula and exact relationships in labels; plot or chart where a quantity is involved.' } },
   needsPlot: { type: 'noul', instructions: 'Is this a question about a formula, a metric, a loss, an activation function, a schedule, or how one quantity changes with another?' },
   isPhysical: { type: 'noul', instructions: 'Is the subject a physical object, place, organism, 3D shape, repeating structure (molecule, lattice, gear train) or natural event?' },
@@ -96,12 +97,12 @@ export function planShape(plan) {
 export const plannerEnabled = env => env?.EXPLANATION_PLANNER === 'jev' && typeof env.TYPESAFE_API_KEY === 'string' && env.TYPESAFE_API_KEY.length > 0;
 
 // -> plan | null. null on any failure or timeout (the author runs as today); the reason goes to the log, never to the learner.
-export async function planExplanation(env, { question, depth = 'standard', context = null }, { fetchImpl = globalThis.fetch, timeoutMs = PLANNER_TIMEOUT_MS } = {}) {
+export async function planExplanation(env, { question, depth = DEFAULT_DEPTH, context = null }, { fetchImpl = globalThis.fetch, timeoutMs = PLANNER_TIMEOUT_MS } = {}) {
   const started = Date.now();
   try {
     const response = await fetchImpl('https://api.typesafe.ai/v1/systemone', { method: 'POST', signal: AbortSignal.timeout(timeoutMs),
       headers: { Authorization: `Bearer ${env.TYPESAFE_API_KEY}`, 'Content-Type': 'application/json', 'User-Agent': 'rabbit-hole-explain/1' },
-      body: JSON.stringify({ model: PLANNER_MODEL, state: { question: String(question).slice(0, 2000), depth, context: context ? String(context).slice(0, 2000) : null }, questions: QUESTIONS }) });
+      body: JSON.stringify({ model: PLANNER_MODEL, state: { question: String(question).slice(0, 2000), depth: validDepth(depth) ?? DEFAULT_DEPTH, context: context ? String(context).slice(0, 2000) : null }, questions: QUESTIONS }) });
     if (!response.ok) throw new Error(`http ${response.status}`);
     const out = await response.json();
     const need = ['visualType', 'kind', 'depthTreatment', 'needsPlot', 'isPhysical', 'needsWorkedExample'];

@@ -120,7 +120,7 @@ test('the written preview is the example\'s answer: a saved Explanation block wi
   assert.equal(fixture.prompt, WRITTEN_ARGS, 'the fixture answers exactly the prompt Use example fills');
   assert.deepEqual([block.title, block.body], [fixture.block.title, fixture.block.body]);
   for (const depth of Object.keys(EXPLANATION_CAPS)) assert.equal(explanationProblem(block, depth), null, `${depth}: within ${EXPLANATION_CAPS[depth]} characters and every diagram supported`);
-  assert.ok(explanationProseChars(block) <= EXPLANATION_CAPS.overview, 'its prose fits the 600 target (EXP-13: only prose counts), with one visual between prose');
+  assert.ok(explanationProseChars(block) <= EXPLANATION_CAPS.brief, 'its prose fits the 600 target (EXP-13: only prose counts), with one visual between prose');
   const rows = block.body.split('\n').filter(line => /^\|/.test(line));
   assert.match(rows[0], /Early/); assert.match(rows[0], /Late/);
   const dataRows = rows.slice(2);

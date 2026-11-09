@@ -22,7 +22,7 @@ const lib = createRequire(import.meta.url)(outfile);
 const render = depth => lib.renderToStaticMarkup(lib.createElement(lib.DepthMenu, { settings: { depth, status: 'ready', saveStatus: 'ready', set() {}, retry() {} } }));
 
 test('the trigger is an icon for each level, never the word; the name stays in the accessible name and tooltip', () => {
-  const rows = [['overview', 'Overview', 'text-claude/45', 'lucide-signal-low'], ['standard', 'Standard', 'text-claude', 'lucide-signal-medium'], ['deep', 'Deep', 'text-claude-deep', 'lucide-signal-high']];
+  const rows = [['brief', 'Brief', 'text-claude/45', 'lucide-signal-low'], ['balanced', 'Balanced', 'text-claude', 'lucide-signal-medium'], ['detailed', 'Detailed', 'text-claude-deep', 'lucide-signal-high']];
   const seen = new Set();
   for (const [id, label, color, shape] of rows) {
     const markup = render(id);
@@ -40,6 +40,6 @@ test('the menu keeps its three radio options with their words, hints and the sam
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('./DepthMenu.jsx', import.meta.url), 'utf8');
   assert.ok(source.includes('role="menuitemradio"') && source.includes('data-depth-option={id}'));
-  assert.ok(source.includes("LEVEL_MARK[id] || LEVEL_MARK.standard"), 'each option shows its level mark');
-  assert.deepEqual(Object.keys(lib.LEVEL_MARK), ['overview', 'standard', 'deep']);
+  assert.ok(source.includes("LEVEL_MARK[id] || LEVEL_MARK.balanced"), 'each option shows its level mark');
+  assert.deepEqual(Object.keys(lib.LEVEL_MARK), ['brief', 'balanced', 'detailed']);
 });

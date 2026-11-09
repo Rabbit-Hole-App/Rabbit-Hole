@@ -119,7 +119,7 @@ test('credentials: a chain with no step credential is refused before anything is
 
 test('the request: provider endpoint and key, model, reasoning_effort, strict json_schema of the make_explanation input, and the same guidance, request, Depth and required visuals', async t => {
   const sent = providers(t, ok(card));
-  const input = { depth: 'deep', visualRequirements: { items: [{ id: 'v1', kind: 'diagram', diagramKind: 'flow', purpose: 'show the cooling' }] } };
+  const input = { depth: 'detailed', visualRequirements: { items: [{ id: 'v1', kind: 'diagram', diagramKind: 'flow', purpose: 'show the cooling' }] } };
   await generateArtifact(offline('fireworks-high'), { command: 'explanation', args: 'Draw a diagram of why coffee cools', ...input }, { repairs: 0 }).catch(() => null); // validity is not under test here
   const [{ provider, init, body }] = sent;
   assert.equal(provider, 'fireworks');
@@ -133,10 +133,10 @@ test('the request: provider endpoint and key, model, reasoning_effort, strict js
   assert.ok(!JSON.stringify(schema).includes('"oneOf"'), 'every exclusive oneOf (the visual kinds, the diagram kinds) is sent as anyOf');
   assert.deepEqual(schema.properties.visuals.items.anyOf.map(b => b.properties.k.const), ['diagram', 'picture']);
   const [system, user] = body.messages;
-  for (const text of [EXPLANATION_GUIDANCE, explanationTarget('deep')]) assert.ok(system.content.includes(text), 'the tool description is sent verbatim');
+  for (const text of [EXPLANATION_GUIDANCE, explanationTarget('detailed')]) assert.ok(system.content.includes(text), 'the tool description is sent verbatim');
   assert.ok(!system.content.includes(INTERACTION_GUIDANCE), 'interactions off: no interaction guidance');
   const asked = JSON.parse(user.content);
-  assert.deepEqual([asked.learnerText, asked.depth, asked.requiredVisuals[0].id], ['Draw a diagram of why coffee cools', 'deep', 'v1']);
+  assert.deepEqual([asked.learnerText, asked.depth, asked.requiredVisuals[0].id], ['Draw a diagram of why coffee cools', 'detailed', 'v1']);
   assert.ok(!('tools' in body) && !('tool_choice' in body), 'json_schema mode, no tool call');
   // Interactions on: the guidance and the questions/terms fields ride in the same one call; a Cerebras profile sends to Cerebras with its key.
   const on = providers(t, ok(card));

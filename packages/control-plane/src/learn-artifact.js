@@ -116,7 +116,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
     description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? explanationTail : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
     input_schema: id === 'explanation' ? authorSchema(env) : PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
-  // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Standard sends nothing.
+  // R2: the learner's Depth for this canvas, for the commands that make an explanation (chat-depth.js DEPTH_COMMANDS); Balanced sends nothing.
   const depthNote = depthInstruction(input.depth, 'card');
   // E1: the server-derived required visuals ride in the request the author reads (and the quote hashes); absent, the request is unchanged.
   const required = id => asked.length && ready.includes('explanation') ? { requiredVisuals: asked.map(({ id, kind, diagramKind, purpose }) => ({ id, kind, ...(diagramKind ? { diagramKind } : {}), purpose })) } : {};
@@ -155,7 +155,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   // `early` (EXP-13 fix 3, trusted, the fast chain only): explanation-figures.js figureStarter, the pictures already started from the streamed answer.
   // JEV planner prototype (owner 2026-11-08, dev flag EXPLANATION_PLANNER=jev): planned once per card, before the first author call; the plan rides in `input` through every provider step and repair.
   if (!input.planned && (input.command === 'explain' || input.command === 'explanation') && String(input.args || '').trim() && plannerEnabled(env)) {
-    input = { ...input, planned: true, plan: await planExplanation(env, { question: input.args, depth: input.depth || 'standard', context: input.context || null }) };
+    input = { ...input, planned: true, plan: await planExplanation(env, { question: input.args, depth: validDepth(input.depth) || DEFAULT_DEPTH, context: input.context || null }) };
   }
   // Owner 2026-11-08 (clean-up): the 6a/6b word heuristics (repeat words -> cycle, looks-like -> picture) run only when the planner made no plan; one log line says which source decided the visuals.
   if (!input.visualsLogged && (input.command === 'explain' || input.command === 'explanation')) {
@@ -338,7 +338,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     body = JSON.parse(raw);
     if (!body || typeof body.command !== 'string' || typeof (body.args ?? '') !== 'string' || (body.args || '').length > 1000 || (body.context != null && (typeof body.context !== 'string' || body.context.length > 8000))) throw new Error('Invalid artifact request');
     artifactPlan(body.command, body); // unknown command or selection: 400 before auth or model
-    if (body.depth !== undefined && !validDepth(body.depth)) throw new Error('depth must be overview, standard or deep'); // R2: an explicit Depth the server does not know is refused, never normalized
+    if (body.depth !== undefined && !validDepth(body.depth)) throw new Error('depth must be brief, balanced or detailed'); // R2: an explicit Depth the server does not know is refused, never normalized
     if (body.image_context !== undefined && body.command !== 'explain') throw new Error('Only /explain takes an attached image');
     if ((body.image_role ?? 'layout_reference') !== 'layout_reference' || (body.image_role !== undefined && body.image_context === undefined)) throw new Error('image_role must be layout_reference, with an image_context');
   } catch (error) { return json({ error: error.message }, 400); }
@@ -384,9 +384,9 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     documents = [...documents, { type: 'text', text: IMAGE_ROLES.layout_reference }, ...got.blocks];
   }
   // R2: the Depth the learner had selected when they submitted (the client snapshots it with the board), validated above; omitted, the
-  // saved Depth for that exact canvas. No board named is Standard: there is no fallback to the main board. Commands that make no
+  // saved Depth for that exact canvas. No board named is Balanced: there is no fallback to the main board. Commands that make no
   // explanation (DEPTH_COMMANDS) get none, whatever was sent.
-  const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? body.depth
+  const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? validDepth(body.depth)
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
   let celeris = null; // DEV ONLY (explain-celeris-dev.js): declared outside the try so a refused request can still report what the route saw
   try {

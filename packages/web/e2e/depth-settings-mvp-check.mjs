@@ -1,9 +1,9 @@
 // Depth and Auto-suggest, end to end in the browser (Tutor ladder R2, decisions D11, D12, D22; roadmap 3.3 acceptance), against the LOCAL
 // stack only, with no model call: the settings API is a fake server in this browser that keeps a value per learner canvas (Depth) and
 // per learner (Auto-suggest) as the real route does, and every Chat turn is captured at /api/learn/ask and aborted.
-// Covers: Deep is kept across a reload; a second canvas shows Standard while Auto-suggest, set off on the first, is off there too; a
-// second tab of the same browser follows a change without a reload; a Chat turn in Auto sends depth "deep", in Ask too (Ask stays an
-// answer: its mode is ask and no plan is asked for), and Standard sends no depth at all; Auto-suggest is not offered in Ask; no page
+// Covers: Detailed is kept across a reload; a second canvas shows Balanced while Auto-suggest, set off on the first, is off there too; a
+// second tab of the same browser follows a change without a reload; a Chat turn in Auto sends depth "detailed", in Ask too (Ask stays an
+// answer: its mode is ask and no plan is asked for), and Balanced sends no depth at all; Auto-suggest is not offered in Ask; no page
 // error and no model request other than the captured turns.
 // What it cannot show: that the model's answer is deeper. That is pinned by the server tests (learn-chat.test.js, explain-depth.test.js).
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/depth-settings-mvp-check.mjs [shotsDir]
@@ -27,7 +27,7 @@ const second = await api('/api/canvases', { method: 'POST', body: JSON.stringify
 const MODEL = /^\/api\/(ask$|learn\/(selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|artifact|explain|animation|chat\/material-proposals|cad\/jobs|motion))/;
 const stray = [], errors = [], results = [], turns = [];
 const depthOf = {}, revisionOf = {}, learner = { autoSuggest: true }; // the fake server's rows: Depth and its revision per canvas, Auto-suggest per learner
-const view = app => ({ settings: { depth: depthOf[app] || 'standard', autoSuggest: learner.autoSuggest }, depthRevision: revisionOf[app] || 0, learner: 'aaaaaaaaaaaaaaaa' });
+const view = app => ({ settings: { depth: depthOf[app] || 'balanced', autoSuggest: learner.autoSuggest }, depthRevision: revisionOf[app] || 0, learner: 'aaaaaaaaaaaaaaaa' });
 let current = null;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -77,20 +77,20 @@ const send = async (page, text) => { const before = turns.length; await composer
 
 try {
   let page = await open(first);
-  await step('Deep is chosen and kept across a reload', async () => {
-    assert.equal(await reads(page), 'Standard');
+  await step('Detailed is chosen and kept across a reload', async () => {
+    assert.equal(await reads(page), 'Balanced');
     await openMenu(page);
-    await menuOf(page).locator('[data-depth-option="deep"]').click();
-    await until(async () => depthOf[first.name] === 'deep', 'saved by the server');
+    await menuOf(page).locator('[data-depth-option="detailed"]').click();
+    await until(async () => depthOf[first.name] === 'detailed', 'saved by the server');
     await page.reload();
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 60000 });
-    await until(async () => await reads(page) === 'Deep', 'Deep after reload');
+    await until(async () => await reads(page) === 'Detailed', 'Detailed after reload');
   });
-  await step('a second canvas shows Standard; Auto-suggest set off here is off there too', async () => {
+  await step('a second canvas shows Balanced; Auto-suggest set off here is off there too', async () => {
     await switchOf(page).click();
     await until(async () => learner.autoSuggest === false, 'Auto-suggest saved');
     const other = await open(second);
-    await until(async () => await reads(other) === 'Standard', 'Standard on the second canvas');
+    await until(async () => await reads(other) === 'Balanced', 'Balanced on the second canvas');
     assert.equal(await other.locator('[data-chat-pane] [data-tutor-switch="off"]').count(), 1);
     await other.screenshot({ path: `${SHOTS}/A-second-canvas.png` });
     await other.close();
@@ -98,31 +98,31 @@ try {
   await step('a second tab follows a change without reloading', async () => {
     current = page;
     const tab = await open(first, await context.newPage());
-    await until(async () => await reads(tab) === 'Deep', 'the second tab reads Deep');
+    await until(async () => await reads(tab) === 'Detailed', 'the second tab reads Detailed');
     await openMenu(page);
-    await menuOf(page).locator('[data-depth-option="overview"]').click();
-    await until(async () => await reads(tab) === 'Overview', 'the second tab follows to Overview');
+    await menuOf(page).locator('[data-depth-option="brief"]').click();
+    await until(async () => await reads(tab) === 'Brief', 'the second tab follows to Brief');
     await openMenu(page);
-    await menuOf(page).locator('[data-depth-option="deep"]').click();
-    await until(async () => await reads(tab) === 'Deep', 'and back to Deep');
+    await menuOf(page).locator('[data-depth-option="detailed"]').click();
+    await until(async () => await reads(tab) === 'Detailed', 'and back to Detailed');
     await tab.close();
   });
   await step('a Chat turn in Auto sends depth deep, and asks for no plan', async () => {
     const turn = await send(page, 'How does backpropagation work?');
-    assert.equal(turn.depth, 'deep');
+    assert.equal(turn.depth, 'detailed');
     assert.equal(turn.mode, 'auto');
     await page.screenshot({ path: `${SHOTS}/B-auto-turn.png` });
   });
   await step('in Ask the turn sends depth deep and mode ask, and the Auto-suggest switch is hidden', async () => {
     await pickMode(page, 'Ask');
     const turn = await send(page, 'How does backpropagation work?');
-    assert.deepEqual([turn.depth, turn.mode], ['deep', 'ask']);
+    assert.deepEqual([turn.depth, turn.mode], ['detailed', 'ask']);
     assert.equal(await switchOf(page).count(), 0);
   });
-  await step('Standard sends no depth, and no other model request or page error happened', async () => {
+  await step('Balanced sends no depth, and no other model request or page error happened', async () => {
     await openMenu(page);
-    await menuOf(page).locator('[data-depth-option="standard"]').click();
-    await until(async () => depthOf[first.name] === 'standard', 'saved Standard');
+    await menuOf(page).locator('[data-depth-option="balanced"]').click();
+    await until(async () => depthOf[first.name] === 'balanced', 'saved Balanced');
     const turn = await send(page, 'And what is a gradient?');
     assert.equal('depth' in turn, false);
     assert.deepEqual(stray, []);

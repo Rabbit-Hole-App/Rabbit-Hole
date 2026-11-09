@@ -8,7 +8,7 @@ import { StateError } from '../src/roadmap/roadmap-contract.js';
 import { world, offered, accessFor, rows, usd, NEED } from './roadmap-fixture.js';
 
 const PERIOD = periodOf(Math.floor(Date.now() / 1000));
-const create = (w, access, key, over = {}) => createRoadmap(w.LEARN_DB, access, { actionKey: key, app: 'learn', instruction: 'Teach me Y', source: { key: 'file:fs_a', rev: 'rev1' }, scopeFingerprint: 'fp1', depth: 'standard', ...over });
+const create = (w, access, key, over = {}) => createRoadmap(w.LEARN_DB, access, { actionKey: key, app: 'learn', instruction: 'Teach me Y', source: { key: 'file:fs_a', rev: 'rev1' }, scopeFingerprint: 'fp1', depth: 'balanced', ...over });
 const rejects = (promise, code) => assert.rejects(promise, error => error instanceof StateError && error.code === code);
 
 test('one unfinished roadmap per learner and board, enforced by the database; another learner is independent', async t => {

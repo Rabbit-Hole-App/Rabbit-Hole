@@ -20,7 +20,7 @@ assert.ok(DOC.length > 200000 && APPENDIX > 150000, 'the fixture document is lon
 const REGISTRY = { roadmap_draft: { provider: 'anthropic', model: MODEL, effort: 'low', maxTokens: 12000 }, roadmap_revise: { provider: 'anthropic', model: MODEL, effort: 'low', maxTokens: 12000 } };
 const PLAN = { ...planInput([['What the appendix says about zebrafish', APPENDIX, DOC.length], ['Chapter 1 in brief', CH1, CH1 + 3000]]), instructionAck: { honored: ['zebrafish'], skips: [] }, assumptions: [] };
 
-const create = (h, scope, instruction = ASK) => h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope }, instruction, depth: 'standard', actionKey: KEY('create') });
+const create = (h, scope, instruction = ASK) => h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope }, instruction, depth: 'balanced', actionKey: KEY('create') });
 const LONG = { kind: 'section', locationId: 'long', part: 1 };
 
 // A planning transport double behind the real spend path: `answer(n, body)` -> [toolName, input] for the nth call. Every body it saw is kept.
@@ -187,7 +187,7 @@ test('flag off (ROADMAP_ENABLED true, the R7 switch unset): no D1 statement, mod
   const short = await loop(t, { plans: undefined });
   const shortSeen = [];
   registerRoadmapHandlers({ callModel: async (role, body) => { shortSeen.push(body); return short.m.callModel(role, body); }, checkCallModel: short.m.callModel, classify, base: short.p.base });
-  const made = await short.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: short.rev, scope: { kind: 'whole' } }, instruction: 'Teach me gradient descent.', depth: 'standard', actionKey: KEY('create') });
+  const made = await short.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: short.rev, scope: { kind: 'whole' } }, instruction: 'Teach me gradient descent.', depth: 'balanced', actionKey: KEY('create') });
   assert.equal(made.status, 202);
   assert.equal(shortSeen.length, 1);
   assert.deepEqual(shortSeen[0].tools.map(x => x.name), ['submit_roadmap']);

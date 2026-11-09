@@ -196,8 +196,8 @@ test('R3 source references: statuses map to the checklist words; the locator is 
 
 test('conflict replies carry the current revision and proposal version; Depth is the R2 triple', () => {
   assert.deepEqual(S.conflictReply({ currentRevision: 8, currentProposalVersion: 1 }), { code: 'stale_revision', currentRevision: 8, currentProposalVersion: 1 });
-  assert.deepEqual([...S.DEPTHS], ['overview', 'standard', 'deep']);
-  assert.equal(S.DEFAULT_DEPTH, 'standard');
+  assert.deepEqual([...S.DEPTHS], ['brief', 'balanced', 'detailed']);
+  assert.equal(S.DEFAULT_DEPTH, 'balanced');
   assert.deepEqual([...S.TOOL_STATUS], ['ok', 'partial', 'needs_clarification', 'unsupported', 'unavailable']);
   assert.deepEqual([...S.SAFETY_DECISIONS], ['allow', 'restrain', 'block', 'unknown']);
   assert.deepEqual([...S.EVIDENCE_CLASSES], ['source_supported', 'externally_supported', 'computed', 'inferred', 'unresolved']);
