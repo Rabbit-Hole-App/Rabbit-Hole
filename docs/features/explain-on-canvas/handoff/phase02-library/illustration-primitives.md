@@ -28,18 +28,18 @@ The [preview manifest](illustrations/manifest.json) lists each request width, ac
 
 | Schema surface | Serialized characters | Change |
 | --- | ---: | ---: |
-| Full TutorDiagram | 97,437 | +11,018 |
-| Full explanation author tool | 98,132 | +11,018 |
+| Full TutorDiagram | 97,549 | +11,130 |
+| Full explanation author tool | 98,244 | +11,130 |
 | Unsteered fast-author core | 10,526 | 0 |
-| Legacy visual panels bundle | 29,594 | 0 |
-| Legacy visual states bundle | 48,862 | 0 |
+| Legacy visual panels bundle | 29,622 | +28 |
+| Legacy visual states bundle | 48,918 | +56 |
 | QKV transformation bundle | 11,856 | +1,330 vs core |
 | Token links bundle | 11,359 | +833 vs core |
 | Block stack bundle | 13,977 | +3,451 vs core |
-| Architecture comparison bundle | 33,045 | +3,451 vs legacy panels |
+| Architecture comparison bundle | 33,073 | +3,451 vs legacy panels |
 | MoE flow bundle | 10,701 | +175 vs core |
 
-All 16 legacy fast-author flag combinations serialize identically to the base.
+Coordinate-plot smoothing adds 112 characters to the full schema. Bundles expose the optional `smooth` field wherever they include a coordinate-plot.
 
 ### Gemini-compatible bundles
 
@@ -55,7 +55,7 @@ These counts come from the JSON request built for `gemini-3.5-flash-lite` throug
 | QKV transformation on its own | 145 | No | No | No |
 | Dense vs MoE comparison on its own | 129 | No | No | No |
 
-The QKV bundle exposes the inline tensor payload inside transformation items. Gemini reduces comparison and visual transformation to their list forms, which removes nested block-stacks from the dense-vs-MoE example. A broad schema that exceeds the limit is reduced again, keeping new standalone kinds only when the request explicitly requires them. Measured against the full tool schema, the reduced request has 296 properties with no named new kinds and 357 with all three named. These are offline schema checks.
+The QKV bundle exposes the inline tensor payload inside transformation items. Gemini reduces comparison and visual transformation to their list forms, which removes nested block-stacks from the dense-vs-MoE example. A broad schema that exceeds the limit is reduced again, keeping new standalone kinds only when the request explicitly requires them. Measured against the full tool schema, the reduced request has 297 properties with no named new kinds and 358 with all three named. These are offline schema checks.
 
 The [walkthrough handoff](illustrated-transformer-walkthrough.md) records the causal-mask heatmap constraint and the ten teaching examples.
 
@@ -82,6 +82,14 @@ Set `role` on a block or on an inset flow step written as `{ label, role }`. Nor
 Component labels are noun phrases, including role-tagged steps in an inset. Untagged inset flow steps and ordinary flows use verb-first action labels. Captions wrap. Viewers without XHTML support can display the full caption as SVG text, including the formula source.
 
 Detailed Gemma names the four pre/post RMSNorm stages, the sliding-window and GQA attention schedule, and the gated GELU FFN. Detailed Llama names its two pre-RMSNorm stages, causal grouped-query attention, and SwiGLU FFN. Balanced puts short plain-language glosses beside the component names.
+
+## Coordinate-plot line curves
+
+Basic and Phase 02 line series use monotone cubic SVG paths through the given samples. Two samples draw a straight segment. Repeated or reversing x values keep straight segments in the authored order. Set `smooth: false` for intentional piecewise-linear data. The curve stays within local sample extrema and the existing uncertainty band. Lines with more than six points show the first, last, and labelled samples as markers.
+
+All 111 line captures across 37 specs changed, including the three positional encoding exports. The other 706 of 817 fingerprints matched, including all 99 plot captures with only step, scatter or stem series. SVG dimensions matched at every width. [Positional encoding SVG](illustrations/ml-transformer-token-embeddings-detailed-detail/natural.svg)
+
+The curve tests cover two samples, unevenly spaced monotone samples in either x direction, a peak at 0.9, a narrow uncertainty band, straight-segment opt-out and dense markers in both renderers. All 1,025 focused tests and the web build passed.
 
 ## Offline verification
 

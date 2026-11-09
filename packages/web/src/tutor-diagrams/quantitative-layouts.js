@@ -1,4 +1,5 @@
 import { createElement as h } from 'react';
+import { monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { connector, label, lineHeight, textWidth, wrap, INK, PALETTE, SURFACE } from './primitives.js';
 
@@ -121,11 +122,13 @@ function plotMarker(x, y, style, title, value) {
   return h('circle', { cx: x, cy: y, r: radius, ...attributes }, annotation);
 }
 
-function seriesLine(points, style) {
-  const attributes = { points, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round', strokeDasharray: style.dash };
+function seriesLine(points, style, smooth = false) {
+  const tag = smooth ? 'path' : 'polyline';
+  const geometry = smooth ? { d: monotoneLinePath(points) } : { points: points.join(' ') };
+  const attributes = { ...geometry, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round', strokeDasharray: style.dash };
   return h('g', null,
-    h('polyline', { ...attributes, stroke: INK, strokeWidth: 3.6 }),
-    h('polyline', { ...attributes, stroke: PALETTE[style.role], strokeWidth: 1.7 }));
+    h(tag, { ...attributes, stroke: INK, strokeWidth: 3.6 }),
+    h(tag, { ...attributes, stroke: PALETTE[style.role], strokeWidth: 1.7 }));
 }
 
 const axisName = axis => axis.unit ? `${axis.label} (${axis.unit})` : axis.label;
@@ -159,17 +162,17 @@ function coordinatePlot(diagram, width) {
   const markers = [];
   for (const [index, entry] of series.entries()) {
     const style = SERIES[index];
-    if (entry.kind === 'line') elements.push(seriesLine(entry.points.map(point => `${x(point.x)},${y(point.y)}`).join(' '), style));
-    const sparseMarkers = entry.kind === 'line' && entry.points.length > 6;
-    for (const [at, point] of entry.points.entries()) {
-      if (sparseMarkers && !point.label && at !== 0 && at !== entry.points.length - 1) continue; // owner 2026-11-08: first, last and labelled points only
+    const positions = entry.points.map(point => [x(point.x), y(point.y)]);
+    if (entry.kind === 'line') elements.push(seriesLine(positions, style, entry.smooth !== false));
+    for (const [i, point] of entry.points.entries()) {
+      if (!showPlotMarker(entry, i)) continue;
       const coordinates = `${point.x},${point.y}`;
-      markers.push(plotMarker(x(point.x), y(point.y), style, `${entry.label}: (${point.x}, ${point.y})`, coordinates));
+      markers.push(plotMarker(...positions[i], style, `${entry.label}: (${point.x}, ${point.y})`, coordinates));
     }
     const lines = wrap(entry.label, width - PAD * 2 - 36);
     const height = Math.max(24, lines.length * lineHeight());
     const middle = legendY + height / 2;
-    if (entry.kind === 'line') elements.push(seriesLine(`${PAD},${middle} ${PAD + 25},${middle}`, style));
+    if (entry.kind === 'line') elements.push(seriesLine([[PAD, middle], [PAD + 25, middle]], style));
     elements.push(plotMarker(PAD + 12, middle, style));
     elements.push(label(lines, PAD + 36, middle, { anchor: 'start' }));
     legendY += height + 2;
