@@ -224,3 +224,14 @@ test('correct-svg: per-depth kinds and sketch score each card; folders carry the
   assert.equal(r.results.cards[0].depth, 'deep'); assert.equal(r.results.summary.byDepth.deep.quantityPlots, 1);
   assert.match(readFileSync(join(r.runDir, 'report.md'), 'utf8'), /## By depth[\s\S]*\| right kind \| 1\/1 \|/);
 });
+
+// Selector bench (owner 2026-11-08): its copy of the reference selector must pick exactly what production picks for every labelled prompt. Runs against
+// this checkout's selector; a branch without the reference library (older base) skips, and SELECTOR_TREE points it at another checkout.
+test('selector bench: the copy of the reference selector matches production on every labelled prompt', async t => {
+  const { selectorBench, SELECTOR_FILE } = await import('./explain-bench/selector.mjs');
+  const tree = process.env.SELECTOR_TREE || join(import.meta.dirname, '..');
+  if (!existsSync(join(tree, SELECTOR_FILE))) return t.skip(`no ${SELECTOR_FILE} in ${tree}`);
+  const out = await selectorBench({ tree });
+  assert.deepEqual(out.mismatches, []);
+  assert.equal(out.rows.reduce((n, r) => n + r.prompts, 0), out.detail.length);
+});
