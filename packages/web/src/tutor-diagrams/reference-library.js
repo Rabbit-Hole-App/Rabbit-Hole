@@ -35,7 +35,10 @@ import { transformerAttentionReferences } from './transformer-attention-referenc
 import { transformerMultiheadReference } from './transformer-multihead-reference.js';
 import { transformerEncoderReference } from './transformer-encoder-reference.js';
 import { transformerDecoderReferences } from './transformer-decoder-references.js';
+import { transformerFigureReferences } from './transformer-figure-references.js';
 import { lessonDecisionTreesReferences } from './lesson-decision-trees-references.js';
+
+export { transformerFigureReferences };
 
 export const transformerWalkthroughReferences = Object.freeze([
   transformerEmbeddingReference, ...tensorReferences, ...transformerAttentionReferences,
@@ -69,6 +72,7 @@ export const diagramReferences = Object.freeze([
   ...batch4aPrediction, ...batch4aLogistic, ...illustrationReferences, ...generic,
   ...transformerWalkthroughReferences.filter(ref => !illustrationReferences.includes(ref)),
   ...batch1FollowupReferences,
+  ...transformerFigureReferences,
   ...lessonDecisionTreesReferences,
 ]);
 
