@@ -1838,6 +1838,32 @@
       "kind": "flow",
       "width": 408,
       "height": 571
+    },
+    {
+      "id": "ml-classification-vs-regression",
+      "lessons": [
+        "01"
+      ],
+      "prompts": [
+        "What's the difference between classification and regression?"
+      ],
+      "useWhen": "Use the same inputs to contrast a category with a numerical quantity. A classifier may estimate a probability before choosing a class.",
+      "kind": "matrix",
+      "width": 408,
+      "height": 318
+    },
+    {
+      "id": "ml-logistic-decision-boundary",
+      "lessons": [
+        "03"
+      ],
+      "prompts": [
+        "Why does logistic regression draw a straight line between the classes?"
+      ],
+      "useWhen": "The increasing sigmoid turns each probability cutoff into one linear score level, which traces a straight line in this feature space. The 50% cutoff fixes the score at 0. The 75% cutoff fixes it at ln(3). Keep the same probe to show how raising the cutoff changes its predicted class.",
+      "kind": "coordinate-plot",
+      "width": 420,
+      "height": 615
     }
   ],
   "lessons": [
@@ -1847,7 +1873,8 @@
         "ml-learning-taxonomy",
         "labelled-samples-and-split",
         "nearest-centroid-boundary",
-        "train-validation-test-split"
+        "train-validation-test-split",
+        "ml-classification-vs-regression"
       ]
     },
     {
@@ -1869,7 +1896,8 @@
         "sigmoid-threshold",
         "binary-cross-entropy-loss",
         "softmax-probabilities",
-        "roc-threshold-curve"
+        "roc-threshold-curve",
+        "ml-logistic-decision-boundary"
       ]
     },
     {
