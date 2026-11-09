@@ -58,6 +58,8 @@ test('content flags follow the written rules', () => {
   assert.deepEqual(maths.flags.bareMaths, ['Compute p_i']);
   const rel = diagramScore({ kind: 'relationship', title: 'r', nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }], edges: [{ from: 'a', to: 'b', label: 'feeds' }, { from: 'a', to: 'c', label: 'trains' }] }, '');
   assert.deepEqual(rel.duplicatedRelationshipNodes, ['A']);
+  const graph = diagramScore({ kind: 'relationship', layout: 'graph', title: 'r', nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }], edges: [{ from: 'a', to: 'b', label: 'feeds' }, { from: 'a', to: 'c', label: 'trains' }] }, '');
+  assert.deepEqual(graph.duplicatedRelationshipNodes, [], 'graph layout draws each node once (owner 2026-11-08 finding 1)');
   assert.match(rel.describe, /A — feeds → B/);
   assert.equal(diagramScore(flow(['A', 'B']), '', ['cycle']).kindRight, false);
 });

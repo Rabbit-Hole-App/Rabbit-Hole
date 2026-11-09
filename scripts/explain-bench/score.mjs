@@ -226,7 +226,8 @@ export function diagramScore(d, prose, kinds = null, plotRule = 'strict') {
     proseNounBox: NODE_KINDS.includes(d.kind) && nodeLabels.length > 0 && nodeLabels.every(l => l.trim().split(/\s+/).length <= 4 && p.includes(l.trim().toLowerCase())) && labelled === 0,
     flags, flagged: flags.placeholderEdge.length > 0 || flags.duplicateLabels.length > 0 || flags.nounBoxFlow,
     // The relationship layout (teaching-layouts.js) draws one row per edge, so a node in 2+ edges is drawn as 2+ boxes.
-    duplicatedRelationshipNodes: Object.entries(degree).filter(([, n]) => n >= 2).map(([id]) => (d.nodes || []).find(n => n.id === id)?.label ?? id),
+    // Graph layout (the server sets it on every relationship since release 115, relationshipsAsGraphs) draws each node once; only the pairs layout repeats a node that is in 2+ edges.
+    duplicatedRelationshipNodes: d.layout === 'graph' ? [] : Object.entries(degree).filter(([, n]) => n >= 2).map(([id]) => (d.nodes || []).find(n => n.id === id)?.label ?? id),
     arithmetic: PLOT_KINDS.includes(d.kind) ? arithmetic(d, prose, plotRule === 'strict' ? 'strict' : 'legacy') : null,
     describe, spec: d,
   };
