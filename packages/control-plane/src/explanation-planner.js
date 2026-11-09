@@ -50,11 +50,16 @@ const TREATMENT = {
 };
 // Owner 2026-11-08 (prose pass): the card's Depth decides the treatment, the planner no longer infers it (its depthTreatment answer is kept for the log only: plan.inferredTreatment).
 export const DEPTH_TREATMENT = Object.freeze({ brief: 'plain', balanced: 'mechanism', detailed: 'quantitative' });
-const top2 = probabilities => Object.entries(probabilities || {}).sort((x, y) => y[1] - x[1]).slice(0, 2);
+// Owner 2026-11-08 (prose pass): at Brief never a plot or a formula-bearing kind (plots on cross-entropy and Gini at Brief read as Detailed). The server rule: a plot kind is skipped for the next-best other kind
+// in the planner's probabilities (a flow when there is none). The plan logs the kind it replaced (briefReplaced). Measured offline on 491 planner prompts (ledger prose pass): a sentence in QUESTIONS.kind asking the planner the same
+// made it flip 53 plans at Balanced and Detailed (noise floor 7) because it does not keep the rule to Brief, so the rule is the server's alone.
+export const BRIEF_NO_KINDS = Object.freeze(['coordinate-plot', 'bar-chart', 'histogram', 'box-plot', 'heatmap', 'number-line', 'waterfall', 't-account']);
 
 // answers (System One) -> plan, no I/O. visuals: [{ type: 'picture' } | { type: 'diagram', kind } | { type: 'diagram', choose: [a, b] }], in the author's order.
 export function planFromAnswers(a, depth = null) {
-  const [[kind, p1] = [a.kind?.choice, a.kind?.confidence], second] = top2(a.kind?.probabilities);
+  const brief = depth === 'brief', ranked = Object.entries(a.kind?.probabilities || {}).sort((x, y) => y[1] - x[1]), first = ranked[0]?.[0] ?? a.kind?.choice;
+  const [[kind, p1] = [brief && BRIEF_NO_KINDS.includes(a.kind?.choice) ? 'flow' : a.kind?.choice, a.kind?.confidence], second] = (brief ? ranked.filter(([k]) => !BRIEF_NO_KINDS.includes(k)) : ranked).slice(0, 2);
+  const briefReplaced = brief && BRIEF_NO_KINDS.includes(first) ? first : null;
   const fixed = p1 >= FIX_AT || !second, diagram = fixed ? { type: 'diagram', kind } : { type: 'diagram', choose: [kind, second[0]] };
   // v2 (owner 2026-11-08): no second-visual decision. One diagram, plus a picture only when the visual type is both; the author's own count rule stays the only source of a second diagram.
   // Owner 2026-11-08 (release 116 run: 12 of 19 picture prompts lost their picture because the planner chose a diagram): a physical subject (isPhysical >= 0.7: an object, place, organism,
@@ -64,7 +69,7 @@ export function planFromAnswers(a, depth = null) {
   if (type === 'diagram' && (a.isPhysical?.noul ?? 0) >= PHYSICAL_AT) { type = kind === 'figure' ? 'picture' : 'both'; physical = true; }
   const visuals = type === 'picture' ? [{ type: 'picture' }] : type === 'both' ? [{ type: 'picture' }, diagram] : [diagram];
   const inferred = TREATMENT[a.depthTreatment?.choice] ? a.depthTreatment.choice : 'mechanism';
-  return { visuals, depthTreatment: DEPTH_TREATMENT[depth] ?? inferred, inferredTreatment: inferred, kind: type === 'picture' ? null : kind, fixed: type === 'picture' ? null : fixed, planner: 'jev', ...(physical ? { physicalOverride: true } : {}),
+  return { visuals, depthTreatment: DEPTH_TREATMENT[depth] ?? inferred, inferredTreatment: inferred, kind: type === 'picture' ? null : kind, fixed: type === 'picture' ? null : fixed, planner: 'jev', ...(physical ? { physicalOverride: true } : {}), ...(briefReplaced ? { briefReplaced } : {}),
     flags: { needsPlot: a.needsPlot?.noul ?? null, isPhysical: a.isPhysical?.noul ?? null, needsWorkedExample: a.needsWorkedExample?.noul ?? null },
     confidence: { kind: p1 ?? null, visualType: a.visualType?.confidence ?? null }, probabilities: { kind: a.kind?.probabilities ?? null, visualType: a.visualType?.probabilities ?? null } };
 }

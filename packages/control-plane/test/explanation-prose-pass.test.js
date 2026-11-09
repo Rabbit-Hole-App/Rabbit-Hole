@@ -38,3 +38,30 @@ test('item 1: planExplanation sends the card\'s depth and the plan carries the d
   const prepared = prepareArtifactAuthorRequest(FAST, { command: 'explain', args: 'how does a heap work?', depth: 'detailed', plan });
   assert.match(description(prepared), /Depth treatment: quantitative/);
 });
+
+import { QUESTIONS, BRIEF_NO_KINDS } from '../src/explanation-planner.js';
+import { QUESTIONS as BENCH_QUESTIONS } from '../../../scripts/explain-bench/planner.mjs';
+
+test('item 2: at Brief a plot or formula-bearing kind is replaced by the next-best other kind; Balanced and Detailed keep it', () => {
+  const a = answers({ 'coordinate-plot': 0.8, comparison: 0.12, flow: 0.08 });
+  const brief = planFromAnswers(a, 'brief');
+  assert.deepEqual(brief.visuals, [{ type: 'diagram', choose: ['comparison', 'flow'] }], 'next-best non-plot kinds, offered (the replacement is below the fixing probability)');
+  assert.equal(brief.kind, 'comparison');
+  assert.equal(brief.briefReplaced, 'coordinate-plot');
+  for (const depth of ['balanced', 'detailed', null]) { const p = planFromAnswers(a, depth); assert.equal(p.kind, 'coordinate-plot'); assert.equal(p.fixed, true); assert.equal(p.briefReplaced, undefined); }
+  assert.deepEqual([...BRIEF_NO_KINDS], ['coordinate-plot', 'bar-chart', 'histogram', 'box-plot', 'heatmap', 'number-line', 'waterfall', 't-account']);
+});
+
+test('item 2: Brief with only plot kinds in the probabilities falls back to a flow; a non-plot top kind is untouched', () => {
+  assert.equal(planFromAnswers(answers({ 'bar-chart': 0.9, histogram: 0.1 }), 'brief').kind, 'flow');
+  const plain = planFromAnswers(answers({ comparison: 0.9, 'coordinate-plot': 0.1 }), 'brief');
+  assert.deepEqual([plain.kind, plain.fixed, plain.briefReplaced], ['comparison', true, undefined]);
+  const lone = planFromAnswers(answers({ 'bar-chart': 0.5, 'coordinate-plot': 0.3, tree: 0.2 }), 'brief');
+  assert.deepEqual([lone.kind, lone.briefReplaced], ['tree', 'bar-chart']);
+});
+
+test('item 2: the kind question carries no Brief sentence (it leaked to the other depths offline), the bench copy equals production, and the Brief paragraph ends with the plain-words term rule', () => {
+  assert.doesNotMatch(QUESTIONS.kind.instructions, /Brief/);
+  assert.equal(BENCH_QUESTIONS.kind.instructions, QUESTIONS.kind.instructions);
+  assert.ok(EXPLANATION_DEPTH_LINES.brief.endsWith('If a sentence uses a term, that same sentence says what it is in plain words.'));
+});
