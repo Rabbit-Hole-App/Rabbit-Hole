@@ -21,9 +21,48 @@ const bounds = Object.fromEntries(features.flatMap(feature => [
   [`${feature}Max`, Math.max(...lesson.rows.map(row => row[feature])) + 1],
 ]));
 
+const demoRouting = {
+  'candidate-split': { keywords: ['candidate split', 'axis split'] },
+  'gini-split': {
+    prompt: 'how do I compute the Gini impurity on both sides of a split and the information gain?',
+    keywords: ['gini impurity', 'information gain', 'impurity'],
+  },
+  'threshold-search': {
+    prompt: 'how does a decision tree search for the best threshold on one feature?',
+    keywords: ['best threshold', 'best split', 'threshold search'],
+  },
+  'grown-tree': {
+    prompt: 'how does a decision tree trace a new point from the root to a prediction?',
+    keywords: ['decision tree', 'tree prediction', 'root to leaf'],
+  },
+  'decision-regions': {
+    prompt: 'how does a decision tree split a two-feature dataset into regions?',
+    keywords: ['decision tree', 'decision regions', 'decision boundary'],
+  },
+  'depth-overfit': {
+    prompt: 'how does held-out error change as a decision tree grows deeper?',
+    keywords: ['tree depth', 'max depth', 'deeper tree overfitting'],
+  },
+  'bootstrap-roots': {
+    prompt: 'what does a bootstrap sample of the training rows look like, and which rows repeat?',
+    keywords: ['bootstrap sample', 'bootstrap', 'sampling with replacement'],
+  },
+  'feature-subsets': { keywords: ['random feature subset', 'feature randomization'] },
+  'majority-vote': {
+    prompt: 'how does a random forest combine the predictions of its trees into one answer?',
+    keywords: ['random forest', 'majority vote', 'forest vote'],
+  },
+  'feature-importance': {
+    prompt: 'compare impurity-based feature importance with permutation importance when one feature is random noise',
+    keywords: ['feature importance', 'permutation importance', 'mdi'],
+  },
+};
+
 function reference(name, prompt, paraphrase, phrase, useWhen, atDepth) {
+  const route = demoRouting[name];
   return {
-    id: `ml-trees-${name}`, lessons: ['04'], prompts: [prompt], paraphrases: [paraphrase], keywords: [phrase], useWhen,
+    id: `ml-trees-${name}`, lessons: ['04'], prompts: route.prompt ? [prompt, route.prompt] : [prompt],
+    paraphrases: [paraphrase], keywords: [phrase, ...route.keywords], shortKeywords: route.keywords, useWhen,
     spec: spec(atDepth('standard')),
     depths: { overview: { spec: spec(atDepth('overview')) }, deep: { spec: spec(atDepth('deep')) } },
   };

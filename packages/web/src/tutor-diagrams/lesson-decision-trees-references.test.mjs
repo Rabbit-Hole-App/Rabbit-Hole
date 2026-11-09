@@ -20,7 +20,7 @@ const rule = (split, right = false) => `${split.feature} ${right ? 'above' : 'at
 for (const ref of references) {
   test(`${ref.id} validates, meets the budget and is picked first at all depths`, () => {
     assert.deepEqual(ref.lessons, ['04']);
-    assert.equal(ref.prompts.length, 1);
+    assert.ok(ref.prompts.length > 0);
     assert.equal(ref.paraphrases.length, 1);
     for (const depth of depths) {
       const spec = visual(ref, depth);

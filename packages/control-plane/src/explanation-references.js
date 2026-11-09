@@ -40,11 +40,16 @@ function matches(haystack, phrase) {
   return [...forms].some(form => (` ${haystack} `).includes(` ${form} `));
 }
 
-function topicScore(query, reference) {
+function topicScore(query, reference, shortTopic) {
   const keys = new Set(reference.keywords.map(normalized).filter(Boolean));
+  const short = reference.shortKeywords?.map(normalized);
   let score = 0;
   for (const key of keys) {
-    if (matches(query, key)) score += Math.min(12, 2 + key.split(' ').length * 2);
+    if (short?.includes(key)) {
+      if (shortTopic === key) score += 40;
+    } else if (matches(query, key)) {
+      score += Math.min(12, 2 + key.split(' ').length * 2);
+    }
   }
   // An ordinary question matching one of the documented acceptance prompts is
   // stronger evidence than a generic keyword in the attached lesson.
@@ -79,12 +84,14 @@ const DEPTH_KEYS = { brief: 'overview', balanced: 'standard', detailed: 'deep' }
 // reference of another kind is never offered. Empty: no filter (the rules decide the kind).
 export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard' } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
+  // Broad lesson aliases resolve a whole direct topic, including concise requests such as “show me the forest vote”.
+  const shortTopic = query.replace(/^(?:please )?(?:(?:can you )?(?:explain|show me|describe|tell me about|help me understand) )?(?:the |an? )?/u, '');
   const source = normalized(contextText(context));
   const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
   const level = DEPTH_KEYS[depth] ?? depth; // the references' depth variants are keyed overview / standard / deep; the renamed levels (brief / balanced / detailed) map to them
   const wanted = new Set(plannedKinds), candidates = diagramReferences.flatMap(ref => referenceVariants(ref.depths?.[level] ? { ...ref, ...ref.depths[level] } : ref, required)).filter(ref => !wanted.size || wanted.has(ref.spec.diagram.kind) || wanted.has(singleByPanel.get(ref.id)?.spec.diagram.kind)); // a two-panel reference also qualifies through its one-diagram variant's kind (Codex set 3), which preferSingleVariants then sends
   const ranked = candidates.map((ref, index) => ({
-    ref, index, direct: topicScore(query, ref), source: topicScore(source, ref),
+    ref, index, direct: topicScore(query, ref, shortTopic), source: topicScore(source, ref),
   }));
   const direct = ranked.filter(item => item.direct > 0);
   // Context can resolve a broad "explain this" request, but cannot replace a
