@@ -25,7 +25,7 @@ test('every set file is versioned and each prompt carries its labels and picture
   for (const n of SET_NAMES) {
     const s = loadSet(n);
     assert.ok(s.version.prompts && s.version.labels && s.defaultRuns >= 1 && s.estUsdPerCard > 0, n);
-    for (const p of s.prompts) assert.ok(p.id && p.prompt && p.best.length && Array.isArray(p.acceptable) && typeof p.needsPicture === 'boolean' && typeof p.noPicture === 'boolean', `${n}/${p.id}`);
+    for (const p of s.prompts) assert.ok(p.id && p.prompt && (p.best.length || p.depths) && Array.isArray(p.acceptable) && typeof p.needsPicture === 'boolean' && typeof p.noPicture === 'boolean', `${n}/${p.id}`);
   }
   const content = loadSet('content');
   assert.equal(content.prompts.length, 20); assert.equal(content.defaultRuns, 3);
