@@ -42,6 +42,10 @@ const graphSpec = (renderer, spec) => {
 // Owner review 2026-11-08: output tokens are latency, so our own keys are short (k kind, p prompt, a alt, c caption), the picture text is shorter than a
 // saved fence allows (ILLUSTRATION_LIMITS still reads saved cards) and nothing the card does not show is asked for: the server numbers the picture ids.
 export const AUTHOR_PICTURE_LIMITS = Object.freeze({ prompt: 200, alt: 120, caption: 100 });
+// Owner 2026-11-08 (Codex set 3): every picture prompt ends with the no-text clause the picture templates use (explanation-picture-templates.js); a prompt without it gets it here,
+// where the author's picture is read, so the image model is never asked for lettering. The author prompt is not changed; the saved prompt limit (600) holds the 200 + suffix.
+export const NO_TEXT_SUFFIX = 'no text, labels, titles or icons';
+export const withNoTextSuffix = prompt => { const p = String(prompt).trim(); return p.toLowerCase().endsWith(NO_TEXT_SUFFIX) ? p : `${p.replace(/[\s.,;:]+$/, '')}. ${NO_TEXT_SUFFIX}`; };
 const VISUAL_ITEM = { oneOf: [
   shape({ k: { type: 'string', const: 'diagram' }, spec: tutorDiagramJsonSchema }),
   shape({ k: { type: 'string', const: 'picture' }, p: text(AUTHOR_PICTURE_LIMITS.prompt), a: text(AUTHOR_PICTURE_LIMITS.alt), c: text(AUTHOR_PICTURE_LIMITS.caption) }),
@@ -73,7 +77,7 @@ const MARKER = /[ \t]*\[\[visual:(\d+)\]\][ \t]*/g;
 // The fence id of the picture at a 0-based position of visuals.
 export const pictureId = i => `pic-${i + 1}`;
 // visuals[i] of the author's answer as the rh-illustration spec the server makes and saves, or null when it is not a complete picture.
-export const authorPicture = (v, i) => (v?.k === 'picture' && [v.p, v.a, v.c].every(x => typeof x === 'string' && x.trim()) ? { version: 1, id: pictureId(i), prompt: v.p.trim(), alt: v.a.trim(), caption: v.c.trim() } : null);
+export const authorPicture = (v, i) => (v?.k === 'picture' && [v.p, v.a, v.c].every(x => typeof x === 'string' && x.trim()) ? { version: 1, id: pictureId(i), prompt: withNoTextSuffix(v.p), alt: v.a.trim(), caption: v.c.trim() } : null);
 const visualFence = (v, i) => {
   // an incomplete picture keeps its fence, so the validator names what is missing
   const made = v?.k === 'diagram' ? ['rh-diagram', v.spec] : v?.k === 'picture' ? ['rh-illustration', authorPicture(v, i) ?? { version: 1, id: pictureId(i), prompt: v.p, alt: v.a, caption: v.c }] : null;
