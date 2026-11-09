@@ -97,7 +97,7 @@
     "packages/control-plane/src/interact-fixtures.js": ["packages/control-plane/test/interact-build.test.js","packages/control-plane/test/interact-checks.test.js","packages/control-plane/test/interact-runner.test.js"],
     "scripts/interact/run.mjs": ["packages/control-plane/test/interact-runner.test.js"],
     "scripts/interact/run-dir-store.mjs": ["packages/control-plane/test/interact-runner.test.js"],
-    "scripts/explain-bench/**": ["scripts/explain-bench.test.mjs"],
+    "scripts/explain-bench/**": ["scripts/explain-bench.test.mjs","scripts/explain-bench-tiers.test.mjs"],
     "packages/web/src/interact-control-catalogue.js": ["packages/web/src/interact-plan.test.mjs","packages/web/src/interact-control-catalogue.test.mjs"],
     "packages/web/src/interact-plan-fixtures.js": ["packages/web/src/interact-compat.test.mjs","packages/control-plane/test/interact-e2e.test.js","packages/web/src/interact-plan.test.mjs","packages/web/src/interact-control-catalogue.test.mjs"],
     "packages/web/src/interact-stage.js": ["packages/web/src/interact-wire.test.mjs","packages/web/src/interact-plan-review.test.mjs"],

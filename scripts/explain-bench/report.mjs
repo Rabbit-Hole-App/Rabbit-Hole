@@ -1,14 +1,15 @@
 // /explain card benchmark: scores a run's saved cards, optionally judges them, writes results.json, metrics.json and report.md with the delta against the
 // previous run and the release baseline, and exits non-zero when a pass criterion on record fails.
 // Usage: node scripts/explain-bench/report.mjs --raw <dir of set-run folders> [--label "..."] [--out <results root>] [--against <run dir>] [--baseline <run id>]
-//          [--tag-baseline] [--judge] [--judges N] [--judge-cap 1.00] [--richness-change]
+//          [--tag-baseline] [--judge] [--judges N] [--judge-cap 1.00] [--richness-change] [--carry-from <a judged run dir>]
 // A raw dir holds <set>-r<run>/results.jsonl + cards/<id>.json (+ tokens.json), as bench.mjs writes and as the 2026-11-08 study's 5d folders are laid out.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { PLOT_KINDS, availableSets, cardKey, criteria, loadSet, proseOf, scoreCard, summarize, useSpecTree, visibleText } from './score.mjs';
 import { RUBRICS, combine, judgeItems, keyTransport, useRubrics } from './judge.mjs';
+import { accounting, cardHash, carryIndex, carryLines, copyVerdicts, identicalStats } from './carry.mjs';
 
 export const DEFAULT_OUT = 'C:/s/spec/benchmarks/explain-bench';
 // The 2026-11-08 study's folder letters (5d, 5e): A regression, B baseline, C AI/ML, D sequence.
@@ -198,6 +199,7 @@ export function markdown(r) {
     : `Model ${judge.model}, ${judge.judges} judge(s) per item, ${judge.calls} calls + ${judge.cached} cached, US$${judge.spent} spent of the US$${judge.cap} judge cap${judge.stopped ? ' (cap reached: some items unjudged)' : ''}${judge.failed ? `, ${judge.failed} failed calls` : ''}${judge.only ? `; rubrics run: ${judge.only.join(', ')}` : ''}.`,
   '', ...Object.entries(RUBRICS).map(([k, v]) => `- **${k}** \`${v.version}\` (hash \`${judge.rubrics[k]?.hash}\`): ${v.text}`), '');
   else out.push('## Judge', '', 'Not run (no --judge): factual, faithfulness and picture-content rows are empty.', '');
+  if (r.carry?.rubrics) out.push(...carryLines(r.carry, table));
   if (S.judgedByRun.some(x => x.picture || x.faithful || x.beyond)) out.push('### Picture content, diagram faithfulness and claims beyond the prose', '', table(['run', 'picture shows what the question asks: no', 'share', 'diagram faithful to the sketch: not', 'share', 'diagram claims beyond the prose: yes', 'share'],
     [...S.judgedByRun.map(x => [`r${x.run}`, ...[x.picture, x.faithful, x.beyond].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]),
       ['all runs', ...[S.overall.pictures.content && [S.overall.pictures.content.no, S.overall.pictures.content.judged], S.overall.content.faithful && [S.overall.content.faithful.not ?? S.overall.content.faithful.no, S.overall.content.faithful.judged], S.overall.content.beyond && [S.overall.content.beyond.yes, S.overall.content.beyond.judged]].flatMap(v => (v ? [`${v[0]}/${v[1]}`, `${Math.round(100 * v[0] / v[1])}%`] : ['-', '-']))]]), '');
@@ -245,8 +247,8 @@ export function markdown(r) {
   out.push('## Lists', ...[list('Failed sends', O.cards.failures), list('Wrong mix', O.choice.wrongList), list('Right mix, wrong kind', O.choice.rightMixWrongKind), list('Bad kind used', O.choice.badKindUsed),
     list('Picture missing where needed', O.pictures.missing), list('Picture where none belongs', O.pictures.violations), list('Pictures dropped', O.pictures.dropped?.list), list('Quantitative-kind prompts', O.richness.quant.list),
     list('Content flags', O.content.flaggedList), list('Plotted values', O.content.arithmeticList), list('Not fully faithful to the sketch (Core)', O.content.faithful?.list), list('Claims beyond the prose (judge)', O.content.beyond?.list), list('Factual errors (judge)', O.factual?.list), list('Visual fallback', O.repairs.visualFallback)].filter(Boolean));
-  out.push('## Cards', '', table(['set', 'run', 'id', 'mix', 'score', 'ms', 'repaired', 'US$', 'references', 'visuals (diagram kind: items, flags; picture check)'], r.cards.map(c => [c.set, c.depth ? `${c.run} ${c.depth}` : c.run, c.id, c.mix.join(' + ') || '-', c.score, c.totalMs ?? '-', c.repaired ? 'yes' : '', c.costUsd ?? '-',
-    c.references ? `${c.references.count}${c.references.count ? ` (${c.references.ids.join(', ')})` : ''}` : '-',
+  out.push('## Cards', '', table(['set', 'run', 'id', 'mix', 'score', 'ms', 'repaired', 'US$', 'references', ...(r.carry?.rubrics ? ['judge'] : []), 'visuals (diagram kind: items, flags; picture check)'], r.cards.map(c => [c.set, c.depth ? `${c.run} ${c.depth}` : c.run, c.id, c.mix.join(' + ') || '-', c.score, c.totalMs ?? '-', c.repaired ? 'yes' : '', c.costUsd ?? '-',
+    c.references ? `${c.references.count}${c.references.count ? ` (${c.references.ids.join(', ')})` : ''}` : '-', ...(r.carry?.rubrics ? [c.carried ? 'carried' : c.delivered ? 'judged' : ''] : []),
     c.diagrams.map(d => `${d.kind}: ${d.units}${d.flagged ? ' FLAG' : ''}${d.arithmetic?.errors ? ` ${d.arithmetic.errors} pts off` : ''}${d.faithful ? ` faithful=${d.faithful.verdict}` : ''}${d.beyond?.verdict === 'yes' ? ' beyond-prose' : ''}`).concat(c.pictures.map(p => `picture${p.content ? `: shows the question=${p.content.verdict}` : ''}`)).join('; ')])), '');
   return out.join('\n');
 }
@@ -284,26 +286,44 @@ export async function run(o) {
   for (const rec of recs) {
     const p = defs[rec.set].prompts.find(x => x.id === rec.id);
     if (!p) { notes.push(`skipped ${rec.set}/r${rec.run}/${rec.id}: not in the current ${rec.set} set`); continue; }
-    const c = scoreCard(p, rec, { plotRule: o.plotRule }); cards.push(c); blocks.set(c, rec.block);
+    const c = scoreCard(p, rec, { plotRule: o.plotRule }); if (p.smoke) c.smoke = /* the smoke set's per-prompt record, for gate-check.mjs */ { groups: p.smoke.groups, source: p.smoke.source, unverified: !!p.smoke.unverified }; cards.push(c); blocks.set(c, rec.block);
   }
   let judge = null;
   const restoreRubrics = o.rubrics ? useRubrics(o.rubrics) : null; // --rubrics factual=factual-v1: an older version, for re-scoring
   // --same-as <run dir>: judge only the items that run's judge answered (same cards, diagrams and pictures), not whatever its cap left.
   const keep = o.sameAs ? (prev => { const k = new Set(); for (const c of prev.cards) { const key = cardKey(c); if (c.judge?.factual) k.add(`factual|${key}`);
     c.diagrams.forEach((d, i) => { if (d.faithful) k.add(`faithful|${key}#d${i}`); if (d.beyond) k.add(`beyond|${key}#d${i}b`); }); c.pictures.forEach((p, i) => { if (p.content) k.add(`picture|${key}#p${i}`); }); } return k; })(json(join(resolve(o.sameAs), 'results.json'))) : null;
+  // Carried verdicts (--carry-from): a delivered card whose spec + body + prompt + depth + rubric versions hash like a card of that judged run takes its verdicts and is not sent to the judge.
+  const versions = Object.values(RUBRICS).map(r => r.version);
+  for (const c of cards.filter(x => x.delivered)) c.specHash = cardHash(c, blocks.get(c).body, versions);
+  let carry = null, index = null; const hashCarried = { factual: 0, faithful: 0, beyond: 0, picture: 0 }, cardKeys = new Map();
+  if (o.carryFrom) {
+    const dir = resolve(o.carryFrom), prev = json(join(dir, 'results.json')), prevRaw = prev.meta?.raw && existsSync(prev.meta.raw) ? loadRaw(prev.meta.raw).recs : [];
+    const prevBody = new Map(prevRaw.map(r => [cardKey(r), r.block?.body]));
+    if (!prevRaw.length) notes.push(`--carry-from ${dir}: its raw cards are not on disk (${prev.meta?.raw}); only the judge cache can carry`);
+    if (!prev.judge) notes.push(`--carry-from ${dir}: that run was not judged; nothing carries by hash`);
+    index = carryIndex(prev.cards, c => prevBody.get(cardKey(c)), prev.judge ? Object.values(prev.judge.rubrics || {}).map(r => r.version) : []);
+    carry = { from: prev.meta?.runId ?? dir };
+  }
   if (o.judge) {
     const items = [], ref = new Map(), want = r => !o.judgeOnly?.length || o.judgeOnly.includes(r);
-    const push = (key, rubric, text, target) => { if (want(rubric) && (!keep || keep.has(`${rubric}|${key}`))) { items.push({ key, rubric, text }); ref.set(key, [rubric, target]); } };
+    const push = (key, rubric, text, target, card) => { if (want(rubric) && (!keep || keep.has(`${rubric}|${key}`))) { items.push({ key, rubric, text }); ref.set(key, [rubric, target]); cardKeys.set(card, [...(cardKeys.get(card) || []), key]); } };
     for (const c of cards.filter(x => x.delivered)) {
-      const key = cardKey(c), b = blocks.get(c);
-      push(key, 'factual', itemText.factual(c, b), c);
-      c.diagrams.forEach((d, i) => { if (o.judgeDiagrams && i >= o.judgeDiagrams) return; if (c.sketch) push(`${key}#d${i}`, 'faithful', itemText.faithful(c, b, d), d); push(`${key}#d${i}b`, 'beyond', itemText.beyond(c, b, d), d); });
-      c.pictures.forEach((p, i) => push(`${key}#p${i}`, 'picture', itemText.picture(c, b, p), p));
+      const key = cardKey(c), b = blocks.get(c), same = index?.byHash.get(c.specHash);
+      if (same) { const n = copyVerdicts(c, same); for (const k of Object.keys(n)) hashCarried[k] += n[k]; continue; }
+      push(key, 'factual', itemText.factual(c, b), c, c);
+      c.diagrams.forEach((d, i) => { if (o.judgeDiagrams && i >= o.judgeDiagrams) return; if (c.sketch) push(`${key}#d${i}`, 'faithful', itemText.faithful(c, b, d), d, c); push(`${key}#d${i}b`, 'beyond', itemText.beyond(c, b, d), d, c); });
+      c.pictures.forEach((p, i) => push(`${key}#p${i}`, 'picture', itemText.picture(c, b, p), p, c));
     }
-    judge = await judgeItems(items, { judges: o.judges || 1, cap: o.judgeCap ?? 1, call: o.call || keyTransport(), cacheFile: join(out, 'judge-cache.json'), log: o.log || console.log, dryRun: !!o.judgeDryRun });
+    judge = await judgeItems(items, { judges: o.judges || 1, cap: o.judgeCap ?? 1, call: o.call || keyTransport(), cacheFile: join(out, 'judge-cache.json'), extraCacheFiles: o.carryFrom ? [join(dirname(resolve(o.carryFrom)), 'judge-cache.json')] : [], log: o.log || console.log, dryRun: !!o.judgeDryRun });
     for (const [key, [rubric, target]] of ref) { const v = combine(rubric, judge.results[key]); if (!v) continue; if (rubric === 'factual') target.judge = { factual: v }; else if (rubric === 'faithful') target.faithful = v; else if (rubric === 'beyond') target.beyond = v; else target.content = v; }
+    // A card is carried when every item it would send was a cache hit (or it was carried by hash): the cache and the hash are the same idea at two grains, counted together.
+    for (const [c, keys] of cardKeys) if (keys.every(k => judge.carriedKeys.includes(k))) c.carried = true;
+    carry = { ...(carry || {}), rubrics: accounting(judge, hashCarried), cards: { delivered: cards.filter(c => c.delivered).length, carried: cards.filter(c => c.carried).length }, dryRun: !!o.judgeDryRun };
+    carry.bySet = Object.fromEntries(setNames.map(n => [n, { cards: cards.filter(c => c.set === n && c.delivered).length, carried: cards.filter(c => c.set === n && c.carried).length }]));
+    if (index) carry.identical = identicalStats(cards, index);
     if (o.judgeDryRun) writeFileSync(join(runDir, 'judge-items.json'), JSON.stringify(items, null, 1)); // exactly what a real pass would send, for inspection
-    judge = { ...judge, cap: o.judgeCap ?? 1, only: o.judgeOnly?.length ? o.judgeOnly : null, results: undefined };
+    judge = { ...judge, cap: o.judgeCap ?? 1, only: o.judgeOnly?.length ? o.judgeOnly : null, results: undefined, carriedKeys: undefined };
   }
   const summary = summaries(cards, setNames), crit = setNames.flatMap(n => criteria(defs[n], cards.filter(c => c.set === n)));
   const meta = { runId, label: o.label || 'run', plotRule: o.plotRule || 'strict', specTree, scored: runDirName('').slice(0, 17), raw: resolve(o.raw), baseline: !!o.tagBaseline, notes,
@@ -325,9 +345,9 @@ export async function run(o) {
   const referencesAB = summary.refs ? { against: abAgainst?.against ?? null, rows: METRICS.map(([label, get]) => [label, show(get(summary.refs.none)), show(get(summary.refs.some)), abAgainst ? show(get(abAgainst.summary)) : '-']).filter(row => row.slice(1).some(v => v !== '-')) } : null;
   for (const d of Object.values(deltas)) if (d) { delete d.summary; delete d.byDepth; }
   const pe = provenance?.plannerInputTokensEstimate, plannerCost = pe && summary.overall.planner ? { tokens: pe, perCard: +(pe * 0.042 / 1e6).toFixed(6), cards: summary.overall.planner.cards } : null;
-  const results = { keepChecks, plannerCost, meta, provenance, judge, criteria: crit, gates: gates(summary.overall, summary.byRun), richness, referencesAB, deltas, summary, cards };
+  const results = { carry, keepChecks, plannerCost, meta, provenance, judge, criteria: crit, gates: gates(summary.overall, summary.byRun), richness, referencesAB, deltas, summary, cards };
   writeFileSync(join(runDir, 'results.json'), JSON.stringify(results, null, 1));
-  writeFileSync(join(runDir, 'metrics.json'), JSON.stringify({ meta, provenance, criteria: crit, richness, deltas, summary }, null, 1));
+  writeFileSync(join(runDir, 'metrics.json'), JSON.stringify({ meta, provenance, carry, criteria: crit, richness, deltas, summary }, null, 1));
   writeFileSync(join(runDir, 'report.md'), markdown(results));
   if (restoreRubrics) Object.assign(RUBRICS, restoreRubrics);
   const failed = crit.filter(c => !c.ok).length + (o.richnessChange && richness.verdict !== 'KEEP' ? 1 : 0);
@@ -336,14 +356,16 @@ export async function run(o) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const { values: a } = parseArgs({ options: { raw: { type: 'string' }, 'run-id': { type: 'string' }, label: { type: 'string' }, out: { type: 'string' }, against: { type: 'string' }, baseline: { type: 'string' }, 'tag-baseline': { type: 'boolean' },
-    judge: { type: 'boolean' }, judges: { type: 'string' }, 'judge-cap': { type: 'string' }, 'judge-only': { type: 'string' }, 'judge-dry-run': { type: 'boolean' }, rubrics: { type: 'string' }, 'spec-tree': { type: 'string' }, folders: { type: 'string' }, 'judge-diagrams': { type: 'string' }, 'plot-rule': { type: 'string' }, 'same-as': { type: 'string' }, 'richness-change': { type: 'boolean' } } });
+    judge: { type: 'boolean' }, judges: { type: 'string' }, 'judge-cap': { type: 'string' }, 'judge-only': { type: 'string' }, 'judge-dry-run': { type: 'boolean' }, rubrics: { type: 'string' }, 'spec-tree': { type: 'string' }, folders: { type: 'string' }, 'judge-diagrams': { type: 'string' }, 'plot-rule': { type: 'string' }, 'same-as': { type: 'string' }, 'carry-from': { type: 'string' }, 'richness-change': { type: 'boolean' } } });
   if (!a.raw) { console.error('usage: node scripts/explain-bench/report.mjs --raw <dir> [--label ...] [--out ...] [--against <dir>] [--baseline <run id>] [--tag-baseline] [--judge [--judge-dry-run] [--judge-only factual,faithful,beyond,picture] [--same-as <run dir>] [--rubrics factual=factual-v1,beyond=beyond-v1] [--spec-tree <the stack worktree>] [--folders B,C] [--judge-diagrams 1] [--plot-rule strict|strict-first|legacy] [--judges N] [--judge-cap 1.00]] [--richness-change]'); process.exit(2); }
   const r = await run({ raw: a.raw, runId: a['run-id'], label: a.label, out: a.out, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge || a['judge-dry-run'], judgeDryRun: a['judge-dry-run'],
-    judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), rubrics: a.rubrics, specTree: a['spec-tree'], folders: (a.folders || '').split(',').filter(Boolean), judgeDiagrams: Number(a['judge-diagrams'] || 0), plotRule: a['plot-rule'], sameAs: a['same-as'], judges: Number(a.judges || 1), judgeCap: Number(a['judge-cap'] || 1), richnessChange: a['richness-change'] });
+    judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), rubrics: a.rubrics, specTree: a['spec-tree'], folders: (a.folders || '').split(',').filter(Boolean), judgeDiagrams: Number(a['judge-diagrams'] || 0), plotRule: a['plot-rule'], sameAs: a['same-as'], carryFrom: a['carry-from'], judges: Number(a.judges || 1), judgeCap: Number(a['judge-cap'] || 1), richnessChange: a['richness-change'] });
   for (const n of r.results.meta.notes) console.log(`note: ${n}`);
   for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
   const J = r.results.judge;
   if (J) console.log(J.dryRun ? `judge dry run: ${J.items} items (${Object.entries(J.byRubric).map(([k, v]) => `${k} ${v}`).join(', ')}), ${J.cached} cached, estimate US$${J.estimate.low}-${J.estimate.high}, nothing sent` : `judge: ${J.calls} calls, ${J.cached} cached, US$${J.spent}`);
+  const K = r.results.carry;
+  if (K?.rubrics) console.log(`${K.dryRun ? 'would judge' : 'judged'} ${Object.entries(K.rubrics).map(([k, v]) => `${k} ${v.judged}`).join(', ')}; carried ${Object.entries(K.rubrics).map(([k, v]) => `${k} ${v.carried}`).join(', ')} (cards carried whole ${K.cards.carried}/${K.cards.delivered})`);
   console.log(`RESULT ${r.code ? 'FAIL' : 'PASS'} report=${join(r.runDir, 'report.md')}`);
   process.exit(r.code);
 }
