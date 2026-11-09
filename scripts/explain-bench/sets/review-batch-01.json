@@ -1,0 +1,27 @@
+{
+  "name": "review-batch-01",
+  "version": { "prompts": "P1 2026-11-09 (review loop batch 01, owner spec)", "labels": "L1 2026-11-09 (REVIEW.md of docs/features/explain/review/batch-01: expected kinds; the other kinds as drawn and accepted)" },
+  "measures": "The ten batch-01 prompts plus three paraphrases each for the three cards whose kind followed the wording and not the data: 03 positional encoding, 04 k-means, 08 call stack. Planner bench only (no author call).",
+  "notation": "As aiml.json: D:<kind> = diagram (D:a|b either). best = the kind the review expects; acceptable = a kind the review accepted as drawn. Anything else is wrong (a collateral flip).",
+  "prompts": [
+    { "id": "public-key-encryption", "group": "review", "prompt": "how does public-key encryption work?", "best": [["D:sequence"]], "acceptable": [["D:flow"]], "badKinds": [], "needsPicture": false, "noPicture": true },
+    { "id": "hash-table", "group": "review", "prompt": "how does a hash table work?", "best": [["D:flow"]], "acceptable": [["D:transformation"]], "badKinds": [], "needsPicture": false, "noPicture": true },
+    { "id": "positional-encoding", "group": "review", "prompt": "how does positional encoding work in a transformer?", "best": [["D:coordinate-plot"]], "acceptable": [], "badKinds": ["transformation"], "needsPicture": false, "noPicture": true, "reviewTarget": true },
+    { "id": "positional-encoding-p1", "group": "review", "prompt": "how do transformers know the order of the words in a sentence?", "best": [["D:coordinate-plot"]], "acceptable": [], "badKinds": ["transformation"], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "positional-encoding" },
+    { "id": "positional-encoding-p2", "group": "review", "prompt": "what are sinusoidal position embeddings?", "best": [["D:coordinate-plot"]], "acceptable": [], "badKinds": ["transformation"], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "positional-encoding" },
+    { "id": "positional-encoding-p3", "group": "review", "prompt": "why does attention need position information added to the tokens?", "best": [["D:coordinate-plot"]], "acceptable": [["D:transformation"]], "badKinds": [], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "positional-encoding" },
+    { "id": "k-means", "group": "review", "prompt": "how does k-means clustering work?", "best": [["D:coordinate-plot"]], "acceptable": [["D:cycle"], ["D:flow"]], "badKinds": [], "needsPicture": false, "noPicture": true, "reviewTarget": true },
+    { "id": "k-means-p1", "group": "review", "prompt": "how does the k-means algorithm group points into clusters?", "best": [["D:coordinate-plot"]], "acceptable": [["D:cycle"], ["D:flow"]], "badKinds": [], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "k-means" },
+    { "id": "k-means-p2", "group": "review", "prompt": "what happens to the centroids in k-means each iteration?", "best": [["D:coordinate-plot"]], "acceptable": [["D:cycle"], ["D:flow"]], "badKinds": [], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "k-means" },
+    { "id": "k-means-p3", "group": "review", "prompt": "explain k-means clustering with an example", "best": [["D:coordinate-plot"]], "acceptable": [["D:cycle"], ["D:flow"]], "badKinds": [], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "k-means" },
+    { "id": "supply-and-demand", "group": "review", "prompt": "how do supply and demand set a price?", "best": [["D:coordinate-plot"]], "acceptable": [], "badKinds": [], "needsPicture": false, "noPicture": true },
+    { "id": "big-o", "group": "review", "prompt": "what is Big-O notation?", "best": [["D:coordinate-plot"]], "acceptable": [["D:comparison"]], "badKinds": [], "needsPicture": false, "noPicture": true },
+    { "id": "bill-becomes-law", "group": "review", "prompt": "how does a bill become law in the United States?", "best": [["D:flow"]], "acceptable": [], "badKinds": [], "needsPicture": false, "noPicture": true },
+    { "id": "call-stack", "group": "review", "prompt": "how does the call stack work during recursion?", "best": [["D:layers"]], "acceptable": [], "badKinds": ["tree"], "needsPicture": false, "noPicture": true, "reviewTarget": true },
+    { "id": "call-stack-p1", "group": "review", "prompt": "what happens on the stack when a function calls itself?", "best": [["D:layers"]], "acceptable": [], "badKinds": ["tree"], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "call-stack" },
+    { "id": "call-stack-p2", "group": "review", "prompt": "how are stack frames pushed and popped in recursion?", "best": [["D:layers"]], "acceptable": [], "badKinds": ["tree"], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "call-stack" },
+    { "id": "call-stack-p3", "group": "review", "prompt": "explain the call stack and the base case in a recursive factorial", "best": [["D:layers"]], "acceptable": [], "badKinds": ["tree"], "needsPicture": false, "noPicture": true, "reviewTarget": true, "sourceId": "call-stack" },
+    { "id": "database-index", "group": "review", "prompt": "how does a database index speed up a query?", "best": [["D:tree"]], "acceptable": [["D:comparison"]], "badKinds": [], "needsPicture": false, "noPicture": true },
+    { "id": "confusion-matrix", "group": "review", "prompt": "how does a confusion matrix work?", "best": [["D:matrix"]], "acceptable": [], "badKinds": [], "needsPicture": false, "noPicture": true }
+  ]
+}
