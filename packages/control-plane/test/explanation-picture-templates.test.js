@@ -106,3 +106,15 @@ test('an author picture prompt without the no-text clause gets it, one with it i
   assert.ok(composeVisuals('Before.\n\n[[visual:1]]\n\nAfter.', [picture('A lock.')]).includes(`"prompt":"A lock. ${NO_TEXT}"`));
   assert.ok(`x. ${NO_TEXT}`.length <= 600 && 200 + NO_TEXT.length + 2 <= 600, 'a 200-character prompt plus the clause fits the saved limit');
 });
+
+test('the author prompt carries the picture p contract: every template class with its opening words, the no-text clause, and the name-the-parts rule (owner 2026-11-08, pictures judged no 36/110)', async () => {
+  const { EXPLANATION_GUIDANCE } = await import('../src/learn-primitives.js');
+  const openings = { 'object-mechanism': 'Technical cutaway of', 'positional-cause': 'Textbook illustration of', appearance: 'Realistic exterior of', organism: 'Natural-history illustration of', 'repeating-structure': 'Scientific close-up of' };
+  assert.deepEqual(Object.keys(openings).sort(), Object.keys(EXPLANATION_PICTURE_TEMPLATES).sort(), 'a new template class needs its line in the prompt');
+  for (const [name, opening] of Object.entries(openings)) {
+    assert.ok(EXPLANATION_GUIDANCE.includes(`${name} "${opening}`), `${name} is in the prompt`);
+    assert.ok(EXPLANATION_PICTURE_TEMPLATES[name].startsWith(opening), `${name} opens as the template does`);
+  }
+  assert.ok(EXPLANATION_GUIDANCE.includes(NO_TEXT) && EXPLANATION_GUIDANCE.includes('never a generic view of the subject'));
+  assert.ok(EXPLANATION_GUIDANCE.includes('at most 200 characters'));
+});
