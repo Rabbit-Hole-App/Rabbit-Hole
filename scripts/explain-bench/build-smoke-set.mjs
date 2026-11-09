@@ -112,7 +112,8 @@ export function build({ results = RESULTS, seed = 'smoke-v1' } = {}) {
   for (const p of picked.values()) { const x = seen[`${p.smoke.source.set}/${p.smoke.source.id}`], k = p.smoke.kindsReliable[0]; if (x && k) p.smoke.observed = `earlier runs: ${k} drawn ${x.kinds[k] || 0} of ${x.n} cards`; }
   const prompts = [...picked.values()], pictures = prompts.filter(p => p.needsPicture).length;
   const estUsdPerCard = +((prompts.length * 0.0027 + pictures * 0.007) / prompts.length + 0.0018).toFixed(4); // 117 ledger: US$0.0027 a card without a picture, 0.0097 with one (+0.007); +0.0018 margin
-  const coverage = Object.fromEntries(KINDS.map(k => [k, prompts.find(p => p.smoke.kindsReliable.includes(k))?.id ?? null]));
+  const weight = (p, k) => (p.smoke.unverified ? Number(/drawn ([0-9]+) of/.exec(p.smoke.observed || '')?.[1] || 0) : 1e6); // reliable in the 117 3x first, then the most-drawn in earlier runs
+  const coverage = Object.fromEntries(KINDS.map(k => [k, prompts.filter(p => p.smoke.kindsReliable.includes(k)).sort((x, y) => weight(y, k) - weight(x, k))[0]?.id ?? null]));
   return { name: 'smoke', version: { prompts: `S1 2026-11-09 (seed ${seed}; ${prompts.length} prompts)`, labels: 'S1 2026-11-09 (labels copied from each prompt\'s source set; demo and figure-chapter prompts score by the reference kind)' },
     measures: 'Tier 1 of the release gate: one run of a fixed, versioned set. Every diagram kind at least once, the fragile groups (matrix/heatmap, formula plots, sequences with self-messages, two-structure prompts), the picture-routing sample and the 13 Lesson 04 demo prompts.',
     written: '2026-11-09 by build-smoke-set.mjs from the 117 rerun 3x (reliable = right and drawn in all 3 runs)', defaultRuns: 1, estUsdPerCard, pass: {}, kindCoverage: coverage, prompts };
