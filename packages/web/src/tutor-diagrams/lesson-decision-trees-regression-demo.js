@@ -1,11 +1,11 @@
 const start = 0;
-const step = 2;
+const step = 15;
 const count = 25;
 const end = start + (count - 1) * step;
 const divisor = 1000;
 // Canonicalize signed zero so object and compact JSON specs agree.
 const round = value => Math.round(value) || 0;
-const targets = Array.from({ length: count }, (_, i) => round(Math.sin((start + i * step) * Math.PI / 24) * divisor));
+const targets = Array.from({ length: count }, (_, i) => round(Math.sin((start + i * step) * Math.PI / 180) * divisor));
 const sum = (start, end) => targets.slice(start, end).reduce((total, value) => total + value, 0);
 
 function bestCut(leaves, maxDepth) {
@@ -41,7 +41,8 @@ function fittedSteps(maxDepth, maxLeaves) {
   }
   const x = leaves.map(leaf => leaf.start === 0 ? start : start + (leaf.start - 0.5) * step);
   const y = leaves.map(leaf => round(sum(leaf.start, leaf.end) / (leaf.end - leaf.start)));
-  return { x: [...x, end], y: [...y, y.at(-1)], divisor };
+  // Midpoints fall at half degrees. Store their integer numerators for compact JSON.
+  return { x: { values: [...x, end].map(value => 2 * value), divisor: 2 }, y: [...y, y.at(-1)], divisor };
 }
 
 const shallow = fittedSteps(2, 4);
@@ -56,16 +57,16 @@ export const lessonDecisionTreesRegressionDemo = {
   diagramAt(depth) {
     return {
       kind: 'coordinate-plot', title: 'Sine step fits',
-      x: { label: 'Angle (7.5° units)', min: start, max: end },
+      x: { label: 'Angle (degrees)', min: start, max: end },
       y: { label: 'Target', min: -1, max: 1 },
       series: [
         { label: 'Sine samples', kind: 'line', samples: { x: { start, step }, y: targets, divisor } },
         { label: 'Depth 2', kind: 'step', samples: { ...shallow, ...(depth === 'deep' ? { showValues: true } : {}) } },
         { label: 'Depth 5', kind: 'step', samples: deep },
       ],
-      caption: depth === 'deep' ? 'Worked example. Labels show rounded depth 2 means.' :
+      caption: depth === 'deep' ? 'Worked example. Rounded leaf means.' :
         depth === 'overview' ? 'Worked example. Each step predicts one leaf mean.' :
-          `Worked example. ${shallow.x.length - 1} leaves versus ${deep.x.length - 1}.`,
+          `Worked example. ${shallow.y.length - 1} leaves versus ${deep.y.length - 1}.`,
     };
   },
 };

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { lessonDecisionTreesRegressionDemo as demo } from './lesson-decision-trees-regression-demo.js';
+import { plotSeriesPoints } from './ml-plot-spec.js';
 
 const depths = ['overview', 'standard', 'deep'];
 const mean = numbers => numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
@@ -33,14 +34,12 @@ test('the sine series has 25 equally spaced samples and both step fits predict t
   for (const depth of depths) {
     const plot = demo.diagramAt(depth);
     assert.deepEqual(plot, JSON.parse(JSON.stringify(plot)));
+    assert.deepEqual(plot.x, { label: 'Angle (degrees)', min: 0, max: 360 });
     const [sine, shallow, deep] = plot.series;
-    const { start, step } = sine.samples.x;
-    const coordinates = sine.samples.y.map((_, index) => start + index * step);
-    assert.equal(coordinates.length, 25);
-    assert.equal(coordinates[0], 0);
-    assert.equal(coordinates.at(-1), 48);
+    const coordinates = plotSeriesPoints(sine).map(point => point.x);
+    assert.deepEqual(coordinates, Array.from({ length: 25 }, (_, index) => 15 * index));
     assert.equal(sine.samples.divisor, 1000);
-    const targets = coordinates.map(x => Math.round(Math.sin(x * Math.PI / 24) * 1000) + 0);
+    const targets = coordinates.map(x => Math.round(Math.sin(x * Math.PI / 180) * 1000) + 0);
     assert.deepEqual(sine.samples.y, targets);
     for (const [fit, maxDepth, maxLeaves] of [[shallow, 2, 4], [deep, 5, 16]]) {
       const leaves = expectedLeaves(targets, maxDepth, maxLeaves);
@@ -49,7 +48,7 @@ test('the sine series has 25 equally spaced samples and both step fits predict t
       boundaries.push(coordinates.at(-1));
       assert.equal(fit.kind, 'step');
       assert.equal(fit.samples.divisor, 1000);
-      assert.deepEqual(fit.samples.x, boundaries);
+      assert.deepEqual(plotSeriesPoints(fit).map(point => point.x), boundaries);
       assert.equal(fit.samples.y.length, maxLeaves + 1);
       for (const [index, left] of boundaries.slice(0, -1).entries()) {
         const right = boundaries[index + 1];

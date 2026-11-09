@@ -36,7 +36,6 @@ export const extendedTree = d => d.layout === 'hierarchy' || d.layout === 'dendr
 export const extendedFlow = d => d.nodes.some(n => n.role === 'fork' || n.role === 'merge');
 const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
 const tensors = d => d.nodes.flatMap(n => n.tensor ? tensorText(n.tensor) : []);
-export const flowLabel = node => node.role === 'fork' ? `Parallel: ${nodeName(node)}` : node.role === 'merge' ? `Merge: ${nodeName(node)}` : node.label;
 export const nodeMetadata = node => [node.count !== undefined ? `n = ${node.count}` : null, node.detail, node.pruned ? 'Pruned' : null].filter(Boolean);
 
 function validateTree(d, issue) {
@@ -142,6 +141,6 @@ export function visibleText(d) {
     ...(d.cutoff ? [`Cutoff: ${d.cutoff.label} = ${d.cutoff.value}`] : []),
   ];
   if (d.kind === 'relationship' && d.layout === 'graph') return [...own, ...d.nodes.map(n => n.label), ...connections(d), ...tensors(d)];
-  if (d.kind === 'flow' && extendedFlow(d)) return [...own, ...d.nodes.map(flowLabel), ...d.edges.map(e => e.label).filter(Boolean), ...tensors(d)];
+  if (d.kind === 'flow' && extendedFlow(d)) return [...own, ...d.nodes.map(n => n.label).filter(Boolean), ...d.edges.map(e => e.label).filter(Boolean), ...tensors(d)];
   return null;
 }

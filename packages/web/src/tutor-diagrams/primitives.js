@@ -146,6 +146,11 @@ export function fitCaption(scene, caption, gutter, size) {
   return { ...scene, width, elements: [h('g', { transform: `translate(${(width - scene.width) / 2} 0)` }, ...scene.elements)] };
 }
 
+function nativeCaptionMath(expression) {
+  return expression.replace(/(?<!\\)\\log_(?:\{(\d+)\}|(\d))/gu, (_, group, digit) =>
+    ' log' + [...(group ?? digit)].map(value => '₀₁₂₃₄₅₆₇₈₉'[Number(value)]).join(''));
+}
+
 export function layoutCaption(text, width, size = 13) {
   if (!text) return { height: 0 };
   const parsed = mathLabel(text);
@@ -154,7 +159,8 @@ export function layoutCaption(text, width, size = 13) {
   let fallback = [];
   if (hasMath) {
     const { math } = tokenizeMath(text);
-    const source = parsed.source.replace(new RegExp(SLOT, 'gu'), (_, index) => parsed.math[index].set ? math[index].expression : math[index].raw);
+    const source = parsed.source.replace(new RegExp(SLOT, 'gu'), (_, index) =>
+      parsed.math[index].set ? nativeCaptionMath(math[index].expression) : math[index].raw);
     fallback = wrapLabel({ source, math: [] }, width, size);
   }
   return {

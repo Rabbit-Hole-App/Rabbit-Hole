@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { lintDiagramContent } from '../../scripts/explanation-content-contract.mjs';
 import { lessonDecisionTreesIllustrativeDemos } from './lesson-decision-trees-illustrative-demos.js';
 import { parseTutorDiagram } from './spec.js';
+import { renderTutorDiagram } from './TutorDiagram.js';
 
 const depths = ['overview', 'standard', 'deep'];
 
@@ -39,3 +41,14 @@ for (const depth of depths) {
     assert.ok(accuracy.points.every(point => point.label));
   });
 }
+
+test('the forest-size log axis uses decades and retains all five labeled markers', () => {
+  const diagram = plotAt('forest-size-accuracy', 'standard');
+  const svg = renderToStaticMarkup(renderTutorDiagram({ version: 1, diagram }, 408).element);
+  const labels = [...svg.matchAll(/<text\b[^>]* y="([^"]+)"[^>]*><tspan\b[^>]*>([^<]+)<\/tspan><\/text>/g)];
+  const rightTick = labels.find(([, , label]) => label === '200');
+  assert.ok(rightTick, 'the upper axis endpoint is labeled');
+  assert.deepEqual(labels.filter(([, y]) => y === rightTick[1]).map(([, , label]) => label), ['1', '10', '100', '200']);
+  assert.deepEqual([...svg.matchAll(/data-tutor-coordinate-point="([^"]+)"/g)].map(([, point]) => point),
+    ['1,0.78', '5,0.86', '10,0.89', '50,0.92', '200,0.925']);
+});

@@ -1,7 +1,7 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
-import { extendedFlow, extendedTree, flowLabel, nodeMetadata } from './ml-topology-spec.js';
+import { extendedFlow, extendedTree, nodeMetadata } from './ml-topology-spec.js';
 import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
 const PAD = 12, TEXT = 14, SMALL = 13, GAP = 18;
@@ -324,7 +324,7 @@ export function createLayouts({ legacy }) {
     flow: (d, width) => {
       if (!extendedFlow(d)) return legacy.flow(d, width);
       const roles = new Map(d.nodes.map(n => [n.id, n.role]));
-      const rendered = legacy.flow({ ...d, nodes: d.nodes.map(n => ({ ...n, label: n.label === undefined ? undefined : flowLabel(n),
+      const rendered = legacy.flow({ ...d, nodes: d.nodes.map(n => ({ ...n,
         role: n.role === 'fork' || n.role === 'merge' ? 'process' : n.role })) }, width);
       return { ...rendered, elements: rendered.elements.map(e => restyleFlow(e, roles)) };
     },

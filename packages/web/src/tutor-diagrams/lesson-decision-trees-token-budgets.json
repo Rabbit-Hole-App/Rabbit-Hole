@@ -217,8 +217,8 @@
       ],
       "deep": [
         {
-          "tokens": 297,
-          "sha256": "b1f5d7edb5a9dc6114a40efe95ea5f32f7663c2149695c0cddcb0e18cb5c7242"
+          "tokens": 285,
+          "sha256": "f68cf4787993216135275004381bd5bab2f275ff9ec1eceb1ecef44809fa6d74"
         }
       ]
     },
@@ -285,20 +285,20 @@
     "ml-trees-regression-step-fit": {
       "overview": [
         {
-          "tokens": 288,
-          "sha256": "36e0713e778b3353152304fff33e9bad13ff748499a507d0da8da76eb481d1a2"
+          "tokens": 298,
+          "sha256": "d6691e354fedecdb963427a8aee3a62291e275fd0784a47fe3f6bf5adc1e90f7"
         }
       ],
       "standard": [
         {
-          "tokens": 288,
-          "sha256": "441f2dda13eeff55079a00e84b8388c9160a627da6c233229c76657fec11fb9b"
+          "tokens": 298,
+          "sha256": "86339ea540c9ec16280be6a8a2835f514a5324cff03aa47bb83c9e2c62576bdf"
         }
       ],
       "deep": [
         {
-          "tokens": 294,
-          "sha256": "f2de86b6b64d3c6fcf9cf1956192719d6e104d2fa83b609e1d235c74e6d9cd08"
+          "tokens": 300,
+          "sha256": "84b33d2a6880342918ca3fe46ef030754d093212afc233d26e6e4ae250c0bb1c"
         }
       ]
     }

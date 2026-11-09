@@ -257,7 +257,8 @@ test('fork and merge roles reuse flow routing and do not turn simultaneous branc
   assert.equal(tagged(s, 'polygon').filter(e => !Object.hasOwn(e.props, 'data-tutor-arrowhead')).length, 0);
   assert.equal(marked(s, 'data-tutor-edge').length, 5);
   assert.ok(rectFor(s, 'a').y > rectFor(s, 'f').y && rectFor(s, 'm').y > rectFor(s, 'a').y);
-  assert.ok(allText(s).includes('Parallel') && allText(s).includes('Merge'));
+  assert.deepEqual(marked(s, 'data-tutor-role').filter(node => ['fork', 'merge'].includes(node.props['data-tutor-role']))
+    .map(node => allText({ elements: [node] })), ['Preprocess', 'Features']);
   fits(s);
 });
 

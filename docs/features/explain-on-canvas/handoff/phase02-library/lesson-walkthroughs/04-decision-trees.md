@@ -193,7 +193,7 @@ In this illustrative run, increasing the forest from one tree to 50 raises test 
 
 ### Fit sine with regression trees
 
-Both trees fit the same 25 equally spaced samples from 0 through 2π. The plotted x coordinates count units of π/24, or 7.5 degrees. The fits choose midpoint cuts by squared-error reduction, with limits of four leaves at depth two and sixteen at depth five. Each step is the mean of the rounded samples in its leaf.
+Both trees fit the same 25 samples from 0° through 360°, one every 15°. The fits choose midpoint cuts by squared-error reduction, with limits of four leaves at depth two and sixteen at depth five. Each step is the mean of the rounded samples in its leaf.
 
 `ml-trees-regression-step-fit` · `coordinate-plot`
 

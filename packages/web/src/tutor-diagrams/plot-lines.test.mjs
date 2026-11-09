@@ -134,12 +134,14 @@ test('compact steps match explicit coordinates and label only the leaf starts', 
   }] } };
   const render = diagram => renderToStaticMarkup(renderTutorDiagram(parseTutorDiagram(diagram), 408).element);
   assert.equal(render(spec), render(explicit));
+  const withSampleX = x => ({ ...spec, diagram: { ...spec.diagram,
+    series: [{ ...series, samples: { ...series.samples, x } }],
+  } });
+  assert.equal(render(withSampleX({ values: [0, 4, 10], divisor: 2 })), render(explicit));
   assert.throws(() => parseTutorDiagram({ ...spec, diagram: { ...spec.diagram,
     series: [{ ...series, points: explicit.diagram.series[0].points }],
   } }));
-  for (const x of [[0, 2], [0, 2, 6], [0, 2, 2]]) {
-    assert.throws(() => parseTutorDiagram({ ...spec, diagram: { ...spec.diagram,
-      series: [{ ...series, samples: { ...series.samples, x } }],
-    } }));
+  for (const x of [[0, 2], [0, 2, 6], [0, 2, 2], { values: [0, 4], divisor: 2 }, { values: [0, 4, 10], divisor: 0 }]) {
+    assert.throws(() => parseTutorDiagram(withSampleX(x)));
   }
 });

@@ -1795,17 +1795,17 @@
       "408": {
         "requested": 408,
         "width": 408,
-        "height": 649
+        "height": 631
       },
       "960": {
         "requested": 960,
         "width": 720,
-        "height": 584
+        "height": 566
       },
       "natural": {
         "requested": 382,
         "width": 382,
-        "height": 649
+        "height": 631
       }
     }
   },
@@ -1835,17 +1835,17 @@
       "408": {
         "requested": 408,
         "width": 408,
-        "height": 614
+        "height": 596
       },
       "960": {
         "requested": 960,
         "width": 720,
-        "height": 584
+        "height": 566
       },
       "natural": {
         "requested": 382,
         "width": 382,
-        "height": 614
+        "height": 596
       }
     }
   },
@@ -2195,7 +2195,7 @@
       "408": {
         "requested": 408,
         "width": 420,
-        "height": 652
+        "height": 635
       },
       "960": {
         "requested": 960,
@@ -2205,7 +2205,7 @@
       "natural": {
         "requested": 420,
         "width": 420,
-        "height": 652
+        "height": 635
       }
     }
   }

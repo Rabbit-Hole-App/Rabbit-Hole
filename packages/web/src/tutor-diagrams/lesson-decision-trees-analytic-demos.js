@@ -28,7 +28,7 @@ function impurityPlot(depth) {
     ],
     caption: 'Worked example. $G(p)=2p(1-p)$ and $H(p)=-p\\log_2 p-(1-p)\\log_2(1-p)$.' +
       (depth === 'overview' ? ' Rounded samples.' : depth === 'deep' ?
-        ' Rounded samples. Use $\\lim_{p\\to0^+}p\\log_2 p=0$ at the endpoints.' : ' Samples rounded to 3 decimals.'),
+        ' Rounded samples. At the endpoints, the zero-share term vanishes by continuity.' : ' Samples rounded to 3 decimals.'),
   };
 }
 

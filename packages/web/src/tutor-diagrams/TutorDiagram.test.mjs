@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import TutorDiagram, { renderTutorDiagram } from './TutorDiagram.js';
 import { tutorDiagramJsonSchema } from './spec.js';
 import { ILLUSTRATION_KINDS } from './illustration-kinds.js';
+import { lessonDecisionTreesReferences } from './lesson-decision-trees-references.js';
 import kindGallery from './kind-gallery.json' with { type: 'json' };
 
 const fixtures = JSON.parse(readFileSync(new URL('./examples.json', import.meta.url), 'utf8'));
@@ -87,6 +88,20 @@ test('a narrow embedding caption keeps its complete native SVG fallback and inli
   const fallback = caption.slice(caption.lastIndexOf('data-explanation-skip'));
   const lines = [...fallback.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map(([, line]) => line);
   assert.equal(lines.join(' '), 'Four entries shown per row. Add position with x_p=e_p+PE_p.');
+});
+
+test('the Gini and entropy caption shows both formulas with and without XHTML support', () => {
+  const ref = lessonDecisionTreesReferences.find(({ id }) => id === 'ml-trees-gini-vs-entropy');
+  for (const spec of [ref.depths.overview.spec, ref.spec, ref.depths.deep.spec]) {
+    const svg = renderToStaticMarkup(renderTutorDiagram(spec, 408).element);
+    const caption = svg.slice(svg.lastIndexOf('<switch'));
+    const [primary, fallback] = caption.split('data-explanation-skip');
+    assert.ok((primary.match(/class="katex"/g) ?? []).length >= 2);
+    const text = [...fallback.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map(([, line]) => line).join(' ');
+    assert.match(text, /G\(p\)=2p\(1-p\)/);
+    assert.match(text, /H\(p\)=-p log₂ p-\(1-p\) log₂\(1-p\)/);
+    assert.doesNotMatch(text, /\\[A-Za-z]+/);
+  }
 });
 
 test('an unbreakable formula in a caption fits the SVG bounds, including in comparison panels', () => {

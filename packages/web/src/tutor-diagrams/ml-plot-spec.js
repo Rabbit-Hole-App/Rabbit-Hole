@@ -19,7 +19,11 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const sampleValues = z.array(numeric).min(1).max(25);
   const divisor = numeric.positive().optional();
   const samples = z.strictObject({
-    x: z.union([sampleValues, z.strictObject({ start: numeric, step: numeric.positive(), divisor })]),
+    x: z.union([
+      sampleValues,
+      z.strictObject({ start: numeric, step: numeric.positive(), divisor }),
+      z.strictObject({ values: sampleValues, divisor: numeric.positive() }),
+    ]),
     y: sampleValues, divisor, showValues: z.boolean().optional(),
   });
   return [
@@ -42,11 +46,15 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
 }
 
 // Keep compact samples in the parsed spec. The renderer and accessible description read the same coordinates.
+const explicitSampleX = x => Array.isArray(x) ? x : x.values;
+
 export function plotSeriesPoints(series) {
   if (!series.samples) return series.points ?? [];
   const { x, y, divisor = 1, showValues } = series.samples;
+  const values = explicitSampleX(x);
   return y.map((sample, index) => {
-    const point = { x: Array.isArray(x) ? x[index] : (x.start + index * x.step) / (x.divisor ?? 1), y: sample / divisor };
+    const at = values ? values[index] : x.start + index * x.step;
+    const point = { x: at / (x.divisor ?? 1), y: sample / divisor };
     if (showValues && (series.kind !== 'step' || index < y.length - 1)) point.label = String(point.y);
     return point;
   });
@@ -75,7 +83,8 @@ function checkPlot(d, issue) {
   d.series.forEach((s, i) => {
     const path = ['series', i];
     if (Boolean(s.points) === Boolean(s.samples)) return issue(path, 'Provide either points or compact samples');
-    if (s.samples && Array.isArray(s.samples.x) && s.samples.x.length !== s.samples.y.length) {
+    const values = s.samples && explicitSampleX(s.samples.x);
+    if (values && values.length !== s.samples.y.length) {
       return issue([...path, 'samples'], 'Compact samples need one x coordinate per y value');
     }
     const points = plotSeriesPoints(s);

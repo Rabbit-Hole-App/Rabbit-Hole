@@ -3,15 +3,7 @@ import { lineHeight, textWidth, wrap } from './primitives.js';
 const SIZE = 12;
 const GAP = 6;
 
-function regularValues({ min, max, scale }) {
-  if (scale === 'log') {
-    const low = Math.log10(min), high = Math.log10(max);
-    if (high - low >= 1) {
-      const step = Math.ceil((high - low) / 4);
-      const first = Math.ceil(low / step), last = Math.floor(high / step);
-      return [Array.from({ length: last - first + 1 }, (_, i) => 10 ** ((first + i) * step))];
-    }
-  }
+function regularValues({ min, max }) {
   const magnitude = 10 ** Math.floor(Math.log10(max / 4 - min / 4));
   return [1, 2, 2.5, 5, 10].flatMap(multiplier => {
     const step = multiplier * magnitude;
@@ -21,23 +13,18 @@ function regularValues({ min, max, scale }) {
   });
 }
 
-function sample({ min, max, scale }, fraction) {
+function sample({ min, max }, fraction) {
   const span = max - min;
-  if (scale === 'log') {
-    const relative = span / min;
-    if (relative < 0.5) return min + min * Math.expm1(fraction * Math.log1p(relative));
-    return Math.exp((1 - fraction) * Math.log(min) + fraction * Math.log(max));
-  }
   return Number.isFinite(span) ? min + fraction * span : (1 - fraction) * min + fraction * max;
 }
 
-function fits(ticks, horizontal) {
+function fits(ticks, horizontal, gap = GAP) {
   const sizes = ticks.map(({ lines }) => horizontal ? Math.max(...lines.map(line => textWidth(line, SIZE))) : lines.length * lineHeight(SIZE));
   return ticks.every(({ at }, i) => {
     if (i === 0) return true;
     const before = sizes[i - 1] / (horizontal && i === 1 ? 1 : 2);
     const after = sizes[i] / (horizontal && i === ticks.length - 1 ? 1 : 2);
-    return Math.abs(at - ticks[i - 1].at) >= before + after + GAP;
+    return Math.abs(at - ticks[i - 1].at) >= before + after + gap;
   });
 }
 
@@ -55,6 +42,17 @@ export function plotTicks(axis, position, { horizontal = false, labelWidth = Inf
       .filter(({ at }) => Math.min(Math.abs(at - start.at), Math.abs(at - end.at)) >= 20);
     return [start, ...interior, end];
   };
+  if (axis.scale === 'log') {
+    const first = Math.ceil(Math.log10(min));
+    const last = Math.floor(Math.log10(max));
+    const decades = Array.from({ length: last - first + 1 }, (_, i) => Number(`1e${first + i}`));
+    // Thin crowded decades without replacing them with fractional ticks.
+    for (let step = 1; step <= decades.length; step *= 2) {
+      const labels = format(withEndpoints(decades.filter((_, i) => i % step === 0)));
+      if (fits(labels, horizontal, horizontal ? 0 : GAP)) return labels;
+    }
+    return format([start, end]);
+  }
   if (axis.integerTicks) {
     const range = max - min;
     for (let step = Math.max(1, Math.ceil(range / 7)); step < range; step *= 2) {
