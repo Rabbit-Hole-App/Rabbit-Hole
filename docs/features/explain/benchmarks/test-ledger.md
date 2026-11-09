@@ -150,3 +150,22 @@ The decision is made once, from the post-merge bench baseline run on both arms: 
 The same baseline is the examples A/B against the 5d temperature-0 run (no references): every metric split by references per card (0 vs 1-2). Rule: quality up and repairs not up, keep; repairs or output tokens up without quality, one example only, matched kind only, one re-run; neutral, keep if warm-call time holds.
 
 Pictures-async status (2026-11-08 17:00 PT): not in the baseline. Its fast-e2e run on c46ac4dbb (42540920164) failed in all six shards (27 checks, many unrelated to pictures, e.g. sidebar, naming, project menus; the parent's run also failed), so the dev-clone browser check did not start. A fresh clone would also have no /explain model key (shared dev worker secrets do not clone); owner launcher prepared, not run: C:\s\spec\release-queue\set-explain-hl-clone-secrets.cmd. Per owner: the baseline runs on the merged commit without pictures-async, its speed split excludes it, and pictures-async gets its own one-run delta when it lands.
+
+## Correct SVG at each depth: state at end of 2026-11-08 (owner loop, 2 iterations max)
+
+Set `correct-svg` v1 (scripts/explain-bench on explain/quality-bench, committed before the run): 6 regression + 8 formula prompts x Overview/Standard/Deep = 42 cards, labels per depth written first, never relabelled. gpt-oss-120b low, fallback off. Code on branch explain/correct-svg (not explain/card-layout): bf177b85a relationship graph by default; ee9093df9 the one prompt change (per-kind content clauses, formula -> plot/worked-example chart, $...$ in labels, number-rule worked-example clause, Depth as technical level); 3b4e3f742 iteration 1 and 61e02eca9 iteration 2 (reference keywords only).
+
+| check (pass line) | run 1 ee9093df9 | iter 1 3b4e3f742 | iter 2 61e02eca9 | pass? |
+|---|---|---|---|---|
+| right kind >= 11/14 each depth (O/S/D) | 7/8/7 | 8/8/7 | 9/8/8 | FAIL |
+| Deep plot or chart >= 5/6, 0 point errors | 5/6, 0 | 4/6, 0 | 4/6, 0 (only sigmoid recomputable, 0/9 off) | FAIL |
+| placeholders + duplicates <= 2 / 42 | 0 + 3 | 0 + 0 | 0 + 0 | PASS |
+| Overview cards with formulas in labels = 0 | 1 | 0 | 0 | PASS |
+| repairs <= 11.7% | 4/42 | 5/42 | 5/42 (11.9%) | FAIL (1 card) |
+| judge "not faithful to sketch" cards | 8 | 3 | 2 (entropy O and D) | - |
+| p50 / p90 all cards | 4.02 / 5.66 s | 3.66 / 4.83 s | 3.62 / 5.33 s | - |
+| spend (cards + judge) | $0.27 | $0.15 | $0.12 | - |
+
+Remaining misses (iteration 2): wrong kind: atmosphere picture (O), cross-entropy plot at Overview, gini relationship (S), softmax relationship (S), roman-empire picture (D). Acceptable-not-right: entropy relationship (all depths), roman-empire flow (O, S), atmosphere picture+comparison (S, D), tcp-handshake flow (D), attention-weights flow (D), precision-recall comparison (D), gradient-descent plot (O). Repairs: roman-empire at all depths (timeline events outside the range x2, flow loop x1), attention-weights marker layout (S), precision-recall label length (S). Plot point checks: the bench can recompute only top-level one-variable formula plots (sigmoid); the other plots were not checkable.
+What moved: the reference keywords I added (entropy, precision and recall) steered wrong kinds and were reverted; gini's tree and sample-set references steered tree/sample-set and were removed (gini now bar-chart at O and D). What did not move: the model's own kind choices for entropy, Roman Empire and atmosphere (no single clause points at them).
+Status: not passed; prompt not frozen; nothing merged to explain/card-layout or released. Tomorrow starts from these numbers.
