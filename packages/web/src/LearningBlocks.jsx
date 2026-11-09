@@ -17,6 +17,8 @@ import { MdInline } from './Md.jsx';
 import IllustrationFigure from './IllustrationFigure.jsx';
 import { FollowUp, HighlightMenu, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
 import { splitLead } from './explanation-lead.js';
+import { isMinimized, minimizedVisual, tileSummary } from './explanation-minimize.js';
+import TutorDiagram from './tutor-diagrams/TutorDiagram.js';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { loadAsset } from './learn-board-assets.js';
@@ -2090,6 +2092,24 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
   );
 }
 
+// The minimized Explanation (explanation-minimize.js): the title, a summary of at most three lines, the card's one visual (the first picture, else the first
+// diagram, else none; computed each time, nothing stored) and Open, which restores the full card where it is. The card's saved size is untouched, so Open brings it back.
+function ExplanationTile({ block, onChange, readOnly = false }) {
+  const visual = minimizedVisual(block), summary = tileSummary(block);
+  return (
+    <div data-explanation-tile className="flex min-h-0 flex-1 flex-col">
+      <div data-explanation-head className="shrink-0">
+        <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2">Explanation</Kicker>
+      </div>
+      <div className="flex flex-col gap-2.5 px-4 pb-3">
+        {summary && <p data-tile-summary className="m-0 text-sm text-ink-2">{summary}</p>}
+        {visual && <div data-tile-visual={visual.kind}>{visual.kind === 'picture' ? <IllustrationFigure illustration={visual.illustration} /> : <TutorDiagram spec={visual.spec} fallback={null} />}</div>}
+        {!readOnly && <Button variant="secondary" size="sm" data-explanation-open className="self-center border! border-ink/50!" onPointerDown={event => event.stopPropagation()} onClick={() => onChange({ ...block, minimized: false })}>Open</Button>}
+      </div>
+    </div>
+  );
+}
+
 // A text excerpt from a PDF (pdf-excerpt.js): the PDF's own words as a quotation - verbatim paragraphs, never Markdown, never an
 // editable field - then the learner's note, then the source. Its title is the document and page, never generated.
 function ExcerptBody({ block, onChange, appName, readOnly }) {
@@ -2360,6 +2380,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'code') return <CodeBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'snippet') return <SnippetBody block={block} onFile={onFile} />;
   if (block.type === 'explanation' && isExcerpt(block)) return <ExcerptBody block={block} onChange={onChange} appName={appName} readOnly={readOnly} />;
+  if (isMinimized(block)) return <SurfaceBoundary artifact="explanation_card" fallback={<p className="m-0 whitespace-pre-wrap text-sm text-ink">{String(block.title ?? '')}</p>}><ExplanationTile block={block} onChange={onChange} readOnly={readOnly} /></SurfaceBoundary>;
   if (block.type === 'explanation') return <SurfaceBoundary artifact="explanation_card" fallback={<p className="m-0 whitespace-pre-wrap text-sm text-ink">{String(block.text ?? block.body ?? '')}</p>}><ExplanationBody block={block} onFile={onFile} appName={appName} onExpandHeight={onExpandHeight} onChange={onChange} onChangeQuiet={onChangeQuiet} readOnly={readOnly} /></SurfaceBoundary>;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} account={cadAccount} />;
