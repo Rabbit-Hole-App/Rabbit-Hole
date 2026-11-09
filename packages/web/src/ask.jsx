@@ -22,11 +22,11 @@ import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
-import { MODEL_CHOICES } from './model-choices.js';
+import { MODEL_CHOICES, savedModel } from './model-choices.js';
 import { NO_REFS, canvasTargetField, tocAskProps } from './learn-ask-target.js';
 import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js';
 import CommandPill from './CommandPill.jsx';
@@ -78,7 +78,7 @@ const PRIVATE_SOURCE_OPTIONS = {
 };
 const SOURCE_ICON = { log: ScrollText, outputs: Package, runs: Play, requests: Globe, runbook: BookOpen, review: Shield, agent: FileText };
 // model rows carry a strength icon + one-word hint (Opus strongest, Haiku fastest)
-const MODEL_ICON = { auto: SlidersHorizontal, 'opus-5': Crown, 'sonnet-5': Zap, 'haiku-4.5': Feather };
+const MODEL_ICON = { auto: SlidersHorizontal, 'sonnet-5': Zap, 'haiku-4.5': Feather };
 const MODEL_META = Object.fromEntries(MODEL_CHOICES.map(({ key, hint }) => [key, [MODEL_ICON[key], hint]]));
 
 // Model picker keys → labels (server holds the allowlist; auto = default).
@@ -396,7 +396,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const [srcOn, setSrcOn] = useState(() => new Set(srcOpts.map(([k]) => k)));
   const [srcOpen, setSrcOpen] = useState(false);
   // Learn never shows a model: users choose intent, Rabbit Hole chooses the model (the server's auto routing).
-  const [model, setModel] = useState(() => privateChat || learnChat ? 'auto' : localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
+  const [model, setModel] = useState(() => privateChat || learnChat ? 'auto' : savedModel(localStorage.getItem('small.askModel'))); // Settings > Small AI sets the default
   const modelOptions = privateChat ? [['auto', 'Bedrock']] : MODELS;
   const [modelOpen, setModelOpen] = useState(false);
   const [appNames, setAppNames] = useState(null); // lazy, for @-mentions
