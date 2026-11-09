@@ -1,0 +1,110 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Recursive forecast feedback",
+  "caption": "Both estimates start together. Only the refreshed line gets new measured inputs.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Target time",
+   "min": 10,
+   "max": 15
+  },
+  "y": {
+   "label": "Reading",
+   "min": 0,
+   "max": 7
+  },
+  "series": [
+   {
+    "label": "Observed",
+    "kind": "line",
+    "points": [
+     {
+      "x": 10,
+      "y": 5
+     },
+     {
+      "x": 11,
+      "y": 6
+     },
+     {
+      "x": 12,
+      "y": 5
+     },
+     {
+      "x": 13,
+      "y": 3
+     },
+     {
+      "x": 14,
+      "y": 1
+     },
+     {
+      "x": 15,
+      "y": 0
+     }
+    ]
+   },
+   {
+    "label": "Refreshed estimate",
+    "kind": "line",
+    "points": [
+     {
+      "x": 10,
+      "y": 2.6
+     },
+     {
+      "x": 11,
+      "y": 4.3
+     },
+     {
+      "x": 12,
+      "y": 5.35
+     },
+     {
+      "x": 13,
+      "y": 4.9
+     },
+     {
+      "x": 14,
+      "y": 3.4
+     },
+     {
+      "x": 15,
+      "y": 1.7
+     }
+    ]
+   },
+   {
+    "label": "Recursive estimate",
+    "kind": "line",
+    "points": [
+     {
+      "x": 10,
+      "y": 2.6
+     },
+     {
+      "x": 11,
+      "y": 2.74
+     },
+     {
+      "x": 12,
+      "y": 2.751
+     },
+     {
+      "x": 13,
+      "y": 2.786
+     },
+     {
+      "x": 14,
+      "y": 2.811
+     },
+     {
+      "x": 15,
+      "y": 2.834
+     }
+    ]
+   }
+  ]
+ }
+}

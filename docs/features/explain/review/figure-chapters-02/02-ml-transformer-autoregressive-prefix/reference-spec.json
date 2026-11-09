@@ -1,0 +1,44 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "sequence",
+  "title": "Autoregressive decoding grows the prefix",
+  "caption": "Reuse the source notes. Append each new word to the input for the next call.",
+  "actors": [
+   {
+    "id": "memory",
+    "label": "Encoder memory"
+   },
+   {
+    "id": "decoder",
+    "label": "Decoder"
+   },
+   {
+    "id": "prefix",
+    "label": "Growing text"
+   }
+  ],
+  "messages": [
+   {
+    "from": "memory",
+    "to": "decoder",
+    "label": "Provide source context"
+   },
+   {
+    "from": "prefix",
+    "to": "decoder",
+    "label": "Send “the cat sat”"
+   },
+   {
+    "from": "decoder",
+    "to": "prefix",
+    "label": "Return “on”"
+   },
+   {
+    "from": "prefix",
+    "to": "decoder",
+    "label": "Send “the cat sat on”"
+   }
+  ]
+ }
+}

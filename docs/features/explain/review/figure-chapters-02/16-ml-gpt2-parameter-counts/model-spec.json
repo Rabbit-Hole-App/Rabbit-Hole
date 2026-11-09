@@ -1,0 +1,47 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Toy GPT-2 Parameter Scale",
+  "caption": "Wider layers and more depth compound parameter counts quadratically and linearly.",
+  "kind": "matrix",
+  "columns": [
+   "Decoder layers",
+   "Model width",
+   "Toy parameters"
+  ],
+  "rows": [
+   {
+    "heading": "Small toy",
+    "cells": [
+     "2",
+     "4",
+     "552"
+    ]
+   },
+   {
+    "heading": "Medium toy",
+    "cells": [
+     "3",
+     "6",
+     "1626"
+    ]
+   },
+   {
+    "heading": "Large toy",
+    "cells": [
+     "4",
+     "8",
+     "3616"
+    ]
+   },
+   {
+    "heading": "Extra-large toy",
+    "cells": [
+     "5",
+     "10",
+     "6810"
+    ]
+   }
+  ]
+ }
+}

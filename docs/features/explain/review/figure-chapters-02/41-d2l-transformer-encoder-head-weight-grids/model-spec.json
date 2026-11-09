@@ -1,0 +1,68 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Encoder head A weights",
+  "caption": "Only the first four key slots contain source words.",
+  "kind": "heatmap",
+  "rowLabel": "Query",
+  "columnLabel": "Key",
+  "columns": [
+   "1 the",
+   "2 cat",
+   "3 sat",
+   "4 on",
+   "Padding one",
+   "Padding two"
+  ],
+  "rows": [
+   {
+    "label": "1 the",
+    "cells": [
+     0.241,
+     0.254,
+     0.299,
+     0.206,
+     null,
+     null
+    ]
+   },
+   {
+    "label": "2 cat",
+    "cells": [
+     0.042,
+     0.708,
+     0.208,
+     0.042,
+     null,
+     null
+    ]
+   },
+   {
+    "label": "3 sat",
+    "cells": [
+     0.055,
+     0.682,
+     0.201,
+     0.062,
+     null,
+     null
+    ]
+   },
+   {
+    "label": "4 on",
+    "cells": [
+     0.235,
+     0.276,
+     0.23,
+     0.259,
+     null,
+     null
+    ]
+   }
+  ],
+  "range": {
+   "min": 0,
+   "max": 1
+  }
+ }
+}

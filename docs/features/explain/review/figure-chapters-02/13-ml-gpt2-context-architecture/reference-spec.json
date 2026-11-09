@@ -1,0 +1,35 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "title": "Context in GPT-2, BERT and Transformer-XL",
+  "columns": [
+   "Attention context",
+   "Example objective"
+  ],
+  "rows": [
+   {
+    "heading": "GPT-2",
+    "cells": [
+     "Causal attention within context",
+     "Predict the next token"
+    ]
+   },
+   {
+    "heading": "BERT",
+    "cells": [
+     "Bidirectional encoder",
+     "Recover hidden words"
+    ]
+   },
+   {
+    "heading": "Transformer-XL",
+    "cells": [
+     "Causal plus earlier-segment memory",
+     "Predict across segment breaks"
+    ]
+   }
+  ],
+  "caption": "The context rule determines what the model can consult at each position."
+ }
+}

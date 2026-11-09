@@ -1,0 +1,63 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "title": "Assemble skip-gram negative-sampling batches",
+  "caption": "Draw the alternatives from the vocabulary. They need not be adjacent in this training window.",
+  "columns": [
+   "Candidate",
+   "Pair source",
+   "Training label"
+  ],
+  "rows": [
+   {
+    "heading": "Batch one, pair 1",
+    "cells": [
+     "robot",
+     "Observed",
+     "1"
+    ]
+   },
+   {
+    "heading": "Batch one, pair 2",
+    "cells": [
+     "bulbs",
+     "Sampled",
+     "0"
+    ]
+   },
+   {
+    "heading": "Batch one, pair 3",
+    "cells": [
+     "outside",
+     "Sampled",
+     "0"
+    ]
+   },
+   {
+    "heading": "Batch two, pair 1",
+    "cells": [
+     "seeds",
+     "Observed",
+     "1"
+    ]
+   },
+   {
+    "heading": "Batch two, pair 2",
+    "cells": [
+     "packs",
+     "Sampled",
+     "0"
+    ]
+   },
+   {
+    "heading": "Batch two, pair 3",
+    "cells": [
+     "gardener",
+     "Sampled",
+     "0"
+    ]
+   }
+  ]
+ }
+}

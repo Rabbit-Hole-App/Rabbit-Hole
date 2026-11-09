@@ -1,0 +1,56 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Tied embeddings score the GPT-2 vocabulary",
+  "caption": "Compare the final state with each entry in the same word table, then turn raw scores into probabilities.",
+  "kind": "matrix",
+  "columns": [
+   "Logit",
+   "Toy probability"
+  ],
+  "rows": [
+   {
+    "heading": "the",
+    "cells": [
+     "0",
+     "0.011"
+    ]
+   },
+   {
+    "heading": "hall",
+    "cells": [
+     "1",
+     "0.029"
+    ]
+   },
+   {
+    "heading": "light",
+    "cells": [
+     "2",
+     "0.079"
+    ]
+   },
+   {
+    "heading": "flickers",
+    "cells": [
+     "4",
+     "0.586"
+    ]
+   },
+   {
+    "heading": "glows",
+    "cells": [
+     "3",
+     "0.216"
+    ]
+   },
+   {
+    "heading": "dims",
+    "cells": [
+     "2",
+     "0.079"
+    ]
+   }
+  ]
+ }
+}

@@ -26,7 +26,7 @@ export function arm(dir, set) {
     const d0 = c?.diagrams?.[0] ?? null, ids = c?.references?.ids ?? null, pc = c?.planCheck ?? null, offered = pc?.offered ?? null;
     return { n: String(i + 1).padStart(2, '0'), p, c, saved, block: saved?.response?.block ?? null,
       hit: ids ? ids.some(x => x === p.referenceId || x.startsWith(`${p.referenceId}--part`)) : null, ids,
-      planKind: pc?.planKind ?? c?.plan?.kind ?? null, planFixed: c?.plan?.fixed ?? null, offered,
+      planKind: pc?.planKind ?? c?.plan?.kind ?? null, plannerWas: c?.plan?.kindSource ? c.plan.plannerKind : null, planFixed: c?.plan?.fixed ?? null, offered,
       planMatch: pc ? (offered ? offered.includes(p.referenceKind) : pc.planKind === p.referenceKind) : null,
       routedToPicture: (c?.plan?.pictures ?? 0) > 0, modelKind: d0?.kind ?? (c?.hasPicture ? 'picture' : c?.delivered ? 'none' : 'FAILED'), kindMatch: d0?.kind === p.referenceKind,
       structure: d0?.faithful?.verdict ?? 'none', structureReason: d0?.faithful?.reason ?? '', factual: c?.judge?.factual ?? null, factualError: (c?.judge?.factual?.errors || []).length > 0 };
@@ -54,7 +54,7 @@ export function stats({ res, rows }) {
 
 const fac = r => (r.factual ? `${r.factual.score}${r.factualError ? ' ERROR' : ''}` : '-');
 const table = (rows, link) => ['| # | reference id | source | intended kind | planner kind | model kind | selector hit | structure | factual (1-5) |', '|---|---|---|---|---|---|---|---|---|',
-  ...rows.map(r => `| ${r.n} | ${link ? `[${r.p.referenceId}](${r.n}-${r.p.referenceId}/card.md)` : r.p.referenceId} | ${r.p.chapter} | ${r.p.want} | ${r.planKind ?? '-'}${r.offered ? ` (offered ${r.offered.join(' / ')})` : ''} | ${r.modelKind} | ${r.hit === null ? '-' : r.hit ? 'yes' : 'no'} | ${r.structure} | ${fac(r)} |`)].join('\n');
+  ...rows.map(r => `| ${r.n} | ${link ? `[${r.p.referenceId}](${r.n}-${r.p.referenceId}/card.md)` : r.p.referenceId} | ${r.p.chapter} | ${r.p.want} | ${r.planKind ?? '-'}${r.plannerWas ? ` (override; planner said ${r.plannerWas})` : ''}${r.offered ? ` (offered ${r.offered.join(' / ')})` : ''} | ${r.modelKind} | ${r.hit === null ? '-' : r.hit ? 'yes' : 'no'} | ${r.structure} | ${fac(r)} |`)].join('\n');
 const statRows = (R, Z) => [['cards delivered', s => `${s.delivered}/${s.cards}`], ['selector hit', s => s.selectorHit], ['kind match (first diagram = reference kind)', s => s.kindMatch], ['planner kind match', s => s.plannerKindMatch],
   ['kind misses: planner wrong / author wrong, planner right / no plan', s => `${s.kindMissByStage.plannerWrong} / ${s.kindMissByStage.authorWrongPlannerRight} / ${s.kindMissByStage.noPlan}`],
   ['structure (judge faithful-ref-v1): fully / partly / not / none', s => `${s.structure.fully} / ${s.structure.partly} / ${s.structure.not} / ${s.structure.none}`], ['structure fully', s => s.structureFully], ['factual error (factual-v2)', s => s.factualError], ['factual mean score', s => s.factualMean],
@@ -74,7 +74,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('figure-chap
     writeFileSync(join(dir, 'reference-spec.json'), JSON.stringify(r.p.referenceSpec, null, 1) + '\n'); writeFileSync(join(dir, 'reference-408.svg'), svgOf(r.p.referenceSpec));
     const f = r.factual;
     writeFileSync(join(dir, 'card.md'), [`# ${b?.title ?? '(no card delivered)'}`, '', `- Prompt (reference.prompts[0]): ${r.p.prompt}`, `- Reference id: ${r.p.referenceId} (source: ${r.p.chapter})`, `- Intended kind (reference.spec.diagram.kind): ${r.p.want}`,
-      `- Planner kind: ${r.planKind ?? 'none'}${r.planFixed === false && r.offered ? ` (not fixed; offered ${r.offered.join(' | ')})` : r.planFixed ? ' (fixed)' : ''}; planner routed to picture: ${r.routedToPicture ? 'yes' : 'no'}`,
+      `- Planner kind: ${r.planKind ?? 'none'}${r.plannerWas ? ` (reference override; the planner said ${r.plannerWas})` : ''}${r.planFixed === false && r.offered ? ` (not fixed; offered ${r.offered.join(' | ')})` : r.planFixed ? ' (fixed)' : ''}; planner routed to picture: ${r.routedToPicture ? 'yes' : 'no'}`,
       `- Model kind (first diagram): ${r.modelKind}; all diagrams: ${diagrams.map(d => d.kind).join(', ') || 'none'}`, `- Selector hit (intended reference among the references sent): ${r.hit === null ? 'not logged' : r.hit ? 'yes' : 'no'}`,
       `- References sent to the author (attempt 0): ${r.ids ? r.ids.join(', ') || 'none' : 'not logged'}`,
       `- Structure (faithful-ref-v1, reference vs model spec): ${r.structure}${r.structureReason ? ` - ${r.structureReason}` : ''}`, `- Factual (factual-v2): ${f ? `${f.score}/5, error ${r.factualError ? 'yes' : 'no'}${f.notes?.length ? ` - ${f.notes.join(' ')}` : ''}` : 'not judged'}`,

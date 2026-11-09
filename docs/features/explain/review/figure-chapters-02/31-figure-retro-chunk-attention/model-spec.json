@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Weights on words from retrieved passages",
+  "caption": "The last token of a completed input chunk acts as a query to weigh words across both retrieved text blocks.",
+  "kind": "token-links",
+  "source": [
+   "Archive",
+   "opens"
+  ],
+  "target": [
+   "Cedar's A",
+   "archive A",
+   "opens A",
+   "Tuesday A",
+   "Archive B",
+   "doors B",
+   "open B",
+   "Tuesday B"
+  ],
+  "queries": [
+   {
+    "index": 1,
+    "weights": [
+     0.03,
+     0.03,
+     0.03,
+     0.6,
+     0.03,
+     0.03,
+     0.03,
+     0.221
+    ]
+   }
+  ],
+  "normalized": true
+ }
+}

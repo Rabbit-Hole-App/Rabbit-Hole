@@ -1,0 +1,86 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "coordinate-plot",
+  "title": "Newton steps use slope and curvature",
+  "caption": "A steep slope calls for a larger move. A sharper bend reduces that move.",
+  "x": {
+   "label": "Weight",
+   "min": -2,
+   "max": 2,
+   "scale": "linear"
+  },
+  "y": {
+   "label": "Loss",
+   "min": 0,
+   "max": 4.2
+  },
+  "series": [
+   {
+    "label": "Loss",
+    "kind": "line",
+    "points": [
+     {
+      "x": -2,
+      "y": 4
+     },
+     {
+      "x": -1.5,
+      "y": 1.76
+     },
+     {
+      "x": -1,
+      "y": 0.63
+     },
+     {
+      "x": -0.5,
+      "y": 0.13
+     },
+     {
+      "x": 0,
+      "y": 0
+     },
+     {
+      "x": 0.5,
+      "y": 0.13
+     },
+     {
+      "x": 1,
+      "y": 0.63
+     },
+     {
+      "x": 1.5,
+      "y": 1.76
+     },
+     {
+      "x": 2,
+      "y": 4
+     }
+    ]
+   },
+   {
+    "label": "Updates",
+    "kind": "line",
+    "points": [
+     {
+      "x": 2,
+      "y": 4
+     },
+     {
+      "x": 1.14,
+      "y": 0.87
+     },
+     {
+      "x": 0.5,
+      "y": 0.14
+     },
+     {
+      "x": 0,
+      "y": 0
+     }
+    ],
+    "smooth": false
+   }
+  ]
+ }
+}

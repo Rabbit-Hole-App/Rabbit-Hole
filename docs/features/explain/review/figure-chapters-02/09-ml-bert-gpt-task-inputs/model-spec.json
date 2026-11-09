@@ -1,0 +1,28 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Original GPT Task Inputs",
+  "caption": "Task inputs are serialized into token sequences with special markers for the decoder.",
+  "kind": "matrix",
+  "columns": [
+   "Text inside markers",
+   "How to use the readout"
+  ],
+  "rows": [
+   {
+    "heading": "Compare meaning",
+    "cells": [
+     "Both orders of two texts",
+     "Combine the two readings"
+    ]
+   },
+   {
+    "heading": "Choose an answer",
+    "cells": [
+     "Context with one option each",
+     "Score each candidate separately"
+    ]
+   }
+  ]
+ }
+}

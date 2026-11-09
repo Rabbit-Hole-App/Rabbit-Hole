@@ -1,0 +1,31 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "block-stack",
+  "title": "Gate the attention read before projecting it",
+  "caption": "The attention read is already computed. The gate scales it before projection. The feed-forward block comes separately.",
+  "blocks": [
+   {
+    "id": "read",
+    "label": "Attention weighted read",
+    "role": "attention"
+   },
+   {
+    "id": "gate",
+    "label": "Elementwise output gate",
+    "role": "attention",
+    "merge": "multiply",
+    "inputs": [
+     {
+      "label": "Token-derived sigmoid"
+     }
+    ]
+   },
+   {
+    "id": "out",
+    "label": "Attention output projection",
+    "role": "output"
+   }
+  ]
+ }
+}

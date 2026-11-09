@@ -1,0 +1,49 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "title": "BERT and earlier language models",
+  "columns": [
+   "Architecture",
+   "Training objective"
+  ],
+  "rows": [
+   {
+    "heading": "Transformer",
+    "cells": [
+     "Encoder and decoder",
+     "Translation example"
+    ]
+   },
+   {
+    "heading": "ULMFiT",
+    "cells": [
+     "Forward LSTM",
+     "Next-token prediction"
+    ]
+   },
+   {
+    "heading": "ELMo",
+    "cells": [
+     "Two directional LSTMs",
+     "Directional prediction"
+    ]
+   },
+   {
+    "heading": "Original GPT",
+    "cells": [
+     "Causal decoder",
+     "Next-token prediction"
+    ]
+   },
+   {
+    "heading": "BERT",
+    "cells": [
+     "Bidirectional encoder",
+     "Recover masked tokens"
+    ]
+   }
+  ],
+  "caption": "Each model learns from text, with different ways of reading it."
+ }
+}

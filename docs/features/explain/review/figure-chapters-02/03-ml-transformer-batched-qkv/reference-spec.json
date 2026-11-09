@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "title": "Project every token in one matrix operation",
+  "caption": "Apply each learned rule to the full input. The word positions keep their order.",
+  "columns": [
+   "Rows",
+   "Entries per row"
+  ],
+  "rows": [
+   {
+    "heading": "Input matrix",
+    "cells": [
+     "6",
+     "512"
+    ]
+   },
+   {
+    "heading": "Queries",
+    "cells": [
+     "6",
+     "256"
+    ]
+   },
+   {
+    "heading": "Keys",
+    "cells": [
+     "6",
+     "256"
+    ]
+   },
+   {
+    "heading": "Values",
+    "cells": [
+     "6",
+     "256"
+    ]
+   }
+  ]
+ }
+}

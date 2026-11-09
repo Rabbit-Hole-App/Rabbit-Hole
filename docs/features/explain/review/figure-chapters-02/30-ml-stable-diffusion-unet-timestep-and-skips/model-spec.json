@@ -1,0 +1,72 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Timestep inputs and skip paths inside a U-Net",
+  "caption": "Both stages get the noise level. The shortcut carries earlier details.",
+  "kind": "relationship",
+  "layout": "graph",
+  "nodes": [
+   {
+    "id": "x",
+    "label": "Noisy latent"
+   },
+   {
+    "id": "t",
+    "label": "Timestep embedding"
+   },
+   {
+    "id": "down",
+    "label": "Down residual block"
+   },
+   {
+    "id": "middle",
+    "label": "Bottleneck"
+   },
+   {
+    "id": "up",
+    "label": "Up residual block"
+   },
+   {
+    "id": "output",
+    "label": "Noise estimate"
+   }
+  ],
+  "edges": [
+   {
+    "from": "x",
+    "to": "down",
+    "label": "Supplies features"
+   },
+   {
+    "from": "t",
+    "to": "down",
+    "label": "Sets noise level"
+   },
+   {
+    "from": "t",
+    "to": "up",
+    "label": "Sets the same level"
+   },
+   {
+    "from": "down",
+    "to": "middle",
+    "label": "Compresses features"
+   },
+   {
+    "from": "middle",
+    "to": "up",
+    "label": "Sends refined features"
+   },
+   {
+    "from": "down",
+    "to": "up",
+    "label": "Reuses early details"
+   },
+   {
+    "from": "up",
+    "to": "output",
+    "label": "Predicts noise"
+   }
+  ]
+ }
+}

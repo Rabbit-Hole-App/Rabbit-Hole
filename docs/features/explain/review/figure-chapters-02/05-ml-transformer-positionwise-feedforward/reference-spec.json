@@ -1,0 +1,67 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "relationship",
+  "layout": "graph",
+  "title": "Context mixing versus position-wise updates",
+  "caption": "Only two positions are shown. Each receives context, then the same rule updates it on its own.",
+  "nodes": [
+   {
+    "id": "cat",
+    "label": "cat before mixing"
+   },
+   {
+    "id": "sat",
+    "label": "sat before mixing"
+   },
+   {
+    "id": "catMix",
+    "label": "cat with context"
+   },
+   {
+    "id": "satMix",
+    "label": "sat with context"
+   },
+   {
+    "id": "catNext",
+    "label": "cat after update"
+   },
+   {
+    "id": "satNext",
+    "label": "sat after update"
+   }
+  ],
+  "edges": [
+   {
+    "from": "cat",
+    "to": "catMix",
+    "label": "Contributes its own value"
+   },
+   {
+    "from": "sat",
+    "to": "satMix",
+    "label": "Contributes its own value"
+   },
+   {
+    "from": "cat",
+    "to": "satMix",
+    "label": "Contributes nearby context"
+   },
+   {
+    "from": "sat",
+    "to": "catMix",
+    "label": "Contributes nearby context"
+   },
+   {
+    "from": "catMix",
+    "to": "catNext",
+    "label": "Runs the shared update"
+   },
+   {
+    "from": "satMix",
+    "to": "satNext",
+    "label": "Runs the shared update"
+   }
+  ]
+ }
+}

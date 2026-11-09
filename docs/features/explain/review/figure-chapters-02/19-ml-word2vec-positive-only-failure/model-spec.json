@@ -1,0 +1,39 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Positive pairs alone cannot teach contrast",
+  "caption": "Always guessing yes on positive pairs makes every candidate look like a neighbor.",
+  "kind": "matrix",
+  "columns": [
+   "Candidate word",
+   "True status",
+   "Always predict"
+  ],
+  "rows": [
+   {
+    "heading": "Observed pair one",
+    "cells": [
+     "robot",
+     "Neighbor",
+     "Right"
+    ]
+   },
+   {
+    "heading": "Observed pair two",
+    "cells": [
+     "seeds",
+     "Neighbor",
+     "Right"
+    ]
+   },
+   {
+    "heading": "Sampled comparison",
+    "cells": [
+     "bulbs",
+     "Negative",
+     "Wrong"
+    ]
+   }
+  ]
+ }
+}

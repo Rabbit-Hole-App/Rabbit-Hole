@@ -1,0 +1,25 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Autoregressive text generation steps",
+  "caption": "Each chosen token appends to the prefix for the next step.",
+  "kind": "timeline",
+  "events": [
+   {
+    "time": "Prompt",
+    "label": "Read the input prompt",
+    "detail": "The model processes the initial token sequence."
+   },
+   {
+    "time": "First step",
+    "label": "Sample the next token",
+    "detail": "Choose the highest-scoring token from the distribution."
+   },
+   {
+    "time": "Second step",
+    "label": "Append and repeat",
+    "detail": "Use the expanded text as the prefix for the next call."
+   }
+  ]
+ }
+}

@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "BERT Encoder Architecture Comparison",
+  "caption": "Base uses fewer layers and narrower hidden dimensions than Large.",
+  "kind": "block-stack",
+  "blocks": [
+   {
+    "id": "input",
+    "label": "Token Embeddings",
+    "role": "embedding"
+   },
+   {
+    "id": "layer",
+    "label": "Encoder Layer",
+    "repeat": 12,
+    "role": "attention"
+   },
+   {
+    "id": "output",
+    "label": "Contextual Vectors",
+    "role": "output"
+   }
+  ]
+ }
+}

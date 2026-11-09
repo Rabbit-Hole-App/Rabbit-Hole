@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Attention weight and token distance",
+  "caption": "The first “the” gets more weight than the copy next to “mat”.",
+  "kind": "token-links",
+  "source": [
+   "the",
+   "cat",
+   "sat",
+   "on",
+   "the",
+   "mat"
+  ],
+  "target": [
+   "the",
+   "cat",
+   "sat",
+   "on",
+   "the",
+   "mat"
+  ],
+  "queries": [
+   {
+    "index": 5,
+    "weights": [
+     0.297,
+     0.18,
+     0.126,
+     0.075,
+     0.105,
+     0.217
+    ]
+   }
+  ],
+  "normalized": true
+ }
+}

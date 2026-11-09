@@ -1,0 +1,36 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Retrieval-aware layers in the decoder",
+  "caption": "Ordinary layers read words. Marked layers also read retrieved passages.",
+  "kind": "block-stack",
+  "blocks": [
+   {
+    "id": "input",
+    "label": "Cedar Archive",
+    "role": "embedding"
+   },
+   {
+    "id": "causal",
+    "label": "Early causal layers",
+    "repeat": 2,
+    "role": "attention"
+   },
+   {
+    "id": "retrieval",
+    "label": "Chunked cross-attention",
+    "role": "changed",
+    "inputs": [
+     {
+      "label": "Encoded passage features"
+     }
+    ]
+   },
+   {
+    "id": "out",
+    "label": "Next word scores",
+    "role": "output"
+   }
+  ]
+ }
+}

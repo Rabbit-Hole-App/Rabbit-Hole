@@ -1,0 +1,35 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Machine translation with a Transformer",
+  "caption": "The same task maps one ordered sentence to another.",
+  "kind": "flow",
+  "nodes": [
+   {
+    "id": "source",
+    "label": "Read input sentence",
+    "role": "process"
+   },
+   {
+    "id": "convert",
+    "label": "Translate with encoder and decoder",
+    "role": "process"
+   },
+   {
+    "id": "target",
+    "label": "Return translated sentence",
+    "role": "outcome"
+   }
+  ],
+  "edges": [
+   {
+    "from": "source",
+    "to": "convert"
+   },
+   {
+    "from": "convert",
+    "to": "target"
+   }
+  ]
+ }
+}

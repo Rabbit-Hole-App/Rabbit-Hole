@@ -1,0 +1,58 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "transformation",
+  "title": "Mean pooling for the chunk search",
+  "before": {
+   "label": "Contextual token vectors",
+   "items": [
+    {
+     "label": "Cedar",
+     "tensor": {
+      "rows": 1,
+      "columns": 2,
+      "dimensions": "1 × 2",
+      "values": [
+       1,
+       2
+      ],
+      "role": "input"
+     }
+    },
+    {
+     "label": "Archive",
+     "tensor": {
+      "rows": 1,
+      "columns": 2,
+      "dimensions": "1 × 2",
+      "values": [
+       3,
+       2
+      ],
+      "role": "input"
+     }
+    }
+   ]
+  },
+  "after": {
+   "label": "Chunk embedding",
+   "items": [
+    {
+     "label": "Cedar Archive",
+     "tensor": {
+      "rows": 1,
+      "columns": 2,
+      "dimensions": "1 × 2",
+      "values": [
+       2,
+       2
+      ],
+      "role": "output"
+     }
+    }
+   ]
+  },
+  "operation": "Average the same coordinate across tokens",
+  "caption": "The average gives the search one number for each feature, regardless of the number of words."
+ }
+}

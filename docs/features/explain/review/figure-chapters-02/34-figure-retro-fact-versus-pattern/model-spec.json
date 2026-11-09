@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Language patterns and factual evidence",
+  "caption": "Familiar wording suggests one ending. A source notice supplies the archive’s opening day.",
+  "kind": "comparison",
+  "columns": [
+   {
+    "heading": "Familiar expression",
+    "items": [
+     "When it rains, it …",
+     "Common ending “pours”",
+     "The nearby words suggest the ending"
+    ]
+   },
+   {
+    "heading": "Specific opening day",
+    "items": [
+     "Cedar Archive opens …",
+     "Archive notice says “Tuesday”",
+     "The retrieved record supplies the day"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,51 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "heatmap",
+  "title": "One signed scale for word vectors",
+  "caption": "Compare cells in the same column. One shared scale makes opposite signs distinguishable.",
+  "columns": [
+   "First entry",
+   "Second entry",
+   "Third entry"
+  ],
+  "rows": [
+   {
+    "label": "seed",
+    "cells": [
+     0.8,
+     0.1,
+     -0.2
+    ]
+   },
+   {
+    "label": "seeds",
+    "cells": [
+     0.8,
+     0.4,
+     -0.1
+    ]
+   },
+   {
+    "label": "bulb",
+    "cells": [
+     0.6,
+     -0.2,
+     -0.25
+    ]
+   },
+   {
+    "label": "bulbs",
+    "cells": [
+     0.63,
+     0.08,
+     -0.16
+    ]
+   }
+  ],
+  "range": {
+   "min": -1,
+   "max": 1
+  }
+ }
+}

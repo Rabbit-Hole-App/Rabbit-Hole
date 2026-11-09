@@ -1,0 +1,39 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "layout": "teaching",
+  "title": "Carried state and cached history during decoding",
+  "caption": "The state is replaced in place. The attention layer keeps one new entry for each token.",
+  "columns": [
+   "State vector",
+   "Cached token codes"
+  ],
+  "rows": [
+   {
+    "id": "r0",
+    "heading": "After a",
+    "cells": [
+     "1, -1",
+     "0"
+    ]
+   },
+   {
+    "id": "r1",
+    "heading": "After b",
+    "cells": [
+     "2.5, 0.5",
+     "0, 1.5"
+    ]
+   },
+   {
+    "id": "r2",
+    "heading": "After c",
+    "cells": [
+     "1.25, 2.25",
+     "0, 1.5, 1"
+    ]
+   }
+  ]
+ }
+}

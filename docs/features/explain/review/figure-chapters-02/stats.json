@@ -1,0 +1,213 @@
+{
+ "armR": {
+  "cards": 48,
+  "delivered": 47,
+  "failed": [
+   "ml-stable-diffusion-image-caption-pairs: required_visual_missing: the learner asked for an illustration (vr-1: \"What does an image and caption pair look like in CLIP training data?\") and the card has none; add it to visuals, placed by its marker, shortening the prose to stay inside the budget."
+  ],
+  "selectorHit": "48/48 (100%)",
+  "kindMatch": "44/48 (91.7%)",
+  "plannerKindMatch": "46/47 (97.9%)",
+  "kindMissByStage": {
+   "plannerWrong": 0,
+   "authorWrongPlannerRight": 3,
+   "noPlan": 1
+  },
+  "structure": {
+   "fully": 41,
+   "partly": 3,
+   "not": 0,
+   "none": 4
+  },
+  "structureFully": "41/48 (85.4%)",
+  "factualError": "7/47 (14.9%)",
+  "factualMean": 4.4,
+  "repairedCards": 4,
+  "visualFallbackCards": 2,
+  "modelFallbackCards": 0,
+  "providers": {
+   "google": 47
+  },
+  "routedToPicture": [],
+  "cardsWithPicture": [
+   "ml-stable-diffusion-clip-two-encoders"
+  ],
+  "ms": {
+   "p50": 3227,
+   "p90": 5210,
+   "mean": 3423
+  },
+  "authorInputTokensMean": 4307,
+  "authorOutputTokensMean": 540,
+  "tokenCards": 47,
+  "spendUsd": 0.1535,
+  "judge": {
+   "calls": 91,
+   "cached": 0,
+   "spentUsd": 0.3716,
+   "rubrics": {
+    "factual": "factual-v2 2026-11-08 (G3 strict fact-checker)",
+    "faithful": "faithful-ref-v1 2026-11-09",
+    "beyond": "beyond-v2 2026-11-08",
+    "picture": "picture-v1 2026-11-08"
+   }
+  },
+  "avgRefsSent": 2
+ },
+ "arm0": {
+  "cards": 48,
+  "delivered": 48,
+  "failed": [],
+  "selectorHit": "0/48 (0%)",
+  "kindMatch": "13/48 (27.1%)",
+  "plannerKindMatch": "15/47 (31.9%)",
+  "kindMissByStage": {
+   "plannerWrong": 31,
+   "authorWrongPlannerRight": 3,
+   "noPlan": 1
+  },
+  "structure": {
+   "fully": 3,
+   "partly": 17,
+   "not": 26,
+   "none": 2
+  },
+  "structureFully": "3/48 (6.3%)",
+  "factualError": "6/47 (12.8%)",
+  "factualMean": 4.15,
+  "repairedCards": 8,
+  "visualFallbackCards": 1,
+  "modelFallbackCards": 0,
+  "providers": {
+   "google": 48
+  },
+  "routedToPicture": [],
+  "cardsWithPicture": [
+   "ml-stable-diffusion-clip-two-encoders",
+   "ml-stable-diffusion-image-caption-pairs"
+  ],
+  "ms": {
+   "p50": 2744,
+   "p90": 4580,
+   "mean": 3123
+  },
+  "authorInputTokensMean": 4444,
+  "authorOutputTokensMean": 492,
+  "tokenCards": 48,
+  "spendUsd": 0.1371,
+  "judge": {
+   "calls": 1,
+   "cached": 93,
+   "spentUsd": 0.0037,
+   "rubrics": {
+    "factual": "factual-v2 2026-11-08 (G3 strict fact-checker)",
+    "faithful": "faithful-ref-v1 2026-11-09",
+    "beyond": "beyond-v2 2026-11-08",
+    "picture": "picture-v1 2026-11-08"
+   }
+  },
+  "avgRefsSent": 1
+ },
+ "worstR": [
+  {
+   "n": "12",
+   "id": "ml-bert-task-heads",
+   "structure": "none",
+   "reason": "",
+   "intended": "matrix",
+   "model": "none",
+   "planner": "matrix",
+   "factual": "3 ERROR"
+  },
+  {
+   "n": "27",
+   "id": "ml-stable-diffusion-forward-noise",
+   "structure": "none",
+   "reason": "",
+   "intended": "heatmap",
+   "model": "none",
+   "planner": "heatmap",
+   "factual": "4"
+  },
+  {
+   "n": "26",
+   "id": "ml-stable-diffusion-clip-two-encoders",
+   "structure": "none",
+   "reason": "",
+   "intended": "transformation",
+   "model": "picture",
+   "planner": "transformation",
+   "factual": "5"
+  },
+  {
+   "n": "28",
+   "id": "ml-stable-diffusion-image-caption-pairs",
+   "structure": "none",
+   "reason": "",
+   "intended": "matrix",
+   "model": "FAILED",
+   "planner": "matrix",
+   "factual": "-"
+  },
+  {
+   "n": "09",
+   "id": "ml-bert-gpt-task-inputs",
+   "structure": "partly",
+   "reason": "The diagram is a matrix with the right columns, but it has only 2 of the 4 reference rows (Compare meaning, Choose an answer). It is missing Classify text and Check entailment.",
+   "intended": "matrix",
+   "model": "matrix",
+   "planner": "matrix",
+   "factual": "4"
+  },
+  {
+   "n": "35",
+   "id": "figure-retro-index-records",
+   "structure": "partly",
+   "reason": "The diagram is a matrix with the same three columns and records A and B with matching content. It omits records C and D, and it has no highlighted rows distinguishing the contributing records from the others. The core structure is only partly shown.",
+   "intended": "matrix",
+   "model": "matrix",
+   "planner": "matrix",
+   "factual": "5"
+  },
+  {
+   "n": "36",
+   "id": "figure-retro-layer-placement",
+   "structure": "partly",
+   "reason": "The diagram has the block-stack, the repeated early causal layers, and the first chunked cross-attention with passage features. It is missing the ordinary causal layer and the later cross-attention block with its own encoded passage features input. That drops the interleaving the reference shows.",
+   "intended": "block-stack",
+   "model": "block-stack",
+   "planner": "block-stack",
+   "factual": "5"
+  },
+  {
+   "n": "14",
+   "id": "ml-gpt2-continue-prefix",
+   "structure": "fully",
+   "reason": "The diagram is a timeline with the same three stages: prompt, first step (choose a token), second step (the expanded text becomes the prefix). It has the same caption idea. It uses generic wording instead of the example text, which is an optional difference.",
+   "intended": "timeline",
+   "model": "timeline",
+   "planner": "timeline",
+   "factual": "3 ERROR"
+  },
+  {
+   "n": "18",
+   "id": "ml-gpt2-tied-output-weights",
+   "structure": "fully",
+   "reason": "The diagram matches the reference matrix: same title, the same six word rows with identical logits and probabilities, and the same two columns. The caption differs only by a dropped \"the\".",
+   "intended": "matrix",
+   "model": "matrix",
+   "planner": "matrix",
+   "factual": "3 ERROR"
+  },
+  {
+   "n": "22",
+   "id": "ml-word2vec-signed-embedding-heatmap",
+   "structure": "fully",
+   "reason": "The diagram matches the reference exactly. It is a heatmap with the same four rows, the same three columns, the same cell values and the same -1 to 1 range.",
+   "intended": "heatmap",
+   "model": "heatmap",
+   "planner": "heatmap",
+   "factual": "3 ERROR"
+  }
+ ]
+}

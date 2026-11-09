@@ -1,0 +1,31 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Task markers organize decoder-only continuations",
+  "caption": "Read the source and the task marker before writing the answer one token at a time.",
+  "kind": "matrix",
+  "columns": [
+   "Source text",
+   "Separator",
+   "Target text"
+  ],
+  "rows": [
+   {
+    "heading": "Translate",
+    "cells": [
+     "the hall light flickers",
+     "Translate to French",
+     "la lumière du hall vacille"
+    ]
+   },
+   {
+    "heading": "Summarize",
+    "cells": [
+     "the hall light flickers during practice",
+     "Write a summary",
+     "the hall light flickers"
+    ]
+   }
+  ]
+ }
+}

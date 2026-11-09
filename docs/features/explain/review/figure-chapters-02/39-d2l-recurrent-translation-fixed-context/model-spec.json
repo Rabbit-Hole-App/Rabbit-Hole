@@ -1,0 +1,53 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Translation with a fixed encoder summary",
+  "caption": "The writing side starts from one summary of the whole source.",
+  "kind": "relationship",
+  "layout": "graph",
+  "nodes": [
+   {
+    "id": "source",
+    "label": "red birds fly"
+   },
+   {
+    "id": "enc",
+    "label": "Reading network"
+   },
+   {
+    "id": "summary",
+    "label": "Final source state"
+   },
+   {
+    "id": "d1",
+    "label": "First writing step"
+   },
+   {
+    "id": "d2",
+    "label": "Second writing step"
+   }
+  ],
+  "edges": [
+   {
+    "from": "source",
+    "to": "enc",
+    "label": "Supplies ordered words"
+   },
+   {
+    "from": "enc",
+    "to": "summary",
+    "label": "Compresses source history"
+   },
+   {
+    "from": "summary",
+    "to": "d1",
+    "label": "Initializes writing state"
+   },
+   {
+    "from": "d1",
+    "to": "d2",
+    "label": "Passes state to next word"
+   }
+  ]
+ }
+}

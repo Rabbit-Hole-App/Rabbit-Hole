@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "RETRO retrieval index records",
+  "caption": "The index maps chunk keys to matching text and continuation words.",
+  "kind": "matrix",
+  "layout": "teaching",
+  "columns": [
+   "Embedding key",
+   "Matching words",
+   "Following words"
+  ],
+  "rows": [
+   {
+    "id": "A",
+    "heading": "Record A",
+    "cells": [
+     "$[2,3]$",
+     "Cedar archive",
+     "opens Tuesday"
+    ]
+   },
+   {
+    "id": "B",
+    "heading": "Record B",
+    "cells": [
+     "$[4,2]$",
+     "Archive doors",
+     "open Tuesday"
+    ]
+   }
+  ]
+ }
+}

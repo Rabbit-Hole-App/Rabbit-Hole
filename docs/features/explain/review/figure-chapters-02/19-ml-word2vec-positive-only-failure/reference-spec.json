@@ -1,0 +1,39 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "matrix",
+  "title": "Positive pairs alone cannot teach contrast",
+  "caption": "The first two pairs were observed. A sampled comparison exposes why always guessing yes is unhelpful.",
+  "columns": [
+   "Candidate for sorts",
+   "Training label",
+   "Always says yes"
+  ],
+  "rows": [
+   {
+    "heading": "Observed pair one",
+    "cells": [
+     "robot",
+     "Neighbor",
+     "Right"
+    ]
+   },
+   {
+    "heading": "Observed pair two",
+    "cells": [
+     "seeds",
+     "Neighbor",
+     "Right"
+    ]
+   },
+   {
+    "heading": "Sampled comparison",
+    "cells": [
+     "bulbs",
+     "Negative",
+     "Wrong"
+    ]
+   }
+  ]
+ }
+}
