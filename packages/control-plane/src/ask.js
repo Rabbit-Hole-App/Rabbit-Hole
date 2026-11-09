@@ -1,4 +1,5 @@
 import { subscriptionTransport } from './subscription-transport.js';
+import { anthropicStreamFromOpenAI } from './gemini-stream.js';
 import { platformCaps, spendEnforced, spendTransport, spendMessage } from './learn-spend.js';
 import { refusalBody } from './learn-spend-ledger.js';
 import { usageRefusal } from './learn-usage.js';
@@ -285,14 +286,20 @@ export async function planModel(env, body, model, org) {
   return Response.json(fromOpenAI(await response.json()));
 }
 
-// One chat call on Gemini 3.5 Flash Lite through its OpenAI-compatible endpoint (owner 2026-11-08, C.1): not streamed; a stream:true request gets the finished answer replayed as SSE.
+// One chat call on Gemini 3.5 Flash Lite through its OpenAI-compatible endpoint (owner 2026-11-08). A stream:true request is streamed token by token (gemini-stream.js); when the stream cannot be established
+// (an error status, no event stream, a network error) it falls back to one whole call replayed as SSE (C.1).
 // Admission and settlement are the explanation chain's: provider 'google', its price row, Anthropic-shaped usage (output = the larger of completion and total - prompt, as thinking
 // may sit outside completion_tokens). No Opus fallback: a Gemini error is returned as it is and askStream shows its usual one-line error.
 async function geminiChat(env, body, org) {
   if (!env.GEMINI_API_KEY) return notConfiguredReply();
   const { stream, ...rest } = body, request = { ...toOpenAI(rest, CHAT_GEMINI), reasoning_effort: CHAT_REASONING };
+  const post = payload => fetch(CHAT_GEMINI_URL, { method: 'POST', headers: { Authorization: `Bearer ${env.GEMINI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   return spendTransport(env, body, CHAT_GEMINI, org, async () => {
-    const sent = await fetch(CHAT_GEMINI_URL, { method: 'POST', headers: { Authorization: `Bearer ${env.GEMINI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
+    if (stream) {
+      const live = await post({ ...request, stream: true, stream_options: { include_usage: true } }).catch(() => null);
+      if (live?.ok && live.body && live.headers.get('content-type')?.includes('text/event-stream')) return new Response(anthropicStreamFromOpenAI(live.body, CHAT_GEMINI), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    }
+    const sent = await post(request);
     if (!sent.ok) {
       const text = await sent.text().catch(() => '');
       console.warn('gemini API error', sent.status, text.slice(0, 300), JSON.stringify({ model: CHAT_GEMINI, tools: (body.tools || []).map(t => t.name) }));
