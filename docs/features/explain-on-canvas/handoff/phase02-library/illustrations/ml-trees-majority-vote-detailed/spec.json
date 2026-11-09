@@ -1,36 +1,100 @@
 {
   "version": 1,
   "diagram": {
-    "kind": "bar-chart",
+    "kind": "flow",
     "title": "Forest vote for row J",
-    "variant": "stacked",
-    "categories": [
-      "Class 0",
-      "Class 1"
-    ],
-    "series": [
+    "nodes": [
       {
-        "label": "Tree 1",
-        "values": [
-          1,
-          0
-        ]
+        "id": "s",
+        "label": "Use training rows A to H",
+        "role": "fork"
       },
       {
-        "label": "Tree 2",
-        "values": [
-          0,
-          1
-        ]
+        "id": "a",
+        "label": "Draw A A C D E F G H",
+        "role": "process"
       },
       {
-        "label": "Tree 3",
-        "values": [
-          0,
-          1
-        ]
+        "id": "d",
+        "label": "Fit tree 1 · x at most 4",
+        "role": "process"
+      },
+      {
+        "id": "b",
+        "label": "Draw B B C D F F F G",
+        "role": "process"
+      },
+      {
+        "id": "e",
+        "label": "Fit tree 2 · y at most 4",
+        "role": "process"
+      },
+      {
+        "id": "c",
+        "label": "Draw A B C D D G H H",
+        "role": "process"
+      },
+      {
+        "id": "f",
+        "label": "Fit tree 3 · x at most 5",
+        "role": "process"
+      },
+      {
+        "id": "v",
+        "label": "Take a majority vote",
+        "role": "merge"
+      },
+      {
+        "id": "w",
+        "label": "Predict class 1",
+        "role": "outcome"
       }
     ],
-    "caption": "Worked example. For J, x is 6 and y is 1. Class 1 gets 2 of 3 votes."
+    "edges": [
+      {
+        "from": "s",
+        "to": "a"
+      },
+      {
+        "from": "a",
+        "to": "d"
+      },
+      {
+        "from": "d",
+        "to": "v",
+        "label": "0"
+      },
+      {
+        "from": "s",
+        "to": "b"
+      },
+      {
+        "from": "b",
+        "to": "e"
+      },
+      {
+        "from": "e",
+        "to": "v",
+        "label": "1"
+      },
+      {
+        "from": "s",
+        "to": "c"
+      },
+      {
+        "from": "c",
+        "to": "f"
+      },
+      {
+        "from": "f",
+        "to": "v",
+        "label": "1"
+      },
+      {
+        "from": "v",
+        "to": "w"
+      }
+    ],
+    "caption": "Worked example. Draw with replacement."
   }
 }

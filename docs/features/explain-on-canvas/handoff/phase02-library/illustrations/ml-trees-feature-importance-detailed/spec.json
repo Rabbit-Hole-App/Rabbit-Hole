@@ -2,35 +2,32 @@
   "version": 1,
   "diagram": {
     "kind": "bar-chart",
-    "title": "Forest Gini decrease by feature",
-    "variant": "stacked",
+    "variant": "grouped",
+    "title": "MDI and held-out permutation",
+    "unit": "%",
     "categories": [
-      "Feature x",
-      "Feature y"
+      "x",
+      "y",
+      "Noise ID"
     ],
     "series": [
       {
-        "label": "Tree 1",
+        "label": "Mean decrease in impurity",
         "values": [
-          0.28125,
-          0.1875
+          35,
+          20,
+          45
         ]
       },
       {
-        "label": "Tree 2",
+        "label": "Held-out permutation",
         "values": [
-          0.375,
-          0.125
-        ]
-      },
-      {
-        "label": "Tree 3",
-        "values": [
-          0.46875,
-          0
+          75,
+          24,
+          1
         ]
       }
     ],
-    "caption": "Worked example. One held-out swap drops accuracy by 100 points for x and 0 for y."
+    "caption": "Illustrative. High-cardinality noise offers more cuts and can inflate MDI. Each method totals 100%. Shuffling measures accuracy drops."
   }
 }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { monotoneLinePath } from './plot-lines.js';
+import { parseTutorDiagram } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
 
 function segments(path) {
@@ -88,4 +89,23 @@ test('basic and Phase 02 plots smooth lines by default and preserve straight seg
     assert.doesNotMatch(straight, /<path d="M[^"]+C[^"]+"/);
     assert.match(straight, /<polyline points="(?:[\d.,]+ ){6}[\d.,]+"/);
   }
+});
+
+test('integer axis ticks show each depth when space allows and reject noninteger bounds', () => {
+  const spec = { version: 1, diagram: { kind: 'coordinate-plot', title: 'Depth and error',
+    x: { label: 'Depth', min: 1, max: 8, integerTicks: true }, y: { label: 'Error', min: 0, max: 100 },
+    series: [{ kind: 'line', label: 'Model', points: [{ x: 1, y: 41 }, { x: 8, y: 15 }] }],
+  } };
+  const render = () => renderToStaticMarkup(renderTutorDiagram(parseTutorDiagram(spec), 408).element);
+  let svg = render();
+  for (let depth = 1; depth <= 8; depth++) assert.match(svg, new RegExp(`>${depth}</tspan>`));
+
+  spec.diagram.x.min = 0;
+  spec.diagram.x.max = 2;
+  spec.diagram.series[0].points[1].x = 2;
+  svg = render();
+  assert.match(svg, />1<\/tspan>/);
+  assert.doesNotMatch(svg, />0\.5<\/tspan>|>1\.5<\/tspan>/);
+  spec.diagram.x.max = 2.5;
+  assert.throws(() => parseTutorDiagram(spec));
 });

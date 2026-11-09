@@ -6,7 +6,8 @@
     "x": {
       "label": "Max depth",
       "min": 0,
-      "max": 2
+      "max": 2,
+      "integerTicks": true
     },
     "y": {
       "label": "Error rate",
@@ -62,10 +63,10 @@
     ],
     "annotations": [
       {
-        "kind": "reference-line",
-        "label": "Best held-out depth",
-        "axis": "x",
-        "value": 1
+        "kind": "point",
+        "label": "Lowest held-out error",
+        "x": 1,
+        "y": 0
       }
     ],
     "caption": "Worked example. Point labels count errors out of 8 training rows or 2 held-out rows."

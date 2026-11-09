@@ -55,6 +55,15 @@ export function plotTicks(axis, position, { horizontal = false, labelWidth = Inf
       .filter(({ at }) => Math.min(Math.abs(at - start.at), Math.abs(at - end.at)) >= 20);
     return [start, ...interior, end];
   };
+  if (axis.integerTicks) {
+    const range = max - min;
+    for (let step = Math.max(1, Math.ceil(range / 7)); step < range; step *= 2) {
+      const values = Array.from({ length: Math.ceil(range / step) - 1 }, (_, i) => min + (i + 1) * step);
+      const labels = format(withEndpoints(values));
+      if (fits(labels, horizontal)) return labels;
+    }
+    return format([start, end]);
+  }
   const sampleValue = fraction => {
     const value = sample(axis, fraction);
     const rounded = Number(value.toPrecision(6));

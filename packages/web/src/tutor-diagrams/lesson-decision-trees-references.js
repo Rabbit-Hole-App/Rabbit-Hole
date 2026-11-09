@@ -1,6 +1,6 @@
 import { decisionTreesLesson as lesson } from './lesson-decision-trees-data.js';
 
-const { train, holdout, tree, trials, errors, forest, vote, importance } = lesson;
+const { train, holdout, tree, trials, errors, forest, vote } = lesson;
 const spec = diagram => ({ version: 1, diagram });
 const value = ([numerator, denominator]) => numerator / denominator;
 const fraction = ([n, d]) => d === 1 ? String(n) : `${n} over ${d}`;
@@ -103,27 +103,19 @@ function splitMatrix(depth) {
   };
 }
 
-function commonDenominator(fractions) {
-  const denominators = fractions.map(([, denominator]) => denominator);
-  const step = Math.max(...denominators);
-  let multiple = step;
-  while (denominators.some(denominator => multiple % denominator !== 0)) multiple += step;
-  return multiple;
-}
-
 function thresholdPlot(depth) {
-  // Plot integer multiples of one Gini unit so the renderer's coordinate labels stay exact.
-  const units = commonDenominator(trials.x.map(split => split.weighted));
-  const scaled = ([numerator, denominator]) => numerator * (units / denominator);
-  const points = trials.x.map(split => ({ x: split.threshold, y: scaled(split.weighted),
-    ...(detailed(depth) ? { label: fraction(split.weighted) } : {}) }));
+  const rounded = score => Number(value(score).toFixed(4));
+  const points = trials.x.map(split => {
+    const y = rounded(split.weighted);
+    return { x: split.threshold, y, ...(detailed(depth) ? { label: String(y) } : {}) };
+  });
   const alternative = trials.y.reduce((best, split) => value(split.weighted) < value(best.weighted) ? split : best);
   return {
     kind: 'coordinate-plot', title: brief(depth) ? 'Pick the lowest score' : 'Test the midpoints on x',
-    x: axis('Threshold on x', bounds.xMax), y: axis(`Weighted Gini in ${units}ths`, units / 2),
-    series: [{ label: 'Candidate midpoints', kind: brief(depth) ? 'scatter' : 'stem', points }],
-    annotations: [{ kind: 'point', x: chosen.threshold, y: scaled(chosen.weighted), label: 'Lowest Gini' }],
-    caption: worked(detailed(depth) ? `The best y trial gives ${fraction(alternative.weighted)}. The x winner gives ${fraction(chosen.weighted)}.` :
+    x: axis('Threshold on x', bounds.xMax), y: axis('Weighted Gini', 0.4),
+    series: [{ label: 'Candidate midpoints', kind: 'stem', points }],
+    annotations: [{ kind: 'point', x: chosen.threshold, y: rounded(chosen.weighted), label: 'Lowest Gini' }],
+    caption: worked(detailed(depth) ? `Exact x scores are ${trials.x.map(split => fraction(split.weighted)).join(', ')}. Best y score is ${fraction(alternative.weighted)}.` :
       `A smaller weighted Gini is better. The best cut is ${rule(chosen)}.`),
   };
 }
@@ -166,18 +158,28 @@ function regionPlot(depth) {
   };
 }
 
+const illustrativeErrors = [
+  ['Training', [38, 28, 20, 13, 8, 4, 2, 0]],
+  ['Held out', [40, 31, 23, 26, 29, 33, 37, 43]],
+];
+
 function errorPlot(depth) {
-  const series = [['Training', 'trainErrors', train.length], ['Held out', 'heldOutErrors', holdout.length]];
+  const exact = detailed(depth);
+  const series = exact
+    ? [['Training', 'trainErrors', train.length], ['Held out', 'heldOutErrors', holdout.length]]
+      .map(([label, key, total]) => ({ label, kind: 'line', smooth: false,
+        points: errors.map(step => ({ x: step.depth, y: 100 * step[key] / total, label: `${step[key]} of ${total}` })) }))
+    : illustrativeErrors.map(([label, rates]) => ({ label, kind: 'line', smooth: false,
+      points: rates.map((y, index) => ({ x: index + 1, y })) }));
+  const training = series[0].points;
+  const minimum = series[1].points.reduce((best, point) => point.y < best.y ? point : best);
   return {
     kind: 'coordinate-plot', title: brief(depth) ? 'Deeper can test worse' : 'Training and held-out error by depth',
-    x: axis('Max depth', errors.at(-1).depth), y: { ...axis('Error rate', 100), unit: '%' },
-    series: series.map(([label, key, total]) => ({ label, kind: brief(depth) ? 'scatter' : 'line', ...(!brief(depth) ? { smooth: false } : {}),
-      points: errors.map(step => ({ x: step.depth, y: 100 * step[key] / total,
-        ...(detailed(depth) ? { label: `${step[key]} of ${total}` } : {}) })) })),
-    annotations: [{ kind: 'reference-line', label: 'Best held-out depth', axis: 'x',
-      value: errors.reduce((best, step) => step.heldOutErrors < best.heldOutErrors ? step : best).depth }],
-    caption: worked(detailed(depth) ? `Point labels count errors out of ${train.length} training rows or ${holdout.length} held-out rows.` :
-      'The deepest tree fits training rows and makes more mistakes on held-out rows.'),
+    x: { ...axis('Max depth', training.at(-1).x, training[0].x), integerTicks: true },
+    y: { ...axis('Error rate', exact ? 100 : 50), unit: '%' }, series,
+    annotations: [{ kind: 'point', label: 'Lowest held-out error', x: minimum.x, y: minimum.y }],
+    caption: exact ? worked(`Point labels count errors out of ${train.length} training rows or ${holdout.length} held-out rows.`) :
+      `Illustrative run. Held-out error is lowest at depth ${minimum.x}, then rises as training error falls.`,
   };
 }
 
@@ -210,31 +212,51 @@ function featureSubsets(depth) {
   };
 }
 
-function voteChart(depth) {
-  const categories = labels.map(label => `Class ${label}`);
-  return {
-    kind: 'bar-chart', title: brief(depth) ? 'The most votes win' : 'Forest vote for row J',
-    ...(detailed(depth) ? { variant: 'stacked', categories,
-      series: vote.predictions.map((pick, index) => ({ label: treeName(index), values: labels.map(label => Number(pick === label)) })),
-    } : { bars: labels.map(label => ({
-      label: `${categories[label]} · ${vote.predictions.flatMap((pick, index) => pick === label ? [`T${index + 1}`] : []).join(', ')}`,
+function forestVoteDiagram(depth) {
+  if (brief(depth)) return {
+    kind: 'bar-chart', title: 'The most votes win',
+    bars: labels.map(label => ({
+      label: `Class ${label} · ${vote.predictions.flatMap((pick, index) => pick === label ? [`T${index + 1}`] : []).join(', ')}`,
       value: vote.counts[label],
-    })) }),
-    caption: worked(brief(depth) ? `Class ${vote.winner} wins.` :
-      `For ${vote.row.id}, x is ${vote.row.x} and y is ${vote.row.y}. Class ${vote.winner} gets ${vote.counts[vote.winner]} of ${forest.length} votes.`),
+    })),
+    caption: worked(`Class ${vote.winner} wins.`),
+  };
+
+  const branches = forest.map(({ sample, tree: fitted }, index) => ({
+    sample, root: fitted.split, index, draw: 'abc'[index], tree: 'def'[index], prediction: vote.predictions[index],
+  }));
+  return {
+    kind: 'flow', title: `Forest vote for row ${vote.row.id}`,
+    nodes: [
+      { id: 's', label: `Use training rows ${train[0].id} to ${train.at(-1).id}`, role: 'fork' },
+      ...branches.flatMap(({ sample, root, index, draw, tree }) => [
+        { id: draw, label: `Draw ${detailed(depth) ? sample.map(row => row.id).join(' ') : `bootstrap ${index + 1}`}`, role: 'process' },
+        { id: tree, label: `Fit ${treeName(index).toLowerCase()} · ${rule(root)}`, role: 'process' },
+      ]),
+      { id: 'v', label: 'Take a majority vote', role: 'merge' },
+      { id: 'w', label: `Predict class ${vote.winner}`, role: 'outcome' },
+    ],
+    edges: [
+      ...branches.flatMap(({ draw, tree, prediction }) => [
+        { from: 's', to: draw }, { from: draw, to: tree }, { from: tree, to: 'v', label: String(prediction) },
+      ]),
+      { from: 'v', to: 'w' },
+    ],
+    caption: worked(detailed(depth) ? 'Draw with replacement.' :
+      'Draw with replacement. Every tree predicts the same held-out row.'),
   };
 }
 
 function importanceChart(depth) {
-  const permutation = importance.permutation;
-  const loss = correct => 100 * (permutation.baselineCorrect - correct) / holdout.length;
   return {
-    kind: 'bar-chart', title: brief(depth) ? 'Which feature reduced impurity more?' : 'Forest Gini decrease by feature',
-    ...(detailed(depth) ? { variant: 'stacked', categories: features.map(feature => `Feature ${feature}`),
-      series: forest.map(({ byFeature }, index) => ({ label: treeName(index), values: features.map(feature => value(byFeature[feature])) })),
-    } : { bars: features.map(feature => ({ label: `Feature ${feature}`, value: value(importance.totals[feature]) })) }),
-    caption: worked(detailed(depth) ? `One held-out swap drops accuracy by ${loss(permutation.xCorrect)} points for x and ${loss(permutation.yCorrect)} for y.` :
-      brief(depth) ? 'A longer bar means more impurity removed.' : 'Sum the size-weighted Gini decreases for each feature across the trees.'),
+    kind: 'bar-chart', variant: 'grouped', title: brief(depth) ? 'Noise can score high on MDI' : 'MDI and held-out permutation',
+    unit: '%', categories: ['x', 'y', 'Noise ID'],
+    series: [
+      { label: detailed(depth) ? 'Mean decrease in impurity' : 'MDI', values: [35, 20, 45] },
+      { label: 'Held-out permutation', values: [75, 24, 1] },
+    ],
+    caption: 'Illustrative. High-cardinality noise offers more cuts and can inflate MDI. Each method totals 100%.' +
+      (detailed(depth) ? ' Shuffling measures accuracy drops.' : ''),
   };
 }
 
@@ -276,8 +298,8 @@ export const lessonDecisionTreesReferences = Object.freeze([
     'Separate the feature draw at each node from the bootstrap draw of rows for the entire tree.', featureSubsets),
   reference('majority-vote', 'How does the forest vote for row J combine the three predictions?',
     'Can you show the forest vote for row J and count the winning class?', 'forest vote for row j',
-    'Connect each fitted tree prediction on the same held-out row to the class tally.', voteChart),
+    'Trace shared training rows through bootstrap draws and fitted trees to the vote for the same held-out row.', forestVoteDiagram),
   reference('feature-importance', 'Can you compute forest Gini decrease by feature for these trees?',
     'Show the forest Gini decrease by feature and compare the two totals.', 'forest gini decrease by feature',
-    'Sum the node-weighted Gini gains by feature and distinguish them from a held-out feature shuffle.', importanceChart),
+    'Contrast normalized illustrative impurity and held-out permutation scores when a high-cardinality feature is noise.', importanceChart),
 ]);

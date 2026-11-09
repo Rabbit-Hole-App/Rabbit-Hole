@@ -15,7 +15,7 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
     z.strictObject({ kind: z.literal('ellipse'), ...named, center: coordinate, radiusX: numeric.positive(), radiusY: numeric.positive() }),
     z.strictObject({ kind: z.literal('band'), ...named, axis: z.enum(['x', 'y']), from: numeric, to: numeric }),
   ]);
-  const axis = axes.extend({ scale: z.enum(['linear', 'log']).optional() });
+  const axis = axes.extend({ scale: z.enum(['linear', 'log']).optional(), integerTicks: z.boolean().optional() });
   return [
     z.strictObject({ ...titled, kind: z.literal('coordinate-plot'), x: axis, y: axis,
       series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(),
@@ -35,7 +35,7 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
 }
 
 export const isExtendedPlot = d => d.kind === 'coordinate-plot' &&
-  (d.series.length > 3 || d.x.scale !== undefined || d.y.scale !== undefined || d.annotations !== undefined || d.series.some(s =>
+  (d.series.length > 3 || d.x.scale !== undefined || d.y.scale !== undefined || d.x.integerTicks || d.y.integerTicks || d.annotations !== undefined || d.series.some(s =>
     s.endLabel || !['line', 'scatter'].includes(s.kind) ||
     s.points.some(p => p.label !== undefined || p.id !== undefined || p.low !== undefined || p.high !== undefined)));
 
@@ -46,6 +46,10 @@ function checkPlot(d, issue) {
   for (const name of ['x', 'y']) {
     if (d[name].min >= d[name].max) issue([name, 'max'], 'The maximum must be greater than the minimum');
     if (d[name].scale === 'log' && d[name].min <= 0) issue([name, 'min'], 'Log axes require a strictly positive domain');
+    const { min, max, scale, integerTicks } = d[name];
+    if (integerTicks && (scale === 'log' || !Number.isInteger(min) || !Number.isInteger(max))) {
+      issue([name, 'integerTicks'], 'Integer ticks require linear integer bounds');
+    }
   }
   const checkPoint = (point, path) => {
     if (!inAxis(point.x, d.x) || !inAxis(point.y, d.y)) issue(path, 'Point must be within the axis bounds');
