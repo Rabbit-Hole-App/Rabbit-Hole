@@ -476,3 +476,17 @@ test('real Markdown renders align with the canonical text: bold, a list, a table
   assert.equal(pills['t-3'].parentElement.tagName, 'TD', 'the table cell, not the list item');
   assert.match(pills['t-4'].parentElement.textContent, /^The gap shrinks/, 'rate #2: after "the rate." and the code line');
 });
+
+// Owner 2026-11-08 (batch 2a/2b acceptance): a suggested question holding maths ($\alpha$, \(\kappa\)) is typeset like the card's prose, never shown as raw $ text.
+test('suggested questions go through the maths renderer: no raw $ or \( in a question that holds maths', async () => {
+  const card = await envelope();
+  card.interactions.questions[0] = { id: 'q-1', text: 'Why does $\alpha$ grow as the error falls?' };
+  card.interactions.questions[1] = { id: 'q-2', text: 'What is \(\kappa\) in the acquisition?' };
+  await mount(card, { host: { ask: async () => false } });
+  const rows = $$('[data-explanation-suggestion]');
+  for (const row of rows.slice(0, 2)) {
+    assert.ok(!/\$|\\(|\\)/.test(row.querySelector('span').textContent.replace(/​/g, '')) || row.querySelector('.katex, [data-math], math, mjx-container, annotation'), `maths typeset: ${row.textContent}`);
+  }
+  assert.ok(rows[0].querySelector('.katex, [data-math], math, annotation, mjx-container') || !rows[0].textContent.includes('$'), 'the first question shows no raw dollar text');
+  assert.equal(rows[2].textContent, card.interactions.questions[2].text, 'a question without maths is unchanged');
+});
