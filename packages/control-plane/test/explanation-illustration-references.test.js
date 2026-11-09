@@ -30,8 +30,10 @@ for (const { id, prompts, spec } of illustrationReferences) {
         command: 'explanation', args, visualRequirements: deriveVisualRequirements(args),
       });
       assert.ok(!request.result, args);
-      assert.equal(request.diagramReferences[0]?.id, id);
-      assert.ok(request.body.system.includes(JSON.stringify(first.spec)));
+      // a selected two-panel reference goes out as its one-diagram -single variant (owner 2026-11-08, Codex set 3): the sent example is the panel reference or its single
+      const sent = request.diagramReferences[0];
+      assert.equal(sent?.id.replace(/-single$/, ''), id);
+      assert.ok(request.body.system.includes(JSON.stringify(sent.spec)));
     }
   });
 }
