@@ -1,5 +1,12 @@
-// Monotone cubic Hermite interpolation in SVG coordinates. Steffen's limiter
-// bounds each interior tangent using its two neighbouring secant slopes.
+// Steffen's limiter bounds a tangent using the two neighbouring secants.
+function limitedTangent(left, right, before, after) {
+  const sign = Math.sign(left);
+  if (sign !== Math.sign(right)) return 0;
+  const centered = (left * after + right * before) / (before + after);
+  return sign * Math.min(2 * Math.abs(left), 2 * Math.abs(right), Math.abs(centered));
+}
+
+// Monotone cubic Hermite interpolation in SVG coordinates.
 export function monotoneLinePath(points, band) {
   const intervals = points.slice(1).map(([x], i) => x - points[i][0]);
   const direction = Math.sign(intervals[0]);
@@ -9,13 +16,7 @@ export function monotoneLinePath(points, band) {
   }
 
   const slopes = intervals.map((dx, i) => (points[i + 1][1] - points[i][1]) / dx);
-  const interior = slopes.slice(1).map((right, i) => {
-    const left = slopes[i], sign = Math.sign(left);
-    if (sign !== Math.sign(right)) return 0;
-    const [before, after] = [intervals[i], intervals[i + 1]];
-    const centered = (left * after + right * before) / (before + after);
-    return sign * Math.min(2 * Math.abs(left), 2 * Math.abs(right), Math.abs(centered));
-  });
+  const interior = slopes.slice(1).map((right, i) => limitedTangent(slopes[i], right, intervals[i], intervals[i + 1]));
   const tangents = [
     (3 * slopes[0] - interior[0]) / 2,
     ...interior,
@@ -30,6 +31,31 @@ export function monotoneLinePath(points, band) {
     return `C${x0 + third},${a} ${x1 - third},${b} ${x1},${y1}`;
   });
   return 'M' + points[0] + curves.join('');
+}
+
+export function closedLinePath(points, smooth = true) {
+  if (!smooth) return 'M' + points.join('L') + 'Z';
+  const samePoint = (a, b) => a[0] === b[0] && a[1] === b[1];
+  const vertices = points.filter((point, i) => i === 0 || !samePoint(point, points[i - 1]));
+  if (samePoint(vertices[0], vertices.at(-1))) vertices.pop();
+  if (vertices.length < 3) return 'M' + points.join('L') + 'Z';
+
+  // A closed curve reverses direction on the axes. Use sample order as
+  // its parameter and apply the same limiter to each coordinate.
+  const nextIndex = i => (i + 1) % vertices.length;
+  const secants = vertices.map(([x, y], i) => {
+    const [nextX, nextY] = vertices[nextIndex(i)];
+    return [nextX - x, nextY - y];
+  });
+  const tangents = secants.map((right, i) => right.map((slope, axis) =>
+    limitedTangent(secants.at(i - 1)[axis], slope, 1, 1)));
+  const curves = vertices.map((point, i) => {
+    const next = nextIndex(i);
+    const startControl = point.map((value, axis) => value + tangents[i][axis] / 3);
+    const endControl = vertices[next].map((value, axis) => value - tangents[next][axis] / 3);
+    return `C${startControl} ${endControl} ${vertices[next]}`;
+  });
+  return 'M' + vertices[0] + curves.join('') + 'Z';
 }
 
 // The band edges are linear between samples. Keeping both Bézier controls

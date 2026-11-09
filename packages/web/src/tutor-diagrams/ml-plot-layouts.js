@@ -1,6 +1,6 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
-import { monotoneLinePath, showPlotMarker } from './plot-lines.js';
+import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { TEACHING as T, TEACHING_SERIES, teachingConnector } from './teaching-theme.js';
 import { annotationDescription, axisName, isExtendedPlot, plotSeriesPoints } from './ml-plot-spec.js';
@@ -185,8 +185,10 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
     }
     const values = series.points.map(xy);
     if (series.kind === 'line' || series.kind === 'step') {
-      const openPath = series.kind === 'line' && series.smooth !== false ? monotoneLinePath(values, band) : undefined;
-      const path = series.closed ? (openPath ?? 'M' + values.join('L')) + 'Z' : openPath;
+      const smooth = series.smooth !== false;
+      let path;
+      if (series.closed) path = closedLinePath(values, smooth);
+      else if (series.kind === 'line' && smooth) path = monotoneLinePath(values, band);
       geometry.push(curve(series.kind === 'step' ? stepPoints(values) : values, i, { 'data-tutor-plot-series': series.label }, path));
     }
     series.points.forEach((p, j) => {

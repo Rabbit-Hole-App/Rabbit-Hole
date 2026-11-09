@@ -3,7 +3,7 @@ import test from 'node:test';
 import { z } from 'zod';
 import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createShapes, validate, describe, visibleText } from './ml-plot-spec.js';
+import { createShapes, validate, describe, visibleText, plotSeriesPoints } from './ml-plot-spec.js';
 import { createLayouts } from './ml-plot-layouts.js';
 import { references } from './ml-plot-references.js';
 import { lineHeight, textWidth } from './primitives.js';
@@ -346,6 +346,28 @@ test('reference scenes validate, render at narrow/wide widths and cover the Phas
   }
   for (const term of ['residual', 'sigmoid', 'svm', 'knn', 'k-means', 'gmm', 'smote', 'regularization', 'roc', 'pr', 'uncertainty', 'time series', 'importance'])
     assert.ok(references.some(r => r.keywords.includes(term)), term);
+});
+
+test('the descent reference samples and smoothly closes 24 points per contour', () => {
+  const d = references.find(ref => ref.id === 'gradient-descent-contours').spec.diagram;
+  const { svg } = render(d, 408);
+  const paths = marks(svg, 'data-tutor-plot-series');
+  assert.equal(paths.length, 2);
+  for (const [i, series] of d.series.entries()) {
+    const radius = 2 - i;
+    assert.equal(series.closed, true);
+    const samples = plotSeriesPoints(series);
+    assert.equal(samples.length, 24);
+    samples.forEach(({ x, y }, index) => {
+      const angle = 15 * index * Math.PI / 180;
+      assert.ok(Math.abs(x - radius * Math.cos(angle)) <= 0.0005 + Number.EPSILON);
+      assert.ok(Math.abs(y - radius * Math.sin(angle)) <= 0.0005 + Number.EPSILON);
+    });
+    const path = paths[i].tag.match(/\bd="([^"]+)"/)[1];
+    assert.match(path, /^M[^L]+Z$/);
+    assert.equal(path.split('C').length - 1, 24);
+  }
+  assert.equal(marks(svg, 'data-tutor-plot-segment').filter(mark => mark.value === 'vector').length, 3);
 });
 
 
