@@ -545,14 +545,41 @@ function correctedTimeline(raw) {
   const spec = tryParse({ version: 1, diagram: plain });
   return spec ? { spec, kinds: ['timeline_plain'] } : null;
 }
-// -> { md, corrections: { [kind]: count } }: every rh-diagram fence corrected where it can be (correctedFlow, correctedTimeline), the same string when none is.
+// Owner 2026-11-08 (arm E v2: the precision-recall matrix needed a repair at all three depths): a matrix the author wrote with the teaching layout but no row IDs gets
+// one per row (the heading as a lowercase slug, row-N when it has none, made distinct); rows with fewer cells than columns, every row short by the same count, are padded
+// with an em dash; a row with more cells than columns loses its trailing cells; rows that disagree with each other are left for the one repair. Kept only when the
+// whole diagram then parses. -> { spec, kinds } or null.
+function correctedMatrix(raw) {
+  if (tryParse(raw)) return null;
+  const d = structuredClone(raw?.diagram);
+  if (d?.kind !== 'matrix' || !Array.isArray(d.columns) || !Array.isArray(d.rows) || !d.rows.length || !d.rows.every(r => r && typeof r === 'object' && Array.isArray(r.cells))) return null;
+  const kinds = [], width = d.columns.length, diffs = d.rows.map(r => width - r.cells.length);
+  if (diffs.some(x => x !== 0)) {
+    const short = diffs.filter(x => x > 0), long = diffs.filter(x => x < 0);
+    if (short.length && long.length) return null; // rows disagree with each other: the repair's
+    if (short.length) { if (short.length !== diffs.length || new Set(short).size !== 1) return null; d.rows.forEach(r => { while (r.cells.length < width) r.cells.push('—'); }); kinds.push('matrix_cells_padded'); }
+    else { d.rows.forEach(r => { r.cells = r.cells.slice(0, width); }); kinds.push('matrix_cells_trimmed'); }
+  }
+  if (d.layout === 'teaching' && d.rows.some(r => !r.id || typeof r.id !== 'string') || (d.layout === 'teaching' && new Set(d.rows.map(r => r.id)).size !== d.rows.length)) {
+    const used = new Set();
+    d.rows.forEach((r, i) => {
+      const slug = String(r.heading ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+      let id = /^[a-z]/.test(slug) ? slug : `row-${i + 1}`, n = 2; while (used.has(id)) id = `${/^[a-z]/.test(slug) ? slug : 'row'}-${n++}`;
+      used.add(id); r.id = id;
+    });
+    kinds.push('matrix_row_ids');
+  }
+  const spec = kinds.length ? tryParse({ version: 1, diagram: d }) : null;
+  return spec ? { spec, kinds } : null;
+}
+// -> { md, corrections: { [kind]: count } }: every rh-diagram fence corrected where it can be (correctedFlow, correctedTimeline, correctedMatrix), the same string when none is.
 export function correctDiagrams(md) {
   const out = [], corrections = {}; let open = null;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       if (/^\s*```/.test(line)) {
         let raw = null; try { raw = JSON.parse(open.lines.join('\n')); } catch { /* not JSON: the repair's */ }
-        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw));
+        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw) || correctedMatrix(raw));
         if (fixed) for (const kind of fixed.kinds) corrections[kind] = (corrections[kind] || 0) + 1;
         out.push(open.raw, ...(fixed ? [JSON.stringify(fixed.spec)] : open.lines), line); open = null;
       } else open.lines.push(line);

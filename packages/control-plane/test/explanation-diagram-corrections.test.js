@@ -256,3 +256,32 @@ test('a plain dated timeline sent with scaled-lanes and empty lanes becomes the 
   const real = structuredClone(roman); real.diagram.lanes[0].events = [{ at: -27, label: 'Augustus' }];
   assert.deepEqual(correctDiagrams(md.replace(JSON.stringify(roman), JSON.stringify(real))).corrections, {});
 });
+
+// Owner 2026-11-08 (arm E v2): the precision-recall matrix, written with the teaching layout and no row IDs at all three depths, is the matrix the server completes; short or
+// long rows are padded or trimmed only when that is unambiguous.
+test('a teaching matrix without row IDs gets them; cell counts are padded or trimmed only when unambiguous', () => {
+  const fenceOf = diagram => `Prose.\n\n\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram })}\n\`\`\`\n\nMore prose.`;
+  const base = { title: 'Precision and Recall formulas', caption: 'Worked example using a 2x2 confusion matrix.', kind: 'matrix', layout: 'teaching', columns: ['Predicted Positive', 'Predicted Negative'],
+    rows: [{ heading: 'Actual Positive', cells: ['TP', 'FN'] }, { heading: 'Actual Negative', cells: ['FP', 'TN'] }], emphasis: { columns: [0] } };
+  const fixedOf = md => JSON.parse(md.split('\n')[3]).diagram;
+  let out = correctDiagrams(fenceOf(base));
+  assert.deepEqual(out.corrections, { matrix_row_ids: 1 });
+  assert.deepEqual(fixedOf(out.md).rows.map(r => r.id), ['actual-positive', 'actual-negative']);
+  // duplicate headings stay distinct; a heading that does not start with a letter falls back to row-N
+  out = correctDiagrams(fenceOf({ ...base, rows: [{ heading: 'Same', cells: ['a', 'b'] }, { heading: 'Same', cells: ['c', 'd'] }, { heading: '2024', cells: ['e', 'f'] }] }));
+  assert.deepEqual(fixedOf(out.md).rows.map(r => r.id), ['same', 'same-2', 'row-3']);
+  // every row short by the same count: padded with an em dash
+  out = correctDiagrams(fenceOf({ ...base, rows: [{ id: 'a', heading: 'A', cells: ['x'] }, { id: 'b', heading: 'B', cells: ['y'] }] }));
+  assert.deepEqual(out.corrections, { matrix_cells_padded: 1 }); assert.deepEqual(fixedOf(out.md).rows.map(r => r.cells), [['x', '—'], ['y', '—']]);
+  // a row that is long loses its trailing cells
+  out = correctDiagrams(fenceOf({ ...base, rows: [{ id: 'a', heading: 'A', cells: ['x', 'y', 'z'] }, { id: 'b', heading: 'B', cells: ['p', 'q'] }] }));
+  assert.deepEqual(out.corrections, { matrix_cells_trimmed: 1 }); assert.deepEqual(fixedOf(out.md).rows.map(r => r.cells), [['x', 'y'], ['p', 'q']]);
+  // rows that disagree with each other (one short, one long, or different shortfalls) are left for the repair
+  for (const rows of [[{ id: 'a', heading: 'A', cells: ['x'] }, { id: 'b', heading: 'B', cells: ['p', 'q', 'r'] }], [{ id: 'a', heading: 'A', cells: [] }, { id: 'b', heading: 'B', cells: ['p'] }]]) {
+    const md = fenceOf({ ...base, rows });
+    assert.deepEqual(correctDiagrams(md), { md, corrections: {} });
+  }
+  // a valid matrix is untouched
+  const ok = fenceOf({ ...base, rows: [{ id: 'p', heading: 'P', cells: ['TP', 'FN'] }, { id: 'n', heading: 'N', cells: ['FP', 'TN'] }] });
+  assert.deepEqual(correctDiagrams(ok), { md: ok, corrections: {} });
+});
