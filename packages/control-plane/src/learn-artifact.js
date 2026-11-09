@@ -16,6 +16,7 @@ import { BRIEF_LIMITS, generationArgs, isBriefCommand } from '../../web/src/mate
 import { consumeProposal, releaseProposal, verifyProposal } from './generation-proposal.js';
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
+import { literalBreaksDeep } from './literal-breaks.js';
 import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
@@ -209,6 +210,8 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         // references: the ids of the worked examples this request carried (0-2), so the bench can split results by them (owner 2026-11-08).
         console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, plan: input.plan ? { visuals: input.plan.visuals, depthTreatment: input.plan.depthTreatment, kind: input.plan.kind, fixed: input.plan.fixed, confidence: input.plan.confidence, flags: input.plan.flags, ms: input.plan.ms } : input.planned ? { planner: 'rules' } : null, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
       }
+      // Owner 2026-11-09 hotfix: line breaks the author double-escaped (the two characters backslash and n) become real line breaks, in every string of the answer, first.
+      if (id === 'explanation' && call.input) call = { ...call, input: literalBreaksDeep(call.input) };
       // EXPLANATION_FORMULA_SAMPLER=on: a plot series written as a formula and range gets its points here, before any other step reads the visuals.
       if (id === 'explanation' && formulaSamplerEnabled(env) && Array.isArray(call.input?.visuals)) call = { ...call, input: { ...call.input, visuals: fillFormulaSeries(call.input.visuals) } };
       // Owner M3 (2026-11-08): keys the schema does not declare are removed from the visuals before the card is read, logged and counted, never a repair.

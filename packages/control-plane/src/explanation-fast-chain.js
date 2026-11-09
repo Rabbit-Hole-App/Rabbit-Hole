@@ -36,7 +36,7 @@ export const CHAIN_ENDPOINTS = Object.freeze({
 });
 const TOOL = 'make_explanation';
 const ADDENDUM = `
-Answer format for this request (it replaces the tool call): reply with exactly one JSON object, the ${TOOL} input described above, matching the response schema.`;
+Answer format for this request (it replaces the tool call): reply with exactly one JSON object, the ${TOOL} input described above, matching the response schema. Use real line breaks between paragraphs, never the two characters backslash and n.`;
 
 const failure = (name, code, message, extra = {}) => Object.assign(new Error(message), { name, code, ...extra });
 export const providerBusy = () => failure('ProviderBusyError', 'provider_busy', 'The explanation model is busy right now, so nothing was added and no credits were used. Try again in a few seconds.', { retryable: true });

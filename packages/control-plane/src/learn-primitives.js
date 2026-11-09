@@ -8,6 +8,7 @@
 //
 // Pure (no env, no fetch) so the browser imports it too: the / picker hides a
 // command whose family has nothing ready.
+import { literalBreaksToNewlines } from './literal-breaks.js';
 import { GRAPH_SCHEMA, validateGraph } from './learn-graph-schema.js';
 import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { SCENE_SCHEMA, validateScene } from './learn-scene-schema.js';
@@ -1001,6 +1002,7 @@ function splitLongParagraphs(blocks) {
 }
 
 export function settleExplanationBody(md, mix = null) {
+  md = literalBreaksToNewlines(md); // the same hotfix for a caller that did not go through learn-artifact (owner 2026-11-09)
   let blocks = bodyBlocks(md);
   const visuals = blocks.map((b, i) => (b.visual ? i : -1)).filter(i => i >= 0);
   const asked = i => !!mix?.diagramKind && blocks[i].kind === mix.diagramKind;
