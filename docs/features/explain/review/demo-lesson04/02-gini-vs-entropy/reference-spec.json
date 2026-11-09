@@ -1,0 +1,86 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "coordinate-plot",
+  "title": "Gini impurity and entropy",
+  "x": {
+   "label": "Class fraction p",
+   "min": 0,
+   "max": 1
+  },
+  "y": {
+   "label": "Impurity score",
+   "min": 0,
+   "max": 1
+  },
+  "series": [
+   {
+    "label": "Gini impurity",
+    "kind": "line",
+    "smooth": true,
+    "samples": {
+     "x": {
+      "start": 0,
+      "step": 1,
+      "divisor": 10
+     },
+     "y": [
+      0,
+      180,
+      320,
+      420,
+      480,
+      500,
+      480,
+      420,
+      320,
+      180,
+      0
+     ],
+     "divisor": 1000
+    }
+   },
+   {
+    "label": "Entropy (bits)",
+    "kind": "line",
+    "smooth": true,
+    "samples": {
+     "x": {
+      "start": 0,
+      "step": 1,
+      "divisor": 10
+     },
+     "y": [
+      0,
+      469,
+      722,
+      881,
+      971,
+      1000,
+      971,
+      881,
+      722,
+      469,
+      0
+     ],
+     "divisor": 1000
+    }
+   }
+  ],
+  "annotations": [
+   {
+    "kind": "point",
+    "x": 0.5,
+    "y": 0.5,
+    "label": "Gini peak"
+   },
+   {
+    "kind": "point",
+    "x": 0.5,
+    "y": 1,
+    "label": "Entropy peak"
+   }
+  ],
+  "caption": "Worked example. $G(p)=2p(1-p)$ and $H(p)=-p\\log_2 p-(1-p)\\log_2(1-p)$. Samples rounded to 3 decimals."
+ }
+}

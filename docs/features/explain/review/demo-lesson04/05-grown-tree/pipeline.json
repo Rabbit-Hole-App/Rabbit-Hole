@@ -1,13 +1,13 @@
 {
- "run": "2026-11-09T112024-demo-lesson04-balanced",
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
  "plan": {
   "planner": "jev",
-  "ms": 105,
+  "ms": 111,
   "kind": "tree",
   "fixed": true,
   "offered": null,
   "treatment": "mechanism",
-  "confidence": 0.93,
+  "confidence": 0.94,
   "physical": 0.09,
   "pictures": 0,
   "diagrams": 1,
@@ -27,15 +27,15 @@
     "kind": "tree",
     "fixed": true,
     "confidence": {
-     "kind": 0.93,
+     "kind": 0.94,
      "visualType": 1
     },
     "flags": {
-     "needsPlot": 0.18,
+     "needsPlot": 0.17,
      "isPhysical": 0.09,
      "needsWorkedExample": 0.76
     },
-    "ms": 105
+    "ms": 111
    },
    "references": [
     "shape-tree",
@@ -49,7 +49,7 @@
       "version": 1,
       "diagram": {
        "title": "A prediction follows tested conditions",
-       "caption": "Illustrative counts. For x_1 equals 2 and x_2 equals 1, follow the blue route to Class A.",
+       "caption": "Illustrative counts. For x_1 <= 4, follow the route to Class A.",
        "kind": "tree",
        "layout": "binary",
        "nodes": [
@@ -116,10 +116,10 @@
   "run": 1,
   "depth": "standard",
   "prompt": "how does a decision tree trace a new point from the root to a prediction?",
-  "canvas": "canvas-150d6e9d",
-  "startedAt": "2026-11-09T19:20:46.555Z",
+  "canvas": "canvas-c6c11a65",
+  "startedAt": "2026-11-09T19:48:41.507Z",
   "http": 200,
-  "totalMs": 3110,
+  "totalMs": 3070,
   "delivered": true,
   "failure": null,
   "authoredBy": {
@@ -141,10 +141,11 @@
   ],
   "authorCalls": 1,
   "pictures": 0,
-  "ledgerUsd": 0.002601,
+  "ledgerUsd": 0.002444,
   "estUsd": 0.008,
-  "costUsd": 0.002601,
+  "costUsd": 0.002444,
   "costSource": "ledger",
+  "steer": [],
   "repairCauses": [],
   "corrected": [],
   "diagramCorrections": null,
@@ -169,15 +170,15 @@
      "kind": "tree",
      "fixed": true,
      "confidence": {
-      "kind": 0.93,
+      "kind": 0.94,
       "visualType": 1
      },
      "flags": {
-      "needsPlot": 0.18,
+      "needsPlot": 0.17,
       "isPhysical": 0.09,
       "needsWorkedExample": 0.76
      },
-     "ms": 105
+     "ms": 111
     },
     "references": [
      "shape-tree",
@@ -191,7 +192,7 @@
        "version": 1,
        "diagram": {
         "title": "A prediction follows tested conditions",
-        "caption": "Illustrative counts. For x_1 equals 2 and x_2 equals 1, follow the blue route to Class A.",
+        "caption": "Illustrative counts. For x_1 <= 4, follow the route to Class A.",
         "kind": "tree",
         "layout": "binary",
         "nodes": [
@@ -258,7 +259,7 @@
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 2653
+    "ms": 2516
    }
   ]
  },
@@ -279,10 +280,10 @@
  },
  "tokens": {
   "input": 4111,
-  "output": 547,
-  "authorUsd": 0.002601,
+  "output": 484,
+  "authorUsd": 0.002444,
   "pictureUsd": 0
  },
- "totalMs": 3110,
- "costUsd": 0.002601
+ "totalMs": 3070,
+ "costUsd": 0.002444
 }

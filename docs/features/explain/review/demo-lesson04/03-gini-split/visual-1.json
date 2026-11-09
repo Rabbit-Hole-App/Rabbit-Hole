@@ -1,37 +1,42 @@
 {
  "version": 1,
  "diagram": {
-  "title": "A decision tree split and impurity",
-  "caption": "Illustrative counts. For $x_1\\le 4$, follow the blue route to Class A.",
-  "kind": "tree",
-  "layout": "hierarchy",
-  "nodes": [
+  "title": "Gini after the root split",
+  "caption": "Worked example. Combine the child Ginis in proportion to their sizes.",
+  "kind": "comparison",
+  "columns": [
    {
-    "id": "root",
-    "label": "$x_1\\le 4$?",
-    "count": 12,
-    "detail": "$\\text{Gini}\\approx 0.444$"
+    "heading": "Class 0",
+    "items": [
+     "Left: 4",
+     "Right: 1",
+     "After: —"
+    ]
    },
    {
-    "id": "left",
-    "label": "$x_2\\le 2$?",
-    "parent": "root",
-    "edgeLabel": "$x_1\\le 4$",
-    "count": 7,
-    "detail": "4 A, 3 B"
+    "heading": "Class 1",
+    "items": [
+     "Left: 0",
+     "Right: 3",
+     "After: —"
+    ]
    },
    {
-    "id": "right",
-    "label": "Class B",
-    "parent": "root",
-    "edgeLabel": "$x_1>4$",
-    "count": 5,
-    "detail": "0 A, 5 B"
+    "heading": "Gini",
+    "items": [
+     "Left: 0",
+     "Right: 0.375",
+     "After: 0.1875"
+    ]
+   },
+   {
+    "heading": "Weight",
+    "items": [
+     "Left: 0.5",
+     "Right: 0.5",
+     "After: 1"
+    ]
    }
-  ],
-  "highlightPath": [
-   "root",
-   "left"
   ]
  }
 }

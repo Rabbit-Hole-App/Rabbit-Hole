@@ -1,16 +1,13 @@
 {
- "run": "2026-11-09T112024-demo-lesson04-balanced",
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
  "plan": {
   "planner": "jev",
-  "ms": 445,
+  "ms": 103,
   "kind": "coordinate-plot",
-  "fixed": false,
-  "offered": [
-   "coordinate-plot",
-   "tree"
-  ],
+  "fixed": true,
+  "offered": null,
   "treatment": "mechanism",
-  "confidence": 0.59,
+  "confidence": 0.6,
   "physical": 0.08,
   "pictures": 0,
   "diagrams": 1,
@@ -23,30 +20,26 @@
     "visuals": [
      {
       "type": "diagram",
-      "choose": [
-       "coordinate-plot",
-       "tree"
-      ]
+      "kind": "coordinate-plot"
      }
     ],
     "depthTreatment": "mechanism",
     "kind": "coordinate-plot",
-    "fixed": false,
+    "fixed": true,
     "confidence": {
-     "kind": 0.59,
+     "kind": 0.6,
      "visualType": 1
     },
     "flags": {
-     "needsPlot": 0.33,
+     "needsPlot": 0.35,
      "isPhysical": 0.08,
-     "needsWorkedExample": 0.8
+     "needsWorkedExample": 0.82
     },
-    "ms": 445
+    "ms": 103
    },
    "references": [
     "shape-coordinate-plot",
-    "ml-trees-decision-regions",
-    "ml-tree-split-path"
+    "ml-trees-decision-regions"
    ],
    "visuals": [
     {
@@ -55,21 +48,21 @@
       "version": 1,
       "diagram": {
        "title": "Leaf regions on the feature plane",
-       "caption": "Illustrative split thresholds dividing the plane into rectangular regions.",
+       "caption": "Worked example. The vertical cut spans the plot. The horizontal cut divides only the right side.",
        "kind": "coordinate-plot",
        "x": {
-        "label": "Feature x_1",
+        "label": "Feature x",
         "min": 0,
         "max": 8
        },
        "y": {
-        "label": "Feature x_2",
+        "label": "Feature y",
         "min": 0,
         "max": 8
        },
        "series": [
         {
-         "label": "Class A",
+         "label": "Class 0",
          "kind": "scatter",
          "points": [
           {
@@ -77,26 +70,34 @@
            "y": 1
           },
           {
-           "x": 2,
-           "y": 2
+           "x": 1,
+           "y": 5
           },
           {
-           "x": 1,
-           "y": 6
+           "x": 3,
+           "y": 3
+          },
+          {
+           "x": 3,
+           "y": 7
+          },
+          {
+           "x": 5,
+           "y": 1
           }
          ]
         },
         {
-         "label": "Class B",
+         "label": "Class 1",
          "kind": "scatter",
          "points": [
           {
-           "x": 6,
-           "y": 2
+           "x": 5,
+           "y": 3
           },
           {
-           "x": 5,
-           "y": 6
+           "x": 7,
+           "y": 5
           },
           {
            "x": 7,
@@ -108,7 +109,7 @@
        "annotations": [
         {
          "kind": "rectangle",
-         "label": "Region 1",
+         "label": "Predict 0",
          "xMin": 0,
          "xMax": 4,
          "yMin": 0,
@@ -116,18 +117,18 @@
         },
         {
          "kind": "rectangle",
-         "label": "Region 2",
+         "label": "Predict 0",
          "xMin": 4,
          "xMax": 8,
          "yMin": 0,
-         "yMax": 4
+         "yMax": 2
         },
         {
          "kind": "rectangle",
-         "label": "Region 3",
+         "label": "Predict 1",
          "xMin": 4,
          "xMax": 8,
-         "yMin": 4,
+         "yMin": 2,
          "yMax": 8
         }
        ]
@@ -146,10 +147,10 @@
   "run": 1,
   "depth": "standard",
   "prompt": "how does a decision tree split a two-feature dataset into regions?",
-  "canvas": "canvas-c23f8d11",
-  "startedAt": "2026-11-09T19:20:25.944Z",
+  "canvas": "canvas-2acf9e79",
+  "startedAt": "2026-11-09T19:48:14.969Z",
   "http": 200,
-  "totalMs": 5156,
+  "totalMs": 3566,
   "delivered": true,
   "failure": null,
   "authoredBy": {
@@ -171,10 +172,11 @@
   ],
   "authorCalls": 1,
   "pictures": 0,
-  "ledgerUsd": 0.003242,
+  "ledgerUsd": 0.003331,
   "estUsd": 0.008,
-  "costUsd": 0.003242,
+  "costUsd": 0.003331,
   "costSource": "ledger",
+  "steer": [],
   "repairCauses": [],
   "corrected": [],
   "diagramCorrections": null,
@@ -192,30 +194,26 @@
      "visuals": [
       {
        "type": "diagram",
-       "choose": [
-        "coordinate-plot",
-        "tree"
-       ]
+       "kind": "coordinate-plot"
       }
      ],
      "depthTreatment": "mechanism",
      "kind": "coordinate-plot",
-     "fixed": false,
+     "fixed": true,
      "confidence": {
-      "kind": 0.59,
+      "kind": 0.6,
       "visualType": 1
      },
      "flags": {
-      "needsPlot": 0.33,
+      "needsPlot": 0.35,
       "isPhysical": 0.08,
-      "needsWorkedExample": 0.8
+      "needsWorkedExample": 0.82
      },
-     "ms": 445
+     "ms": 103
     },
     "references": [
      "shape-coordinate-plot",
-     "ml-trees-decision-regions",
-     "ml-tree-split-path"
+     "ml-trees-decision-regions"
     ],
     "visuals": [
      {
@@ -224,21 +222,21 @@
        "version": 1,
        "diagram": {
         "title": "Leaf regions on the feature plane",
-        "caption": "Illustrative split thresholds dividing the plane into rectangular regions.",
+        "caption": "Worked example. The vertical cut spans the plot. The horizontal cut divides only the right side.",
         "kind": "coordinate-plot",
         "x": {
-         "label": "Feature x_1",
+         "label": "Feature x",
          "min": 0,
          "max": 8
         },
         "y": {
-         "label": "Feature x_2",
+         "label": "Feature y",
          "min": 0,
          "max": 8
         },
         "series": [
          {
-          "label": "Class A",
+          "label": "Class 0",
           "kind": "scatter",
           "points": [
            {
@@ -246,26 +244,34 @@
             "y": 1
            },
            {
-            "x": 2,
-            "y": 2
+            "x": 1,
+            "y": 5
            },
            {
-            "x": 1,
-            "y": 6
+            "x": 3,
+            "y": 3
+           },
+           {
+            "x": 3,
+            "y": 7
+           },
+           {
+            "x": 5,
+            "y": 1
            }
           ]
          },
          {
-          "label": "Class B",
+          "label": "Class 1",
           "kind": "scatter",
           "points": [
            {
-            "x": 6,
-            "y": 2
+            "x": 5,
+            "y": 3
            },
            {
-            "x": 5,
-            "y": 6
+            "x": 7,
+            "y": 5
            },
            {
             "x": 7,
@@ -277,7 +283,7 @@
         "annotations": [
          {
           "kind": "rectangle",
-          "label": "Region 1",
+          "label": "Predict 0",
           "xMin": 0,
           "xMax": 4,
           "yMin": 0,
@@ -285,18 +291,18 @@
          },
          {
           "kind": "rectangle",
-          "label": "Region 2",
+          "label": "Predict 0",
           "xMin": 4,
           "xMax": 8,
           "yMin": 0,
-          "yMax": 4
+          "yMax": 2
          },
          {
           "kind": "rectangle",
-          "label": "Region 3",
+          "label": "Predict 1",
           "xMin": 4,
           "xMax": 8,
-          "yMin": 4,
+          "yMin": 2,
           "yMax": 8
          }
         ]
@@ -315,7 +321,7 @@
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 3636
+    "ms": 3295
    }
   ]
  },
@@ -335,11 +341,11 @@
   "repaired": false
  },
  "tokens": {
-  "input": 4240,
-  "output": 788,
-  "authorUsd": 0.003242,
+  "input": 3901,
+  "output": 864,
+  "authorUsd": 0.003331,
   "pictureUsd": 0
  },
- "totalMs": 5156,
- "costUsd": 0.003242
+ "totalMs": 3566,
+ "costUsd": 0.003331
 }

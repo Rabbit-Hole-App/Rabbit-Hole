@@ -1,14 +1,14 @@
 {
- "run": "2026-11-09T112024-demo-lesson04-balanced",
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
  "plan": {
   "planner": "jev",
-  "ms": 223,
+  "ms": 94,
   "kind": "coordinate-plot",
   "fixed": true,
   "offered": null,
   "treatment": "mechanism",
-  "confidence": 0.96,
-  "physical": 0.1,
+  "confidence": 0.97,
+  "physical": 0.09,
   "pictures": 0,
   "diagrams": 1,
   "physicalOverride": null
@@ -27,15 +27,15 @@
     "kind": "coordinate-plot",
     "fixed": true,
     "confidence": {
-     "kind": 0.96,
+     "kind": 0.97,
      "visualType": 1
     },
     "flags": {
      "needsPlot": 0.96,
-     "isPhysical": 0.1,
-     "needsWorkedExample": 0.62
+     "isPhysical": 0.09,
+     "needsWorkedExample": 0.61
     },
-    "ms": 223
+    "ms": 94
    },
    "references": [
     "shape-coordinate-plot",
@@ -48,17 +48,18 @@
       "version": 1,
       "diagram": {
        "title": "Training and held-out error by depth",
-       "caption": "Worked example. The deepest tree fits training rows and makes more mistakes on held-out rows.",
+       "caption": "Illustrative run. Held-out error is lowest at depth 3, then rises as training error falls.",
        "kind": "coordinate-plot",
        "x": {
         "label": "Max depth",
-        "min": 0,
-        "max": 2
+        "min": 1,
+        "max": 8,
+        "integerTicks": true
        },
        "y": {
         "label": "Error rate",
         "min": 0,
-        "max": 100,
+        "max": 50,
         "unit": "%"
        },
        "series": [
@@ -67,15 +68,35 @@
          "kind": "line",
          "points": [
           {
-           "x": 0,
-           "y": 37.5
-          },
-          {
            "x": 1,
-           "y": 12.5
+           "y": 38
           },
           {
            "x": 2,
+           "y": 28
+          },
+          {
+           "x": 3,
+           "y": 20
+          },
+          {
+           "x": 4,
+           "y": 13
+          },
+          {
+           "x": 5,
+           "y": 8
+          },
+          {
+           "x": 6,
+           "y": 4
+          },
+          {
+           "x": 7,
+           "y": 2
+          },
+          {
+           "x": 8,
            "y": 0
           }
          ]
@@ -85,26 +106,46 @@
          "kind": "line",
          "points": [
           {
-           "x": 0,
-           "y": 50
-          },
-          {
            "x": 1,
-           "y": 0
+           "y": 40
           },
           {
            "x": 2,
-           "y": 50
+           "y": 31
+          },
+          {
+           "x": 3,
+           "y": 23
+          },
+          {
+           "x": 4,
+           "y": 26
+          },
+          {
+           "x": 5,
+           "y": 29
+          },
+          {
+           "x": 6,
+           "y": 33
+          },
+          {
+           "x": 7,
+           "y": 37
+          },
+          {
+           "x": 8,
+           "y": 43
           }
          ]
         }
        ],
        "annotations": [
         {
-         "kind": "reference-line",
-         "label": "Best held-out depth",
-         "axis": "x",
-         "value": 1
+         "kind": "point",
+         "label": "Lowest held-out error",
+         "x": 3,
+         "y": 23
         }
        ]
       }
@@ -122,10 +163,10 @@
   "run": 1,
   "depth": "standard",
   "prompt": "how does held-out error change as a decision tree grows deeper?",
-  "canvas": "canvas-fc50ca7a",
-  "startedAt": "2026-11-09T19:20:52.341Z",
+  "canvas": "canvas-e5fe0ffd",
+  "startedAt": "2026-11-09T19:48:46.762Z",
   "http": 200,
-  "totalMs": 4048,
+  "totalMs": 3550,
   "delivered": true,
   "failure": null,
   "authoredBy": {
@@ -147,10 +188,11 @@
   ],
   "authorCalls": 1,
   "pictures": 0,
-  "ledgerUsd": 0.002866,
+  "ledgerUsd": 0.003181,
   "estUsd": 0.008,
-  "costUsd": 0.002866,
+  "costUsd": 0.003181,
   "costSource": "ledger",
+  "steer": [],
   "repairCauses": [],
   "corrected": [],
   "diagramCorrections": null,
@@ -175,15 +217,15 @@
      "kind": "coordinate-plot",
      "fixed": true,
      "confidence": {
-      "kind": 0.96,
+      "kind": 0.97,
       "visualType": 1
      },
      "flags": {
       "needsPlot": 0.96,
-      "isPhysical": 0.1,
-      "needsWorkedExample": 0.62
+      "isPhysical": 0.09,
+      "needsWorkedExample": 0.61
      },
-     "ms": 223
+     "ms": 94
     },
     "references": [
      "shape-coordinate-plot",
@@ -196,17 +238,18 @@
        "version": 1,
        "diagram": {
         "title": "Training and held-out error by depth",
-        "caption": "Worked example. The deepest tree fits training rows and makes more mistakes on held-out rows.",
+        "caption": "Illustrative run. Held-out error is lowest at depth 3, then rises as training error falls.",
         "kind": "coordinate-plot",
         "x": {
          "label": "Max depth",
-         "min": 0,
-         "max": 2
+         "min": 1,
+         "max": 8,
+         "integerTicks": true
         },
         "y": {
          "label": "Error rate",
          "min": 0,
-         "max": 100,
+         "max": 50,
          "unit": "%"
         },
         "series": [
@@ -215,15 +258,35 @@
           "kind": "line",
           "points": [
            {
-            "x": 0,
-            "y": 37.5
-           },
-           {
             "x": 1,
-            "y": 12.5
+            "y": 38
            },
            {
             "x": 2,
+            "y": 28
+           },
+           {
+            "x": 3,
+            "y": 20
+           },
+           {
+            "x": 4,
+            "y": 13
+           },
+           {
+            "x": 5,
+            "y": 8
+           },
+           {
+            "x": 6,
+            "y": 4
+           },
+           {
+            "x": 7,
+            "y": 2
+           },
+           {
+            "x": 8,
             "y": 0
            }
           ]
@@ -233,26 +296,46 @@
           "kind": "line",
           "points": [
            {
-            "x": 0,
-            "y": 50
-           },
-           {
             "x": 1,
-            "y": 0
+            "y": 40
            },
            {
             "x": 2,
-            "y": 50
+            "y": 31
+           },
+           {
+            "x": 3,
+            "y": 23
+           },
+           {
+            "x": 4,
+            "y": 26
+           },
+           {
+            "x": 5,
+            "y": 29
+           },
+           {
+            "x": 6,
+            "y": 33
+           },
+           {
+            "x": 7,
+            "y": 37
+           },
+           {
+            "x": 8,
+            "y": 43
            }
           ]
          }
         ],
         "annotations": [
          {
-          "kind": "reference-line",
-          "label": "Best held-out depth",
-          "axis": "x",
-          "value": 1
+          "kind": "point",
+          "label": "Lowest held-out error",
+          "x": 3,
+          "y": 23
          }
         ]
        }
@@ -270,7 +353,7 @@
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 3410
+    "ms": 3307
    }
   ]
  },
@@ -290,11 +373,11 @@
   "repaired": false
  },
  "tokens": {
-  "input": 3845,
-  "output": 685,
-  "authorUsd": 0.002866,
+  "input": 3935,
+  "output": 800,
+  "authorUsd": 0.003181,
   "pictureUsd": 0
  },
- "totalMs": 4048,
- "costUsd": 0.002866
+ "totalMs": 3550,
+ "costUsd": 0.003181
 }

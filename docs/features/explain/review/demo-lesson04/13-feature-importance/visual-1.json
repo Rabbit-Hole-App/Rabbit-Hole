@@ -1,25 +1,31 @@
 {
  "version": 1,
  "diagram": {
-  "title": "Feature Importance Comparison",
-  "kind": "comparison",
-  "columns": [
+  "title": "MDI and held-out permutation",
+  "caption": "Illustrative. High-cardinality noise offers more splits and inflates impurity importance.",
+  "kind": "bar-chart",
+  "unit": "%",
+  "variant": "grouped",
+  "categories": [
+   "Feature x",
+   "Feature y",
+   "Noise ID"
+  ],
+  "series": [
    {
-    "heading": "Impurity-based",
-    "items": [
-     "Biased toward high cardinality",
-     "Biased toward continuous variables",
-     "Overrates random noise features",
-     "Computed during training"
+    "label": "MDI",
+    "values": [
+     35,
+     20,
+     45
     ]
    },
    {
-    "heading": "Permutation",
-    "items": [
-     "Unbiased across feature types",
-     "Evaluates out-of-sample drop",
-     "Correctly scores noise near zero",
-     "Computed after training"
+    "label": "Held-out permutation",
+    "values": [
+     75,
+     24,
+     1
     ]
    }
   ]

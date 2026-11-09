@@ -1,73 +1,79 @@
 {
  "version": 1,
  "diagram": {
-  "title": "Ensemble aggregation flow",
-  "caption": "Each tree outputs its vote, and the forest combines them by majority vote for classification.",
+  "title": "Combining Tree Predictions in a Random Forest",
+  "caption": "Each fitted tree votes independently, and the forest aggregates these individual votes into a final class prediction.",
   "kind": "flow",
   "nodes": [
    {
-    "id": "start",
-    "label": "Collect tree predictions",
+    "id": "boot",
+    "label": "Bootstrap samples",
     "role": "fork"
    },
    {
-    "id": "t1",
-    "label": "Predict class A",
+    "id": "a",
+    "label": "Predict with tree 1",
     "role": "process"
    },
    {
-    "id": "t2",
-    "label": "Predict class B",
+    "id": "b",
+    "label": "Predict with tree 2",
     "role": "process"
    },
    {
-    "id": "t3",
-    "label": "Predict class A",
+    "id": "c",
+    "label": "Predict with tree 3",
     "role": "process"
    },
    {
-    "id": "agg",
-    "label": "Take majority vote",
+    "id": "vote",
+    "label": "Take a majority vote",
     "role": "merge"
    },
    {
     "id": "out",
-    "label": "Output class A",
+    "label": "Predict final class",
     "role": "outcome"
    }
   ],
   "edges": [
    {
-    "from": "start",
-    "to": "t1",
+    "from": "boot",
+    "to": "a",
     "label": "Tree 1"
    },
    {
-    "from": "start",
-    "to": "t2",
+    "from": "boot",
+    "to": "b",
     "label": "Tree 2"
    },
    {
-    "from": "start",
-    "to": "t3",
+    "from": "boot",
+    "to": "c",
     "label": "Tree 3"
    },
    {
-    "from": "t1",
-    "to": "agg"
+    "from": "a",
+    "to": "vote"
    },
    {
-    "from": "t2",
-    "to": "agg"
+    "from": "b",
+    "to": "vote"
    },
    {
-    "from": "t3",
-    "to": "agg"
+    "from": "c",
+    "to": "vote"
    },
    {
-    "from": "agg",
+    "from": "vote",
     "to": "out"
    }
+  ],
+  "highlightPath": [
+   "boot",
+   "a",
+   "vote",
+   "out"
   ]
  }
 }

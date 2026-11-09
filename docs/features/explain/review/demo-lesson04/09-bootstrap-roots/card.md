@@ -3,15 +3,17 @@
 - Prompt: what does a bootstrap sample of the training rows look like, and which rows repeat?
 - Depth: Balanced (bench key standard)
 - Expected reference: ml-trees-bootstrap-roots; expected kind: sample-set
+- Sent bare: only the prompt (no lesson, no context, no selection); depth standard
 - Selector hit (expected reference among the references sent to the author): yes; first pick (expected reference sent first): no
 - References sent to the author (attempt 0, selector order): shape-sample-set, ml-trees-bootstrap-roots, bootstrap-replacement-oob
+- Steer (explanation_plan_kind_from_reference): no (event absent)
 - Planner kind: sample-set (fixed); planner kind = expected: yes
 - Model kind (first diagram): sample-set; all visuals: sample-set; model kind = expected: yes
 - Picture routing: planner pictures 0; pictures in the card 0; dropped none
-- Repaired: yes (other: explanation_bad_diagram: the rh-diagram spec is not valid (diagram.samples: Invalid input: expected , visual marker / layout); visual fallback: no; server corrections: null
+- Repaired: yes; cause (first attempt error): attempt 0: explanation_bad_diagram: the rh-diagram spec is not valid (diagram.samples: Invalid input: expected array, received undefined; diagram.groups: Invalid input: expected array, received undefined) | attempt 1: explanation_missing_visual: the card must keep one to three visuals; every diagram was invalid and none could be rebuilt from its labels.; visual fallback: no; server corrections: null
 - Authored by fireworks / accounts/fireworks/models/gpt-oss-120b
-- Time 9668 ms (model call(s) 2926 + 2231 + 3822 ms); tokens in/out 17018/1442; cost US$0.006483
-- Factual (factual-v2): 2/5, error yes - Example is inconsistent: a bootstrap sample of 8 draws is described as 6 rows, and the diagram lists C, E, G, H in the sample though the prose says they were omitted; OOB error is also only approximately unbiased.
+- Time 11630 ms (model call(s) 1999 + 1665 + 7413 ms); tokens in/out 16923/1149; cost US$0.005722
+- Factual (factual-v2): 2/5, error yes - The card contradicts itself. A bootstrap sample of 8 draws cannot contain only six rows. With B and F twice and A and D once, that is 6 draws, and C, E, G, H would be absent, which leaves 2 draws unaccounted for. The prose says 'six drawn rows', but the sample must have eight. The diagram also lists C, E, G, H inside the bootstrap sample even though the prose says they were omitted. The claim that out-of-bag error is estimated 'without bias' is also overstated, since OOB error is only approximately unbiased.
 
 ![card](card.png)
 

@@ -1,13 +1,13 @@
 {
- "run": "2026-11-09T112024-demo-lesson04-balanced",
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
  "plan": {
   "planner": "jev",
-  "ms": 104,
-  "kind": "tree",
+  "ms": 77,
+  "kind": "matrix",
   "fixed": true,
   "offered": null,
   "treatment": "mechanism",
-  "confidence": 0.67,
+  "confidence": 0.64,
   "physical": 0.06,
   "pictures": 0,
   "diagrams": 1,
@@ -20,26 +20,28 @@
     "visuals": [
      {
       "type": "diagram",
-      "kind": "tree"
+      "kind": "matrix"
      }
     ],
     "depthTreatment": "mechanism",
-    "kind": "tree",
+    "kind": "matrix",
+    "kindSource": "reference",
+    "plannerKind": "tree",
     "fixed": true,
     "confidence": {
-     "kind": 0.67,
+     "kind": 0.64,
      "visualType": 1
     },
     "flags": {
      "needsPlot": 0.91,
      "isPhysical": 0.06,
-     "needsWorkedExample": 0.9
+     "needsWorkedExample": 0.91
     },
-    "ms": 104
+    "ms": 77
    },
    "references": [
-    "shape-tree",
-    "ml-tree-split-path"
+    "shape-matrix",
+    "ml-trees-gini-split"
    ],
    "visuals": [
     {
@@ -47,46 +49,133 @@
      "spec": {
       "version": 1,
       "diagram": {
-       "title": "A decision tree split and impurity",
-       "caption": "Illustrative counts. For $x_1\\le 4$, follow the blue route to Class A.",
-       "kind": "tree",
-       "layout": "binary",
-       "nodes": [
+       "title": "Gini after the root split",
+       "caption": "Worked example. Combine the child Ginis in proportion to their sizes.",
+       "kind": "matrix",
+       "columns": [
         {
-         "id": "root",
-         "label": "$x_1\\le 4$?",
-         "count": 12,
-         "detail": "$\\text{Gini}\\approx 0.444$"
+         "heading": "Class 0",
+         "items": [
+          "4",
+          "1",
+          "—"
+         ]
         },
         {
-         "id": "left",
-         "label": "$x_2\\le 2$?",
-         "parent": "root",
-         "side": "left",
-         "edgeLabel": "$x_1\\le 4$",
-         "count": 7,
-         "detail": "4 A, 3 B"
+         "heading": "Class 1",
+         "items": [
+          "0",
+          "3",
+          "—"
+         ]
         },
         {
-         "id": "right",
-         "label": "Class B",
-         "parent": "root",
-         "side": "right",
-         "edgeLabel": "$x_1>4$",
-         "count": 5,
-         "detail": "0 A, 5 B"
+         "heading": "Gini",
+         "items": [
+          "0",
+          "0.375",
+          "0.1875"
+         ]
+        },
+        {
+         "heading": "Weight",
+         "items": [
+          "0.5",
+          "0.5",
+          "1"
+         ]
         }
-       ],
-       "highlightPath": [
-        "root",
-        "left"
        ]
       }
      }
     }
    ],
    "kinds": [
-    "tree"
+    "matrix"
+   ]
+  },
+  {
+   "attempt": 1,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "matrix"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "matrix",
+    "kindSource": "reference",
+    "plannerKind": "tree",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.64,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.91,
+     "isPhysical": 0.06,
+     "needsWorkedExample": 0.91
+    },
+    "ms": 77
+   },
+   "references": [
+    "shape-matrix",
+    "ml-trees-gini-split"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Gini after the root split",
+       "caption": "Worked example. Combine the child Ginis in proportion to their sizes.",
+       "kind": "matrix",
+       "columns": [
+        "Class 0",
+        "Class 1",
+        "Gini",
+        "Weight"
+       ],
+       "rows": [
+        {
+         "id": "left",
+         "heading": "Left",
+         "cells": [
+          "4",
+          "0",
+          "0",
+          "0.5"
+         ]
+        },
+        {
+         "id": "right",
+         "heading": "Right",
+         "cells": [
+          "1",
+          "3",
+          "0.375",
+          "0.5"
+         ]
+        },
+        {
+         "id": "after",
+         "heading": "After",
+         "cells": [
+          "—",
+          "—",
+          "0.1875",
+          "1"
+         ]
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "matrix"
    ]
   }
  ],
@@ -96,10 +185,10 @@
   "run": 1,
   "depth": "standard",
   "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
-  "canvas": "canvas-f113c37d",
-  "startedAt": "2026-11-09T19:20:34.442Z",
+  "canvas": "canvas-0259e744",
+  "startedAt": "2026-11-09T19:48:28.010Z",
   "http": 200,
-  "totalMs": 3404,
+  "totalMs": 5989,
   "delivered": true,
   "failure": null,
   "authoredBy": {
@@ -111,7 +200,7 @@
    "version": 1,
    "hash": "7a65d850970c6aad"
   },
-  "repaired": false,
+  "repaired": true,
   "attempts": [
    {
     "provider": "google",
@@ -119,20 +208,34 @@
     "outcome": "artifact"
    }
   ],
-  "authorCalls": 1,
+  "authorCalls": 2,
   "pictures": 0,
-  "ledgerUsd": 0.002952,
-  "estUsd": 0.008,
-  "costUsd": 0.002952,
+  "ledgerUsd": 0.005589,
+  "estUsd": 0.016,
+  "costUsd": 0.005589,
   "costSource": "ledger",
-  "repairCauses": [],
+  "steer": [
+   {
+    "plannerKind": "tree",
+    "reference": "ml-trees-gini-split",
+    "referenceKind": "matrix",
+    "steerSource": "reference",
+    "score": 50
+   }
+  ],
+  "repairCauses": [
+   {
+    "attempt": 0,
+    "error": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.columns.0: Invalid input: expected string, received object; diagram.columns.1: Invalid input: expected string, received object; diagram.columns.2: Invalid input: expected st"
+   }
+  ],
   "corrected": [
-   "tree_hierarchy_layout"
+   "simplified_comparison"
   ],
   "diagramCorrections": {
-   "tree_hierarchy_layout": 1
+   "simplified_comparison": 1
   },
-  "visualFallback": null,
+  "visualFallback": "simplified",
   "proseLists": 0,
   "unknownKeysStripped": {
    "events": 0,
@@ -146,26 +249,28 @@
      "visuals": [
       {
        "type": "diagram",
-       "kind": "tree"
+       "kind": "matrix"
       }
      ],
      "depthTreatment": "mechanism",
-     "kind": "tree",
+     "kind": "matrix",
+     "kindSource": "reference",
+     "plannerKind": "tree",
      "fixed": true,
      "confidence": {
-      "kind": 0.67,
+      "kind": 0.64,
       "visualType": 1
      },
      "flags": {
       "needsPlot": 0.91,
       "isPhysical": 0.06,
-      "needsWorkedExample": 0.9
+      "needsWorkedExample": 0.91
      },
-     "ms": 104
+     "ms": 77
     },
     "references": [
-     "shape-tree",
-     "ml-tree-split-path"
+     "shape-matrix",
+     "ml-trees-gini-split"
     ],
     "visuals": [
      {
@@ -173,46 +278,133 @@
       "spec": {
        "version": 1,
        "diagram": {
-        "title": "A decision tree split and impurity",
-        "caption": "Illustrative counts. For $x_1\\le 4$, follow the blue route to Class A.",
-        "kind": "tree",
-        "layout": "binary",
-        "nodes": [
+        "title": "Gini after the root split",
+        "caption": "Worked example. Combine the child Ginis in proportion to their sizes.",
+        "kind": "matrix",
+        "columns": [
          {
-          "id": "root",
-          "label": "$x_1\\le 4$?",
-          "count": 12,
-          "detail": "$\\text{Gini}\\approx 0.444$"
+          "heading": "Class 0",
+          "items": [
+           "4",
+           "1",
+           "—"
+          ]
          },
          {
-          "id": "left",
-          "label": "$x_2\\le 2$?",
-          "parent": "root",
-          "side": "left",
-          "edgeLabel": "$x_1\\le 4$",
-          "count": 7,
-          "detail": "4 A, 3 B"
+          "heading": "Class 1",
+          "items": [
+           "0",
+           "3",
+           "—"
+          ]
          },
          {
-          "id": "right",
-          "label": "Class B",
-          "parent": "root",
-          "side": "right",
-          "edgeLabel": "$x_1>4$",
-          "count": 5,
-          "detail": "0 A, 5 B"
+          "heading": "Gini",
+          "items": [
+           "0",
+           "0.375",
+           "0.1875"
+          ]
+         },
+         {
+          "heading": "Weight",
+          "items": [
+           "0.5",
+           "0.5",
+           "1"
+          ]
          }
-        ],
-        "highlightPath": [
-         "root",
-         "left"
         ]
        }
       }
      }
     ],
     "kinds": [
-     "tree"
+     "matrix"
+    ]
+   },
+   {
+    "attempt": 1,
+    "plan": {
+     "visuals": [
+      {
+       "type": "diagram",
+       "kind": "matrix"
+      }
+     ],
+     "depthTreatment": "mechanism",
+     "kind": "matrix",
+     "kindSource": "reference",
+     "plannerKind": "tree",
+     "fixed": true,
+     "confidence": {
+      "kind": 0.64,
+      "visualType": 1
+     },
+     "flags": {
+      "needsPlot": 0.91,
+      "isPhysical": 0.06,
+      "needsWorkedExample": 0.91
+     },
+     "ms": 77
+    },
+    "references": [
+     "shape-matrix",
+     "ml-trees-gini-split"
+    ],
+    "visuals": [
+     {
+      "k": "diagram",
+      "spec": {
+       "version": 1,
+       "diagram": {
+        "title": "Gini after the root split",
+        "caption": "Worked example. Combine the child Ginis in proportion to their sizes.",
+        "kind": "matrix",
+        "columns": [
+         "Class 0",
+         "Class 1",
+         "Gini",
+         "Weight"
+        ],
+        "rows": [
+         {
+          "id": "left",
+          "heading": "Left",
+          "cells": [
+           "4",
+           "0",
+           "0",
+           "0.5"
+          ]
+         },
+         {
+          "id": "right",
+          "heading": "Right",
+          "cells": [
+           "1",
+           "3",
+           "0.375",
+           "0.5"
+          ]
+         },
+         {
+          "id": "after",
+          "heading": "After",
+          "cells": [
+           "—",
+           "—",
+           "0.1875",
+           "1"
+          ]
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "kinds": [
+     "matrix"
     ]
    }
   ],
@@ -222,7 +414,14 @@
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 2894
+    "ms": 2994
+   },
+   {
+    "served": "gemini-3.5-flash-lite",
+    "status": 200,
+    "outcome": "completed",
+    "error": null,
+    "ms": 2790
    }
   ]
  },
@@ -239,14 +438,14 @@
     "outcome": "artifact"
    }
   ],
-  "repaired": false
+  "repaired": true
  },
  "tokens": {
-  "input": 3840,
-  "output": 720,
-  "authorUsd": 0.002952,
+  "input": 7844,
+  "output": 1294,
+  "authorUsd": 0.005589,
   "pictureUsd": 0
  },
- "totalMs": 3404,
- "costUsd": 0.002952
+ "totalMs": 5989,
+ "costUsd": 0.005589
 }

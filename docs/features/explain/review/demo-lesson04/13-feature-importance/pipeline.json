@@ -1,13 +1,13 @@
 {
- "run": "2026-11-09T112024-demo-lesson04-balanced",
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
  "plan": {
   "planner": "jev",
-  "ms": 341,
-  "kind": "comparison",
+  "ms": 97,
+  "kind": "bar-chart",
   "fixed": true,
   "offered": null,
   "treatment": "mechanism",
-  "confidence": 0.74,
+  "confidence": 0.69,
   "physical": 0.07,
   "pictures": 0,
   "diagrams": 1,
@@ -20,25 +20,29 @@
     "visuals": [
      {
       "type": "diagram",
-      "kind": "comparison"
+      "kind": "bar-chart"
      }
     ],
     "depthTreatment": "mechanism",
-    "kind": "comparison",
+    "kind": "bar-chart",
+    "kindSource": "reference",
+    "plannerKind": "comparison",
     "fixed": true,
     "confidence": {
-     "kind": 0.74,
+     "kind": 0.69,
      "visualType": 1
     },
     "flags": {
-     "needsPlot": 0.73,
+     "needsPlot": 0.72,
      "isPhysical": 0.07,
-     "needsWorkedExample": 0.77
+     "needsWorkedExample": 0.78
     },
-    "ms": 341
+    "ms": 97
    },
    "references": [
-    "shape-comparison"
+    "shape-bar-chart",
+    "ml-trees-feature-importance",
+    "permutation-feature-importance"
    ],
    "visuals": [
     {
@@ -46,25 +50,31 @@
      "spec": {
       "version": 1,
       "diagram": {
-       "title": "Feature Importance Comparison",
-       "kind": "comparison",
-       "columns": [
+       "title": "MDI and held-out permutation",
+       "caption": "Illustrative. High-cardinality noise offers more splits and inflates impurity importance.",
+       "kind": "bar-chart",
+       "unit": "%",
+       "variant": "grouped",
+       "categories": [
+        "Feature x",
+        "Feature y",
+        "Noise ID"
+       ],
+       "series": [
         {
-         "heading": "Impurity-based",
-         "items": [
-          "Biased toward high cardinality",
-          "Biased toward continuous variables",
-          "Overrates random noise features",
-          "Computed during training"
+         "label": "MDI",
+         "values": [
+          35,
+          20,
+          45
          ]
         },
         {
-         "heading": "Permutation",
-         "items": [
-          "Unbiased across feature types",
-          "Evaluates out-of-sample drop",
-          "Correctly scores noise near zero",
-          "Computed after training"
+         "label": "Held-out permutation",
+         "values": [
+          75,
+          24,
+          1
          ]
         }
        ]
@@ -73,7 +83,7 @@
     }
    ],
    "kinds": [
-    "comparison"
+    "bar-chart"
    ]
   }
  ],
@@ -83,10 +93,10 @@
   "run": 1,
   "depth": "standard",
   "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
-  "canvas": "canvas-44fb2586",
-  "startedAt": "2026-11-09T19:21:17.852Z",
+  "canvas": "canvas-e011540f",
+  "startedAt": "2026-11-09T19:49:38.080Z",
   "http": 200,
-  "totalMs": 3126,
+  "totalMs": 3365,
   "delivered": true,
   "failure": null,
   "authoredBy": {
@@ -108,10 +118,19 @@
   ],
   "authorCalls": 1,
   "pictures": 0,
-  "ledgerUsd": 0.002231,
+  "ledgerUsd": 0.002499,
   "estUsd": 0.008,
-  "costUsd": 0.002231,
+  "costUsd": 0.002499,
   "costSource": "ledger",
+  "steer": [
+   {
+    "plannerKind": "comparison",
+    "reference": "ml-trees-feature-importance",
+    "referenceKind": "bar-chart",
+    "steerSource": "reference",
+    "score": 50
+   }
+  ],
   "repairCauses": [],
   "corrected": [],
   "diagramCorrections": null,
@@ -129,25 +148,29 @@
      "visuals": [
       {
        "type": "diagram",
-       "kind": "comparison"
+       "kind": "bar-chart"
       }
      ],
      "depthTreatment": "mechanism",
-     "kind": "comparison",
+     "kind": "bar-chart",
+     "kindSource": "reference",
+     "plannerKind": "comparison",
      "fixed": true,
      "confidence": {
-      "kind": 0.74,
+      "kind": 0.69,
       "visualType": 1
      },
      "flags": {
-      "needsPlot": 0.73,
+      "needsPlot": 0.72,
       "isPhysical": 0.07,
-      "needsWorkedExample": 0.77
+      "needsWorkedExample": 0.78
      },
-     "ms": 341
+     "ms": 97
     },
     "references": [
-     "shape-comparison"
+     "shape-bar-chart",
+     "ml-trees-feature-importance",
+     "permutation-feature-importance"
     ],
     "visuals": [
      {
@@ -155,25 +178,31 @@
       "spec": {
        "version": 1,
        "diagram": {
-        "title": "Feature Importance Comparison",
-        "kind": "comparison",
-        "columns": [
+        "title": "MDI and held-out permutation",
+        "caption": "Illustrative. High-cardinality noise offers more splits and inflates impurity importance.",
+        "kind": "bar-chart",
+        "unit": "%",
+        "variant": "grouped",
+        "categories": [
+         "Feature x",
+         "Feature y",
+         "Noise ID"
+        ],
+        "series": [
          {
-          "heading": "Impurity-based",
-          "items": [
-           "Biased toward high cardinality",
-           "Biased toward continuous variables",
-           "Overrates random noise features",
-           "Computed during training"
+          "label": "MDI",
+          "values": [
+           35,
+           20,
+           45
           ]
          },
          {
-          "heading": "Permutation",
-          "items": [
-           "Unbiased across feature types",
-           "Evaluates out-of-sample drop",
-           "Correctly scores noise near zero",
-           "Computed after training"
+          "label": "Held-out permutation",
+          "values": [
+           75,
+           24,
+           1
           ]
          }
         ]
@@ -182,7 +211,7 @@
      }
     ],
     "kinds": [
-     "comparison"
+     "bar-chart"
     ]
    }
   ],
@@ -192,7 +221,7 @@
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 2515
+    "ms": 3177
    }
   ]
  },
@@ -212,11 +241,11 @@
   "repaired": false
  },
  "tokens": {
-  "input": 3501,
-  "output": 472,
-  "authorUsd": 0.002231,
+  "input": 3779,
+  "output": 546,
+  "authorUsd": 0.002499,
   "pictureUsd": 0
  },
- "totalMs": 3126,
- "costUsd": 0.002231
+ "totalMs": 3365,
+ "costUsd": 0.002499
 }

@@ -10,9 +10,9 @@
    "max": 8
   },
   "y": {
-   "label": "Weighted Gini in 48ths",
+   "label": "Weighted Gini",
    "min": 0,
-   "max": 24
+   "max": 0.4
   },
   "series": [
    {
@@ -21,15 +21,15 @@
     "points": [
      {
       "x": 2,
-      "y": 18
+      "y": 0.375
      },
      {
       "x": 4,
-      "y": 9
+      "y": 0.1875
      },
      {
       "x": 6,
-      "y": 10
+      "y": 0.2083
      }
     ]
    }
@@ -39,7 +39,7 @@
     "kind": "point",
     "label": "Lowest Gini",
     "x": 4,
-    "y": 9
+    "y": 0.1875
    }
   ]
  }

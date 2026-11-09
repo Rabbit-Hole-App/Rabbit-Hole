@@ -1,8 +1,8 @@
 {
- "run": "2026-11-09T112024-demo-lesson04-balanced",
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
  "plan": {
   "planner": "jev",
-  "ms": 131,
+  "ms": 116,
   "kind": "sample-set",
   "fixed": true,
   "offered": null,
@@ -33,9 +33,9 @@
     "flags": {
      "needsPlot": 0.13,
      "isPhysical": 0.1,
-     "needsWorkedExample": 0.82
+     "needsWorkedExample": 0.81
     },
-    "ms": 131
+    "ms": 116
    },
    "references": [
     "shape-sample-set",
@@ -49,11 +49,15 @@
       "version": 1,
       "diagram": {
        "title": "Bootstrap sample with replacement",
-       "caption": "Six draws contain four unique examples; rows b and f repeat while c and e are omitted.",
+       "caption": "Six draws contain four unique examples; c and e were never drawn.",
        "kind": "sample-set",
-       "nodes": [],
-       "edges": [],
-       "highlightPath": []
+       "steps": [
+        "samples",
+        "groups",
+        "replacement",
+        "omitted",
+        "outOfBagFor"
+       ]
       }
      }
     }
@@ -81,9 +85,9 @@
     "flags": {
      "needsPlot": 0.13,
      "isPhysical": 0.1,
-     "needsWorkedExample": 0.82
+     "needsWorkedExample": 0.81
     },
-    "ms": 131
+    "ms": 116
    },
    "references": [
     "shape-sample-set",
@@ -96,12 +100,16 @@
      "spec": {
       "version": 1,
       "diagram": {
-       "title": "Bootstrap sample with replacement",
-       "caption": "Six draws contain four unique examples; rows b and f repeat while c and e are omitted.",
+       "title": "One bootstrap draw",
+       "caption": "Six draws contain four unique examples; c and e were never drawn.",
        "kind": "sample-set",
-       "nodes": [],
-       "edges": [],
-       "highlightPath": []
+       "domain": {
+        "min": 0,
+        "max": 1,
+        "unit": "unit"
+       },
+       "lanes": [],
+       "cutoffs": []
       }
      }
     }
@@ -129,9 +137,9 @@
     "flags": {
      "needsPlot": 0.13,
      "isPhysical": 0.1,
-     "needsWorkedExample": 0.82
+     "needsWorkedExample": 0.81
     },
-    "ms": 131
+    "ms": 116
    },
    "references": [
     "shape-sample-set",
@@ -217,10 +225,10 @@
   "run": 1,
   "depth": "standard",
   "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
-  "canvas": "canvas-8ff8d480",
-  "startedAt": "2026-11-09T19:20:59.245Z",
+  "canvas": "canvas-cb32e28b",
+  "startedAt": "2026-11-09T19:49:05.350Z",
   "http": 200,
-  "totalMs": 9668,
+  "totalMs": 11630,
   "delivered": true,
   "failure": null,
   "authoredBy": {
@@ -247,10 +255,11 @@
   ],
   "authorCalls": 2,
   "pictures": 0,
-  "ledgerUsd": 0.006483,
+  "ledgerUsd": 0.005722,
   "estUsd": 0.016,
-  "costUsd": 0.006483,
+  "costUsd": 0.005722,
   "costSource": "ledger",
+  "steer": [],
   "repairCauses": [
    {
     "attempt": 0,
@@ -266,8 +275,8 @@
   "visualFallback": null,
   "proseLists": 0,
   "unknownKeysStripped": {
-   "events": 6,
-   "keys": 6
+   "events": 4,
+   "keys": 4
   },
   "picturesDropped": [],
   "raw": [
@@ -290,9 +299,9 @@
      "flags": {
       "needsPlot": 0.13,
       "isPhysical": 0.1,
-      "needsWorkedExample": 0.82
+      "needsWorkedExample": 0.81
      },
-     "ms": 131
+     "ms": 116
     },
     "references": [
      "shape-sample-set",
@@ -306,11 +315,15 @@
        "version": 1,
        "diagram": {
         "title": "Bootstrap sample with replacement",
-        "caption": "Six draws contain four unique examples; rows b and f repeat while c and e are omitted.",
+        "caption": "Six draws contain four unique examples; c and e were never drawn.",
         "kind": "sample-set",
-        "nodes": [],
-        "edges": [],
-        "highlightPath": []
+        "steps": [
+         "samples",
+         "groups",
+         "replacement",
+         "omitted",
+         "outOfBagFor"
+        ]
        }
       }
      }
@@ -338,9 +351,9 @@
      "flags": {
       "needsPlot": 0.13,
       "isPhysical": 0.1,
-      "needsWorkedExample": 0.82
+      "needsWorkedExample": 0.81
      },
-     "ms": 131
+     "ms": 116
     },
     "references": [
      "shape-sample-set",
@@ -353,12 +366,16 @@
       "spec": {
        "version": 1,
        "diagram": {
-        "title": "Bootstrap sample with replacement",
-        "caption": "Six draws contain four unique examples; rows b and f repeat while c and e are omitted.",
+        "title": "One bootstrap draw",
+        "caption": "Six draws contain four unique examples; c and e were never drawn.",
         "kind": "sample-set",
-        "nodes": [],
-        "edges": [],
-        "highlightPath": []
+        "domain": {
+         "min": 0,
+         "max": 1,
+         "unit": "unit"
+        },
+        "lanes": [],
+        "cutoffs": []
        }
       }
      }
@@ -386,9 +403,9 @@
      "flags": {
       "needsPlot": 0.13,
       "isPhysical": 0.1,
-      "needsWorkedExample": 0.82
+      "needsWorkedExample": 0.81
      },
-     "ms": 131
+     "ms": 116
     },
     "references": [
      "shape-sample-set",
@@ -474,21 +491,21 @@
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 2926
+    "ms": 1999
    },
    {
     "served": "gemini-3.5-flash-lite",
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 2231
+    "ms": 1665
    },
    {
     "served": "accounts/fireworks/models/gpt-oss-120b",
     "status": 200,
     "outcome": "completed",
     "error": null,
-    "ms": 3822
+    "ms": 7413
    }
   ]
  },
@@ -513,11 +530,11 @@
   "repaired": true
  },
  "tokens": {
-  "input": 17018,
-  "output": 1442,
-  "authorUsd": 0.006483,
+  "input": 16923,
+  "output": 1149,
+  "authorUsd": 0.005722,
   "pictureUsd": 0
  },
- "totalMs": 9668,
- "costUsd": 0.006483
+ "totalMs": 11630,
+ "costUsd": 0.005722
 }
