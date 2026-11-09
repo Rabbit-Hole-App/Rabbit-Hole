@@ -2208,5 +2208,125 @@
         "height": 635
       }
     }
+  },
+  "ml-mle-bernoulli-likelihood": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 565
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 548
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 565
+      }
+    }
+  },
+  "ml-mle-bernoulli-likelihood-brief": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 524
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 524
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 524
+      }
+    }
+  },
+  "ml-mle-bernoulli-likelihood-detailed": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 565
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 548
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 565
+      }
+    }
+  },
+  "ml-kfold-validation": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 563,
+        "height": 376
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 362
+      },
+      "natural": {
+        "requested": 563,
+        "width": 563,
+        "height": 376
+      }
+    }
+  },
+  "ml-kfold-validation-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 563,
+        "height": 362
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 345
+      },
+      "natural": {
+        "requested": 563,
+        "width": 563,
+        "height": 362
+      }
+    }
+  },
+  "ml-kfold-validation-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 563,
+        "height": 376
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 376
+      },
+      "natural": {
+        "requested": 563,
+        "width": 563,
+        "height": 376
+      }
+    }
   }
 }

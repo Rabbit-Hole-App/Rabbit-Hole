@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Likelihood for 7 heads in 10 flips",
+    "x": {
+      "label": "Coin bias (chance of heads)",
+      "min": 0,
+      "max": 1
+    },
+    "y": {
+      "label": "Chance of exactly 7 heads",
+      "min": 0,
+      "max": 0.3
+    },
+    "series": [
+      {
+        "label": "Likelihood",
+        "kind": "line",
+        "samples": {
+          "x": {
+            "start": 0,
+            "step": 1,
+            "divisor": 10
+          },
+          "y": [
+            0,
+            0,
+            8,
+            90,
+            425,
+            1172,
+            2150,
+            2668,
+            2013,
+            574,
+            0
+          ],
+          "divisor": 10000
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "x": 0.7,
+        "y": 0.2668,
+        "label": "Best bias"
+      }
+    ],
+    "caption": "Worked example. The head count stays fixed. The curve peaks at the best-fitting coin bias."
+  }
+}

@@ -15266,6 +15266,96 @@
       "width": 420,
       "height": 635
     },
+    "ml-mle-bernoulli-likelihood/408": {
+      "sha256": "baafbc7ccb54aa249e32e252579eac3eef2c6218f2f576636b0e0c912c277a98",
+      "width": 420,
+      "height": 565
+    },
+    "ml-mle-bernoulli-likelihood/960": {
+      "sha256": "2c8449acbd5dcbd3ed63a9b9d3e70aaad8f7985b0d8b36ad2965819710f9feee",
+      "width": 720,
+      "height": 548
+    },
+    "ml-mle-bernoulli-likelihood/natural": {
+      "sha256": "baafbc7ccb54aa249e32e252579eac3eef2c6218f2f576636b0e0c912c277a98",
+      "width": 420,
+      "height": 565
+    },
+    "ml-mle-bernoulli-likelihood-brief/408": {
+      "sha256": "d5b118bfefb9547acd9d6509ba24d4aeef2f4a83ca1f1f700b8d1d298750178d",
+      "width": 420,
+      "height": 524
+    },
+    "ml-mle-bernoulli-likelihood-brief/960": {
+      "sha256": "48cba491ed877dcc95daf4aa61a4bf76a027409e847f77a98190673310a9c50e",
+      "width": 720,
+      "height": 524
+    },
+    "ml-mle-bernoulli-likelihood-brief/natural": {
+      "sha256": "d5b118bfefb9547acd9d6509ba24d4aeef2f4a83ca1f1f700b8d1d298750178d",
+      "width": 420,
+      "height": 524
+    },
+    "ml-mle-bernoulli-likelihood-detailed/408": {
+      "sha256": "d237ffc2409ee57b7f5c571f85ffd41b8cb15802e5069a1d3e14c8bf69db7aba",
+      "width": 420,
+      "height": 565
+    },
+    "ml-mle-bernoulli-likelihood-detailed/960": {
+      "sha256": "830804f6398bf48bab1cad9613bf5abce312f1eb2558fd8dedf7ab18b7b18bf5",
+      "width": 720,
+      "height": 548
+    },
+    "ml-mle-bernoulli-likelihood-detailed/natural": {
+      "sha256": "d237ffc2409ee57b7f5c571f85ffd41b8cb15802e5069a1d3e14c8bf69db7aba",
+      "width": 420,
+      "height": 565
+    },
+    "ml-kfold-validation/408": {
+      "sha256": "80288225325a37ef2ad874daa14b0be5159c82fdb639fce74a2838ad48f025c3",
+      "width": 563,
+      "height": 376
+    },
+    "ml-kfold-validation/960": {
+      "sha256": "94ab8720f9df783cde35dcdec3f3b067baf84db9c712fe9ea1b1f1c17891426e",
+      "width": 720,
+      "height": 362
+    },
+    "ml-kfold-validation/natural": {
+      "sha256": "80288225325a37ef2ad874daa14b0be5159c82fdb639fce74a2838ad48f025c3",
+      "width": 563,
+      "height": 376
+    },
+    "ml-kfold-validation-brief/408": {
+      "sha256": "82f3456ac942250fb08cb76fd4dd5ac61a094ff07a965abf8c9afe445cb31d54",
+      "width": 563,
+      "height": 362
+    },
+    "ml-kfold-validation-brief/960": {
+      "sha256": "2c243529e571e538506f63d583f7d62ca42fb915f5462737eacb8f7c7d1da9f9",
+      "width": 720,
+      "height": 345
+    },
+    "ml-kfold-validation-brief/natural": {
+      "sha256": "82f3456ac942250fb08cb76fd4dd5ac61a094ff07a965abf8c9afe445cb31d54",
+      "width": 563,
+      "height": 362
+    },
+    "ml-kfold-validation-detailed/408": {
+      "sha256": "0dc28817e2e0054c34be8d2cb97021734c38683911b035a139ce97dd936e08c5",
+      "width": 563,
+      "height": 376
+    },
+    "ml-kfold-validation-detailed/960": {
+      "sha256": "e201bd1074c098c3964057fa9b0e167cf6f30d50ea1379bf49c799bbe5643551",
+      "width": 720,
+      "height": 376
+    },
+    "ml-kfold-validation-detailed/natural": {
+      "sha256": "0dc28817e2e0054c34be8d2cb97021734c38683911b035a139ce97dd936e08c5",
+      "width": 563,
+      "height": 376
+    },
     "ml-word2vec-right-context-clue-single/408": {
       "sha256": "b715daccc13e6a57e1cf25a61cee5e8903c68d78e9332a6c6fa9101b05d8e58c",
       "width": 408,
