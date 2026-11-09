@@ -21,7 +21,7 @@ import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
-import { isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
+import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
@@ -5285,7 +5285,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // of just that field on the latest blocks (landSummary): a card deleted meanwhile, or one that got a summary, is left alone, and nothing else on it is overwritten.
   const summaryAsked = useRef(new Set());
   const fillSummary = (id, card = blocksRef.current.find(entry => entry.id === id)) => {
-    if (!card || card.summary || summaryAsked.current.has(id) || readOnlyRef.current || localCopyRef.current) return;
+    if (!card || goodSummary(card.summary) || summaryAsked.current.has(id) || readOnlyRef.current || localCopyRef.current) return;
     summaryAsked.current.add(id);
     requestSummary(api, { app: appName, block: card }).then(summary => { if (summary) setBlocks(previous => landSummary(previous, id, summary)); else summaryAsked.current.delete(id); });
   };

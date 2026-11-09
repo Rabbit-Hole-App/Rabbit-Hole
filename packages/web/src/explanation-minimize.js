@@ -3,12 +3,14 @@
 // (explanation-summary.js imports capSummary, so the cap is one rule on both sides). `minimized` and `summary` are plain fields of the saved card.
 import { parseIllustrationFence } from './explanation-lead.js';
 import { parseTutorDiagram } from './tutor-diagrams/spec.js';
-import { capSummary } from './explanation-summary-text.js';
+import { SUMMARY_CHARS, capSummary } from './explanation-summary-text.js';
 
 export { SUMMARY_CHARS, capSummary } from './explanation-summary-text.js';
 
-// What the tile says: the model's summary when the card has one, else the first sentences of the body, cut the same way.
-export const tileSummary = block => capSummary(typeof block?.summary === 'string' && block.summary.trim() ? block.summary : block?.body);
+// A stored summary is good when it is at most SUMMARY_CHARS long and ends in . ! or ? (owner 2026-11-08: never cut, never an ellipsis); an older longer or trailing-off one is bad.
+export const goodSummary = summary => typeof summary === 'string' && summary.trim().length > 0 && summary.trim().length <= SUMMARY_CHARS && /[.!?]$/.test(summary.trim()) && !/(?:\.{2,}|\u2026)$/.test(summary.trim());
+// What the tile says: the model's summary when the card has a good one, else the first whole sentence(s) of the body (the same rule, capSummary).
+export const tileSummary = block => capSummary(goodSummary(block?.summary) ? block.summary : block?.body);
 
 // Only a written Explanation with prose has a summary to write: not a Rabbit Hole's topic anchor, a PDF excerpt or an empty card.
 export const summarizable = block => block?.type === 'explanation' && !block.anchor && !block.excerpt && capSummary(block.body).length >= 20;
@@ -51,9 +53,11 @@ export async function requestSummary(post, { app, block }) {
   } catch { return null; }
 }
 
-// The tile's width: the card's own width held between the narrowest and the widest the tile is drawn at (320 and 408 px).
-export const tileWidth = block => Math.min(408, Math.max(320, block?.cardLayout?.scrollableSize?.w || block?.w || 408));
+// The tile's width (owner 2026-11-08: the picture was small and hard to see at 100%): one fixed 512 px, so the picture, inside the tile's 16 px of padding, is 480 px wide.
+// The card's saved size stays on the block; Open restores it.
+export const TILE_WIDTH = 512;
+export const tileWidth = () => TILE_WIDTH;
 
-// The summary lands on the card as it is now (a functional update on the latest blocks): only that field, only on an Explanation still on the canvas that has no
-// summary of its own, so a deleted card is skipped and nothing the learner changed meanwhile is overwritten.
-export const landSummary = (blocks, id, summary) => blocks.map(block => (block.id === id && block.type === 'explanation' && !block.summary ? { ...block, summary } : block));
+// The summary lands on the card as it is now (a functional update on the latest blocks): only that field, only on an Explanation still on the canvas that has no good
+// summary of its own (a stored one that is too long or trails off is replaced), so a deleted card is skipped and nothing the learner changed meanwhile is overwritten.
+export const landSummary = (blocks, id, summary) => blocks.map(block => (block.id === id && block.type === 'explanation' && !goodSummary(block.summary) ? { ...block, summary } : block));

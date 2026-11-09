@@ -6,12 +6,16 @@ import { readFileSync } from 'node:fs';
 
 const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
 
-test('Minimize replaces the Focus icon on an Explanation, in the same 32 px box with the lucide Minimize2 icon', () => {
+test('Minimize replaces the Focus icon on an Explanation as its own pill (the Enter pill\'s look, 34 px high), outside the long Add to chat / Quick Edit pill', () => {
   const bar = read('./SelectionActions.jsx');
-  const minimize = bar.match(/\{ctx\.onMinimize && <button[^]*?<\/button>\}/)?.[0] || '';
+  const minimize = bar.match(/const pill = ctx\.onMinimize && \([^]*?<\/button>\r?\n  \);/)?.[0] || '';
   assert.match(minimize, /aria-label="Minimize"/);
-  assert.match(minimize, /className="relative -my-0\.5 flex h-8 w-8 /, 'a 28 px margin box like the other actions: the row stays 34 px');
-  assert.match(minimize, /<Minimize2 size=\{16\} strokeWidth=\{1\.8\} aria-hidden="true" \/>/);
+  assert.match(minimize, /className="pointer-events-auto flex h-\[34px\] shrink-0 [^"]*rounded-full border border-line bg-white px-3 [^"]*shadow-md/, 'the Enter pill\'s look');
+  assert.match(minimize, /<Minimize2 size=\{15\} strokeWidth=\{1\.8\} aria-hidden="true" \/>/);
+  const longPill = bar.match(/const bar = \(barClass, barStyle\) => \([^]*?\r?\n  \);/)?.[0] || '';
+  assert.ok(longPill.includes('data-add-to-chat') && longPill.includes('data-quick-edit'), 'the long pill still holds Add to chat and Quick Edit');
+  assert.doesNotMatch(longPill, /data-minimize-button|Minimize2|onMinimize/, 'Minimize is not inside the long pill');
+  assert.match(bar, /<div data-selection-group className=\{`pointer-events-auto flex w-max items-center gap-1\.5 \$\{className\}`\} style=\{style\}>\{pill\}\{long && bar\('', undefined\)\}<\/div>/, 'the pill and the long pill sit side by side');
   assert.match(bar, /focusLabel: onFocus && !onMinimize \? focusLabel : null/, 'the Focus icon steps aside where Minimize stands');
   assert.match(bar, /!!\(ctx\.focusLabel \|\| ctx\.onMinimize \|\| ctx\.onAddToChat \|\| ctx\.onQuickEdit\)/);
 });

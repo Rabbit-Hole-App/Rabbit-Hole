@@ -43,16 +43,18 @@ function Action({ label, chord, Icon, onClick, mac, ...rest }) {
 
 // pointerdown is swallowed and prevented so pressing never blurs a field, drops a text selection or clears the canvas selection.
 function Actions({ ctx, mode, className = '', style }) {
-  return (
-    <div role="toolbar" aria-label="Selection actions" data-selection-bar={mode} data-thumbnail-hide style={style}
-      onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}
-      className={`pointer-events-auto flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md ${className}`}>
-      {/* Icon only, 32 px, its margin box the 28 px of the other actions (-my-0.5): the row keeps its 34 px height and nearly its
-          width, so a first-row card's row still centres below the floating header's buttons and does not wrap upward. */}
-      {ctx.onMinimize && <button type="button" aria-label="Minimize" title="Minimize" onClick={ctx.onMinimize} data-minimize-button
-        className="relative -my-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink after:absolute after:-inset-1.5 not-last:mr-1.5 hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
-        <Minimize2 size={16} strokeWidth={1.8} aria-hidden="true" />
-      </button>}
+  const press = event => { event.preventDefault(); event.stopPropagation(); };
+  // Minimize (owner 2026-11-08) is its own pill beside the long one, drawn like the Enter pill above the card (AdaptiveCanvas), never inside it.
+  const pill = ctx.onMinimize && (
+    <button type="button" aria-label="Minimize" title="Minimize" onClick={ctx.onMinimize} onPointerDown={press} data-minimize-button data-thumbnail-hide
+      className="pointer-events-auto flex h-[34px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white px-3 text-ink shadow-md hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
+      <Minimize2 size={15} strokeWidth={1.8} aria-hidden="true" />
+    </button>
+  );
+  const bar = (barClass, barStyle) => (
+    <div role="toolbar" aria-label="Selection actions" data-selection-bar={mode} data-thumbnail-hide style={barStyle}
+      onPointerDown={press}
+      className={`pointer-events-auto flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md ${barClass}`}>
       {ctx.focusLabel && <button type="button" aria-label={ctx.focusLabel} title={ctx.focusLabel} onClick={ctx.onFocus} data-focus-button
         className="relative -my-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink after:absolute after:-inset-1.5 not-last:mr-1.5 hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
         <Maximize size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -61,6 +63,9 @@ function Actions({ ctx, mode, className = '', style }) {
       {ctx.onQuickEdit && <Action label="Quick Edit" chord="quick-edit" Icon={Wand} mac={ctx.mac} onClick={ctx.onQuickEdit} data-quick-edit />}
     </div>
   );
+  if (!pill) return bar(className, style);
+  const long = ctx.focusLabel || ctx.onAddToChat || ctx.onQuickEdit;
+  return <div data-selection-group className={`pointer-events-auto flex w-max items-center gap-1.5 ${className}`} style={style}>{pill}{long && bar('', undefined)}</div>;
 }
 
 // A host row's trailing segment: shown only while `id` is the one selected object, and tells the floating bar to stand down.
