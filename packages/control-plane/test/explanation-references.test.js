@@ -108,7 +108,7 @@ test('schema bundles: core by default, extras only when steered, the same bytes 
 // answer format; at most two panels in a bundle.
 test('N1: the assembled request holds exactly one number rule on the plan route and on the fast chain', async () => {
   const { assembledSystem } = await import('../src/explanation-fast-chain.js');
-  const N1 = "Never invent measurements, statistics or data about the real world. Use the learner's own numbers when the request or source gives any. Otherwise a diagram may use only the checked values of a selected reference, and its title or caption must say 'illustrative'.";
+  const N1 = "Never invent measurements, statistics or data about the real world. Use the learner's own numbers when the request or source gives any. Otherwise a diagram may use only the checked values of a selected reference, and its title or caption must say 'illustrative', or values you compute exactly from a formula the prose states, labelled 'worked example'.";
   const OTHER = /never invent numbers|label invented|example numbers|illustrative example|exact values from the request/i;
   const args = 'Show me inserting 7 into a BST.';
   const plan = prepareArtifactAuthorRequest({}, { command: 'explanation', args });
