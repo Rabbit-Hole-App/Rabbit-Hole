@@ -12,7 +12,7 @@ const depthGallery = JSON.parse(readFileSync(new URL('./kind-gallery-depths.json
 const originalByKind = new Map(gallery.map(spec => [spec.diagram.kind, spec]));
 const depths = ['overview', 'standard', 'deep'];
 
-const editableLabels = new Set(['title', 'label', 'heading', 'claim', 'conclusion', 'operation', 'items', 'columns', 'steps', 'xLabel']);
+const editableLabels = new Set(['title', 'label', 'heading', 'claim', 'conclusion', 'operation', 'items', 'columns', 'steps', 'xLabel', 'name', 'dimensions', 'dims']);
 const optionalCopy = new Set(['caption', 'detail']);
 const authoredFields = new Set([...editableLabels, ...optionalCopy, 'time', 'unit', 'cells', 'account']);
 
@@ -37,10 +37,10 @@ function authoredText(value, field) {
   return [];
 }
 
-test('the depth gallery has one Overview, Standard and Deep spec for every supported kind', () => {
+test('the depth gallery has one Brief, Balanced and Detailed spec for every supported kind', () => {
   const schema = tutorDiagramJsonSchema.properties.diagram;
   const kinds = (schema.anyOf ?? schema.oneOf).map(shape => shape.properties.kind.const);
-  assert.equal(kinds.length, 21);
+  assert.equal(kinds.length, 24);
   assert.deepEqual(depthGallery.map(entry => entry.kind).sort(), kinds.sort());
   for (const entry of depthGallery) {
     assert.deepEqual(Object.keys(entry).sort(), ['deep', 'kind', 'overview', 'standard']);

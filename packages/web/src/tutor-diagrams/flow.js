@@ -1,5 +1,8 @@
 import { createElement as h } from 'react';
+import { flowPaths } from './flow-paths.js';
 import { box, connector, diamond, label, lineHeight, longestWordWidth, SURFACE, textWidth, widestFormula, wrap } from './primitives.js';
+import { skipLanePoints, skipLaneX } from './skip-lanes.js';
+import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
 const PAD = 14;
 const NODE_GAP = 18;
@@ -7,6 +10,11 @@ const NODE_MIN = 106;
 const NODE_MAX = 186;
 const EDGE_TEXT = 14;
 const EDGE_WRAP = 158;
+const PARALLEL_WIDTH = 960;
+const TENSOR_PAD = 10;
+const DECISION_BAND = 2 / 3;
+
+const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
 
 function layersFor(nodes, incoming) {
   const ranks = new Map();
@@ -25,7 +33,7 @@ function port(node, edges, edge, bottom) {
   const dx = edges.length > 1 ? (2 * edges.indexOf(edge) / (edges.length - 1) - 1) * spread : 0;
   let inset = 0;
   if (node.role === 'decision') inset = Math.abs(dx) * node.height / node.width;
-  if (node.role === 'outcome') {
+  if (node.role === 'outcome' && !node.tensor) {
     // A wide fan-in can reach the curved ends of the outcome capsule.
     const radiusX = Math.min(node.width, node.height) / 2;
     const cornerX = Math.max(0, Math.abs(dx) - (node.width / 2 - radiusX));
@@ -45,6 +53,23 @@ function measureDecision(lines, width) {
   const offset = -bands.reduce((widest, band) => band.ratio < widest.ratio ? band : widest).y;
   const aligned = heightAt(offset);
   return aligned < centered ? { height: aligned, offset } : { height: centered, offset: 0 };
+}
+
+function measureTensorNode(node, width) {
+  const decision = node.role === 'decision';
+  const contentWidth = width * (decision ? DECISION_BAND : 1) - 2 * TENSOR_PAD;
+  const lines = wrap(node.label ?? '', contentWidth);
+  const labelHeight = lines.length * lineHeight();
+  const strip = layoutTensorStrip(node.tensor, decision ? 0 : contentWidth);
+  const stripOffset = labelHeight ? labelHeight + 6 : 0;
+  const contentHeight = stripOffset + strip.height;
+  let height = contentHeight + 2 * TENSOR_PAD;
+  if (decision) {
+    // Keep the entire content band inside the diamond's sloped sides.
+    const bandWidth = Math.max(strip.width, ...lines.map(line => textWidth(line))) + 2 * TENSOR_PAD;
+    height = Math.ceil(height / (1 - bandWidth / width));
+  }
+  return { height, lines, strip, stripOffset, labelHeight, contentHeight };
 }
 
 function crosses(points, { x, y, width, height }) {
@@ -77,9 +102,9 @@ function labelBounds(route, others, width) {
 }
 
 export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
-  // E3: the validated worked route (spec.js checkFlow); absent, every wire and node is neutral exactly as before.
-  const onPath = new Set(highlightPath ?? []);
-  const pathEdge = edge => !!highlightPath && onPath.has(edge.from) && onPath.has(edge.to) && highlightPath.indexOf(edge.to) === highlightPath.indexOf(edge.from) + 1;
+  const paths = flowPaths(highlightPath);
+  const onPath = new Set(paths.flat());
+  const pathEdge = ({ from, to }) => paths.some(path => path.some((id, index) => id === from && path[index + 1] === to));
   const incoming = new Map(nodes.map(node => [node.id, []]));
   const outgoing = new Map(nodes.map(node => [node.id, []]));
   for (const edge of edges) {
@@ -91,13 +116,24 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
     .sort((a, b) => ranks.get(b.from) - ranks.get(a.from));
   const skipOrder = new Map(skips.map((edge, index) => [edge, index]));
   const outer = skips.length ? 16 + skips.length * 9 : 0;
-  const metrics = rows.map(row => row.map(node => {
-    const word = longestWordWidth(node.label);
-    const pad = node.role === 'decision' ? 32 : 20;
-    const required = Math.ceil(word + pad);
-    // A long word wraps by characters; a formula cannot, so its node grows past NODE_MAX to hold it (the diagram then scrolls).
-    return { word, min: required <= NODE_MAX ? Math.max(NODE_MIN, required) : Math.max(NODE_MIN, Math.ceil(widestFormula(node.label) + pad)) };
-  }));
+  const metrics = rows.map(row => {
+    const space = PARALLEL_WIDTH - 2 * PAD - outer - (row.length - 1) * NODE_GAP;
+    const wordLimit = paths.length === 2 ? Math.min(NODE_MAX, Math.floor(space / row.length)) : NODE_MAX;
+    const floor = Math.min(NODE_MIN, wordLimit);
+    return row.map(node => {
+      const text = node.label ?? '';
+      const word = longestWordWidth(text);
+      const decision = node.role === 'decision';
+      const pad = decision ? 32 : 20;
+      const required = Math.ceil(word + pad);
+      // A long word wraps by characters. Unbreakable formulas and tensors can widen their node.
+      const min = Math.max(floor, required <= wordLimit ? required : Math.ceil(widestFormula(text) + pad));
+      if (!node.tensor) return { word, min };
+      const contentWidth = Math.max(tensorMinimumWidth(node.tensor), widestFormula(text));
+      const tensorWidth = Math.ceil((contentWidth + 2 * TENSOR_PAD) / (decision ? DECISION_BAND : 1));
+      return { word, min: Math.max(min, tensorWidth) };
+    });
+  });
   const rowMinimums = metrics.map(row => row.reduce((sum, node) => sum + node.min, 0) + (row.length - 1) * NODE_GAP);
   const width = Math.max(requestedWidth, 2 * PAD + Math.max(...rowMinimums) + outer);
   const inner = width - 2 * PAD - outer;
@@ -124,16 +160,17 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
     let x = PAD + extra / 2;
     const rowNodes = row.map((node, index) => {
       const w = widths[index];
-      const isDecision = node.role === 'decision';
-      const wrapWidth = isDecision ? Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].word)) : w - 20;
-      const lines = wrap(node.label, wrapWidth);
-      const { height, offset } = isDecision ? measureDecision(lines, w)
-        : { height: Math.max(38, lines.length * lineHeight() + 14), offset: 0 };
       const previous = incoming.get(node.id);
       const parent = previous.length === 1 ? placements.get(previous[0].from) : null;
       const ideal = row.length === 1 && parent ? parent.cx : x + w / 2;
       x += w + NODE_GAP + extra;
       const cx = Math.max(PAD + w / 2, Math.min(PAD + inner - w / 2, ideal));
+      if (node.tensor) return { ...node, width: w, cx, ...measureTensorNode(node, w) };
+      const isDecision = node.role === 'decision';
+      const wrapWidth = isDecision ? Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].word)) : w - 20;
+      const lines = wrap(node.label, wrapWidth);
+      const { height, offset } = isDecision ? measureDecision(lines, w)
+        : { height: Math.max(38, lines.length * lineHeight() + 14), offset: 0 };
       return { ...node, width: w, height, cx, lines, offset };
     });
     const height = Math.max(...rowNodes.map(node => node.height));
@@ -149,7 +186,7 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
   });
 
   // Port order follows where the wire actually runs, including right-side skips.
-  const skipX = edge => PAD + inner + 10 + 9 * skipOrder.get(edge);
+  const skipX = edge => skipLaneX(PAD + inner, skipOrder.get(edge));
   const exitX = edge => skipOrder.has(edge) ? skipX(edge) : placements.get(edge.to).cx;
   const entryOrder = edge => skipOrder.has(edge) ? width + routeByEdge.get(edge).arrive.y : placements.get(edge.from).cx;
   for (const group of outgoing.values()) group.sort((a, b) => exitX(a) - exitX(b));
@@ -158,13 +195,14 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
     const { edge, depart, arrive } = route;
     const from = port(placements.get(edge.from), outgoing.get(edge.from), edge, true);
     const to = port(placements.get(edge.to), incoming.get(edge.to), edge, false);
-    const x = arrive ? skipX(edge) : to[0];
-    const points = [from, [from[0], depart.y], [x, depart.y]];
-    if (arrive) points.push([x, arrive.y], [to[0], arrive.y]);
-    points.push(to);
+    const points = arrive ? skipLanePoints(from, to, skipX(edge), depart.y, arrive.y)
+      : [from, [from[0], depart.y], [to[0], depart.y], to];
     return { ...route, points };
   });
-  const wires = routed.map(({ edge, points }) => ({ active: pathEdge(edge), element: h('g', { 'data-tutor-edge': `${edge.from}:${edge.to}`, ...(pathEdge(edge) ? { 'data-tutor-path': '' } : {}) }, connector(points, { path: pathEdge(edge) })) }))
+  const wires = routed.map(({ edge, points }) => {
+    const active = pathEdge(edge);
+    return { active, element: h('g', { 'data-tutor-edge': `${edge.from}:${edge.to}`, ...(active ? { 'data-tutor-path': '' } : {}) }, connector(points, { path: active })) };
+  })
     .sort((a, b) => a.active - b.active).map(wire => wire.element); // the route is drawn last, over any wire it crosses
   const annotations = [];
   let bottom = y;
@@ -179,7 +217,7 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
     }
     // In a dense tier there may be no room on the edge itself. Keep the
     // directed relationship readable below the graph without masking any wire.
-    const key = `${placements.get(edge.from).label} → ${placements.get(edge.to).label}: ${edge.label}`;
+    const key = `${nodeName(placements.get(edge.from))} → ${nodeName(placements.get(edge.to))}: ${edge.label}`;
     const lines = wrap(key, width - 2 * PAD - 20, EDGE_TEXT);
     const height = lines.length * lineHeight(EDGE_TEXT) + 12;
     bottom += 8;
@@ -190,13 +228,20 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth) {
   }
 
   const shapes = Array.from(placements.values(), node => {
-    const { id, cx, y, width, height, role, lines, offset, title } = node;
+    const { id, cx, y, width, height, role, lines, offset, title, strip, stripOffset, labelHeight, contentHeight } = node;
     const x = cx - width / 2;
+    const active = onPath.has(id);
     const shape = role === 'decision'
-      ? diamond(x, y, width, height, { active: onPath.has(id) })
-      : box(x, y, width, height, { role, radius: role === 'outcome' ? height / 2 : 7, active: onPath.has(id) });
+      ? diamond(x, y, width, height, { active })
+      : box(x, y, width, height, { role, radius: role === 'outcome' && !strip ? height / 2 : 7, active });
     // title: the full label when the server trimmed it to fit (item 47), shown as the node's tooltip.
-    return h('g', { 'data-tutor-node': id, ...(onPath.has(id) ? { 'data-tutor-path': '' } : {}) }, ...(title ? [h('title', null, title)] : []), shape, label(lines, cx, y + height / 2 + offset, { tone: 'onFill' }));
+    const props = { 'data-tutor-node': id, ...(active ? { 'data-tutor-path': '' } : {}) };
+    const tooltip = title ? [h('title', null, title)] : [];
+    if (!strip) return h('g', props, ...tooltip, shape, label(lines, cx, y + height / 2 + offset, { tone: 'onFill' }));
+    const top = y + (height - contentHeight) / 2;
+    return h('g', { ...props, 'aria-label': nodeName(node) }, ...tooltip, shape,
+      ...(labelHeight ? [label(lines, cx, top + labelHeight / 2, { tone: 'onFill' })] : []),
+      h('g', { 'data-tutor-node-tensor': '', transform: `translate(${cx - strip.width / 2} ${top + stripOffset})` }, ...strip.elements));
   });
   return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes] };
 }

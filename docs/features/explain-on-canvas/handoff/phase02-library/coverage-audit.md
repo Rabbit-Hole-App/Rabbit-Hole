@@ -1,10 +1,12 @@
 # Phase 02 reference coverage — correction and remaining work
 
-Audited against the owner's full 21-lesson reference-scene table and the registry shipped in `8aee76e5a10815b1e0e9c48dc1c4d876acfe303e`. Updated through Batch 3C on the rebased branch.
+Audited against the owner's full 21-lesson reference-scene table and the registry shipped in `8aee76e5a10815b1e0e9c48dc1c4d876acfe303e`. Updated through Batch 4A on the rebased branch.
 
 **The 13 renderer additions/extensions are implemented. The full requested reference-scene pack is not complete.** The earlier statement that nothing from the Phase 02 list remained, followed by a recommendation to move to the next phase, was too broad. Having a reference ID tagged with each lesson is not the same as covering each scene requested within that lesson.
 
-The branch author registry contains **159 references**. The offline catalogue has **183 references**, including 24 held for later integration, and the kind gallery has 21 neutral shapes. Two Batch 3 curriculum references are open in Lesson 21. [Batch 3A](batch-3a.md#local-verification) · [Batch 3B](batch-3b.md#local-verification) · [Batch 3C](batch-3c.md#local-verification) · [AI/ML and offline SVG handoff](svg-offline.md)
+The branch author registry contains **168 references**. The offline catalogue has **192 references**, including 24 held for later integration, and the kind gallery has 24 neutral shapes. The seven new architecture references are tracked separately. [Illustration primitives](illustration-primitives.md)
+
+Five reference patterns remain open in Lessons 01–02 and two lower-priority patterns remain open in Lesson 21. [Batch 3C](batch-3c.md#local-verification) · [Batch 4A](batch-4a.md#local-verification) · [AI/ML and offline SVG handoff](svg-offline.md)
 
 ## Audit definitions
 
@@ -19,9 +21,9 @@ IDs below are existing entries in `packages/web/src/tutor-diagrams/reference-lib
 
 | Lesson | Present evidence | Still missing or partial relative to the requested scenes |
 | --- | --- | --- |
-| 01 — What is ML? | `ml-learning-taxonomy`, `labelled-samples-and-split`, `train-validation-test-split`, `nearest-centroid-boundary` | A concrete classification-versus-regression contrast; labelled-versus-unlabelled groups; a basic training/evaluation/prediction workflow; a nearest-centroid limitation/counterexample. The taxonomy naming two tasks does not provide their contrasting outputs. |
+| 01 — What is ML? | `ml-learning-taxonomy`, `labelled-samples-and-split`, `train-validation-test-split`, `nearest-centroid-boundary`. Batch 4A adds `ml-classification-vs-regression` with the same weather input and contrasting output types. | Labelled-versus-unlabelled groups, a basic training/evaluation/prediction workflow, and a nearest-centroid counterexample. |
 | 02 — Linear regression | `regression-residuals`, `regression-mean-baseline`, `gradient-descent-contours`, `polynomial-regression-curve`, `regularization-l1-l2-geometry`, `regularization-coefficient-path`, `ml-fit-quality-comparison` | Convergence comparisons for different learning rates; an explicit matched-data regularized-versus-unregularized fitted-prediction comparison. The mean line and reasonable fit already coexist in the fit-quality example; reuse it rather than duplicate it. |
-| 03 — Logistic regression | `sigmoid-threshold`, `binary-cross-entropy-loss`, `softmax-probabilities`, `confusion-matrix-counts`, `roc-threshold-curve`; the shared `precision-recall-thresholds` is also relevant | A logistic decision boundary in feature space tied to its score/threshold. The centroid classifier's boundary is not a logistic-regression worked example. |
+| 03 — Logistic regression | `sigmoid-threshold`, `binary-cross-entropy-loss`, `softmax-probabilities`, `confusion-matrix-counts`, `roc-threshold-curve` and `precision-recall-thresholds`. Batch 4A adds `ml-logistic-decision-boundary` with two cutoffs in the same feature space. | The requested reference patterns are present. Live generation and browser acceptance remain pending. |
 | 04 — Decision trees and forests |`ml-tree-split-path`, `tree-class-mixtures`, `tree-impurity-mixtures`, `ml-tree-pruning`, `regression-tree-steps`, `bootstrap-replacement-oob`, `ml-bagging-vote-flow`, `ensemble-votes`; `ml-tree-impurity-gain` adds the complete parent, both children, weighted impurity and gain on the same counts. | No further reference pattern identified from this requested row after batch 1. Live generation and generated-card browser acceptance remain pending. |
 | 05 — SVM |`svm-margin-support-slack`, `svm-hinge-loss`, `rbf-kernel-similarity`, `kernel-similarity-grid`, `svr-epsilon-tube`; `ml-svm-c-tradeoff`, `ml-svm-feature-map` add matched-data C-dependent optima and original/transformed geometry. | No further reference pattern identified from this requested row after batch 1. Live generation and generated-card browser acceptance remain pending. |
 | 06 — KNN and distances |`knn-neighbourhood`, `knn-l1-l2-distance`, `cosine-vector-directions`, `ml-feature-scaling-transformation`, `knn-k-validation`, `ml-kd-tree`, `distance-concentration`; `ml-knn-distance-weighted-vote`, `ml-knn-scaled-distance`, `ml-knn-k-boundaries`, `ml-kd-tree-partitions` add the four missing mechanisms. | No further reference pattern identified from this requested row after batch 1. Live generation and generated-card browser acceptance remain pending. |
@@ -47,8 +49,8 @@ Finish this reference content with the existing approved palette and components 
 
 1. **Batch 1 implemented — trees, neighbours and clustering (04–07):** worked information gain; SVM C and transformed geometry; weighted KNN/scaling/K boundaries/KD regions; assignment-update snapshots, DBSCAN border points and GMM responsibilities.
 2. **Batch 2 implemented — worked calculations and feature transforms (08–12, 17–18, 20).** Batches 2A and 2B delivered twelve references. Batch 2C completes the 16 with the accuracy trap, undersampling, RFE stages and PSI.
-3. **Batch 3 partly implemented — temporal and system mechanisms (15–16, 19–21).** Batches 3A, 3B and 3C fill the Lesson 15, 16 and 19 gaps. The two remaining references cover historical backfills and training/serving skew in Lesson 21.
-4. **Introductory and regression contrasts (01–03):** remaining foundational comparisons, failure examples, convergence and logistic feature-space geometry.
+3. **Batch 3 partly implemented — temporal and system mechanisms (15–16, 19–21).** Batches 3A, 3B and 3C fill the Lesson 15, 16 and 19 gaps. The two Lesson 21 examples on backfills and training/serving skew moved below the foundational examples in priority.
+4. **Introductory and regression contrasts (01–03).** Batch 4A covers prediction task choice and logistic feature-space geometry. Learning-rate convergence and four other foundational patterns remain open in Lessons 01–02.
 
 For each batch: add actual reference JSON and natural prompt keywords to the existing registry; independently check the numeric claims; export the actual SVG; verify the real author request selects a relevant example; update this table. Reuse a current reference where it already expresses the mechanism instead of producing duplicate cards. Live model runs remain distinct from fixed-reference checks.
 
@@ -64,6 +66,7 @@ For each batch: add actual reference JSON and natural prompt keywords to the exi
 - [x] Build the four Batch 3A time-series references and verify the reconstruction, lag values, date windows, forecast inputs and author selection.
 - [x] Build the four Batch 3B anomaly-detection references and verify the tail cutoff, density ratios, first alert, score cutoffs and author selection.
 - [x] Build the five Batch 3C ML system design references and verify the scoring paths, serving-cost arithmetic, rollout distinctions, fallback routes and author selection.
+- [x] Build the two Batch 4A foundational references and verify the shared inputs, output types, logistic cutoffs and author selection.
 - [ ] Complete the remaining Batch 3 references and the missing/partial patterns listed above.
 - [ ] Real-model kind/reference choice and generated-card browser/save-reopen acceptance.
 

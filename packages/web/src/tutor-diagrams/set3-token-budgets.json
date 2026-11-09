@@ -295,6 +295,48 @@
         "tokens": 104,
         "sha256": "24e96f8fd68390b1dbf636ca40ea73cb5c3602d321d14c8901a5ad9c924f8f5c"
       }
+    },
+    "tensor": {
+      "overview": {
+        "tokens": 52,
+        "sha256": "7f064b2f1b99cdc5f07c86a34da830e5783e5fa5a5a0efd8b1aee203ace801e4"
+      },
+      "standard": {
+        "tokens": 54,
+        "sha256": "d9dfd982bdae54a65128e7e7d196a643e665021bdd99e1abccf5c8ece58bbab8"
+      },
+      "deep": {
+        "tokens": 57,
+        "sha256": "75abf145a3bb78dfebca54ad34b0ac88c4b52e37eac7a8fa5149ed5f6c9d3c90"
+      }
+    },
+    "token-links": {
+      "overview": {
+        "tokens": 55,
+        "sha256": "3eba0a983fe36f02d0493f35001a253897e06f1da458cf580ca272a5ddccd0cb"
+      },
+      "standard": {
+        "tokens": 54,
+        "sha256": "4ef62298372f145b309fede30275fd3947c00525c63efdc57a1307b6e4f2d6f2"
+      },
+      "deep": {
+        "tokens": 63,
+        "sha256": "1a2bd3c936d50e11c5af9ff0431ad6725e097c94a42d18248ba9762d17b1fb2c"
+      }
+    },
+    "block-stack": {
+      "overview": {
+        "tokens": 63,
+        "sha256": "b8af038b045653add0a86ec876b5c80cb546a7bf4a6ed5b31b5c3b7b52cf5419"
+      },
+      "standard": {
+        "tokens": 64,
+        "sha256": "98ec371b7e68ff5ac6e3b04346fb7c851d2381b630bca1892c349b4977320c12"
+      },
+      "deep": {
+        "tokens": 68,
+        "sha256": "264c46beef924af0114efe1469e33b7315db899ed71b4dd765097d82bf0c2f6c"
+      }
     }
   },
   "pairs": {
@@ -596,6 +638,28 @@
       "single": {
         "tokens": 180,
         "sha256": "f4c74fbdbc36e5943329e3edc592c98f01d1016b6249f6ddda2a43328f250d63"
+      }
+    },
+    "ml-dense-vs-moe-architecture": {
+      "panel": {
+        "tokens": 265,
+        "sha256": "9f52b25177bfd8dd1fce8a057281a2155832b8f833b1c4eed48e2210a7e65a8d"
+      },
+      "single": {
+        "tokens": 121,
+        "sha256": "69063ef7d5141b7da0dfe7fbaee2db8eff80977b6ffd83d329cb3bed30de6252"
+      }
+    },
+    "ml-fit-quality-comparison": {
+      "panel": {
+        "tokens": 529,
+        "sha256": "f3c4f174919c83e0111c6a5416f58aab9beadf01171023663109cf05cf4d7dbb",
+        "estimated": true
+      },
+      "single": {
+        "tokens": 254,
+        "sha256": "31b8c1ccc3864e897da332a6d20b950eac397b3e7244b7b1d8e5bfa840ecb20b",
+        "estimated": true
       }
     }
   }

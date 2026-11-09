@@ -1,13 +1,13 @@
 // Composition is deliberately one level deep. The integration owner supplies a
 // union containing every supported leaf kind, excluding both composition kinds.
-export function createShapes({ z, titled, text, id, itemList, leafDiagram }) {
+export function createShapes({ z, titled, text, id, itemList, leafDiagram, panelDiagram = leafDiagram }) {
   const visualState = z.strictObject({ label: text(40), diagram: leafDiagram });
   return [
     z.strictObject({
       ...titled, kind: z.literal('comparison'),
       columns: z.array(z.strictObject({ heading: text(40), items: z.array(text(65)).min(1).max(5) })).min(2).max(4).optional(),
       variant: z.literal('panels').optional(),
-      panels: z.array(z.strictObject({ heading: text(40), diagram: leafDiagram })).min(2).max(3).optional(),
+      panels: z.array(z.strictObject({ heading: text(40), diagram: panelDiagram })).min(2).max(3).optional(),
       sharedAxes: z.array(z.enum(['x', 'y'])).min(1).max(2).optional(),
     }),
     z.strictObject({

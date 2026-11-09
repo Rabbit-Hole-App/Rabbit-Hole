@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Gemma 3 27B decoder",
+    "blocks": [
+      {
+        "id": "emb",
+        "label": "Token embeddings"
+      },
+      {
+        "id": "att",
+        "label": "Grouped-query attention",
+        "repeat": 62,
+        "repeatTo": "ff"
+      },
+      {
+        "id": "ff",
+        "label": "Gated feed-forward"
+      },
+      {
+        "id": "norm",
+        "label": "Final RMSNorm"
+      },
+      {
+        "id": "out",
+        "label": "Output linear"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "att",
+        "to": "att"
+      },
+      {
+        "kind": "residual",
+        "from": "ff",
+        "to": "ff"
+      }
+    ],
+    "caption": "Five sliding-window layers precede each global layer. RMSNorm surrounds both sublayers."
+  }
+}

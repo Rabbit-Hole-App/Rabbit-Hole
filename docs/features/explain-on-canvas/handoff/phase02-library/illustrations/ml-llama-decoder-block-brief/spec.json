@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Llama-style decoder block",
+    "blocks": [
+      {
+        "id": "an",
+        "label": "Normalize for attention",
+        "repeat": 32,
+        "repeatTo": "ff"
+      },
+      {
+        "id": "att",
+        "label": "Look back at tokens"
+      },
+      {
+        "id": "fn",
+        "label": "Normalize for feed-forward"
+      },
+      {
+        "id": "ff",
+        "label": "Update token features"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "an",
+        "to": "att"
+      },
+      {
+        "kind": "residual",
+        "from": "fn",
+        "to": "ff"
+      }
+    ],
+    "caption": "Attention reads the current token and earlier tokens. The final step updates each token on its own."
+  }
+}

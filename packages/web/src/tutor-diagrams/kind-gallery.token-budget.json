@@ -85,6 +85,18 @@
     "box-plot": {
       "tokens": 74,
       "sha256": "8bcbaf7231cddabc0af297d1af991b6dd3a8e91431093f1c9f7aae276c25aef4"
+    },
+    "tensor": {
+      "tokens": 54,
+      "sha256": "d9dfd982bdae54a65128e7e7d196a643e665021bdd99e1abccf5c8ece58bbab8"
+    },
+    "token-links": {
+      "tokens": 54,
+      "sha256": "4ef62298372f145b309fede30275fd3947c00525c63efdc57a1307b6e4f2d6f2"
+    },
+    "block-stack": {
+      "tokens": 64,
+      "sha256": "98ec371b7e68ff5ac6e3b04346fb7c851d2381b630bca1892c349b4977320c12"
     }
   }
 }

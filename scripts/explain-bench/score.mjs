@@ -13,7 +13,7 @@ export async function useSpecTree(tree) { const file = tree && join(tree, 'packa
 // The words a diagram draws (spec.js tutorDiagramVisibleText); a kind newer than this copy of spec.js falls back to the caller's own label list.
 export const visibleText = (d, fallback = []) => { let t; try { t = spec.tutorDiagramVisibleText({ diagram: d }); } catch { /* unknown kind */ } return (Array.isArray(t) ? t : fallback).filter(x => typeof x === 'string' && x.trim()); };
 export const SETS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'sets');
-export const SET_NAMES = ['regression', 'baseline', 'aiml', 'sequence', 'content'];
+export const SET_NAMES = ['regression', 'baseline', 'aiml', 'sequence', 'content', 'illustrations'];
 export const loadSet = (name, dir = SETS_DIR) => JSON.parse(readFileSync(join(dir, `${name}.json`), 'utf8'));
 export const availableSets = (dir = SETS_DIR) => readdirSync(dir).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5));
 
@@ -258,7 +258,9 @@ export function scoreCard(p, rec, opts = {}) {
   const block = rec.delivered ? rec.block : null, vis = block ? visuals(block) : [], mix = mixOf(vis), prose = block ? proseOf(block.body) : '', plan = planOf(rec.raw);
   const diagrams = vis.filter(v => v.diagram).map(v => diagramScore(v.diagram, prose, p.kinds || null, plotRule));
   const plotWrong = plotRule.startsWith('strict') && diagrams.some(d => PLOT_KINDS.includes(d.kind) && d.arithmetic?.errors > 0);
-  const score = block ? (plotWrong ? 'wrong' : scoreMix(p, vis)) : 'failed', it = block?.interactions;
+  // minSeries (owner 2026-11-08, overfitting card): a coordinate-plot with fewer series than the label asks for (one line through the points, the data drawn once more as a model) is wrong
+  const thinPlot = !!p.minSeries && diagrams.some(d => d.kind === 'coordinate-plot' && (d.spec?.series?.length ?? 0) < p.minSeries);
+  const score = block ? (plotWrong || thinPlot ? 'wrong' : scoreMix(p, vis)) : 'failed', it = block?.interactions;
   return {
     set: rec.set, run: rec.run, depth: rec.depth || null, plotRule, plotWrong, deepPlot: !!p.deepPlot, id: p.id, prompt: p.prompt, group: p.group, category: p.category || null, sketch: p.sketch || null, regressionKind: p.regressionKind || null,
     delivered: !!block, failure: rec.failure || null, title: block?.title || null, mix, score,

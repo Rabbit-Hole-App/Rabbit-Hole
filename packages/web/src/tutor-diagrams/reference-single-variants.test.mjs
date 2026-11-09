@@ -7,13 +7,13 @@ import { singleDiagramReferences } from './reference-single-variants.js';
 import { parseTutorDiagram } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
 
-const parents = diagramReferences.filter(({ spec: { diagram } }) =>
-  (diagram.kind === 'comparison' && (diagram.panels ?? diagram.columns).length === 2) ||
+const parents = diagramReferences.filter(({ id, spec: { diagram } }) =>
+  (diagram.kind === 'comparison' && ((diagram.panels ?? diagram.columns).length === 2 || id === 'ml-fit-quality-comparison')) || // three panels, but its learner prompt (what is overfitting?) needs one multi-series plot (owner 2026-11-08)
   (diagram.kind === 'transformation' && diagram.variant === 'visual'),
 );
 
 test('all two-panel references have exactly one linked single-diagram variant', () => {
-  assert.equal(parents.length, 20); // 30 with Phase 02 batch 1, whose ten panel references are not on this tree
+  assert.equal(parents.length, 22); // 32 with Phase 02 batch 1, whose ten panel references are not on this tree
   assert.deepEqual(singleDiagramReferences.map(r => r.panelReferenceId).sort(), parents.map(r => r.id).sort());
   for (const single of singleDiagramReferences) {
     const panel = parents.find(r => r.id === single.panelReferenceId);

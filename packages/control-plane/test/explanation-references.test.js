@@ -99,11 +99,11 @@ test('schema bundles: core by default, extras only when steered, the same bytes 
   assert.equal(JSON.stringify(author(FAST, 'How do parakeets sleep?')), JSON.stringify(core), 'another unsteered question sends the same bytes');
   const box = author(FAST, 'What does a box plot call an outlier?');
   assert.deepEqual(kinds(box).sort(), [...CORE_KINDS, ...NEW_KINDS].sort(), 'a required new kind adds the new-kind group, not the quantitative one');
-  const fit = author(FAST, 'What is the difference between underfitting and overfitting?');
-  assert.ok(panels(fit) && !JSON.stringify(fit).includes('"identity"'), 'a panel reference adds comparison panels only');
+  const fit = author(FAST, 'Show a comparison diagram of underfitting and overfitting');
+  assert.ok(panels(fit) && !JSON.stringify(fit).includes('"identity"'), 'a panel reference adds comparison panels only (the learner asked for the comparison: without that, or a comparison plan, the reference goes out as its one-plot single variant, owner 2026-11-08 overfitting card)');
   const bars = author(FAST, 'Show a bar chart of the votes');
   assert.ok(QUANT_KINDS.every(k => kinds(bars).includes(k)), 'a required quantitative kind adds the quantitative group');
-  assert.equal(kinds(author({ SMALL_ENV: 'test' }, 'How does attention work in a transformer?')).length, 21, 'the plan path keeps every kind');
+  assert.equal(kinds(author({ SMALL_ENV: 'test' }, 'How does attention work in a transformer?')).length, 24, 'the plan path keeps every kind');
 });
 
 // Owner N1, M2, M4 (2026-11-08): one number rule in the whole request on both routes; the references last in the fast-chain system message, before the
@@ -137,7 +137,7 @@ test('M2: the fast-chain system message is the system prompt, the tool guidance,
 });
 
 test('M4: a panel bundle allows at most two panels', () => {
-  const fit = prepareArtifactAuthorRequest({ SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'x' }, { command: 'explanation', args: 'What is the difference between underfitting and overfitting?' }).body.tools.find(t => t.name === 'make_explanation').input_schema;
+  const fit = prepareArtifactAuthorRequest({ SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'x' }, { command: 'explanation', args: 'Show a comparison diagram of underfitting and overfitting', visualRequirements: deriveVisualRequirements('Show a comparison diagram of underfitting and overfitting') }).body.tools.find(t => t.name === 'make_explanation').input_schema;
   const spec = (fit.properties.visuals.items.oneOf ?? fit.properties.visuals.items.anyOf).find(v => v.properties.spec).properties.spec.properties.diagram;
   assert.equal((spec.oneOf ?? spec.anyOf).find(b => b.properties.kind.const === 'comparison').properties.panels.maxItems, 2);
 });

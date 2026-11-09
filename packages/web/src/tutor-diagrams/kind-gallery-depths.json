@@ -825,5 +825,221 @@
         "caption": "The interquartile range is $Q_3-Q_1=25-15=10$ minutes."
       }
     }
+  },
+  {
+    "kind": "tensor",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "tensor",
+        "title": "Readings in order",
+        "tensor": {
+          "rows": 1,
+          "columns": 3,
+          "dimensions": "One row",
+          "name": "Readings",
+          "values": [
+            2,
+            4,
+            6
+          ],
+          "role": "input"
+        }
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "tensor",
+        "title": "A row of readings",
+        "tensor": {
+          "rows": 1,
+          "columns": 3,
+          "dimensions": "1 × 3",
+          "name": "Readings",
+          "values": [
+            2,
+            4,
+            6
+          ],
+          "role": "input"
+        }
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "tensor",
+        "title": "A row vector $x$",
+        "tensor": {
+          "rows": 1,
+          "columns": 3,
+          "dimensions": "1 × 3",
+          "name": "$x$",
+          "values": [
+            2,
+            4,
+            6
+          ],
+          "role": "input"
+        }
+      }
+    }
+  },
+  {
+    "kind": "token-links",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "token-links",
+        "title": "Which word matters more",
+        "source": [
+          "red",
+          "kite"
+        ],
+        "target": [
+          "red",
+          "kite"
+        ],
+        "queries": [
+          {
+            "index": 1,
+            "weights": [
+              0.25,
+              0.75
+            ]
+          }
+        ],
+        "normalized": true
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "token-links",
+        "title": "Weights on words",
+        "source": [
+          "red",
+          "kite"
+        ],
+        "target": [
+          "red",
+          "kite"
+        ],
+        "queries": [
+          {
+            "index": 1,
+            "weights": [
+              0.25,
+              0.75
+            ]
+          }
+        ],
+        "normalized": true
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "token-links",
+        "title": "Word weights $w_1+w_2=1$",
+        "source": [
+          "red",
+          "kite"
+        ],
+        "target": [
+          "red",
+          "kite"
+        ],
+        "queries": [
+          {
+            "index": 1,
+            "weights": [
+              0.25,
+              0.75
+            ]
+          }
+        ],
+        "normalized": true
+      }
+    }
+  },
+  {
+    "kind": "block-stack",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "block-stack",
+        "title": "Packing a box",
+        "blocks": [
+          {
+            "id": "p",
+            "label": "Fill box",
+            "dims": "Four items",
+            "diagram": {
+              "kind": "flow",
+              "steps": [
+                "Find items",
+                "Fill box"
+              ]
+            }
+          },
+          {
+            "id": "s",
+            "label": "Check box"
+          }
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "block-stack",
+        "title": "Pack and inspect an order",
+        "blocks": [
+          {
+            "id": "p",
+            "label": "Pack order",
+            "dims": "4 items",
+            "diagram": {
+              "kind": "flow",
+              "steps": [
+                "Read order",
+                "Fill box"
+              ]
+            }
+          },
+          {
+            "id": "s",
+            "label": "Inspect order"
+          }
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "block-stack",
+        "title": "Order with $d=4$ items",
+        "blocks": [
+          {
+            "id": "p",
+            "label": "Pack order",
+            "dims": "d=4",
+            "diagram": {
+              "kind": "flow",
+              "steps": [
+                "Read order",
+                "Fill box"
+              ]
+            }
+          },
+          {
+            "id": "s",
+            "label": "Inspect order"
+          }
+        ]
+      }
+    }
   }
 ]

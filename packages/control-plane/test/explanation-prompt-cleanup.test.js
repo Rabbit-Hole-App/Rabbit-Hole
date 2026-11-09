@@ -136,7 +136,8 @@ test('the last-resort simplified diagram takes the planned kind (flow, cycle or 
 });
 
 test('reference selection filters to the planned kinds before any keyword scoring', () => {
-  const prompt = 'What is the difference between underfitting and overfitting?', all = selectDiagramReferences({ prompt });
+  // the Codex fit-quality reference now answers 'underfitting and overfitting' alone, so the prompt names both the fit and the tree
+  const prompt = 'What is overfitting and how does pruning a tree fix it?', all = selectDiagramReferences({ prompt });
   assert.ok(all.length > 1 && new Set(all.map(r => r.spec.diagram.kind)).size > 1, 'unfiltered, more than one kind is offered');
   const trees = selectDiagramReferences({ prompt, plannedKinds: ['tree'] });
   assert.ok(trees.length && trees.every(r => r.spec.diagram.kind === 'tree'));

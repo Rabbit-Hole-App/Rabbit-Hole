@@ -33,6 +33,9 @@ const KIND = {
   argument: 'A claim with supporting and opposing evidence and a conclusion.',
   't-account': 'Debits and credits.',
   waterfall: 'An opening value changed by signed steps to a closing value.',
+  tensor: 'The shape or values of a vector or matrix: an embedding, a projection, a weight matrix, a batch of activations.',
+  'token-links': 'Attention or any weighted relation between two rows of tokens: which words a word attends to, and how strongly.',
+  'block-stack': 'A layered architecture of blocks, often repeated, with skip connections: a transformer layer, an encoder or decoder stack, mixture-of-experts feed-forward.',
 };
 export const QUESTIONS = {
   visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both: a 'how does X work' question about a physical object is both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only: a neural network, a data structure, a protocol or a comparison of two technologies is a diagram even when the question says 'look like'.",

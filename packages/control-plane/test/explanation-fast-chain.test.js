@@ -220,16 +220,20 @@ test('the Gemini step request: array and numeric bounds dropped from its schema 
   // The largest bundle (every flag) is the whole schema: refused by Gemini without forGemini, accepted with it.
   const full = prepareArtifactAuthorRequest({ SMALL_ENV: 'test' }, { command: 'explanation', args: 'x' }).body.tools.find(t => t.name === 'make_explanation').input_schema;
   const whole = stepRequest({ provider: 'fireworks', model: FW }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }], messages: [{ role: 'user', content: '{}' }] });
-  assert.equal(kindsOf(whole).length, 21);
+  assert.equal(kindsOf(whole).length, 24);
   assert.ok(geminiRefuses({ ...gemini, response_format: withoutBounds(whole.response_format) }), 'the whole Phase 02 schema without bounds is the one Gemini refused');
   const plain = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }], messages: [{ role: 'user', content: '{}' }] });
-  assert.equal(kindsOf(plain).length, 17, 'every kind but the four new ones');
+  assert.equal(kindsOf(plain).length, 17, 'the unsteered full schema reduces to the legacy Gemini bundle');
   assert.ok(!JSON.stringify(plain.response_format).includes('"panels"') && diagramOf(plain).anyOf.find(b => b.properties.kind.const === 'tree').properties.highlightPath && !geminiRefuses(plain));
   // A request that names a new kind keeps it, list forms still.
   const named = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }],
     messages: [{ role: 'user', content: JSON.stringify({ request: 'x', requiredVisuals: [{ id: 'vr-1', kind: 'diagram', diagramKind: 'heatmap', purpose: 'x' }] }) }] });
   assert.deepEqual(kindsOf(named).filter(k => !kindsOf(plain).includes(k)), ['heatmap']);
   assert.ok(!geminiRefuses(named));
+  const stacks = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', { max_tokens: 10, tools: [{ name: 'make_explanation', description: '', input_schema: full }],
+    messages: [{ role: 'user', content: JSON.stringify({ request: 'x', requiredVisuals: [{ id: 'vr-1', kind: 'diagram', diagramKind: 'block-stack', purpose: 'x' }] }) }] });
+  assert.deepEqual(kindsOf(stacks).filter(k => !kindsOf(plain).includes(k)), ['block-stack']);
+  assert.ok(!geminiRefuses(stacks));
   // A property NAMED like a bound is a field, not a keyword: it is kept.
   assert.deepEqual(withoutBounds({ type: 'object', properties: { maxItems: { type: 'number', maximum: 3 } }, minItems: 1 }), { type: 'object', properties: { maxItems: { type: 'number' } } });
 });

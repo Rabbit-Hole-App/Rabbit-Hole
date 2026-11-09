@@ -134,7 +134,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const topicalReferences = ready.includes('explanation') ? preferSingleVariants(selectDiagramReferences({
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
-    requiredKinds, shapeFallback: !!input.planned && !input.plan,
+    requiredKinds, shapeFallback: !!input.planned && !input.plan, depth: input.depth,
     plannedKinds: visualKinds(resolved), // the resolved kinds, filtered to before any keyword scoring
   }), { plannedKind: input.plan?.kind, requiredKinds }) : [];
   // Planner prototype: the gallery example of the card's kind, at the card's depth, goes first, before any topical reference.

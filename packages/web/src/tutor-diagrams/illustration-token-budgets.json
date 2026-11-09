@@ -1,0 +1,85 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-transformer-qkv-projections": {
+      "balanced": {
+        "tokens": 218,
+        "sha256": "65e08a8fabac0fc30bc1fe22a9c19c1e8da40cbb2d6c0de94e76c22435194d33",
+        "authorPacketTokens": 251
+      }
+    },
+    "ml-self-attention-token-links": {
+      "balanced": {
+        "tokens": 119,
+        "sha256": "808b0b5cee96d054a44b68eba79b846dead046f7bb5b4946947acb4a9337cc36",
+        "authorPacketTokens": 183
+      }
+    },
+    "ml-transformer-encoder-stack": {
+      "balanced": {
+        "tokens": 93,
+        "sha256": "91bfb486e8b48860aa36af4de0e542cd1864187b3dcb547c4c3ccdf5724cac9b",
+        "authorPacketTokens": 135
+      }
+    },
+    "ml-llama-decoder-block": {
+      "balanced": {
+        "tokens": 149,
+        "sha256": "39dfd742262510cf981c9cb5a727b08aee2de66bdeba27dd5484c05b85ae4769",
+        "authorPacketTokens": 195
+      },
+      "brief": {
+        "tokens": 126,
+        "sha256": "2d8a0f4961bc238cc04d2dc727822d162fad03a94384c9ec5d05c29b93e80f82",
+        "authorPacketTokens": 172
+      },
+      "detailed": {
+        "tokens": 165,
+        "sha256": "0014a31c71441f385a52ac96aa17d1e602acb1d24b956184599f14835a33b212",
+        "authorPacketTokens": 211
+      }
+    },
+    "ml-dense-vs-moe-architecture": {
+      "balanced": {
+        "tokens": 265,
+        "sha256": "9f52b25177bfd8dd1fce8a057281a2155832b8f833b1c4eed48e2210a7e65a8d",
+        "authorPacketTokens": 288
+      },
+      "brief": {
+        "tokens": 247,
+        "sha256": "8ba6c812129c2dd13334218fe45ecdf0a49a3fe2e21a5508a5545062853decd6",
+        "authorPacketTokens": 270
+      },
+      "detailed": {
+        "tokens": 286,
+        "sha256": "425a1c617950cb42842d40b05f5fdfa3db76fdeaffc3236101e8683b5256eeed",
+        "authorPacketTokens": 309
+      }
+    },
+    "ml-gemma-decoder-stack": {
+      "balanced": {
+        "tokens": 135,
+        "sha256": "bddd9ad7d5637baf232a1fcd22c185ea736a1a148c0c6fbf1006080b4184276c",
+        "authorPacketTokens": 207
+      },
+      "brief": {
+        "tokens": 88,
+        "sha256": "2ce9827d4942444f6cfdaba24b59194d050ddd3683b89d155aaff9f3ace640ae",
+        "authorPacketTokens": 160
+      },
+      "detailed": {
+        "tokens": 300,
+        "sha256": "5e7bd24bbd20b1475f20d594d17c757ef64d839b16ac8be2b290bed6e9ddd773",
+        "authorPacketTokens": 374
+      }
+    },
+    "ml-moe-top-two-experts": {
+      "balanced": {
+        "tokens": 300,
+        "sha256": "db2f32f8344fcbecf0adc6347e129a8a6e647b4924a40cdfa96037b169e11046",
+        "authorPacketTokens": 335
+      }
+    }
+  }
+}

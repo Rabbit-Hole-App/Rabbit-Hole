@@ -114,10 +114,10 @@ function mathLine({ source, math }, x, y, { size, weight, anchor, fill, step }) 
     } }, ...runs));
 }
 
-export function label(lines, x, y, { size = 14, weight = 400, anchor = 'middle', tone = 'ink' } = {}) {
+export function label(lines, x, y, { size = 14, weight = 400, anchor = 'middle', tone = 'ink',
+  fill = tone === 'onFill' ? FILLED_INK : tone === 'muted' ? MUTED : INK } = {}) {
   const values = Array.isArray(lines) ? lines : [lines];
   const step = lineHeight(size);
-  const fill = tone === 'onFill' ? FILLED_INK : tone === 'muted' ? MUTED : INK;
   const center = index => y + (index - (values.length - 1) / 2) * step;
   const typeset = values.map(value => mathLabel(value)).map(parsed => parsed.math.some(run => run.set) ? parsed : null);
   const plain = values.flatMap((value, index) => typeset[index] ? [] : [h('tspan', { x, y: center(index) + size * 0.34 }, value)]);

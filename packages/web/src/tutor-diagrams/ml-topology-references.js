@@ -69,7 +69,7 @@ export const references = [
         { id: 'a', label: 'Class A', parent: 'left', side: 'left', edgeLabel: String.raw`$x_2\le 2$`, count: 4, detail: '4 A, 0 B' },
         { id: 'b', label: 'Class B after two tests', parent: 'left', side: 'right', edgeLabel: '$x_2>2$', count: 3, detail: '0 A, 3 B' },
       ] }),
-  reference('ml-tree-pruning', ['04', '10', '12'], ['decision tree', 'pruning', 'overfitting', 'validation', 'regularization'],
+  reference('ml-tree-pruning', ['04', '10', '12'], ['decision tree', 'pruning', 'validation', 'regularization'],
     'Show which subtree is removed by pruning and why validation matters.',
     'Show the real subtree and its counts; mark a discarded subtree instead of replacing the explanation with a generic flow.',
     { kind: 'tree', title: 'Prune a split that does not help validation', layout: 'binary',

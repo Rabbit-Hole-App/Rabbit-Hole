@@ -1068,7 +1068,8 @@
    "needsPicture": false,
    "noPicture": true,
    "category": "quantity",
-   "sourceId": "overfitting"
+   "sourceId": "overfitting",
+   "minSeries": 2
   },
   {
    "id": "overfitting-p2",
@@ -1098,7 +1099,8 @@
    "needsPicture": false,
    "noPicture": true,
    "category": "quantity",
-   "sourceId": "overfitting"
+   "sourceId": "overfitting",
+   "minSeries": 2
   },
   {
    "id": "overfitting-p3",
@@ -1128,7 +1130,8 @@
    "needsPicture": false,
    "noPicture": true,
    "category": "quantity",
-   "sourceId": "overfitting"
+   "sourceId": "overfitting",
+   "minSeries": 2
   },
   {
    "id": "overfitting-p4",
@@ -1158,7 +1161,8 @@
    "needsPicture": false,
    "noPicture": true,
    "category": "quantity",
-   "sourceId": "overfitting"
+   "sourceId": "overfitting",
+   "minSeries": 2
   },
   {
    "id": "overfitting-p5",
@@ -1188,7 +1192,8 @@
    "needsPicture": false,
    "noPicture": true,
    "category": "quantity",
-   "sourceId": "overfitting"
+   "sourceId": "overfitting",
+   "minSeries": 2
   },
   {
    "id": "beam-search-p1",

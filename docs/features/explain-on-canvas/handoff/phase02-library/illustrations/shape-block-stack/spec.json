@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Pack and inspect an order",
+    "blocks": [
+      {
+        "id": "p",
+        "label": "Pack order",
+        "dims": "4 items",
+        "diagram": {
+          "kind": "flow",
+          "steps": [
+            "Read order",
+            "Fill box"
+          ]
+        }
+      },
+      {
+        "id": "s",
+        "label": "Inspect order"
+      }
+    ]
+  }
+}

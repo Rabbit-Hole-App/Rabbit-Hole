@@ -72,3 +72,28 @@ test('review-batch-01 set (owner 2026-11-09): ten prompts plus three paraphrases
   assert.match(prod.kind.criteria['coordinate-plot'], /periodic quantity over a position or time/);
   assert.match(prod.kind.criteria.transformation, /Never for a function, wave or encoding/);
 });
+
+test('the illustrations set carries the seven Codex reference prompts, labelled with the kind each reference teaches', async () => {
+  const { loadSet, SET_NAMES } = await import('./score.mjs');
+  const { illustrationReferences } = await import('../../packages/web/src/tutor-diagrams/reference-library.js');
+  assert.ok(SET_NAMES.includes('illustrations'));
+  const set = loadSet('illustrations');
+  assert.equal(set.prompts.length, 8); // the seven references plus the overfitting prompt
+  for (const ref of illustrationReferences) {
+    const p = set.prompts.find(x => x.id === ref.id);
+    assert.ok(p, ref.id);
+    assert.equal(p.prompt, ref.prompts[0]);
+    assert.ok(p.depths.standard.kinds.includes(ref.spec.diagram.kind), `${ref.id}: expected kind ${ref.spec.diagram.kind}`);
+    assert.match(p.depths.standard.sketch[0], /^Core: /);
+  }
+});
+
+test('minSeries (owner 2026-11-08, overfitting card): a one-series coordinate-plot is wrong, a three-series plot is scored on its mix', async () => {
+  const { loadSet, scoreCard } = await import('./score.mjs');
+  const p = loadSet('illustrations').prompts.find(x => x.id === 'overfitting'), pt = (x, y) => ({ x, y });
+  const card = series => ({ delivered: true, set: 'illustrations', run: 1, depth: 'standard', block: { title: 'T', body: 'Before.' + String.fromCharCode(10, 10) + '```rh-diagram' + String.fromCharCode(10) + JSON.stringify({ version: 1, diagram: { kind: 'coordinate-plot', title: 'Fits', x: { label: 'x', min: 0, max: 4 }, y: { label: 'y', min: 0, max: 10 }, series } }) + String.fromCharCode(10) + '```' + String.fromCharCode(10, 10) + 'After.', interactions: {} } });
+  const one = [{ label: 'Fit', kind: 'line', points: [pt(0, 1), pt(1, 2), pt(2, 5)] }];
+  const three = [{ label: 'Observed', kind: 'scatter', points: [pt(0, 1), pt(1, 2), pt(2, 5)] }, ...one, { label: 'Overfit', kind: 'line', points: [pt(0, 1), pt(1, 4), pt(2, 5)] }];
+  assert.equal(scoreCard(p, card(one)).score, 'wrong');
+  assert.notEqual(scoreCard(p, card(three)).score, 'wrong');
+});

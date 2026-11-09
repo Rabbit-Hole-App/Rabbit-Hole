@@ -2,10 +2,12 @@ import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
 import { extendedFlow, extendedTree, flowLabel, nodeMetadata } from './ml-topology-spec.js';
+import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
 const PAD = 12, TEXT = 14, SMALL = 13, GAP = 18;
 const childrenFor = nodes => new Map(nodes.map(n => [n.id, nodes.filter(child => child.parent === n.id)]));
 const pathEdge = (d, from, to) => d.highlightPath?.some((id, i) => id === from && d.highlightPath[i + 1] === to);
+const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
 function pruning(nodes) {
   const byId = new Map(nodes.map(n => [n.id, n]));
   return new Set(nodes.filter(n => {
@@ -20,29 +22,36 @@ function pruning(nodes) {
 }
 
 function measure(node, width, extra = []) {
-  const lines = wrap(node.label, width - 20, TEXT);
+  const lines = wrap(node.label ?? '', width - 20, TEXT);
   const details = [...extra, ...nodeMetadata(node)].flatMap(value => wrap(value, width - 20, SMALL));
   const mainHeight = lines.length * lineHeight(TEXT);
   const detailHeight = details.length * lineHeight(SMALL);
   const textHeight = mainHeight + detailHeight + (details.length ? 5 : 0);
-  return { lines, details, mainHeight, detailHeight, textHeight, height: Math.max(34, textHeight + 16) };
+  const strip = node.tensor ? layoutTensorStrip(node.tensor, width - 20) : null;
+  const bodyHeight = textHeight + (strip ? strip.height + (textHeight ? 6 : 0) : 0);
+  return { lines, details, mainHeight, detailHeight, bodyHeight, strip, height: Math.max(34, bodyHeight + 16) };
 }
 
 function nodeWidth(node, maximum = 150) {
-  const values = [node.label, ...nodeMetadata(node)];
-  return Math.max(86, ...values.map((text, i) => Math.ceil(Math.max(
+  const values = [node.label ?? '', ...nodeMetadata(node)];
+  const textMinimum = Math.max(86, ...values.map((text, i) => Math.ceil(Math.max(
     Math.min(maximum - 20, textWidth(text, i ? SMALL : TEXT)), widestFormula(text, i ? SMALL : TEXT)) + 20)));
+  return node.tensor ? Math.max(textMinimum, tensorMinimumWidth(node.tensor) + 20) : textMinimum;
 }
 
 function card(node, pos, { active = false, pruned = false, align = 'middle' } = {}) {
   const { x, y, width, content } = pos;
   const center = align === 'start' ? x + 10 : x + width / 2;
-  const top = y + (content.height - content.textHeight) / 2;
-  return h('g', { 'data-tutor-node': node.id, ...(active ? { 'data-tutor-path': '' } : {}), ...(pruned ? { 'data-tutor-pruned': '' } : {}) },
+  const { strip, bodyHeight } = content;
+  const top = y + (content.height - bodyHeight) / 2;
+  return h('g', { 'data-tutor-node': node.id, ...(active ? { 'data-tutor-path': '' } : {}), ...(pruned ? { 'data-tutor-pruned': '' } : {}),
+    ...(strip ? { 'aria-label': nodeName(node) } : {}) },
     cloneElement(teachingBox(x, y, width, content.height, { active }), { strokeDasharray: pruned ? '4 4' : undefined }),
-    label(content.lines, center, top + content.mainHeight / 2, { weight: 700, anchor: align }),
+    ...(content.lines.length ? [label(content.lines, center, top + content.mainHeight / 2, { weight: 700, anchor: align })] : []),
     ...(content.details.length ? [label(content.details, center, top + content.mainHeight + 5 + content.detailHeight / 2,
-      { size: SMALL, tone: 'muted', anchor: align })] : []));
+      { size: SMALL, tone: 'muted', anchor: align })] : []),
+    ...(strip ? [h('g', { 'data-tutor-node-tensor': '', transform: `translate(${x + (width - strip.width) / 2} ${top + bodyHeight - strip.height})` },
+      ...strip.elements)] : []));
 }
 
 // This is the approved binary-tree arrangement extended with measured metadata.
@@ -236,7 +245,7 @@ function dendrogram(d, preferredWidth) {
 // Dedicated outside lanes make cycles and reciprocal links unambiguous while
 // each entity is drawn once. Numbered route labels use the existing flow
 // renderer's directed-label ledger convention when inline labels would cross.
-function graph(d, preferredWidth) {
+function graph(d, preferredWidth, hasTensor) {
   const order = new Map(d.nodes.map((n, i) => [n.id, i]));
   const routes = d.edges.map((e, i) => ({ ...e, index: i, side: order.get(e.from) < order.get(e.to) ? 'right' : 'left' }));
   const laneCounts = { left: 0, right: 0 };
@@ -244,7 +253,10 @@ function graph(d, preferredWidth) {
   const nodeW = Math.max(150, ...d.nodes.map(n => nodeWidth(n, 186)));
   const firstLane = 16, laneSpacing = 24, portGap = 2;
   const gutters = Object.fromEntries(Object.entries(laneCounts).map(([side, count]) => [side, count ? firstLane + (count - 1) * laneSpacing + 18 : 0]));
-  const width = Math.max(preferredWidth, 2 * PAD + gutters.left + nodeW + gutters.right);
+  const names = new Map(d.nodes.map(node => [node.id, nodeName(node)]));
+  const legend = routes.map(r => `${r.index + 1}. ${names.get(r.from)} → ${names.get(r.to)}: ${r.label}`);
+  const legendWidth = hasTensor ? 2 * PAD + Math.ceil(Math.max(...legend.map(text => widestFormula(text, SMALL)))) : 0;
+  const width = Math.max(preferredWidth, 2 * PAD + gutters.left + nodeW + gutters.right, legendWidth);
   const nodeX = PAD + gutters.left + (width - 2 * PAD - gutters.left - gutters.right - nodeW) / 2;
   const positions = new Map();
   let y = PAD;
@@ -256,8 +268,10 @@ function graph(d, preferredWidth) {
   const port = (id, route) => {
     const pos = positions.get(id);
     const peers = routes.filter(r => r.side === route.side && (r.from === id || r.to === id));
-    const x = route.side === 'right' ? nodeX + nodeW + portGap : nodeX - portGap;
-    return [x, pos.y + pos.content.height * (peers.indexOf(route) + 1) / (peers.length + 1)];
+    const inset = hasTensor ? 9 : 0; // Use the straight side of the rounded card.
+    const gap = hasTensor ? 0 : portGap;
+    const x = route.side === 'right' ? nodeX + nodeW + gap : nodeX - gap;
+    return [x, pos.y + inset + (pos.content.height - 2 * inset) * (peers.indexOf(route) + 1) / (peers.length + 1)];
   };
   const elements = [];
   for (const r of routes) {
@@ -273,8 +287,7 @@ function graph(d, preferredWidth) {
   }
   for (const node of d.nodes) elements.push(card(node, positions.get(node.id)));
   y -= 30;
-  for (const r of routes) {
-    const text = `${r.index + 1}. ${d.nodes[order.get(r.from)].label} → ${d.nodes[order.get(r.to)].label}: ${r.label}`;
+  for (const text of legend) {
     const lines = wrap(text, width - 2 * PAD, SMALL), height = lines.length * lineHeight(SMALL);
     elements.push(label(lines, PAD, y + height / 2, { size: SMALL, anchor: 'start' }));
     y += height + 8;
@@ -285,6 +298,7 @@ function graph(d, preferredWidth) {
 function restyleFlow(element, roles, active = false, role) {
   if (!element || typeof element !== 'object') return element;
   const p = element.props;
+  if (p['data-tutor-node-tensor'] !== undefined) return element;
   const nodeId = p['data-tutor-node'];
   role = nodeId ? roles.get(nodeId) : role;
   active ||= p['data-tutor-path'] !== undefined;
@@ -303,11 +317,14 @@ export function createLayouts({ legacy }) {
   return {
     tree: (d, width) => !extendedTree(d) ? legacy.tree(d, width) : d.layout === 'dendrogram' ? dendrogram(d, width)
       : d.layout === 'binary' || d.layout === 'hierarchy' ? topDown(d, width) : outline(d, width),
-    relationship: (d, width) => d.layout === 'graph' ? graph(d, width) : legacy.relationship(d, width),
+    relationship: (d, width) => {
+      const hasTensor = d.nodes.some(n => n.tensor);
+      return d.layout === 'graph' || hasTensor ? graph(d, width, hasTensor) : legacy.relationship(d, width);
+    },
     flow: (d, width) => {
       if (!extendedFlow(d)) return legacy.flow(d, width);
       const roles = new Map(d.nodes.map(n => [n.id, n.role]));
-      const rendered = legacy.flow({ ...d, nodes: d.nodes.map(n => ({ ...n, label: flowLabel(n),
+      const rendered = legacy.flow({ ...d, nodes: d.nodes.map(n => ({ ...n, label: n.label === undefined ? undefined : flowLabel(n),
         role: n.role === 'fork' || n.role === 'merge' ? 'process' : n.role })) }, width);
       return { ...rendered, elements: rendered.elements.map(e => restyleFlow(e, roles)) };
     },

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Gemma 3 27B decoder",
+    "blocks": [
+      {
+        "id": "emb",
+        "label": "Token embeddings"
+      },
+      {
+        "id": "att",
+        "label": "Read current and earlier tokens",
+        "repeat": 62,
+        "repeatTo": "ff"
+      },
+      {
+        "id": "ff",
+        "label": "Update each token"
+      },
+      {
+        "id": "norm",
+        "label": "Final normalization"
+      },
+      {
+        "id": "out",
+        "label": "Score possible next tokens"
+      }
+    ]
+  }
+}

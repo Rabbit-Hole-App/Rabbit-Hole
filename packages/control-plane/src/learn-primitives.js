@@ -19,6 +19,7 @@ import { NUMBER_RULE } from './agents/learn-artifact.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
 import { EXPLANATION_BUDGET, EXPLANATION_CAPS, PARAGRAPH_MAX, validDepth } from './chat-depth.js';
 import { parseTutorDiagram, tutorDiagramJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
+import { flowPaths } from '../../web/src/tutor-diagrams/flow-paths.js';
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
 const list = (items, minItems, maxItems) => ({ type: 'array', minItems, maxItems, items });
@@ -59,7 +60,7 @@ const branchFor = (schema, value) => {
   if (!options) return schema;
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return options.find(o => Object.entries(o.properties ?? {}).some(([k, s]) => s?.const !== undefined && value[k] === s.const))
-    ?? options.find(o => (o.required ?? []).every(k => Object.hasOwn(value, k))) ?? null;
+    ?? options.find(o => (!o.type || o.type === 'object') && (o.required ?? []).every(k => Object.hasOwn(value, k))) ?? null;
 };
 function stripUnknown(value, schema, kind, out) {
   const s = schema && value && typeof value === 'object' ? branchFor(schema, value) : null;
@@ -410,15 +411,28 @@ export const markdownIllustrations = md => split(md).fences.filter(f => f.lang =
 
 // After the pictures were made (explanation-figures.js): the fences whose picture could not be made are removed, the prose around them joined. ids: Set of ids to drop.
 export function withoutIllustrations(md, ids) {
-  const out = []; let open = null;
+  const out = [], keeps = []; let open = null;
   for (const line of String(md ?? '').split('\n')) {
-    if (open) { open.raw.push(line); if (/^\s*```/.test(line)) { const got = parseIllustration(open.lines); if (!(got.ok && ids.has(got.spec.id))) out.push(...open.raw); open = null; } else open.lines.push(line); continue; }
+    if (open) {
+      open.raw.push(line);
+      if (/^\s*```/.test(line)) {
+        const picture = open.lang === ILLUSTRATION && parseIllustration(open.lines);
+        const keep = !(picture?.ok && ids.has(picture.spec.id));
+        if (open.lang === DIAGRAM || open.lang === ILLUSTRATION) keeps.push(keep);
+        if (keep) out.push(...open.raw);
+        open = null;
+      } else open.lines.push(line);
+      continue;
+    }
     const m = line.match(FENCE);
-    if (m && m[1].toLowerCase() === ILLUSTRATION) { open = { lines: [], raw: [line] }; continue; }
+    if (m) { open = { lang: m[1].toLowerCase(), lines: [], raw: [line] }; continue; }
     out.push(line);
   }
-  if (open) out.push(...open.raw);
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (open) {
+    if (open.lang === DIAGRAM || open.lang === ILLUSTRATION) keeps.push(true);
+    out.push(...open.raw);
+  }
+  return renumberDetails(out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), keeps);
 }
 
 // The last attempt only (no repair left): every rh-diagram fence that is unclosed or does not parse is removed, so the written explanation is
@@ -431,7 +445,7 @@ const parses = lines => { try { parseTutorDiagram(lines.join('\n')); return true
 // between two of them, otherwise (or when that kind cannot be built) a straight flow (n1 -> n2 -> ..., each a process, the last the outcome).
 // -> the parsed spec, or null when the fence is not JSON or fewer than two labels can be read.
 // 'columns' and 'rows' (a matrix or comparison, owner 2026-11-08: stack-vs-queue's invalid matrix had none of the other lists and was dropped, the card delivered with no visual): read by label, heading or name.
-const LABEL_LISTS = ['nodes', 'steps', 'events', 'layers', 'actors', 'messages', 'bars', 'changes', 'markers', 'callouts', 'rows', 'columns'];
+const LABEL_LISTS = ['nodes', 'steps', 'events', 'layers', 'actors', 'messages', 'bars', 'changes', 'markers', 'callouts', 'rows', 'columns', 'blocks'];
 const labelOf = x => (typeof x === 'string' ? x : x?.label ?? x?.heading ?? x?.name);
 const fit = (s, max) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, ''); };
 const tryParse = spec => { try { return parseTutorDiagram(spec); } catch { return null; } };
@@ -475,7 +489,7 @@ export function simplifiedDiagram(lines, prefer = 'flow') {
 }
 // simplify: an invalid closed diagram is replaced by simplifiedDiagram when it can be, else removed. -> { md, dropped (removed or replaced), simplified, kinds (of the simplified) }
 function dropFrom(md, simplify = false, prefer = 'flow') {
-  const out = [], kinds = []; let open = null, dropped = 0;
+  const out = [], kinds = [], keeps = []; let open = null, dropped = 0;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       open.raw.push(line);
@@ -483,6 +497,7 @@ function dropFrom(md, simplify = false, prefer = 'flow') {
         if (open.lang === DIAGRAM && !parses(open.lines)) {
           dropped++;
           const spec = simplify && simplifiedDiagram(open.lines, prefer);
+          keeps[keeps.length - 1] = Boolean(spec);
           if (spec) { kinds.push(spec.diagram.kind); out.push(open.raw[0], JSON.stringify(spec), line); }
         } else out.push(...open.raw);
         open = null;
@@ -490,11 +505,18 @@ function dropFrom(md, simplify = false, prefer = 'flow') {
       continue;
     }
     const m = line.match(FENCE);
-    if (m) { open = { lang: m[1].toLowerCase(), lines: [], raw: [line] }; continue; }
+    if (m) {
+      open = { lang: m[1].toLowerCase(), lines: [], raw: [line] };
+      if (open.lang === DIAGRAM || open.lang === ILLUSTRATION) keeps.push(true);
+      continue;
+    }
     out.push(line);
   }
-  if (open) { if (open.lang === DIAGRAM) dropped++; else out.push(...open.raw); }
-  return dropped ? { md: out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), dropped, simplified: kinds.length, kinds } : { md, dropped: 0, simplified: 0, kinds };
+  if (open) {
+    if (open.lang === DIAGRAM) { dropped++; keeps[keeps.length - 1] = false; }
+    else out.push(...open.raw);
+  }
+  return dropped ? { md: renumberDetails(out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), keeps), dropped, simplified: kinds.length, kinds } : { md, dropped: 0, simplified: 0, kinds };
 }
 export function dropInvalidDiagrams(block, { simplify = false, prefer = 'flow' } = {}) {
   const body = dropFrom(block?.body, simplify, prefer);
@@ -516,7 +538,7 @@ const FLOW_LABEL = 60, NODE_TITLE = 240;
 function correctedFlow(raw) {
   if (tryParse(raw)) return null;
   const d = structuredClone(raw?.diagram);
-  if (d?.kind !== 'flow' || !Array.isArray(d.nodes) || !Array.isArray(d.edges) || !d.nodes.every(n => typeof n?.id === 'string' && typeof n.label === 'string')
+  if (d?.kind !== 'flow' || !Array.isArray(d.nodes) || !Array.isArray(d.edges) || !d.nodes.every(n => typeof n?.id === 'string' && typeof n.label === 'string' && !n.tensor)
     || !d.edges.every(e => typeof e?.from === 'string' && typeof e.to === 'string')) return null;
   const kinds = [];
   let issues = []; try { parseTutorDiagram({ version: 1, diagram: d }); } catch (error) { issues = Array.isArray(error?.issues) ? error.issues : []; }
@@ -545,6 +567,12 @@ function correctedFlow(raw) {
     if (starts.length >= 2 && starts.length <= 3 && d.nodes.length < 12 && starts.every(n => out(n.id).length)) {
       const branches = starts.map(n => fit(n.label, 30));
       let id = 'start'; for (let k = 2; ids.has(id); k++) id = `start${k}`;
+      const prependStart = () => {
+        if (!Array.isArray(d.highlightPath)) return;
+        for (const path of flowPaths(d.highlightPath)) {
+          if (Array.isArray(path) && starts.some(n => n.id === path[0])) path.unshift(id);
+        }
+      };
       // Owner M5 (2026-11-08): parallel inputs that converge (attention: Compute Q, K and V are three starts; Q and K meet at the similarity step and every
       // start reaches the weighted sum) run at the same time, so they are joined under a fork, not a decision whose branches would read as alternatives.
       const reach = from => { const seen = new Set(), todo = [from]; while (todo.length) for (const e of out(todo.pop())) if (!seen.has(e.to)) { seen.add(e.to); todo.push(e.to); } return seen; };
@@ -552,12 +580,12 @@ function correctedFlow(raw) {
       if ([...first].some(n => others.every(set => set.has(n)))) {
         d.nodes.unshift({ id, label: fit(d.title || 'Start', FLOW_LABEL), role: 'fork' });
         d.edges.unshift(...starts.map(n => ({ from: id, to: n.id })));
-        if (Array.isArray(d.highlightPath) && starts.some(n => n.id === d.highlightPath[0])) d.highlightPath.unshift(id);
+        prependStart();
         kinds.push('joined_roots_fork');
       } else if (new Set(branches.map(b => b.toLowerCase())).size === branches.length && branches.every(Boolean)) {
         d.nodes.unshift({ id, label: fit(d.title || 'Start', FLOW_LABEL), role: 'decision' });
         d.edges.unshift(...starts.map((n, i) => ({ from: id, to: n.id, label: branches[i] })));
-        if (Array.isArray(d.highlightPath) && starts.some(n => n.id === d.highlightPath[0])) d.highlightPath.unshift(id);
+        prependStart();
         kinds.push('joined_roots');
       }
     }
@@ -664,7 +692,7 @@ export function correctDiagrams(md) {
 // hold (more than 7 steps), is left as it is. -> the Markdown, unchanged when nothing was converted.
 function chainAsCycle(spec) {
   const d = spec.diagram;
-  if (d.kind !== 'flow' || d.nodes.some(n => n.role === 'decision')) return null;
+  if (d.kind !== 'flow' || d.nodes.some(n => n.role === 'decision' || n.tensor)) return null;
   const next = new Map();
   for (const e of d.edges) { if (next.has(e.from)) return null; next.set(e.from, e.to); }
   const into = new Set(d.edges.map(e => e.to)), byId = new Map(d.nodes.map(n => [n.id, n]));
@@ -691,6 +719,31 @@ function mapDiagrams(md, fn) {
   if (open) out.push(open.raw, ...open.lines);
   return changed ? out.join('\n') : md;
 }
+// A detail number names a visual in reading order. Preserve its target when
+// earlier visuals disappear, and remove the marker if its own target is gone.
+function renumberDetails(md, keeps) {
+  if (keeps.every(Boolean) || !/"detail"\s*:\s*[1-3]/.test(md)) return md;
+  let ordinal = 0;
+  const positions = keeps.map(keep => keep ? ++ordinal : undefined);
+  return mapDiagrams(md, spec => {
+    let changed = false;
+    const renumber = diagram => {
+      if (diagram.kind === 'comparison' && diagram.variant === 'panels') {
+        return { ...diagram, panels: diagram.panels.map(panel => ({ ...panel, diagram: renumber(panel.diagram) })) };
+      }
+      if (diagram.kind !== 'block-stack') return diagram;
+      return { ...diagram, blocks: diagram.blocks.map(block => {
+        const { detail, ...rest } = block;
+        if (detail === undefined || detail > positions.length || positions[detail - 1] === detail) return block;
+        changed = true;
+        const next = positions[detail - 1];
+        return next === undefined ? rest : { ...rest, detail: next };
+      }) };
+    };
+    const diagram = renumber(spec.diagram);
+    return changed ? { ...spec, diagram } : null;
+  });
+}
 export const chainsAsCycles = md => mapDiagrams(md, chainAsCycle);
 
 // Owner 2026-11-08: a protocol exchange drawn as a straight flow ("Client sends SYN" -> "Server replies SYN-ACK" -> "Client sends ACK" -> "Connection Established")
@@ -708,7 +761,7 @@ const MESSAGE_VERBS = new Set(['send', 'sends', 'sent', 'reply', 'replies', 'rep
 const RECEIVE_VERBS = new Set(['receive', 'receives', 'received']);
 function flowAsSequence(spec) {
   const d = spec.diagram;
-  if (d.kind !== 'flow' || d.nodes.some(n => n.role === 'decision')) return null;
+  if (d.kind !== 'flow' || d.nodes.some(n => n.role === 'decision' || n.tensor)) return null;
   const next = new Map(), into = new Set();
   for (const e of d.edges) { if (next.has(e.from) || into.has(e.to)) return null; next.set(e.from, e.to); into.add(e.to); }
   const byId = new Map(d.nodes.map(n => [n.id, n])), labels = [];
@@ -877,6 +930,12 @@ export const explanationProseChars = block => Array.from([proseText(block?.body)
 
 // EXP-13 layout: the body as parts in reading order, -> [{ kind: 'prose', text } | { kind: 'visual', visual: 'diagram'|'illustration', ok, words, name }]. A prose part needs
 // paragraph, heading or list text (a table alone is not prose between visuals). words: the visual's own text (diagram title, caption and labels; illustration caption and alt).
+function detailIndices(diagram) {
+  if (diagram?.kind === 'block-stack') return diagram.blocks.flatMap(block => block.detail ? [block.detail] : []);
+  if (diagram?.kind === 'comparison' && diagram.variant === 'panels') return diagram.panels.flatMap(panel => detailIndices(panel.diagram));
+  return [];
+}
+
 function explanationParts(md) {
   const parts = []; let prose = [];
   const flush = () => { const text = prose.join(' ').replace(/\s+/g, ' ').trim(); if (text) parts.push({ kind: 'prose', text }); prose = []; };
@@ -886,7 +945,8 @@ function explanationParts(md) {
     if (lang === DIAGRAM) {
       flush();
       let d = null; try { if (closed) d = parseTutorDiagram(lines.join('\n')); } catch { d = null; }
-      parts.push({ kind: 'visual', visual: 'diagram', ok: !!d, words: d ? tutorDiagramVisibleText(d).filter(Boolean).join(' ') : '', name: d?.diagram?.title || d?.diagram?.caption || '' });
+      parts.push({ kind: 'visual', visual: 'diagram', ok: !!d, words: d ? tutorDiagramVisibleText(d).filter(Boolean).join(' ') : '',
+        name: d?.diagram?.title || d?.diagram?.caption || '', details: detailIndices(d?.diagram) });
     } else if (lang === ILLUSTRATION) {
       flush();
       const got = closed ? parseIllustration(lines) : { ok: false };
@@ -912,6 +972,10 @@ export function explanationLayoutProblem(block, question = '') {
   const pictures = visuals.filter(p => p.visual === 'illustration').length;
   if (pictures > 2) return `explanation_too_many_visuals: the card has ${pictures} pictures; keep at most two (diagrams may make up the rest).`;
   if (!/^P(?:VP){1,3}$/.test(parts.map(p => (p.kind === 'prose' ? 'P' : 'V')).join(''))) return 'explanation_layout: a visual needs prose before and after it; write prose, visual, prose (optionally visual, prose, up to three visuals), with paragraph or list text between two visuals.';
+  for (const [i, visual] of visuals.entries()) {
+    const missing = visual.details?.find(index => index === i + 1 || !visuals[index - 1]?.ok);
+    if (missing !== undefined) return `explanation_bad_detail: visual ${i + 1} has a detail marker for visual ${missing}. Point it to a different valid visual in the card's reading order.`;
+  }
   const asked = contentWords(question);
   for (const [i, p] of parts.entries()) {
     if (p.kind !== 'visual' || !p.ok) continue; // a broken fence is diagramProblem's or the illustration check's to name
@@ -1055,5 +1119,5 @@ export function settleExplanationBody(md, mix = null) {
       changed = true;
     }
   }
-  return changed ? joinBlocks(blocks) : md;
+  return changed ? renumberDetails(joinBlocks(blocks), visuals.map(i => keep.has(i))) : md;
 }

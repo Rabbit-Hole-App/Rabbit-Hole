@@ -2,6 +2,7 @@ import { diagramReferences } from '../../web/src/tutor-diagrams/reference-librar
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { singleDiagramReferences } from '../../web/src/tutor-diagrams/reference-single-variants.js';
+import { usesNodeTensors, usesParallelPaths, usesTensorItems } from '../../web/src/tutor-diagrams/illustration-kinds.js';
 
 const MAX_REFERENCES = 2;
 const MAX_CONTEXT = 14_000;
@@ -73,13 +74,15 @@ function referenceVariants(ref, required) {
   }] : []);
 }
 
+const DEPTH_KEYS = { brief: 'overview', balanced: 'standard', detailed: 'deep' };
 // plannedKinds (owner 2026-11-08, clean-up): the card's resolved diagram kinds (explanation-planner.js cardVisuals); candidates are filtered to them BEFORE keyword scoring, so a
 // reference of another kind is never offered. Empty: no filter (the rules decide the kind).
-export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true } = {}) {
+export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard' } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   const source = normalized(contextText(context));
   const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
-  const wanted = new Set(plannedKinds), candidates = diagramReferences.flatMap(ref => referenceVariants(ref, required)).filter(ref => !wanted.size || wanted.has(ref.spec.diagram.kind) || wanted.has(singleByPanel.get(ref.id)?.spec.diagram.kind)); // a two-panel reference also qualifies through its one-diagram variant's kind (Codex set 3), which preferSingleVariants then sends
+  const level = DEPTH_KEYS[depth] ?? depth; // the references' depth variants are keyed overview / standard / deep; the renamed levels (brief / balanced / detailed) map to them
+  const wanted = new Set(plannedKinds), candidates = diagramReferences.flatMap(ref => referenceVariants(ref.depths?.[level] ? { ...ref, ...ref.depths[level] } : ref, required)).filter(ref => !wanted.size || wanted.has(ref.spec.diagram.kind) || wanted.has(singleByPanel.get(ref.id)?.spec.diagram.kind)); // a two-panel reference also qualifies through its one-diagram variant's kind (Codex set 3), which preferSingleVariants then sends
   const ranked = candidates.map((ref, index) => ({
     ref, index, direct: topicScore(query, ref), source: topicScore(source, ref),
   }));
@@ -96,6 +99,7 @@ export function selectDiagramReferences({ prompt = '', context = '', requiredKin
   for (const { ref } of pool) {
     const spec = parseTutorDiagram(ref.spec);
     const compact = { id: ref.id, useWhen: ref.useWhen, spec,
+      ...(ref.detailSpec ? { detailSpec: parseTutorDiagram(ref.detailSpec) } : {}),
       ...(ref.sourceId ? { sourceId: ref.sourceId, partIndex: ref.partIndex } : {}) };
     const length = JSON.stringify(compact).length;
     if (chars + length > MAX_CONTEXT) continue;
@@ -125,8 +129,12 @@ export function diagramReferenceContext(references) {
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
   const heading = '\n# Examples\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
   let out = heading;
+  if (references.some(ref => ref.detailSpec)) {
+    out += 'If you use a detailSpec, write it as a separate visual and set the block detail index to that visual’s position on the card.\n';
+  }
   for (const ref of references.slice(0, MAX_REFERENCES + 1)) { // the planner's shape example may come first (explanation-planner.js), then at most two topical ones
-    const line = JSON.stringify({ id: ref.id, useWhen: ref.useWhen, spec: ref.spec }) + '\n';
+    const line = JSON.stringify({ id: ref.id, useWhen: ref.useWhen, spec: ref.spec,
+      ...(ref.detailSpec ? { detailSpec: ref.detailSpec } : {}) }) + '\n';
     if (out.length + line.length <= MAX_CONTEXT) out += line;
   }
   return out === heading ? '' : out;
@@ -135,33 +143,72 @@ export function diagramReferenceContext(references) {
 // Schema bundles for the fast chain (owner A1, 2026-11-08): the whole 21-kind diagram schema is ~87k characters, and Fireworks counts it as input
 // (27,599 prompt tokens, 6.7 s, against 6,702 and 2.45 s before Phase 02). Every request gets the CORE kinds (comparison and transformation in their list
 // forms) plus a picture; QUANT, NEW, comparison panels and visual transformations (each child a leaf diagram; ~16k characters per child union, so the
-// two composed forms are separate flags) are added only when a selected reference or a required visual steers to them. A fixed rule over four flags,
+// two composed forms are separate flags) are added only when a selected reference or a required visual steers to them. A fixed rule over flags,
 // never a per-request schema, so each bundle serializes to the same bytes and a provider's prefix cache stays warm. The validator still accepts every kind.
 export const CORE_KINDS = ['flow', 'comparison', 'tree', 'sequence', 'cycle', 'relationship', 'transformation', 'layers', 'timeline'];
 export const QUANT_KINDS = ['coordinate-plot', 'bar-chart', 'number-line', 't-account', 'waterfall', 'matrix', 'argument', 'figure'];
 export const NEW_KINDS = ['heatmap', 'sample-set', 'histogram', 'box-plot'];
 const childDiagram = s => (s?.anyOf ?? s?.oneOf)?.some(b => b?.properties?.diagram);
+const optionsOf = shape => shape.anyOf ?? shape.oneOf;
+const diagramKindOf = shape => shape.properties?.kind?.const;
 // A comparison or transformation schema branch in its list form only: no panels, shared axes, visual states or identity (the visual variant's own fields).
 export const listForm = branch => {
   const { variant, panels, sharedAxes, identity, ...properties } = branch.properties;
   for (const side of ['before', 'after']) if (childDiagram(properties[side])) properties[side] = (properties[side].anyOf ?? properties[side].oneOf).find(b => !b.properties?.diagram);
   return { ...branch, properties };
 };
-// -> { quant, fresh, panels, states }: which extras the selected references and the required diagram kinds steer to.
 export function diagramBundle({ references = [], requiredKinds = [] } = {}) {
-  const kinds = new Set([...requiredKinds, ...references.map(r => r.spec.diagram.kind)]);
+  const diagrams = references.flatMap(ref => [ref.spec.diagram, ...(ref.detailSpec ? [ref.detailSpec.diagram] : [])]);
+  const kinds = new Set([...requiredKinds, ...diagrams.map(d => d.kind)]);
+  const tensorHosts = ['flow', 'relationship', 'transformation'].filter(kind => diagrams.some(d => d.kind === kind && (usesNodeTensors(d) || usesTensorItems(d))));
   return { quant: QUANT_KINDS.some(k => kinds.has(k)), fresh: NEW_KINDS.some(k => kinds.has(k)),
-    panels: references.some(r => r.spec.diagram.variant === 'panels'), states: references.some(r => r.spec.diagram.kind === 'transformation' && r.spec.diagram.variant === 'visual') };
+    panels: diagrams.some(d => d.variant === 'panels'), states: diagrams.some(d => d.kind === 'transformation' && d.variant === 'visual'),
+    ...(kinds.has('tensor') ? { tensor: true } : {}),
+    ...(kinds.has('token-links') ? { tokenLinks: true } : {}),
+    ...(kinds.has('block-stack') ? { blockStack: true } : {}),
+    ...(diagrams.some(d => d.panels?.some(panel => panel.diagram.kind === 'block-stack')) ? { blockStackPanels: true } : {}),
+    ...(tensorHosts.length ? { tensorHosts } : {}),
+    ...(diagrams.some(usesParallelPaths) ? { parallelPaths: true } : {}),
+  };
 }
+
+function trimIllustrationPayloads(branch, { tensorHosts, parallelPaths, blockStackPanels }) {
+  const kind = diagramKindOf(branch), props = branch.properties;
+  const tensorPayload = tensorHosts?.includes(kind);
+  if ((kind === 'flow' || kind === 'relationship') && !tensorPayload) {
+    const node = props.nodes.items;
+    delete node.properties.tensor;
+    node.required = Object.keys(node.properties).filter(key => key === 'label' || node.required.includes(key));
+  }
+  if (kind === 'flow' && !parallelPaths) props.highlightPath = optionsOf(props.highlightPath)?.[0] ?? props.highlightPath;
+  if (kind === 'transformation' && !tensorPayload) {
+    for (const side of ['before', 'after']) for (const shape of optionsOf(props[side]) ?? [props[side]]) {
+      if (shape.properties?.items) {
+        const items = shape.properties.items;
+        items.items = optionsOf(items.items)?.[0] ?? items.items;
+      }
+    }
+  }
+  if (kind === 'comparison' && !blockStackPanels && props.panels) {
+    const child = props.panels.items.properties.diagram;
+    const key = child.oneOf ? 'oneOf' : 'anyOf';
+    child[key] = child[key].filter(shape => diagramKindOf(shape) !== 'block-stack');
+  }
+  return branch;
+}
+
 // The make_explanation input schema reduced to one bundle: deterministic, so the same bundle serializes to the same bytes on every request.
-export function bundledAuthorSchema(schema, { quant, fresh, panels, states }) {
-  const allowed = new Set([...CORE_KINDS, ...(quant ? QUANT_KINDS : []), ...(fresh ? NEW_KINDS : [])]);
+export function bundledAuthorSchema(schema, bundle) {
+  const { quant, fresh, panels, states, tensor, tokenLinks, blockStack } = bundle;
+  const allowed = new Set([...CORE_KINDS, ...(quant ? QUANT_KINDS : []), ...(fresh ? NEW_KINDS : []),
+    ...(tensor ? ['tensor'] : []), ...(tokenLinks ? ['token-links'] : []), ...(blockStack ? ['block-stack'] : [])]);
   const out = structuredClone(schema);
   const visuals = out.properties.visuals.items;
   const spec = (visuals.oneOf ?? visuals.anyOf).find(v => v.properties.spec).properties.spec;
   const union = spec.properties.diagram, key = union.oneOf ? 'oneOf' : 'anyOf';
-  union[key] = union[key].filter(b => allowed.has(b.properties.kind.const))
-    .map(b => ((b.properties.kind.const === 'comparison' && !panels) || (b.properties.kind.const === 'transformation' && !states) ? listForm(b) : b));
+  union[key] = union[key].filter(b => allowed.has(diagramKindOf(b)))
+    .map(b => ((diagramKindOf(b) === 'comparison' && !panels) || (diagramKindOf(b) === 'transformation' && !states) ? listForm(b) : b))
+    .map(branch => trimIllustrationPayloads(branch, bundle));
   // Owner M4 (2026-11-08): at most two panels in the bundle (the spec allows three): each panel costs about 1.5 s of output (966 output tokens, 5.0 s,
   // for one two-panel comparison). The validator still reads a saved three-panel card.
   const comparison = union[key].find(b => b.properties.kind.const === 'comparison');

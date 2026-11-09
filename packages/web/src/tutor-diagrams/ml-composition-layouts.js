@@ -8,6 +8,10 @@ const MIN_CHILD_WIDTH = 320;
 const TEXT = 14;
 const SMALL = 13;
 
+export function panelsNaturalWidth(widths) {
+  return PAD * 2 + GAP * (widths.length - 1) + widths.length * Math.max(MIN_CHILD_WIDTH, ...widths);
+}
+
 function content(text, width, size = TEXT) {
   const lines = wrap(text, width - 20, size);
   return { lines, height: Math.max(34, lines.length * lineHeight(size) + 14) };

@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Llama-style decoder block",
+    "blocks": [
+      {
+        "id": "an",
+        "label": "Pre-attention norm",
+        "variant": "RMSNorm",
+        "repeat": 32,
+        "repeatTo": "ff"
+      },
+      {
+        "id": "att",
+        "label": "Causal attention",
+        "variant": "GQA"
+      },
+      {
+        "id": "fn",
+        "label": "Pre-FFN norm",
+        "variant": "RMSNorm"
+      },
+      {
+        "id": "ff",
+        "label": "Feed-forward",
+        "variant": "SwiGLU"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "an",
+        "to": "att"
+      },
+      {
+        "kind": "residual",
+        "from": "fn",
+        "to": "ff"
+      }
+    ],
+    "caption": "Grouped-query attention shares key/value heads. The feed-forward network updates each token separately."
+  }
+}
