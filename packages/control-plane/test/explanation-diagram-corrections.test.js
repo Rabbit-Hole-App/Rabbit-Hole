@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { correctDiagrams, diagramProblem, flowsAsSequences, relationshipsAsGraphs, simplifiedDiagram } from '../src/learn-primitives.js';
+import { settleExplanationBody, correctDiagrams, diagramProblem, flowsAsSequences, relationshipsAsGraphs, simplifiedDiagram } from '../src/learn-primitives.js';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { renderTutorDiagram } from '../../web/src/tutor-diagrams/TutorDiagram.js';
@@ -145,8 +145,8 @@ test('sampling: the author call is temperature 0 with a seed only where the prov
   const repair = { ...body, messages: [...body.messages, { role: 'assistant', content: [{ type: 'tool_use', id: 't', name: 'make_explanation', input: {} }] }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't', is_error: true, content: 'Validation failed: explanation_bad_diagram' }] }] };
   const pick = r => ({ temperature: r.temperature, seed: r.seed });
   assert.deepEqual([AUTHOR_TEMPERATURE, REPAIR_TEMPERATURE], [0, 0.3]);
-  assert.deepEqual(['fireworks', 'cerebras', 'google'].map(p => pick(stepRequest(CHAIN_STEPS[p], 'low', body))), [{ temperature: 0, seed: AUTHOR_SEED }, { temperature: 0, seed: AUTHOR_SEED }, { temperature: 0, seed: undefined }]);
-  assert.ok(!('seed' in stepRequest(CHAIN_STEPS.google, 'low', body)), 'Gemini documents no seed: none is sent');
+  assert.deepEqual(['fireworks', 'cerebras', 'google'].map(p => pick(stepRequest(CHAIN_STEPS[p], 'low', body))), [{ temperature: 0, seed: AUTHOR_SEED }, { temperature: 0, seed: AUTHOR_SEED }, { temperature: undefined, seed: undefined }]); // owner 2026-11-08: Gemini's author call takes the provider default temperature
+  assert.ok(!('seed' in stepRequest(CHAIN_STEPS.google, 'low', body)) && !('temperature' in stepRequest(CHAIN_STEPS.google, 'low', body)), 'Gemini documents no seed and takes the default temperature: neither is sent');
   for (const p of ['fireworks', 'cerebras', 'google']) {
     const r = stepRequest(CHAIN_STEPS[p], 'low', repair);
     assert.deepEqual([r.temperature, 'seed' in r], [0.3, false], p);
@@ -284,4 +284,39 @@ test('a teaching matrix without row IDs gets them; cell counts are padded or tri
   // a valid matrix is untouched
   const ok = fenceOf({ ...base, rows: [{ id: 'p', heading: 'P', cells: ['TP', 'FN'] }, { id: 'n', heading: 'N', cells: ['FP', 'TN'] }] });
   assert.deepEqual(correctDiagrams(ok), { md: ok, corrections: {} });
+});
+
+// Owner 2026-11-08 (Gemini's 11 repairs by cause, run 2026-11-08T192441): the field-level parser rules are fixed on the server, the way their message says.
+test('field corrections: too-long text is cut at a word, blank or multi-line optional text is cleaned, a mapping index to a missing item is dropped; anything else is left for the repair', () => {
+  const fenceOf = diagram => `Prose.\n\n\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram })}\n\`\`\`\n\nMore prose.`;
+  const specOf = md => JSON.parse(md.split('\n')[3]).diagram;
+  // an event detail over 90 characters (overview Roman Empire)
+  const longDetail = 'The Republic gave way to rule by one man after a long series of civil wars that left the old institutions in place but empty of power.';
+  let out = correctDiagrams(fenceOf({ kind: 'timeline', title: 'Rome', events: [{ time: '509 BC', label: 'Republic' }, { time: '27 BC', label: 'Empire', detail: longDetail }] }));
+  assert.deepEqual(out.corrections, { field_trimmed: 1 }); assert.ok(specOf(out.md).events[1].detail.length <= 90 && longDetail.startsWith(specOf(out.md).events[1].detail));
+  // blank and multi-line layer details (deep atmosphere)
+  out = correctDiagrams(fenceOf({ kind: 'layers', title: 'Atmosphere', layers: [{ label: 'Troposphere', detail: '' }, { label: 'Stratosphere', detail: 'Ozone\nabsorbs UV' }] }));
+  assert.deepEqual(out.corrections, { field_blank_dropped: 1, field_one_line: 1 });
+  assert.deepEqual(specOf(out.md).layers, [{ label: 'Troposphere' }, { label: 'Stratosphere', detail: 'Ozone absorbs UV' }]);
+  // an empty axis unit (Gini)
+  const plot = { kind: 'coordinate-plot', title: 'Gini', x: { label: 'p', min: 0, max: 1, unit: '' }, y: { label: 'G', min: 0, max: 1, unit: '' }, series: [{ label: 'G', kind: 'line', points: [{ x: 0, y: 0 }, { x: 0.5, y: 0.5 }, { x: 1, y: 0 }] }] };
+  out = correctDiagrams(fenceOf(plot));
+  assert.ok(out.corrections.field_blank_dropped >= 1); assert.equal(specOf(out.md).x.unit, undefined); assert.equal(specOf(out.md).y.unit, undefined);
+  // a transformation link naming an item that does not exist (standard entropy)
+  const tr = { kind: 'transformation', title: 'Mixing', before: { label: 'Ordered', items: ['a', 'b'] }, after: { label: 'Mixed', items: ['a', 'b'] }, operation: 'Heat', links: [{ from: 0, to: 0 }, { from: 1, to: 7 }] };
+  out = correctDiagrams(fenceOf(tr));
+  assert.deepEqual(out.corrections, { mapping_dropped: 1 }); assert.deepEqual(specOf(out.md).links, [{ from: 0, to: 0 }]);
+  // a required label that is blank is not ours: the repair's
+  const bad = fenceOf({ kind: 'layers', title: 'X', layers: [{ label: '' }, { label: 'B' }] });
+  assert.deepEqual(correctDiagrams(bad), { md: bad, corrections: {} });
+});
+
+test('long paragraphs are split before the layout check, so a visual that ended the card finds a gap between prose (Gemini: "a visual needs prose before and after it")', () => {
+  const para = 'A softmax turns raw scores into shares. The biggest score keeps the biggest share. Every share is positive and together they make one whole. This is how a model turns scores into a choice. The shares can be read as how sure it is of each option.';
+  assert.ok(para.length > 220);
+  const D = '```rh-diagram\n{"version":1,"diagram":{"kind":"cycle","title":"Loop","steps":["Plan","Do","Check"]}}\n```';
+  const out = settleExplanationBody(`${para}\n\n${D}`);
+  const parts = out.split('\n\n');
+  assert.ok(parts.some(p => p === D) && parts.indexOf(D) > 0 && parts.indexOf(D) < parts.length - 1, 'the visual sits between prose paragraphs');
+  assert.equal(out.split(D).join(' ').replace(/\s+/g, ' ').trim(), para, 'same prose, only breaks and the visual moved');
 });

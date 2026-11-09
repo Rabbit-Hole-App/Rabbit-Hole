@@ -572,14 +572,49 @@ function correctedMatrix(raw) {
   const spec = kinds.length ? tryParse({ version: 1, diagram: d }) : null;
   return spec ? { spec, kinds } : null;
 }
-// -> { md, corrections: { [kind]: count } }: every rh-diagram fence corrected where it can be (correctedFlow, correctedTimeline, correctedMatrix), the same string when none is.
+// Owner 2026-11-08 (Gemini's repairs by cause): the field-level parser rules every kind shares, each fixed the way its message says and only when that is the whole problem:
+// a string over its limit ("Use at most N characters") is cut at a word boundary (fit); an optional text that is blank or runs over several lines (detail, unit, caption, source)
+// loses the blank or is joined onto one line; a transformation link or other mapping index that names an item that does not exist is dropped. Any other issue, or a fix that
+// leaves the diagram invalid, hands the diagram back to the one repair unchanged. -> { spec, kinds } or null.
+const OPTIONAL_TEXT = new Set(['detail', 'unit', 'caption', 'source', 'description']);
+function correctedFields(raw) {
+  const d = structuredClone(raw?.diagram);
+  if (!d || typeof d !== 'object' || tryParse(raw)) return null;
+  const kinds = new Set();
+  for (let pass = 0; pass < 3; pass++) {
+    let issues = []; try { parseTutorDiagram({ version: 1, diagram: d }); return kinds.size ? { spec: tryParse({ version: 1, diagram: d }), kinds: [...kinds] } : null; } catch (error) { issues = Array.isArray(error?.issues) ? error.issues : []; }
+    if (!issues.length) return null;
+    const at = path => path.slice(1).reduce((o, k) => (o == null ? o : o[k]), d);
+    const drop = [];
+    for (const issue of issues) {
+      const path = Array.isArray(issue.path) ? issue.path : [], key = path.at(-1), parent = path.length > 1 ? at(path.slice(0, -1)) : d, message = String(issue.message ?? '');
+      if (path[0] !== 'diagram' || path.length < 2) return null;
+      if (parent && typeof parent === 'object' && OPTIONAL_TEXT.has(key) && !(key in parent)) continue; // two messages for one blank value: the first already dropped it
+      const limit = message.match(/Use at most (\d+) characters/);
+      if (limit && typeof parent?.[key] === 'string') { parent[key] = fit(parent[key], Number(limit[1])); kinds.add('field_trimmed'); continue; }
+      if (/nonblank, single-line|Too small: expected string to have >=1 characters/.test(message) && typeof parent?.[key] === 'string' && OPTIONAL_TEXT.has(key)) {
+        const joined = parent[key].replace(/\s+/g, ' ').trim();
+        if (joined) parent[key] = joined; else delete parent[key];
+        kinds.add(joined ? 'field_one_line' : 'field_blank_dropped'); continue;
+      }
+      if (/Mapping indices must refer to existing items/.test(message) && typeof key === 'number' && Array.isArray(parent)) { drop.push({ list: parent, index: key }); kinds.add('mapping_dropped'); continue; }
+      if (path.at(-3) === 'links' && typeof path.at(-2) === 'number' && (key === 'from' || key === 'to')) { drop.push({ list: at(path.slice(0, -2)), index: path.at(-2) }); kinds.add('mapping_dropped'); continue; } // an index past the items: the same link as above
+      return null;
+    }
+    const byList = new Map(); for (const { list, index } of drop) { if (!Array.isArray(list)) return null; (byList.get(list) ?? byList.set(list, new Set()).get(list)).add(index); }
+    for (const [list, indices] of byList) for (const index of [...indices].sort((x, y) => y - x)) list.splice(index, 1);
+    for (const holder of [d]) if (Array.isArray(holder.links) && !holder.links.length) delete holder.links;
+  }
+  return null;
+}
+// -> { md, corrections: { [kind]: count } }: every rh-diagram fence corrected where it can be (correctedFlow, correctedTimeline, correctedMatrix, correctedFields), the same string when none is.
 export function correctDiagrams(md) {
   const out = [], corrections = {}; let open = null;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       if (/^\s*```/.test(line)) {
         let raw = null; try { raw = JSON.parse(open.lines.join('\n')); } catch { /* not JSON: the repair's */ }
-        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw) || correctedMatrix(raw));
+        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw) || correctedMatrix(raw) || correctedFields(raw));
         if (fixed) for (const kind of fixed.kinds) corrections[kind] = (corrections[kind] || 0) + 1;
         out.push(open.raw, ...(fixed ? [JSON.stringify(fixed.spec)] : open.lines), line); open = null;
       } else open.lines.push(line);
@@ -960,6 +995,8 @@ export function settleExplanationBody(md, mix = null) {
     : visuals.filter(i => blocks[i].visual !== 'illustration' || firstPictures.has(i)).slice(0, 3));
   let changed = keep.size !== visuals.length;
   blocks = blocks.filter((b, i) => !b.visual || keep.has(i));
+  // Owner 2026-11-08: long paragraphs are split BEFORE the layout check, so the visuals have more gaps between prose to be placed in (Gemini's "a visual needs prose before and after it").
+  { const split = splitLongParagraphs(blocks); if (split !== blocks) { blocks = split; changed = true; } }
   if (keep.size && !layoutOk(joinBlocks(blocks))) {
     const flow = blocks.filter(b => !b.visual), seen = blocks.filter(b => b.visual);
     const at = []; let n = 0; for (const b of blocks) { if (b.visual) at.push(n); else n++; }
@@ -986,7 +1023,5 @@ export function settleExplanationBody(md, mix = null) {
       changed = true;
     }
   }
-  const split = splitLongParagraphs(blocks);
-  if (split !== blocks) { blocks = split; changed = true; }
   return changed ? joinBlocks(blocks) : md;
 }

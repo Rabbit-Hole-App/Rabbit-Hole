@@ -58,7 +58,7 @@ export const CHAIN_STEPS = Object.freeze({
 // 2,583, inside 3,000; medium: 2 x 970 + 1,356 = 3,296, inside 5,000. The caps stay; unmeasured with a real three-visual card.
 export const CHAIN_MAX_TOKENS = Object.freeze({ low: 3000, medium: 5000, high: 8000 });
 const chainRole = (primary, effort) => ({ role: 'author', task: 'artifact', ...CHAIN_STEPS[primary], adapter: 'fast-chain', maxOutputTokens: CHAIN_MAX_TOKENS[effort], settings: { reasoning_effort: effort },
-  fallbacks: (primary === 'fireworks' ? [CHAIN_STEPS.google] : [CHAIN_STEPS.fireworks, CHAIN_STEPS.google]).map(step => ({ ...step })) });
+  fallbacks: (primary === 'fireworks' ? [CHAIN_STEPS.google] : primary === 'google' ? [CHAIN_STEPS.fireworks] : [CHAIN_STEPS.fireworks, CHAIN_STEPS.google]).map(step => ({ ...step })) });
 // The steps of a fast-chain role, primary first.
 export const chainSteps = c => [{ provider: c.provider, model: c.model, credentialRef: c.credentialRef }, ...(c.fallbacks || [])];
 
@@ -67,7 +67,7 @@ export const EXPLANATION_REGISTRY = deepFreeze({
   defaultProfile: 'plan-default',
   profiles: {
     'plan-default': { version: 1, roles: { author: planRole('author') } },
-    ...Object.fromEntries(['fireworks', 'cerebras'].flatMap(primary => REASONING_EFFORTS.map(effort => [`${primary}-${effort}`, { version: 1, roles: { author: chainRole(primary, effort) } }]))),
+    ...Object.fromEntries(['fireworks', 'cerebras', 'google'].flatMap(primary => REASONING_EFFORTS.map(effort => [`${primary}-${effort}`, { version: 1, roles: { author: chainRole(primary, effort) } }]))),
   },
 });
 

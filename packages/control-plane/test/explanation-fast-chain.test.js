@@ -208,7 +208,7 @@ test('the Gemini step request: array and numeric bounds dropped from its schema 
   // Keep the recorded request intact. Phase 02 (2026-11-08) replaced the diagram union, so it is compared with the reduction below; the rest keeps the recorded shape.
   const expected = structuredClone(GEMINI_FIXTURE.sent), actual = structuredClone(shapeOf(gemini));
   delete diagramOf(expected).anyOf; delete diagramOf(actual).anyOf;
-  expected.temperature = 0; // item 47: the author samples at 0; Gemini documents no seed, so none is sent
+  delete expected.temperature; // owner 2026-11-08: the Gemini author call takes the provider default temperature (no temperature, no seed sent)
   assert.deepEqual(actual, expected, 'outside the diagram union the Gemini request must match the recorded shape plus the author temperature');
   assert.ok(hasMaxItems(fireworks.response_format.json_schema.schema), 'the Fireworks step still sends the bounded schema');
   // Owner A1 (2026-11-08): a fast-chain request with no steering carries the CORE bundle, list forms only.
