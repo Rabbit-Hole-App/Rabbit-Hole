@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { illustrationReferences } from '../../web/src/tutor-diagrams/reference-library.js';
+import { illustrationReferences, transformerWalkthroughReferences } from '../../web/src/tutor-diagrams/reference-library.js';
 import { bundledAuthorSchema, diagramBundle, selectDiagramReferences } from '../src/explanation-references.js';
 import { stepRequest } from '../src/explanation-fast-chain.js';
 import { deriveVisualRequirements } from '../src/explanation-visuals.js';
@@ -35,6 +35,22 @@ for (const { id, prompts, spec } of illustrationReferences) {
     }
   });
 }
+
+test('walkthrough learner prompts select the intended example at every depth', () => {
+  for (const ref of transformerWalkthroughReferences) {
+    assert.ok(ref.paraphrases.length >= 2, ref.id);
+    assert.ok(ref.depths.overview && ref.depths.deep, ref.id);
+    for (const prompt of [ref.prompts[0], ...ref.paraphrases]) {
+      for (const depth of ['overview', 'standard', 'deep']) {
+        const [picked] = selectDiagramReferences({ prompt, depth });
+        const expected = ref.depths[depth] ?? ref;
+        assert.equal(picked?.id, ref.id, `${depth}: ${prompt}`);
+        assert.deepEqual(picked.spec, expected.spec);
+        assert.deepEqual(picked.detailSpec, expected.detailSpec ?? undefined);
+      }
+    }
+  }
+});
 
 const branches = schema => {
   const visual = (schema.properties.visuals.items.oneOf ?? schema.properties.visuals.items.anyOf).find(item => item.properties.spec);

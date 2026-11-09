@@ -65,7 +65,7 @@ test('Q/K/V uses four natural-width strips on a single row with three mapped arr
   const { diagram } = spec;
   const payloads = [...diagram.before.items, ...diagram.after.items].map(item => item.tensor);
   assert.deepEqual(payloads.map(payload => [payload.dimensions, payload.role]), [
-    ['1 × 512', 'input'], ['1 × 64', 'output'], ['1 × 64', 'output'], ['1 × 64', 'output'],
+    ['1 × 512', 'input'], ['1 × 256', 'output'], ['1 × 256', 'output'], ['1 × 256', 'output'],
   ]);
   assert.equal(payloads[0].values.length, 4);
   for (const payload of payloads) {
