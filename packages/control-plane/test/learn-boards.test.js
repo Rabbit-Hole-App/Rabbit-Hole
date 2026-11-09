@@ -6,8 +6,6 @@ import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
 import { liveDb, liveRuns } from './live-storage-spy.js';
-import { fillSavedCard } from '../src/explanation-figures.js';
-import { illustrationFence } from './explanation-layout-fixture.js';
 
 const PEOPLE = { owner: { email: 'owner@test', org: 'team' }, friend: { email: 'friend@elsewhere', org: 'elsewhere' } };
 
@@ -52,7 +50,7 @@ function setup(t) {
     const type = response.headers.get('content-type') || '';
     return { status: response.status, headers: response.headers, body: type.includes('json') ? await response.json() : new Uint8Array(await response.arrayBuffer()) };
   };
-  return { call, LEARN_DB, sqlite, objects, env };
+  return { call, LEARN_DB, sqlite, objects };
 }
 
 const STATE = { blocks: [{ id: 'b1', type: 'explanation', title: 'Softmax' }], shapes: [], items: [], links: [], strokes: [], exchanges: [] };
@@ -379,59 +377,4 @@ test('board media validates declared formats and serves safe audio/SVG types as 
     assert.match(got.headers.get('content-security-policy'), /sandbox/);
     assert.equal((await call('PUT', path + '-bad', { as: 'owner', raw: enc.encode('not this format'), headers: { 'Content-Type': type } })).status, 415);
   }
-});
-
-// A written Explanation's picture made after its card was answered (explanation-figures.js, owner 2026-11-08 Q39): the server writes it into the saved card
-// without bumping the version, and the open page, which still holds it pending, saves on. Its saves keep the picture (or the drop) and its own edits.
-const PIC_SOURCE = `fs_${'a'.repeat(24)}`;
-const FENCE = illustrationFence({ id: 'ice', prompt: 'An ice cube in water' });
-const pendingCard = (body = `Ice floats.\n\n${FENCE}\n\nSo it rises.`) => ({ id: 'c1', type: 'explanation', title: 'Ice', body, figures: { ice: { status: 'pending', fileRef: { v: 1, source: { id: PIC_SOURCE } }, alt: 'Ice', caption: 'Ice in water', aspect: 1 } } });
-const READY = { status: 'ready', fileRef: { v: 1, source: { id: PIC_SOURCE, rev: 'b'.repeat(64) }, meta: { name: 'illustration.png', type: 'image/png', size: 3 } }, alt: 'Ice', caption: 'Ice in water', aspect: 1 };
-const pageState = card => ({ ...STATE, blocks: [card] });
-const fill = (env, figure) => fillSavedCard(env, { org: 'team', email: 'owner@test', app: 'demo-app', board: 'main' }, { spec: { id: 'ice', prompt: 'An ice cube in water' }, sourceId: PIC_SOURCE, figure }, { log: () => {}, waits: [] });
-const savedCard = sqlite => JSON.parse(sqlite.prepare("SELECT state_json FROM learn_boards WHERE app = 'demo-app' AND board = 'main'").get().state_json).blocks[0];
-
-test('a save from a page that still holds a picture pending keeps the picture the server wrote since, and the learner\'s edit', async t => {
-  const { call, sqlite, env } = setup(t);
-  assert.equal((await call('PUT', OWN, { as: 'owner', body: { state: pageState(pendingCard()), version: 0 } })).body.version, 1);
-  assert.deepEqual(await fill(env, READY), ['c1']);
-  assert.deepEqual(savedCard(sqlite).figures.ice, READY);
-  const edited = pendingCard(`Ice floats on water.\n\n${FENCE}\n\nSo it rises.`);
-  const saved = await call('PUT', OWN, { as: 'owner', body: { state: pageState(edited), version: 1 } });
-  assert.deepEqual([saved.status, saved.body.version], [200, 2], 'no conflict: the server write did not change the version');
-  assert.deepEqual(savedCard(sqlite), { ...edited, figures: { ice: READY } }, 'the edit and the picture');
-});
-
-test('a save from a page that still holds a dropped picture pending keeps the drop: the fence stays removed, the edit is kept', async t => {
-  const { call, sqlite, env } = setup(t);
-  await call('PUT', OWN, { as: 'owner', body: { state: pageState(pendingCard()), version: 0 } });
-  assert.deepEqual(await fill(env, null), ['c1']);
-  assert.equal(savedCard(sqlite).body, 'Ice floats.\n\nSo it rises.');
-  await call('PUT', OWN, { as: 'owner', body: { state: pageState(pendingCard(`Ice floats on water.\n\n${FENCE}\n\nSo it rises.`)), version: 1 } });
-  const card = savedCard(sqlite);
-  assert.deepEqual([card.body, card.figures.ice], ['Ice floats on water.\n\nSo it rises.', { status: 'dropped', source: PIC_SOURCE }]);
-});
-
-test('a picture written between a save\'s read and its write is not lost: the save reads again and keeps both', async t => {
-  const { call, sqlite, env, LEARN_DB } = setup(t);
-  await call('PUT', OWN, { as: 'owner', body: { state: pageState(pendingCard()), version: 0 } });
-  // The server's picture write lands just before the page's save writes (after the save read the row).
-  let landed = null;
-  env.LEARN_DB = { prepare: sql => LEARN_DB.prepare(sql), batch: async statements => {
-    if (!landed && statements.length > 1) landed = await fill({ LEARN_DB }, READY);
-    return LEARN_DB.batch(statements);
-  } };
-  const edited = pendingCard(`Ice floats on water.\n\n${FENCE}\n\nSo it rises.`);
-  const saved = await call('PUT', OWN, { as: 'owner', body: { state: pageState(edited), version: 1 } });
-  assert.deepEqual(landed, ['c1'], 'the picture write landed mid-save');
-  assert.deepEqual([saved.status, saved.body.version], [200, 2]);
-  assert.deepEqual(savedCard(sqlite), { ...edited, figures: { ice: READY } }, 'the edit and the picture');
-});
-
-test('a picture whose card the page deleted is not written back', async t => {
-  const { call, sqlite, env } = setup(t);
-  await call('PUT', OWN, { as: 'owner', body: { state: pageState(pendingCard()), version: 0 } });
-  await call('PUT', OWN, { as: 'owner', body: { state: STATE, version: 1 } });
-  assert.deepEqual(await fill(env, READY), []);
-  assert.deepEqual(JSON.parse(sqlite.prepare('SELECT state_json FROM learn_boards').get().state_json), STATE);
 });

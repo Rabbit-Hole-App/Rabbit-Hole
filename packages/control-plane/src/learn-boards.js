@@ -29,7 +29,6 @@ import { sourceRefCards, sourceRefStatements } from './source-refs.js';
 import { clientMismatch, uploadBody } from './upload-body.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
 import { NO_ACCESS } from './canvas-comments.js';
-import { holdsPendingFigure, keepSavedFigures } from './explanation-figures.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -234,13 +233,10 @@ export const ownerRow = (env, owner, app, board) => env.LEARN_DB.prepare('SELECT
 // version, never overwritten. The row's version is the lock (beta hardening 4a): the UPDATE itself requires the version
 // the save was based on, and the first INSERT yields to a first save that won meanwhile, so two saves based on the same
 // version are one write and one 409 - the loser is told the version now stored.
-async function saveOwn(env, owner, app, board, body, again = 2) {
-  const row = await ownerRow(env, owner, app, board), sent = body;
-  // A redacted repository card (repository-cards.js) never overwrites the full card this board stores. A written Explanation's picture the server wrote into
-  // the saved card after this page placed it pending is kept (explanation-figures.js keepSavedFigures).
-  if (row && body?.state && typeof body.state === 'object') body = { ...body, state: keepSavedFigures(row.state_json, restoreRedactedCards(row.state_json, body.state)) };
-  // While this save holds a pending picture, its write also requires the state it read: a picture written in between (no version bump) makes it read and merge again.
-  const pictureGuard = !!row && holdsPendingFigure(body?.state);
+async function saveOwn(env, owner, app, board, body) {
+  const row = await ownerRow(env, owner, app, board);
+  // A redacted repository card (repository-cards.js) never overwrites the full card this board stores.
+  if (row && body?.state && typeof body.state === 'object') body = { ...body, state: restoreRedactedCards(row.state_json, body.state) };
   const state = stateText(body?.state);
   if (state.error) return json({ error: state.error }, state.status || 400);
   const refs = boardRefs(body.state);
@@ -266,12 +262,9 @@ async function saveOwn(env, owner, app, board, body, again = 2) {
   // Without a version (older pages, API tests) the save is unconditional, as before.
   // The index is rewritten whenever this board has or had references (an unversioned save cannot know what it replaces).
   const reindex = indexed && (refs.length || !checked || row.state_json.includes('"refs"'));
-  const { meta } = await write(db.prepare(`UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?${checked ? ' AND version = ?' : ''}${pictureGuard ? ' AND state_json = ?' : ''}`)
-    .bind(state.text, owner.email, now, row.id, ...(checked ? [body.version] : []), ...(pictureGuard ? [row.state_json] : [])), [...(reindex ? indexStatements(db, row.id, state.text, checked ? body.version + 1 : null, refs, owner) : []), ...(files ? fileRefStatements(db, row.id, state.text, checked ? body.version + 1 : null, body.state, owner) : []), ...(passages ? sourceRefStatements(db, row.id, state.text, checked ? body.version + 1 : null, body.state, owner) : [])]);
-  if (!meta.changes) {
-    if (pictureGuard && again > 0 && (!checked || (await ownerRow(env, owner, app, board))?.version === body.version)) return saveOwn(env, owner, app, board, sent, again - 1);
-    return stale();
-  }
+  const { meta } = await write(db.prepare(`UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?${checked ? ' AND version = ?' : ''}`)
+    .bind(state.text, owner.email, now, row.id, ...(checked ? [body.version] : [])), [...(reindex ? indexStatements(db, row.id, state.text, checked ? body.version + 1 : null, refs, owner) : []), ...(files ? fileRefStatements(db, row.id, state.text, checked ? body.version + 1 : null, body.state, owner) : []), ...(passages ? sourceRefStatements(db, row.id, state.text, checked ? body.version + 1 : null, body.state, owner) : [])]);
+  if (!meta.changes) return stale();
   // A change to a canvas's saved content is a meaningful change (canvas-metadata.md); a save of the same content, or a
   // board's first server copy (a sync of what the browser already had: sharing, publishing; over a canvas's empty
   // version 0 board too), is not.

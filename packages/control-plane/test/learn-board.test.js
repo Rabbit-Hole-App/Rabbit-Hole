@@ -312,8 +312,7 @@ test('subscription mode: the owner reaches the model, anyone else gets 403, and 
     }
   }
   const worker = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
-  // The route passes only the Worker's waitUntil (owner 2026-11-08: a card's pictures finish after it is answered); the generator stays the default.
-  assert.match(worker, /if \(path === '\/api\/learn\/artifact'\) return artifactFetch\(req, env, undefined, \{ waitUntil: ctx\?\.waitUntil \? work => ctx\.waitUntil\(work\) : null \}\);/);
+  assert.match(worker, /if \(path === '\/api\/learn\/artifact'\) return artifactFetch\(req, env\);/);
   assert.match(worker, /if \(path === '\/api\/learn\/board'\) return boardFetch\(req, env\);/);
   const ask = worker.slice(worker.indexOf("const liveRefused = refuseLiveLearnAsk(access);"));
   assert.ok(ask.indexOf('subscriptionOwnerRefusal(env, access)') < ask.indexOf('return apiAsk('));

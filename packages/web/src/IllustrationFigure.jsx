@@ -79,12 +79,10 @@ export default function IllustrationFigure({ illustration, className = '' }) {
 }
 
 // EXP-13: an rh-illustration fence in a written Explanation (Md.jsx), drawn from figures[id] = { status: 'ready', fileRef | cacheKey | src, alt?, caption?, aspect? }; the entry's
-// fields win over the fence's alt and caption. A learner never sees a failed picture (owner 2026-11-08: the server removes a failed picture's fence), so a fence
-// without a ready or pending entry draws nothing, no gap, and never its JSON. A pending entry (the picture is made after the card arrives, explanation-figures.js) is the
-// figure's own loading state, reading its source until it is stored; if it never is, it draws nothing. E2: the caption is not the body's words, so the interaction
-// layer reads the field without it (data-explanation-skip).
+// fields win over the fence's alt and caption. A learner never sees a failed picture (owner 2026-11-08: the server retries, then removes the fence before saving), so a fence
+// without a ready entry draws nothing, no gap, and never its JSON. E2: the caption is not the body's words, so the interaction layer reads the field without it (data-explanation-skip).
 export function FenceFigure({ source, figures }) {
   const fence = parseIllustrationFence(source), entry = fence && Object.hasOwn(figures || {}, fence.id) ? figures[fence.id] : null;
-  if (entry?.status !== 'ready' && !(entry?.status === 'pending' && entry.fileRef?.source?.id)) return null;
+  if (entry?.status !== 'ready') return null;
   return <div data-explanation-skip data-figure-id={fence.id}><IllustrationFigure illustration={{ alt: fence.alt, caption: fence.caption, ...entry }} /></div>;
 }

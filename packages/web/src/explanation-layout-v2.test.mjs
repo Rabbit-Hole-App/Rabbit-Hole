@@ -66,7 +66,7 @@ test('three visuals (owner 2026-11-08): diagram, diagram and the picture pic-3 e
   noFenceText(html);
 });
 
-test('figure states: ready draws the figure and its caption; pending on a source draws its loading state; any other entry draws nothing and the prose flows on', () => {
+test('figure states: ready draws the figure and its caption; a fence with no ready entry (should not reach the client) draws nothing and the prose flows on', () => {
   const ready = card(V2);
   assert.match(ready, /data-figure-id="steam"><figure data-illustration="true"/);
   assert.match(ready, /<img src="\/lesson-assets\/slash-image-lighthouse-9bffc47d.png" alt="A steaming mug of coffee beside a thermometer"/);
@@ -75,7 +75,7 @@ test('figure states: ready draws the figure and its caption; pending on a source
 
   // Owner 2026-11-08: a learner never sees a failed picture, so no note and no placeholder: odd saved data renders as if the fence were not there.
   const gone = card({ ...V2, body: V2.body.replace(/```rh-illustration[\s\S]*?```\n\n/, '') });
-  for (const entry of [undefined, { status: 'failed', problem: 'no answer' }, { status: 'pending' }, { status: 'dropped', source: `fs_${'a'.repeat(24)}` }, { src: '/x.png' }]) {
+  for (const entry of [undefined, { status: 'failed', problem: 'no answer' }, { status: 'pending' }, { src: '/x.png' }]) {
     const html = card(withFigure(entry));
     assert.doesNotMatch(html, /data-figure-id|data-illustration|<img|unavailable/i, JSON.stringify(entry));
     assert.match(html, /Just after you pour[\s\S]*As it cools the gap shrinks/, 'the prose keeps flowing');
@@ -83,15 +83,6 @@ test('figure states: ready draws the figure and its caption; pending on a source
     noFenceText(html);
   }
   assert.doesNotMatch(card({ ...V2, body: 'A.\n\n```rh-illustration\n{"version":1,"id":"toString"}\n```' }), /data-figure-id/, 'only the card\'s own entries, never an inherited name');
-
-  // Owner 2026-11-08, pictures off the critical path: the card arrives before its picture; a pending entry names the source the picture will have and draws the
-  // figure's existing loading state in place (its caption below), which fills in once the source is stored (followSource).
-  const pending = card(withFigure({ status: 'pending', fileRef: { v: 1, source: { id: `fs_${'a'.repeat(24)}` } }, alt: 'A steaming mug', caption: 'Steam carries heat away', aspect: 1 }));
-  assert.match(pending, /data-figure-id="steam"><figure data-illustration="true" data-illustration-state="loading"/);
-  assert.match(pending, /animate-pulse/);
-  assert.match(pending, /data-illustration-caption[^>]*>Steam carries heat away</);
-  assert.doesNotMatch(pending, /<img|unavailable/i);
-  noFenceText(pending);
 
   for (const body of ['Before.\n\n```rh-illustration\n{"prompt":"secret words"\n```\n\nAfter.', 'Before.\n\n```rh-illustration\n{"prompt":"secret words"']) {
     const html = card({ ...V2, body });

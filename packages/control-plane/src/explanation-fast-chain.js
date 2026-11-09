@@ -232,8 +232,7 @@ export async function generateWithFallbacks(env, input, options, generate) {
   // Only a picture the server will keep starts: among the first three visuals and the first two pictures (learn-primitives.js settleExplanationBody).
   let pictures = 0;
   const onVisual = early ? (item, i) => { if (i === 0) pictures = 0; /* each streamed answer counts its own */ const spec = i < 3 && pictures < 2 ? authorPicture(item, i) : null; if (spec && parseIllustration(JSON.stringify(spec)).ok) { pictures++; early.start(spec); } } : null;
-  // Every started picture is settled, card or not: before the card returns, or (figures.later, the /explain route) after it, never holding the card.
-  try { return await runSteps(); } finally { if (early && options.figures.later) options.figures.later(early.settled()); else await early?.settled(); }
+  try { return await runSteps(); } finally { await early?.settled(); } // every started picture is settled, card or not, before the request ends
   async function runSteps() {
   for (const step of steps) {
     const note = outcome => { attempts.push({ provider: step.provider, model: step.model, outcome }); console.log(JSON.stringify({ event: 'explanation_step', ...attempts.at(-1) })); };

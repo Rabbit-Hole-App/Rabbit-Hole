@@ -1,7 +1,7 @@
 // EXP-13 card layout v2 (docs/features/explain.md "Card layout v2", owner decisions 2026-11-08): prose, visual, prose (optionally visual, prose, up to three); one to three
 // visuals, each related to the question or the prose around it; a budget of prose only (asked for 600, refused above 700); no folded sections on new cards;
-// rh-illustration fences made with Recraft (one attempt of at most 5 s; a picture that fails loses its fence, never the card), priced and settled on the real
-// ledger; on the /explain route (later) the card returns before its pictures and each is written into the saved card when it arrives. Saved cards keep reading as before. The image provider is a double: nothing is sent or paid.
+// rh-illustration fences made with Recraft before the card is returned (three attempts; a picture that still fails loses its fence, never the card),
+// priced and settled on the real ledger. Saved cards keep reading as before. The image provider is a double: nothing is sent or paid.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { explanationLayoutProblem, explanationProblem, explanationProseChars, explanationChars, markdownVisuals, contentWords } from '../src/learn-primitives.js';
@@ -9,7 +9,7 @@ import { fieldText } from '../src/explanation-interactions.js';
 import { requiredVisualProblem } from '../src/explanation-visuals.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateRoadmapCard, quoteRoadmapCard } from '../src/roadmap/roadmap-generate.js';
-import { FIGURE_ATTEMPTS, FIGURES_MAX, FIGURE_MODEL, FIGURE_TIMEOUT_MS } from '../src/explanation-figures.js';
+import { FIGURE_ATTEMPTS, FIGURES_MAX, FIGURE_MODEL } from '../src/explanation-figures.js';
 import { fileRefSources } from '../src/file-refs.js';
 import { withUsage, noteUsageIdentity } from '../src/learn-usage.js';
 import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
@@ -129,7 +129,7 @@ function imageEnv(t, patch = {}) {
   const env = withUsage(base, { feature: 'artifact' });
   noteUsageIdentity(env, { userId: OWNER.userId, email: OWNER.email });
   const rows = sql => sqlite.prepare(sql).all().map(r => ({ ...r }));
-  return { env, puts, rows, sqlite };
+  return { env, puts, rows };
 }
 const adapterOf = (...outcomes) => { const calls = []; return { calls, generate: async input => { calls.push(input); const next = outcomes[Math.min(calls.length, outcomes.length) - 1]; if (next === 'fail') throw failure(); return { bytes: PNG, mimeType: 'image/png', providerModel: FIGURE_MODEL, usage: { credits: 7 } }; } }; };
 const withPic = card(`${ICE}\n\n${PIC}\n\nSo the cube rises until it displaces its own weight.`);
@@ -167,21 +167,25 @@ test('two illustrations are generated in parallel', async t => {
   assert.deepEqual(Object.keys(out.block.figures).sort(), ['glass', 'ice']);
 });
 
-test('one attempt of at most 5 s (owner 2026-11-08): a failed picture is not retried, its fence is removed silently, and the drop is logged with its prompt', async t => {
-  assert.deepEqual([FIGURE_ATTEMPTS, FIGURE_TIMEOUT_MS], [1, 5000]);
+test('a failed first attempt is retried and the picture is stored; each attempt is its own settled ledger row', async t => {
   const { env, rows } = imageEnv(t), adapter = adapterOf('fail', 'ok');
+  const { out } = await direct(withPic, { figures: { store: STORE, adapter } }, env);
+  assert.equal(adapter.calls.length, 2);
+  assert.equal(out.block.figures.ice.status, 'ready');
+  assert.deepEqual(rows('SELECT status, cost_usd FROM usage_operations ORDER BY rowid'), [{ status: 'failed', cost_usd: 0.02 }, { status: 'settled', cost_usd: 0.007 }], 'the failed call keeps its reservation as unknown cost, never zero');
+});
+
+test(`after ${FIGURE_ATTEMPTS} failed attempts the fence is removed silently: the card is delivered with no figure and no error text`, async t => {
+  const { env, rows } = imageEnv(t), adapter = adapterOf('fail');
   const logs = [];
   const { out } = await direct(withPic, { figures: { store: STORE, adapter, log: line => logs.push(JSON.parse(line)) } }, env);
-  assert.equal(adapter.calls.length, 1, 'no retry');
-  assert.ok(adapter.calls[0].signal instanceof AbortSignal, 'the call carries the time cap');
+  assert.equal(adapter.calls.length, FIGURE_ATTEMPTS);
   assert.equal(out.result, 'artifact');
   assert.equal(out.block.figures, undefined);
   assert.equal(out.block.body, `${ICE}\n\nSo the cube rises until it displaces its own weight.`, 'the prose around the fence is joined cleanly');
   assert.doesNotMatch(JSON.stringify(out), /fail|unavailable|could not/i, 'nothing about the picture reaches the learner');
-  assert.deepEqual(rows('SELECT status, cost_usd FROM usage_operations'), [{ status: 'failed', cost_usd: 0.02 }], 'the failure is on the ledger, its reservation kept as unknown cost');
-  assert.deepEqual(logs.map(l => l.outcome ?? l.event), ['attempt_failed', 'explanation_figure_dropped'], 'and in the server log');
-  assert.deepEqual(logs[1], { event: 'explanation_figure_dropped', card: null, figure: 'ice', source: logs[1].source, reason: 'failed', prompt: 'An ice cube floating in a glass of water, side view' });
-  assert.match(logs[1].source, /^fs_[a-f0-9]{24}$/);
+  assert.equal(rows('SELECT * FROM usage_operations').length, FIGURE_ATTEMPTS, 'the failures are on the ledger');
+  assert.deepEqual(logs.map(l => l.outcome), ['attempt_failed', 'attempt_failed', 'attempt_failed'], 'and in the server log');
 });
 
 test('no RECRAFT_API_KEY (or image generation off, or no board): no provider call, no ledger row, the fence is removed and the card delivered', async t => {
@@ -194,86 +198,6 @@ test('no RECRAFT_API_KEY (or image generation off, or no board): no provider cal
   }
   const { env } = imageEnv(t, { RECRAFT_API_KEY: undefined });
   assert.equal((await direct(withPic, {}, env)).out.block.body.includes('rh-illustration'), false, 'a caller that passes no figures option makes no picture either');
-});
-
-// ---- off the critical path (owner 2026-11-08): the /explain route (figures.later) returns the card before its pictures; each is written into the SAVED card ------
-const ON_BOARD = { ...STORE, board: 'main' };
-const slowAdapter = (outcome = 'ok', ms = 2000) => { const calls = []; return { calls, generate: async input => { calls.push(input); await new Promise(r => setTimeout(r, ms)); if (outcome === 'fail') throw failure(); return { bytes: PNG, mimeType: 'image/png', usage: { credits: 7 } }; } }; };
-const OTHER = { id: 'note-1', type: 'text', text: 'Another card', dx: 40, dy: 0 };
-// The page's save of its board (AdaptiveCanvas insertBlock gave the card its id), as learn_boards holds it.
-const saveBoard = (sqlite, blocks, version) => sqlite.prepare("INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_at) VALUES ('board-1', ?, ?, ?, 'main', ?, ?, 'now') ON CONFLICT (id) DO UPDATE SET state_json = excluded.state_json, version = excluded.version")
-  .run(OWNER.org, OWNER.email, STORE.app, JSON.stringify({ blocks }), version);
-const savedBoard = sqlite => { const row = sqlite.prepare("SELECT state_json, version FROM learn_boards WHERE id = 'board-1'").get(); return { ...JSON.parse(row.state_json), version: row.version }; };
-const turn = async () => { for (let i = 0; i < 20; i++) await new Promise(r => setImmediate(r)); };
-const tickFor = async (t, ms) => { for (let n = 0; n < ms / 10; n++) { await turn(); t.mock.timers.tick(10); } await turn(); };
-async function drain(t, tasks) {
-  let done = false;
-  Promise.all(tasks).then(() => { done = true; });
-  for (let n = 0; n < 3000 && !done; n++) await tickFor(t, 10);
-  assert.ok(done, 'the background work finished on the fake clock');
-}
-async function deferred(t, adapter) {
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
-  const box = imageEnv(t), tasks = [], logs = [];
-  const { out } = await direct(withPic, { figures: { store: ON_BOARD, adapter, later: work => tasks.push(work), log: line => logs.push(JSON.parse(line)) } }, box.env);
-  return { ...box, out, tasks, logs };
-}
-
-test('later: the card returns before its picture (fake clock), pending; the picture is written into the saved card when it arrives, settled on the ledger', async t => {
-  const adapter = slowAdapter('ok', 2000), { out, tasks, rows, sqlite } = await deferred(t, adapter);
-  assert.equal(Date.now(), 0, 'no time passed: the card did not wait for the 2 s picture');
-  assert.equal(adapter.calls.length, 1);
-  const pending = out.block.figures.ice;
-  assert.match(pending.fileRef.source.id, /^fs_[a-f0-9]{24}$/);
-  assert.deepEqual(pending, { status: 'pending', fileRef: { v: 1, source: { id: pending.fileRef.source.id } }, alt: 'An ice cube floating in water', caption: 'Most of the ice sits under the water', aspect: 1 }, 'the source it will have: the card shows it loading');
-  assert.equal(out.block.body, withPic.body, 'the fence stays where the picture goes');
-  assert.deepEqual([rows('SELECT * FROM file_sources').length, tasks.length], [0, 1], 'nothing stored yet; one background write');
-  await tickFor(t, 2100); // the picture is made before the page has saved the card: the write waits for it
-  assert.equal(rows('SELECT * FROM file_sources').length, 1);
-  saveBoard(sqlite, [{ ...out.block, id: 'card-1', dx: 0, dy: 0 }, OTHER], 1);
-  await drain(t, tasks);
-  const saved = savedBoard(sqlite), [card] = saved.blocks;
-  assert.equal(card.figures.ice.status, 'ready');
-  assert.deepEqual([card.figures.ice.fileRef.source.id, card.figures.ice.alt, card.body], [pending.fileRef.source.id, pending.alt, withPic.body], 'the source the card was reading, in the same card');
-  assert.match(card.figures.ice.fileRef.source.rev, /^[a-f0-9]{64}$/);
-  assert.deepEqual(saved.blocks[1], OTHER, 'other cards untouched');
-  assert.equal(saved.version, 1, 'the version is not bumped: the open page is never told its board changed');
-  assert.deepEqual(rows('SELECT source_id, board_id FROM file_source_refs'), [{ source_id: pending.fileRef.source.id, board_id: 'board-1' }], 'the board references the picture, so a link viewer can read it');
-  assert.deepEqual(rows("SELECT status, cost_micros FROM usage_attempts WHERE provider = 'recraft'"), [{ status: 'settled', cost_micros: 7000 }], 'spend as before: admitted with the card, settled when made');
-});
-
-test('later: a card deleted before its picture arrives gets no write; the picture is still settled', async t => {
-  const { out, tasks, rows, sqlite } = await deferred(t, slowAdapter('ok', 2000));
-  saveBoard(sqlite, [{ ...out.block, id: 'card-1', dx: 0, dy: 0 }, OTHER], 1);
-  await tickFor(t, 500);
-  saveBoard(sqlite, [OTHER], 2); // the learner deleted the card
-  await drain(t, tasks);
-  assert.deepEqual(savedBoard(sqlite), { blocks: [OTHER], version: 2 }, 'the board is exactly what the learner saved');
-  assert.deepEqual(rows("SELECT status FROM usage_attempts WHERE provider = 'recraft'"), [{ status: 'settled' }]);
-});
-
-test('later: a learner edit and move meanwhile are kept and the picture is added to the edited card', async t => {
-  const { out, tasks, sqlite } = await deferred(t, slowAdapter('ok', 2000));
-  const edited = { ...out.block, id: 'card-1', title: 'Ice, my notes', body: `${out.block.body}\n\nMy own note.`, dx: 300, dy: 120 };
-  saveBoard(sqlite, [OTHER, edited], 4);
-  await drain(t, tasks);
-  const { blocks: [other, card], version } = savedBoard(sqlite);
-  assert.deepEqual(other, OTHER);
-  assert.deepEqual({ ...card, figures: null }, { ...edited, figures: null }, 'title, body, position: the learner\'s');
-  assert.equal(card.figures.ice.status, 'ready');
-  assert.equal(version, 4);
-});
-
-test('later: a picture that fails is removed silently from the saved card (the prose joins) and logged with the card id and its prompt', async t => {
-  const { out, tasks, sqlite, logs } = await deferred(t, slowAdapter('fail', 2000));
-  assert.equal(out.block.figures.ice.status, 'pending');
-  saveBoard(sqlite, [{ ...out.block, id: 'card-1', dx: 0, dy: 0 }], 1);
-  await drain(t, tasks);
-  const [card] = savedBoard(sqlite).blocks;
-  assert.equal(card.body, `${ICE}\n\nSo the cube rises until it displaces its own weight.`, 'the fence is gone and the prose joined');
-  assert.deepEqual(card.figures.ice, { status: 'dropped', source: out.block.figures.ice.fileRef.source.id }, 'the drop is recorded for a later save of the open page');
-  assert.doesNotMatch(JSON.stringify(card), /fail|unavailable|could not/i);
-  assert.deepEqual(logs.filter(l => l.event === 'explanation_figure_dropped'), [{ event: 'explanation_figure_dropped', card: 'card-1', figure: 'ice', source: out.block.figures.ice.fileRef.source.id, reason: 'failed', prompt: 'An ice cube floating in a glass of water, side view' }]);
 });
 
 // ---- the Tutor roadmap path ----------------------------------------------------------------------------------------------------------------------------------
@@ -292,16 +216,16 @@ test('the roadmap path applies the same rules: missing visual, a layout with no 
   assert.equal((await viaRoadmap(card(withVisual(ICE)))).out.outcome, 'ok');
 });
 
-test('the roadmap path makes the pictures too and waits for them (the job stores its card), each attempt on its own stable illustration operation, and its quote holds room for them', async () => {
-  const adapter = adapterOf('ok');
+test('the roadmap path makes the pictures too, each attempt on its own stable illustration operation, and its quote holds room for them', async () => {
+  const adapter = adapterOf('fail', 'ok');
   const env = { SMALL_ENV: 'test', LEARN_DB: learnDbStub(), IMAGE_GENERATE_ENABLED: 'true', RECRAFT_API_KEY: 'fixture-not-a-key', LEARN_MEDIA: { put: async () => {} },
     IMAGE_RESERVED_USD_BY_MODEL: JSON.stringify({ [FIGURE_MODEL]: 0.02 }), IMAGE_MAX_CHARGE_USD_BY_MODEL: JSON.stringify({ [FIGURE_MODEL]: 0.01 }) };
   const m = scripted(['make_explanation', withPic]); const stages = [];
   const out = await generateRoadmapCard(env, access, ref, { loadAccepted: async () => record(), withProviderCall: (e, fields) => { stages.push(fields); return e; }, callModel: m.callModel, figureStore: STORE, figureAdapter: adapter });
   assert.equal(out.outcome, 'ok');
   assert.equal(out.block.figures.ice.status, 'ready');
-  assert.deepEqual(stages.map(s => [s.stage, s.call]), [['generate', 0], ['illustration', 0]], 'the author call, then one operation for the one picture attempt');
+  assert.deepEqual(stages.map(s => [s.stage, s.call]), [['generate', 0], ['illustration', 0], ['illustration', 1]], 'the author call, then one operation per picture attempt');
   const plain = await quoteRoadmapCard({}, record()), held = await quoteRoadmapCard(env, record());
-  assert.equal(held.boundMicros - plain.boundMicros, FIGURES_MAX * FIGURE_ATTEMPTS * 20000, 'two pictures, one attempt each, at the image reservation');
+  assert.equal(held.boundMicros - plain.boundMicros, FIGURES_MAX * FIGURE_ATTEMPTS * 20000, 'two pictures, three attempts each, at the image reservation');
 });
 function learnDbStub() { return { prepare: () => ({ bind() { return this; }, run: async () => ({ meta: { changes: 1 } }), first: async () => null }) }; }

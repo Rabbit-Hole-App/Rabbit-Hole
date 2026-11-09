@@ -293,8 +293,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         const smells = diagramSmells(block.body);
         for (const label of smells) console.log(JSON.stringify({ event: 'explanation_diagram_smell', kind: 'bare_maths', label: label.slice(0, 200) }));
         if (smells.length) block = { ...block, diagramSmells: { bare_maths: smells.length } };
-        // EXP-13: the pictures; one that cannot be made loses its fence, never the card. It shows no text, so the anchors checked above still hold.
-        // With figures.later (the /explain route) a picture still being made is returned pending and written into the saved card when it arrives (explanation-figures.js).
+        // EXP-13: the pictures, made before the card is returned and saved; one that cannot be made loses its fence, never the card. It shows no text, so the anchors checked above still hold.
         block = await illustrateExplanation(env, block, { ...(figures || {}), early });
         if (interactive) block = { ...block, interactions: await bindInteractions(block, { questions, terms }) };
       }
@@ -343,8 +342,7 @@ export const IMAGE_ROLES = Object.freeze({
 // proposal_used) BEFORE any model call, and the generator takes the brief's own words, selection and context, never the body's. A press
 // that makes no card (a question back, a refusal, an error) gives the consumption back. Without a proposal the route is unchanged (the
 // Tutor's create_material, Ctrl+K's automatic routing and the internal material tools never draw a brief).
-// waitUntil (the Worker's ctx.waitUntil): a written Explanation's pictures finish after the card is answered (owner 2026-11-08); omitted, the card waits for them.
-export async function artifactFetch(req, env, generate = generateArtifact, { images = tutorImageContext, identity = null, sourceRef = null, waitUntil = null } = {}) {
+export async function artifactFetch(req, env, generate = generateArtifact, { images = tutorImageContext, identity = null, sourceRef = null } = {}) {
   const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
@@ -411,17 +409,15 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
     const visuals = body.command === 'explanation' ? deriveVisualRequirements(requirementText({ args: body.args })) : null;
     if (visuals?.unsupported) { await giveBack(); return json({ result: 'unsupported', message: visuals.unsupported }); }
     celeris = celerisExplainRoute(env, body.command); // DEV ONLY (explain-celeris-dev.js): off unless a dev or test Worker turns it on; production never takes it
-    // EXP-13: a picture the card asks for is kept as a file source of the board's owner (as an image job keeps its output), read only when the card has one; the
-    // board named is where a picture that arrives after the card is written (explanation-figures.js fillSavedCard).
-    const board = typeof body.board === 'string' ? body.board : 'main';
+    // EXP-13: a picture the card asks for is kept as a file source of the board's owner (as an image job keeps its output), read only when the card has one.
     const store = async () => {
       const { boardOwner, ownerRow } = await import('./learn-boards.js');
       const owner = await boardOwner(req, env, body.app);
       if (owner instanceof Response || !owner?.org || !owner?.email) return null;
-      const row = await ownerRow(env, owner, body.app, board).catch(() => null);
-      return { org: owner.org, email: owner.email, app: body.app, board, boardId: row?.id ?? null };
+      const row = await ownerRow(env, owner, body.app, typeof body.board === 'string' ? body.board : 'main').catch(() => null);
+      return { org: owner.org, email: owner.email, app: body.app, boardId: row?.id ?? null };
     };
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store, ...(waitUntil ? { later: waitUntil } : {}) } });
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store } });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
     const done = celeris ? { ...out, devModel: celeris.served() } : out;

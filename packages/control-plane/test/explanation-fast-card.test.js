@@ -249,19 +249,6 @@ test('fix 3: a streamed answer starts its picture before the body has arrived; t
   assert.deepEqual(attempts, [{ provider: 'fireworks', status: 'settled', cost_micros: 510, input_tokens: 1000, output_tokens: 600 }, { provider: 'recraft', status: 'settled', cost_micros: 7000, input_tokens: null, output_tokens: null }]);
 });
 
-test('owner 2026-11-08, pictures off the critical path: with figures.later the streamed card returns when its text is ready, its slower picture pending (fake clock)', async t => {
-  quiet(t);
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
-  const { env, rows } = fastEnv(t), image = recraft(4000), later = [];
-  const sent = fireworks(t, { content: STREAMED, at: [300, 2500] });
-  const { out, doneAt } = await onClock(t, () => generateArtifact(env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: { ...STORE, board: 'main' }, adapter: image, later: work => later.push(work) } }));
-  assert.equal(out.result, 'artifact');
-  assert.ok(doneAt - sent[0].at < 2600, `the card took ${doneAt - sent[0].at} ms: the text, not the 4 s picture started at 300 ms`);
-  assert.equal(out.block.figures['pic-1'].status, 'pending');
-  assert.equal(later.length, 2, 'the saved-card write and the chain\'s own settling run after the response');
-  assert.deepEqual(rows("SELECT status FROM usage_attempts WHERE provider = 'recraft'"), [{ status: 'running' }], 'admitted with the card; settled later');
-});
-
 test('fix 3: EXPLANATION_STREAM=off sends stream:false and makes the picture after the answer is validated (fake clock)', async t => {
   quiet(t);
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
