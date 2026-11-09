@@ -37,7 +37,7 @@ export const references = [
   {
     id: 'ml-value-binning', lessons: ['08'],
     prompts: ['Can you show which bins contain these values, including values exactly on an edge?'],
-    keywords: ['value binning', 'bin edge', 'bin edges', 'bin boundary', 'bucket', 'discretization', 'bin membership', 'equal-width bins'],
+    keywords: ['value binning', 'bin edge', 'bin edges', 'bin boundary', 'bucket', 'discretization', 'bin membership', 'equal-width bins', 'quantization', 'quantize', 'quantized'],
     useWhen: 'Assign raw numeric values to ordered intervals and show the matching counts. State the left-closed, right-open convention and the inclusive final endpoint, so values exactly on an edge have unambiguous membership.',
     spec: { version: 1, diagram: {
       kind: 'comparison', variant: 'panels', title: 'Binning maps each value to one interval',
