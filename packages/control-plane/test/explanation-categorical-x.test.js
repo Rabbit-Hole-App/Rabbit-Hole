@@ -16,3 +16,11 @@ test('the planner kind criteria say the same for coordinate-plot, bar-chart and 
   assert.match(kinds['bar-chart'], /any series over categories or indices \(folds, classes, models, runs\), such as training vs validation error per fold, grouped when comparing series/);
   assert.match(kinds['sample-set'], /not the error or score measured per fold/);
 });
+
+// Leg 3 (2026-11-09): the bar-chart entry names the grouped form the categorical-x clause refers to, with the field names the extended plot spec accepts (ml-plot-spec.js).
+test('the bar-chart entry points at the grouped form: variant grouped, categories 2-8, series with values', () => {
+  const entry = EXPLANATION_GUIDANCE.slice(EXPLANATION_GUIDANCE.indexOf('bar-chart for comparing quantities'));
+  const sentence = entry.slice(0, entry.indexOf(', t-account'));
+  assert.ok(sentence.includes('variant "grouped"') && sentence.includes('categories [2-8 texts]') && sentence.includes('series [{label,values}]'), sentence);
+  assert.equal(EXPLANATION_GUIDANCE.split('variant "grouped"').length, 2, 'once');
+});
