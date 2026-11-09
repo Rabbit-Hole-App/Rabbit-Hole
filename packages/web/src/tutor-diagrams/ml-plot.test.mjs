@@ -114,14 +114,16 @@ test('a dense extended line marks its first and last point and labelled points, 
   });
 });
 
-function checkAxisTicks(frame, xDomain, yDomain) {
+// logX (release 118, Codex ae9bf069d): a log x axis is labelled at its powers of ten plus the exact endpoints, thinned only when crowded, so it carries 2 to 7 ticks (a domain inside one decade: the two endpoints); linear axes keep 3 to 5.
+function checkAxisTicks(frame, xDomain, yDomain, logX = false) {
   const labels = frame.elements.filter(({ type, props }) => type === 'text' && props.fontSize === 12).map(({ props }) => props);
   const bottomRow = Math.max(...labels.map(p => p.y));
   const x = labels.filter(p => p.y === bottomRow).sort((a, b) => a.x - b.x);
   const y = labels.filter(p => p.y !== bottomRow).sort((a, b) => b.y - a.y);
   const lines = p => [p.children].flat().map(span => span.props.children);
   for (const [ticks, domain] of [[x, xDomain], [y, yDomain]]) {
-    assert.ok(ticks.length >= 3 && ticks.length <= 5, `expected 3–5 ticks, found ${ticks.length}`);
+    const [few, many] = logX && ticks === x ? [2, 7] : [3, 5];
+    assert.ok(ticks.length >= few && ticks.length <= many, `expected ${few}–${many} ticks, found ${ticks.length}`);
     const text = ticks.map(tick => lines(tick).join(''));
     assert.equal(new Set(text).size, ticks.length, 'each tick has a distinct label');
     assert.deepEqual([text[0], text.at(-1)].map(Number), domain, 'exact endpoints remain labelled');
@@ -149,7 +151,7 @@ test('linear and logarithmic plot axes have three to five readable ticks at each
       [{ label: 'X', min: 0.001, max: 100, scale: 'log' }, { label: 'Y', min: -0.0137, max: 0.3283 }],
     ]) {
       const d = { ...plot(), x, y, series: [{ label: 'Samples', kind: 'scatter', points: [{ x: x.min, y: y.min }, { x: x.max, y: y.max }] }] };
-      checkAxisTicks(render(d, width), [x.min, x.max], [y.min, y.max]);
+      checkAxisTicks(render(d, width), [x.min, x.max], [y.min, y.max], x.scale === 'log');
     }
   }
 });
@@ -175,7 +177,7 @@ test('very narrow positive log domains retain finite, distinct endpoints', () =>
     assert.doesNotMatch(frame.svg, /NaN|Infinity/);
     const [a, b] = marks(frame.svg, 'data-tutor-coordinate-point');
     assert.ok(number(a.tag, 'cx') < number(b.tag, 'cx'));
-    checkAxisTicks(frame, [d.x.min, d.x.max], [d.y.min, d.y.max]);
+    checkAxisTicks(frame, [d.x.min, d.x.max], [d.y.min, d.y.max], true);
   }
 });
 
