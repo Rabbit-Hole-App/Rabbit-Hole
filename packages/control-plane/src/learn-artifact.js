@@ -1,5 +1,5 @@
 import { planExplanation, planShape, cardVisuals, visualKinds, visualsStatement, plannerEnabled } from './explanation-planner.js';
-import { selectDiagramReferences, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
+import { selectDiagramReferences, preferSingleVariants, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -43,7 +43,8 @@ const interactiveSchema = schema => ({ ...schema, required: [...schema.required,
 const authorSchema = env => {
   const { schema } = PRIMITIVES.explanation;
   const s = { ...schema, required: Object.keys(schema.properties), properties: { ...schema.properties, visuals: { ...schema.properties.visuals, maxItems: 3 } } };
-  return interactionsEnabled(env) ? interactiveSchema(s) : s;
+  const formula = formulaSamplerEnabled(env) ? withFormulaSeries(s) : s; // EXPLANATION_FORMULA_SAMPLER=on only
+  return interactionsEnabled(env) ? interactiveSchema(formula) : formula;
 };
 const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 // A long text field's limit, said in words in the tool's description: a schema maxLength alone was overrun twice, repair
@@ -67,6 +68,7 @@ const GATES = {
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 import { celerisExplainRoute } from './explain-celeris-dev.js';
 import { generateWithFallbacks } from './explanation-fast-chain.js';
+import { formulaSamplerEnabled, withFormulaSeries, fillFormulaSeries, FORMULA_SERIES_GUIDANCE } from './explanation-formula-series.js';
 export { ARTIFACT_SYSTEM };
 
 // A paid renderer this deployment has not provisioned is unavailable BEFORE it is proposed, so no proposal, hold or charge
@@ -110,7 +112,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   // EXP-13 fix 6b: an implied picture is not sent (the author would read it as the whole mix); the guidance asks for it and the check below enforces it.
   const asked = askedItems(input), resolved = cardVisuals(input.plan, asked), explanationOnly = ready.length === 1 && ready[0] === 'explanation';
   // The sections that change per card come last in the tool description, after the cached static text: Depth, then this card's visuals (the plan stated as fact, or the rules when there is no plan), then the output format.
-  const explanationTail = `\n\n${EXPLANATION_GUIDANCE} ${PHASE02_DIAGRAM_GUIDANCE}\n\nBased on the rules above, this card:\n\n# Depth\n${explanationTarget(input.depth)}\n\n${visualsStatement(input.plan, resolved) ?? EXPLANATION_VISUAL_RULES}${interactionsEnabled(env) ? `\n\n# Output format\n${INTERACTION_GUIDANCE}` : ''}`;
+  const explanationTail = `\n\n${EXPLANATION_GUIDANCE} ${PHASE02_DIAGRAM_GUIDANCE}\n\nBased on the rules above, this card:\n\n# Depth\n${explanationTarget(input.depth)}\n\n${visualsStatement(input.plan, resolved) ?? EXPLANATION_VISUAL_RULES}${formulaSamplerEnabled(env) ? FORMULA_SERIES_GUIDANCE : ''}${interactionsEnabled(env) ? `\n\n# Output format\n${INTERACTION_GUIDANCE}` : ''}`;
   const tools = [...ready.map(id => ({
     name: toolName(id),
     description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}${id === 'explanation' ? explanationTail : ''}`, // CORE.09: shared teaching guidance, this request's Depth target and budget
@@ -125,17 +127,20 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
   const maxTokens = Math.max(bound ? bound.roles.author.maxOutputTokens : LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
-  const topicalReferences = ready.includes('explanation') ? selectDiagramReferences({
+  const requiredKinds = asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind);
+  // Owner 2026-11-08: with a plan, the gallery example comes from the planner's chosen kind (below); the learner-word shape fallback (explanation-references.js) is used
+  // only when the planner was asked and gave no plan (it timed out or failed; owner 2026-11-08), never when it is off or a plan exists. A two-panel reference goes out as its single-diagram variant unless the planned kind is the comparison.
+  const topicalReferences = ready.includes('explanation') ? preferSingleVariants(selectDiagramReferences({
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
-    requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind),
+    requiredKinds, shapeFallback: !!input.planned && !input.plan,
     plannedKinds: visualKinds(resolved), // the resolved kinds, filtered to before any keyword scoring
-  }) : [];
-  // Planner prototype: the shape example of the card's kind goes first, before any topical reference.
-  const shape = visualKinds(resolved)[0] ? planShape({ kind: visualKinds(resolved)[0] }) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
+  }), { plannedKind: input.plan?.kind, requiredKinds }) : [];
+  // Planner prototype: the gallery example of the card's kind, at the card's depth, goes first, before any topical reference.
+  const shape = input.plan && visualKinds(resolved)[0] ? planShape({ kind: visualKinds(resolved)[0] }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
   // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
-  if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind) })); }
+  if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds })); }
   const route = bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools';
   const base = explanationOnly ? explanationSystem(route) : artifactSystem(route); // A3: no tool paragraph where no tool is offered
   const system = (input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote && !explanationOnly ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '') + diagramReferenceContext(diagramReferences);
@@ -204,6 +209,8 @@ export async function generateArtifact(env, input, { callModel: injected = null,
         // references: the ids of the worked examples this request carried (0-2), so the bench can split results by them (owner 2026-11-08).
         console.log(JSON.stringify({ event: 'explanation_author_raw', attempt, plan: input.plan ? { visuals: input.plan.visuals, depthTreatment: input.plan.depthTreatment, kind: input.plan.kind, fixed: input.plan.fixed, confidence: input.plan.confidence, flags: input.plan.flags, ms: input.plan.ms } : input.planned ? { planner: 'rules' } : null, references: (prepared.diagramReferences || []).map(r => r.id), visuals, kinds: Array.isArray(visuals) ? visuals.map(v => (v?.k === 'diagram' ? v?.spec?.diagram?.kind ?? null : v?.k ?? null)) : [] }));
       }
+      // EXPLANATION_FORMULA_SAMPLER=on: a plot series written as a formula and range gets its points here, before any other step reads the visuals.
+      if (id === 'explanation' && formulaSamplerEnabled(env) && Array.isArray(call.input?.visuals)) call = { ...call, input: { ...call.input, visuals: fillFormulaSeries(call.input.visuals) } };
       // Owner M3 (2026-11-08): keys the schema does not declare are removed from the visuals before the card is read, logged and counted, never a repair.
       let keysStripped = 0;
       if (id === 'explanation' && Array.isArray(call.input?.visuals)) {

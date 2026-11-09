@@ -1,5 +1,6 @@
 import { createElement as h } from 'react';
 import { label, lineHeight, widestFormula, wrap } from './primitives.js';
+import { plotTicks } from './plot-ticks.js';
 import { TEACHING as T, TEACHING_SERIES as COLORS, teachingConnector } from './teaching-theme.js';
 import { annotationDescription, axisName, isExtendedPlot } from './ml-plot-spec.js';
 
@@ -19,13 +20,6 @@ function scale(axis, start, end) {
   const project = axis.scale === 'log' ? Math.log : value => value;
   const min = project(axis.min), max = project(axis.max);
   return value => start + (end - start) * (project(value) - min) / (max - min);
-}
-function ticks(axis) {
-  if (axis.scale === 'log') {
-    const middle = Number(Math.exp((Math.log(axis.min) + Math.log(axis.max)) / 2).toPrecision(10));
-    return middle > axis.min && middle < axis.max ? [axis.min, middle, axis.max] : [axis.min, axis.max];
-  }
-  return axis.min < 0 && axis.max > 0 ? [axis.min, 0, axis.max] : [axis.min, axis.max];
 }
 function symbol(x, y, index, attributes = {}, title) {
   const props = { fill: COLORS[index % 3], stroke: T.surface, strokeWidth: 1.1, ...attributes };
@@ -60,18 +54,16 @@ function coordinatePlot(d, requested) {
   const geometry = [], foreground = [], notes = [];
   const yTitle = wrap(axisName(d.y), width - 2 * PAD);
   elements.push(label(yTitle, PAD, PAD + yTitle.length * lineHeight() / 2, { anchor: 'start', weight: 700 }));
-  for (const value of ticks(d.x)) {
-    elements.push(teachingConnector([[x(value), top], [x(value), bottom]], { dashed: true }));
+  const xTicks = plotTicks(d.x, x, { horizontal: true });
+  for (const { at } of xTicks) {
+    elements.push(teachingConnector([[at, top], [at, bottom]], { dashed: true }));
   }
-  for (const value of ticks(d.y)) {
-    elements.push(teachingConnector([[left, y(value)], [right, y(value)]], { dashed: true }));
-    elements.push(label(wrap(format(value), left - PAD - 8, SMALL), left - 8, y(value), { anchor: 'end', size: SMALL }));
+  for (const { at, lines, anchor } of plotTicks(d.y, y, { labelWidth: left - PAD - 8 })) {
+    elements.push(teachingConnector([[left, at], [right, at]], { dashed: true }));
+    elements.push(label(lines, left - 8, at, { anchor, size: SMALL }));
   }
-  const xValues = ticks(d.x);
-  const xTickRows = xValues.map(value => wrap(format(value), (right - left) / 3 - 8, SMALL));
-  const tickHeight = Math.max(...xTickRows.map(rows => rows.length)) * lineHeight(SMALL);
-  xValues.forEach((value, i) => elements.push(label(xTickRows[i], x(value), bottom + 8 + tickHeight / 2,
-    { size: SMALL, anchor: i === 0 ? 'start' : i === xValues.length - 1 ? 'end' : 'middle' })));
+  const tickHeight = Math.max(...xTicks.map(tick => tick.lines.length)) * lineHeight(SMALL);
+  for (const { at, lines, anchor } of xTicks) elements.push(label(lines, at, bottom + 8 + tickHeight / 2, { anchor, size: SMALL }));
   const xTitle = wrap(axisName(d.x), right - left);
   let legendY = bottom + tickHeight + 18;
   elements.push(label(xTitle, right, legendY + xTitle.length * lineHeight() / 2, { anchor: 'end', weight: 700 }));
@@ -160,6 +152,7 @@ function coordinatePlot(d, requested) {
     }
     const values = series.points.map(xy);
     if (series.kind === 'line' || series.kind === 'step') geometry.push(curve(series.kind === 'step' ? stepPoints(values) : values, i, { 'data-tutor-plot-series': series.label }));
+    const sparseMarkers = series.kind === 'line' && series.points.length > 6;
     series.points.forEach((p, j) => {
       const [cx, cy] = values[j];
       if (series.kind === 'stem') geometry.push(h('line', { x1: cx, x2: cx, y1: y(0), y2: cy, stroke: COLORS[i], strokeWidth: 1.8, 'data-tutor-plot-stem': `${p.x},${p.y}` }));
@@ -168,7 +161,7 @@ function coordinatePlot(d, requested) {
         geometry.push(h('path', { d: `M ${cx} ${lo} V ${hi} M ${cx - 4} ${lo} H ${cx + 4} M ${cx - 4} ${hi} H ${cx + 4}`,
           fill: 'none', stroke: COLORS[i], strokeWidth: 1.5, 'data-tutor-plot-errorbar': `${p.low},${p.high}` }));
       }
-      marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`));
+      if (!sparseMarkers || p.label || j === 0 || j === series.points.length - 1) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`));
       if (p.label) note([cx, cy], `${p.label}: (${p.x}, ${p.y})`);
     });
     const lines = wrap(`${series.label}${hasUncertainty ? ' · low/high interval' : ''}`, width - 2 * PAD - 36);

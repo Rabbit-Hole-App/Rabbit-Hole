@@ -20,7 +20,7 @@ export const references = [
             heading: 'Start with different samples',
             diagram: {
               kind: 'matrix', layout: 'teaching', title: 'Two training points per fit',
-              columns: ['At x = 0', 'At x = 4'],
+              columns: ['At $x=0$', 'At $x=4$'],
               rows: [
                 { id: 'a', heading: 'Fit A', cells: ['1', '5'] },
                 { id: 'b', heading: 'Fit B', cells: ['3', '5'] },
@@ -53,7 +53,7 @@ export const references = [
                   { x: 4, y: 6, low: 5, high: 8 },
                 ] },
               ],
-              caption: 'At x = 4, the three predictions are 5, 5 and 8. Their mean is 6. The shaded band runs from the smallest to the largest prediction.',
+              caption: 'At $x=4$, the three predictions are 5, 5 and 8. Their mean is 6. The shaded band runs from the smallest to the largest prediction.',
             },
           },
         ],

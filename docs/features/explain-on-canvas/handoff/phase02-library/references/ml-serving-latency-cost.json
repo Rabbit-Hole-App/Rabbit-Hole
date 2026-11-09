@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Serving latency and daily cost",
+    "caption": "The same toy workload has 1M entities, 2M requests/day and 500 peak QPS. Both meet the 25 h staleness and 40 ms latency limits.",
+    "kind": "matrix",
+    "layout": "teaching",
+    "columns": [
+      "Batch",
+      "Online"
+    ],
+    "rows": [
+      {
+        "id": "capacity",
+        "heading": "Capacity",
+        "cells": [
+          "1 h job every 24 h",
+          "3 replicas at 200 QPS each"
+        ]
+      },
+      {
+        "id": "prices",
+        "heading": "Unit prices",
+        "cells": [
+          "0.40 USD/M scores and 0.25 USD/M reads",
+          "0.50 USD/hour per replica"
+        ]
+      },
+      {
+        "id": "daily-cost",
+        "heading": "Daily cost",
+        "cells": [
+          "0.90 USD (0.40 scoring, 0.50 lookup)",
+          "36 USD for 3 replicas all day"
+        ]
+      },
+      {
+        "id": "latency",
+        "heading": "Request latency",
+        "cells": [
+          "4 ms lookup",
+          "35 ms end to end"
+        ]
+      },
+      {
+        "id": "freshness",
+        "heading": "Score age",
+        "cells": [
+          "Up to 25 h old",
+          "Current request features"
+        ]
+      }
+    ],
+    "emphasis": {
+      "rows": [
+        "daily-cost"
+      ]
+    }
+  }
+}
