@@ -1,0 +1,116 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_linear-regression/weight-decay.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:09:00.445Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_78_1.svg",
+      "file": "01-output-weight-decay-63fc98-78-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_78_1.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_81_1.svg",
+      "file": "02-output-weight-decay-63fc98-81-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_81_1.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_84_1.svg",
+      "file": "03-output-weight-decay-63fc98-84-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_84_1.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_87_1.svg",
+      "file": "04-output-weight-decay-63fc98-87-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_87_1.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_93_1.svg",
+      "file": "05-output-weight-decay-63fc98-93-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_93_1.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_96_1.svg",
+      "file": "06-output-weight-decay-63fc98-96-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_96_1.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_99_1.svg",
+      "file": "07-output-weight-decay-63fc98-99-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_99_1.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_102_1.svg",
+      "file": "08-output-weight-decay-63fc98-102-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_102_1.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_126_1.svg",
+      "file": "09-output-weight-decay-63fc98-126-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_126_1.svg"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_129_1.svg",
+      "file": "10-output-weight-decay-63fc98-129-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_129_1.svg"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_132_1.svg",
+      "file": "11-output-weight-decay-63fc98-132-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_132_1.svg"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_135_1.svg",
+      "file": "12-output-weight-decay-63fc98-135-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_135_1.svg"
+    }
+  ]
+}

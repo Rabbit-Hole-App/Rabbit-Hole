@@ -65,6 +65,12 @@ export default defineConfig({
   },
   // Module workers, so the file parser worker (src/file-parse.worker.js) loads SheetJS or mammoth only for the format it opens.
   worker: { format: 'es' },
-  server: { proxy },
+  server: {
+    proxy,
+    fs: {
+      // Vite replaces its default deny list when configured.
+      deny: ['.env', '.env.*', '*.{crt,pem,key,p12,pfx,cer,der}', '.npmrc', '.yarnrc.yml', '**/.git/**', '**/figure-briefs/**'],
+    },
+  },
   preview: { proxy }, // `vite preview` = production bundle against the same control plane
 });
