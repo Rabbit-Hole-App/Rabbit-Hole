@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DRAG_TYPE, FOLDER_COLORS, NAME_MAX, cleanName, deleteCopy, folderCounts, folderInk, inView, itemsLabel, nextColor } from './library-folders.js';
+import { DRAG_TYPE, FOLDER_COLORS, NAME_MAX, cleanName, deleteCopy, folderCounts, folderInk, inView, itemsLabel, libraryShows, nextColor } from './library-folders.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const apps = [{ name: 'canvas-1' }, { name: 'canvas-2' }, { name: 'repo-1' }, { name: 'counter' }];
@@ -89,3 +89,14 @@ test('the Library header: New folder beside the filters, the open folder\'s ⋮ 
   assert.match(app, /folders=\{lib\} folderId=\{folderId\} searching=\{!!needle\}/);
   for (const file of ['./home/PublicCards.jsx', './SharedBoardPage.jsx', './CreatorProfile.jsx', './Sidebar.jsx']) assert.doesNotMatch(read(file), /library\/folders|LibraryFolders/, file);
 });
+
+test('the Library page shows its folder tiles when it has folders and no card (owner bug 2026-11-09: deleting every canvas hid the folders)', () => {
+  assert.equal(libraryShows(0, 0), false, 'nothing at all: the empty page');
+  assert.equal(libraryShows(0, 2), true, 'folders and no card: the tiles');
+  assert.equal(libraryShows(3, 0), true);
+  assert.equal(libraryShows(3, 2), true);
+  const app = read('./App.jsx');
+  assert.match(app, /libraryShows\(withFixtures\.length, lib\.folders\.length\)/, 'App.jsx draws LibraryViews through the rule, not through the card count alone');
+  assert.doesNotMatch(app, /type !== 'apps' && withFixtures\.length > 0 && \(\s*<LibraryViews/);
+});
+
