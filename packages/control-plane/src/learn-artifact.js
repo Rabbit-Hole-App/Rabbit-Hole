@@ -17,7 +17,7 @@ import { consumeProposal, releaseProposal, verifyProposal } from './generation-p
 import { repositoryIdentity } from './repositories.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { literalBreaksDeep } from './literal-breaks.js';
-import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
+import { PRIMITIVES, isReady, artifactBlock, EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, explanationProblem, chainsAsCycles, flowsAsSequences, correctDiagrams, plainTreesUnlessBinary, treesAsHierarchy, relationshipsAsGraphs, dropInvalidDiagrams, stripUnknownKeys, diagramSmells, markdownIllustrations, markdownVisuals, proseListCount, settleExplanationBody } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { explanationProfileBinding, explanationProfileFor } from './explanation-models.js';
@@ -252,6 +252,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
           if (seq.count) { block = { ...block, body: seq.md }; corrections.flow_to_sequence = seq.count; }
         }
         block = { ...block, body: plainTreesUnlessBinary(block.body, input.args) }; // owner check 2026-11-08: binary layout only for binary/heap/BST questions
+        { const hier = treesAsHierarchy(block.body); if (hier.count) { block = { ...block, body: hier.md }; corrections.tree_hierarchy_layout = hier.count; } } // batch-1 audit 2026-11-09: a short-key tree is drawn top-down, not as an outline
         block = { ...block, body: relationshipsAsGraphs(block.body) }; // owner C1.1 2026-11-08: each relationship node drawn once
         if (attempt >= repairs) {
           let trimmed = dropInvalidDiagrams(block), fallback = null;

@@ -31,7 +31,7 @@ test('picture and both map to the visuals in the author order; no second-visual 
   assert.deepEqual(planFromAnswers(answers({ secondVisual: { choice: 'comparison' } })).visuals, [{ type: 'diagram', kind: 'sequence' }]);
   assert.equal(QUESTIONS.secondVisual.type, 'noul', 'the narrow second-visual question (owner 2026-11-08), not the v1 comparison choice');
   assert.match(planStatement(planFromAnswers(answers({ visualType: { choice: 'picture' } }))), /1\) a picture \(no diagram\)\. Depth treatment: mechanism/);
-  assert.match(planStatement(planFromAnswers(answers())), /^# Visuals for this card\nThis card's visuals: 1\) a sequence diagram\. Depth treatment: mechanism\.$/);
+  assert.match(planStatement(planFromAnswers(answers())), /^# Visuals for this card\nThis card's visuals: 1\) a sequence diagram\. Depth treatment: mechanism\. The visual must contain the step or quantity the question is about: /);
 });
 
 test('the shape example is the gallery spec of the planned kind at the card depth, none for a picture or a kind the gallery lacks', () => {
