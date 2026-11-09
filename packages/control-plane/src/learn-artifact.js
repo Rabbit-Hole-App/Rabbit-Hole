@@ -275,6 +275,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
             block = { ...trimmed.block, ...(fallback ? { visualFallback: fallback } : {}) }; diagramsDropped += trimmed.dropped - trimmed.simplified;
             if (trimmed.simplified) diagramsSimplified = trimmed.simplified;
             for (const kind of trimmed.kinds) corrections[`simplified_${kind}`] = (corrections[`simplified_${kind}`] || 0) + 1;
+            if (trimmed.elements?.length) corrections.dropped_element = (corrections.dropped_element || 0) + trimmed.elements.length; // each one has its own explanation_diagram_dropped_element line
           }
         }
         // E2 + fix 1b: the questions and term anchors are read against the FINAL text (accepted title applied, diagrams settled); what is not valid is dropped, never repaired.

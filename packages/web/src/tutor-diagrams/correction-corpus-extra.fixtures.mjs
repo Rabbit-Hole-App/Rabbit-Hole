@@ -33,6 +33,15 @@ const retry = spec('sequence', 'Retry a background job', {
 const retryWords = ['Job worker', 'Retry timer', 'Backoff elapsed'];
 const retryMessage = [[['messages', 0], { from: 'timer', to: 'worker', label: 'Backoff elapsed' }]];
 
+const publicKey = spec('sequence', 'Key exchange and message flow', {
+  actors: [{ id: 'alice', label: 'Alice' }, { id: 'bob', label: 'Bob' }],
+  messages: [
+    { from: 'bob', to: 'alice', label: 'Share public key' },
+    { from: 'alice', to: 'bob', label: 'Encrypt with public key -> Decrypt with private key' },
+  ],
+});
+const publicKeyWords = ['Alice', 'Bob', 'Share public key', 'Encrypt with public key', 'Decrypt with private key'];
+
 const fallingObject = spec('figure', 'Weight on a falling object', {
   figure: 'free-body', unit: 'N',
   callouts: [{ anchor: 'body', label: 'Object', detail: 'Without air resistance, gravity pulls down with 10 N.' }],
@@ -115,6 +124,12 @@ export const additionalCorrections = [
   pair('sequence-message-to-self', retry, ['messages', 0], /cannot send a message to itself/, d => {
     d.messages[0].from = 'worker';
   }, retryWords, retryMessage),
+
+  // Batch-1 review card 01 (public-key encryption), as the model wrote it: Bob's own step is a message from bob to bob.
+  pair('sequence-self-step-decrypt', publicKey, ['messages', 2], /cannot send a message to itself/, d => {
+    d.messages[1].label = 'Encrypt with public key';
+    d.messages.push({ from: 'bob', to: 'bob', label: 'Decrypt with private key' });
+  }, publicKeyWords, [[['messages', 0, 'label'], 'Share public key']]),
 
   pair('figure-free-body-without-vectors', fallingObject, ['vectors'], /needs force vectors/, d => {
     delete d.vectors;

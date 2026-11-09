@@ -449,20 +449,62 @@ const parses = lines => { try { parseTutorDiagram(lines.join('\n')); return true
 // 'columns' and 'rows' (a matrix or comparison, owner 2026-11-08: stack-vs-queue's invalid matrix had none of the other lists and was dropped, the card delivered with no visual): read by label, heading or name.
 const LABEL_LISTS = ['nodes', 'steps', 'events', 'layers', 'actors', 'messages', 'bars', 'changes', 'markers', 'callouts', 'rows', 'columns', 'blocks'];
 const labelOf = x => (typeof x === 'string' ? x : x?.label ?? x?.heading ?? x?.name);
+// Owner 2026-11-09 (batch-1 review, card 01): a correction never removes content without a log line. One line per element a server step removes or cuts, naming what and why.
+export const droppedElement = (kind, label, reason, sink = null) => {
+  sink?.push({ kind, label, reason });
+  console.log(JSON.stringify({ event: 'explanation_diagram_dropped_element', kind, label: String(label ?? '').slice(0, 80), reason }));
+};
 const fit = (s, max) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, ''); };
 const tryParse = spec => { try { return parseTutorDiagram(spec); } catch { return null; } };
-function simplifiedSequence(d, head) {
+// A message from an actor to itself (the receiver's own step: "Decrypt with private key") is not valid in the sequence kind (from !== to), so its text is kept: folded into the
+// next message's label ("<self> -> <next>"), else the previous one's, else the caption when the label would pass its 60 characters. A self-step with nothing to attach to is the only
+// one removed, and droppedElement names it. -> { messages, caption }. The proper self-message (a loop arrow on one lifeline) is the renderer's, a batch-2 item.
+function foldSelfSteps(list, caption, sink = null) {
+  const messages = []; let pending = [];
+  for (const m of list) {
+    if (m.from === m.to) { pending.push(m.label); continue; }
+    messages.push({ ...m, ...(pending.length ? { before: pending.join('; ') } : {}) }); pending = [];
+  }
+  if (pending.length && messages.length) messages.at(-1).after = pending.join('; ');
+  else pending.forEach(p => droppedElement('message', p, 'a self-step with no message to attach to', sink));
+  let kept = caption;
+  const toCaption = text => { const c = `${kept ? kept + ' ' : ''}${text}`; if (c.length <= 140) kept = c; else droppedElement('message', text, 'a self-step that fits neither a message label nor the caption', sink); };
+  for (const m of messages) { // a folded label over the 60-character limit: the self-step moves to the caption instead of being cut
+    const { before, after } = m, label = [before, m.label, after].filter(Boolean).join(' -> ');
+    if (label.length > 60) { for (const text of [before, after]) if (text) toCaption(text); m.label = fit(m.label, 60); } else m.label = label;
+    delete m.before; delete m.after;
+  }
+  return { messages, caption: kept };
+}
+// The pre-repair correction: a sequence whose only problem is a self-step is folded with no model call. -> { spec, kinds } or null.
+function correctedSequence(raw) {
+  const d = structuredClone(raw?.diagram);
+  if (d?.kind !== 'sequence' || !Array.isArray(d.messages) || !d.messages.some(m => m && m.from !== undefined && m.from === m.to) || tryParse(raw)) return null;
+  const list = d.messages.filter(m => m && typeof m.label === 'string' && m.label.trim()).map(m => ({ ...m, label: m.label.replace(/\s+/g, ' ').trim() }));
+  const { messages, caption } = foldSelfSteps(list, d.caption);
+  const spec = messages.length ? tryParse({ version: 1, diagram: { ...d, messages, ...(caption ? { caption: fit(caption, 140) } : {}) } }) : null;
+  return spec ? { spec, kinds: ['sequence_self_step_folded'] } : null;
+}
+function simplifiedSequence(d, head, sink = null) {
   const actors = [], to = new Map();
   for (const a of Array.isArray(d.actors) ? d.actors : []) {
     const label = typeof a === 'string' ? a : a?.label;
-    if (typeof label !== 'string' || !label.trim() || actors.length >= 4) continue;
+    if (typeof label !== 'string' || !label.trim()) { droppedElement('actor', label, 'no label', sink); continue; }
+    if (actors.length >= 4) { droppedElement('actor', label, 'over the 4-actor limit', sink); continue; }
     const id = `a${actors.length + 1}`; actors.push({ id, label: fit(label, 30) });
     for (const key of [a?.id, label]) if (typeof key === 'string' && !to.has(key.trim().toLowerCase())) to.set(key.trim().toLowerCase(), id); // a repeated id keeps its first actor
   }
-  const end = v => (typeof v === 'string' ? to.get(v.trim().toLowerCase()) : undefined);
-  const messages = (Array.isArray(d.messages) ? d.messages : []).map(m => ({ from: end(m?.from), to: end(m?.to), label: typeof m?.label === 'string' ? fit(m.label, 60) : '' }))
-    .filter(m => m.from && m.to && m.from !== m.to && m.label).slice(0, 8);
-  return actors.length >= 2 && messages.length ? tryParse({ version: 1, diagram: { ...head, kind: 'sequence', actors, messages } }) : null;
+  const end = v => (typeof v === 'string' ? to.get(v.trim().toLowerCase()) : undefined), list = [];
+  for (const m of Array.isArray(d.messages) ? d.messages : []) {
+    const label = typeof m?.label === 'string' ? m.label.replace(/\s+/g, ' ').trim() : '', from = end(m?.from), target = end(m?.to);
+    if (!label) droppedElement('message', m?.label, 'no label', sink);
+    else if (!from || !target) droppedElement('message', label, 'names an actor that is not in the diagram', sink);
+    else list.push({ from, to: target, label });
+  }
+  const { messages: folded, caption } = foldSelfSteps(list, head.caption, sink);
+  folded.slice(8).forEach(m => droppedElement('message', m.label, 'over the 8-message limit', sink));
+  const messages = folded.slice(0, 8), keptHead = caption ? { ...head, caption: fit(caption, 140) } : head;
+  return actors.length >= 2 && messages.length ? tryParse({ version: 1, diagram: { ...keptHead, kind: 'sequence', actors, messages } }) : null;
 }
 function matrixAsComparison(d, labels) {
   const cols = (Array.isArray(d.columns) ? d.columns : []).map(labelOf).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 40)), rows = Array.isArray(d.rows) ? d.rows : [];
@@ -472,35 +514,41 @@ function matrixAsComparison(d, labels) {
   if (columns.some(c => !c.items.length)) return null;
   return tryParse({ version: 1, diagram: { kind: 'comparison', title: fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0] ?? cols[0]} and ${cols[1]}`, 90), ...(typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {}), columns } });
 }
-export function simplifiedDiagram(lines, prefer = 'flow') {
+export function simplifiedDiagram(lines, prefer = 'flow', sink = null) {
   let d; try { d = JSON.parse(lines.join('\n'))?.diagram; } catch { return null; }
   if (!d || typeof d !== 'object') return null;
   const list = LABEL_LISTS.map(k => d[k]).find(v => Array.isArray(v) && v.length >= 2) || [];
-  const labels = [...new Set(list.map(labelOf).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60)))].slice(0, 12);
+  const all = list.map(labelOf).filter(s => typeof s === 'string' && s.trim()).map(s => fit(s, 60));
+  const labels = [...new Set(all)].slice(0, 12);
   // A matrix with two to four readable column headings keeps its grid as a comparison (each column its cells, prefixed by the row heading); otherwise its labels become a flow below.
   const grid = matrixAsComparison(d, labels);
   if (grid) return grid;
+  if (prefer !== 'sequence') { // the straight flow or cycle keeps each distinct label once: say which were merged or cut
+    all.forEach((l, i) => { if (all.indexOf(l) !== i) droppedElement('label', l, 'duplicate label merged', sink); });
+    [...new Set(all)].slice(12).forEach(l => droppedElement('label', l, 'over the 12-label limit', sink));
+  }
   if (labels.length < 2 && prefer !== 'sequence') return null;
   const title = fit(typeof d.title === 'string' && d.title.trim() ? d.title : `${labels[0]} to ${labels.at(-1)}`, 90);
   const head = { title, ...(typeof d.caption === 'string' && d.caption.trim() ? { caption: fit(d.caption, 140) } : {}) };
-  const chosen = prefer === 'sequence' ? simplifiedSequence(d, head)
+  const chosen = prefer === 'sequence' ? simplifiedSequence(d, head, sink)
     : prefer === 'cycle' && labels.length <= 7 ? tryParse({ version: 1, diagram: { ...head, kind: 'cycle', steps: labels.map(l => fit(l, 55)) } }) : null;
   if (chosen || labels.length < 2) return chosen;
   return tryParse({ version: 1, diagram: { ...head, kind: 'flow', nodes: labels.map((label, i) => ({ id: `n${i + 1}`, label, role: i === labels.length - 1 ? 'outcome' : 'process' })),
     edges: labels.slice(1).map((_, i) => ({ from: `n${i + 1}`, to: `n${i + 2}` })) } });
 }
 // simplify: an invalid closed diagram is replaced by simplifiedDiagram when it can be, else removed. -> { md, dropped (removed or replaced), simplified, kinds (of the simplified) }
+const titleOf = lines => { try { return JSON.parse(lines.join('\n'))?.diagram?.title ?? ''; } catch { return ''; } };
 function dropFrom(md, simplify = false, prefer = 'flow') {
-  const out = [], kinds = [], keeps = []; let open = null, dropped = 0;
+  const out = [], kinds = [], keeps = [], elements = []; let open = null, dropped = 0;
   for (const line of String(md ?? '').split('\n')) {
     if (open) {
       open.raw.push(line);
       if (/^\s*```/.test(line)) {
         if (open.lang === DIAGRAM && !parses(open.lines)) {
           dropped++;
-          const spec = simplify && simplifiedDiagram(open.lines, prefer);
+          const spec = simplify && simplifiedDiagram(open.lines, prefer, elements);
           keeps[keeps.length - 1] = Boolean(spec);
-          if (spec) { kinds.push(spec.diagram.kind); out.push(open.raw[0], JSON.stringify(spec), line); }
+          if (spec) { kinds.push(spec.diagram.kind); out.push(open.raw[0], JSON.stringify(spec), line); } else droppedElement('diagram', titleOf(open.lines), simplify ? 'invalid and fewer than two readable labels' : 'invalid', elements);
         } else out.push(...open.raw);
         open = null;
       } else open.lines.push(line);
@@ -515,17 +563,18 @@ function dropFrom(md, simplify = false, prefer = 'flow') {
     out.push(line);
   }
   if (open) {
-    if (open.lang === DIAGRAM) { dropped++; keeps[keeps.length - 1] = false; }
+    if (open.lang === DIAGRAM) { dropped++; keeps[keeps.length - 1] = false; droppedElement('diagram', titleOf(open.lines), 'the fence was never closed', elements); }
     else out.push(...open.raw);
   }
-  return dropped ? { md: renumberDetails(out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), keeps), dropped, simplified: kinds.length, kinds } : { md, dropped: 0, simplified: 0, kinds };
+  return dropped ? { md: renumberDetails(out.join('\n').replace(/\n{3,}/g, '\n\n').trim(), keeps), dropped, simplified: kinds.length, kinds, elements } : { md, dropped: 0, simplified: 0, kinds, elements };
 }
 export function dropInvalidDiagrams(block, { simplify = false, prefer = 'flow' } = {}) {
   const body = dropFrom(block?.body, simplify, prefer);
   const more = (block?.more || []).map(s => ({ s, d: dropFrom(s?.text, simplify, prefer) }));
   const dropped = body.dropped + more.reduce((n, { d }) => n + d.dropped, 0), kinds = [...body.kinds, ...more.flatMap(({ d }) => d.kinds)];
-  if (!dropped) return { block, dropped: 0, simplified: 0, kinds: [] };
-  return { block: { ...block, body: body.md, ...(block.more ? { more: more.map(({ s, d }) => (d.dropped ? { ...s, text: d.md } : s)) } : {}) }, dropped, simplified: kinds.length, kinds };
+  const elements = [...body.elements, ...more.flatMap(({ d }) => d.elements)];
+  if (!dropped) return { block, dropped: 0, simplified: 0, kinds: [], elements };
+  return { block: { ...block, body: body.md, ...(block.more ? { more: more.map(({ s, d }) => (d.dropped ? { ...s, text: d.md } : s)) } : {}) }, dropped, simplified: kinds.length, kinds, elements };
 }
 
 // ---- Item 47 (owner 2026-11-08): flow rules the server fixes itself, with no model call, before any repair ------------------------------------------------------
@@ -619,7 +668,7 @@ function correctedMatrix(raw) {
     const short = diffs.filter(x => x > 0), long = diffs.filter(x => x < 0);
     if (short.length && long.length) return null; // rows disagree with each other: the repair's
     if (short.length) { if (short.length !== diffs.length || new Set(short).size !== 1) return null; d.rows.forEach(r => { while (r.cells.length < width) r.cells.push('—'); }); kinds.push('matrix_cells_padded'); }
-    else { d.rows.forEach(r => { r.cells = r.cells.slice(0, width); }); kinds.push('matrix_cells_trimmed'); }
+    else { d.rows.forEach(r => { if (r.cells.length > width) droppedElement('matrix cells', r.heading, 'trailing cells removed: ' + r.cells.slice(width).join(' | ')); r.cells = r.cells.slice(0, width); }); kinds.push('matrix_cells_trimmed'); }
   }
   if (d.layout === 'teaching' && d.rows.some(r => !r.id || typeof r.id !== 'string') || (d.layout === 'teaching' && new Set(d.rows.map(r => r.id)).size !== d.rows.length)) {
     const used = new Set();
@@ -652,13 +701,13 @@ function correctedFields(raw) {
       if (path[0] !== 'diagram' || path.length < 2) return null;
       if (parent && typeof parent === 'object' && OPTIONAL_TEXT.has(key) && !(key in parent)) continue; // two messages for one blank value: the first already dropped it
       const limit = message.match(/Use at most (\d+) characters/);
-      if (limit && typeof parent?.[key] === 'string') { parent[key] = fit(parent[key], Number(limit[1])); kinds.add('field_trimmed'); continue; }
+      if (limit && typeof parent?.[key] === 'string') { const cut = fit(parent[key], Number(limit[1])); droppedElement('field text', String(key), 'cut to ' + limit[1] + ' characters: removed "' + parent[key].slice(cut.length).trim() + '"'); parent[key] = cut; kinds.add('field_trimmed'); continue; }
       if (/nonblank, single-line|Too small: expected string to have >=1 characters/.test(message) && typeof parent?.[key] === 'string' && OPTIONAL_TEXT.has(key)) {
         const joined = parent[key].replace(/\s+/g, ' ').trim();
         if (joined) parent[key] = joined; else delete parent[key];
         kinds.add(joined ? 'field_one_line' : 'field_blank_dropped'); continue;
       }
-      if (/Mapping indices must refer to existing items/.test(message) && typeof key === 'number' && Array.isArray(parent)) { drop.push({ list: parent, index: key }); kinds.add('mapping_dropped'); continue; }
+      if (/Mapping indices must refer to existing items/.test(message) && typeof key === 'number' && Array.isArray(parent)) { drop.push({ list: parent, index: key }); droppedElement('link', 'index ' + key, 'names an item that does not exist'); kinds.add('mapping_dropped'); continue; }
       if (path.at(-3) === 'links' && typeof path.at(-2) === 'number' && (key === 'from' || key === 'to')) { drop.push({ list: at(path.slice(0, -2)), index: path.at(-2) }); kinds.add('mapping_dropped'); continue; } // an index past the items: the same link as above
       return null;
     }
@@ -675,7 +724,7 @@ export function correctDiagrams(md) {
     if (open) {
       if (/^\s*```/.test(line)) {
         let raw = null; try { raw = JSON.parse(open.lines.join('\n')); } catch { /* not JSON: the repair's */ }
-        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw) || correctedMatrix(raw) || correctedFields(raw));
+        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw) || correctedMatrix(raw) || correctedSequence(raw) || correctedFields(raw));
         if (fixed) for (const kind of fixed.kinds) corrections[kind] = (corrections[kind] || 0) + 1;
         out.push(open.raw, ...(fixed ? [JSON.stringify(fixed.spec)] : open.lines), line); open = null;
       } else open.lines.push(line);
@@ -1105,6 +1154,7 @@ export function settleExplanationBody(md, mix = null) {
   const firstPictures = new Set(visuals.filter(i => blocks[i].visual === 'illustration').slice(0, 2));
   const keep = new Set(mix ? ['diagram', 'illustration'].flatMap(kind => rank(visuals.filter(i => blocks[i].visual === kind)).slice(0, mix[kind] || 0))
     : visuals.filter(i => blocks[i].visual !== 'illustration' || firstPictures.has(i)).slice(0, 3));
+  visuals.filter(i => !keep.has(i)).forEach(i => droppedElement(blocks[i].visual, blocks[i].kind ?? '', 'beyond the visual count or the asked mix'));
   let changed = keep.size !== visuals.length;
   blocks = blocks.filter((b, i) => !b.visual || keep.has(i));
   // Owner 2026-11-08: long paragraphs are split BEFORE the layout check, so the visuals have more gaps between prose to be placed in (Gemini's "a visual needs prose before and after it").
