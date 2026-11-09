@@ -148,3 +148,11 @@ test('the tile\'s footprint: its own width and the content\'s height, no saved s
   assert.match(canvas, /cardLayout=\{supportsCardLayout\(block\) && !tile \? block\.cardLayout : null\} saved=\{tile \? null : \{ w: block\.w, h: block\.h \}\}/);
   assert.match(canvas, /\{!tile && <>\s+\{block\.sources && <SourcesDisclosure[^]*?<CardFeedback block=\{block\} \/>\}\s+<\/>\}/, 'the rows under the body (sources, source chip, prompt, rating) are not drawn on a tile');
 });
+
+test('requestSummary: a card the server is summarising (summaryPending) asks under its token, so the server\'s call is shared or stored, never made twice', async () => {
+  const sent = [];
+  await requestSummary(async (path, init) => { sent.push(JSON.parse(init.body)); return { summary: 'A short one.' }; }, { app: 'canvas', block: card({ summaryPending: 'tok123' }) });
+  await requestSummary(async (path, init) => { sent.push(JSON.parse(init.body)); return { summary: 'A short one.' }; }, { app: 'canvas', block: card() });
+  assert.equal(sent[0].id, 'tok123');
+  assert.equal(sent[1].id, String(card().id));
+});
