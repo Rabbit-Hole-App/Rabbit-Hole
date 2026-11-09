@@ -446,6 +446,12 @@ const parses = lines => { try { parseTutorDiagram(lines.join('\n')); return true
 // learn-artifact.js): 'cycle' for repeat words (2-7 steps), 'sequence' for messages between actors when the diagram names at least two actors and a message
 // between two of them, otherwise (or when that kind cannot be built) a straight flow (n1 -> n2 -> ..., each a process, the last the outcome).
 // -> the parsed spec, or null when the fence is not JSON or fewer than two labels can be read.
+// Owner 2026-11-09 (batch-1 review, card 01): a correction never removes content without a log line. One line per element a server step removes or cuts, naming what and why.
+// Figure-chapters-02 branch: only this helper is taken from 2972d517e (release/explain-118-base), which the bad-detail strip (f81f9808d) calls; the rest of that commit (sequence self-step folding) is not on this branch.
+export const droppedElement = (kind, label, reason, sink = null) => {
+  sink?.push({ kind, label, reason });
+  console.log(JSON.stringify({ event: 'explanation_diagram_dropped_element', kind, label: String(label ?? '').slice(0, 80), reason }));
+};
 const LABEL_LISTS = ['nodes', 'steps', 'events', 'layers', 'actors', 'messages', 'bars', 'changes', 'markers', 'callouts', 'blocks'];
 const fit = (s, max) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, ''); };
 const tryParse = spec => { try { return parseTutorDiagram(spec); } catch { return null; } };
@@ -1077,6 +1083,7 @@ export function settleExplanationBody(md, mix = null) {
   const firstPictures = new Set(visuals.filter(i => blocks[i].visual === 'illustration').slice(0, 2));
   const keep = new Set(mix ? ['diagram', 'illustration'].flatMap(kind => rank(visuals.filter(i => blocks[i].visual === kind)).slice(0, mix[kind] || 0))
     : visuals.filter(i => blocks[i].visual !== 'illustration' || firstPictures.has(i)).slice(0, 3));
+  visuals.filter(i => !keep.has(i)).forEach(i => droppedElement(blocks[i].visual, blocks[i].kind ?? '', 'beyond the visual count or the asked mix')); // log line from release/explain-118-base (the picture-cap test reads it)
   let changed = keep.size !== visuals.length;
   blocks = blocks.filter((b, i) => !b.visual || keep.has(i));
   // Owner 2026-11-08: long paragraphs are split BEFORE the layout check, so the visuals have more gaps between prose to be placed in (Gemini's "a visual needs prose before and after it").
