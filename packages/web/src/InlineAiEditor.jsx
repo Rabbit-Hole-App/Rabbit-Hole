@@ -23,6 +23,7 @@ import { Md, Code } from './Md.jsx';
 import { cardEditSelectionReason } from './inline-card-edit.js';
 import { explainEditProblem } from './explain-client.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { CHIP } from './ContextChips.jsx';
 import { cardContext, contextMessage, firstWords, placeBesideWords, scrimPath } from './inline-highlight.js';
@@ -151,7 +152,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && (explainTarget ? explainEditReason : cardEditSelectionReason(target.ids || [], canvas.board?.() || {}));
   const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason || (highlight && !initialMode) ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain'); // owner 2026-11-09: Ctrl+K over highlighted words in a card is Explain selection (the card's words are read, not edited)
-  // preset: { command, prompt } from an opener that already knows the command and its words (Explain on a highlighted passage).
+  // preset: { prompt, command? } from an opener that already knows the words (Explain on a highlighted passage: words only, no command, the router picks one).
   const [prompt, setPrompt] = useState(preset?.prompt ?? '');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
   // is the Explain mode itself and has no pill; it is still sent. The picker opens while the line is a leading /word.
@@ -392,8 +393,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // this canvas through Chat's own output path. Nothing is generated here. Not taken (Chat busy or not open in time): the line stays.
     // Owner 2026-11-09: over highlighted words a plain prompt asks JEV which slash command it is (the router's own question, ROUTES): a command it picks with probability >= INTENT_AT is shown for a second,
     // then handed to Chat's dispatcher (the right Chat panel opens, /explain makes a card beside the highlighted line); none, a note or a low answer leaves the request here as Explain selection.
-    if (highlight && !out.handoff && out.mode !== 'edit' && String(prompt).trim() && config.transport?.route && config.handoff) {
-      const asked = String(prompt).trim(), intent = await config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: highlight.text.slice(0, 1500) });
+    // The bulb's passage (a preset with no command, owner 2026-11-09) is asked the same way: its words are the selection and Chat gets no selection target (the minted passage ref rides learnSlash.run's heldPassageTarget).
+    if ((highlight || (preset && !preset.command)) && !out.handoff && out.mode !== 'edit' && String(prompt).trim() && config.transport?.route && config.handoff) {
+      const asked = String(prompt).trim(), intent = await config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500) });
       const choice = intent && !intent.error ? intent.choice : null, name = choice && ROUTES[choice] && choice !== 'note' ? Object.entries(INLINE_COMMAND_ROUTE).find(([, route]) => route === choice)?.[0] || choice : null;
       if (name && intent.probability >= INTENT_AT && (config.enabled || ['note']).includes(choice)) {
         const line = `/${typedOf(name)} ${asked}`;
@@ -401,7 +403,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         await new Promise(resolve => setTimeout(resolve, INTENT_SHOW_MS));
         if (!alive.current) return;
         setPicked(null);
-        if (await config.handoff(line, { selection: highlightSelection() })) { handedOff.current = true; onClose(); return; }
+        if (await config.handoff(line, { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
         setHandoffError(HANDOFF_REFUSED);
         return;
       }
@@ -709,11 +711,19 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return rects.map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
   })();
   const [, tick] = useState(0);
+  // The canvas's box on the page (the overlay fills it): the viewport scrim leaves it out. Measured after mount, and again when the page or the canvas resizes (the Chat panel opening or dragging).
+  const pageBox = overlay.current?.getBoundingClientRect();
+  useLayoutEffect(() => {
+    const again = () => tick(n => n + 1), watch = typeof ResizeObserver === 'function' && overlay.current ? new ResizeObserver(again) : null;
+    watch?.observe(overlay.current); again();
+    window.addEventListener('resize', again);
+    return () => { watch?.disconnect(); window.removeEventListener('resize', again); };
+  }, []);
   useEffect(() => {
     if (!highlight) return undefined;
     const again = () => tick(n => n + 1);
-    window.addEventListener('resize', again); document.addEventListener('scroll', again, true);
-    return () => { window.removeEventListener('resize', again); document.removeEventListener('scroll', again, true); };
+    document.addEventListener('scroll', again, true);
+    return () => document.removeEventListener('scroll', again, true);
   }, [highlight]);
   useLayoutEffect(() => { if (highlight && !marked) tick(n => n + 1); }, [highlight, marked]);
   const targetScreen = (() => {
@@ -767,9 +777,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       {/* The overlay: the frozen target's outline and the ghost of what Accept adds (A7). Never in the board, the undo
           history, the thumbnail (data-thumbnail-hide) or an export; only the ghost itself takes the pointer, so nothing
           under it is clicked by mistake. */}
-      <div ref={overlay} data-inline-ai-overlay data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
-        {/* Owner 2026-11-09: the canvas dims behind the window, leaving the highlighted words and the window in focus (an even-odd hole per line of the words); it never takes the pointer. */}
-        {marked?.length > 0 && <div data-inline-scrim className="absolute inset-0 bg-black/40 transition-opacity motion-reduce:transition-none" style={{ clipPath: scrimPath(surface, marked) }} />}
+      {/* Owner 2026-11-09: while the window is open everything else dims, so only it stands out: the whole canvas (cards, toolbars) here, and the rest of the page (sidebar, header, the right Chat panel)
+          by a viewport scrim outside the canvas's box, which a canvas-contained element could not cover. Neither takes the pointer. */}
+      <div data-inline-scrim data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-[45] bg-black/40" />
+      {pageBox && createPortal(<div data-inline-scrim-page data-thumbnail-hide aria-hidden="true" className="pointer-events-none fixed inset-0 z-[45] bg-black/40"
+        style={{ clipPath: scrimPath({ w: window.innerWidth, h: window.innerHeight }, [pageBox], 0) }} />, document.body)}
+      <div ref={overlay} data-inline-ai-overlay data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-[46] overflow-hidden">
         {/* The target is purple while the editor is open (owner 2026-10-13): its own canvas selection marks take --color-ai;
             every other selection stays blue. */}
         <style data-inline-target-color>{`${[...target.ids.flatMap(id => ['shape-id', 'item-id', 'block-id', 'link-for'].map(key => `[data-${key}="${CSS.escape(id)}"]`)),
@@ -890,7 +903,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         onPointerDown={event => { event.stopPropagation(); if (!event.target.closest('[data-inline-mode-menu],[data-inline-mode-toggle]')) setModeOpen(false); if (!event.target.closest('[data-inline-context-popover],[data-inline-context]')) setContextOpen(false); if (pickerOpen && !event.target.closest('[data-inline-picker],[data-inline-prompt]')) setPickerShut(true); }}
         onDoubleClick={event => event.stopPropagation()} onContextMenu={event => event.stopPropagation()} onKeyDown={keyDown}
         style={{ left: place.left, width: place.width, ...(place.up ? { bottom: surface.h - place.top - height } : { top: place.top }) }}
-        className="absolute z-40 flex flex-col rounded-xl border border-line bg-white p-3 text-sm text-ink shadow-[0_2px_12px_rgba(15,15,15,0.08)]">
+        className="absolute z-50 flex flex-col rounded-xl border border-line bg-white p-3 text-sm text-ink shadow-[0_2px_12px_rgba(15,15,15,0.08)]">
         {/* What the request is about, for screen readers: the canvas keeps the selection highlighted; no header repeats it. */}
         <span data-inline-target-label className="sr-only">{targetLabel(target, board())}</span>
         <button type="button" data-inline-close aria-label="Close" title="Close (Esc)" onClick={close}

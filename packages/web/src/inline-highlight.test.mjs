@@ -89,9 +89,9 @@ test('wiring: the canvas picks the highlight, the editor draws the chip, the mar
   assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[beside\]\), \{ dy: besideDy \}\)/);
   assert.doesNotMatch(editor, /Remove the highlighted text/, 'the chip has no x');
   assert.match(editor, /data-inline-close/, 'the x belongs to the window');
-  assert.ok(editor.includes('config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: highlight.text.slice(0, 1500) })'), 'a plain prompt asks the router which command it is');
+  assert.ok(editor.includes("config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500) })"), 'a plain prompt asks the router which command it is, over highlighted words and over the bulb passage');
   assert.ok(editor.includes('intent.probability >= INTENT_AT'));
-  assert.ok(editor.includes('config.handoff(line, { selection: highlightSelection() })'), 'a picked command is handed to Chat');
+  assert.ok(editor.includes('config.handoff(line, { selection: highlight ? highlightSelection() : null })'), 'a picked command is handed to Chat');
   assert.doesNotMatch(editor, /askChat/, 'a plain prompt with no command stays in Ctrl+K');
   assert.ok(editor.includes('highlightedCard: highlightedCardMessage()'), 'the in-editor Explain carries the whole card');
   assert.match(read('inline-ai-context.js'), /highlightedCard/);
@@ -107,7 +107,14 @@ test('wiring: the canvas picks the highlight, the editor draws the chip, the mar
   assert.match(editor, /title=\{highlight\.text\}/);
   assert.ok(editor.includes('markSet(highlight)'));
   assert.ok(read('inline-highlight-mark.js').includes("CSS.highlights.set('inline-target', new Highlight(current.live))"));
-  assert.match(editor, /data-inline-scrim/);
+  assert.match(editor, /data-inline-scrim /);
+  // Owner 2026-11-09: everything dims except the window: a full canvas scrim (no hole over the words) and a viewport scrim portalled outside the canvas's box (the Chat panel), both click-through, both under the window.
+  assert.ok(editor.includes('data-inline-scrim data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-[45] bg-black/40"'));
+  assert.ok(editor.includes('data-inline-scrim-page') && editor.includes('createPortal(') && editor.includes('pointer-events-none fixed inset-0 z-[45] bg-black/40'));
+  assert.ok(editor.includes('scrimPath({ w: window.innerWidth, h: window.innerHeight }, [pageBox], 0)'), 'the viewport scrim leaves out only the canvas box');
+  assert.ok(!editor.includes('scrimPath(surface, marked)'), 'no hole over the highlighted words');
+  assert.match(editor, /data-inline-ai-overlay[^>]*z-\[46\]/, 'the ghosts stay above the scrim');
+  assert.match(editor, /data-inline-ai data-keep-focus[\s\S]*?className="absolute z-50 /, 'the window stands above the scrim');
   assert.ok(editor.includes('beside: true, alignY: highlight.alignY'));
   assert.match(slash, /besideDy: target\.alignY/);
   assert.match(slash, /context: explainContext\(target\)/);
