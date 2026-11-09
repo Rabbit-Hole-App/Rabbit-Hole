@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Hard and soft voting can pick different classes",
+    "caption": "Model 3’s strong support for B outweighs the two narrow leads for A when all models have equal weight.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Start with three models",
+        "diagram": {
+          "title": "Probabilities for the same example",
+          "caption": "Each model’s two probabilities add to 100%. The hard votes are A, A and B.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Class A",
+            "Class B"
+          ],
+          "rows": [
+            {
+              "id": "model-1",
+              "heading": "Model 1",
+              "cells": [
+                "55%",
+                "45%"
+              ]
+            },
+            {
+              "id": "model-2",
+              "heading": "Model 2",
+              "cells": [
+                "55%",
+                "45%"
+              ]
+            },
+            {
+              "id": "model-3",
+              "heading": "Model 3",
+              "cells": [
+                "5%",
+                "95%"
+              ]
+            }
+          ],
+          "emphasis": {
+            "cells": [
+              {
+                "row": "model-1",
+                "column": 0
+              },
+              {
+                "row": "model-2",
+                "column": 0
+              },
+              {
+                "row": "model-3",
+                "column": 1
+              }
+            ]
+          }
+        }
+      },
+      {
+        "heading": "Apply the two voting rules",
+        "diagram": {
+          "title": "Hard counts and soft averages",
+          "caption": "Hard voting picks A. For soft voting, average (55 + 55 + 5) ÷ 3 for A and (45 + 45 + 95) ÷ 3 for B. B wins. Averages are rounded.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Class A",
+            "Class B"
+          ],
+          "rows": [
+            {
+              "id": "hard",
+              "heading": "Hard",
+              "cells": [
+                "2 votes",
+                "1 vote"
+              ]
+            },
+            {
+              "id": "soft",
+              "heading": "Soft",
+              "cells": [
+                "38.33%",
+                "61.67%"
+              ]
+            }
+          ],
+          "emphasis": {
+            "cells": [
+              {
+                "row": "hard",
+                "column": 0
+              },
+              {
+                "row": "soft",
+                "column": 1
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

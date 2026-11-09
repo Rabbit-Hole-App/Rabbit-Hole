@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "The same fitting rule on three samples",
+    "caption": "Prediction spread across training samples illustrates model variance. These three fits give an illustrative observed range.",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Start with different samples",
+        "diagram": {
+          "title": "Two training points per fit",
+          "caption": "Each line fits both points in its own sample. All three use the same straight-line model.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "At x = 0",
+            "At x = 4"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "heading": "Fit A",
+              "cells": [
+                "1",
+                "5"
+              ]
+            },
+            {
+              "id": "b",
+              "heading": "Fit B",
+              "cells": [
+                "3",
+                "5"
+              ]
+            },
+            {
+              "id": "c",
+              "heading": "Fit C",
+              "cells": [
+                "2",
+                "8"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Fit one line to each sample",
+        "diagram": {
+          "title": "Individual predictions on shared axes",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Input x",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Prediction",
+            "min": 0,
+            "max": 9
+          },
+          "series": [
+            {
+              "label": "Fit A",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 1
+                },
+                {
+                  "x": 4,
+                  "y": 5
+                }
+              ]
+            },
+            {
+              "label": "Fit B",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 3
+                },
+                {
+                  "x": 4,
+                  "y": 5
+                }
+              ]
+            },
+            {
+              "label": "Fit C",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 2
+                },
+                {
+                  "x": 4,
+                  "y": 8
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Summarize at each input",
+        "diagram": {
+          "title": "Mean and observed range",
+          "caption": "At x = 4, the three predictions are 5, 5 and 8. Their mean is 6. The shaded band runs from the smallest to the largest prediction.",
+          "kind": "coordinate-plot",
+          "x": {
+            "label": "Input x",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Prediction",
+            "min": 0,
+            "max": 9
+          },
+          "series": [
+            {
+              "label": "Mean and observed range",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 2,
+                  "low": 1,
+                  "high": 3
+                },
+                {
+                  "x": 1,
+                  "y": 3,
+                  "low": 2,
+                  "high": 3.5
+                },
+                {
+                  "x": 4,
+                  "y": 6,
+                  "low": 5,
+                  "high": 8
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

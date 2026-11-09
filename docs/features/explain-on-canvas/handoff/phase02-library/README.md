@@ -6,11 +6,11 @@ Task: `96d13bbb-6cd1-45be-b27a-95820d3495b0` · branch: `chatgpt/explain-phase02
 
 Four new diagram kinds and nine additive extensions are implemented in the **written `/explain`** path. The model receives relevant, valid JSON examples; Rabbit Hole renders the resulting semantic JSON using the existing SVG component. These are reusable layouts and reference data, not fixed lesson cards returned in place of generation. The `/interact` fixtures and `/animation` renderer are separate and unchanged.
 
-There are **146 registered references: 132 with Phase 02 lesson tags and 14 general examples**, with every one of the 21 Phase 02 lessons mapped to concrete IDs. **That is lesson-level presence, not completion of every scene in the owner’s coverage table.** See the [per-lesson coverage audit and remaining reference work](coverage-audit.md). They cover all 21 currently supported kinds. Reference datasets are explicitly illustrative; generated cards must respect their own source values. The author remains free to produce a new example within the schema.
+There are **152 registered references**, including 138 with Phase 02 lesson tags and 14 general examples. The registry covers all 21 supported kinds and maps all 21 lessons to concrete IDs. The per-lesson audit tracks which requested scenes are still missing. Reference datasets are illustrative. Generated cards use the learner's own source values when supplied. [Coverage audit](coverage-audit.md)
 
-The ten worked references for lessons 04–07 are in [batch 1](batch-1.md). The next six for lessons 08–09 are in [batch 2A](batch-2a.md), with exact prompts, mathematical expectations and separate dev acceptance instructions. Ten items in the approved batch-2 list remain open.
+The batch handoffs record the prompts, expected math and dev acceptance steps. Batch 1 covers ten references for Lessons 04–07, Batch 2A covers six for Lessons 08–09, and Batch 2B covers six for Lessons 10–12. Four Batch 2 references remain open. [Batch 1](batch-1.md) · [Batch 2A](batch-2a.md) · [Batch 2B](batch-2b.md)
 
-Latest local batch verification: **452 focused tests passed**, web build passed, all six new scenes statically inspected and all 146 JSON/SVG pairs re-exported. See the batch-2A receipt for formula/browser and live-model limitations. The original 373-test receipt below and the batch-1 421-test receipt describe earlier implementation snapshots.
+The batch receipts record focused test results, the web build and inspection of the exported SVGs for each implementation snapshot. Live generation, browser appearance and save/reopen have separate acceptance steps. [Latest receipt](batch-2b.md#local-verification)
 
 ## Implemented scope
 

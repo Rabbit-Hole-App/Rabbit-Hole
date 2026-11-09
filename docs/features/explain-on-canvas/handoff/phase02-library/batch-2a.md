@@ -58,3 +58,5 @@ Local arithmetic/schema/render tests and scripted author preparation do not esta
 ## Remaining batch-2 work
 
 After this six-reference delivery, ten remain: repeated fits with mean/spread (lesson 10); soft voting, AdaBoost updates and OOF stacking (11); acquisition/next trial and successive halving (12); minority-error accuracy trap and undersampling (17); recursive feature elimination (18); PSI contributions and total (20). Other curriculum gaps remain in the coverage audit.
+
+Batch 2B delivers the first six of those ten. The latest queue is in the coverage audit. [Batch 2B handoff](batch-2b.md) · [Coverage audit](coverage-audit.md)

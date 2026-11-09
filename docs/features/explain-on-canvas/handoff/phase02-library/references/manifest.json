@@ -1830,6 +1830,84 @@
       "height": 1643
     },
     {
+      "id": "ml-repeated-sample-fits",
+      "lessons": [
+        "10"
+      ],
+      "prompts": [
+        "Why does fitting the same model on different samples give different predictions?"
+      ],
+      "useWhen": "Show several fitted predictions from different training samples, then compute their pointwise mean and observed minimum-to-maximum range.",
+      "kind": "comparison",
+      "width": 444,
+      "height": 1592
+    },
+    {
+      "id": "ml-soft-vote-probabilities",
+      "lessons": [
+        "11"
+      ],
+      "prompts": [
+        "How can soft voting pick a different class from the majority vote?"
+      ],
+      "useWhen": "Compare one vote per model with equal-weight averages of normalized class probabilities. Show the same models, class totals and the winner under each rule.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 766
+    },
+    {
+      "id": "ml-adaboost-weight-update",
+      "lessons": [
+        "11"
+      ],
+      "prompts": [
+        "What happens to the training weights after AdaBoost gets one example wrong?"
+      ],
+      "useWhen": "Work through one binary AdaBoost round. Compute the weighted error and learner coefficient, multiply each example weight by its error-dependent exponential factor and normalize the same examples for the next learner.",
+      "kind": "transformation",
+      "width": 408,
+      "height": 971
+    },
+    {
+      "id": "ml-stacking-oof-predictions",
+      "lessons": [
+        "11"
+      ],
+      "prompts": [
+        "Where do the out-of-fold predictions for the stacking model come from?"
+      ],
+      "useWhen": "Show which rows fit each fold’s two base learners and which rows they predict. Trace the two out-of-fold feature values and original target for every row of the meta-training matrix.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 809
+    },
+    {
+      "id": "ml-bayesian-acquisition-choice",
+      "lessons": [
+        "12"
+      ],
+      "prompts": [
+        "How does Bayesian optimization decide which setting to try next?"
+      ],
+      "useWhen": "Compare identifiable hyperparameter candidates under one acquisition rule. Show the surrogate mean, uncertainty bonus and resulting score, then select the candidate with the highest score.",
+      "kind": "matrix",
+      "width": 408,
+      "height": 336
+    },
+    {
+      "id": "ml-successive-halving-rounds",
+      "lessons": [
+        "12"
+      ],
+      "prompts": [
+        "How does successive halving decide which trials get more training?"
+      ],
+      "useWhen": "Rank trials at each cumulative training budget using the same held-out metric. Show which trials advance or stop and count only additional training when resuming survivors.",
+      "kind": "matrix",
+      "width": 408,
+      "height": 465
+    },
+    {
       "id": "general-sequence-1",
       "lessons": [],
       "prompts": [
@@ -2084,7 +2162,8 @@
         "bias-variance-decomposition",
         "early-stopping-curves",
         "double-descent-curve",
-        "ml-fit-quality-comparison"
+        "ml-fit-quality-comparison",
+        "ml-repeated-sample-fits"
       ]
     },
     {
@@ -2096,7 +2175,10 @@
         "weighted-training-examples",
         "ensemble-votes",
         "boosting-signed-corrections",
-        "ml-boosting-correction-transformation"
+        "ml-boosting-correction-transformation",
+        "ml-soft-vote-probabilities",
+        "ml-adaboost-weight-update",
+        "ml-stacking-oof-predictions"
       ]
     },
     {
@@ -2109,7 +2191,9 @@
         "search-grid-and-random",
         "bayesian-search-surrogate",
         "learning-rate-schedules",
-        "nested-cross-validation-folds"
+        "nested-cross-validation-folds",
+        "ml-bayesian-acquisition-choice",
+        "ml-successive-halving-rounds"
       ]
     },
     {

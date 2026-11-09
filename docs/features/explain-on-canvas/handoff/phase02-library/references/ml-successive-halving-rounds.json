@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Successive halving keeps top trials",
+    "caption": "Toy held-out accuracy. Keep the top half. Epochs are cumulative. Total spend when resuming is 4 + 2 + 2 = 8 trial-epochs.",
+    "kind": "matrix",
+    "layout": "teaching",
+    "columns": [
+      "Accuracy",
+      "Decision"
+    ],
+    "rows": [
+      {
+        "id": "a-1",
+        "heading": "A · 1 ep",
+        "cells": [
+          "0.72",
+          "Advance"
+        ]
+      },
+      {
+        "id": "b-1",
+        "heading": "B · 1 ep",
+        "cells": [
+          "0.69",
+          "Stop"
+        ]
+      },
+      {
+        "id": "c-1",
+        "heading": "C · 1 ep",
+        "cells": [
+          "0.75",
+          "Advance"
+        ]
+      },
+      {
+        "id": "d-1",
+        "heading": "D · 1 ep",
+        "cells": [
+          "0.60",
+          "Stop"
+        ]
+      },
+      {
+        "id": "a-2",
+        "heading": "A · 2 ep",
+        "cells": [
+          "0.80",
+          "Advance"
+        ]
+      },
+      {
+        "id": "c-2",
+        "heading": "C · 2 ep",
+        "cells": [
+          "0.78",
+          "Stop"
+        ]
+      },
+      {
+        "id": "a-4",
+        "heading": "A · 4 ep",
+        "cells": [
+          "0.85",
+          "Winner"
+        ]
+      }
+    ],
+    "emphasis": {
+      "cells": [
+        {
+          "row": "a-1",
+          "column": 1
+        },
+        {
+          "row": "c-1",
+          "column": 1
+        },
+        {
+          "row": "a-2",
+          "column": 1
+        },
+        {
+          "row": "a-4",
+          "column": 1
+        }
+      ]
+    }
+  }
+}

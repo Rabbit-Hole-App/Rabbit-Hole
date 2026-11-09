@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "AdaBoost gives the missed row more weight",
+    "kind": "transformation",
+    "variant": "visual",
+    "before": {
+      "label": "Before the weight update",
+      "diagram": {
+        "title": "Equal weight on every row",
+        "caption": "Only R3 is missed, so the weighted error is 1/4. The binary learner coefficient is $\\alpha=\\ln(3)/2$.",
+        "kind": "matrix",
+        "layout": "teaching",
+        "columns": [
+          "Result",
+          "Weight"
+        ],
+        "rows": [
+          {
+            "id": "r1",
+            "heading": "R1",
+            "cells": [
+              "Correct",
+              "1/4"
+            ]
+          },
+          {
+            "id": "r2",
+            "heading": "R2",
+            "cells": [
+              "Correct",
+              "1/4"
+            ]
+          },
+          {
+            "id": "r3",
+            "heading": "R3",
+            "cells": [
+              "Missed",
+              "1/4"
+            ]
+          },
+          {
+            "id": "r4",
+            "heading": "R4",
+            "cells": [
+              "Correct",
+              "1/4"
+            ]
+          }
+        ],
+        "emphasis": {
+          "rows": [
+            "r3"
+          ]
+        }
+      }
+    },
+    "after": {
+      "label": "After normalization",
+      "diagram": {
+        "title": "More weight on the missed row",
+        "caption": "Divide by the sum of the four scaled weights. The next learner uses these weights, which sum to 1.",
+        "kind": "matrix",
+        "layout": "teaching",
+        "columns": [
+          "Factor",
+          "Weight"
+        ],
+        "rows": [
+          {
+            "id": "r1",
+            "heading": "R1",
+            "cells": [
+              "$e^{-\\alpha}$",
+              "1/6"
+            ]
+          },
+          {
+            "id": "r2",
+            "heading": "R2",
+            "cells": [
+              "$e^{-\\alpha}$",
+              "1/6"
+            ]
+          },
+          {
+            "id": "r3",
+            "heading": "R3",
+            "cells": [
+              "$e^\\alpha$",
+              "1/2"
+            ]
+          },
+          {
+            "id": "r4",
+            "heading": "R4",
+            "cells": [
+              "$e^{-\\alpha}$",
+              "1/6"
+            ]
+          }
+        ],
+        "emphasis": {
+          "rows": [
+            "r3"
+          ]
+        }
+      }
+    },
+    "operation": "Multiply by the factor for each row, then normalize",
+    "identity": {
+      "mode": "preserved",
+      "note": "R1–R4 are the same examples in both tables. R3 goes from 1/4 to 1/2."
+    }
+  }
+}
