@@ -11,6 +11,9 @@ import { references as batch2bFits } from './ml-batch2b-fits-references.js';
 import { references as batch2bEnsembles } from './ml-batch2b-ensembles-references.js';
 import { references as batch2bTuning } from './ml-batch2b-tuning-references.js';
 
+import { references as batch3Topology } from './ml-batch3-topology-references.js';
+import { references as batch3Teaching } from './ml-batch3-teaching-references.js';
+
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
 const unchanged = new Set(['cycle', 'sequence', 'layers', 'number-line', 'argument', 'figure', 't-account', 'waterfall']);
@@ -23,7 +26,8 @@ const generic = originalExamples.filter(spec => unchanged.has(spec.diagram.kind)
 export const diagramReferences = Object.freeze([
   ...topology, ...statistical, ...plot, ...data, ...composition,
   ...batch2aEncoding, ...batch2aTransform, ...batch2aEvaluation,
-  ...batch2bFits, ...batch2bEnsembles, ...batch2bTuning, ...generic,
+  ...batch2bFits, ...batch2bEnsembles, ...batch2bTuning,
+  ...batch3Topology, ...batch3Teaching, ...generic,
 ]);
 
 export const PHASE02_SOURCE = Object.freeze({
