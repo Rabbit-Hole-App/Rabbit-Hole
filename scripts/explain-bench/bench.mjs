@@ -110,6 +110,7 @@ const BASE = a.base.replace(/\/$/, ''), secret = named(varsText, 'TEST_BYPASS_SE
 if (!secret) fail('no TEST_BYPASS_SECRET in --vars');
 // Pre-flight (owner 2026-11-09): one probe per provider; an outage makes the run INVALID (exit 4), never a FAILED run. --skip-preflight is for offline checks only.
 if (!a['dry-run'] && !process.argv.includes('--skip-preflight')) { const pf = await preflight({ varsFile: a.vars }); for (const x of pf.results) console.log(`${x.ok ? '✓' : '✗'} preflight ${x.name}: ${x.detail}`); if (!pf.ok) { console.error('✗ PREFLIGHT INVALID: a provider is down, the run is not started (invalid, not failed)'); process.exit(4); } }
+let refused = 0, invalid = false;
 const out = resolve(a.out || DEFAULT_OUT), runId = runDirName(a.label), runDir = join(out, runId), rawDir = join(runDir, 'raw');
 mkdirSync(rawDir, { recursive: true });
 const email = `explain-bench-${Date.now().toString(36)}@example.com`;
@@ -153,6 +154,9 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
     writeFileSync(join(dir, 'cards', `${q.id}.json`), JSON.stringify({ row, response }, null, 1));
     appendFileSync(join(dir, 'results.jsonl'), JSON.stringify(row) + '\n');
     console.log(`${p.name.padEnd(10)} r${r}${dep ? ` ${dep.padEnd(8)}` : ''} ${q.id.padEnd(20)} http=${row.http} ${String(totalMs).padStart(6)}ms ${block ? 'CARD' : `FAIL ${row.failure.slice(0, 80)}`}${row.repaired ? ' REPAIRED' : ''} ${row.costSource} US$${costUsd} spent=US$${spent.toFixed(4)}`);
+    // Stack-side refusals (the platform day cap, a provider tripwire) are not the pipeline: five in a row make the run INVALID (owner 2026-11-09).
+    refused = row.http === 429 ? refused + 1 : 0;
+    if (refused >= 5) { stopped = true; invalid = true; console.log(`STOP INVALID: ${refused} cards in a row were refused with http 429 (${row.failure}); the stack, not the pipeline, said no (platform day cap or provider limit)`); break outer; }
     await sleep(Number(a.gap));
     } catch (e) { stopped = true; console.log(`STOP stack unreachable (${e.cause?.code || e.message}) after ${sent} cards, spent US$${spent.toFixed(4)}`); break outer; }
   }
@@ -163,5 +167,6 @@ writeFileSync(join(runDir, 'provenance.json'), JSON.stringify({ ...prov, ...(a.n
 const r = await report({ raw: rawDir, runId, out, label: a.label, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge, judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges, judgeCap: Math.min(judgeCap, Math.max(0, +(cap - spent).toFixed(4))), richnessChange: a['richness-change'] });
 for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
 if (r.results.judge) console.log(`judge: ${r.results.judge.calls} calls, ${r.results.judge.cached} cached, US$${r.results.judge.spent} of US$${judgeCap.toFixed(2)}`);
+if (invalid) { console.log(`RESULT INVALID cards=${sent} spent=US$${spent.toFixed(4)} report=${join(r.runDir, 'report.md')}`); process.exit(4); }
 console.log(`RESULT ${r.code ? 'FAIL' : 'PASS'} cards=${sent} spent=US$${spent.toFixed(4)}${stopped ? ' STOPPED-BY-CAP' : ''} report=${join(r.runDir, 'report.md')}`);
 process.exit(r.code || (stopped ? 1 : 0));
