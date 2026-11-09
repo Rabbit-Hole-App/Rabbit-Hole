@@ -7,8 +7,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { EXPLANATION_PROFILE_SETTING, EXPLANATION_REGISTRY, explanationProfileBinding, explanationProfileFor, resolveExplanationProfile } from '../src/explanation-models.js';
 import { CHAIN_ENDPOINTS, FALLBACK_SETTING, forGemini, stepRequest, withoutBounds } from '../src/explanation-fast-chain.js';
-import { generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
+import { ARTIFACT_SYSTEM, generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { CORE_KINDS } from '../src/explanation-references.js';
+import { MATH_FORMAT } from '../src/agents/math-format.js';
 import { EXPLANATION_GUIDANCE, artifactBlock, explanationProblem, settleExplanationBody } from '../src/learn-primitives.js';
 import { explanationTarget } from '../src/chat-depth.js';
 import { INTERACTION_GUIDANCE, INTERACTIONS_SETTING } from '../src/explanation-interactions.js';
@@ -142,6 +143,30 @@ test('the request: provider endpoint and key, model, reasoning_effort, strict js
   assert.deepEqual([on[0].provider, on[0].init.headers.Authorization, on[0].body.model, on[0].body.reasoning_effort], ['cerebras', `Bearer ${KEYS.CEREBRAS_API_KEY}`, 'gpt-oss-120b', 'low']);
   assert.ok(on[0].body.messages[0].content.includes(INTERACTION_GUIDANCE));
   assert.ok(on[0].body.response_format.json_schema.schema.required.includes('questions'));
+});
+
+// Owner 2026-11-08 (A1-A3): "\frac" in a plain JS string was a form feed, so the model read "$rac{a}{b}$"; the json_schema chain has no tools, so it gets no
+// tool paragraph and no line asking for fences in the body. Built offline as it would be sent; nothing is sent.
+test('the system prompt as sent: LaTeX spelled out, no control character but newline, no tool paragraph on the fast chain, the tool paragraph kept on the tool route', () => {
+  const args = { command: 'explanation', args: 'How does attention work in a transformer?' };
+  const fast = prepareArtifactAuthorRequest(offline('fireworks-low', { [INTERACTIONS_SETTING]: 'true' }), args);
+  const sent = stepRequest({ provider: 'fireworks', model: FW }, 'low', fast.body).messages[0].content;
+  const tools = prepareArtifactAuthorRequest({}, args).body;
+  const toolText = `${tools.system}\n${tools.tools.map(t => t.description).join('\n')}`;
+  for (const text of [MATH_FORMAT, sent, toolText]) {
+    assert.ok(text.includes(String.raw`$\frac{a}{b}$`), 'the LaTeX example is spelled out');
+    assert.equal(/[\x00-\x09\x0b-\x1f]/.test(text), false, 'no control character other than a newline');
+  }
+  const TOOL_PARAGRAPH = ['Call exactly one tool', 'make_animation', 'ask_clarifying_question', 'Choose the primitive'];
+  for (const s of TOOL_PARAGRAPH) {
+    assert.equal(sent.includes(s), false, `fast chain: ${s}`);
+    assert.ok(tools.system.includes(s), `tool route: ${s}`);
+  }
+  assert.equal(sent.includes('fenced block'), false, 'no fence request (visuals are schema fields)');
+  assert.ok(sent.includes('reply with exactly one JSON object, the make_explanation input described above, matching the response schema.'));
+  const google = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', fast.body).messages[0].content;
+  assert.equal(google, sent, 'the Gemini step sends the same system text');
+  assert.equal(tools.system, ARTIFACT_SYSTEM, 'the tool route is unchanged');
 });
 
 test('an exclusive oneOf is sent as anyOf; a non-exclusive one is refused, not weakened; text documents are inlined, images and PDFs refused', () => {

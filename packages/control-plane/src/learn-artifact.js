@@ -50,7 +50,7 @@ const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
-import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
+import { ARTIFACT_SYSTEM, artifactSystem } from './agents/learn-artifact.js';
 // Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
 // authoring contract (appended to its tool description) and its gates, which run the existing scene validators on the block
 // the shared adapter built. A gate's first problem goes to the model as the one repair; a scene that still fails is no card.
@@ -129,7 +129,8 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
   // path keeps the whole schema; the roadmap takes this same rule whenever it runs on a fast-chain profile.
   if (bound?.roles.author.adapter === 'fast-chain') { const t = tools.find(x => x.name === toolName('explanation')); if (t) t.input_schema = bundledAuthorSchema(t.input_schema, diagramBundle({ references: diagramReferences, requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind) })); }
-  const system = (input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '') + diagramReferenceContext(diagramReferences);
+  const base = artifactSystem(bound?.roles.author.adapter === 'fast-chain' ? 'json_schema' : 'tools'); // A3: no tool paragraph where no tool is offered
+  const system = (input.imageSource ? `${base}\n${IMAGE_EXTRACTION_SYSTEM}` : base) + (depthNote ? `\n${depthNote}` : '') + (systemSuffix ? `\n${systemSuffix}` : '') + diagramReferenceContext(diagramReferences);
   return { request, ready, messages, diagramReferences, model: bound ? bound.roles.author.model : LEARN_TASKS.artifact.model, profile: bound, repairModel: bound ? bound.roles.repair.model : null, body: { max_tokens: maxTokens, system, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages } };
 }
 
