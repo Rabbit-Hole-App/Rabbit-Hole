@@ -1,0 +1,63 @@
+# Phase 02 reference coverage — correction and remaining work
+
+Audited 2026-11-08 against the owner's full 21-lesson reference-scene table and the reference registry shipped in `8aee76e5a10815b1e0e9c48dc1c4d876acfe303e`.
+
+**The 13 renderer additions/extensions are implemented. The full requested reference-scene pack is not complete.** The earlier statement that nothing from the Phase 02 list remained, followed by a recommendation to move to the next phase, was too broad. Having a reference ID tagged with each lesson is not the same as covering each scene requested within that lesson.
+
+The registry contains **130 references: 116 tagged to Phase 02 lessons and 14 general examples**. Existing local evidence (373 checks and a successful build) establishes the checked implementation and fixtures. It does not establish complete topic coverage, every example's teaching quality, live author selection, or generated-card browser acceptance.
+
+## Audit definitions
+
+- **Present:** the registered JSON actually shows the requested mechanism. Matching keywords, a `useWhen` sentence, or a related visual alone do not count as complete coverage.
+- **Partial / add:** a related example or rendering capability exists, but the requested comparison, calculation or distinct stage is absent.
+- Listed remaining work is **reference content using existing layouts**, not a claim that another diagram kind is necessary. Multiple gaps can share one coherent example. Do not infer a required count of new files from the list.
+- Equations and arithmetic belong in teaching text alongside the visual where appropriate. A missing worked calculation does not require a new renderer.
+
+## Every lesson against the requested table
+
+IDs below are existing entries in `packages/web/src/tutor-diagrams/reference-library.js` and its five domain reference modules. Complete JSON/SVGs are in [the reference index](references/README.md).
+
+| Lesson | Present evidence | Still missing or partial relative to the requested scenes |
+| --- | --- | --- |
+| 01 — What is ML? | `ml-learning-taxonomy`, `labelled-samples-and-split`, `train-validation-test-split`, `nearest-centroid-boundary` | A concrete classification-versus-regression contrast; labelled-versus-unlabelled groups; a basic training/evaluation/prediction workflow; a nearest-centroid limitation/counterexample. The taxonomy naming two tasks does not provide their contrasting outputs. |
+| 02 — Linear regression | `regression-residuals`, `regression-mean-baseline`, `gradient-descent-contours`, `polynomial-regression-curve`, `regularization-l1-l2-geometry`, `regularization-coefficient-path`, `ml-fit-quality-comparison` | Convergence comparisons for different learning rates; an explicit matched-data regularized-versus-unregularized fitted-prediction comparison. The mean line and reasonable fit already coexist in the fit-quality example; reuse it rather than duplicate it. |
+| 03 — Logistic regression | `sigmoid-threshold`, `binary-cross-entropy-loss`, `softmax-probabilities`, `confusion-matrix-counts`, `roc-threshold-curve`; the shared `precision-recall-thresholds` is also relevant | A logistic decision boundary in feature space tied to its score/threshold. The centroid classifier's boundary is not a logistic-regression worked example. |
+| 04 — Decision trees and forests | `ml-tree-split-path`, `tree-class-mixtures`, `tree-impurity-mixtures`, `ml-tree-pruning`, `regression-tree-steps`, `bootstrap-replacement-oob`, `ml-bagging-vote-flow`, `ensemble-votes` | A complete parent → weighted-child impurity → information-gain calculation on the same counts. Three-tree voting is already present as A/B/A → majority A; do not count it as missing merely because it is a flow rather than three expanded trees. |
+| 05 — SVM | `svm-margin-support-slack`, `svm-hinge-loss`, `rbf-kernel-similarity`, `kernel-similarity-grid`, `svr-epsilon-tube` | Matched-data low-C versus high-C trade-off; an explicit feature/kernel mapping with original versus transformed geometry. Similarity-versus-distance is not the transformed-space example. |
+| 06 — KNN and distances | `knn-neighbourhood`, `knn-l1-l2-distance`, `cosine-vector-directions`, `ml-feature-scaling-transformation`, `knn-k-validation`, `ml-kd-tree`, `distance-concentration` | Distance-weighted vote arithmetic; a scaling example showing a query's neighbour ranking actually change; K-dependent decision boundaries; plotted KD partition regions linked to the tree. A validation-error curve is not a boundary comparison. |
+| 07 — Unsupervised learning | `kmeans-centroid-update`, `clustering-inertia-elbow`, `clustering-elbow-silhouette`, `dbscan-density-neighbourhoods`, `ml-clustering-dendrogram`, `gmm-elliptical-components`, `ml-clustering-comparison` | Separate assignment and update snapshots for the same K-means data; an actual DBSCAN border point alongside core/noise; numerical GMM membership/responsibility comparison. Current GMM contours show overlap but not membership values. |
+| 08 — Feature engineering | `ml-feature-scaling-transformation`, `log-feature-scale`, `log-transform-distribution`, `unequal-bin-density`, one-hot/target-encoding, imputation, token-count/TF-IDF and correlation references | Explicit ordinal encoding; raw-value → bin membership; a feature-interaction example such as x₁×x₂; matched raw/log distribution views. The transformed histogram alone and the x² dependence example do not cover all those mechanisms. |
+| 09 — Model evaluation | Split/sample membership, `stratified-fold-counts`, `nested-cross-validation-folds`, confusion/ROC/PR, `regression-residuals`, `learning-curves`, `null-distribution-threshold`; reuse `knn-k-validation` for a validation curve | Worked confusion-matrix denominators for precision/recall/specificity; aggregate regression-error arithmetic on the same residuals (for example MAE versus RMSE). The existing raw counts/residuals provide the starting data. |
+| 10 — Bias and variance | `ml-fit-quality-comparison`, `repeated-fit-uncertainty`, `bias-variance-decomposition`, `early-stopping-curves`, `double-descent-curve` | Actual separate fits from repeated training samples, connected to their resulting average and spread. The current example draws only the mean and declared range. |
+| 11 — Ensembles | Bootstrap/OOB, `ml-bagging-vote-flow`, `ensemble-votes`, `weighted-training-examples`, `boosting-signed-corrections`, `ml-boosting-correction-transformation`, `ml-stacking-flow` | Per-model normalized probabilities → soft-vote average; an AdaBoost misclassification-driven weight update; an explicit OOF prediction matrix showing which model/fold produced each meta-training row. Generic weights and an OOF-labelled flow are partial. |
+| 12 — Hyperparameter tuning | `search-grid-and-random`, `hyperparameter-score-grid`, `bayesian-search-surrogate`, `ml-parallel-trial-pruning`, `learning-rate-schedules`, `nested-cross-validation-folds` | An acquisition score/curve and the selected next trial; staged resource allocation/successive-halving rounds. An uncertain-region annotation and final trial-budget labels do not show those calculations/stages. |
+| 13 — ML pipelines | `ml-parallel-preprocessing`, `ml-fit-transform-leakage`, `target-encoding-out-of-fold`, `ml-imputation-transformation`, `ml-feedback-graph`, `ml-version-lineage`, `point-in-time-created-time` | No additional reference pattern identified from this quoted row. Teaching/live-generation acceptance is still pending. |
+| 14 — Naive Bayes | `bayes-log-score-table`, `bayes-class-token-counts`, `bayes-laplace-smoothing`, `bayes-class-conditional-densities`, `bayes-additive-log-scores`, `probability-calibration` | No additional reference pattern identified from this quoted row. Fixed token/example data is sufficient; no learner sentence input is needed. Teaching/live-generation acceptance is still pending. |
+| 15 — Time series | `time-series-components`, differencing/lag references, expanding/sliding windows, `acf-pacf-stems`, `forecast-horizon-uncertainty` | A nonzero residual component with aligned component panels; an actual PACF example (the current ACF/PACF-named reference draws ACF only); recursive-versus-direct forecast dependencies; rolling feature/statistic calculation, distinct from rolling validation windows. |
+| 16 — Anomaly detection | `zscore-anomaly-band`, `iqr-fences-and-outliers`, `ml-isolation-tree`, `dbscan-density-neighbourhoods`, `contextual-time-anomaly` | A distribution-tail view tied to the z-score cutoff; local-density contrast with neighbours (beyond a DBSCAN core/noise illustration); a collective anomaly; ranked anomaly scores. Point and contextual anomalies already have examples. |
+| 17 — Imbalanced data | `class-imbalance-resampling`, `stratified-fold-counts`, `ml-label-prior-drift-comparison`, `smote-interpolation`, weight/PR/threshold/cost references | An accuracy trap with high overall accuracy and missed minority cases; an actual majority undersampling example. The current resampling fixture only oversamples, despite listing undersampling as a keyword. |
+| 18 — Feature selection | Correlation/nonlinear dependence, `permutation-feature-importance`, `permutation-feature-matrix`, L1/L2 geometry and coefficient paths, `feature-selection-stability` | Recursive feature elimination stages with changing rankings and retained subsets. The stability chart's “Recursive elimination” series is not an RFE procedure. Existing importance bars already provide feature rankings. |
+| 19 — ML system design | `ml-learning-taxonomy`, `regression-mean-baseline`, `classification-cost-matrix`, `ml-feature-store-architecture`, `ml-feedback-graph`, `ml-version-lineage` | Explicit goal → prediction → decision; batch-versus-online inference architecture; latency/cost trade-off; shadow/canary/A-B deployment; a failure/fallback route. Online/offline **feature storage** is related but is not the complete batch/online **prediction** comparison. |
+| 20 — Monitoring and drift | Three distinct drift comparison references, `aligned-distribution-drift`, `ks-empirical-cdfs`, monitoring windows, `label-delay-monitoring`, `persistent-drift-alerts` | PSI bin contributions and their sum on the reference/current proportions. Shared histogram bins are present; the PSI worked calculation is not. |
+| 21 — Feature stores | `ml-feature-store-architecture`, event/created/label timelines, `as-of-join-ttl-window`, `point-in-time-created-time`, `late-arrival-snapshot-matrix` | A historical backfill/recomputation example; training/serving skew with mismatched versus corrected feature computation. Late arrival is covered; that does not automatically cover backfills. |
+
+## Recommended build order
+
+Finish this reference content with the existing approved palette and components before auditing the next curriculum phase. These batches group related gaps; they are not new renderer kinds.
+
+1. **Trees, neighbours and clustering (04–07):** worked information gain; SVM C and transformed geometry; weighted KNN/scaling/K boundaries/KD regions; assignment-update snapshots, DBSCAN border points and GMM responsibilities.
+2. **Worked calculations and feature transforms (08–12, 17–18, 20):** missing encodings/binning/interactions, metric denominators, repeated fits, AdaBoost/soft voting/OOF stacking, acquisition/resource allocation, imbalance counterexamples, RFE stages and PSI.
+3. **Temporal and system mechanisms (15–16, 19–21):** residual/PACF/rolling feature/forecast strategy, remaining anomaly patterns, deployment/fallback architectures, backfills and serving skew.
+4. **Introductory and regression contrasts (01–03):** remaining foundational comparisons, failure examples, convergence and logistic feature-space geometry.
+
+For each batch: add actual reference JSON and natural prompt keywords to the existing registry; independently check the numeric claims; export the actual SVG; verify the real author request selects a relevant example; update this table. Reuse a current reference where it already expresses the mechanism instead of producing duplicate cards. Live model runs remain distinct from fixed-reference checks.
+
+## Tracking
+
+- [x] Four new kinds and nine existing-kind extensions implemented and pushed.
+- [x] Initial 130-reference pack exported and connected to author/repair context.
+- [x] Reconcile the full quoted table against actual reference JSON.
+- [ ] Complete the missing/partial reference patterns listed above.
+- [ ] Real-model kind/reference choice and generated-card browser/save-reopen acceptance.
+
+This is a coverage correction and backlog, not a claim that the remaining references have been built.

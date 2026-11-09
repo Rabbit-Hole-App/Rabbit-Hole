@@ -155,3 +155,14 @@ Every row must have registered reference IDs; it is not enough to list a kind.
 - Generated all 130 SVG/JSON pairs plus a self-contained gallery. Inspected 16 static SVG rasters covering all 13 additions/extensions. Formula foreignObjects are excluded from static raster claims.
 - Independent review fixed incorrect centroid example means, unrelated binary examples selected for a generic hierarchy, and a mixed-transformation validation exception. Each reproduction failed before its fix and passed after it.
 - Live model/dev: designated Windows credential file absent in this Linux host. Local Chromium screenshot launch failed with socket permission error. `ponytail:` Live provider schema/selection, browser/formula and generated-card save/reopen acceptance remain pending; no deployment or broad CI was run.
+
+
+## Reference-pack completion correction — 2026-11-08
+
+The completed implementation checkboxes above cover the 13 renderer additions/extensions and an initial reference pack. They do **not** mark every scene in the owner's longer per-lesson table complete. The registry contains 116 Phase 02-tagged examples plus 14 general examples; one or more references per lesson is an inventory check, not a completeness check.
+
+See [the complete 21-lesson audit](../../features/explain-on-canvas/handoff/phase02-library/coverage-audit.md) for actual present IDs, partial/missing mechanisms and build order. Finish that content backlog before moving to the next phase. The expected next work reuses the implemented kinds rather than adding kinds merely because an example is absent.
+
+- [x] Audit actual reference JSON against every row of the owner's table.
+- [ ] Complete the missing/partial reference content in the audit.
+- [ ] Verify real author selection and generated-card visual/persistence behavior.

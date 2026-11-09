@@ -12,6 +12,7 @@ receipts; "not released" means not on `main`.
 The approved **four new kinds and nine existing-kind extensions are implemented** on `chatgpt/explain-phase02-library`, based on `748e561eda37a269e277d913cdc1f9099fe9bf94`. This addition concerns written `/explain` and its `tutor-diagrams` JSON→SVG path; the `/interact` program/SDK sections below describe a separate renderer and remain unchanged.
 
 - [Implementation and dev acceptance handoff](explain-on-canvas/handoff/phase02-library/README.md)
+- [Coverage correction: remaining scenes from the full 21-lesson list](explain-on-canvas/handoff/phase02-library/coverage-audit.md)
 - [All 130 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
 - [Executable source/extension guide](../../packages/web/src/tutor-diagrams/README.md)
 - [Plan and completed implementation checklist](../superpowers/plans/2026-11-08-explain-phase02-library.md)
