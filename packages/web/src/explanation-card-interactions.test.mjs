@@ -409,7 +409,7 @@ test('wiring: the canvas provides the host; admission is reported by the Chat st
   const canvas = read('AdaptiveCanvas.jsx'), ask = read('ask.jsx'), slash = read('LearnSlash.jsx'), page = read('learn-slash.js'), dive = read('Dive.jsx');
   assert.match(canvas, /<ExplanationHost\.Provider value=\{explanationHost\}>/);
   assert.doesNotMatch(canvas, /divePortals\.open\(id, term, 'explain_term'/, 'Explore replaced the Rabbit Hole dig: a term makes a new /explain card (owner 2026-11-09)');
-  assert.match(canvas, /destination === 'card' \|\| destination === 'explore' \? await chatWorkspace\.ask\(\{ line:/, 'Explore is the written /explain, with no parentLink (no connector)');
+  assert.match(canvas, /destination === 'card' \|\| destination === 'follow-up' \|\| destination === 'explore' \? await chatWorkspace\.ask\(\{ line:/, 'Explore is the written /explain, with no parentLink (no connector)');
   assert.match(canvas, /return taken !== false && admitted;/, 'the promise of a Chat reply settles only when the answer is in; admission is the callback');
   assert.match(canvas, /chatWorkspace\.ask\(\{ line: `\/explain \$\{question\}`, about: \{ selection \}, onAdmitted: told \}\)/, 'Ask in a new card is the written /explain');
   assert.match(canvas, /const canAsk = !!chatWorkspace\?\.ask && !visiting, canNote = !readOnly && !localCopy;/, 'a capability that is absent leaves no function, so the card omits the control');
