@@ -1908,6 +1908,58 @@
       "height": 465
     },
     {
+      "id": "ml-minority-accuracy-trap",
+      "lessons": [
+        "17"
+      ],
+      "prompts": [
+        "How can a classifier get 95% accuracy and still miss every minority case?"
+      ],
+      "useWhen": "Show a majority-only classifier on an imbalanced test set. Compute overall accuracy and minority recall from the same actual and predicted counts.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 716
+    },
+    {
+      "id": "ml-majority-undersampling",
+      "lessons": [
+        "17"
+      ],
+      "prompts": [
+        "What does majority undersampling actually remove from the training set?"
+      ],
+      "useWhen": "Show undersampling on training rows. Keep every minority row and a subset of majority rows, and identify the exact rows dropped.",
+      "kind": "sample-set",
+      "width": 408,
+      "height": 441
+    },
+    {
+      "id": "ml-recursive-feature-elimination",
+      "lessons": [
+        "18"
+      ],
+      "prompts": [
+        "Why does recursive feature elimination refit after each drop?"
+      ],
+      "useWhen": "Show the feature ranking at each fit. Drop the lowest-scoring feature, refit the survivors and rank them again. Track feature identities and stop at the requested subset size.",
+      "kind": "matrix",
+      "width": 408,
+      "height": 389
+    },
+    {
+      "id": "ml-psi-bin-contributions",
+      "lessons": [
+        "20"
+      ],
+      "prompts": [
+        "How do I calculate the population stability index one bin at a time?"
+      ],
+      "useWhen": "Show both distributions on shared bin edges, the natural-log contribution per bin, and the summed PSI. State any zero-share handling explicitly.",
+      "kind": "comparison",
+      "width": 408,
+      "height": 1233
+    },
+    {
       "id": "general-sequence-1",
       "lessons": [],
       "prompts": [
@@ -2262,7 +2314,9 @@
         "smote-interpolation",
         "class-weighted-loss",
         "stratified-fold-counts",
-        "ml-label-prior-drift-comparison"
+        "ml-label-prior-drift-comparison",
+        "ml-minority-accuracy-trap",
+        "ml-majority-undersampling"
       ]
     },
     {
@@ -2275,7 +2329,8 @@
         "nonlinear-dependence",
         "permutation-feature-importance",
         "feature-selection-stability",
-        "permutation-feature-matrix"
+        "permutation-feature-matrix",
+        "ml-recursive-feature-elimination"
       ]
     },
     {
@@ -2302,7 +2357,8 @@
         "label-delay-monitoring",
         "ml-covariate-drift-comparison",
         "ml-label-prior-drift-comparison",
-        "ml-concept-drift-comparison"
+        "ml-concept-drift-comparison",
+        "ml-psi-bin-contributions"
       ]
     },
     {

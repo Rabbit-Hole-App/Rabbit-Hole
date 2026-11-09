@@ -7,9 +7,13 @@ receipts; "not released" means not on `main`.
 
 ## Note for Claude Code
 
+### Batch 2C · Final four written Explanation references in Batch 2
+
+The accuracy trap, majority undersampling, recursive feature elimination and worked PSI calculation are registered in the actual author path and use the existing SVG components and palette. The library has 156 references. The handoff includes the dev acceptance prompts, expected results and the undersampling selection check. [Batch 2C handoff](explain-on-canvas/handoff/phase02-library/batch-2c.md)
+
 ### Batch 2B · Six written Explanation references for Lessons 10–12
 
-The library adds repeated fits, soft voting, an AdaBoost weight update, out-of-fold stacking, Bayesian acquisition and successive halving. The six are registered in the actual author path and use the existing SVG components and palette. The registry now has 152 references. Follow the handoff for live generation and save/reopen acceptance. Four Batch 2 references remain. [Batch 2B handoff](explain-on-canvas/handoff/phase02-library/batch-2b.md)
+Batch 2B added repeated fits, soft voting, an AdaBoost weight update, out-of-fold stacking, Bayesian acquisition and successive halving. The six are registered in the actual author path and use the existing SVG components and palette. Follow the handoff for live generation and save/reopen acceptance. [Batch 2B handoff](explain-on-canvas/handoff/phase02-library/batch-2b.md)
 
 ### 2026-11-09: Six feature-engineering and evaluation references
 
@@ -25,7 +29,7 @@ The approved **four new kinds and nine existing-kind extensions are implemented*
 
 - [Implementation and dev acceptance handoff](explain-on-canvas/handoff/phase02-library/README.md)
 - [Coverage correction: remaining scenes from the full 21-lesson list](explain-on-canvas/handoff/phase02-library/coverage-audit.md)
-- [All 152 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
+- [All 156 reference SVG/JSON pairs and all 21 lesson mappings](explain-on-canvas/handoff/phase02-library/references/README.md)
 - [Executable source/extension guide](../../packages/web/src/tutor-diagrams/README.md)
 - [Plan and completed implementation checklist](../superpowers/plans/2026-11-08-explain-phase02-library.md)
 

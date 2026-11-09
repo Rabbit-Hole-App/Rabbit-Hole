@@ -38,7 +38,9 @@ On the authorized dev clone, submit the six prompts through written `/explain`. 
 
 The library handoff has the replay commands. [Focused local checks](README.md#focused-local-checks)
 
-## Four remaining Batch 2 references
+## Follow-up in Batch 2C
+
+The final four references are covered in the Batch 2C handoff. [Batch 2C](batch-2c.md)
 
 | Lesson | Work |
 | --- | --- |

@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "95% accuracy, 0% minority recall",
+    "kind": "comparison",
+    "variant": "panels",
+    "panels": [
+      {
+        "heading": "Count the predictions",
+        "diagram": {
+          "title": "All cases predicted majority",
+          "caption": "The outline marks 5 minority misses.",
+          "kind": "heatmap",
+          "rowLabel": "Actual",
+          "columnLabel": "Predicted",
+          "columns": [
+            "Majority",
+            "Minority"
+          ],
+          "rows": [
+            {
+              "label": "Majority",
+              "cells": [
+                95,
+                0
+              ]
+            },
+            {
+              "label": "Minority",
+              "cells": [
+                5,
+                0
+              ]
+            }
+          ],
+          "range": {
+            "min": 0,
+            "max": 100
+          },
+          "highlights": [
+            {
+              "row": 1,
+              "column": 0
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Calculate each rate",
+        "diagram": {
+          "title": "Rates from the same 100 cases",
+          "caption": "Accuracy uses all 100 cases. Recall uses the 5 actual minority cases.",
+          "kind": "matrix",
+          "layout": "teaching",
+          "columns": [
+            "Fraction",
+            "Percent"
+          ],
+          "rows": [
+            {
+              "id": "accuracy",
+              "heading": "Accuracy",
+              "cells": [
+                "95/100",
+                "95%"
+              ]
+            },
+            {
+              "id": "minority-recall",
+              "heading": "Minority recall",
+              "cells": [
+                "0/5",
+                "0%"
+              ]
+            }
+          ],
+          "emphasis": {
+            "cells": [
+              {
+                "row": "minority-recall",
+                "column": 1
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

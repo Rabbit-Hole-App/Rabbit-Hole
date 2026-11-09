@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Before undersampling · 6 majority, 2 minority",
+    "caption": "Training keeps A2 and A5 (majority) plus both minority rows.",
+    "kind": "sample-set",
+    "samples": [
+      {
+        "id": "A1",
+        "class": "Majority"
+      },
+      {
+        "id": "A2",
+        "class": "Majority"
+      },
+      {
+        "id": "A3",
+        "class": "Majority"
+      },
+      {
+        "id": "A4",
+        "class": "Majority"
+      },
+      {
+        "id": "A5",
+        "class": "Majority"
+      },
+      {
+        "id": "A6",
+        "class": "Majority"
+      },
+      {
+        "id": "B1",
+        "class": "Minority"
+      },
+      {
+        "id": "B2",
+        "class": "Minority"
+      }
+    ],
+    "groups": [
+      {
+        "id": "retained",
+        "label": "After · 2 majority, 2 minority",
+        "members": [
+          "A2",
+          "A5",
+          "B1",
+          "B2"
+        ],
+        "omitted": [
+          "A1",
+          "A3",
+          "A4",
+          "A6"
+        ]
+      }
+    ]
+  }
+}
