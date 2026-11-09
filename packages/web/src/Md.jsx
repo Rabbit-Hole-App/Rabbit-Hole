@@ -216,7 +216,7 @@ function lines(ls, ctx, first) {
     } else if (l.startsWith('Sources: ')) {
       out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} has={has} />);
     } else if (l.trim()) {
-      out.push(<p key={i} className="my-1">{md(l)}</p>);
+      out.push(<p key={i} className={explain ? 'my-2.5' : 'my-1'}>{md(l)}</p>); // an Explanation's short paragraphs get a visible gap (about 0.7em); Chat answers keep my-1
     }
   });
   // An unclosed fence (a reply still streaming) is a code block that is still growing.
