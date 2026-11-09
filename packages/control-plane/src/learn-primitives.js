@@ -749,6 +749,20 @@ const binaryTree = doc => {
 };
 // Trees follow the question, not the model's guess: binary layout exactly for binary / heap / BST questions (when the tree allows it), ordinary layout otherwise.
 export const plainTreesUnlessBinary = (md, args) => mapDiagrams(md, BINARY_WORDS.test(String(args ?? '')) ? binaryTree : plainTree);
+// Batch-1 review (owner audit 2026-11-09, card 09 database index): a tree with no layout (the binary guard just removed `binary`, or the author wrote none) is drawn by the legacy
+// indented-list layout, which reads as a bulleted outline. When every node label is a short key (one token or two words, at most 12 characters: 50, 25, A, root), the Phase 02
+// top-down `hierarchy` layout draws it as a tree instead; long-text hierarchies (sentence structure, folders, several-word labels) keep the outline, and a binary tree is never touched.
+const SHORT_KEY = label => { const t = String(label ?? '').trim(); return t.length > 0 && t.length <= 12 && t.split(/\s+/).length <= 2; };
+const hierarchyTree = doc => {
+  const d = doc?.diagram;
+  if (d?.kind !== 'tree' || d.layout !== undefined || !d.nodes.every(n => SHORT_KEY(n.label))) return null;
+  try { return parseTutorDiagram({ ...doc, diagram: { ...d, layout: 'hierarchy' } }); } catch { return null; }
+};
+export function treesAsHierarchy(md) {
+  let count = 0;
+  const out = mapDiagrams(md, spec => { const tree = hierarchyTree(spec); if (tree) count++; return tree; });
+  return { md: out, count };
+}
 // Owner E3 (2026-11-08), log only for now: diagram text with _, ^ or \ outside maths delimiters is maths the card will show as raw source (p_i, x^2).
 const MATH_SPANS = /\$\$[\s\S]*?\$\$|\$[^$]*\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]/g;
 export const bareMaths = text => /[_^\\]/.test(String(text ?? '').replace(MATH_SPANS, ''));
