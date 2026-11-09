@@ -30,6 +30,7 @@ function render(d, width = 420) {
 const marks = (svg, attr) => [...svg.matchAll(new RegExp(`<[^>]* ${attr}="([^"]*)"[^>]*>`, 'g'))].map(m => ({ tag: m[0], value: m[1] }));
 const number = (tag, attr) => Number(tag.match(new RegExp(` ${attr}="([^"]+)"`))?.[1]);
 const points = tag => tag.match(/ points="([^"]+)"/)[1].split(' ').map(pair => pair.split(',').map(Number));
+const smoothVertices = d => d.split('C').map((piece, i) => { const n = piece.replace(/^M/, '').trim().split(/[ ,]+/).map(Number); return i ? n.slice(-2) : n; });
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
 const errors = d => schema.safeParse(d).error?.issues.map(i => i.message).join('; ') || '';
 
@@ -85,7 +86,7 @@ test('a dense extended line marks its first and last point and labelled points, 
   assert.match(svg, /Peak/);
   assert.match(svg, /Dense line/);
   assert.match(describe(d).join(' '), /unlabelled \(3, 0\)/);
-  const path = points(marks(svg, 'data-tutor-plot-series')[0].tag);
+  const path = smoothVertices(marks(svg, 'data-tutor-plot-series')[0].tag.match(/ d="([^"]+)"/)[1]); // the smooth curve passes through every vertex
   assert.equal(path.length, 7);
   const { left, right, top, bottom } = plotBounds;
   path.forEach(([x, y], i) => {

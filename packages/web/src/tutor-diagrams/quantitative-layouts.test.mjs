@@ -83,7 +83,7 @@ test('a dense legacy line keeps every vertex and marks only its first and last p
   }, 320));
   assert.deepEqual(marks(svg, 'data-tutor-coordinate-point').map(mark => mark.value),
     [dense[0], dense[6], ...short, ...scatter].map(({ x, y }) => `${x},${y}`));
-  const denseLine = marks(svg, 'points').find(mark => mark.tag.startsWith('<polyline') && mark.value.split(' ').length === 7);
+  const denseLine = [...svg.matchAll(/<path[^>]* d="(M[^"]+)"/g)].map(m => m[1]).find(d => d.split('C').length === 7); // smooth: one move-to and six cubic segments (Codex c92ec1279)
   assert.ok(denseLine, 'the rendered line retains all seven vertices');
   assert.match(svg, /Dense line/);
 });

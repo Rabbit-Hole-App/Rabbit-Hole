@@ -1,5 +1,6 @@
 import { createElement as h } from 'react';
 import { label, lineHeight, widestFormula, wrap } from './primitives.js';
+import { monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { TEACHING as T, TEACHING_SERIES as COLORS, teachingConnector } from './teaching-theme.js';
 import { annotationDescription, axisName, isExtendedPlot } from './ml-plot-spec.js';
@@ -28,8 +29,9 @@ function symbol(x, y, index, attributes = {}, title) {
   if (index % 3 === 2) return h('polygon', { points: pointString([[x, y - 5], [x + 5, y], [x, y + 5], [x - 5, y]]), ...props }, child);
   return h('circle', { cx: x, cy: y, r: 4.5, ...props }, child);
 }
-function curve(points, colorIndex, attributes = {}) {
-  return h('polyline', { points: pointString(points), fill: 'none', stroke: COLORS[colorIndex % 3], strokeWidth: 2,
+function curve(points, colorIndex, attributes = {}, path) {
+  const geometry = path ? { d: path } : { points: pointString(points) };
+  return h(path ? 'path' : 'polyline', { ...geometry, fill: 'none', stroke: COLORS[colorIndex % 3], strokeWidth: 2,
     strokeDasharray: DASH[colorIndex % 3], strokeLinejoin: 'round', strokeLinecap: 'round', ...attributes });
 }
 function stepPoints(points) {
@@ -143,16 +145,20 @@ function coordinatePlot(d, requested) {
   const marks = [];
   for (const [i, series] of d.series.entries()) {
     const hasUncertainty = series.points[0].low !== undefined;
+    let band;
     if (hasUncertainty && ['line', 'step'].includes(series.kind)) {
+      const high = series.points.map(p => [x(p.x), y(p.high)]);
+      const low = series.points.map(p => [x(p.x), y(p.low)]);
+      if (series.kind === 'line') band = high.map((point, j) => [point[1], low[j][1]]);
       const project = values => series.kind === 'step' ? stepPoints(values) : values;
-      const high = project(series.points.map(p => [x(p.x), y(p.high)]));
-      const low = project(series.points.map(p => [x(p.x), y(p.low)]));
-      geometry.push(h('polygon', { points: pointString([...high, ...low.reverse()]), fill: SOFT[i], stroke: COLORS[i], strokeWidth: 0.8,
+      geometry.push(h('polygon', { points: pointString([...project(high), ...project(low).reverse()]), fill: SOFT[i], stroke: COLORS[i], strokeWidth: 0.8,
         'data-tutor-plot-uncertainty': series.label }));
     }
     const values = series.points.map(xy);
-    if (series.kind === 'line' || series.kind === 'step') geometry.push(curve(series.kind === 'step' ? stepPoints(values) : values, i, { 'data-tutor-plot-series': series.label }));
-    const sparseMarkers = series.kind === 'line' && series.points.length > 6;
+    if (series.kind === 'line' || series.kind === 'step') {
+      const path = series.kind === 'line' && series.smooth !== false ? monotoneLinePath(values, band) : undefined;
+      geometry.push(curve(series.kind === 'step' ? stepPoints(values) : values, i, { 'data-tutor-plot-series': series.label }, path));
+    }
     series.points.forEach((p, j) => {
       const [cx, cy] = values[j];
       if (series.kind === 'stem') geometry.push(h('line', { x1: cx, x2: cx, y1: y(0), y2: cy, stroke: COLORS[i], strokeWidth: 1.8, 'data-tutor-plot-stem': `${p.x},${p.y}` }));
@@ -161,7 +167,7 @@ function coordinatePlot(d, requested) {
         geometry.push(h('path', { d: `M ${cx} ${lo} V ${hi} M ${cx - 4} ${lo} H ${cx + 4} M ${cx - 4} ${hi} H ${cx + 4}`,
           fill: 'none', stroke: COLORS[i], strokeWidth: 1.5, 'data-tutor-plot-errorbar': `${p.low},${p.high}` }));
       }
-      if (!sparseMarkers || p.label || j === 0 || j === series.points.length - 1) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`));
+      if (showPlotMarker(series, j)) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`));
       if (p.label) note([cx, cy], `${p.label}: (${p.x}, ${p.y})`);
     });
     const lines = wrap(`${series.label}${hasUncertainty ? ' · low/high interval' : ''}`, width - 2 * PAD - 36);

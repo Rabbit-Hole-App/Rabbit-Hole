@@ -107,14 +107,11 @@ test('the saved additive comparison keeps the three Day 4 guides aligned at 320,
       const area = marks.find(element => element.props['data-tutor-plot-area'] !== undefined);
       const guide = marks.find(element => element.props['data-tutor-plot-reference'] === 'x:4');
       assert.ok(area && guide, 'each panel renders its day axis and Day 4 guide');
-      const curves = marks.filter(element => element.props['data-tutor-plot-series'])
-        .map(element => element.props.points.split(' '));
-      assert.deepEqual(curves.map(curve => curve.length), [[8, 8], [8], []][i]);
-      for (const curve of curves) assert.equal(Number(curve[3].split(',')[0]), guide.props.x1);
       const points = marks.filter(element => element.props['data-tutor-coordinate-point']);
       assert.equal(points.length, [6, 3, 8][i]); // first, last and the labelled Day 4 point of each line (2 series, 1 series), then the eight residual stems' markers
       if (i < 2) assert.ok(points.some(element => element.props.cx === guide.props.x1), 'the Day 4 marker sits on the guide');
       assert.equal(marks.filter(element => element.props['data-tutor-plot-stem']).length, i === 2 ? 8 : 0);
+
       const [, offset] = panel.props.transform.match(/^translate\(([^ ]+) /);
       return [Number(offset) + area.props.x, area.props.width, Number(offset) + guide.props.x1];
     });

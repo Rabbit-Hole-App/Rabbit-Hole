@@ -32,7 +32,7 @@ Every spec has the shape `{ "version": 1, "diagram": { "kind": "...", "title": "
 | `transformation` | Before and after item lists, operation, optional zero-based item mappings | Two states, operation banner, and labeled mappings |
 | `argument` | Claim, support, objections, conclusion. Evidence can include a source label | Evidence lanes joined to a conclusion |
 | `number-line` | Explicit domain, value markers, intervals with open or closed endpoints | Scaled ticks, numbered markers, interval segments |
-| `coordinate-plot` | Two labeled axis domains, optional units, line or scatter series | Linear axes, data marks, exact point values, distinct series symbols |
+| `coordinate-plot` | Two labeled axis domains, optional units, line or scatter series. Set `smooth: false` on a line series for straight segments. | Linear axes, monotone cubic line paths, exact point values, distinct series symbols |
 | `bar-chart` | Labeled signed values and optional unit | Horizontal bars with a shared zero baseline |
 | `t-account` | Account label, optional unit, debit and credit entries | Debit and credit columns, totals, balance side |
 | `waterfall` | Opening value, signed changes, optional unit | Floating change bars, running totals, computed closing balance |
