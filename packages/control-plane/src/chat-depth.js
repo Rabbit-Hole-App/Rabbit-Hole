@@ -34,6 +34,8 @@ export const DEPTH_COMMANDS = Object.freeze(['explain', 'explanation', 'walkthro
 // Owner 2026-11-08 (EXP-13, revised after the gpt-oss benchmark): the author is asked for 450; the server accepts up to 700 without a repair, and above 700 it
 // trims whole sentences or list items (learn-primitives.js trimExplanationProse) before anything goes to the one repair.
 export const EXPLANATION_BUDGET = Object.freeze({ target: 450, hard: 700 });
+// Owner 2026-11-08: a prose paragraph longer than this is split at sentence ends by the server (learn-primitives.js settleExplanationBody); about 4 lines at the Explanation card's width.
+export const PARAGRAPH_MAX = 220;
 export const EXPLANATION_CAPS = Object.freeze({ overview: EXPLANATION_BUDGET.target, standard: EXPLANATION_BUDGET.target, deep: EXPLANATION_BUDGET.target });
 export const EXPLANATION_OBJECTIVES = Object.freeze({
   overview: 'Depth: Overview. Explain the central idea and essential mechanism in everyday language. A concrete example can make the idea easier to follow.',

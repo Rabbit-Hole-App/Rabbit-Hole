@@ -118,7 +118,9 @@ export function stepRequest(step, effort, body, stream = false) {
   const system = assembledSystem(body, tool);
   const options = stream && CHAIN_ENDPOINTS[step.provider]?.streamOptions;
   const schema = exclusiveOneOfToAnyOf(tool.input_schema);
-  const sampling = isRepair(body) ? { temperature: REPAIR_TEMPERATURE } : { temperature: AUTHOR_TEMPERATURE, ...(SEEDED.has(step.provider) ? { seed: AUTHOR_SEED } : {}) };
+  // Owner 2026-11-08: Gemini's author call takes the provider default temperature (Google's guidance for the 3.x models is to leave it at the default), not 0; its OpenAI-compatible
+  // endpoint documents no seed, so none is sent: the Gemini author call carries neither. The repair stays at 0.3 on every provider.
+  const sampling = isRepair(body) ? { temperature: REPAIR_TEMPERATURE } : step.provider === 'google' ? {} : { temperature: AUTHOR_TEMPERATURE, ...(SEEDED.has(step.provider) ? { seed: AUTHOR_SEED } : {}) };
   return { model: step.model, stream, ...(options ? { stream_options: options } : {}), max_tokens: body.max_tokens, reasoning_effort: effort, ...sampling,
     messages: [{ role: 'system', content: system }, ...body.messages.map(m => ({ role: m.role, content: textOf(m.content) }))],
     response_format: { type: 'json_schema', json_schema: { name: TOOL, strict: true, schema: step.provider === 'google' ? geminiRequestSchema(schema, requiredKinds(body)) : schema } } };

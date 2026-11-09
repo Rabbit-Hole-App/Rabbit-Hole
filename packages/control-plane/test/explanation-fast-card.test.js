@@ -59,7 +59,7 @@ test('fix 1a: the author is asked for 450; up to 700 passes untouched; above 700
   const fit = answer([DIAGRAM], `${sentence.repeat(5).trim()}\n\n[[visual:1]]\n\n${AFTER}`);
   const ok = await direct([fit]);
   assert.ok(explanationProseChars(ok.out.block) > EXPLANATION_BUDGET.target && explanationProseChars(ok.out.block) <= EXPLANATION_BUDGET.hard);
-  assert.deepEqual([ok.out.result, ok.m.seen.length, ok.out.block.body.includes(sentence.repeat(5).trim())], ['artifact', 1, true], 'between 450 and 700: delivered as written');
+  assert.deepEqual([ok.out.result, ok.m.seen.length, ok.out.block.body.replace(/\s+/g, ' ').includes(sentence.repeat(5).trim())], ['artifact', 1, true], 'between 450 and 700: delivered as written (only paragraph breaks added by the 220-character split)');
   assert.match(JSON.stringify(ok.m.seen[0].tools), /at most 450 characters of prose/);
   const long = await direct([answer([DIAGRAM], `${sentence.repeat(9).trim()}\n\n[[visual:1]]\n\n${AFTER}\n\n- First extra point about ice.\n- Second extra point about ice.`)]);
   const used = explanationProseChars(long.out.block);

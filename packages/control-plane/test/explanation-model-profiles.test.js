@@ -95,3 +95,12 @@ test('a profile that extends another and overrides only the author repairs with 
   assert.equal(resolveExplanationProfile('repair-pinned', registry).roles.repair.model, 'claude-haiku-4-5-20251001');
   assert.deepEqual(['claude-sonnet-5', 'claude-haiku-4-5-20251001'], [resolveExplanationProfile('pinned-then-author', registry).roles.author.model, resolveExplanationProfile('pinned-then-author', registry).roles.repair.model]);
 });
+
+// Owner 2026-11-08 (model decision): Gemini 3.5 Flash Lite first, gpt-oss on Fireworks as the fallback.
+test('google-low: Gemini first with the Fireworks gpt-oss fallback, same effort on both steps', async () => {
+  const { EXPLANATION_REGISTRY, CHAIN_STEPS, chainSteps } = await import('../src/explanation-models.js');
+  const author = EXPLANATION_REGISTRY.profiles['google-low'].roles.author;
+  assert.deepEqual(chainSteps(author).map(s => [s.provider, s.model]), [['google', CHAIN_STEPS.google.model], ['fireworks', CHAIN_STEPS.fireworks.model]]);
+  assert.equal(author.settings.reasoning_effort, 'low'); assert.equal(author.adapter, 'fast-chain');
+  assert.deepEqual(chainSteps(EXPLANATION_REGISTRY.profiles['fireworks-low'].roles.author).map(s => s.provider), ['fireworks', 'google'], 'the fireworks-low profile is unchanged');
+});

@@ -114,6 +114,7 @@ const READERS = {
   'web/src/tutor-diagrams/illustration-tensor-reference.js': 'the QKV example’s transformation links',
   'web/src/tutor-diagrams/tensor-layout.js': 'renderer-local transformation links',
   'web/src/tutor-diagrams/token-links-spec.js': 'weighted links between tokens inside a diagram',
+  'control-plane/src/learn-primitives.js': 'TutorDiagram transformation links (before-item to after-item): the server correction drops a link that names a missing item, not board links',
   'web/src/tutor-diagrams/teaching-layouts.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {

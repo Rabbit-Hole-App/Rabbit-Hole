@@ -7,6 +7,7 @@
 import { createElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowUp, GitBranch, Highlighter, MessageSquare, MessageSquarePlus, Plus, StickyNote, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
+import { MdInline } from './Md.jsx';
 import { ToolButton } from './selection-toolbar.jsx';
 import { selectionRef } from './selection-ref.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -251,7 +252,7 @@ export function Suggestions({ layer }) {
     <ul data-explanation-suggestions aria-label="Suggested next questions" className="m-0 mt-3 grid list-none gap-1 p-0">
       {suggestions.map(question => (
         <li key={question.id} data-explanation-suggestion={question.id} className="group/row flex min-h-9 items-center justify-between gap-1.5 rounded-md bg-hover py-0.5 pr-1 pl-2.5 text-[13px] leading-snug text-ink hover:bg-active focus-within:bg-active">
-          <span id={`q-${question.id}`} className="min-w-0 select-text">{question.text}</span>
+          <span id={`q-${question.id}`} className="min-w-0 select-text"><MdInline text={question.text} mathOnly /></span>
           <span className="pointer-events-none flex shrink-0 items-center gap-0.5 opacity-0 group-focus-within/row:pointer-events-auto group-focus-within/row:opacity-100 group-hover/row:pointer-events-auto group-hover/row:opacity-100">
             <button type="button" data-ask="here" title="Ask here" aria-label="Ask here" aria-describedby={`q-${question.id}`} disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'here' ? 'true' : undefined}
               onPointerDown={event => event.stopPropagation()} onClick={() => layer.askSuggestion(question, 'here')} className={ACTION}><MessageSquare size={16} aria-hidden="true" /></button>

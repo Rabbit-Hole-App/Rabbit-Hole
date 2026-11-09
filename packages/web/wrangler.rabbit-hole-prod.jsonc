@@ -103,10 +103,13 @@
     "INTERACT_SCENE_PLAN_ENABLED": "true",
     // Written /explain E2 (explanation-interactions.js; owner 2026-11-08): ON. Only "true" adds the three questions and term pills to new Explanation cards; "false" (or delete) stops new ones, saved cards keep theirs.
     "EXPLANATION_INTERACTIONS": "true",
-    // Written /explain author (owner 2026-11-08, docs/features/explain/benchmarks/2026-11-08-gpt-oss.md): Fireworks gpt-oss-120b low effort, falling back to
-    // Gemini gemini-3.5-flash-lite only (never Opus, never Cerebras). Needs the FIREWORKS_API_KEY and GEMINI_API_KEY secrets (set). Rollback: delete this line
-    // (or set "plan-default") to return to the plan model; EXPLANATION_FALLBACK stays on (default) so a failed Fireworks call goes to Gemini.
-    "EXPLANATION_MODEL_PROFILE": "fireworks-low",
+    // Written /explain author (owner model decision 2026-11-08, release 116; docs/features/explain/benchmarks/test-ledger.md "Arm E v2 on Gemini"): Gemini 3.5 Flash Lite first at low effort,
+    // falling back to Fireworks gpt-oss-120b (never Opus, never Cerebras). Needs the GEMINI_API_KEY and FIREWORKS_API_KEY secrets (both set). Rollback: set "fireworks-low" (the previous
+    // order: gpt-oss first, then Gemini) or "plan-default" for the plan model; EXPLANATION_FALLBACK stays on (default) so a failed first step goes to the second.
+    "EXPLANATION_MODEL_PROFILE": "google-low",
+    // Written /explain planner (explanation-planner.js; owner 2026-11-08, release 116): ON. One TypeSafe System One call (jev-latest, 1.2 s limit) before the author decides the card's visual type, kind and depth
+    // treatment; any failure or timeout runs the author as before. Needs the TYPESAFE_API_KEY secret (owner launcher set-typesafe-secret). Only "jev" enables it; delete the line to turn it off.
+    "EXPLANATION_PLANNER": "jev",
     "ROADMAP_ENABLED": "true",
     // Tutor R6 automatic next-step suggestion (owner production GO, candidate 76): ON, only together with ROADMAP_ENABLED. Only the string "true" lets a delivered card, a mode change or an Auto-suggest change wake a pending next-step proposal;
     // set to "false" (or delete) to stop the automatic offer at once (the manual Propose next step stays). The Auto-suggest preference-change trigger also needs learn-migrations/0040 on LEARN_DB (without it the preference saves plainly and only the delivery and mode triggers fire). Dev and parallel stay unset.

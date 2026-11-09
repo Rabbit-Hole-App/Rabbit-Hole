@@ -91,3 +91,27 @@ test('generateArtifact plans once per card with the flag on, and runs as today w
     assert.ok(seen2.length >= 1 && seen2.every(m => !m.includes('cardPlan')));
   } finally { globalThis.fetch = realFetch; console.log = log; }
 });
+
+// Owner 2026-11-08: the planner waits 1.2 s (4 of 42 timed out at 800 ms on the Gemini stack) and every timeout is logged as a timeout.
+test('planner timeout is 1.2 s and a timeout is logged as one', async () => {
+  const { PLANNER_TIMEOUT_MS } = await import('../src/explanation-planner.js');
+  assert.equal(PLANNER_TIMEOUT_MS, 1200);
+  const lines = [], log = console.log; console.log = l => lines.push(String(l));
+  try { assert.equal(await planExplanation({ TYPESAFE_API_KEY: 'k' }, { question: 'x' }, { fetchImpl: (u, init) => new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(init.signal.reason))), timeoutMs: 20 }), null); } finally { console.log = log; }
+  const event = JSON.parse(lines.find(l => l.includes('explanation_planner_failed')));
+  assert.deepEqual([event.reason, event.timeout], ['timeout', true]);
+});
+
+// Owner 2026-11-08 (release 116 run, baseline set): a physical subject always gets its picture.
+test('a physical subject planned as a diagram gets its picture: picture + diagram, or the picture alone for a figure kind', () => {
+  const physical = { isPhysical: { noul: 0.88 } };
+  const both = planFromAnswers(answers({ ...physical, kind: { choice: 'cycle', probabilities: { cycle: 0.9, flow: 0.1 } }, visualType: { choice: 'diagram', confidence: 0.6 } }));
+  assert.deepEqual(both.visuals, [{ type: 'picture' }, { type: 'diagram', kind: 'cycle' }]); assert.equal(both.physicalOverride, true);
+  const lone = planFromAnswers(answers({ ...physical, kind: { choice: 'figure', probabilities: { figure: 0.9, layers: 0.1 } }, visualType: { choice: 'diagram', confidence: 0.6 } }));
+  assert.deepEqual(lone.visuals, [{ type: 'picture' }]); assert.equal(lone.kind, null); assert.equal(lone.physicalOverride, true);
+  // a digital or abstract subject stays a diagram; a picture or both plan is not touched
+  assert.deepEqual(planFromAnswers(answers({ isPhysical: { noul: 0.1 } })).visuals, [{ type: 'diagram', kind: 'sequence' }]);
+  assert.equal(planFromAnswers(answers({ ...physical })).physicalOverride, true);
+  assert.deepEqual(planFromAnswers(answers({ ...physical, visualType: { choice: 'both' } })).visuals, [{ type: 'picture' }, { type: 'diagram', kind: 'sequence' }]);
+  assert.equal(planFromAnswers(answers({ ...physical, visualType: { choice: 'both' } })).physicalOverride, undefined);
+});

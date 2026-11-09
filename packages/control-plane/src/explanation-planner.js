@@ -8,7 +8,8 @@ import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { 
 import { ILLUSTRATION_KINDS } from '../../web/src/tutor-diagrams/illustration-kinds.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
-export const PLANNER_MODEL = 'jev-latest', PLANNER_TIMEOUT_MS = 800, FIX_AT = 0.6;
+// 1.2 s (owner 2026-11-08; 4 of 42 timed out at 800 ms on the Gemini stack); every timeout is logged as reason 'timeout' (explanation_planner_failed)
+export const PLANNER_MODEL = 'jev-latest', PLANNER_TIMEOUT_MS = 1200, FIX_AT = 0.6, PHYSICAL_AT = 0.7;
 const KIND = {
   flow: 'Ordered steps of one process, with or without decisions; the default only when nothing below fits.',
   sequence: 'Two to four named parties sending things to each other: client/server, sender/receiver, protocols, handshakes, request/response.',
@@ -58,10 +59,14 @@ export function planFromAnswers(a) {
   const [[kind, p1] = [a.kind?.choice, a.kind?.confidence], second] = top2(a.kind?.probabilities);
   const fixed = p1 >= FIX_AT || !second, diagram = fixed ? { type: 'diagram', kind } : { type: 'diagram', choose: [kind, second[0]] };
   // v2 (owner 2026-11-08): no second-visual decision. One diagram, plus a picture only when the visual type is both; the author's own count rule stays the only source of a second diagram.
-  const type = a.visualType?.choice;
+  // Owner 2026-11-08 (release 116 run: 12 of 19 picture prompts lost their picture because the planner chose a diagram): a physical subject (isPhysical >= 0.7: an object, place, organism,
+  // 3D shape or natural event) always gets its picture. A diagram plan becomes picture + diagram, or the picture alone when the planned kind is figure (a figure cannot draw an object or a
+  // shape). On the 42 baseline prompts every picture prompt scores isPhysical 0.83-0.93 and every no-picture prompt 0.04-0.10: pictures 19/19 where needed, 0/12 where not.
+  let type = a.visualType?.choice, physical = false;
+  if (type === 'diagram' && (a.isPhysical?.noul ?? 0) >= PHYSICAL_AT) { type = kind === 'figure' ? 'picture' : 'both'; physical = true; }
   const visuals = type === 'picture' ? [{ type: 'picture' }] : type === 'both' ? [{ type: 'picture' }, diagram] : [diagram];
   const treatment = a.depthTreatment?.choice;
-  return { visuals, depthTreatment: TREATMENT[treatment] ? treatment : 'mechanism', kind: type === 'picture' ? null : kind, fixed: type === 'picture' ? null : fixed, planner: 'jev',
+  return { visuals, depthTreatment: TREATMENT[treatment] ? treatment : 'mechanism', kind: type === 'picture' ? null : kind, fixed: type === 'picture' ? null : fixed, planner: 'jev', ...(physical ? { physicalOverride: true } : {}),
     flags: { needsPlot: a.needsPlot?.noul ?? null, isPhysical: a.isPhysical?.noul ?? null, needsWorkedExample: a.needsWorkedExample?.noul ?? null },
     confidence: { kind: p1 ?? null, visualType: a.visualType?.confidence ?? null }, probabilities: { kind: a.kind?.probabilities ?? null, visualType: a.visualType?.probabilities ?? null } };
 }
@@ -94,7 +99,8 @@ export async function planExplanation(env, { question, depth = 'standard', conte
     if (need.some(k => !out?.answers?.[k])) throw new Error('incomplete answers');
     return { ...planFromAnswers(out.answers), ms: Date.now() - started, inputTokens: out.usage?.input_tokens ?? null };
   } catch (error) {
-    console.log(JSON.stringify({ event: 'explanation_planner_failed', reason: String(error?.message || error).slice(0, 120), ms: Date.now() - started }));
+    const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError' || /timeout|aborted/i.test(String(error?.message || ''));
+    console.log(JSON.stringify({ event: 'explanation_planner_failed', reason: timedOut ? 'timeout' : String(error?.message || error).slice(0, 120), timeout: timedOut, ms: Date.now() - started }));
     return null;
   }
 }

@@ -10,6 +10,7 @@ import { DIAGRAM_FENCE } from './diagram-fence.js';
 import { ILLUSTRATION_FENCE } from './explanation-lead.js';
 import { FenceFigure } from './IllustrationFigure.jsx';
 import TutorDiagram from './tutor-diagrams/TutorDiagram.js';
+import { parseTutorDiagram, tutorDiagramVisibleText } from './tutor-diagrams/spec.js';
 import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 import { cn } from './ui.jsx';
 
@@ -154,11 +155,14 @@ const HEADING_SIZE = { 1: 'text-xl', 2: 'text-lg', 3: 'text-base' };
 // math (the same MathText as $$...$$, whose KaTeX shows its own error for a bad formula) a mermaid fence is the legacy diagram and an rh-diagram fence is a TutorDiagram.
 const MATH_FENCE = /^(math|latex|tex)$/i;
 // figures: a written Explanation's pictures (block.figures, explain only): its rh-illustration fences are drawn as figures, never as their JSON.
+// The words a diagram adds to the card's canonical text (tutorDiagramVisibleText, the same list explanationFieldText uses), carried on its wrapper so the selection and term layer
+// aligns THOSE words, not the drawing's own text (axis ticks, graph badges and legends of the newer kinds are not in the canonical text). Nothing when the spec does not parse.
+const diagramWords = lines => { try { return { 'data-tutor-visible': tutorDiagramVisibleText(parseTutorDiagram(lines.join('\n'))).filter(Boolean).join(' ') }; } catch { return {}; } };
 function fenceOf(fence, key, rich, figures = null) {
   if (figures && ILLUSTRATION_FENCE.test(fence.lang)) return <FenceFigure key={key} source={fence.lines.join('\n')} figures={figures} />;
   if (rich && MATH_FENCE.test(fence.lang)) return <MathText key={key} expression={fence.lines.join('\n')} display />;
   // A written Explanation's diagram (rh-diagram, a TutorDiagram spec): invalid text stays readable as the code it is. The legacy Mermaid reader below stays for saved content.
-  if (rich && DIAGRAM_FENCE.test(fence.lang)) return <div key={key} className="my-2"><TutorDiagram spec={fence.lines.join('\n')} fallback={<Code {...fence} />} /></div>;
+  if (rich && DIAGRAM_FENCE.test(fence.lang)) return <div key={key} className="my-2" {...diagramWords(fence.lines)}><TutorDiagram spec={fence.lines.join('\n')} fallback={<Code {...fence} />} /></div>;
   if (rich && /^mermaid$/i.test(fence.lang)) return <Code key={key} {...fence} diagram />;
   return <Code key={key} {...fence} />;
 }
@@ -216,7 +220,7 @@ function lines(ls, ctx, first) {
     } else if (l.startsWith('Sources: ')) {
       out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} has={has} />);
     } else if (l.trim()) {
-      out.push(<p key={i} className="my-1">{md(l)}</p>);
+      out.push(<p key={i} className={explain ? 'my-2.5' : 'my-1'}>{md(l)}</p>); // an Explanation's short paragraphs get a visible gap (about 0.7em); Chat answers keep my-1
     }
   });
   // An unclosed fence (a reply still streaming) is a code block that is still growing.
