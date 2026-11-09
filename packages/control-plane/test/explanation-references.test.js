@@ -101,7 +101,7 @@ test('schema bundles: core by default, extras only when steered, the same bytes 
   assert.ok(panels(fit) && !JSON.stringify(fit).includes('"identity"'), 'a panel reference adds comparison panels only');
   const bars = author(FAST, 'Show a bar chart of the votes');
   assert.ok(QUANT_KINDS.every(k => kinds(bars).includes(k)), 'a required quantitative kind adds the quantitative group');
-  assert.equal(kinds(author({ SMALL_ENV: 'test' }, 'How does attention work in a transformer?')).length, 21, 'the plan path keeps every kind');
+  assert.equal(kinds(author({ SMALL_ENV: 'test' }, 'How does attention work in a transformer?')).length, 24, 'the plan path keeps every kind');
 });
 
 // Owner N1, M2, M4 (2026-11-08): one number rule in the whole request on both routes; the references last in the fast-chain system message, before the

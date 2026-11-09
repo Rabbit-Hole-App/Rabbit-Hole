@@ -212,5 +212,5 @@ test('a flow node title parses, within its limit, and is not in the author schem
   assert.equal(parseTutorDiagram(flow('Go all the way')).diagram.nodes[0].title, 'Go all the way');
   assert.throws(() => parseTutorDiagram(flow('x'.repeat(241))));
   const shapes = tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf;
-  assert.deepEqual(Object.keys(shapes.find(s => s.properties.kind.const === 'flow').properties.nodes.items.properties), ['id', 'label', 'role']);
+  assert.deepEqual(Object.keys(shapes.find(s => s.properties.kind.const === 'flow').properties.nodes.items.properties), ['id', 'label', 'tensor', 'role']);
 });

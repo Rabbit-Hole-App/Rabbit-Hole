@@ -4,7 +4,9 @@ Audited against the owner's full 21-lesson reference-scene table and the registr
 
 **The 13 renderer additions/extensions are implemented. The full requested reference-scene pack is not complete.** The earlier statement that nothing from the Phase 02 list remained, followed by a recommendation to move to the next phase, was too broad. Having a reference ID tagged with each lesson is not the same as covering each scene requested within that lesson.
 
-The branch author registry contains **161 references**. The offline catalogue has **185 references**, including 24 held for later integration, and the kind gallery has 21 neutral shapes. Five reference patterns remain open in Lessons 01–02 and two lower-priority patterns remain open in Lesson 21. [Batch 3C](batch-3c.md#local-verification) · [Batch 4A](batch-4a.md#local-verification) · [AI/ML and offline SVG handoff](svg-offline.md)
+The branch author registry contains **168 references**. The offline catalogue has **192 references**, including 24 held for later integration, and the kind gallery has 24 neutral shapes. The seven new architecture references are tracked separately. [Illustration primitives](illustration-primitives.md)
+
+Five reference patterns remain open in Lessons 01–02 and two lower-priority patterns remain open in Lesson 21. [Batch 3C](batch-3c.md#local-verification) · [Batch 4A](batch-4a.md#local-verification) · [AI/ML and offline SVG handoff](svg-offline.md)
 
 ## Audit definitions
 

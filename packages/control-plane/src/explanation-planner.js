@@ -4,6 +4,8 @@
 // plan and the author prompt as today: the card is never blocked on the planner. The questions are the bench's (scripts/explain-bench/planner.mjs on explain/quality-bench).
 // Mapping (owner 2026-11-08): no plot override; the kind is FIXED when its top probability is >= 0.6, otherwise the top two kinds are offered and the author chooses.
 import shapeExamples from '../../web/src/tutor-diagrams/examples.json' with { type: 'json' };
+import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
+import { ILLUSTRATION_KINDS } from '../../web/src/tutor-diagrams/illustration-kinds.js';
 import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 
 export const PLANNER_MODEL = 'jev-latest', PLANNER_TIMEOUT_MS = 800, FIX_AT = 0.6;
@@ -29,6 +31,9 @@ const KIND = {
   argument: 'A claim with supporting and opposing evidence and a conclusion.',
   't-account': 'Debits and credits.',
   waterfall: 'An opening value changed by signed steps to a closing value.',
+  tensor: 'The cells and dimensions of a vector or a small matrix.',
+  'token-links': 'One token distributes attention across a row of tokens, with weighted links.',
+  'block-stack': 'An architecture with repeated or nested blocks, residual paths, and callouts.',
 };
 export const QUESTIONS = {
   visualType: { type: 'choice', instructions: "What should the card's main visual be? Objects, 3D shapes, anatomy, places, living things, natural events and 'how does X look' get a picture; if the thing also does something, both. Processes, relationships, comparisons, hierarchies, quantities, algorithms, data structures and anything digital, abstract or mathematical get a diagram only.",
@@ -67,9 +72,10 @@ export function planStatement(plan) {
   return `Card plan, decided before you write; follow it. Visuals, in this order: ${parts.join('; ')}${plan.visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}. Depth treatment: ${plan.depthTreatment} (${TREATMENT[plan.depthTreatment]}).`;
 }
 
-// The shape example for the planned diagram: the first examples.json entry of its kind (the top kind when the plan is not fixed), else null (no example for that kind).
+// The shape example for the planned diagram: the existing example or the neutral shape for an illustration kind, else null.
 export function planShape(plan) {
-  const kind = plan?.kind, spec = kind && shapeExamples.find(e => e.diagram.kind === kind);
+  const kind = plan?.kind, spec = kind && (shapeExamples.find(e => e.diagram.kind === kind)
+    ?? (ILLUSTRATION_KINDS.includes(kind) && kindGallery.find(e => e.diagram.kind === kind)));
   return spec ? { id: `shape-${kind}`, useWhen: `Shape example for a ${kind} diagram on another subject. Use its structure, not its content.`, spec: parseTutorDiagram(spec), shape: true } : null;
 }
 

@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Llama 3.1 8B decoder block",
+    "blocks": [
+      {
+        "id": "an",
+        "label": "Pre-attention norm",
+        "variant": "RMSNorm",
+        "dims": "$d=4096$",
+        "repeat": 32,
+        "repeatTo": "ff"
+      },
+      {
+        "id": "att",
+        "label": "Causal attention",
+        "variant": "GQA",
+        "inputs": [
+          {
+            "label": "RoPE"
+          }
+        ]
+      },
+      {
+        "id": "fn",
+        "label": "Pre-FFN norm",
+        "variant": "RMSNorm"
+      },
+      {
+        "id": "ff",
+        "label": "Feed-forward",
+        "variant": "SwiGLU"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "an",
+        "to": "att"
+      },
+      {
+        "kind": "residual",
+        "from": "fn",
+        "to": "ff"
+      }
+    ],
+    "caption": "Four query heads share each key/value head pair."
+  }
+}

@@ -110,6 +110,9 @@ const READERS = {
   'web/src/comments/MemberBoardPage.jsx': 'canvas references, not board links',
   'web/src/tutor-diagrams/spec.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
   'web/src/tutor-diagrams/ml-composition-spec.js': 'Phase 02 transformation links (before-item to after-item), not board links',
+  'web/src/tutor-diagrams/illustration-tensor-reference.js': 'the QKV example’s transformation links',
+  'web/src/tutor-diagrams/tensor-layout.js': 'renderer-local transformation links',
+  'web/src/tutor-diagrams/token-links-spec.js': 'weighted links between tokens inside a diagram',
   'web/src/tutor-diagrams/teaching-layouts.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {

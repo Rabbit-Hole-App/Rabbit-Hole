@@ -7,6 +7,10 @@ receipts; "not released" means not on `main`.
 
 ## Note for Claude Code
 
+### Static SVG illustrations for written `/explain`
+
+The branch adds `tensor`, `token-links` and `block-stack`, with seven reference topics. The handoff links the 23 JSON examples and their SVG exports at 408 px, natural width and 960 px. It also links the 320 px Gemma minimized view. Start live dev acceptance with Detailed Gemma and check that its FFN is the separate second visual. [Illustration primitives handoff](explain-on-canvas/handoff/phase02-library/illustration-primitives.md)
+
 ### Fourteen AI/ML references and offline SVG checks
 
 The pinned AI/ML request is implemented in the written `/explain` registry. The original selector bench passed on the content-only patch. AI/ML coverage rose from 11/28 to 25/28, with all 14 new picks of a best kind and every other `aiml` and `correct-svg` pick preserved. The handoff includes the exact bench results, patch, gallery, audit, standalone sampler, renderer diffs, correction pairs and snapshot update command. [Offline SVG handoff](explain-on-canvas/handoff/phase02-library/svg-offline.md)

@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Gemma 3 27B",
+    "blocks": [
+      {
+        "id": "emb",
+        "label": "Token embeddings"
+      },
+      {
+        "id": "att",
+        "label": "GQA",
+        "repeat": 62,
+        "repeatTo": "ff",
+        "inputs": [
+          {
+            "label": "QK-Norm"
+          },
+          {
+            "label": "RoPE"
+          }
+        ],
+        "diagram": {
+          "kind": "flow",
+          "steps": [
+            "Normalize input",
+            "Use 5:1 SWA/global",
+            "Normalize output"
+          ]
+        }
+      },
+      {
+        "id": "ff",
+        "label": "FFN",
+        "detail": 2,
+        "diagram": {
+          "kind": "flow",
+          "steps": [
+            "Normalize input",
+            "Transform token",
+            "Normalize output"
+          ]
+        }
+      },
+      {
+        "id": "norm",
+        "label": "Final RMSNorm"
+      },
+      {
+        "id": "out",
+        "label": "Output linear"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "att",
+        "to": "att"
+      },
+      {
+        "kind": "residual",
+        "from": "ff",
+        "to": "ff"
+      }
+    ],
+    "callouts": [
+      {
+        "node": "emb",
+        "label": "Width",
+        "value": "5,376"
+      },
+      {
+        "node": "att",
+        "label": "Q/KV heads",
+        "value": "32/16"
+      },
+      {
+        "node": "ff",
+        "label": "Intermediate",
+        "value": "21,504"
+      },
+      {
+        "node": "out",
+        "label": "Vocabulary",
+        "value": "~262k"
+      }
+    ]
+  }
+}

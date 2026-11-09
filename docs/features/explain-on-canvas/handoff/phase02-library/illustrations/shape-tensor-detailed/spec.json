@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "tensor",
+    "title": "A row vector $x$",
+    "tensor": {
+      "rows": 1,
+      "columns": 3,
+      "dimensions": "1 × 3",
+      "name": "$x$",
+      "values": [
+        2,
+        4,
+        6
+      ],
+      "role": "input"
+    }
+  }
+}

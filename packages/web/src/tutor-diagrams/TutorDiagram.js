@@ -3,6 +3,7 @@ import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { layouts } from './layouts.js';
 import { label, lineHeight, SURFACE, wrap } from './primitives.js';
 import { describeTutorDiagram, parseTutorDiagram } from './spec.js';
+import { usesIllustrations } from './illustration-kinds.js';
 
 const DEFAULT_WIDTH = 408;
 const MIN_WIDTH = 320;
@@ -12,9 +13,10 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   const document = parseTutorDiagram(spec);
   const { diagram } = document;
   const requested = Number.isFinite(availableWidth) ? Math.round(availableWidth) : DEFAULT_WIDTH;
-  const preferredWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, requested));
+  const illustration = usesIllustrations(diagram);
+  const preferredWidth = Math.max(MIN_WIDTH, Math.min(illustration ? 960 : MAX_WIDTH, requested));
   const layout = layouts[diagram.kind](diagram, preferredWidth);
-  const teaching = isTeachingDiagram(diagram);
+  const teaching = illustration || isTeachingDiagram(diagram);
   const { width } = layout;
   const title = wrap(diagram.title, width - 32, 17);
   const titleHeight = title.length * lineHeight(17) + 17;

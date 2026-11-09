@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "tensor",
+    "title": "A row of readings",
+    "tensor": {
+      "rows": 1,
+      "columns": 3,
+      "dimensions": "1 × 3",
+      "name": "Readings",
+      "values": [
+        2,
+        4,
+        6
+      ],
+      "role": "input"
+    }
+  }
+}

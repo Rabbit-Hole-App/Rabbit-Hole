@@ -126,6 +126,7 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
     requiredKinds: asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind),
+    depth: input.depth,
   }) : [];
   // Planner prototype: the shape example of the planned kind goes first, before any topical reference.
   const shape = input.plan ? planShape(input.plan) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
