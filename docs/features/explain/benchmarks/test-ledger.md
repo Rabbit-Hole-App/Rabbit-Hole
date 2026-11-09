@@ -60,3 +60,11 @@ Columns: **Pass/Fail** is the test's own verdict against its goal. **Prod** says
 
 Arms: A gpt-oss-120b low (current), B gpt-oss-120b medium, C Gemini 3.5 Flash Lite (same system prompt and schema). Sets per arm: 6-card kind regression x3, handshake/DNS/email x3, the 42-prompt picture set, the AI/ML set x1. Temperature 0.
 Switch the primary to C only if ALL hold: (1) kind regression at least 5/6; (2) pictures not worse than A on the picture set, both directions; (3) repair rate not higher than A; (4) model-call p90 not more than 0.5 s over A; (5) cost per card including repairs known and reported from actual tokens (owner judges it against the quality gain). If C becomes primary, gpt-oss becomes the fallback and the fallback path is tested end to end.
+
+## G3 model decision: gates written before the run (owner, 2026-11-08)
+
+Owner rule: either model is fine if the cards are factual, fast, and the diagrams and pictures are good; all three gates must pass. Fix first: rule 1 now says a 3D object or a repeating structure (molecule, crystal lattice, gear train, mesh) is a picture, never a tree, figure or layers (3be6b367f). Re-test: Gemini (arm C) only, 3 runs, the 42 baseline set + the 6-card regression set, blind judge on (the same judge and rubric scores arm A's saved cards too). Cap US$1.
+- **Factual**: judge accuracy score for C not below A's, and C's share of cards with a factual error not above A's (current figures for both arms from the same judge and rubric).
+- **Speed**: whole-card p50 inside 1-4 s and p90 not above A's.
+- **Visuals**: pictures 19/19 where needed and 0/12 where not, on all 3 runs; kind regression at least 5/6; noun-box share not above A's 14%; two visuals on caterpillar and butterfly in at least 2 of 3 runs.
+All pass -> Gemini primary, gpt-oss low fallback, tested end to end (one card forced through the fallback, checked by hand). Any fails -> stay on gpt-oss low (G1), the failing item recorded here; revisit only when it is fixed. No partial switches, no per-prompt routing.
