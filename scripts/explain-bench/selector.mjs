@@ -30,12 +30,8 @@ function scored(query, ref) {
 const pick = (references, prompt) => references.map((ref, index) => ({ ref, index, score: scored(normalized(prompt), ref) })).filter(x => x.score > 0)
   .sort((a, b) => (b.score - a.score) || a.index - b.index).slice(0, 2).map(x => ({ ...x.ref, score: x.score }));
 
-// Kind-level fallback (owner 2026-11-08, measured here before any production change): when no topical reference scores, one generic examples.json entry
-// of the kind the learner's words suggest: repeats -> cycle, messaging -> sequence, dates/eras -> timeline, formula/metric words -> coordinate-plot.
-const DATES = /\b(?:\d{3,4}s?|bc|bce|ad|ce|centur(?:y|ies)|eras?|decades?|history|historical|timeline)\b/i;
-const FORMULA = /\b(?:formulas?|equations?|metrics?|loss(?:es)?|impurity|entropy|scores?|probabilit(?:y|ies)|errors?|accuracy|precision|recall)\b/i;
-const fallbackKind = (prompt, { repeats, messaging }) => (repeats(prompt) ? 'cycle' : messaging(prompt) ? 'sequence' : DATES.test(prompt) ? 'timeline' : FORMULA.test(prompt) ? 'coordinate-plot' : null);
-
+// Shape-example fallback (owner 2026-11-08): when the tree under test exports fallbackKind, production sends one examples.json entry of that kind when no
+// topical reference scores; the copy does the same, so parity covers it and the report counts those picks separately.
 // Labelled prompts: correct-svg (kinds per depth, unioned) and aiml (best/acceptable mixes; D:* accepts any kind except the prompt's bad kinds).
 const kindsOf = list => new Set(list.flat().flatMap(s => (String(s).startsWith('D:') ? String(s).slice(2).split('|') : [])));
 export function labelledPrompts(setDir = SET_DIR) {
@@ -57,26 +53,25 @@ export function labelledPrompts(setDir = SET_DIR) {
 const ok = (p, k) => !p.bad.has(k) && (p.okay.has(k) || p.okay.has('*'));
 
 // -> { rows, detail, mismatches }: per set, coverage, kind-right and right-or-acceptable shares of the selected examples, prompts given a wrong-kind example.
-export async function selectorBench({ tree, setDir = SET_DIR, fallback = false } = {}) {
+export async function selectorBench({ tree, setDir = SET_DIR } = {}) {
   const imp = p => import(pathToFileURL(resolve(tree, p)).href);
   const { diagramReferences } = await imp('packages/web/src/tutor-diagrams/reference-library.js');
   const prod = await imp(SELECTOR_FILE);
-  const signals = await imp('packages/control-plane/src/explanation-visuals.js');
   const examples = JSON.parse(readFileSync(resolve(tree, 'packages/web/src/tutor-diagrams/examples.json'), 'utf8'));
   const prompts = labelledPrompts(setDir), detail = [], mismatches = [];
   for (const p of prompts) {
     let refs = pick(diagramReferences, p.prompt);
-    const base = refs.map(r => r.id);
-    if (fallback && !refs.length) { const kind = fallbackKind(p.prompt, signals), spec = kind && examples.find(e => e.diagram.kind === kind); if (spec) refs = [{ id: `fallback-${kind}`, spec, score: 0 }]; }
+    if (!refs.length && prod.fallbackKind) { const kind = prod.fallbackKind(p.prompt), spec = kind && examples.find(e => e.diagram.kind === kind); if (spec) refs = [{ id: `shape-${kind}`, spec, score: 0, shape: true }]; }
     const production = prod.selectDiagramReferences({ prompt: p.prompt, context: {}, requiredKinds: [] }).map(r => r.id);
-    if (base.join() !== production.join()) mismatches.push({ id: p.id, copy: refs.map(r => r.id), production });
-    detail.push({ set: p.set, id: p.id, prompt: p, refs: refs.map(r => ({ id: r.id, kind: r.spec.diagram.kind, score: r.score })) });
+    if (refs.map(r => r.id).join() !== production.join()) mismatches.push({ id: p.id, copy: refs.map(r => r.id), production });
+    detail.push({ set: p.set, id: p.id, prompt: p, refs: refs.map(r => ({ id: r.id, kind: r.spec.diagram.kind, score: r.score, ...(r.shape ? { shape: true } : {}) })) });
   }
   const rows = [...new Set(prompts.map(p => p.set))].map(set => {
     const ds = detail.filter(d => d.set === set), ex = ds.flatMap(d => d.refs.map(r => ({ p: d.prompt, k: r.kind })));
     const right = ex.filter(e => e.p.right.has(e.k)).length, okay = ex.filter(e => ok(e.p, e.k)).length, pct = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : '-');
     return { set, prompts: ds.length, 'given an example': ds.filter(d => d.refs.length).length, examples: ex.length, 'kind right': `${right}/${ex.length} ${pct(right, ex.length)}`,
-      'right or acceptable': `${okay}/${ex.length} ${pct(okay, ex.length)}`, 'prompts with a wrong-kind example': `${ds.filter(d => d.refs.some(r => !ok(d.prompt, r.kind))).length}/${ds.length}` };
+      'right or acceptable': `${okay}/${ex.length} ${pct(okay, ex.length)}`, 'prompts with a wrong-kind example': `${ds.filter(d => d.refs.some(r => !ok(d.prompt, r.kind))).length}/${ds.length}`,
+      'shape examples (right kind)': (sh => `${sh.length} (${sh.filter(d => d.prompt.right.has(d.refs[0].kind)).length} right, ${sh.filter(d => ok(d.prompt, d.refs[0].kind)).length} right or acceptable)`)(ds.filter(d => d.refs[0]?.shape)) };
   });
   return { rows, detail: detail.map(({ prompt, ...d }) => d), mismatches };
 }
@@ -85,7 +80,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
   const tree = arg('--tree', resolve(HERE, '../..'));
   if (!existsSync(resolve(tree, SELECTOR_FILE))) { console.error(`no ${SELECTOR_FILE} under ${tree}; pass --tree <repo root with the selector>`); process.exit(2); }
-  const out = await selectorBench({ tree, fallback: process.argv.includes('--fallback') });
+  const out = await selectorBench({ tree });
   if (out.mismatches.length) { console.error('the copy differs from production:', JSON.stringify(out.mismatches)); process.exit(1); }
   console.table(out.rows);
   for (const d of out.detail) if (d.refs.length) console.log(`${d.set.padEnd(12)} ${d.id.padEnd(20)} ${d.refs.map(r => `${r.id}:${r.kind}`).join(', ')}`);
