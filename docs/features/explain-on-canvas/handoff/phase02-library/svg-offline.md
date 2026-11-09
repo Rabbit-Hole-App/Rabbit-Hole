@@ -1,5 +1,7 @@
 # Offline SVG delivery and AI/ML reference batch
 
+The next offline batch adds paraphrases, linked single-diagram alternatives, depth labels and picture prompts. [Set 3 handoff](set3/README.md)
+
 The 14 new references follow the request at `87d7d3918b3b5632c82709baa4899a80cbc2f6af` on `explain/refs-keywords`. The full Phase 02 branch now contains 174 worked examples and 21 neutral shapes. The isolated batch branch contains the 14 additions and their focused author tests on the pinned base. [Pinned batch request](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/87d7d3918b3b5632c82709baa4899a80cbc2f6af/docs/features/explain-on-canvas/handoff/phase02-library/batch-3-request.md) · [Isolated batch branch](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/chatgpt/explain-ai-ml-batch3) · [Rendered gallery and JSON](references/README.md)
 
 | Prompt ID | Kind | What the example shows |
