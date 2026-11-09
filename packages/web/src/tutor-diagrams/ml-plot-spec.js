@@ -15,13 +15,20 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
     z.strictObject({ kind: z.literal('ellipse'), ...named, center: coordinate, radiusX: numeric.positive(), radiusY: numeric.positive() }),
     z.strictObject({ kind: z.literal('band'), ...named, axis: z.enum(['x', 'y']), from: numeric, to: numeric }),
   ]);
-  const axis = axes.extend({ scale: z.enum(['linear', 'log']).optional() });
+  const axis = axes.extend({ scale: z.enum(['linear', 'log']).optional(), integerTicks: z.boolean().optional() });
+  const sampleValues = z.array(numeric).min(1).max(25);
+  const divisor = numeric.positive().optional();
+  const samples = z.strictObject({
+    x: z.union([sampleValues, z.strictObject({ start: numeric, step: numeric.positive(), divisor })]),
+    y: sampleValues, divisor, showValues: z.boolean().optional(),
+  });
   return [
     z.strictObject({ ...titled, kind: z.literal('coordinate-plot'), x: axis, y: axis,
       series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(),
         endLabel: z.boolean().optional(),
         points: z.array(z.strictObject({ x: numeric, y: numeric, id: id.optional(), label: text(60).optional(),
-          low: numeric.optional(), high: numeric.optional() })).min(1).max(24),
+          low: numeric.optional(), high: numeric.optional() })).min(1).max(24).optional(),
+        samples: samples.optional(),
       })).min(1).max(5),
       annotations: z.array(annotation).max(16).optional(),
     }),
@@ -34,9 +41,20 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   ];
 }
 
+// Keep compact samples in the parsed spec. The renderer and accessible description read the same coordinates.
+export function plotSeriesPoints(series) {
+  if (!series.samples) return series.points ?? [];
+  const { x, y, divisor = 1, showValues } = series.samples;
+  return y.map((sample, index) => {
+    const point = { x: Array.isArray(x) ? x[index] : (x.start + index * x.step) / (x.divisor ?? 1), y: sample / divisor };
+    if (showValues && (series.kind !== 'step' || index < y.length - 1)) point.label = String(point.y);
+    return point;
+  });
+}
+
 export const isExtendedPlot = d => d.kind === 'coordinate-plot' &&
-  (d.series.length > 3 || d.x.scale !== undefined || d.y.scale !== undefined || d.annotations !== undefined || d.series.some(s =>
-    s.endLabel || !['line', 'scatter'].includes(s.kind) ||
+  (d.series.length > 3 || d.x.scale !== undefined || d.y.scale !== undefined || d.x.integerTicks || d.y.integerTicks || d.annotations !== undefined || d.series.some(s =>
+    s.samples || s.endLabel || !['line', 'scatter'].includes(s.kind) ||
     s.points.some(p => p.label !== undefined || p.id !== undefined || p.low !== undefined || p.high !== undefined)));
 
 function inAxis(value, axis) {
@@ -46,28 +64,38 @@ function checkPlot(d, issue) {
   for (const name of ['x', 'y']) {
     if (d[name].min >= d[name].max) issue([name, 'max'], 'The maximum must be greater than the minimum');
     if (d[name].scale === 'log' && d[name].min <= 0) issue([name, 'min'], 'Log axes require a strictly positive domain');
+    const { min, max, scale, integerTicks } = d[name];
+    if (integerTicks && (scale === 'log' || !Number.isInteger(min) || !Number.isInteger(max))) {
+      issue([name, 'integerTicks'], 'Integer ticks require linear integer bounds');
+    }
   }
   const checkPoint = (point, path) => {
     if (!inAxis(point.x, d.x) || !inAxis(point.y, d.y)) issue(path, 'Point must be within the axis bounds');
   };
   d.series.forEach((s, i) => {
     const path = ['series', i];
-    if (['line', 'step'].includes(s.kind) && s.points.length < 2) issue([...path, 'points'], 'A line or step needs at least two points');
+    if (Boolean(s.points) === Boolean(s.samples)) return issue(path, 'Provide either points or compact samples');
+    if (s.samples && Array.isArray(s.samples.x) && s.samples.x.length !== s.samples.y.length) {
+      return issue([...path, 'samples'], 'Compact samples need one x coordinate per y value');
+    }
+    const points = plotSeriesPoints(s);
+    const coordinatePath = [...path, s.samples ? 'samples' : 'points'];
+    if (['line', 'step'].includes(s.kind) && points.length < 2) issue(coordinatePath, 'A line or step needs at least two points');
     if (s.kind === 'stem' && !inAxis(0, d.y)) issue(path, 'Stem series require a linear y domain containing zero');
-    if (s.endLabel && (s.kind !== 'line' || s.points.at(-1)?.x !== d.x.max)) {
+    if (s.endLabel && (s.kind !== 'line' || points.at(-1)?.x !== d.x.max)) {
       issue([...path, 'endLabel'], 'A right-edge label requires a line ending at the x-axis maximum');
     }
-    const uncertainty = s.points.some(p => p.low !== undefined || p.high !== undefined);
+    const uncertainty = points.some(p => p.low !== undefined || p.high !== undefined);
     const ids = new Set();
-    s.points.forEach((p, j) => {
-      const pointPath = [...path, 'points', j];
+    points.forEach((p, j) => {
+      const pointPath = [...coordinatePath, j];
       checkPoint(p, pointPath);
       if (p.id !== undefined) {
         if (ids.has(p.id)) issue([...pointPath, 'id'], 'Sample IDs must be unique within each series');
         ids.add(p.id);
       }
       if (s.kind === 'step' || (uncertainty && s.kind === 'line')) {
-        if (j && p.x <= s.points[j - 1].x) issue([...pointPath, 'x'], 'Step and uncertainty curves need strictly increasing x values');
+        if (j && p.x <= points[j - 1].x) issue([...pointPath, 'x'], 'Step and uncertainty curves need strictly increasing x values');
       }
       if (uncertainty) {
         if (p.low === undefined || p.high === undefined) issue(pointPath, 'Every uncertainty point needs both low and high');
@@ -147,7 +175,7 @@ export function annotationDescription(a) {
 export function describe(d) {
   if (isExtendedPlot(d)) return [
     ...[d.x, d.y].map(a => `${axisName(a)}: ${a.min} to ${a.max}`),
-    ...d.series.map(s => `${s.label} (${s.kind}): ${s.points.map(p => `${p.id ? `${p.id} ` : ''}${p.label ? `${p.label} ` : ''}${xy(p)}${p.low !== undefined ? ` [${p.low}, ${p.high}]` : ''}`).join('; ')}`),
+    ...d.series.map(s => `${s.label} (${s.kind}): ${plotSeriesPoints(s).map(p => `${p.id ? `${p.id} ` : ''}${p.label ? `${p.label} ` : ''}${xy(p)}${p.low !== undefined ? ` [${p.low}, ${p.high}]` : ''}`).join('; ')}`),
     ...(d.annotations ?? []).map(annotationDescription),
   ];
   if (d.kind === 'bar-chart' && d.variant) return [
@@ -159,7 +187,7 @@ export function describe(d) {
 
 export function visibleText(d) {
   if (isExtendedPlot(d)) return [d.title, d.caption, d.x.label, d.x.unit, d.y.label, d.y.unit,
-    ...d.series.flatMap(s => [s.label, ...s.points.map(p => p.label)]), ...(d.annotations ?? []).map(a => a.label)].filter(Boolean);
+    ...d.series.flatMap(s => [s.label, ...plotSeriesPoints(s).map(p => p.label)]), ...(d.annotations ?? []).map(a => a.label)].filter(Boolean);
   if (d.kind === 'bar-chart' && d.variant) return [d.title, d.caption, d.unit, ...d.categories, ...d.series.map(s => s.label)].filter(Boolean);
   return null;
 }

@@ -1,6 +1,6 @@
 # 04 · Decision Trees and Random Forests
 
-**Worked example.** One dataset supplies every figure. The training rows fit the trees and the held-out rows measure error. The vote uses row J's features and compares the result with its label after prediction.
+**Worked example.** One dataset supplies the fitted trees, exact split scores, held-out error and vote. The longer depth curves and the noise feature comparison use separately labelled illustrative values. The vote uses row J's features and compares the result with its label after prediction.
 
 | Row | Feature x | Feature y | Class | Use |
 | --- | ---: | ---: | ---: | --- |
@@ -52,10 +52,10 @@ The greedy search evaluates distinct-value midpoints and keeps the cut with the 
 `ml-trees-threshold-search` · `coordinate-plot`
 
 - **Brief** — Shows the tested x cuts as points and marks the minimum. [408 px SVG](../illustrations/ml-trees-threshold-search-brief/408.svg)
-- **Balanced** — Draws one stem per midpoint so the scores are easy to compare. [408 px SVG](../illustrations/ml-trees-threshold-search/408.svg)
-- **Detailed** — Labels exact scores and gives the best y score for comparison. [408 px SVG](../illustrations/ml-trees-threshold-search-detailed/408.svg)
+- **Balanced** — Draws one stem per midpoint on a decimal Gini axis from 0 to 0.4. [408 px SVG](../illustrations/ml-trees-threshold-search/408.svg)
+- **Detailed** — Labels the three scores as decimals and marks the winning threshold. [408 px SVG](../illustrations/ml-trees-threshold-search-detailed/408.svg)
 
-On x, the tested thresholds 2, 4, 6 score 3/8, 3/16, 5/24, in order. The vertical axis counts exact multiples of 1/48, so the plotted heights are 18, 9, 10. The minimum at `x ≤ 4` also beats the best y trial, `y ≤ 2`, which scores 3/8. Only the marked midpoints are evaluated.
+On x, the tested thresholds 2, 4, 6 score 3/8, 3/16, 5/24, in order. The decimal plot shows 0.375, 0.1875, and 0.2083, with the last score rounded to four decimal places. The minimum at `x ≤ 4` also beats the best y trial, `y ≤ 2`, which scores 3/8. Only the marked midpoints are evaluated.
 
 ## 04 · Grow and trace the tree
 
@@ -87,9 +87,9 @@ Increasing the depth can lower training error while increasing error on the same
 
 `ml-trees-depth-overfit` · `coordinate-plot`
 
-- **Brief** — Shows the two sets of errors as points and marks the best held-out depth. [408 px SVG](../illustrations/ml-trees-depth-overfit-brief/408.svg)
-- **Balanced** — Draws the training and held-out curves together. [408 px SVG](../illustrations/ml-trees-depth-overfit/408.svg)
-- **Detailed** — Labels each rate with the count and denominator used to compute it. [408 px SVG](../illustrations/ml-trees-depth-overfit-detailed/408.svg)
+- **Brief** — Shows an illustrative run across depths 1–8 and marks the held-out minimum at depth 3. [408 px SVG](../illustrations/ml-trees-depth-overfit-brief/408.svg)
+- **Balanced** — Compares the two illustrative curves as the training error reaches zero and the held-out error rises. [408 px SVG](../illustrations/ml-trees-depth-overfit/408.svg)
+- **Detailed** — Returns to the toy dataset and labels the exact counts and denominators at depths 0, 1, and 2. [408 px SVG](../illustrations/ml-trees-depth-overfit-detailed/408.svg)
 
 At depths 0, 1, 2, the training error counts are 3, 1, 0 out of 8. The held-out error counts are 1, 0, 1 out of 2. Depth 1 gives the best held-out result in this example. At depth 2, splitting off row E fixes its training prediction and sends row J to that same class, which disagrees with J’s held-out label. A maximum depth, minimum sample count, or minimum gain can stop growth early. Post-pruning instead removes branches after a tree has grown.
 
@@ -123,11 +123,11 @@ A tree draws its rows once. A split draws a candidate feature for that node. The
 
 A classification forest predicts the class with the most votes across its fitted trees.
 
-`ml-trees-majority-vote` · `bar-chart`
+`ml-trees-majority-vote` · `flow` at Balanced and Detailed, `bar-chart` at Brief
 
 - **Brief** — Shows the totals by class and the winning class. [408 px SVG](../illustrations/ml-trees-majority-vote-brief/408.svg)
-- **Balanced** — Adds the held-out point’s coordinates to the class tallies. [408 px SVG](../illustrations/ml-trees-majority-vote/408.svg)
-- **Detailed** — Stacks the individual contributions to each class’s total. [408 px SVG](../illustrations/ml-trees-majority-vote-detailed/408.svg)
+- **Balanced** — Follows the training rows through three bootstrap draws, root rules, and predictions for J. [408 px SVG](../illustrations/ml-trees-majority-vote/408.svg)
+- **Detailed** — Shows the row IDs in each draw, including repeats, and traces each tree’s vote for J. [408 px SVG](../illustrations/ml-trees-majority-vote-detailed/408.svg)
 
 For row J at `(6, 1)`, the trees predict 0, 1, 1. The vote counts are 1, 2 for classes 0 and 1 respectively. Class 1 wins. The trees can make different errors because they see different rows and candidate features. Combining diverse predictions can reduce variance.
 
@@ -137,13 +137,69 @@ Impurity importance adds up what each feature contributed during training, while
 
 `ml-trees-feature-importance` · `bar-chart`
 
-- **Brief** — Compares the two total impurity reductions. [408 px SVG](../illustrations/ml-trees-feature-importance-brief/408.svg)
-- **Balanced** — Explains that each node’s gain is weighted by its share of the tree’s sample. [408 px SVG](../illustrations/ml-trees-feature-importance/408.svg)
-- **Detailed** — Stacks the contribution of each tree and reports the held-out shuffle drops. [408 px SVG](../illustrations/ml-trees-feature-importance-detailed/408.svg)
+- **Brief** — Compares illustrative MDI and permutation rankings for x, y, and a noise ID. [408 px SVG](../illustrations/ml-trees-feature-importance-brief/408.svg)
+- **Balanced** — Shows the noise ID’s high impurity-based score and near-zero held-out permutation score side by side. [408 px SVG](../illustrations/ml-trees-feature-importance/408.svg)
+- **Detailed** — Explains how the many candidate cuts on a high-cardinality feature can inflate its training impurity decrease. [408 px SVG](../illustrations/ml-trees-feature-importance-detailed/408.svg)
 
-For mean decrease in impurity (MDI), multiply each node’s Gini gain by the fraction of bootstrap entries reaching that node, then sum by feature across trees. The x total is `9/32 + 3/8 + 15/32 = 9/8`. The y total is `3/16 + 1/8 + 0 = 5/16`. Features with more available cuts can receive inflated MDI scores.
+The chart compares illustrative scores normalized separately for each method. A noise ID has many distinct values and can offer a split that happens to reduce training impurity. Shuffling it on held-out rows has little effect when it carries no signal.
+
+For the separate two-feature worked forest, multiply each node’s Gini gain by the fraction of bootstrap entries reaching that node, then sum by feature across trees. The x total is `9/32 + 3/8 + 15/32 = 9/8`. The y total is `3/16 + 1/8 + 0 = 5/16`.
 
 For a single permutation example, hold the trees fixed and swap one feature’s values between the held-out rows. Before the swap, the forest gets 2/2 labels right. Swapping x gives 0/2 correct, a drop of 100 percentage points. Swapping y gives 2/2 correct, a drop of 0 points. These are results for this one swap on the small held-out set.
+
+## Additional demo figures
+
+These five `coordinate-plot` references answer related questions from the lesson. The probability curves follow their formulas. The regression example fits its own sine samples. The pruning and forest-size curves use illustrative results.
+
+### Compare Gini and entropy
+
+Both scores are zero for a pure node and peak when the classes are equally frequent. Gini peaks at 0.5 and binary entropy at 1 bit. The plot samples the formulas at 11 equally spaced class fractions.
+
+`ml-trees-gini-vs-entropy` · `coordinate-plot`
+
+- **Brief** — Reads the two peaks at the same class fraction. [408 px SVG](../illustrations/ml-trees-gini-vs-entropy-brief/408.svg)
+- **Balanced** — Compares the two formulas at 11 equally spaced class fractions. [408 px SVG](../illustrations/ml-trees-gini-vs-entropy/408.svg)
+- **Detailed** — Gives the limit that sets entropy to zero at the endpoints. [408 px SVG](../illustrations/ml-trees-gini-vs-entropy-detailed/408.svg)
+
+### Measure bootstrap coverage
+
+Each of the n draws misses a given row with probability `1 − 1/n`. The probability that all n draws miss it approaches `1/e`, so the expected share of distinct rows drawn approaches 63.2%.
+
+`ml-trees-bootstrap-coverage` · `coordinate-plot`
+
+- **Brief** — Reads expected coverage from the omission limit. [408 px SVG](../illustrations/ml-trees-bootstrap-coverage-brief/408.svg)
+- **Balanced** — Explains the formula for n replacement draws and shows n from 1 to 20. [408 px SVG](../illustrations/ml-trees-bootstrap-coverage/408.svg)
+- **Detailed** — Evaluates the omission probability for the eight training rows in the worked example. [408 px SVG](../illustrations/ml-trees-bootstrap-coverage-detailed/408.svg)
+
+### Choose a pruning penalty
+
+At the marked penalty α = 0.01, the tree has six leaves and retains 90% held-out accuracy. The log axis shows equal ratios in α. Leaf count is shown as a share of the initial ten leaves so both curves use a percent scale.
+
+`ml-trees-cost-complexity-pruning` · `coordinate-plot`
+
+- **Brief** — Shows where the tree shrinks and accuracy stays flat. [408 px SVG](../illustrations/ml-trees-cost-complexity-pruning-brief/408.svg)
+- **Balanced** — Marks the smallest tree on the best held-out accuracy plateau. [408 px SVG](../illustrations/ml-trees-cost-complexity-pruning/408.svg)
+- **Detailed** — States the exact leaf count and accuracy at the chosen penalty. [408 px SVG](../illustrations/ml-trees-cost-complexity-pruning-detailed/408.svg)
+
+### Compare forest sizes
+
+In this illustrative run, increasing the forest from one tree to 50 raises test accuracy from 78% to 92%. The next 150 trees add half a percentage point. The log axis shows equal ratios in tree count.
+
+`ml-trees-forest-size-accuracy` · `coordinate-plot`
+
+- **Brief** — Shows how the accuracy curve levels off. [408 px SVG](../illustrations/ml-trees-forest-size-accuracy-brief/408.svg)
+- **Balanced** — Labels the observed accuracy at all five illustrative forest sizes. [408 px SVG](../illustrations/ml-trees-forest-size-accuracy/408.svg)
+- **Detailed** — Quantifies the gain from 50 to 200 trees on the same test split. [408 px SVG](../illustrations/ml-trees-forest-size-accuracy-detailed/408.svg)
+
+### Fit sine with regression trees
+
+Both trees fit the same 25 equally spaced samples from 0 through 2π. The plotted x coordinates count units of π/24, or 7.5 degrees. The fits choose midpoint cuts by squared-error reduction, with limits of four leaves at depth two and sixteen at depth five. Each step is the mean of the rounded samples in its leaf.
+
+`ml-trees-regression-step-fit` · `coordinate-plot`
+
+- **Brief** — Shows how a leaf's mean gives a flat step. [408 px SVG](../illustrations/ml-trees-regression-step-fit-brief/408.svg)
+- **Balanced** — Compares the four-leaf and sixteen-leaf fits with the same sine curve. [408 px SVG](../illustrations/ml-trees-regression-step-fit/408.svg)
+- **Detailed** — Labels the four depth-two leaf means. [408 px SVG](../illustrations/ml-trees-regression-step-fit-detailed/408.svg)
 
 ## Pilot choices
 

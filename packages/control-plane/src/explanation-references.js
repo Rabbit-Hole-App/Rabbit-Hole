@@ -168,6 +168,7 @@ export const NEW_KINDS = ['heatmap', 'sample-set', 'histogram', 'box-plot'];
 const childDiagram = s => (s?.anyOf ?? s?.oneOf)?.some(b => b?.properties?.diagram);
 const optionsOf = shape => shape.anyOf ?? shape.oneOf;
 const diagramKindOf = shape => shape.properties?.kind?.const;
+const compactPlot = diagram => diagram.kind === 'coordinate-plot' && diagram.series.some(series => series.samples);
 // A comparison or transformation schema branch in its list form only: no panels, shared axes, visual states or identity (the visual variant's own fields).
 export const listForm = branch => {
   const { variant, panels, sharedAxes, identity, ...properties } = branch.properties;
@@ -184,6 +185,7 @@ export function diagramBundle({ references = [], requiredKinds = [] } = {}) {
     ...(kinds.has('token-links') ? { tokenLinks: true } : {}),
     ...(kinds.has('block-stack') ? { blockStack: true } : {}),
     ...(diagrams.some(d => d.panels?.some(panel => panel.diagram.kind === 'block-stack')) ? { blockStackPanels: true } : {}),
+    ...(diagrams.some(d => compactPlot(d) || d.panels?.some(panel => compactPlot(panel.diagram))) ? { compactPlots: true } : {}),
     ...(tensorHosts.length ? { tensorHosts } : {}),
     ...(diagrams.some(usesParallelPaths) ? { parallelPaths: true } : {}),
   };
@@ -214,6 +216,19 @@ function trimIllustrationPayloads(branch, { tensorHosts, parallelPaths, blockSta
   return branch;
 }
 
+function keepExplicitPlotPoints(schema) {
+  if (!schema || typeof schema !== 'object') return;
+  if (diagramKindOf(schema) === 'coordinate-plot') {
+    const series = schema.properties.series.items;
+    if (series.properties.samples) {
+      delete series.properties.samples;
+      series.required.push('points');
+    }
+    return;
+  }
+  Object.values(schema).forEach(keepExplicitPlotPoints);
+}
+
 // The make_explanation input schema reduced to one bundle: deterministic, so the same bundle serializes to the same bytes on every request.
 const withoutSmooth = branch => { const series = branch.properties?.series?.items; if (series?.properties?.smooth) delete series.properties.smooth; return branch; };
 export function bundledAuthorSchema(schema, bundle) {
@@ -228,6 +243,8 @@ export function bundledAuthorSchema(schema, bundle) {
     .map(b => ((diagramKindOf(b) === 'comparison' && !panels) || (diagramKindOf(b) === 'transformation' && !states) ? listForm(b) : b))
     .map(branch => trimIllustrationPayloads(branch, bundle))
     .map(withoutSmooth); // Codex c92ec1279: `smooth` is renderer-side (the author never sets it); leaving it out keeps every Gemini bundle byte-identical to before
+  // Scope the additional sample fields to steered requests so unrelated Gemini fallback bundles keep their previous size.
+  if (!bundle.compactPlots) keepExplicitPlotPoints(union);
   // Owner M4 (2026-11-08): at most two panels in the bundle (the spec allows three): each panel costs about 1.5 s of output (966 output tokens, 5.0 s,
   // for one two-panel comparison). The validator still reads a saved three-panel card.
   const comparison = union[key].find(b => b.properties.kind.const === 'comparison');

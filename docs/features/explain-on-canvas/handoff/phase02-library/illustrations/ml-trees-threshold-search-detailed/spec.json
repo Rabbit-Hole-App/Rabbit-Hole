@@ -9,9 +9,9 @@
       "max": 8
     },
     "y": {
-      "label": "Weighted Gini in 48ths",
+      "label": "Weighted Gini",
       "min": 0,
-      "max": 24
+      "max": 0.4
     },
     "series": [
       {
@@ -20,18 +20,18 @@
         "points": [
           {
             "x": 2,
-            "y": 18,
-            "label": "3 over 8"
+            "y": 0.375,
+            "label": "0.375"
           },
           {
             "x": 4,
-            "y": 9,
-            "label": "3 over 16"
+            "y": 0.1875,
+            "label": "0.1875"
           },
           {
             "x": 6,
-            "y": 10,
-            "label": "5 over 24"
+            "y": 0.2083,
+            "label": "0.2083"
           }
         ]
       }
@@ -40,10 +40,10 @@
       {
         "kind": "point",
         "x": 4,
-        "y": 9,
+        "y": 0.1875,
         "label": "Lowest Gini"
       }
     ],
-    "caption": "Worked example. The best y trial gives 3 over 8. The x winner gives 3 over 16."
+    "caption": "Worked example. Exact x scores are 3 over 8, 3 over 16, 5 over 24. Best y score is 3 over 8."
   }
 }

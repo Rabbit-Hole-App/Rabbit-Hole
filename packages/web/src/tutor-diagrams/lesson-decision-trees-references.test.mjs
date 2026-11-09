@@ -11,11 +11,12 @@ import budgets from './lesson-decision-trees-token-budgets.json' with { type: 'j
 
 const depths = ['overview', 'standard', 'deep'];
 const value = ([numerator, denominator]) => numerator / denominator;
-const fraction = ([n, d]) => d === 1 ? String(n) : `${n} over ${d}`;
-const visual = (ref, depth) => ref.depths[depth]?.spec ?? ref.spec;
+const rounded = score => Number(value(score).toFixed(4));
+const visual = (ref, depth) => depth === 'standard' ? ref.spec : ref.depths[depth].spec;
 const diagram = (name, depth) => visual(references.find(ref => ref.id === `ml-trees-${name}`), depth).diagram;
 const size = counts => counts.reduce((sum, count) => sum + count, 0);
 const rule = (split, right = false) => `${split.feature} ${right ? 'above' : 'at most'} ${split.threshold}`;
+const illustrativeIds = ['ml-trees-feature-importance', 'ml-trees-cost-complexity-pruning', 'ml-trees-forest-size-accuracy'];
 
 for (const ref of references) {
   test(`${ref.id} validates, meets the budget and is picked first at all depths`, () => {
@@ -28,7 +29,8 @@ for (const ref of references) {
       const parsed = parseTutorDiagram(spec);
       assert.deepEqual(parsed, parseTutorDiagram(json));
       assert.deepEqual(lintDiagramContent(spec), []);
-      assert.match(spec.diagram.caption, /^Worked example\./);
+      const illustrative = illustrativeIds.includes(ref.id) || (ref.id === 'ml-trees-depth-overfit' && depth !== 'deep');
+      assert.match(spec.diagram.caption, illustrative ? /^Illustrative\b/ : /^Worked example\./);
       const [measured] = budgets.refs[ref.id][depth];
       assert.equal(createHash('sha256').update(json).digest('hex'), measured.sha256);
       assert.ok(measured.tokens > 0 && measured.tokens <= budgets.maxSpecTokens);
@@ -41,8 +43,8 @@ for (const ref of references) {
   });
 }
 
-test('the pilot has ten measured figures with no stale budget entries', () => {
-  assert.equal(references.length, 10);
+test('the pilot and demo have fifteen measured figures with no stale budget entries', () => {
+  assert.equal(references.length, 15);
   assert.equal(budgets.encoding, 'cl100k_base');
   assert.equal(budgets.maxSpecTokens, 300);
   assert.deepEqual(Object.keys(budgets.refs), references.map(ref => ref.id));
@@ -71,17 +73,14 @@ test('scatter and threshold plots use fixture coordinates and recomputed split s
     }
     assert.deepEqual(plot.annotations.map(({ axis, value }) => [axis, value]), [[lesson.tree.split.feature, lesson.tree.split.threshold]]);
     const search = diagram('threshold-search', depth);
-    const units = Number(search.y.label.match(/in (\d+)ths$/)[1]);
+    assert.deepEqual(search.y, { label: 'Weighted Gini', min: 0, max: 0.4 });
+    assert.equal(search.series[0].kind, 'stem');
     const points = search.series[0].points;
-    for (const [index, { threshold, weighted: [numerator, denominator] }] of lesson.trials.x.entries()) {
-      assert.equal(points[index].x, threshold);
-      assert.ok(Number.isInteger(points[index].y));
-      assert.equal(points[index].y * denominator, numerator * units);
-    }
-    if (depth === 'deep') assert.deepEqual(search.series[0].points.map(point => point.label), lesson.trials.x.map(split => fraction(split.weighted)));
+    assert.deepEqual(points.map(({ x, y }) => [x, y]), lesson.trials.x.map(split => [split.threshold, rounded(split.weighted)]));
+    if (depth === 'deep') assert.deepEqual(points.map(point => point.label), lesson.trials.x.map(split => String(rounded(split.weighted))));
     const [best] = search.annotations;
     assert.equal(best.x, lesson.tree.split.threshold);
-    assert.equal(best.y * lesson.tree.split.weighted[1], lesson.tree.split.weighted[0] * units);
+    assert.equal(best.y, rounded(lesson.tree.split.weighted));
   }
 });
 
@@ -131,13 +130,37 @@ test('tree counts, labeled edges and filled regions agree with the classifier', 
   }
 });
 
-test('depth curves, bootstrap draws, candidate features, votes and importance use the shared fixture', () => {
+test('depth curves separate the illustrative run from the three exact toy cases', () => {
   for (const depth of depths) {
     const error = diagram('depth-overfit', depth);
-    assert.deepEqual(error.series.map(series => series.points.map(({ x, y }) => [x, y])), [
-      lesson.errors.map(step => [step.depth, 100 * step.trainErrors / lesson.train.length]),
-      lesson.errors.map(step => [step.depth, 100 * step.heldOutErrors / lesson.holdout.length]),
-    ]);
+    const [training, heldOut] = error.series.map(series => series.points);
+    assert.equal(error.x.integerTicks, true);
+    const depthsShown = depth === 'deep' ? lesson.errors.map(step => step.depth) : [1, 2, 3, 4, 5, 6, 7, 8];
+    assert.deepEqual(training.map(point => point.x), depthsShown);
+    assert.deepEqual(heldOut.map(point => point.x), depthsShown);
+    assert.equal(error.x.min, depthsShown[0]);
+    assert.equal(error.x.max, depthsShown.at(-1));
+    const [minimum] = error.annotations;
+    if (depth === 'deep') {
+      assert.deepEqual(training.map(({ y }) => y), lesson.errors.map(step => 100 * step.trainErrors / lesson.train.length));
+      assert.deepEqual(heldOut.map(({ y }) => y), lesson.errors.map(step => 100 * step.heldOutErrors / lesson.holdout.length));
+      assert.deepEqual(training.map(({ label }) => label), lesson.errors.map(step => `${step.trainErrors} of ${lesson.train.length}`));
+      assert.deepEqual(heldOut.map(({ label }) => label), lesson.errors.map(step => `${step.heldOutErrors} of ${lesson.holdout.length}`));
+      const best = lesson.errors.reduce((a, b) => a.heldOutErrors < b.heldOutErrors ? a : b);
+      assert.equal(minimum.x, best.depth);
+    } else {
+      assert.equal(training.at(-1).y, 0);
+      assert.ok(training.slice(1).every((point, index) => point.y < training[index].y));
+      assert.ok(heldOut.slice(1, 3).every((point, index) => point.y < heldOut[index].y));
+      assert.ok(heldOut.slice(3).every((point, index) => point.y > heldOut[index + 2].y));
+      assert.equal(minimum.x, 3);
+    }
+    assert.equal(minimum.y, Math.min(...heldOut.map(point => point.y)));
+  }
+});
+
+test('bootstrap draws and candidate features use the shared fixture', () => {
+  for (const depth of depths) {
     const bootstrap = diagram('bootstrap-roots', depth);
     assert.deepEqual(bootstrap.groups.map(group => group.members), lesson.forest.map(tree => tree.sample.map(row => row.id)));
     for (const [index, group] of bootstrap.groups.entries()) {
@@ -153,11 +176,51 @@ test('depth curves, bootstrap draws, candidate features, votes and importance us
         ? [expect('root', tree), expect('rootr', tree.right)]
         : [expect('root', tree), expect('rootl', tree.left), expect('rootr', tree.right)]);
     }
-    const votes = diagram('majority-vote', depth);
-    if (depth === 'deep') assert.deepEqual(votes.series.map(series => series.values), lesson.vote.predictions.map(pick => [0, 1].map(label => Number(pick === label))));
-    else assert.deepEqual(votes.bars.map(bar => bar.value), lesson.vote.counts);
-    const importance = diagram('feature-importance', depth);
-    if (depth === 'deep') assert.deepEqual(importance.series.map(series => series.values), lesson.forest.map(tree => ['x', 'y'].map(feature => value(tree.byFeature[feature]))));
-    else assert.deepEqual(importance.bars.map(bar => bar.value), ['x', 'y'].map(feature => value(lesson.importance.totals[feature])));
+  }
+});
+
+test('the forest vote traces three bootstrap draws to one prediction for J', () => {
+  const overview = diagram('majority-vote', 'overview');
+  assert.deepEqual(overview.bars.map(bar => bar.value), lesson.vote.counts);
+
+  for (const depth of ['standard', 'deep']) {
+    const flow = diagram('majority-vote', depth);
+    assert.equal(flow.kind, 'flow');
+    const nodes = new Map(flow.nodes.map(node => [node.id, node]));
+    const start = flow.nodes.find(node => node.role === 'fork');
+    const tally = flow.nodes.find(node => node.role === 'merge');
+    assert.match(start.label, /training rows A to H/i);
+    assert.match(tally.label, /majority vote/i);
+    const [result] = flow.edges.filter(edge => edge.from === tally.id);
+    assert.match(nodes.get(result.to).label, /class 1/i);
+
+    const draws = flow.edges.filter(edge => edge.from === start.id);
+    assert.equal(draws.length, 3);
+    for (const [index, { to }] of draws.entries()) {
+      const fitted = lesson.forest[index];
+      if (depth === 'deep') assert.ok(nodes.get(to).label.includes(fitted.sample.map(row => row.id).join(' ')));
+      const [fit] = flow.edges.filter(edge => edge.from === to);
+      assert.match(nodes.get(fit.to).label, new RegExp(`tree ${index + 1}`, 'i'));
+      assert.ok(nodes.get(fit.to).label.includes(rule(fitted.tree.split)));
+      const ballot = flow.edges.find(edge => edge.from === fit.to && edge.to === tally.id);
+      assert.equal(ballot.label, String(lesson.vote.predictions[index]));
+    }
+  }
+});
+
+test('normalized importance groups show the noise ID scoring high only on MDI', () => {
+  for (const depth of depths) {
+    const chart = diagram('feature-importance', depth);
+    assert.equal(chart.kind, 'bar-chart');
+    assert.equal(chart.variant, 'grouped');
+    assert.deepEqual(chart.categories, ['x', 'y', 'Noise ID']);
+    assert.equal(chart.unit, '%');
+    const [mdi, permutation] = chart.series;
+    assert.match(mdi.label, /MDI|mean decrease in impurity/i);
+    assert.match(permutation.label, /held-out permutation/i);
+    for (const { values } of chart.series) assert.equal(values.reduce((sum, score) => sum + score, 0), 100);
+    assert.ok(mdi.values[2] > Math.max(...mdi.values.slice(0, 2)));
+    assert.ok(permutation.values[2] <= 1 && permutation.values[2] < Math.min(...permutation.values.slice(0, 2)));
+    assert.match(chart.caption, /high-cardinality.*more.*cuts.*inflate MDI/i);
   }
 });

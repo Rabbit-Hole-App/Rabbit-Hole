@@ -259,6 +259,28 @@ test('the fallback path end to end: Fireworks fails, the Gemini step request pas
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.status, a.cost_micros]), [['fireworks', 'failed', null], ['google', 'settled', 5300]], 'the failed Fireworks call settles with no cost recorded, as any 5xx');
 });
 
+test('Gemini retains compact samples for the regression demo and fits a mixed explicit schema without them', () => {
+  const env = offline('fireworks-low');
+  const request = (args, kinds = []) => {
+    const { body } = prepareArtifactAuthorRequest(env, {
+      command: 'explanation', args,
+      visualRequirements: { items: kinds.map((diagramKind, index) => ({
+        id: `vr-${index + 1}`, kind: 'diagram', diagramKind, purpose: `Show the ${diagramKind}`,
+      })) },
+    });
+    return stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', body);
+  };
+  const plotSeries = sent => diagramOf(sent).anyOf.find(branch => branch.properties.kind.const === 'coordinate-plot').properties.series.items;
+  const mixed = request('Show the numeric summaries and their assembly', ['coordinate-plot', 'heatmap', 'block-stack']);
+  assert.ok(plotSeries(mixed).required.includes('points'));
+  assert.equal(plotSeries(mixed).properties.samples, undefined);
+  assert.equal(geminiRefuses(mixed), false);
+
+  const demo = request('how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?');
+  assert.ok(plotSeries(demo).properties.samples);
+  assert.equal(geminiRefuses(demo), false);
+});
+
 test('end to end on the real ledger: the card records who wrote it, and the call is reserved and settled at that provider\'s price', async t => {
   quiet(t);
   const { sqlite, LEARN_DB } = d1(t);
