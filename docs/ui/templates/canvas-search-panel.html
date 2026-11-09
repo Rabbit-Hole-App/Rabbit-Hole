@@ -1,0 +1,39 @@
+<div id="search-viewer" class="chat-nav" role="group" aria-label="Viewer" hidden>
+  <div class="chat-nav-tabs">
+    <button class="chat-text-button" type="button" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/canvas-header.svg#Files"></use></svg>Context</button>
+    <button class="chat-text-button" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/canvas-header.svg#FolderTree"></use></svg>Files</button>
+    <button class="chat-text-button" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/icons.svg#icon-Network"></use></svg>Graph</button>
+  </div>
+</div>
+<div class="canvas-search-body">
+  <div class="canvas-search-toolbar">
+    <label class="library-search canvas-search-field">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-search"></use></svg>
+      <input class="control" id="canvas-query" type="search" aria-label="Search this canvas" placeholder="Search this canvas" autocomplete="off" aria-controls="canvas-search-results" value="cross entropy">
+    </label>
+    <button class="button secondary" id="canvas-filter" type="button" aria-expanded="false" aria-controls="canvas-filter-menu" data-tooltip-label="Filter search results">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-list-filter"></use></svg>
+      <span id="canvas-filter-label">Filter</span>
+      <svg class="icon canvas-filter-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"></use></svg>
+    </button>
+    <div id="canvas-filter-menu" class="menu library-menu canvas-filter-menu" role="group" aria-label="Search filters" hidden>
+      <label class="library-search canvas-search-field canvas-filter-field">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-search"></use></svg>
+        <input class="control" id="filter-query" type="search" aria-label="Search filters" placeholder="Search filters" autocomplete="off" aria-controls="canvas-filter-options">
+      </label>
+      <div class="canvas-filter-options" id="canvas-filter-options"></div>
+      <p id="filter-no-results" hidden>No matching filters.</p>
+      <hr class="menu-divider">
+      <button class="menu-item" type="button" id="clear-canvas-filters" disabled>Clear</button>
+    </div>
+    <button type="button" class="icon-button quiet" id="previous-match" aria-label="Previous match" data-tooltip-label="Previous match (Shift+Enter)">
+      <svg class="icon canvas-previous-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"></use></svg>
+    </button>
+    <button type="button" class="icon-button quiet" id="next-match" aria-label="Next match" data-tooltip-label="Next match (Enter)">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"></use></svg>
+    </button>
+  </div>
+  <div class="canvas-search-meta"><span id="canvas-match-count" aria-live="polite"></span></div>
+  <p class="canvas-search-empty" id="canvas-search-empty" hidden>No matches on this canvas.</p>
+  <ol id="canvas-search-results" class="canvas-search-results" aria-label="Search results"></ol>
+</div>

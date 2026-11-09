@@ -1,0 +1,1175 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Canvas Search</title><style>
+    :root {
+      color-scheme:light;
+      /* Blue interaction palette with separate card identities and semantic feedback roles. */
+      --paper:#f5f4ed; --card:#fffefa; --card-border:#dedfd8; --card-shadow:#e6e5de;
+      --panel:#f6f8f4; --panel-border:#e3e7e0; --header-line:#ecece6;
+      --ink:#202723; --muted:#5d675f; --copy-ink:#505b52; --control-bg:#ffffff;
+      --blue:#426db2; --primary:#375d92; --explanation-ink:#375d92; --blue-soft:#eaf1fb;
+      --orange-dark:#934723; --orange-soft:#f8ece3;
+      --control-hover-bg:#f6f8f4; --control-hover-border:#d2d9d2;
+      --control-selected-border:#adc4e5; --control-selected-hover:#dde9f8; --control-active-bg:#d0e0f4;
+      --green:#267657; --green-soft:#e5f2ea; --why-ink:#205c45; --why-border:#b8dccc;
+      --primary-hover:#2b4b78; --primary-pressed:#203858;
+      --warning-ink:#805619; --warning-soft:#fff1d3; --warning-border:#e4c585;
+      --danger-ink:#9d3d39; --danger-soft:#f9ebea; --danger-border:#e7b9b6; --danger-active:#f4d9d6;
+      --link-hover:#2b4b78; --link-pressed:#203858;
+      --skeleton-base:#e8ece5; --skeleton-sheen:#f6f8f4;
+      --scroll-thumb:#c7cec6; --scroll-thumb-hover:#aab6ab;
+      --scrim:rgba(32,39,35,.42); --overlay-shadow:0 8px 28px rgba(32,39,35,.13);
+      --font-family:Inter,"Liberation Sans",Arial,sans-serif;
+      --control-font:13px; --control-weight:650; --leading:1.45; --disabled-opacity:.45;
+      --control-height:35px; --compact-height:28px; --control-radius:8px; --card-radius:18px;
+      --menu-radius:10px; --tooltip-radius:6px; --pill-radius:999px;
+      --line-width:1px; --focus-width:2px; --icon-size:16px; --icon-stroke:2;
+      --hover-ms:120ms; --tooltip-delay:400ms; --spinner-ms:800ms; --shimmer-ms:2400ms;
+      font:16px/var(--leading) var(--font-family); background:var(--paper); color:var(--ink);
+    }
+    *,*::before,*::after { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body,h1,h2,h3,h4,p,figure,dl,dd,ul,ol { margin:0; }
+    button,input,textarea,select { font:inherit; }
+    button { cursor:pointer; }
+    main { max-width:1256px; margin:auto; padding:27px 26px 46px; }
+    header.page { display:grid; gap:6px; }
+    .eyebrow { color:var(--muted); display:flex; gap:8px; align-items:center; font-size:14px; font-weight:700; }
+    .eyebrow::before { content:""; width:8px; height:8px; background:var(--blue); border-radius:50%; }
+    h1 { font-size:clamp(1.8rem,4vw,2.55rem); line-height:1.1; letter-spacing:-.03em; }
+    h2 { font-size:1.45rem; letter-spacing:-.018em; }
+    h3 { font-size:1rem; }
+    h4 { font-size:.9rem; }
+    .lede,.section-copy,.muted { color:var(--muted); }
+    .lede,.section-copy { max-width:85ch; }
+    nav.page-nav { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:6px; font-size:14px; }
+    a,.link { color:var(--explanation-ink); text-decoration:underline; text-underline-offset:3px; }
+    a:hover,.link:hover,[data-demo-state="hover"].link { color:var(--link-hover); }
+    a:active,.link:active,[data-demo-state="pressed"].link { color:var(--link-pressed); }
+    a[aria-disabled="true"],.link[aria-disabled="true"] { color:var(--muted); opacity:var(--disabled-opacity); cursor:not-allowed; text-decoration:none; }
+    .section { margin-top:27px; scroll-margin-top:14px; }
+    .section-copy { margin:4px 0 12px; }
+    .specimens { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start; }
+    .specimen,.reference-panel { padding:14px; min-width:0; border:1px solid var(--card-border); border-radius:var(--card-radius); background:var(--card); }
+    .specimen > :is(h3,h4) { margin-bottom:6px; }
+    .specimen > p { margin-bottom:8px; font-size:.875rem; }
+    .specimen > :last-child { margin-bottom:0; }
+    .sample-row { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+    .sample-row + .sample-row { margin-top:8px; }
+    .icon { display:block; flex:none; width:var(--icon-size); height:var(--icon-size); fill:none; stroke:currentColor; stroke-width:var(--icon-stroke); stroke-linecap:round; stroke-linejoin:round; }
+    .button,.icon-button,.menu-item {
+      --button-bg:var(--control-bg); --button-line:var(--panel-border); --button-ink:var(--ink);
+      --hover-bg:var(--control-hover-bg); --hover-line:var(--control-hover-border); --hover-ink:var(--ink);
+      --press-bg:var(--control-active-bg); --press-line:var(--control-selected-border); --press-ink:var(--primary);
+      display:inline-flex; align-items:center; justify-content:center; flex:none; gap:6px;
+      min-height:var(--control-height); padding:0 10px; border:var(--line-width) solid var(--button-line);
+      border-radius:var(--control-radius); color:var(--button-ink); background:var(--button-bg);
+      font:var(--control-weight) var(--control-font)/var(--leading) var(--font-family); text-decoration:none;
+      transition:background-color var(--hover-ms),border-color var(--hover-ms),color var(--hover-ms);
+    }
+    .icon-button { width:var(--control-height); padding:0; --button-ink:var(--muted); }
+    :is(.button,.icon-button).primary {
+      --button-bg:var(--primary); --button-line:var(--primary); --button-ink:var(--control-bg);
+      --hover-bg:var(--primary-hover); --hover-line:var(--primary-hover); --hover-ink:var(--control-bg);
+      --press-bg:var(--primary-pressed); --press-line:var(--primary-pressed); --press-ink:var(--control-bg);
+    }
+    :is(.button,.icon-button).quiet,.menu-item { --button-bg:transparent; --button-line:transparent; --button-ink:var(--muted); --hover-line:transparent; }
+    :is(.button,.icon-button).danger {
+      --button-bg:var(--danger-soft); --button-line:var(--danger-border); --button-ink:var(--danger-ink);
+      --hover-bg:var(--danger-active); --hover-line:var(--danger-border); --hover-ink:var(--danger-ink);
+      --press-bg:var(--danger-ink); --press-line:var(--danger-ink); --press-ink:var(--control-bg);
+    }
+    :is(.button,.icon-button,.menu-item):is(:hover:not(:disabled):not([aria-disabled="true"]),[data-demo-state="hover"]) { background:var(--hover-bg); border-color:var(--hover-line); color:var(--hover-ink); }
+    :is(.button,.icon-button,.menu-item):is([aria-pressed="true"],[aria-selected="true"],[data-demo-state="selected"]) { background:var(--blue-soft); border-color:var(--control-selected-border); color:var(--primary); }
+    :is(.button,.icon-button,.menu-item):is([aria-pressed="true"],[aria-selected="true"]):hover:not(:active):not(:disabled):not([aria-disabled="true"]) { background:var(--control-selected-hover); border-color:var(--control-selected-border); color:var(--primary); }
+    :is(.button,.icon-button,.menu-item):is(:active:not(:disabled):not([aria-disabled="true"]),[data-demo-state="pressed"]) { background:var(--press-bg); border-color:var(--press-line); color:var(--press-ink); }
+    :is(button,a,summary,input,textarea,select):focus-visible,[data-demo-state="focus"] { outline:var(--focus-width) solid var(--blue); outline-offset:2px; }
+    :is(button,input,select,textarea):disabled,[aria-disabled="true"] { opacity:var(--disabled-opacity); cursor:not-allowed; }
+    .compact,.compact .button,.compact .icon-button { min-height:var(--compact-height); }
+    .compact.icon-button,.compact .icon-button { width:var(--compact-height); }
+    .compact .icon,.compact.icon-button .icon { width:14px; height:14px; }
+    .kbd,kbd { display:inline-flex; align-items:center; min-height:17px; padding:0 4px; color:inherit; border:1px solid currentColor; border-radius:4px; font:600 10px/1.35 ui-monospace,monospace; white-space:nowrap; }
+    .pill { display:inline-flex; align-items:center; gap:5px; min-height:26px; padding:1px 11px; border:1px solid transparent; border-radius:var(--pill-radius); font:700 13px/1.45 var(--font-family); white-space:nowrap; }
+    .pill.explain,.pill.info { background:var(--blue-soft); color:var(--explanation-ink); }
+    .pill.interactive { background:var(--orange-soft); color:var(--orange-dark); }
+    .pill.document,.pill.command { background:var(--blue-soft); color:var(--explanation-ink); border-color:var(--control-selected-border); }
+    .pill.command.interactive { background:var(--orange-soft); color:var(--orange-dark); border-color:transparent; }
+    .pill.command.search { background:var(--panel-border); color:var(--ink); border-color:var(--control-hover-border); }
+    .command-group { display:flex; flex-wrap:wrap; gap:8px 12px; padding:0; margin:0 0 10px; list-style:none; }
+    .command-group li { display:inline-flex; flex-wrap:wrap; align-items:center; gap:5px; }
+    .command-group code { color:var(--muted); font-size:12px; }
+    .pill.warning { background:var(--warning-soft); color:var(--warning-ink); }
+    .pill.success { background:var(--green-soft); color:var(--why-ink); }
+    .pill.error { background:var(--danger-soft); color:var(--danger-ink); }
+    .pill.neutral { background:var(--panel); color:var(--muted); border-color:var(--panel-border); }
+    .pill .icon { width:13px; height:13px; }
+    .field { display:grid; gap:4px; min-width:0; color:var(--ink); font-weight:650; font-size:13px; }
+    .field + .field { margin-top:8px; }
+    .field small,.field-help { color:var(--muted); font-size:12px; font-weight:400; }
+    :is(input,textarea,select).field,.field :is(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),textarea,select),.control:not([type="range"]):not([type="checkbox"]):not([type="radio"]) {
+      min-height:var(--control-height); min-width:0; padding:6px 9px; background:var(--control-bg);
+      color:var(--ink); border:1px solid var(--panel-border); border-radius:var(--control-radius); font-size:15px; font-weight:400;
+    }
+    input::placeholder,textarea::placeholder { color:var(--muted); opacity:1; }
+    [aria-invalid="true"] { border-color:var(--danger-ink) !important; }
+    input[type="checkbox"],input[type="radio"],input[type="range"] { accent-color:var(--primary); }
+    input[type="checkbox"],input[type="radio"] { width:16px; height:16px; margin:0; }
+    input[type="range"] { appearance:none; width:100%; min-height:26px; margin:0; background:transparent; cursor:pointer; }
+    input[type="range"]::-webkit-slider-runnable-track { height:4px; border-radius:999px; background:linear-gradient(to right,var(--blue) var(--range-fill,50%),var(--panel-border) var(--range-fill,50%)); }
+    input[type="range"]::-webkit-slider-thumb { appearance:none; width:14px; height:14px; margin-top:-5px; border:1px solid var(--primary); border-radius:50%; background:var(--primary); }
+    input[type="range"]::-moz-range-track { height:4px; border-radius:999px; background:var(--panel-border); }
+    input[type="range"]::-moz-range-progress { height:4px; border-radius:999px; background:var(--blue); }
+    input[type="range"]::-moz-range-thumb { width:14px; height:14px; border:1px solid var(--primary); border-radius:50%; background:var(--primary); }
+    .switch,.checkbox { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:650; }
+    .switch input[type="checkbox"],input.switch[type="checkbox"] { appearance:none; width:36px; height:20px; padding:0; border:1px solid var(--control-hover-border); border-radius:999px; background:var(--panel-border); position:relative; cursor:pointer; }
+    .switch input[type="checkbox"]::before,input.switch[type="checkbox"]::before { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--control-bg); transition:transform var(--hover-ms); }
+    .switch input:checked,input.switch:checked { border-color:var(--primary); background:var(--primary); }
+    .switch input:checked::before,input.switch:checked::before { transform:translateX(16px); }
+    .menu,.popover,.dialog { background:var(--card); border:1px solid var(--card-border); box-shadow:var(--overlay-shadow); }
+    .menu { display:grid; gap:2px; min-width:148px; padding:4px; border-radius:var(--menu-radius); }
+    .menu-item { justify-content:flex-start; min-height:34px; padding:6px 8px; gap:8px; width:100%; text-align:left; color:var(--ink); }
+    .menu-item.danger { color:var(--danger-ink); }
+    .menu-item.danger:hover:enabled { background:var(--danger-soft); color:var(--danger-ink); }
+    .menu-divider { margin:3px 4px; border:0; border-top:1px solid var(--header-line); }
+    .popover { padding:10px; border-radius:var(--menu-radius); }
+    details > summary { cursor:pointer; }
+    details > .menu,details > .popover { margin-top:6px; }
+    .tooltip-trigger,.tooltip-wrap,[data-tooltip] { position:relative; }
+    .tooltip { display:inline-block; padding:5px 8px; max-width:240px; border-radius:var(--tooltip-radius); background:var(--ink); color:var(--card); font-size:12px; line-height:1.35; }
+    .tooltip-trigger .tooltip,.tooltip-wrap .tooltip,[data-tooltip] .tooltip { position:absolute; z-index:2; left:0; bottom:calc(100% + 6px); opacity:0; visibility:hidden; pointer-events:none; width:max-content; transition:opacity var(--hover-ms),visibility var(--hover-ms); }
+    .tooltip-trigger:is(:hover,:focus-within) .tooltip,.tooltip-wrap:is(:hover,:focus-within) .tooltip,[data-tooltip]:is(:hover,:focus-within) .tooltip { opacity:1; visibility:visible; transition-delay:var(--tooltip-delay); }
+    .dialog { color:var(--ink); width:min(92vw,460px); max-height:80vh; overflow:auto; border-radius:var(--card-radius); padding:16px; }
+    dialog.dialog::backdrop { background:var(--scrim); }
+    .dialog h3,.dialog h4 { margin-bottom:5px; }
+    .dialog p { margin-bottom:11px; color:var(--copy-ink); font-size:14px; }
+    .toc-list { list-style:none; padding:0; display:grid; gap:4px; }
+    .toc-row { display:flex; align-items:center; gap:8px; min-height:34px; padding:6px 8px; border:1px solid transparent; border-radius:8px; font-size:13px; }
+    .toc-row .icon { color:var(--muted); }
+    .toc-row[data-status="complete"] .icon { color:var(--green); }
+    .toc-row[data-status="active"] { color:var(--primary); background:var(--blue-soft); border-color:var(--control-selected-border); }
+    .toc-row[data-status="active"] .icon { color:var(--primary); }
+    .toc-row[data-status="upcoming"],.toc-row[data-status="blocked"] { color:var(--muted); }
+    .progress,progress { display:block; height:6px; width:100%; max-width:100%; border:0; border-radius:999px; overflow:hidden; background:var(--panel-border); accent-color:var(--green); }
+    progress::-webkit-progress-bar { background:var(--panel-border); }
+    progress::-webkit-progress-value { background:var(--green); border-radius:999px; }
+    progress::-moz-progress-bar { background:var(--green); border-radius:999px; }
+    progress:not([value]) { accent-color:var(--primary); }
+    progress:not([value])::-webkit-progress-value { background:var(--primary); }
+    progress:not([value])::-moz-progress-bar { background:var(--primary); }
+    .progress > span,.progress > div { display:block; height:100%; border-radius:999px; background:var(--green); }
+    .status-text { font-size:12px; color:var(--muted); }
+    .proposal,.empty-state { padding:10px; border:1px solid var(--panel-border); border-radius:10px; background:var(--panel); }
+    .proposal .sample-row,.empty-state .sample-row { margin-top:8px; }
+    .skeleton { min-height:78px; padding:11px; border:1px solid var(--panel-border); border-radius:var(--card-radius); background:var(--card); display:grid; gap:7px; align-content:start; }
+    .skeleton-line { display:block; height:11px; width:100%; border-radius:5px; background:linear-gradient(90deg,var(--skeleton-base) 25%,var(--skeleton-sheen) 50%,var(--skeleton-base) 75%); background-size:220% 100%; animation:sheen var(--shimmer-ms) ease-in-out infinite; }
+    .shimmer-text { color:var(--muted); background:linear-gradient(90deg,var(--muted) 25%,var(--primary) 50%,var(--muted) 75%); background-size:220% 100%; background-clip:text; -webkit-text-fill-color:transparent; animation:sheen 1600ms ease-in-out infinite; }
+    .spinner { display:inline-block; vertical-align:middle; width:16px; height:16px; border:2px solid var(--panel-border); border-top-color:var(--primary); border-radius:50%; animation:spin var(--spinner-ms) linear infinite; }
+    @keyframes sheen { from { background-position:110% 0; } to { background-position:-110% 0; } }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; } .shimmer-text { -webkit-text-fill-color:currentColor; } }
+    .scroll-demo { max-height:98px; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; scrollbar-width:thin; scrollbar-color:var(--scroll-thumb) transparent; border:1px solid var(--panel-border); border-radius:8px; padding:6px 8px; }
+    .scroll-demo::-webkit-scrollbar { width:8px; height:8px; }
+    .scroll-demo::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border-radius:999px; }
+    .scroll-demo::-webkit-scrollbar-thumb:hover { background:var(--scroll-thumb-hover); }
+    @supports selector(::-webkit-scrollbar) { .scroll-demo { scrollbar-width:auto; scrollbar-color:auto; } }
+    .scroll-demo > p { padding:5px 0; font-size:13px; }
+    .toast,.notification { --notice-bg:var(--card); --notice-line:var(--card-border); --notice-ink:var(--ink); display:flex; align-items:flex-start; gap:8px; padding:9px 10px; border:1px solid var(--notice-line); border-radius:10px; background:var(--notice-bg); color:var(--notice-ink); font-size:13px; }
+    .toast[data-tone="success"] { --notice-bg:var(--green-soft); --notice-line:var(--why-border); --notice-ink:var(--why-ink); }
+    .toast[data-tone="info"] { --notice-bg:var(--blue-soft); --notice-line:var(--blue); --notice-ink:var(--explanation-ink); }
+    .toast[data-tone="warning"] { --notice-bg:var(--warning-soft); --notice-line:var(--warning-border); --notice-ink:var(--warning-ink); }
+    .toast[data-tone="error"],.toast[data-tone="danger"] { --notice-bg:var(--danger-soft); --notice-line:var(--danger-border); --notice-ink:var(--danger-ink); }
+    .toast + .toast,.notification + .notification { margin-top:6px; }
+    .toast .icon,.notification .icon { margin-top:1px; }
+    .toast p,.notification p { margin:0; }
+    .toast > .button,.notification > .button { margin-inline-start:auto; min-height:26px; }
+    .notification[data-unread="true"],.notification.unread { --notice-bg:var(--blue-soft); --notice-line:var(--blue); }
+    .notification-dot { width:7px; height:7px; margin-top:5px; background:var(--blue); border-radius:50%; flex:none; }
+    .toast-region { position:fixed; z-index:4; inset:auto 16px 16px auto; width:min(355px,calc(100vw - 32px)); }
+    .toast-region .toast { box-shadow:var(--overlay-shadow); }
+    .table-scroll { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; text-align:left; font-size:13px; }
+    th,td { padding:7px 8px; border-bottom:1px solid var(--header-line); vertical-align:top; }
+    thead th { background:var(--panel); }
+    tbody tr:last-child > * { border-bottom:0; }
+    code { white-space:nowrap; }
+    .swatch { display:inline-block; width:12px; height:12px; margin-inline-end:4px; border:1px solid var(--card-border); border-radius:3px; background:var(--paint); vertical-align:-1px; }
+    .reference-panel details + details { border-top:1px solid var(--header-line); margin-top:9px; padding-top:9px; }
+    .reference-panel summary { font-weight:700; }
+    .reference-panel .table-scroll { margin-top:7px; }
+    .source-links { color:var(--muted); margin-top:9px; font-size:13px; }
+    .toast .icon-button,.notification .icon-button { width:26px; min-height:26px; margin-inline-start:auto; background:transparent; border-color:transparent; }
+    .toast .icon-button:hover,.notification .icon-button:hover { background:var(--control-hover-bg); border-color:var(--control-hover-border); }
+    .toast .icon-button .icon,.notification .icon-button .icon { width:13px; height:13px; margin:0; }
+    .proposal + .proposal,.empty-state,.notification:first-of-type,.toast:first-of-type { margin-top:8px; }
+    .toc-list { margin-top:7px; }
+    .toc-completion { position:relative; flex:none; display:grid; place-items:center; width:24px; height:24px; cursor:pointer; }
+    .toc-completion input { position:absolute; inset:0; width:24px; height:24px; opacity:0; }
+    .toc-check { display:grid; place-items:center; width:16px; height:16px; border:1.5px solid var(--muted); border-radius:50%; background:var(--control-bg); }
+    .toc-check .icon { width:11px; height:11px; opacity:0; }
+    .toc-completion input:checked + .toc-check { background:var(--green); border-color:var(--green); }
+    .toc-completion input:checked + .toc-check .icon { opacity:1; color:var(--control-bg); }
+    .toc-completion input:focus-visible + .toc-check { outline:2px solid var(--blue); outline-offset:2px; }
+    .toc-completion input:disabled + .toc-check { opacity:var(--disabled-opacity); }
+    .toc-row[data-status="active"] .toc-check { box-shadow:0 0 0 2px var(--control-selected-border); }
+    .toc-link { flex:1; min-width:0; justify-content:flex-start; min-height:26px; padding:0 4px; text-align:left; white-space:normal; }
+    .toc-row[data-status="active"] .toc-link { color:var(--primary); }
+    .skill-meter { display:flex; gap:3px; height:6px; margin:6px 0; }
+    .skill-meter > span { flex:1; background:var(--panel-border); border-radius:999px; }
+    .skill-meter > span.done { background:var(--green); }
+    .menu p { padding:4px 8px 2px; font-size:11px; text-transform:uppercase; font-weight:700; letter-spacing:.035em; }
+    .menu hr { margin:3px 4px; border:0; border-top:1px solid var(--header-line); }
+    .popover > .menu { box-shadow:none; }
+    .tooltip-trigger[data-tooltip-dismissed] .tooltip { opacity:0; visibility:hidden; transition-delay:0ms; }
+    .dialog .sample-row > .icon-button { margin-inline-start:auto; }
+    .toast,.notification { flex-wrap:wrap; }
+    .toast > div,.notification > div { flex:1; min-width:130px; }
+    .sample-row > a { display:inline-flex; align-items:center; gap:5px; }
+    .field .control:hover:enabled { border-color:var(--control-hover-border); }
+    .field-error { color:var(--danger-ink); font-size:12px; font-weight:400; }
+    input[type="range"]:hover:enabled::-webkit-slider-thumb { background:var(--primary-hover); }
+    input[type="range"]:active:enabled::-webkit-slider-thumb { background:var(--primary-pressed); }
+    input[type="range"]:hover:enabled::-moz-range-thumb { background:var(--primary-hover); }
+    input[type="range"]:active:enabled::-moz-range-thumb { background:var(--primary-pressed); }
+    .switch input:hover:enabled { border-color:var(--muted); }
+    .switch input:active:enabled { background:var(--control-hover-border); }
+    .switch input:checked:hover:enabled { background:var(--primary-hover); border-color:var(--primary-hover); }
+    .switch input:checked:active:enabled { background:var(--primary-pressed); border-color:var(--primary-pressed); }
+    .checkbox > input[type="checkbox"] { appearance:none; position:relative; flex:none; width:16px; height:16px; border:1px solid var(--control-hover-border); border-radius:4px; background:var(--control-bg); cursor:pointer; }
+    .checkbox > input:hover:enabled { background:var(--panel); border-color:var(--muted); }
+    .checkbox > input:active:enabled { background:var(--control-active-bg); border-color:var(--control-selected-border); }
+    .checkbox > input:is(:checked,:indeterminate) { background:var(--primary); border-color:var(--primary); }
+    .checkbox > input:is(:checked,:indeterminate):hover:enabled { background:var(--primary-hover); border-color:var(--primary-hover); }
+    .checkbox > input:is(:checked,:indeterminate):active:enabled { background:var(--primary-pressed); border-color:var(--primary-pressed); }
+    .checkbox > input:checked::before { content:""; position:absolute; left:50%; top:50%; width:8px; height:5px; border-left:2px solid var(--control-bg); border-bottom:2px solid var(--control-bg); transform:translate(-50%,-64%) rotate(-45deg); }
+    .checkbox > input:indeterminate::before { content:""; position:absolute; left:3px; top:6px; width:8px; height:2px; background:var(--control-bg); }
+    @media (max-width:740px) { main { padding:18px 12px 33px; } .specimens { grid-template-columns:1fr; } .specimen,.reference-panel { padding:10px; } }
+
+/* Owner review: one current card system across individual components and flows. */
+:root{--ui-scroll:#d5d9cf;--ui-scroll-hover:#bdc6b5;--ui-min-width:440px;--ui-max-width:960px;--ui-min-height:320px;--ui-max-height:760px;--scroll-thumb:#d5d9cf;--scroll-thumb-hover:#bdc6b5;--surface:#fffefa;--ink:#202723;--ink-2:#5d675f;--secondary:#5d675f;--line:#dedfd8;--inset:#f6f8f4;--accent:#426db2}
+html{color-scheme:light}body{background:#f5f4ed;color:#202723}
+*{scrollbar-width:thin!important;scrollbar-color:var(--ui-scroll) transparent!important}
+*::-webkit-scrollbar{width:7px;height:7px}*::-webkit-scrollbar-track{background:transparent}*::-webkit-scrollbar-thumb{background:var(--ui-scroll)!important;border:1px solid transparent;border-radius:99px;background-clip:padding-box}*::-webkit-scrollbar-thumb:hover{background:var(--ui-scroll-hover)!important}
+.catalog-preview,.clean-stage{overflow-x:auto}.examples{align-items:start}.examples:has(.teaching-card){grid-template-columns:1fr!important}
+.teaching-card:not(.rh-composer),.rh-current-card{--card-width:600px;--card-height:520px;--title-size:26.4px;--title-size-compact:26.4px;--card:#fffefa;--ink:#202723;--card-border:#dedfd8;width:var(--card-width)!important;min-width:440px!important;max-width:960px!important;max-height:min(760px,var(--card-height))!important;min-height:320px!important;box-sizing:border-box;position:relative;display:flex!important;flex-direction:column;background:#fffefa!important;border:1px solid #dedfd8!important;border-radius:18px!important;overflow:hidden;box-shadow:0 2px #e6e5de;container-type:normal!important;color:#202723}
+.rh-current-card .card-core{display:contents}
+.rh-current-card :is(.card-head,.card-header,.review-head),.teaching-card:not(.rh-composer)>.card-header{flex:none;background:#fffefa!important;border-bottom:1px solid #ecece6;padding:17px 24px 12px!important;color:#202723}
+.rh-current-card :is(.card-title,.review-head h1),.teaching-card:not(.rh-composer) .card-title{font-size:26.4px!important;line-height:1.17!important;font-weight:700!important;color:#202723!important;margin:9px 0 0;letter-spacing:-.023em;overflow-wrap:normal}
+.rh-current-card :is(.reading,.markdown-reading,.document,.slot-body,.card-body){flex:0 1 auto;min-height:0;overflow:auto;padding:14px 24px 24px;color:#202723;font-size:17px;line-height:1.55;background:#fffefa;max-height:none}
+.rh-current-card :is(.card-meta,.meta-row){display:flex;align-items:center;gap:12px;justify-content:space-between}
+.rh-current-card :is(.grip,.drag,.handle){display:none!important}
+.rh-current-card :is(.kind,.badge,.card-pill),.teaching-card .card-pill,.teaching-card .badge{display:inline-flex;align-items:center;min-height:26px;padding:2px 11px;border:0;border-radius:999px;font:700 13px/1.45 Inter,Arial,sans-serif;background:#eaf1fb!important;color:#375d92!important;width:fit-content}
+.rh-current-card .ui-interactive,.teaching-card .card-pill.interactive,.teaching-card .badge.interactive{background:#f8ece3!important;color:#934723!important}
+.rh-current-card :is(.kind,.badge) :is(svg,.dot){display:none!important}
+.rh-current-card :is(.source,.muted,.source-name){color:#5d675f!important}
+.teaching-card:not(.rh-composer) :is(.card-body,.card-visual,.scene){overflow:auto}
+.teaching-card:not(.rh-composer) :is(.card-visual,.scene)>:is(svg,img){min-width:var(--visual-min-width,520px);max-width:none!important;transform:none!important}
+.teaching-card :is(.card-copy,.card-why){font-size:18px!important}.teaching-card :is(.choice-text,.button,.control-label){font-size:13px!important;flex-shrink:0}.teaching-card .card-title{font-size:26.4px!important}
+.teaching-card .action-row{flex-wrap:nowrap;overflow:auto;align-items:center}.teaching-card .example-stat{display:grid;grid-template-columns:repeat(2,minmax(150px,1fr))}.teaching-card .stat{min-width:150px}.teaching-card .readout{min-width:340px}
+.ui-resize{position:absolute;right:3px;bottom:3px;width:25px;height:25px;border:0;border-radius:6px;background:#fffefa;color:#87947b;display:grid;place-items:center;cursor:nwse-resize;touch-action:none;z-index:3}.ui-resize:focus-visible{outline:2px solid #426db2;outline-offset:-2px}
+.command-group .pill.command{color:#375d92!important;background:#eaf1fb!important}.command-group .pill.search{color:#5d675f!important;background:#edf0e8!important}
+.ui-select{border:0!important;box-shadow:none!important;background:transparent!important;padding:0!important;position:relative;min-width:180px}.ui-select>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none}.ui-select>summary::-webkit-details-marker{display:none}.ui-select>.menu{position:absolute;top:100%;left:0;z-index:20;min-width:100%;background:#fffefa}.ui-select .menu-item{white-space:nowrap}
+.ui-choices{display:flex;flex-wrap:wrap;gap:6px}.ui-choices button{border:1px solid #dedfd8;background:#fffefa;color:#5d675f;border-radius:8px;padding:7px 10px;font:600 13px/1.45 Inter,Arial,sans-serif}.ui-choices button[aria-pressed=true]{color:#934723;background:#f8ece3;border-color:#d7a383}
+button.ui-star[aria-pressed=true] svg{color:#a87812!important;fill:#e8ba48!important}
+button.ui-down,.icon-button.feedback[data-feedback="Still unclear"]{color:#b86232!important}button.ui-down[aria-pressed=true],.icon-button.feedback[data-feedback="Still unclear"][aria-pressed=true]{color:#934723!important;background:#f8ece3!important;border-color:#d7a383!important}
+button.ui-draw:active,button.ui-draw.is-pressed{background:#eac6ad!important;border-color:#c68c67!important;color:#743b22!important;box-shadow:inset 0 1px 2px #743b2220}button.ui-draw{transition:background-color 100ms,border-color 100ms}
+.proposal-stack{width:fit-content;max-width:none;margin:18px 0 26px}.acceptance-pill{display:flex;width:fit-content;align-items:stretch;margin:10px auto 0;border:1px solid #adc4e5;background:#fffefa;border-radius:999px;overflow:hidden;box-shadow:0 2px 6px #2027230a}.acceptance-pill button{min-height:35px;padding:6px 15px;border:0;background:transparent;font:600 13px/1.45 Inter,Arial,sans-serif;color:#5d675f;border-radius:0}.acceptance-pill button:first-child{background:#eaf1fb;color:#375d92;border-right:1px solid #adc4e5}.acceptance-pill button:hover{background:#edf0e8}.acceptance-pill button:first-child:hover{background:#dde9f8}.acceptance-pill kbd{font:inherit;font-size:11px;padding:1px 4px;margin-left:5px;border:1px solid #adc4e5;border-radius:4px}.approval-result{display:block;text-align:center;margin-top:8px;font-size:13px;color:#5d675f}.chat-proposal{padding:16px;background:#f6f8f4;border:1px solid #e3e7e0;border-radius:12px}.chat-result{font-size:13px;color:#5d675f}
+.skeleton.spacious{display:grid;gap:18px;padding-block:25px 34px;min-height:215px}.skeleton-visual{height:90px;border-radius:10px;background:#edf0e8}.generation-status{display:flex;align-items:center;gap:10px;padding:20px 0}
+.count-badge{display:inline-grid;place-items:center;min-width:21px;height:21px;padding:0 5px;border-radius:50%;background:#b86232;color:#fffefa;font:700 11px/1 Inter,Arial,sans-serif;flex:none}.badge-host{position:relative}.badge-host>.count-badge{position:absolute;right:-6px;top:-6px}.comment-thread{margin-top:22px;padding:18px;border:1px solid #dedfd8;border-radius:12px;background:#fffefa}.comment{display:flex;align-items:flex-start;gap:10px}.comment p{font-size:15px;line-height:1.5;margin:7px 0}.comment time{font-size:12px;color:#798373}.avatar{width:28px;height:28px;display:grid;place-items:center;flex:none;border-radius:50%;background:#edf0e8;color:#5d675f;font-size:12px}.replies{margin:14px 0 14px 14px;padding-left:22px;border-left:2px solid #dedfd8}.reply-form{display:grid;gap:8px}.reply-form textarea{border:1px solid #dedfd8;border-radius:8px;padding:10px;background:#fffefa;color:#202723;font:15px/1.5 Inter,Arial,sans-serif;resize:vertical}.reply-form button{justify-self:end}.reply-status{color:#5d675f;font-size:13px}
+.tooltip-preview .tooltip{visibility:visible!important;opacity:1!important}.tooltip{background:#394334!important;color:#fffefa!important}
+.pdf-page{background:#fffefa;border:1px solid #e3e7e0;padding:24px;margin-bottom:14px;min-height:430px}.page-counter{font-size:12px;color:#7c8575;text-align:right}.markdown-document,.pdf-page{font-size:17px;line-height:1.6}.markdown-document h4,.pdf-page h4{font-size:20px;margin:18px 0 8px}.source-card .card-body{padding:18px 24px 25px}.source-card .card-header h3{margin-top:8px}
+/* Follow-up and links between cards use quiet sage, never the old saturated blue. */
+:where(.stage,.card-wrap) :is(.connector,.follow-up-toggle span){background:#879b76!important;border-color:#d5ddce!important;color:#fffefa!important}.branch-link path,.connector-line{stroke:#a9b89b!important}.composer:not(.rh-form){background:#fffefa!important;border-color:#cbd4c2!important;color:#202723!important;box-shadow:none!important;border-radius:12px!important}.composer:not(.rh-form):focus-within{border-color:#92a481!important;box-shadow:0 0 0 2px #e9eee3!important}.composer:not(.rh-form) input{background:transparent!important;color:#202723!important}.composer:not(.rh-form) .send{background:#375d92!important;color:#fffefa!important}.suggestion-row,.thread-turn,.term-note,.diagram-surface{background:#f6f8f4!important;color:#202723!important;border-color:#dedfd8!important}.term{color:#934723!important}.question-copy{color:#202723!important}
+.ui-followup-example{margin-top:24px;width:600px}.ui-followup-example .composer{display:flex;gap:12px;padding:10px;border:1px solid #cbd4c2}.ui-followup-example input{flex:1;min-width:0;border:0;outline:0;font:15px/1.5 Inter,Arial,sans-serif}.ui-followup-example button{width:35px;height:35px;border:0;border-radius:50%;background:#375d92;color:white}.ui-connector-example{display:flex;justify-content:center;align-items:center;height:42px;color:#879b76}.ui-connector-example:before,.ui-connector-example:after{content:"";width:45px;height:2px;background:#a9b89b}.ui-connector-example span{display:grid;place-items:center;border:1px solid #a9b89b;width:24px;height:24px;border-radius:50%;background:#edf2e7}
+
+.rh-current-card .ui-card-content{flex:0 1 auto;overflow:auto;min-height:0;padding:14px 24px 24px;font-size:17px;line-height:1.55}
+.rh-current-card svg text{fill:#202723}.rh-current-card .diagram-surface svg text{fill:#202723}.rh-current-card .source-card{min-width:0}
+.ui-current-flow{background:#f5f4ed!important;color:#202723!important}.ui-current-flow :is(.page-head h1,.page-head h2,.example-title,.diagram-heading){color:#202723!important}
+.ui-current-flow :is(.card-meta,.meta-row,.card-foot,.review-foot){background:#fffefa!important;border-color:#dedfd8!important}
+.ui-current-flow :is(.panel,.message,.parameters,.thread,.panel-header,.chat-header,.toc-header,.conversation){background:#fffefa!important;color:#202723!important;border-color:#dedfd8!important}
+.ui-current-flow :is(.page,.canvas,.demo-canvas,.board){background:transparent!important}.ui-current-flow :is(.connector,.follow-up-toggle span){background:#879b76!important;border-color:#d5ddce!important}.ui-current-flow .branch-link path{stroke:#a9b89b!important}
+.rh-composer{min-width:360px!important;max-width:960px!important}.rh-composer .rh-draft{scrollbar-color:#d5d9cf transparent!important}
+
+/* Shared Cards grip: one geometry, glyph and state table everywhere. */
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle{position:absolute!important;right:2px!important;bottom:2px!important;display:grid!important;place-items:center;width:26px!important;height:26px!important;min-height:26px!important;padding:0!important;border:1px solid transparent!important;border-radius:7px!important;background:#fffefa!important;color:#5d675f!important;cursor:nwse-resize;touch-action:none;z-index:4}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle svg{width:14px!important;height:14px!important;fill:none;stroke:currentColor;stroke-width:1.4}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle:hover{color:#375d92!important;background:#eaf1fb!important;border-color:#adc4e5!important}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle:active,:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog).is-resizing .resize-handle{color:#375d92!important;background:#d0e0f4!important;border-color:#adc4e5!important}
+:is(.teaching-card,.rh-current-card,.rh-composer,.rh-chat-panel,.rh-start-dialog) .resize-handle:focus-visible{outline:2px solid #426db2!important;outline-offset:-2px!important}
+.rh-composer .rh-form{padding-bottom:30px}.rh-composer[data-embedded] .rh-form{padding-bottom:14px}
+.chat-proposal>.sample-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto}.chat-proposal>.sample-row button{flex:none;white-space:nowrap}.chat-proposal>.sample-row .icon{width:18px;height:18px;flex:none}
+.ui-followup-example{width:600px;max-width:100%;margin-top:0}.ui-connector-example{height:30px}.ui-connector-example:before{width:0}.ui-connector-example:after{width:1px;height:30px;background:#a9b89b;position:absolute;z-index:-1}.ui-connector-example{position:relative;isolation:isolate}.ui-connector-example span{width:22px;height:22px;font-size:15px;line-height:1}
+.ui-followup-example .followup-composer{display:flex;align-items:center;gap:10px;min-height:48px;padding:7px 10px;border:1px solid #cbd4c2;background:#fffefa;border-radius:12px;box-shadow:none}
+.ui-followup-example .followup-composer:focus-within{border-color:#92a481;outline:2px solid #e9eee3;outline-offset:0}
+.ui-followup-example .followup-composer input{flex:1;width:auto;min-width:0;padding:4px 5px;border:0;outline:0;background:transparent;color:#202723;font:15px/1.45 Inter,Arial,sans-serif}
+.ui-followup-example .followup-send{width:32px;height:32px;min-width:32px;flex:none;padding:0;border:0;border-radius:50%;display:grid;place-items:center;background:#375d92;color:#fffefa}
+.ui-followup-example .followup-send .icon{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ui-followup-example .followup-send:hover:enabled{background:#2b4b78}.ui-followup-example .followup-send:disabled{opacity:.45;cursor:not-allowed}.followup-message{font-size:15px;color:#202723}
+
+.rh-chat-panel{--card-width:480px;--card-height:760px;position:relative;display:flex;flex-direction:column;width:var(--card-width);min-width:440px;max-width:960px;height:var(--card-height);min-height:320px;max-height:760px;overflow:hidden;border:1px solid #dedfd8;border-radius:18px;background:#fffefa;color:#202723;font:15px/1.5 Inter,"Liberation Sans",Arial,sans-serif}
+.rh-chat-panel .icon{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;display:block}
+.rh-chat-panel .chat-icon,.rh-chat-panel .chat-text-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px;min-width:30px;height:30px;border:1px solid transparent;border-radius:8px;background:transparent;color:#727e69;font:13px/1.4 Inter,Arial,sans-serif;cursor:pointer;flex:none;white-space:nowrap}
+.rh-chat-panel :is(.chat-icon,.chat-text-button):hover{background:#f0f2eb;color:#394934}.rh-chat-panel :is(.chat-icon,.chat-text-button):active{background:#e6eadf}.rh-chat-panel :is(.chat-icon,.chat-text-button):focus-visible{outline:2px solid #426db2;outline-offset:1px}
+.rh-chat-panel .chat-icon[aria-current=page]{background:#eaf1fb;color:#375d92}.rh-chat-panel .chat-icon[aria-pressed=true]{background:#eaf1fb;color:#375d92}.rh-chat-panel .ui-down[aria-pressed=true]{background:#f8ece3!important;color:#b86232!important}
+.rh-chat-panel .chat-nav{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #ecece6;flex:none}.rh-chat-panel :is(.chat-nav-tabs,.chat-nav-tools,.chat-thread-tools){display:flex;align-items:center;gap:3px}
+.rh-chat-panel .chat-thread-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 6px;flex:none}.rh-chat-panel .chat-thread-header h1{margin:0;font-size:15px;font-weight:600;line-height:1.4;letter-spacing:0}
+.rh-chat-panel .chat-transcript{padding:10px 16px 24px;overflow:auto;flex:1;min-height:50px;scrollbar-gutter:stable}.rh-chat-panel .chat-user{margin:6px 0 22px auto;padding:6px 10px;width:fit-content;max-width:90%;border:1px solid #e3e7e0;border-radius:10px;background:#f0f2eb;color:#394334;overflow-wrap:anywhere}
+.rh-chat-panel .chat-assistant{margin-bottom:24px;outline-offset:4px}.rh-chat-panel .chat-assistant>p{margin:0 0 4px;color:#202723;font-size:15px;line-height:1.55;overflow-wrap:anywhere}
+.rh-chat-panel .message-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;opacity:0;visibility:hidden;transition:opacity 120ms}.rh-chat-panel .chat-assistant:is(:hover,:focus-within) .message-actions{opacity:1;visibility:visible}.rh-chat-panel :is(.message-actions-left,.message-feedback){display:flex;gap:1px;align-items:center}.rh-chat-panel .message-actions .icon{width:14px;height:14px}.rh-chat-panel .message-actions .chat-text-button{padding-left:0;font-size:12px}
+.rh-chat-panel .chat-composer-dock{flex:none;padding:0 12px 32px}.rh-chat-panel .rh-composer-example{padding:0}.rh-chat-panel .rh-composer{width:100%!important;min-width:0!important;--card-height:230px;border-radius:16px;box-shadow:none}.rh-chat-panel .rh-composer .rh-draft{max-height:115px;min-height:48px}.rh-chat-panel .rh-composer textarea{min-height:48px}.rh-chat-panel .rh-composer .rh-send{width:35px;height:35px}
+.rh-chat-panel .chat-proposal{margin-top:10px;padding:0;border:0;background:transparent}.rh-chat-panel .chat-proposal .sample-row{display:flex;flex-wrap:nowrap;gap:7px;margin:0;align-items:center}.rh-chat-panel .chat-proposal .button{display:inline-flex;align-items:center;gap:5px;min-height:35px;border:1px solid #e3e7e0;border-radius:8px;background:#fffefa;color:#5d675f;font:600 13px/1.4 Inter,Arial,sans-serif;padding:7px 10px;white-space:nowrap;cursor:pointer}.rh-chat-panel .chat-proposal .button.primary{background:#375d92;border-color:#375d92;color:white}.rh-chat-panel .chat-proposal .button:hover{background:#f0f2eb}.rh-chat-panel .chat-proposal .button.primary:hover{background:#2b4b78}.rh-chat-panel .chat-proposal .button:focus-visible{outline:2px solid #426db2;outline-offset:2px}
+.chat-card-dialog{border:0;padding:30px;background:#f5f4ed;border-radius:18px;max-width:calc(100vw - 32px);overflow:auto}.chat-card-dialog::backdrop{background:#20272344}.chat-card-dialog>form{display:flex;justify-content:flex-end;margin-bottom:8px}.chat-card-dialog .teaching-card{width:600px}
+@media(hover:none){.rh-chat-panel .message-actions{opacity:1;visibility:visible}}@media(prefers-reduced-motion:reduce){.rh-chat-panel .message-actions{transition:none}}
+
+/* Library layout reuses Home, sidebar, card, folder and shared control primitives. */
+.library-header {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  gap:12px 20px; margin-bottom:20px;
+}
+.library-header h1 {
+  font-size:clamp(1.8rem,4vw,2.5rem); font-weight:700; line-height:1.2;
+  letter-spacing:-.01em; color:var(--ink); margin:0; overflow-wrap:anywhere;
+}
+.library-title-group{display:flex;align-items:center;gap:12px;min-width:0}
+.library-title-group>.icon{width:32px;height:32px}
+.library-folder-glyph{fill:currentColor;fill-opacity:.12}
+.library-header-actions {
+  display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;
+  gap:10px; margin-inline-start:auto; max-width:100%;
+}
+
+.library-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.library-filter-controls{display:flex;align-items:center;gap:10px;flex:1 1 260px;min-width:0;flex-wrap:wrap}
+.library-search{display:flex;align-items:center;gap:8px;flex:1 1 140px;min-width:min(100%,140px)}
+.library-search>.icon{color:var(--muted);pointer-events:none}
+.library-search>.control{flex:1}
+.library-view-controls {
+  display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap;
+  gap:12px; min-width:0; max-width:100%; margin-inline-start:auto;
+}
+.library-header-actions .button,.library-toolbar .button{white-space:nowrap}
+
+.library-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.library-chips:empty{display:none}
+.library-chip{display:inline-flex;align-items:center;gap:6px}
+.library-chip .icon-button{width:22px;height:22px;min-height:22px;border-radius:var(--control-radius);padding:3px}
+.library-chip .icon{width:12px;height:12px}
+.library-folders{margin-bottom:32px}
+.library-folders .home-section-title{font-size:15px;color:var(--ink)}
+#folder-total{font-weight:400;color:var(--muted)}
+
+.library-menu{position:fixed;z-index:50;width:240px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:auto}
+.library-menu .menu-label{flex:1}
+.library-menu .icon{width:16px;height:16px;stroke-width:1.5}
+.library-menu [aria-checked]>.icon:last-child{visibility:hidden}
+.library-menu [aria-checked=true]>.icon:last-child{visibility:visible;color:var(--primary)}
+.library-menu .library-menu-heading{font-size:13px;text-transform:none;letter-spacing:0;font-weight:650;padding:8px 8px 3px;margin:0;color:var(--muted)}
+
+.library-breadcrumb{display:flex;align-items:center;gap:6px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+.library-breadcrumb .link{border:0;background:none;padding:0;font-size:inherit;color:inherit;text-decoration:none}
+.library-breadcrumb .link:hover{color:var(--ink)}
+.library-breadcrumb .icon{width:14px;height:14px}
+#library-folder-crumb{color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.library-group+.library-group{margin-top:28px}
+.library-group-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.library-group-heading h2{font-size:15px;font-weight:650;margin:0}
+.library-group-heading .button{font-size:13px}
+
+/* The app's EmptyState sits directly on the page surface. */
+.library-empty{display:grid;justify-items:center;text-align:center;gap:8px;padding:48px 12px;font-size:15px;color:var(--muted)}
+.library-empty>.icon{width:20px;height:20px;stroke-width:1.5}
+.library-empty p{margin:0}
+@media(max-width:700px){
+  .library-header-actions{gap:8px}
+  .library-filter-controls,.library-view-controls{flex-basis:100%}
+  .library-view-controls{justify-content:space-between}
+  .library-view-controls .home-size{margin-inline-start:auto}
+  .library-chip .icon-button{min-width:32px;min-height:32px}
+  .library-folder .icon-button{min-width:44px;min-height:44px}
+}
+
+/* Layout of the existing chat shell and CanvasSearchPanel. Controls use standards.css. */
+.clean-stage:has(#canvas-search-panel) {
+  display:flex; justify-content:flex-end; max-width:840px;
+}
+#canvas-search-panel {
+  --card-width:510px;
+  width:var(--card-width); min-width:0; max-width:100%;
+  height:min(760px, calc(100dvh - 56px));
+}
+.canvas-search-body { position:relative; display:flex; flex-direction:column; flex:1; min-height:0; padding:12px 16px 0; }
+.canvas-search-toolbar { display:flex; align-items:center; gap:4px; }
+.canvas-search-field.library-search { position:relative; min-width:0; gap:0; }
+.canvas-search-field > .icon { position:absolute; left:10px; width:16px; height:16px; z-index:1; }
+#canvas-search-panel .canvas-search-field > .control { padding-inline-start:34px; width:100%; min-width:0; }
+.canvas-search-toolbar .button { flex:none; }
+.canvas-search-toolbar .icon-button { flex:none; }
+.canvas-search-toolbar .canvas-filter-chevron { width:12px; height:12px; }
+.canvas-previous-chevron { transform:rotate(180deg); }
+#canvas-filter[aria-expanded="true"] {
+  background:var(--blue-soft); color:var(--primary); border-color:var(--control-selected-border);
+}
+.canvas-search-meta {
+  display:flex; align-items:center; justify-content:flex-end; padding:8px 0;
+  color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums;
+}
+.canvas-search-results { min-height:0; flex:1; overflow:auto; list-style:none; padding:0 2px 14px; }
+.canvas-search-results li + li { margin-top:8px; }
+.canvas-search-result.menu-item {
+  --button-bg:var(--card); --button-line:var(--card-border); --button-ink:var(--ink);
+  --hover-bg:var(--panel); --hover-line:var(--control-hover-border);
+  --press-bg:var(--hover-bg); --press-line:var(--hover-line); --press-ink:var(--hover-ink);
+  align-items:flex-start; gap:10px; padding:9px 10px;
+  font-weight:400;
+}
+.canvas-search-result.menu-item[aria-current="true"] {
+  --button-bg:var(--blue-soft); --button-line:var(--control-selected-border);
+  --hover-bg:var(--button-bg); --hover-line:var(--button-line);
+}
+.canvas-search-result.menu-item:focus-visible { outline-offset:-2px; }
+.canvas-result-copy { display:flex; flex:1; flex-direction:column; gap:2px; min-width:0; }
+.canvas-result-heading { display:flex; align-items:center; gap:6px; font-weight:650; font-size:14px; }
+.canvas-result-heading > .icon { width:14px; height:14px; color:var(--muted); }
+.canvas-result-heading > [data-result-title] { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.canvas-result-meta { color:var(--muted); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.canvas-result-snippet {
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
+  color:var(--copy-ink); line-height:1.45; overflow-wrap:anywhere; white-space:normal;
+}
+.canvas-result-snippet.is-code {
+  display:block; padding:3px 0; border:1px solid var(--panel-border); border-radius:6px; background:var(--panel);
+  font:11px/16px ui-monospace,monospace;
+}
+.canvas-code-line { display:flex; align-items:baseline; white-space:pre; }
+.canvas-code-line > :first-child { flex:0 0 30px; padding-right:8px; text-align:right; color:var(--muted); }
+.canvas-code-line > :last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.canvas-search-result mark { background:var(--control-active-bg); color:var(--ink); border-radius:2px; }
+.canvas-search-empty { padding:8px 2px; color:var(--muted); font-size:13px; }
+.canvas-filter-menu.library-menu {
+  position:absolute; top:51px; right:16px; width:290px; max-width:calc(100% - 32px);
+  max-height:calc(100% - 66px); grid-template-rows:auto minmax(0,1fr) auto auto; overflow:hidden;
+}
+.canvas-filter-menu .canvas-filter-field { margin:4px 4px 2px; }
+.canvas-filter-options { min-height:0; overflow:auto; }
+.canvas-filter-options .checkbox { display:flex; cursor:pointer; }
+.canvas-filter-options .checkbox:hover { background:var(--control-hover-bg); }
+.canvas-filter-options .checkbox:focus-within { outline:2px solid var(--blue); outline-offset:-2px; }
+.canvas-filter-options .checkbox > input:focus-visible { outline:none; }
+.canvas-filter-options .checkbox:has(input:checked) > .icon { color:var(--primary); }
+.canvas-filter-count { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
+.canvas-filter-menu #filter-no-results { text-transform:none; letter-spacing:normal; color:var(--muted); font-weight:400; }
+#canvas-search-tooltip {
+  position:fixed; z-index:60; max-width:min(240px,calc(100vw - 16px)); pointer-events:none;
+}
+.canvas-search-resize {
+  position:absolute; inset:0 auto 0 0; width:6px; z-index:5;
+  cursor:col-resize; touch-action:none;
+}
+.canvas-search-resize:is(:hover,:focus-visible),.resizing .canvas-search-resize { background:var(--control-selected-border); }
+.canvas-search-resize:focus-visible { outline-offset:-2px; }
+#canvas-search-panel [aria-disabled="true"] { cursor:default; }
+#canvas-search-panel [aria-disabled="true"]:hover { color:inherit; background:transparent; }
+#search-viewer .chat-text-button[aria-pressed="true"] { background:var(--blue-soft); color:var(--primary); }
+#canvas-search-panel [hidden], #canvas-search-panel[hidden], #reopen-canvas-search[hidden] { display:none!important; }
+@media (max-width:600px) {
+  #canvas-search-panel { height:calc(100dvh - 32px); }
+  .canvas-search-resize { display:none; }
+}
+@media (max-width:400px) {
+  .canvas-search-body { padding-inline:10px; }
+  .canvas-filter-menu.library-menu { right:10px; max-width:calc(100% - 20px); }
+  .canvas-search-toolbar .icon-button { width:26px; }
+  .canvas-search-toolbar .button { padding-inline:7px; gap:4px; }
+  .canvas-search-toolbar .canvas-filter-chevron { display:none; }
+}
+
+/* Current balance, following the owner's return to ca0affe as the color reference.
+   Scope colors by purpose; never recolor the entire card or app from its pill. */
+:root {
+  --rh-action:#375d92; --rh-action-hover:#2b4b78; --rh-action-pressed:#203858;
+  --rh-action-soft:#eaf1fb; --rh-action-line:#adc4e5;
+  --rh-experiment:#b86232; --rh-experiment-ink:#934723;
+  --rh-experiment-soft:#f8ece3; --rh-experiment-line:#e2ad8f;
+  --rh-experiment-hover:#f5e0d2; --rh-experiment-pressed:#eac6ad;
+  --rh-focus:#426db2;
+  --rh-toggle-on:#267657; --rh-toggle-hover:#1d6247; --rh-toggle-pressed:#174f39;
+}
+/* Isolated experiment widgets and the experiment row of composed cards. */
+body[data-ui-palette="experiment"] .catalog-preview,
+body[data-ui-palette="balanced-card"] .card-controls {
+  --blue-soft:var(--rh-experiment-soft);
+  --blue-border:var(--rh-experiment-line);
+  --blue-ink:var(--rh-experiment-ink);
+  --blue-hover:var(--rh-experiment-hover);
+  --blue-pressed:var(--rh-experiment-pressed);
+  --explanation-ink:var(--rh-experiment-ink);
+  --control-selected-border:var(--rh-experiment-line);
+  --control-selected-hover-bg:var(--rh-experiment-hover);
+  --control-active-bg:var(--rh-experiment-pressed);
+}
+body[data-ui-palette="experiment"] .control-row input[type="range"],
+body[data-ui-palette="balanced-card"] .card-controls input[type="range"] { accent-color:var(--rh-experiment); }
+body[data-ui-palette="experiment"] .control-row .value,
+body[data-ui-palette="balanced-card"] .card-controls .control-row .value { color:var(--rh-experiment-ink); }
+/* Owner correction: toggles are green in app settings and experiments. */
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked,
+body:not([data-ui-palette="historical"]) .toggle input:checked + .toggle-track { background:var(--rh-toggle-on); border-color:var(--rh-toggle-on); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:hover:enabled,
+body:not([data-ui-palette="historical"]) .toggle:hover input:checked:enabled + .toggle-track { background:var(--rh-toggle-hover); border-color:var(--rh-toggle-hover); }
+body:not([data-ui-palette="historical"]) :is(.switch input,input.switch):checked:active:enabled,
+body:not([data-ui-palette="historical"]) .toggle:active input:checked:enabled + .toggle-track { background:var(--rh-toggle-pressed); border-color:var(--rh-toggle-pressed); }
+/* Reset/Previous/Next remain neutral; experiment identity must not tint every action. */
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:hover:enabled { background:#f6f8f4; border-color:#d2d9d2; color:#202723; }
+body:is([data-ui-palette="experiment"],[data-ui-palette="balanced-card"]) .button.secondary:active:enabled { background:#e3e7e0; color:#202723; }
+/* The focus ring remains blue even within an experiment. */
+body[data-ui-palette="experiment"] :is(button,input,select,summary):focus-visible,
+body[data-ui-palette="balanced-card"] .card-controls :is(button,input,select,summary):focus-visible { outline-color:var(--rh-focus); }
+
+
+html,body { min-height:100%; }
+body { margin:0; background:#f5f4ed; }
+main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
+.clean-stage .demo { margin-top:0; }
+.clean-stage #examples,.clean-stage #example-cards { display:block; }
+.clean-stage .demo-label,.clean-stage .rh-grip-guide { display:none; }
+.clean-stage > section { margin-top:0; }
+.clean-stage .examples { display:grid; gap:16px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+#resize-guide,#clean-resize-help { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+@media(max-width:600px) { main.clean-stage{padding:16px 12px;} .clean-stage .examples{grid-template-columns:1fr;} }
+</style></head>
+<body data-ui-palette="shared">
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+<symbol id="canvas-header--MessageCircleMore" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></symbol>
+<symbol id="canvas-header--MessageSquareQuote" viewBox="0 0 24 24"><path d="M14 14a2 2 0 0 0 2-2V8h-2"/><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M8 14a2 2 0 0 0 2-2V8H8"/></symbol>
+<symbol id="canvas-header--PanelLeft" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></symbol>
+<symbol id="canvas-header--Files" viewBox="0 0 24 24"><path d="M15 2h-4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/><path d="M16.706 2.706A2.4 2.4 0 0 0 15 2v5a1 1 0 0 0 1 1h5a2.4 2.4 0 0 0-.706-1.706z"/><path d="M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1"/></symbol>
+<symbol id="canvas-header--FolderTree" viewBox="0 0 24 24"><path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/><path d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/><path d="M3 5a2 2 0 0 0 2 2h3"/><path d="M3 3v13a2 2 0 0 0 2 2h3"/></symbol>
+
+<symbol id="icons--icon-Lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></symbol><symbol id="icons--icon-Dumbbell" viewBox="0 0 24 24"><path d="M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z"></path><path d="m2.5 21.5 1.4-1.4"></path><path d="m20.1 3.9 1.4-1.4"></path><path d="M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z"></path><path d="m9.6 14.4 4.8-4.8"></path></symbol><symbol id="icons--icon-ListChecks" viewBox="0 0 24 24"><path d="M13 5h8"></path><path d="M13 12h8"></path><path d="M13 19h8"></path><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path></symbol><symbol id="icons--icon-GalleryVerticalEnd" viewBox="0 0 24 24"><path d="M7 2h10"></path><path d="M5 6h14"></path><rect width="18" height="12" x="3" y="10" rx="2"></rect></symbol><symbol id="icons--icon-Table2" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"></path></symbol><symbol id="icons--icon-Braces" viewBox="0 0 24 24"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"></path><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"></path></symbol><symbol id="icons--icon-Code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"></path><path d="m8 6-6 6 6 6"></path></symbol><symbol id="icons--icon-FileCode" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 12.5 8 15l2 2.5"></path><path d="m14 12.5 2 2.5-2 2.5"></path></symbol><symbol id="icons--icon-SquareFunction" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><path d="M9 17c2 0 2.8-1 2.8-2.8V10c0-2 1-3.3 3.2-3"></path><path d="M9 11.2h5.7"></path></symbol><symbol id="icons--icon-ChartLine" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="m19 9-5 5-4-4-3 3"></path></symbol><symbol id="icons--icon-Spline" viewBox="0 0 24 24"><circle cx="19" cy="5" r="2"></circle><circle cx="5" cy="19" r="2"></circle><path d="M5 17A12 12 0 0 1 17 5"></path></symbol><symbol id="icons--icon-Pi" viewBox="0 0 24 24"><line x1="9" x2="9" y1="4" y2="20"></line><path d="M4 7c0-1.7 1.3-3 3-3h13"></path><path d="M18 20c-1.7 0-3-1.3-3-3V4"></path></symbol><symbol id="icons--icon-Workflow" viewBox="0 0 24 24"><rect width="8" height="8" x="3" y="3" rx="2"></rect><path d="M7 11v4a2 2 0 0 0 2 2h4"></path><rect width="8" height="8" x="13" y="13" rx="2"></rect></symbol><symbol id="icons--icon-Waypoints" viewBox="0 0 24 24"><path d="m10.586 5.414-5.172 5.172"></path><path d="m18.586 13.414-5.172 5.172"></path><path d="M6 12h12"></path><circle cx="12" cy="20" r="2"></circle><circle cx="12" cy="4" r="2"></circle><circle cx="20" cy="12" r="2"></circle><circle cx="4" cy="12" r="2"></circle></symbol><symbol id="icons--icon-Route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"></circle><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"></path><circle cx="18" cy="5" r="3"></circle></symbol><symbol id="icons--icon-Blocks" viewBox="0 0 24 24"><path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"></path><rect x="14" y="2" width="8" height="8" rx="1"></rect></symbol><symbol id="icons--icon-Network" viewBox="0 0 24 24"><rect x="16" y="16" width="6" height="6" rx="1"></rect><rect x="2" y="16" width="6" height="6" rx="1"></rect><rect x="9" y="2" width="6" height="6" rx="1"></rect><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"></path><path d="M12 12V8"></path></symbol><symbol id="icons--icon-GitBranch" viewBox="0 0 24 24"><path d="M15 6a9 9 0 0 0-9 9V3"></path><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle></symbol><symbol id="icons--icon-Clapperboard" viewBox="0 0 24 24"><path d="m12.296 3.464 3.02 3.956"></path><path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3z"></path><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="m6.18 5.276 3.1 3.899"></path></symbol><symbol id="icons--icon-Focus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path></symbol><symbol id="icons--icon-PenTool" viewBox="0 0 24 24"><path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"></path><path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"></path><path d="m2.3 2.3 7.286 7.286"></path><circle cx="11" cy="11" r="2"></circle></symbol><symbol id="icons--icon-Projector" viewBox="0 0 24 24"><path d="M5 7 3 5"></path><path d="M9 6V3"></path><path d="m13 7 2-2"></path><circle cx="9" cy="13" r="3"></circle><path d="M11.83 12H20a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h2.17"></path><path d="M16 16h2"></path></symbol><symbol id="icons--icon-Rotate3d" viewBox="0 0 24 24"><path d="m15.194 13.707 3.814 1.86-1.86 3.814"></path><path d="M16.47214 7.52786 A 5 10 0 1 0 13 21.79796"></path><path d="M21.79796 11 A 10 5 0 1 0 19 15.57071"></path></symbol><symbol id="icons--icon-Box" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></symbol><symbol id="icons--icon-Boxes" viewBox="0 0 24 24"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"></path><path d="m7 16.5-4.74-2.85"></path><path d="m7 16.5 5-3"></path><path d="M7 16.5v5.17"></path><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"></path><path d="m17 16.5-5-3"></path><path d="m17 16.5 4.74-2.85"></path><path d="M17 16.5v5.17"></path><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"></path><path d="M12 8 7.26 5.15"></path><path d="m12 8 4.74-2.85"></path><path d="M12 13.5V8"></path></symbol><symbol id="icons--icon-Cuboid" viewBox="0 0 24 24"><path d="M10 22v-8"></path><path d="M2.336 8.89 10 14l11.715-7.029"></path><path d="M22 14a2 2 0 0 1-.971 1.715l-10 6a2 2 0 0 1-2.138-.05l-6-4A2 2 0 0 1 2 16v-6a2 2 0 0 1 .971-1.715l10-6a2 2 0 0 1 2.138.05l6 4A2 2 0 0 1 22 8z"></path></symbol><symbol id="icons--icon-Image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></symbol><symbol id="icons--icon-Film" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M7 3v18"></path><path d="M3 7.5h4"></path><path d="M3 12h18"></path><path d="M3 16.5h4"></path><path d="M17 3v18"></path><path d="M17 7.5h4"></path><path d="M17 16.5h4"></path></symbol><symbol id="icons--icon-AudioLines" viewBox="0 0 24 24"><path d="M2 10v3"></path><path d="M6 6v11"></path><path d="M10 3v18"></path><path d="M14 8v7"></path><path d="M18 5v13"></path><path d="M22 10v3"></path></symbol><symbol id="icons--icon-FileText" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></symbol><symbol id="icons--icon-Presentation" viewBox="0 0 24 24"><path d="M2 3h20"></path><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"></path><path d="m7 21 5-5 5 5"></path></symbol><symbol id="icons--icon-Quote" viewBox="0 0 24 24"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path></symbol><symbol id="icons--icon-BookOpenText" viewBox="0 0 24 24"><path d="M12 5v16"></path><path d="M16 13h2"></path><path d="M16 9h2"></path><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"></path><path d="M6 13h2"></path><path d="M6 9h2"></path></symbol><symbol id="icons--icon-Globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></symbol><symbol id="icons--icon-BookText" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"></path><path d="M8 11h8"></path><path d="M8 7h6"></path></symbol><symbol id="icons--icon-Link2" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" x2="16" y1="12" y2="12"></line></symbol><symbol id="icons--icon-Minus" viewBox="0 0 24 24"><path d="M5 12h14"></path></symbol><symbol id="icons--icon-Heading" viewBox="0 0 24 24"><path d="M6 12h12"></path><path d="M6 20V4"></path><path d="M18 20V4"></path></symbol><symbol id="icons--icon-FileSpreadsheet" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M8 13h2"></path><path d="M14 13h2"></path><path d="M8 17h2"></path><path d="M14 17h2"></path></symbol><symbol id="icons--icon-Shapes" viewBox="0 0 24 24"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z"></path><rect x="3" y="14" width="7" height="7" rx="1"></rect><circle cx="17.5" cy="17.5" r="3.5"></circle></symbol><symbol id="icons--icon-ScanText" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M7 8h8"></path><path d="M7 12h10"></path><path d="M7 16h6"></path></symbol><symbol id="icons--icon-BookOpen" viewBox="0 0 24 24"><path d="M12 5v16"></path><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"></path></symbol><symbol id="icons--icon-Maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></symbol><symbol id="icons--icon-Minimize" viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></symbol><symbol id="icons--icon-UnfoldVertical" viewBox="0 0 24 24"><path d="M12 22v-6"></path><path d="M12 8V2"></path><path d="M4 12H2"></path><path d="M10 12H8"></path><path d="M16 12h-2"></path><path d="M22 12h-2"></path><path d="m15 19-3 3-3-3"></path><path d="m15 5-3-3-3 3"></path></symbol><symbol id="icons--icon-ScrollText" viewBox="0 0 24 24"><path d="M15 12h-5"></path><path d="M15 8h-5"></path><path d="M19 17V5a2 2 0 0 0-2-2H4"></path><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"></path></symbol><symbol id="icons--icon-MoreHorizontal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></symbol><symbol id="icons--icon-X" viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></symbol><symbol id="icons--icon-Download" viewBox="0 0 24 24"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></symbol><symbol id="icons--icon-Paperclip" viewBox="0 0 24 24"><path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"></path></symbol><symbol id="icons--icon-Copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></symbol><symbol id="icons--icon-StickyNote" viewBox="0 0 24 24"><path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path><path d="M15 3v5a1 1 0 0 0 1 1h5"></path></symbol><symbol id="icons--icon-Highlighter" viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"></path><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path></symbol><symbol id="icons--icon-MessageSquarePlus" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path><path d="M12 8v6"></path><path d="M9 11h6"></path></symbol><symbol id="icons--icon-Check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></symbol><symbol id="icons--icon-Wand" viewBox="0 0 24 24"><path d="M15 4V2"></path><path d="M15 16v-2"></path><path d="M8 9h2"></path><path d="M20 9h2"></path><path d="M17.8 11.8 19 13"></path><path d="M15 9h.01"></path><path d="M17.8 6.2 19 5"></path><path d="m3 21 9-9"></path><path d="M12.2 6.2 11 5"></path></symbol><symbol id="icons--icon-ArrowUp" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></symbol><symbol id="icons--icon-Square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"></rect></symbol><symbol id="icons--icon-Loader2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></symbol><symbol id="icons--icon-Play" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></symbol><symbol id="icons--icon-Pause" viewBox="0 0 24 24"><rect x="14" y="3" width="5" height="18" rx="1"></rect><rect x="5" y="3" width="5" height="18" rx="1"></rect></symbol><symbol id="icons--icon-ChevronRight" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></symbol><symbol id="icons--icon-ChevronDown" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></symbol><symbol id="icons--icon-ThumbsUp" viewBox="0 0 24 24"><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"></path><path d="M7 10v12"></path></symbol><symbol id="icons--icon-ThumbsDown" viewBox="0 0 24 24"><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"></path><path d="M17 14V2"></path></symbol><symbol id="icons--icon-CanvasResize" viewBox="0 0 11 11"><path d="M10 4 4 10 M10 8 8 10"/></symbol><symbol id="icons--icon-ShellResize" viewBox="0 0 14 14"><path d="M3 12 12 3M8 12 12 8"/></symbol><symbol id="icons--icon-ApprovedAskHere" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l1.7-3.2A7.5 7.5 0 1 1 20 11.5Z"/><path d="M9 11.5h7m-7 3h4"/></symbol><symbol id="icons--icon-ApprovedAskNew" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 8v8m0-3h5a7 7 0 0 0 7-5"/></symbol><symbol id="icons--icon-ApprovedFollowUp" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="icons--icon-ApprovedSend" viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></symbol><symbol id="library--library-arrow-down-up" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></symbol><symbol id="library--library-list-filter" viewBox="0 0 24 24"><path d="M2 5h20"/><path d="M6 12h12"/><path d="M9 19h6"/></symbol><symbol id="library--library-folder-git-2" viewBox="0 0 24 24"><path d="M18 19a5 5 0 0 1-5-5v8"/><path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v5"/><circle cx="13" cy="12" r="2"/><circle cx="20" cy="19" r="2"/></symbol><symbol id="library--library-app-window" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/></symbol><symbol id="library--library-archive" viewBox="0 0 24 24"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></symbol><symbol id="library--library-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></symbol><symbol id="library--library-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol><symbol id="library--library-user-round" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol><symbol id="library--library-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol><symbol id="library--library-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol><symbol id="library--library-calendar-plus" viewBox="0 0 24 24"><path d="M16 18h6"/><path d="M16 2v3"/><path d="M19 15v6"/><path d="M21 11.5V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h8.3"/><path d="M3 9h18"/><path d="M8 2v3"/></symbol><symbol id="library--library-arrow-down-a-z" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M20 8h-5"/><path d="M15 10V6.5a2.5 2.5 0 0 1 5 0V10"/><path d="M15 14h5l-5 6h5"/></symbol><symbol id="library--library-git-fork" viewBox="0 0 24 24"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v2c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1V9"/><path d="M12 12v3"/></symbol><symbol id="library--library-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></symbol><symbol id="standards--i-ArrowRight" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></symbol><symbol id="standards--i-ArrowUp" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></symbol><symbol id="standards--i-ArrowUpRight" viewBox="0 0 24 24"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></symbol><symbol id="standards--i-Bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"></path><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path></symbol><symbol id="standards--i-Check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></symbol><symbol id="standards--i-ChevronDown" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></symbol><symbol id="standards--i-CircleAlert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></symbol><symbol id="standards--i-CircleCheck" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="m16 9-5.5 5.5L8 12"></path></symbol><symbol id="standards--i-Copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></symbol><symbol id="standards--i-Ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></symbol><symbol id="standards--i-ExternalLink" viewBox="0 0 24 24"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></symbol><symbol id="standards--i-FileText" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></symbol><symbol id="standards--i-Gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></symbol><symbol id="standards--i-Globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></symbol><symbol id="standards--i-Hand" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"></path><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></symbol><symbol id="standards--i-Highlighter" viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"></path><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path></symbol><symbol id="standards--i-Info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></symbol><symbol id="standards--i-Link2" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" x2="16" y1="12" y2="12"></line></symbol><symbol id="standards--i-ListFilter" viewBox="0 0 24 24"><path d="M2 5h20"></path><path d="M6 12h12"></path><path d="M9 19h6"></path></symbol><symbol id="standards--i-ListTree" viewBox="0 0 24 24"><path d="M8 5h13"></path><path d="M13 12h8"></path><path d="M13 19h8"></path><path d="M3 10a2 2 0 0 0 2 2h3"></path><path d="M3 5v12a2 2 0 0 0 2 2h3"></path></symbol><symbol id="standards--i-Lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></symbol><symbol id="standards--i-MessageCircle" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"></path></symbol><symbol id="standards--i-MessageSquare" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path></symbol><symbol id="standards--i-MessageSquarePlus" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path><path d="M12 8v6"></path><path d="M9 11h6"></path></symbol><symbol id="standards--i-Mic" viewBox="0 0 24 24"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></symbol><symbol id="standards--i-MousePointer2" viewBox="0 0 24 24"><path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"></path></symbol><symbol id="standards--i-NotebookPen" viewBox="0 0 24 24"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"></path><path d="M2 6h4"></path><path d="M2 10h4"></path><path d="M2 14h4"></path><path d="M2 18h4"></path><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"></path></symbol><symbol id="standards--i-Pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path><path d="m15 5 4 4"></path></symbol><symbol id="standards--i-Pin" viewBox="0 0 24 24"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"></path></symbol><symbol id="standards--i-Plus" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="M12 5v14"></path></symbol><symbol id="standards--i-RefreshCw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></symbol><symbol id="standards--i-Reply" viewBox="0 0 24 24"><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path><path d="m9 17-5-5 5-5"></path></symbol><symbol id="standards--i-Shapes" viewBox="0 0 24 24"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z"></path><rect x="3" y="14" width="7" height="7" rx="1"></rect><circle cx="17.5" cy="17.5" r="3.5"></circle></symbol><symbol id="standards--i-Sigma" viewBox="0 0 24 24"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"></path></symbol><symbol id="standards--i-Slash" viewBox="0 0 24 24"><path d="M22 2 2 22"></path></symbol><symbol id="standards--i-SlidersHorizontal" viewBox="0 0 24 24"><path d="M10 5H3"></path><path d="M12 19H3"></path><path d="M14 3v4"></path><path d="M16 17v4"></path><path d="M21 12h-9"></path><path d="M21 19h-5"></path><path d="M21 5h-7"></path><path d="M8 10v4"></path><path d="M8 12H3"></path></symbol><symbol id="standards--i-Square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"></rect></symbol><symbol id="standards--i-Star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></symbol><symbol id="standards--i-StickyNote" viewBox="0 0 24 24"><path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path><path d="M15 3v5a1 1 0 0 0 1 1h5"></path></symbol><symbol id="standards--i-Trash2" viewBox="0 0 24 24"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></symbol><symbol id="standards--i-TriangleAlert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></symbol><symbol id="standards--i-Type" viewBox="0 0 24 24"><path d="M12 4v16"></path><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"></path><path d="M9 20h6"></path></symbol><symbol id="standards--i-Upload" viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></symbol><symbol id="standards--i-UserRound" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 0 0-16 0"></path></symbol><symbol id="standards--i-Wand" viewBox="0 0 24 24"><path d="M15 4V2"></path><path d="M15 16v-2"></path><path d="M8 9h2"></path><path d="M20 9h2"></path><path d="M17.8 11.8 19 13"></path><path d="M15 9h.01"></path><path d="M17.8 6.2 19 5"></path><path d="m3 21 9-9"></path><path d="M12.2 6.2 11 5"></path></symbol><symbol id="standards--i-X" viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></symbol></svg>
+<main class="clean-stage"><!-- Composes the reviewed chat panel shell and the shared Library search controls. -->
+<section class="rh-chat-panel" id="canvas-search-panel" aria-label="Canvas Search panel">
+  <div class="canvas-search-resize" role="separator" aria-label="Resize panel" aria-orientation="vertical"
+       aria-valuemin="320" aria-valuemax="800" aria-valuenow="510" tabindex="0" title="Drag to resize · double-click to reset"></div>
+  <nav class="chat-nav" aria-label="Panel navigation">
+  <div class="chat-nav-tabs">
+    <button type="button" class="chat-icon" aria-label="Chat" data-tooltip-label="Chat" aria-disabled="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#canvas-header--MessageCircleMore"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Table of contents" data-tooltip-label="Table of contents" aria-disabled="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#standards--i-ListTree"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Progress" data-tooltip-label="Progress" aria-disabled="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#standards--i-Gauge"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Comments" data-tooltip-label="Comments" aria-disabled="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#canvas-header--MessageSquareQuote"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Search" data-tooltip-label="Search this canvas (/)" aria-keyshortcuts="/" aria-current="page" data-open-search>
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    </button>
+  </div>
+  <div class="chat-nav-tools">
+    <button type="button" class="chat-icon" data-viewer aria-label="Context, Files and Graph" data-tooltip-label="Context, Files and Graph" aria-pressed="false" aria-controls="search-viewer">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#canvas-header--PanelLeft"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Keep panel open" data-tooltip-label="Keep panel open" aria-pressed="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#standards--i-Pin"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Close panel" data-tooltip-label="Close panel">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#standards--i-X"/></svg>
+    </button>
+  </div>
+</nav>
+
+  <div id="search-viewer" class="chat-nav" role="group" aria-label="Viewer" hidden>
+  <div class="chat-nav-tabs">
+    <button class="chat-text-button" type="button" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#canvas-header--Files"></use></svg>Context</button>
+    <button class="chat-text-button" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#canvas-header--FolderTree"></use></svg>Files</button>
+    <button class="chat-text-button" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icons--icon-Network"></use></svg>Graph</button>
+  </div>
+</div>
+<div class="canvas-search-body">
+  <div class="canvas-search-toolbar">
+    <label class="library-search canvas-search-field">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#library--library-search"></use></svg>
+      <input class="control" id="canvas-query" type="search" aria-label="Search this canvas" placeholder="Search this canvas" autocomplete="off" aria-controls="canvas-search-results" value="cross entropy">
+    </label>
+    <button class="button secondary" id="canvas-filter" type="button" aria-expanded="false" aria-controls="canvas-filter-menu" data-tooltip-label="Filter search results">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#library--library-list-filter"></use></svg>
+      <span id="canvas-filter-label">Filter</span>
+      <svg class="icon canvas-filter-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="#standards--i-ChevronDown"></use></svg>
+    </button>
+    <div id="canvas-filter-menu" class="menu library-menu canvas-filter-menu" role="group" aria-label="Search filters" hidden>
+      <label class="library-search canvas-search-field canvas-filter-field">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#library--library-search"></use></svg>
+        <input class="control" id="filter-query" type="search" aria-label="Search filters" placeholder="Search filters" autocomplete="off" aria-controls="canvas-filter-options">
+      </label>
+      <div class="canvas-filter-options" id="canvas-filter-options"></div>
+      <p id="filter-no-results" hidden>No matching filters.</p>
+      <hr class="menu-divider">
+      <button class="menu-item" type="button" id="clear-canvas-filters" disabled>Clear</button>
+    </div>
+    <button type="button" class="icon-button quiet" id="previous-match" aria-label="Previous match" data-tooltip-label="Previous match (Shift+Enter)">
+      <svg class="icon canvas-previous-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="#standards--i-ChevronDown"></use></svg>
+    </button>
+    <button type="button" class="icon-button quiet" id="next-match" aria-label="Next match" data-tooltip-label="Next match (Enter)">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#standards--i-ChevronDown"></use></svg>
+    </button>
+  </div>
+  <div class="canvas-search-meta"><span id="canvas-match-count" aria-live="polite"></span></div>
+  <p class="canvas-search-empty" id="canvas-search-empty" hidden>No matches on this canvas.</p>
+  <ol id="canvas-search-results" class="canvas-search-results" aria-label="Search results"></ol>
+</div>
+
+</section>
+<button type="button" class="button secondary" id="reopen-canvas-search" hidden>
+  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#library--library-search"></use></svg>
+  Search this canvas
+</button>
+<div class="tooltip" role="tooltip" id="canvas-search-tooltip" hidden></div>
+</main><template id="canvas-filter-group-template">
+  <section role="group">
+    <p class="library-menu-heading"></p>
+    <div data-filter-items></div>
+  </section>
+</template>
+<template id="canvas-filter-row-template">
+  <label class="menu-item checkbox" data-filter-row>
+    <input type="checkbox">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use></use></svg>
+    <span class="menu-label"></span>
+    <span class="canvas-filter-count" aria-hidden="true"></span>
+  </label>
+</template>
+<template id="canvas-search-result-template">
+  <li><button class="menu-item canvas-search-result" type="button" data-search-result>
+    <span class="canvas-result-copy">
+      <span class="canvas-result-heading">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use></use></svg>
+        <span data-result-title></span>
+      </span>
+      <span class="canvas-result-meta"></span>
+      <span class="canvas-result-snippet"></span>
+    </span>
+  </button></li>
+</template>
+
+<script>// Filter groups from packages/web/src/canvas-search-panel.js.
+const searchFilterGroups = [
+  { title: 'Content types', items: [['video', 'Video'], ['pdf', 'PDF'], ['paper', 'Paper'], ['notebook', 'Notebook'], ['code', 'Code'], ['image', 'Image'],
+    ['whiteboard', 'Whiteboard'], ['diagram', 'Diagram'], ['graph', 'Graph'], ['quiz', 'Quiz'], ['flashcards', 'Flashcards'], ['challenge', 'Practice'],
+    ['explanation', 'Explanation'], ['table', 'Table'], ['cad', '3D/CAD'], ['animation', 'Animation'], ['audio', 'Audio'], ['slides', 'Slides'],
+    ['document', 'Document'], ['other-cards', 'Other cards']] },
+  { title: 'Sources', items: [['arxiv', 'arXiv'], ['wikipedia', 'Wikipedia'], ['youtube', 'YouTube'], ['web', 'Web'], ['repository', 'Repository']] },
+  { title: 'Other', always: true, items: [['text', 'Text'], ['comments', 'Comments'], ['references', 'References'], ['links', 'Links'], ['rabbit-holes', 'Rabbit Holes']] },
+];
+
+(() => {
+  const get = id => document.getElementById(id);
+  const clone = id => get(id).content.firstElementChild.cloneNode(true);
+  const standard = name => '#standards--i-' + name;
+  const kit = name => '#icons--icon-' + name;
+  // A filter and its result type share one sprite entry.
+  const typeIcons = {
+    video: kit('Film'), pdf: standard('FileText'), paper: kit('ScrollText'),
+    notebook: standard('NotebookPen'), code: kit('Code'), image: kit('Image'),
+    whiteboard: kit('PenTool'), diagram: kit('Workflow'), graph: kit('ChartLine'),
+    quiz: kit('ListChecks'), flashcards: kit('GalleryVerticalEnd'), challenge: kit('Dumbbell'),
+    explanation: kit('Lightbulb'), table: kit('Table2'), cad: kit('Cuboid'),
+    animation: kit('Clapperboard'), audio: kit('AudioLines'), slides: kit('Presentation'),
+    document: kit('BookText'), 'other-cards': kit('Shapes'), arxiv: kit('FileCode'),
+    wikipedia: kit('BookOpenText'), youtube: kit('Play'), web: standard('Globe'),
+    repository: kit('GitBranch'), text: standard('Type'), comments: standard('MessageCircle'),
+    references: kit('Paperclip'), links: standard('Link2'), 'rabbit-holes': kit('Waypoints')
+  };
+  const labels = new Map(searchFilterGroups.flatMap(group => group.items));
+  const typeLabel = type => labels.get(type);
+  const rows = [
+    { id:'overfitting', type:'explanation', title:'What is Overfitting?', text:'Overfitting occurs when a model fits the training data too well, capturing noise along with the signal.' },
+    { id:'mle', type:'explanation', title:'Maximum Likelihood Estimation', text:'Maximum likelihood estimation chooses the parameters that maximise the probability of the observed data.' },
+    { id:'cross-validation', type:'explanation', title:'How Cross-Validation Works', text:'Cross-validation repeatedly splits the data into training and hold-out sets. Each split yields a validation error.' },
+    { id:'text', type:'text', title:'Text', meta:'Text · Note', text:'Compare the training and validation curves before choosing a model.' },
+    { id:'cross-entropy', type:'explanation', title:'Cross entropy loss', text:'Cross entropy measures how much probability a classifier assigns to the correct class.' },
+    { id:'loss-code', type:'code', title:'loss.py', path:'src/loss.py', text:'Cross entropy from log probabilities.', line:14,
+      code:['def cross_entropy(log_probs, target):', '    return -log_probs[target]', ''] },
+    { id:'image-curve', type:'image', title:'Cross entropy loss curve', meta:'Image · loss-curve.png', text:'The penalty rises as the predicted probability of the correct class falls.' },
+    { id:'image-fallback', type:'image', title:'Cross entropy class example', meta:'Image · class-example.png', text:'A worked example with three predicted probabilities.' },
+    { id:'loss-pdf', type:'pdf', title:'Model evaluation notes.pdf', meta:'PDF · Page 7', text:'We report cross entropy alongside accuracy to compare how confident each model is.', also:['references'] },
+    { id:'loss-comment', type:'comments', title:'Comment on Loss functions', text:'Can we show how cross entropy changes when the correct class gets only 10% probability?' },
+    { id:'loss-note', type:'text', title:'Training notes', meta:'Text · Note', text:'Compare cross entropy on the training and validation sets after each epoch.' },
+    { id:'video', type:'video', title:'Bias and variance explained', text:'A visual introduction to underfitting and overfitting.' },
+    { id:'paper', type:'paper', title:'On calibration of modern neural networks', text:'A study of calibration and confidence in image classifiers.', also:['arxiv','references'] },
+    { id:'notebook', type:'notebook', title:'evaluation.ipynb', text:'Compute validation metrics from saved predictions.' },
+    { id:'whiteboard', type:'whiteboard', title:'Training loop sketch', text:'Predict, measure loss, and update the model.' },
+    { id:'diagram', type:'diagram', title:'Model evaluation flow', text:'From data splits to metric reporting.' },
+    { id:'graph', type:'graph', title:'Training and validation loss', text:'Compare the loss curves over 20 epochs.' },
+    { id:'quiz', type:'quiz', title:'Check your understanding', text:'Which score exposes an overconfident wrong prediction?' },
+    { id:'flashcards', type:'flashcards', title:'Classification metrics', text:'Flashcards for accuracy, precision, recall and F1.' },
+    { id:'challenge', type:'challenge', title:'Choose a validation metric', text:'Explain your choice when the positive class is rare.' },
+    { id:'table', type:'table', title:'Validation results', text:'Compare accuracy, recall and loss for three model variants.' },
+    { id:'cad', type:'cad', title:'Classifier input scene', text:'A sample 3D model used in the course.' },
+    { id:'animation', type:'animation', title:'Loss through training', text:'Watch predictions and error change over time.' },
+    { id:'audio', type:'audio', title:'Evaluation walkthrough', text:'A short audio note on interpreting metrics.' },
+    { id:'slides', type:'slides', title:'Classification slides', text:'Training objectives and evaluation metrics.' },
+    { id:'document', type:'document', title:'metrics.md', text:'Definitions and conventions for the evaluation run.' },
+    { id:'other', type:'other-cards', title:'Evaluation checkpoint', text:'Review the metrics before comparing models.' },
+    { id:'arxiv', type:'arxiv', title:'Calibration paper on arXiv', text:'Source for the model calibration notes.' },
+    { id:'wiki', type:'wikipedia', title:'Confusion matrix', text:'Wikipedia reference for the metric table.' },
+    { id:'youtube', type:'youtube', title:'Bias–variance tradeoff on YouTube', text:'Video source for the evaluation walkthrough.', also:['video'] },
+    { id:'web', type:'web', title:'Model evaluation guide', text:'Documentation for classifier scoring.' },
+    { id:'repo', type:'repository', title:'Model evaluation repository', text:'Source files and examples for the workshop.' },
+    { id:'refs', type:'references', title:'Sources for model calibration', text:'References used in the evaluation notes.' },
+    { id:'links', type:'links', title:'Decision Trees', text:'Linked from this canvas.' },
+    { id:'rabbit-hole', type:'rabbit-holes', title:'Why do models get overconfident?', text:'A follow-up on calibration.' }
+  ];
+  const panel = get('canvas-search-panel');
+  const query = get('canvas-query');
+  const resultsList = get('canvas-search-results');
+  const matchCount = get('canvas-match-count');
+  const previous = get('previous-match');
+  const next = get('next-match');
+  const filter = get('canvas-filter');
+  const menu = get('canvas-filter-menu');
+  const filterQuery = get('filter-query');
+  const filterOptions = get('canvas-filter-options');
+  const clearFilters = get('clear-canvas-filters');
+  const selected = new Set();
+  let matches = [];
+  let resultButtons = [];
+  let active = -1;
+
+  const escapeRegex = value => value.replace(/[.*+?^$(){}|[\]\\]/g, '\\$&');
+  const pattern = value => value.trim().split(/\s+/).map(escapeRegex).join('[\\s_-]+');
+  const categories = row => [row.type, ...(row.also || [])];
+  function highlight(node, value, expression) {
+    if (!expression) {
+      node.textContent = value;
+      return;
+    }
+    let offset = 0;
+    for (const hit of value.matchAll(new RegExp(expression, 'gi'))) {
+      node.append(value.slice(offset, hit.index));
+      const mark = document.createElement('mark');
+      mark.textContent = hit[0];
+      node.append(mark);
+      offset = hit.index + hit[0].length;
+    }
+    node.append(value.slice(offset));
+  }
+  function iconFor(node, type) {
+    node.querySelector('use').setAttribute('href', typeIcons[type]);
+  }
+  function showResult(row, index, expression) {
+    const item = clone('canvas-search-result-template');
+    const button = item.firstElementChild;
+    button.dataset.searchResult = row.id;
+    button.dataset.resultType = row.type;
+    iconFor(item.querySelector('.canvas-result-heading .icon'), row.type);
+    highlight(item.querySelector('[data-result-title]'), row.title, expression);
+    item.querySelector('.canvas-result-meta').textContent = row.meta || (row.path ? typeLabel(row.type) + ' · ' + row.path + ' · Line ' + row.line : typeLabel(row.type));
+    const snippet = item.querySelector('.canvas-result-snippet');
+    if (row.code) {
+      snippet.classList.add('is-code');
+      row.code.forEach((line, position) => {
+        const preview = document.createElement('span');
+        preview.className = 'canvas-code-line';
+        const number = document.createElement('span');
+        number.setAttribute('aria-hidden', 'true');
+        number.textContent = row.line + position;
+        const code = document.createElement('code');
+        highlight(code, line || ' ', expression);
+        preview.append(number, code);
+        snippet.append(preview);
+      });
+    } else highlight(snippet, row.text, expression);
+    button.addEventListener('click', () => activate(index));
+    button.addEventListener('keydown', event => {
+      const position = {ArrowUp:index-1, ArrowDown:index+1, Home:0, End:resultButtons.length-1}[event.key];
+      if (position === undefined) return;
+      event.preventDefault();
+      const target = Math.min(Math.max(position, 0), resultButtons.length-1);
+      activate(target);
+      resultButtons[target].focus();
+    });
+    return item;
+  }
+  function unfilteredMatches() {
+    const expression = query.value.trim() ? pattern(query.value) : '';
+    const test = expression ? new RegExp(expression, 'i') : null;
+    if (!test) return { rows, expression };
+    const title = [];
+    const content = [];
+    for (const row of rows) {
+      if ([row.title, row.path].some(value => value && test.test(value))) title.push(row);
+      else if ([row.text, ...(row.code || [])].some(value => test.test(value))) content.push(row);
+    }
+    return { rows:[...title, ...content], expression };
+  }
+  function updateCounter() {
+    matchCount.textContent = active >= 0 ? (active+1) + ' of ' + matches.length
+      : matches.length + (matches.length === 1 ? ' result' : ' results');
+  }
+  function activate(index) {
+    if (!matches.length) return;
+    if (active >= 0 && active !== index) resultButtons[active].removeAttribute('aria-current');
+    active = index;
+    const button = resultButtons[index];
+    button.setAttribute('aria-current', 'true');
+    const rowBounds = button.getBoundingClientRect();
+    const listBounds = resultsList.getBoundingClientRect();
+    if (rowBounds.top < listBounds.top || rowBounds.bottom > listBounds.bottom) button.scrollIntoView({ block:'nearest' });
+    updateCounter();
+  }
+  function step(direction) {
+    if (!matches.length) return;
+    const start = active >= 0 ? active : direction > 0 ? -1 : 0;
+    activate((start + direction + matches.length) % matches.length);
+  }
+  function renderResults() {
+    const search = unfilteredMatches();
+    matches = search.rows.filter(row => !selected.size || categories(row).some(type => selected.has(type)));
+    active = -1;
+    resultsList.replaceChildren(...matches.map((row, index) => showResult(row, index, search.expression)));
+    resultButtons = Array.from(resultsList.querySelectorAll('button'));
+    resultsList.scrollTop = 0;
+    previous.disabled = next.disabled = matches.length === 0;
+    get('canvas-search-empty').hidden = matches.length > 0;
+    updateCounter();
+  }
+  function renderFilterOptions() {
+    const search = filterQuery.value.trim().toLowerCase();
+    const counts = new Map();
+    for (const row of unfilteredMatches().rows) for (const type of categories(row)) counts.set(type, (counts.get(type) || 0) + 1);
+    const groups = [];
+    for (const { title, items } of searchFilterGroups) {
+      const visible = items.filter(([,label]) => label.toLowerCase().includes(search));
+      if (!visible.length) continue;
+      const group = clone('canvas-filter-group-template');
+      group.setAttribute('aria-label', title);
+      group.querySelector('p').textContent = title;
+      const body = group.querySelector('[data-filter-items]');
+      for (const [id, label] of visible) {
+        const row = clone('canvas-filter-row-template');
+        row.dataset.filterRow = id;
+        iconFor(row, id);
+        row.querySelector('.menu-label').textContent = label;
+        row.querySelector('.canvas-filter-count').textContent = counts.get(id) || 0;
+        const input = row.querySelector('input');
+        input.checked = selected.has(id);
+        input.addEventListener('change', () => {
+          if (input.checked) selected.add(id);
+          else selected.delete(id);
+          syncFilter();
+          renderResults();
+        });
+        if (id === 'references') row.title = 'Cards on this canvas that cite a source';
+        if (id === 'links') row.title = 'Other canvases this one links to or from';
+        body.append(row);
+      }
+      groups.push(group);
+    }
+    filterOptions.replaceChildren(...groups);
+    get('filter-no-results').hidden = groups.length > 0;
+  }
+  function syncFilter() {
+    get('canvas-filter-label').textContent = selected.size ? 'Filter (' + selected.size + ')' : 'Filter';
+    clearFilters.disabled = selected.size === 0;
+  }
+  function setMenu(open, focusTrigger = false) {
+    menu.hidden = !open;
+    filter.setAttribute('aria-expanded', String(open));
+    if (open) {
+      filterQuery.value = '';
+      renderFilterOptions();
+    }
+    if (focusTrigger) filter.focus();
+  }
+
+  filter.addEventListener('click', () => setMenu(menu.hidden, true));
+  filter.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    if (menu.hidden) setMenu(true);
+    filterQuery.focus();
+  });
+  filterQuery.addEventListener('input', renderFilterOptions);
+  clearFilters.addEventListener('click', () => {
+    selected.clear();
+    syncFilter();
+    renderFilterOptions();
+    renderResults();
+    filterQuery.focus();
+  });
+  menu.addEventListener('keydown', event => {
+    if (!['ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
+    if (event.target === filterQuery && ['Home','End'].includes(event.key)) return;
+    const stops = [filterQuery, ...filterOptions.querySelectorAll('input')];
+    if (!clearFilters.disabled) stops.push(clearFilters);
+    const index = stops.indexOf(document.activeElement);
+    const last = stops.length - 1;
+    const target = {ArrowUp:Math.max(0, index-1), ArrowDown:Math.min(last,index+1), Home:1, End:last}[event.key];
+    if (!stops[target]) return;
+    event.preventDefault();
+    stops[target].focus();
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!menu.hidden && !menu.contains(event.target) && !filter.contains(event.target)) setMenu(false);
+  });
+  query.addEventListener('input', () => {
+    renderResults();
+    if (!menu.hidden) renderFilterOptions();
+  });
+  query.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      step(event.shiftKey ? -1 : 1);
+    }
+  });
+  previous.addEventListener('click', () => step(-1));
+  next.addEventListener('click', () => step(1));
+  const reopen = get('reopen-canvas-search');
+  function openSearch() {
+    panel.hidden = false;
+    reopen.hidden = true;
+    query.focus();
+  }
+  panel.querySelector('[data-open-search]').addEventListener('click', openSearch);
+  reopen.addEventListener('click', openSearch);
+  panel.querySelector('[aria-label="Close panel"]').addEventListener('click', () => {
+    setMenu(false);
+    panel.hidden = true;
+    reopen.hidden = false;
+    reopen.focus();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      hideTip();
+      if (!menu.hidden) {
+        event.preventDefault();
+        setMenu(false, true);
+      } else if (event.target === query && query.value) {
+        event.preventDefault();
+        query.value = '';
+        renderResults();
+      }
+    }
+    if (event.key === '/' && !event.altKey && !event.ctrlKey && !event.metaKey
+        && !event.target.matches('input, textarea, [contenteditable="true"]')) {
+      event.preventDefault();
+      openSearch();
+    }
+  });
+
+  const tooltip = get('canvas-search-tooltip');
+  let tipTimer;
+  let tipTarget;
+  function hideTip() {
+    clearTimeout(tipTimer);
+    tooltip.hidden = true;
+    tipTarget?.removeAttribute('aria-describedby');
+    tipTarget = null;
+  }
+  function showTip(target) {
+    hideTip();
+    tipTimer = setTimeout(() => {
+      if (panel.hidden) return;
+      tipTarget = target;
+      tooltip.textContent = target.dataset.tooltipLabel;
+      tooltip.hidden = false;
+      target.setAttribute('aria-describedby', tooltip.id);
+      const bounds = target.getBoundingClientRect();
+      const left = bounds.left + (bounds.width - tooltip.offsetWidth) / 2;
+      const below = bounds.bottom + 6;
+      const top = below + tooltip.offsetHeight <= window.innerHeight - 8 ? below : bounds.top - tooltip.offsetHeight - 6;
+      tooltip.style.left = Math.max(8, Math.min(left, window.innerWidth - tooltip.offsetWidth - 8)) + 'px';
+      tooltip.style.top = Math.max(8, top) + 'px';
+    }, 400);
+  }
+  for (const target of panel.querySelectorAll('[data-tooltip-label]')) {
+    target.addEventListener('pointerenter', () => showTip(target));
+    target.addEventListener('focus', () => { if (target.matches(':focus-visible')) showTip(target); });
+    for (const event of ['pointerleave', 'blur', 'pointerdown', 'click']) target.addEventListener(event, hideTip);
+  }
+  window.addEventListener('resize', hideTip);
+
+  const pin = panel.querySelector('[aria-label="Keep panel open"]');
+  pin.addEventListener('click', () => pin.setAttribute('aria-pressed', String(pin.getAttribute('aria-pressed') !== 'true')));
+  const viewer = get('search-viewer');
+  const viewerButton = panel.querySelector('[data-viewer]');
+  viewerButton.addEventListener('click', () => {
+    viewer.hidden = !viewer.hidden;
+    viewerButton.setAttribute('aria-pressed', String(!viewer.hidden));
+  });
+  viewer.addEventListener('click', event => {
+    const choice = event.target.closest('button');
+    if (choice) viewer.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button === choice)));
+  });
+
+  // Left-edge version of the shared sidebar's pointer and keyboard width control.
+  const edge = panel.querySelector('[role="separator"]');
+  let drag;
+  function resize(value) {
+    const available = panel.parentElement.clientWidth - 40;
+    const width = Math.max(320, Math.min(value, 800, available));
+    panel.style.setProperty('--card-width', width + 'px');
+    edge.setAttribute('aria-valuenow', String(width));
+  }
+  edge.onpointerdown = event => {
+    if (event.button !== 0) return;
+    drag = { x:event.clientX, width:panel.offsetWidth };
+    edge.setPointerCapture(event.pointerId);
+    panel.classList.add('resizing');
+  };
+  edge.onpointermove = event => { if (drag) resize(drag.width + drag.x - event.clientX); };
+  function endResize() {
+    drag = null;
+    panel.classList.remove('resizing');
+  }
+  edge.onpointerup = edge.onpointercancel = edge.onlostpointercapture = endResize;
+  edge.ondblclick = () => resize(510);
+  edge.onkeydown = event => {
+    if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+    event.preventDefault();
+    const step = event.shiftKey ? 40 : 10;
+    resize({ ArrowLeft:panel.offsetWidth + step, ArrowRight:panel.offsetWidth - step, Home:320, End:800 }[event.key]);
+  };
+  renderResults();
+})();
+</script>
+<!--  Lucide React 1.41.0 icon notices
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+—-
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+Sidebar sprite: Lucide icons (ISC), copied from lucide-icons/lucide/icons.
+Glyphs: house, search, library, compass, panel-left-close, panel-left-open, settings, log-out.
+Used by the existing app Sidebar.jsx.
+
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+—-
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+—-
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
+</body></html>

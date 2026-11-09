@@ -1,0 +1,12 @@
+<!-- Composes the reviewed chat panel shell and the shared Library search controls. -->
+<section class="rh-chat-panel" id="canvas-search-panel" aria-label="Canvas Search panel">
+  <div class="canvas-search-resize" role="separator" aria-label="Resize panel" aria-orientation="vertical"
+       aria-valuemin="320" aria-valuemax="800" aria-valuenow="510" tabindex="0" title="Drag to resize · double-click to reset"></div>
+  <!-- ui:include canvas-panel-header -->
+  <!-- ui:include canvas-search-panel -->
+</section>
+<button type="button" class="button secondary" id="reopen-canvas-search" hidden>
+  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-search"></use></svg>
+  Search this canvas
+</button>
+<div class="tooltip" role="tooltip" id="canvas-search-tooltip" hidden></div>

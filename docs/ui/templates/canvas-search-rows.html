@@ -1,0 +1,26 @@
+<template id="canvas-filter-group-template">
+  <section role="group">
+    <p class="library-menu-heading"></p>
+    <div data-filter-items></div>
+  </section>
+</template>
+<template id="canvas-filter-row-template">
+  <label class="menu-item checkbox" data-filter-row>
+    <input type="checkbox">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use></use></svg>
+    <span class="menu-label"></span>
+    <span class="canvas-filter-count" aria-hidden="true"></span>
+  </label>
+</template>
+<template id="canvas-search-result-template">
+  <li><button class="menu-item canvas-search-result" type="button" data-search-result>
+    <span class="canvas-result-copy">
+      <span class="canvas-result-heading">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use></use></svg>
+        <span data-result-title></span>
+      </span>
+      <span class="canvas-result-meta"></span>
+      <span class="canvas-result-snippet"></span>
+    </span>
+  </button></li>
+</template>

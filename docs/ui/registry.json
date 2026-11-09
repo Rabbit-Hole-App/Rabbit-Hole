@@ -4466,6 +4466,51 @@
       "catalogVisible": true
     },
     {
+      "id": "tutor/canvas-search",
+      "title": "Canvas Search",
+      "category": "tutor",
+      "styles": [
+        "standards",
+        "review-corrections",
+        "chat-panel",
+        "library",
+        "canvas-search"
+      ],
+      "scripts": [
+        "canvas-search-filters",
+        "canvas-search"
+      ],
+      "templates": [
+        "canvas-search-rows"
+      ],
+      "paletteRole": "shared",
+      "implementation": [
+        "packages/web/src/PanelHeader.jsx",
+        "packages/web/src/CanvasSearchPanel.jsx",
+        "packages/web/src/canvas-search-index.js",
+        "packages/web/src/canvas-search-panel.js",
+        "packages/web/src/use-canvas-search.jsx"
+      ],
+      "source": "https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/f3314b43631a5c583056612b821f481d6988c899/packages/web/src/CanvasSearchPanel.jsx",
+      "source_file": "CanvasSearchPanel.jsx",
+      "status": "reference",
+      "includes": [
+        "canvas-panel-header",
+        "canvas-search-panel"
+      ],
+      "notes": "Search within the canvas. Filter options have their own search and share a type icon with result rows. The sample uses one icon per result, including images.",
+      "keywords": [
+        "search this canvas",
+        "find on canvas",
+        "filter search",
+        "content types",
+        "icons",
+        "match navigation"
+      ],
+      "issues": [],
+      "path": "components/tutor/canvas-search"
+    },
+    {
       "id": "tutor/chat-panel",
       "title": "Chat panel",
       "category": "tutor",

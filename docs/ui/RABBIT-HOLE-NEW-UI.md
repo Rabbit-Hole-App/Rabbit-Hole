@@ -9,6 +9,7 @@ This document routes work to the detailed screen handoffs and shared component l
 | Screen | Required implementation handoff | Complete HTML reference | Status |
 | --- | --- | --- | --- |
 | Canvas Chat composer and commands | [CHAT-PANEL.md](CHAT-PANEL.md) | [Composer](clean/07-chat-composer.html), [Answer detail](clean/60-chat-answer-detail.html), [Slash commands](clean/61-slash-commands.html) | Approved HTML references |
+| Canvas Search | [CANVAS-SEARCH.md](CANVAS-SEARCH.md) | [62-canvas-search.html](clean/62-canvas-search.html) | Filter search, matching icons and keyboard interactions checked in fixtures. Browser and runtime verification pending |
 | Start a rabbit hole | [START-DIALOG.md](START-DIALOG.md) | [12-start-rabbit-hole.html](clean/12-start-rabbit-hole.html) | Templates and source mapping pushed; runtime integration and browser verification pending |
 | Sidebar, Search, Trash, Notifications and Feedback | [SIDEBAR.md](SIDEBAR.md) | [16-sidebar.html](clean/16-sidebar.html), [Search](clean/51-explore-library-search.html) | Clear search and focus recovery checked in the fixture. Browser and runtime verification pending |
 | Settings and account states | [SETTINGS.md](SETTINGS.md) | [21-settings.html](clean/21-settings.html) | Async states and API contract tested; browser verification and runtime integration pending |

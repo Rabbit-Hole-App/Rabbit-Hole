@@ -10,6 +10,7 @@
     "packages/web/src/App.jsx",
     "packages/web/src/BuyCreditsDialog.jsx",
     "packages/web/src/CanvasMenubar.jsx",
+    "packages/web/src/CanvasSearchPanel.jsx",
     "packages/web/src/CardFeedback.jsx",
     "packages/web/src/CardStar.jsx",
     "packages/web/src/ChatComposer.jsx",
@@ -28,6 +29,7 @@
     "packages/web/src/LibraryFolders.jsx",
     "packages/web/src/LibraryViews.jsx",
     "packages/web/src/NextStepPill.jsx",
+    "packages/web/src/PanelHeader.jsx",
     "packages/web/src/RabbitHoleChoice.jsx",
     "packages/web/src/RabbitHoleSettings.jsx",
     "packages/web/src/RoadmapSurfaces.jsx",
@@ -42,6 +44,8 @@
     "packages/web/src/UsageGauge.jsx",
     "packages/web/src/agent/slash.js",
     "packages/web/src/ask.jsx",
+    "packages/web/src/canvas-search-index.js",
+    "packages/web/src/canvas-search-panel.js",
     "packages/web/src/comments/CommentInbox.jsx",
     "packages/web/src/comments/CommentsPanel.jsx",
     "packages/web/src/explain-program/ProgramScene.jsx",
@@ -61,7 +65,8 @@
     "packages/web/src/library-folders.js",
     "packages/web/src/session-display.js",
     "packages/web/src/settings-model.js",
-    "packages/web/src/ui.jsx"
+    "packages/web/src/ui.jsx",
+    "packages/web/src/use-canvas-search.jsx"
   ],
   "additional_verification": {
     "packages/web/src/StartDialog.jsx": "Verified by git ls-tree at 632945f8ee2fa9ecdacaa24f74f21f4a030a5804"

@@ -63,7 +63,8 @@ EXPORTS=[
  ('56-creator-profile-owner','navigation/creator-profile-owner'),
  ('57-creator-profile-signed-out','navigation/creator-profile-signed-out'),
  ('60-chat-answer-detail','tutor/composer'),
- ('61-slash-commands','tutor/chat-slash-picker')]
+ ('61-slash-commands','tutor/chat-slash-picker'),
+ ('62-canvas-search','tutor/canvas-search')]
 def main():
  out=ROOT/'clean';out.mkdir(exist_ok=True)
  for filename,ident in EXPORTS:

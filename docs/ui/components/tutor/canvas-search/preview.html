@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Canvas Search · Rabbit Hole UI</title>
+<link rel="stylesheet" href="../../../styles/standards.css">
+<link rel="stylesheet" href="../../../styles/review-corrections.css">
+<link rel="stylesheet" href="../../../styles/chat-panel.css">
+<link rel="stylesheet" href="../../../styles/library.css">
+<link rel="stylesheet" href="../../../styles/canvas-search.css">
+<link rel="stylesheet" href="../../../foundations/palette.css">
+<link rel="stylesheet" href="../../../styles/preview.css"></head>
+<body data-ui-palette="shared"><div class="catalog-note"><a href="../../../index.html">UI catalog</a> · <a href="README.md">Component mapping</a> · <a href="https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/f3314b43631a5c583056612b821f481d6988c899/packages/web/src/CanvasSearchPanel.jsx">Source</a><p>reference — Search within the canvas. Filter options have their own search and share a type icon with result rows. The sample uses one icon per result, including images.</p></div>
+<div class="catalog-preview"><!-- Composes the reviewed chat panel shell and the shared Library search controls. -->
+<section class="rh-chat-panel" id="canvas-search-panel" aria-label="Canvas Search panel">
+  <div class="canvas-search-resize" role="separator" aria-label="Resize panel" aria-orientation="vertical"
+       aria-valuemin="320" aria-valuemax="800" aria-valuenow="510" tabindex="0" title="Drag to resize · double-click to reset"></div>
+  <nav class="chat-nav" aria-label="Panel navigation">
+  <div class="chat-nav-tabs">
+    <button type="button" class="chat-icon" aria-label="Chat" data-tooltip-label="Chat" aria-disabled="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/canvas-header.svg#MessageCircleMore"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Table of contents" data-tooltip-label="Table of contents" aria-disabled="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ListTree"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Progress" data-tooltip-label="Progress" aria-disabled="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Gauge"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Comments" data-tooltip-label="Comments" aria-disabled="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/canvas-header.svg#MessageSquareQuote"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Search" data-tooltip-label="Search this canvas (/)" aria-keyshortcuts="/" aria-current="page" data-open-search>
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    </button>
+  </div>
+  <div class="chat-nav-tools">
+    <button type="button" class="chat-icon" data-viewer aria-label="Context, Files and Graph" data-tooltip-label="Context, Files and Graph" aria-pressed="false" aria-controls="search-viewer">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/canvas-header.svg#PanelLeft"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Keep panel open" data-tooltip-label="Keep panel open" aria-pressed="true">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-Pin"/></svg>
+    </button>
+    <button type="button" class="chat-icon" aria-label="Close panel" data-tooltip-label="Close panel">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-X"/></svg>
+    </button>
+  </div>
+</nav>
+
+  <div id="search-viewer" class="chat-nav" role="group" aria-label="Viewer" hidden>
+  <div class="chat-nav-tabs">
+    <button class="chat-text-button" type="button" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/canvas-header.svg#Files"></use></svg>Context</button>
+    <button class="chat-text-button" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/canvas-header.svg#FolderTree"></use></svg>Files</button>
+    <button class="chat-text-button" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/icons.svg#icon-Network"></use></svg>Graph</button>
+  </div>
+</div>
+<div class="canvas-search-body">
+  <div class="canvas-search-toolbar">
+    <label class="library-search canvas-search-field">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-search"></use></svg>
+      <input class="control" id="canvas-query" type="search" aria-label="Search this canvas" placeholder="Search this canvas" autocomplete="off" aria-controls="canvas-search-results" value="cross entropy">
+    </label>
+    <button class="button secondary" id="canvas-filter" type="button" aria-expanded="false" aria-controls="canvas-filter-menu" data-tooltip-label="Filter search results">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-list-filter"></use></svg>
+      <span id="canvas-filter-label">Filter</span>
+      <svg class="icon canvas-filter-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"></use></svg>
+    </button>
+    <div id="canvas-filter-menu" class="menu library-menu canvas-filter-menu" role="group" aria-label="Search filters" hidden>
+      <label class="library-search canvas-search-field canvas-filter-field">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-search"></use></svg>
+        <input class="control" id="filter-query" type="search" aria-label="Search filters" placeholder="Search filters" autocomplete="off" aria-controls="canvas-filter-options">
+      </label>
+      <div class="canvas-filter-options" id="canvas-filter-options"></div>
+      <p id="filter-no-results" hidden>No matching filters.</p>
+      <hr class="menu-divider">
+      <button class="menu-item" type="button" id="clear-canvas-filters" disabled>Clear</button>
+    </div>
+    <button type="button" class="icon-button quiet" id="previous-match" aria-label="Previous match" data-tooltip-label="Previous match (Shift+Enter)">
+      <svg class="icon canvas-previous-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"></use></svg>
+    </button>
+    <button type="button" class="icon-button quiet" id="next-match" aria-label="Next match" data-tooltip-label="Next match (Enter)">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/standards.svg#i-ChevronDown"></use></svg>
+    </button>
+  </div>
+  <div class="canvas-search-meta"><span id="canvas-match-count" aria-live="polite"></span></div>
+  <p class="canvas-search-empty" id="canvas-search-empty" hidden>No matches on this canvas.</p>
+  <ol id="canvas-search-results" class="canvas-search-results" aria-label="Search results"></ol>
+</div>
+
+</section>
+<button type="button" class="button secondary" id="reopen-canvas-search" hidden>
+  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="../../../icons/library.svg#library-search"></use></svg>
+  Search this canvas
+</button>
+<div class="tooltip" role="tooltip" id="canvas-search-tooltip" hidden></div>
+</div>
+<template id="canvas-filter-group-template">
+  <section role="group">
+    <p class="library-menu-heading"></p>
+    <div data-filter-items></div>
+  </section>
+</template>
+<template id="canvas-filter-row-template">
+  <label class="menu-item checkbox" data-filter-row>
+    <input type="checkbox">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use></use></svg>
+    <span class="menu-label"></span>
+    <span class="canvas-filter-count" aria-hidden="true"></span>
+  </label>
+</template>
+<template id="canvas-search-result-template">
+  <li><button class="menu-item canvas-search-result" type="button" data-search-result>
+    <span class="canvas-result-copy">
+      <span class="canvas-result-heading">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use></use></svg>
+        <span data-result-title></span>
+      </span>
+      <span class="canvas-result-meta"></span>
+      <span class="canvas-result-snippet"></span>
+    </span>
+  </button></li>
+</template>
+
+<script src="../../../scripts/canvas-search-filters.js"></script>
+<script src="../../../scripts/canvas-search.js"></script>
+</body></html>
