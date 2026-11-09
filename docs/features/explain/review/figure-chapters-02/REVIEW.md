@@ -30,6 +30,25 @@ Figure-chapters-02: arm R was run once on branch explain/figure-chapters-02 (the
 | generation spend (US$) | 0.1535 | 0.1371 |
 | judge spend (US$) | 0.3716 | 0.0037 |
 
+**Card 26 (ml-stable-diffusion-clip-two-encoders) is expected behaviour, not a miss.** The learner named "the picture and caption", so a picture is correct and the picture cap rightly yields to a learner-named mix. The table above counts it as kind miss and structure none; without it, arm R is kind match 44/47 (93.6%), structure fully 41/47 (87.2%), structure none 3 (cards 12, 27, 28).
+
+## Factual, not moved by references
+
+Arm R factual errors: 7/47 (14.9%), against 6/48 (12.5%) in figure-chapters-01 arm R and 6/47 (12.8%) in arm 0. The seven cards (judge factual-v2, score 3 each; the one-line claim is the judge's):
+
+- #12 ml-bert-task-heads (3): says the heads train without modifying the lower encoder weights; standard BERT fine-tuning updates all encoder weights with the head, and only the feature-based approach freezes the encoder.
+- #14 ml-gpt2-continue-prefix (3): the diagram calls the step "sample" but describes choosing the highest-scoring token (greedy decoding), so the prose and diagram conflict.
+- #18 ml-gpt2-tied-output-weights (3): "prevents severe overfitting on smaller text corpora" is an overclaim; GPT-2 trained on the large WebText corpus and tying is mainly a parameter-saving and regularizing choice (the tying, the parameter saving and the toy softmax values are correct).
+- #22 ml-word2vec-signed-embedding-heatmap (3): reading across columns compares dimensions within one word row; comparing related words means reading down a column, as the diagram says, so the prose contradicts it.
+- #23 ml-word2vec-trait-rescale (3): conflates centering (shifting) with scaling; shifting alone does not stop large-scale dimensions from dominating, which needs rescaling the variance.
+- #31 figure-retro-chunk-attention (3): in RETRO chunked cross-attention all tokens from the last token of a chunk through the next chunk attend to that chunk's retrieved neighbors, not a single final token; the "active" vs "completed" chunk wording is also inconsistent.
+- #37 d2l-forecast-feedback-error (3): misleading; flattening of recursive forecasts is typically mean reversion or damping of the model, not error accumulation, and the "refreshed" line is conflated with direct forecasting.
+
+## Cards 12, 27 and 28
+
+- #28 ml-stable-diffusion-image-caption-pairs failed `required_visual_missing`. This is a port artifact: the figure-chapters-02 build ports 118's picture cap but not 118's companion rule (c0e8f365a, learn-artifact.js around line 187), which strips implied picture requirements when a JEV plan exists. The cap dropped the author's picture and the required-illustration check then failed.
+- #12 (rows without ids) and #27 and #28 (columns written as objects) hit `explanation_bad_diagram` at attempt 0 and again on repair; #12 and #27 were then delivered without a diagram (visual fallback). Input for the matrix coercion task (Q0).
+
 ## Arm R
 
 | # | reference id | source | intended kind | planner kind | model kind | selector hit | structure | factual (1-5) |
@@ -59,7 +78,7 @@ Figure-chapters-02: arm R was run once on branch explain/figure-chapters-02 (the
 | 23 | [ml-word2vec-trait-rescale](23-ml-word2vec-trait-rescale/card.md) | Word2vec | number-line | number-line (override; planner said transformation) | number-line | yes | fully | 3 ERROR |
 | 24 | [ml-word2vec-vocabulary-versus-pair](24-ml-word2vec-vocabulary-versus-pair/card.md) | Word2vec | comparison | comparison (offered comparison / bar-chart) | comparison | yes | fully | 5 |
 | 25 | [ml-stable-diffusion-clip-contrastive-scores](25-ml-stable-diffusion-clip-contrastive-scores/card.md) | Stable Diffusion | matrix | matrix (override; planner said flow) | matrix | yes | fully | 5 |
-| 26 | [ml-stable-diffusion-clip-two-encoders](26-ml-stable-diffusion-clip-two-encoders/card.md) | Stable Diffusion | transformation | transformation (override; planner said block-stack) | picture | yes | none | 5 |
+| 26 | [ml-stable-diffusion-clip-two-encoders](26-ml-stable-diffusion-clip-two-encoders/card.md) | Stable Diffusion | transformation | transformation (override; planner said block-stack) | picture (expected) | yes | none (expected) | 5 |
 | 27 | [ml-stable-diffusion-forward-noise](27-ml-stable-diffusion-forward-noise/card.md) | Stable Diffusion | heatmap | heatmap (override; planner said transformation) | none | yes | none | 4 |
 | 28 | [ml-stable-diffusion-image-caption-pairs](28-ml-stable-diffusion-image-caption-pairs/card.md) | Stable Diffusion | matrix | matrix (override; planner said sample-set) | FAILED | yes | none | - |
 | 29 | [ml-stable-diffusion-unet-text-attention](29-ml-stable-diffusion-unet-text-attention/card.md) | Stable Diffusion | block-stack | block-stack | block-stack | yes | fully | 4 |
@@ -140,7 +159,7 @@ Figure-chapters-02: arm R was run once on branch explain/figure-chapters-02 (the
 
 - 12 ml-bert-task-heads: structure none, intended matrix, model none, factual 3 ERROR
 - 27 ml-stable-diffusion-forward-noise: structure none, intended heatmap, model none, factual 4
-- 26 ml-stable-diffusion-clip-two-encoders: structure none, intended transformation, model picture, factual 5
+- 26 ml-stable-diffusion-clip-two-encoders: structure none (expected: see the note on card 26), intended transformation, model picture, factual 5
 - 28 ml-stable-diffusion-image-caption-pairs: structure none, intended matrix, model FAILED, factual -
 - 09 ml-bert-gpt-task-inputs: structure partly, intended matrix, model matrix, factual 4
 - 35 figure-retro-index-records: structure partly, intended matrix, model matrix, factual 5
