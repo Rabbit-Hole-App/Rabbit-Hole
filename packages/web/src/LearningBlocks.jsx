@@ -9,7 +9,7 @@ import { holdViewerGestures } from './content-gestures.js';
 import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { SourceRefHeader } from './SourceRefChip.jsx';
-import { Check, ChevronLeft, ChevronRight, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Square, Trash2, Volume2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Square, Trash2, Volume2, X } from 'lucide-react';
 import { fullContent } from './card-layout.js';
 import { Md } from './ask.jsx';
 import { diagramsAsText } from './diagram-fence.js';
@@ -2104,7 +2104,7 @@ function ExplanationTile({ block, onChange, readOnly = false }) {
       <div className="flex flex-col gap-2.5 px-4 pb-3">
         {summary && <p data-tile-summary className="m-0 text-sm text-ink-2">{summary}</p>}
         {visual && <div data-tile-visual={visual.kind}>{visual.kind === 'picture' ? <IllustrationFigure illustration={visual.illustration} /> : <TutorDiagram spec={visual.spec} fallback={null} />}</div>}
-        {!readOnly && <Button variant="secondary" size="sm" data-explanation-open className="self-center border! border-ink/50!" onPointerDown={event => event.stopPropagation()} onClick={() => onChange({ ...block, minimized: false })}>Open</Button>}
+        {!readOnly && <Button variant="secondary" size="sm" data-explanation-open aria-label="Expand card" className="gap-1.5 self-center border! border-ink/50! text-[13px]" onPointerDown={event => event.stopPropagation()} onClick={() => onChange({ ...block, minimized: false })}><ChevronsUpDown size={16} aria-hidden="true" />Expand</Button>}
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
+import { explanationCardWidth } from './explanation-card-width.js';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
@@ -942,12 +943,14 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   const sized = BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame);
   // A minimized Explanation is a tile: its own narrow width and the content's height; its saved size and card layout stay on the block, so Open restores them (explanation-minimize.js).
   const tile = isMinimized(block);
+  // An Explanation's width follows its widest visual (explanation-card-width.js), derived here on every render and never stored; a width the learner dragged (saved w) still wins in CanvasNode.
+  const cardWidth = tile ? tileWidth(block) : sized?.width ?? explanationCardWidth(block) ?? BLOCK_TYPES[block.type]?.width;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
       fitContent={!!BLOCK_TYPES[block.type]?.fitContent}
       autoMax={tile ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
-      width={tile ? tileWidth(block) : sized?.width ?? BLOCK_TYPES[block.type]?.width} resizable={!tile}
+      width={cardWidth} wide={cardWidth > COLUMN} resizable={!tile}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
@@ -3923,6 +3926,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return;
       }
       if (presentingRef.current === null && plain) {
+        // A minimized Explanation tile: Enter or Space on the tile itself (the focused element is the card, not its Prompt pill or Expand button) expands it, as the Expand button does.
+        if ((event.key === 'Enter' || event.key === ' ') && focusedCard && !readOnlyRef.current && isMinimized(blocksRef.current.find(entry => entry.id === focusedCard))) { event.preventDefault(); expandTileRef.current?.(focusedCard); return; }
         if (event.key === ' ' && focusedCard) { event.preventDefault(); if (!selectedRef.current.includes(focusedCard)) selectRef.current(focusedCard); return; }
         // Space held over a canvas that owns the keyboard: a drag pans (never a space typed into anything, never a
         // focused button's own Space).
@@ -4298,6 +4303,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const cardOpen = { single: readOnly ? null : selected, can: opensFor, open: openCard };
   const openCardRef = useRef(cardOpen);
+  const expandTileRef = useRef(null); // Enter or Space on a focused minimized tile expands it (explanation-minimize.js)
   openCardRef.current = cardOpen;
   // Keep the armed chip's label honest while the learner keeps experimenting:
   // a changed input re-arms the same target with its fresh description, and a
@@ -5281,6 +5287,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Minimize (explanation-minimize.js): the card collapses to a tile where it is; one undo step, saved with the card. A card with no summary asks for one in the background.
   const minimizeCard = id => { patchBlockNow(id, { minimized: true }); fillSummary(id); };
+  expandTileRef.current = id => patchBlockNow(id, { minimized: false });
   // The collapsed preview's summary (control plane explanation-summary.js): requested once per card, never blocks, never raises a notice. It lands on the card as a quiet update
   // of just that field on the latest blocks (landSummary): a card deleted meanwhile, or one that got a summary, is left alone, and nothing else on it is overwritten.
   const summaryAsked = useRef(new Set());

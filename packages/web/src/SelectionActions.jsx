@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Check, Maximize, MessageSquarePlus, Minimize2, Wand } from 'lucide-react';
+import { Check, ChevronsDownUp, Maximize, MessageSquarePlus, Wand } from 'lucide-react';
 import { chordBinding, chordLabel, isMac } from './shortcut-owner.js';
 import { ariaKey } from './shortcuts.js';
 import { placeBar, usesHost } from './selection-bar-place.js';
@@ -34,7 +34,7 @@ function Action({ label, chord, Icon, onClick, mac, ...rest }) {
   const hint = chordLabel(chord, mac);
   return (
     <button type="button" aria-label={label} aria-keyshortcuts={ariaKey(chordBinding(chord), mac)} title={`${label} (${hint})`} onClick={onClick} {...rest}
-      className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
+      className="flex h-7 cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
       <Icon size={13} strokeWidth={1.8} aria-hidden="true" />{label}
       <kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{hint}</kbd>
     </button>
@@ -48,15 +48,15 @@ function Actions({ ctx, mode, className = '', style }) {
   const pill = ctx.onMinimize && (
     <button type="button" aria-label="Minimize" title="Minimize" onClick={ctx.onMinimize} onPointerDown={press} data-minimize-button data-thumbnail-hide
       className="pointer-events-auto flex h-[34px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white px-3 text-ink shadow-md hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
-      <Minimize2 size={15} strokeWidth={1.8} aria-hidden="true" />
+      <ChevronsDownUp size={15} strokeWidth={1.8} aria-hidden="true" />
     </button>
   );
   const bar = (barClass, barStyle) => (
     <div role="toolbar" aria-label="Selection actions" data-selection-bar={mode} data-thumbnail-hide style={barStyle}
       onPointerDown={press}
-      className={`pointer-events-auto flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md ${barClass}`}>
+      className={`pointer-events-auto flex h-[34px] w-max items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-md ${barClass}`}>
       {ctx.focusLabel && <button type="button" aria-label={ctx.focusLabel} title={ctx.focusLabel} onClick={ctx.onFocus} data-focus-button
-        className="relative -my-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink after:absolute after:-inset-1.5 not-last:mr-1.5 hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
+        className="relative -my-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink after:absolute after:-inset-1.5 not-last:mr-1.5 hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
         <Maximize size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>}
       {ctx.onAddToChat && <Action label={ctx.added ? 'Added to chat' : 'Add to chat'} chord="add-to-chat" Icon={ctx.added ? Check : MessageSquarePlus} mac={ctx.mac} onClick={ctx.onAddToChat} data-add-to-chat data-added={ctx.added || undefined} />}
