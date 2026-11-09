@@ -1,0 +1,63 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Hash Table Lookup Flow",
+  "kind": "flow",
+  "nodes": [
+   {
+    "id": "key",
+    "label": "Receive key",
+    "role": "process"
+   },
+   {
+    "id": "hash",
+    "label": "Compute hash code",
+    "role": "process"
+   },
+   {
+    "id": "index",
+    "label": "Map to array index",
+    "role": "process"
+   },
+   {
+    "id": "check",
+    "label": "Slot occupied?",
+    "role": "decision"
+   },
+   {
+    "id": "found",
+    "label": "Return stored value",
+    "role": "outcome"
+   },
+   {
+    "id": "collide",
+    "label": "Handle collision",
+    "role": "process"
+   }
+  ],
+  "edges": [
+   {
+    "from": "key",
+    "to": "hash"
+   },
+   {
+    "from": "hash",
+    "to": "index"
+   },
+   {
+    "from": "index",
+    "to": "check"
+   },
+   {
+    "from": "check",
+    "to": "found",
+    "label": "No"
+   },
+   {
+    "from": "check",
+    "to": "collide",
+    "label": "Yes"
+   }
+  ]
+ }
+}

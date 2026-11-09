@@ -1,0 +1,13 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "K-Means iterative cycle",
+  "kind": "cycle",
+  "steps": [
+   "Initialize $k$ centroids",
+   "Assign points to nearest centroid",
+   "Recompute centroid means",
+   "Repeat until assignments stabilize"
+  ]
+ }
+}

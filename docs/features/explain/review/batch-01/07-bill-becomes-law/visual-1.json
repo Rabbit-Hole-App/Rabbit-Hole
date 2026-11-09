@@ -1,0 +1,82 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Legislative Process",
+  "kind": "flow",
+  "nodes": [
+   {
+    "id": "intro",
+    "label": "Introduce bill",
+    "role": "process"
+   },
+   {
+    "id": "committee",
+    "label": "Pass committee review?",
+    "role": "decision"
+   },
+   {
+    "id": "floor",
+    "label": "Pass floor vote?",
+    "role": "decision"
+   },
+   {
+    "id": "president",
+    "label": "Sign by President?",
+    "role": "decision"
+   },
+   {
+    "id": "law",
+    "label": "Become law",
+    "role": "outcome"
+   },
+   {
+    "id": "die",
+    "label": "Bill dies",
+    "role": "outcome"
+   }
+  ],
+  "edges": [
+   {
+    "from": "intro",
+    "to": "committee"
+   },
+   {
+    "from": "committee",
+    "to": "floor",
+    "label": "Yes"
+   },
+   {
+    "from": "committee",
+    "to": "die",
+    "label": "No"
+   },
+   {
+    "from": "floor",
+    "to": "president",
+    "label": "Yes"
+   },
+   {
+    "from": "floor",
+    "to": "die",
+    "label": "No"
+   },
+   {
+    "from": "president",
+    "to": "law",
+    "label": "Yes"
+   },
+   {
+    "from": "president",
+    "to": "die",
+    "label": "No"
+   }
+  ],
+  "highlightPath": [
+   "intro",
+   "committee",
+   "floor",
+   "president",
+   "law"
+  ]
+ }
+}

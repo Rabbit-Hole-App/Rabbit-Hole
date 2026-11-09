@@ -1,0 +1,184 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "coordinate-plot"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "coordinate-plot",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.99,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.77,
+   "isPhysical": 0.1,
+   "needsWorkedExample": 0.8
+  },
+  "ms": 80
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "coordinate-plot"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "coordinate-plot",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.99,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.77,
+     "isPhysical": 0.1,
+     "needsWorkedExample": 0.8
+    },
+    "ms": 80
+   },
+   "references": [
+    "shape-coordinate-plot"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Market Equilibrium",
+       "caption": "Where supply and demand curves intersect",
+       "kind": "coordinate-plot",
+       "x": {
+        "label": "Quantity",
+        "min": 0,
+        "max": 8,
+        "unit": "units"
+       },
+       "y": {
+        "label": "Price",
+        "min": 0,
+        "max": 12,
+        "unit": "USD"
+       },
+       "series": [
+        {
+         "label": "Supply",
+         "kind": "line",
+         "points": [
+          {
+           "x": 0,
+           "y": 2
+          },
+          {
+           "x": 4,
+           "y": 6
+          },
+          {
+           "x": 8,
+           "y": 10
+          }
+         ]
+        },
+        {
+         "label": "Demand",
+         "kind": "line",
+         "points": [
+          {
+           "x": 0,
+           "y": 10
+          },
+          {
+           "x": 4,
+           "y": 6
+          },
+          {
+           "x": 8,
+           "y": 2
+          }
+         ]
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "coordinate-plot"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "coordinate-plot"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "anthropic",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "wOORO-uar0nk",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 3051
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3037,
+   "output_tokens": 553,
+   "cost_micros": 2294
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 3218,
+ "usd": 0.002294
+}

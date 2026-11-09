@@ -1,0 +1,157 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "choose": [
+     "tree",
+     "layers"
+    ]
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "tree",
+  "fixed": false,
+  "confidence": {
+   "kind": 0.52,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.09,
+   "isPhysical": 0.1,
+   "needsWorkedExample": 0.8
+  },
+  "ms": 298
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "choose": [
+       "tree",
+       "layers"
+      ]
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "tree",
+    "fixed": false,
+    "confidence": {
+     "kind": 0.52,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.09,
+     "isPhysical": 0.1,
+     "needsWorkedExample": 0.8
+    },
+    "ms": 298
+   },
+   "references": [
+    "shape-tree"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Recursive call stack tree",
+       "kind": "tree",
+       "layout": "hierarchy",
+       "nodes": [
+        {
+         "id": "f3",
+         "label": "factorial(3)"
+        },
+        {
+         "id": "f2",
+         "label": "factorial(2)",
+         "parent": "f3"
+        },
+        {
+         "id": "f1",
+         "label": "factorial(1)",
+         "parent": "f2"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "tree"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "tree",
+    "layers"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "anthropic",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "wCK5_prXJynl",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 2161
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 2985,
+   "output_tokens": 424,
+   "cost_micros": 1956
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 2519,
+ "usd": 0.001956
+}

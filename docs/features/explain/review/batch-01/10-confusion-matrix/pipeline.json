@@ -1,0 +1,153 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "matrix"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "matrix",
+  "fixed": true,
+  "confidence": {
+   "kind": 1,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.63,
+   "isPhysical": 0.09,
+   "needsWorkedExample": 0.87
+  },
+  "ms": 147
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "matrix"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "matrix",
+    "fixed": true,
+    "confidence": {
+     "kind": 1,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.63,
+     "isPhysical": 0.09,
+     "needsWorkedExample": 0.87
+    },
+    "ms": 147
+   },
+   "references": [
+    "shape-matrix"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Confusion Matrix",
+       "kind": "matrix",
+       "columns": [
+        "Predicted Negative",
+        "Predicted Positive"
+       ],
+       "rows": [
+        {
+         "heading": "Actual Negative",
+         "cells": [
+          "True Negative",
+          "False Positive"
+         ]
+        },
+        {
+         "heading": "Actual Positive",
+         "cells": [
+          "False Negative",
+          "True Positive"
+         ]
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "matrix"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "matrix"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "anthropic",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "WQG2fVU-BOc5",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 2480
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 2944,
+   "output_tokens": 251,
+   "cost_micros": 1511
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 2692,
+ "usd": 0.001511
+}

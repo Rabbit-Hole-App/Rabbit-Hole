@@ -1,0 +1,189 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "flow"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "flow",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.86,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.07,
+   "isPhysical": 0.1,
+   "needsWorkedExample": 0.84
+  },
+  "ms": 110
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "flow"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "flow",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.86,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.07,
+     "isPhysical": 0.1,
+     "needsWorkedExample": 0.84
+    },
+    "ms": 110
+   },
+   "references": [
+    "shape-flow"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Hash Table Lookup Flow",
+       "kind": "flow",
+       "nodes": [
+        {
+         "id": "key",
+         "label": "Receive key",
+         "role": "process"
+        },
+        {
+         "id": "hash",
+         "label": "Compute hash code",
+         "role": "process"
+        },
+        {
+         "id": "index",
+         "label": "Map to array index",
+         "role": "process"
+        },
+        {
+         "id": "check",
+         "label": "Slot occupied?",
+         "role": "decision"
+        },
+        {
+         "id": "found",
+         "label": "Return stored value",
+         "role": "outcome"
+        },
+        {
+         "id": "collide",
+         "label": "Handle collision",
+         "role": "process"
+        }
+       ],
+       "edges": [
+        {
+         "from": "key",
+         "to": "hash"
+        },
+        {
+         "from": "hash",
+         "to": "index"
+        },
+        {
+         "from": "index",
+         "to": "check"
+        },
+        {
+         "from": "check",
+         "to": "found",
+         "label": "No"
+        },
+        {
+         "from": "check",
+         "to": "collide",
+         "label": "Yes"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "flow"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "flow"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "anthropic",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "p3O7uG9jjS1z",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 2857
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3020,
+   "output_tokens": 710,
+   "cost_micros": 2681
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "totalMs": 3013,
+ "usd": 0.002681
+}

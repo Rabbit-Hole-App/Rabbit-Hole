@@ -1,0 +1,29 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Key exchange and message flow",
+  "kind": "sequence",
+  "actors": [
+   {
+    "id": "a1",
+    "label": "Alice"
+   },
+   {
+    "id": "a2",
+    "label": "Bob"
+   }
+  ],
+  "messages": [
+   {
+    "from": "a2",
+    "to": "a1",
+    "label": "Share public key"
+   },
+   {
+    "from": "a1",
+    "to": "a2",
+    "label": "Encrypt with public key"
+   }
+  ]
+ }
+}

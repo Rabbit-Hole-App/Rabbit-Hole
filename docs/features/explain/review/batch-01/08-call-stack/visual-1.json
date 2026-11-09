@@ -1,0 +1,24 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Recursive call stack tree",
+  "kind": "tree",
+  "layout": "hierarchy",
+  "nodes": [
+   {
+    "id": "f3",
+    "label": "factorial(3)"
+   },
+   {
+    "id": "f2",
+    "label": "factorial(2)",
+    "parent": "f3"
+   },
+   {
+    "id": "f1",
+    "label": "factorial(1)",
+    "parent": "f2"
+   }
+  ]
+ }
+}

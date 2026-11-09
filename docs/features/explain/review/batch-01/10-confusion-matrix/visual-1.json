@@ -1,0 +1,27 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Confusion Matrix",
+  "kind": "matrix",
+  "columns": [
+   "Predicted Negative",
+   "Predicted Positive"
+  ],
+  "rows": [
+   {
+    "heading": "Actual Negative",
+    "cells": [
+     "True Negative",
+     "False Positive"
+    ]
+   },
+   {
+    "heading": "Actual Positive",
+    "cells": [
+     "False Negative",
+     "True Positive"
+    ]
+   }
+  ]
+ }
+}

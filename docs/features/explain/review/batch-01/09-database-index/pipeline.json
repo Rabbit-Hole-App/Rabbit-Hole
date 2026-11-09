@@ -1,0 +1,269 @@
+{
+ "plan": {
+  "visuals": [
+   {
+    "type": "diagram",
+    "kind": "tree"
+   }
+  ],
+  "depthTreatment": "mechanism",
+  "kind": "tree",
+  "fixed": true,
+  "confidence": {
+   "kind": 0.81,
+   "visualType": 1
+  },
+  "flags": {
+   "needsPlot": 0.1,
+   "isPhysical": 0.09,
+   "needsWorkedExample": 0.62
+  },
+  "ms": 93
+ },
+ "rawAttempts": [
+  {
+   "event": "explanation_author_raw",
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "tree"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "tree",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.81,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.1,
+     "isPhysical": 0.09,
+     "needsWorkedExample": 0.62
+    },
+    "ms": 93
+   },
+   "references": [
+    "shape-tree"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "B-Tree Index Structure",
+       "kind": "tree",
+       "layout": "binary",
+       "nodes": [
+        {
+         "id": "root",
+         "label": "50",
+         "parent": ""
+        },
+        {
+         "id": "left",
+         "label": "25",
+         "parent": "root",
+         "side": "left"
+        },
+        {
+         "id": "right",
+         "label": "75",
+         "parent": "root",
+         "side": "right"
+        },
+        {
+         "id": "leaf1",
+         "label": "10",
+         "parent": "left",
+         "side": "left"
+        },
+        {
+         "id": "leaf2",
+         "label": "35",
+         "parent": "left",
+         "side": "right"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "tree"
+   ]
+  },
+  {
+   "event": "explanation_author_raw",
+   "attempt": 1,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "tree"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "tree",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.81,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.1,
+     "isPhysical": 0.09,
+     "needsWorkedExample": 0.62
+    },
+    "ms": 93
+   },
+   "references": [
+    "shape-tree"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "B-Tree Index Structure",
+       "kind": "tree",
+       "layout": "binary",
+       "nodes": [
+        {
+         "id": "root",
+         "label": "50"
+        },
+        {
+         "id": "left",
+         "label": "25",
+         "parent": "root",
+         "side": "left"
+        },
+        {
+         "id": "right",
+         "label": "75",
+         "parent": "root",
+         "side": "right"
+        },
+        {
+         "id": "leaf1",
+         "label": "10",
+         "parent": "left",
+         "side": "left"
+        },
+        {
+         "id": "leaf2",
+         "label": "35",
+         "parent": "left",
+         "side": "right"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "tree"
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "event": "explanation_step",
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "outcome": "artifact"
+  }
+ ],
+ "source": [
+  {
+   "event": "explanation_visuals_source",
+   "winner": "plan",
+   "kinds": [
+    "tree"
+   ],
+   "heuristics": "off"
+  }
+ ],
+ "invalid": [
+  {
+   "event": "learn_artifact_invalid",
+   "primitive": "explanation",
+   "attempt": 0,
+   "error": "explanation_bad_diagram: the rh-diagram spec is not valid (diagram.nodes.0.parent: Use a simple ID starting with a letter (at most 32 characters); diagram.nodes: A tree needs one root)"
+  }
+ ],
+ "corrected": [],
+ "smell": [],
+ "model": [
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "anthropic",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "wCK5_prXJynl",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 2459
+  },
+  {
+   "event": "learn_model",
+   "task": "artifact",
+   "provider": "anthropic",
+   "requested": "gemini-3.5-flash-lite",
+   "source": "request",
+   "fallback": "none",
+   "prompt": "wCK5_prXJynl",
+   "served": "gemini-3.5-flash-lite",
+   "fellBack": false,
+   "status": 200,
+   "stopReason": "tool_use",
+   "outcome": "completed",
+   "error": null,
+   "durationMs": 2255
+  }
+ ],
+ "tokens": [
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 2972,
+   "output_tokens": 468,
+   "cost_micros": 2062
+  },
+  {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite",
+   "input_tokens": 3378,
+   "output_tokens": 519,
+   "cost_micros": 2311
+  }
+ ],
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": true
+ },
+ "totalMs": 4878,
+ "usd": 0.004373
+}

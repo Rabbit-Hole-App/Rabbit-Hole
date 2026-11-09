@@ -1,0 +1,58 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Illustrative growth rates",
+  "caption": "Comparing linear and quadratic growth",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Input size $n$",
+   "min": 0,
+   "max": 10,
+   "unit": "items"
+  },
+  "y": {
+   "label": "Operations",
+   "min": 0,
+   "max": 100,
+   "unit": "steps"
+  },
+  "series": [
+   {
+    "label": "$O(n)$",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0
+     },
+     {
+      "x": 5,
+      "y": 5
+     },
+     {
+      "x": 10,
+      "y": 10
+     }
+    ]
+   },
+   {
+    "label": "$O(n^2)$",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0
+     },
+     {
+      "x": 5,
+      "y": 25
+     },
+     {
+      "x": 10,
+      "y": 100
+     }
+    ]
+   }
+  ]
+ }
+}

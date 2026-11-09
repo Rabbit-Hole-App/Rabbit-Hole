@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Add Positional Vectors",
+  "caption": "Summing token embeddings and sinusoidal positional vectors",
+  "kind": "transformation",
+  "before": {
+   "label": "Token Embeddings",
+   "items": [
+    "The",
+    "cat",
+    "sat"
+   ]
+  },
+  "after": {
+   "label": "Combined Vectors",
+   "items": [
+    "The + P_0",
+    "cat + P_1",
+    "sat + P_2"
+   ]
+  },
+  "operation": "Add fixed sinusoidal position vectors element-wise",
+  "links": [
+   {
+    "from": 0,
+    "to": 0,
+    "label": "P_0"
+   },
+   {
+    "from": 1,
+    "to": 1,
+    "label": "P_1"
+   },
+   {
+    "from": 2,
+    "to": 2,
+    "label": "P_2"
+   }
+  ]
+ }
+}

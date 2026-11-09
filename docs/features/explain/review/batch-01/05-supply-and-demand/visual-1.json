@@ -1,0 +1,58 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Market Equilibrium",
+  "caption": "Where supply and demand curves intersect",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Quantity",
+   "min": 0,
+   "max": 8,
+   "unit": "units"
+  },
+  "y": {
+   "label": "Price",
+   "min": 0,
+   "max": 12,
+   "unit": "USD"
+  },
+  "series": [
+   {
+    "label": "Supply",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 2
+     },
+     {
+      "x": 4,
+      "y": 6
+     },
+     {
+      "x": 8,
+      "y": 10
+     }
+    ]
+   },
+   {
+    "label": "Demand",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 10
+     },
+     {
+      "x": 4,
+      "y": 6
+     },
+     {
+      "x": 8,
+      "y": 2
+     }
+    ]
+   }
+  ]
+ }
+}
