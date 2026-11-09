@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveVisualRequirements, repeats, requiredMix, requiredVisualProblem, requirementText, danglingFigureProblem } from '../src/explanation-visuals.js';
-import { EXPLANATION_GUIDANCE, chainsAsCycles, markdownVisuals, explanationProseChars, simplifiedDiagram } from '../src/learn-primitives.js';
+import { EXPLANATION_GUIDANCE, EXPLANATION_VISUAL_RULES, chainsAsCycles, markdownVisuals, explanationProseChars, simplifiedDiagram } from '../src/learn-primitives.js';
 import { artifactFetch, generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { generateRoadmapCard } from '../src/roadmap/roadmap-generate.js';
 import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
@@ -286,7 +286,7 @@ test('a topic word alone is not a request for a picture: a decision tree, a time
 
 // EXP-13 visual choice (owner 2026-11-08, study C:/s/spec/benchmarks/explain-visual-choice-2026-11-08): fixes 1-4 ride in the author guidance.
 test('the guidance leads its visual choice with the firm type rule, then the kind by the shape of the answer, the cannot-draw rules and the count', () => {
-  const g = EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
+  const g = EXPLANATION_VISUAL_RULES + ' ' + EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
   const order = ['objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them',
     'processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams', 'never use a picture for a data structure, an algorithm or numbers',
     'cycle when the last step feeds the first', 'sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response)', 'timeline for dates or eras', 'transformation for inputs becoming outputs',
@@ -301,10 +301,10 @@ test('the guidance leads its visual choice with the firm type rule, then the kin
 
 // Owner 2026-11-08 (study evidence: TCP handshake drawn as a flow 3 of 3; tree operations drawn as a step flow with no tree; volcano, eclipse and engine
 // questions got only a flow): three guidance sentences, nothing new in the diagram schema.
-test('the guidance carries the parties-send-things sequence rule, the structure-first rule for tree operations and the picture for how a physical thing works', () => {
-  const g = EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
+test('the guidance carries the parties-send-things sequence rule and the picture for how a physical thing works (the tree-operation paragraph is gone, clean-up 2026-11-08)', () => {
+  const g = EXPLANATION_VISUAL_RULES + ' ' + EXPLANATION_GUIDANCE, at = s => { const i = g.indexOf(s); assert.ok(i >= 0, s); return i; };
   at('sequence whenever two or more named parties send things to each other (client and server, sender and receiver, a protocol, request and response);');
-  assert.ok(at('For an operation on a binary tree or BST (traversal, insertion, search, deletion) the first visual is the tree itself, showing the operation in its node labels (the visit order, as 1st, 2nd, or the new key marked as 7 (new)) or as two tree visuals, before and after; a flow with a highlightPath for the steps may follow it but never replaces it; a tree highlightPath is only a root-to-descendant route along parent-to-child edges, such as the search path an insertion or search follows, never a visit order.') > at('For binary trees use kind "tree" with layout "binary".'));
+  assert.equal(g.includes('For an operation on a binary tree or BST'), false, 'dead text removed: the server guard decides the binary layout (owner 2026-11-08 clean-up)');
   at('Three visuals are a maximum, not a target.');
   at('a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram;');
   // Owner 2026-11-08: the catalogue's sequence entry says the same as the choice rule (wording only; the order of kinds is unchanged).
@@ -318,7 +318,7 @@ test('the guidance carries the parties-send-things sequence rule, the structure-
 
 // Owner 2026-11-08: digital, abstract or procedural subjects get no picture, a separate line; the positive picture rule (51 of 54 in the study) is unchanged.
 test('the guidance keeps digital, abstract and procedural subjects to diagrams, beside the unchanged positive picture rule', () => {
-  const g = EXPLANATION_GUIDANCE;
+  const g = EXPLANATION_VISUAL_RULES;
   assert.ok(g.includes('Digital, abstract or procedural subjects — email, DNS, network protocols, algorithms, software, data structures, mathematics — never get a picture. They get a diagram only.'));
   assert.ok(g.includes('1) Type: objects, 3D shapes, anatomy, places, living things and how something looks always get a picture first, then a process diagram second only if the thing also does something; a diagram alone is wrong for them; a "how does X work" or "how does X happen" question about a physical object, place or natural event (a volcano erupting, an eclipse, an engine) gets a picture of it and the process diagram; processes, relationships, comparisons, hierarchies, quantities, algorithms and data structures get diagrams; never use a picture for a data structure, an algorithm or numbers; a 3D object or a repeating structure — a molecule, a crystal lattice, a gear train, a mesh — is a picture, never a tree, figure or layers.'));
 });
@@ -369,5 +369,5 @@ test('fix 6a: a branchless flow becomes a cycle of the same steps in order when 
 });
 
 test('rule 1 makes a 3D object or a repeating structure a picture (owner G3, 2026-11-08: crystal lattice drew a tree on Gemini)', () => {
-  assert.match(EXPLANATION_GUIDANCE, /a 3D object or a repeating structure — a molecule, a crystal lattice, a gear train, a mesh — is a picture, never a tree, figure or layers/);
+  assert.match(EXPLANATION_VISUAL_RULES, /a 3D object or a repeating structure — a molecule, a crystal lattice, a gear train, a mesh — is a picture, never a tree, figure or layers/);
 });

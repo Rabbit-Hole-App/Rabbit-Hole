@@ -1,9 +1,10 @@
 // JEV planner prototype (owner 2026-11-08): plan mapping, the author-facing statement, the shape example, and that nothing changes unless the dev flag is on.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { planFromAnswers, planStatement, planShape, planExplanation, plannerEnabled, QUESTIONS } from '../src/explanation-planner.js';
+import { planFromAnswers, cardVisuals, visualsStatement, planShape, planExplanation, plannerEnabled, QUESTIONS } from '../src/explanation-planner.js';
 import { prepareArtifactAuthorRequest, generateArtifact } from '../src/learn-artifact.js';
 
+const planStatement = plan => visualsStatement(plan, cardVisuals(plan));
 const answers = (over = {}) => ({
   visualType: { choice: 'diagram', confidence: 0.95, probabilities: { diagram: 0.95, picture: 0.03, both: 0.02 } },
   kind: { choice: 'sequence', confidence: 0.8, probabilities: { sequence: 0.8, flow: 0.15, cycle: 0.05 } },
@@ -29,7 +30,7 @@ test('picture and both map to the visuals in the author order; no second-visual 
   assert.deepEqual(planFromAnswers(answers({ secondVisual: { choice: 'comparison' } })).visuals, [{ type: 'diagram', kind: 'sequence' }]);
   assert.ok(!('secondVisual' in QUESTIONS), 'the question is not even asked');
   assert.match(planStatement(planFromAnswers(answers({ visualType: { choice: 'picture' } }))), /1\) a picture \(no diagram\)\. Depth treatment: mechanism/);
-  assert.match(planStatement(planFromAnswers(answers())), /^Card plan, decided before you write; follow it\. Visuals, in this order: 1\) a sequence diagram\. Depth treatment: mechanism \(/);
+  assert.match(planStatement(planFromAnswers(answers())), /^# Visuals for this card\nThis card's visuals: 1\) a sequence diagram\. Depth treatment: mechanism\.$/);
 });
 
 test('the shape example is the examples.json entry of the planned kind, none for a kind without one or for a picture', () => {
@@ -46,10 +47,13 @@ test('off by default: no flag or no key means the request is exactly what it was
   assert.ok(!JSON.stringify(a.messages).includes('cardPlan'));
 });
 
-test('a plan puts cardPlan in the request and its shape example first in the reference block', () => {
+test('a plan is stated as fact in the tool description (no rules block, no cardPlan in the request) and its shape example comes first in the reference block', () => {
   const plan = planFromAnswers(answers());
   const p = prepareArtifactAuthorRequest({}, { command: 'explanation', args: 'How does the TCP handshake work?', plan, planned: true });
-  assert.match(JSON.stringify(p.messages), /cardPlan/); assert.match(JSON.stringify(p.messages), /1\) a sequence diagram/);
+  const description = p.body.tools[0].description;
+  assert.ok(!JSON.stringify(p.messages).includes('cardPlan'));
+  assert.ok(description.includes("# Visuals for this card\nThis card's visuals: 1) a sequence diagram. Depth treatment: mechanism."));
+  assert.ok(!description.includes('Choose visuals in this order'), 'the planned card does not get the type / kind / count rules');
   assert.equal(p.diagramReferences[0].id, 'shape-sequence');
   assert.ok(p.body.system.includes('Shape example for a sequence diagram on another subject'));
   const withTopical = prepareArtifactAuthorRequest({}, { command: 'explanation', args: 'What is gini impurity?', plan: planFromAnswers(answers({ kind: { choice: 'bar-chart', probabilities: { 'bar-chart': 0.9 } } })), planned: true });
@@ -77,18 +81,18 @@ test('the planner call: 800 ms timeout, any failure is no plan (the card never w
 test('generateArtifact plans once per card with the flag on, and runs as today when the planner fails', async () => {
   const seen = [];
   const env = { SMALL_ENV: 'test', EXPLANATION_PLANNER: 'jev', TYPESAFE_API_KEY: 'k' };
-  const model = async (e, body) => { seen.push(JSON.stringify(body.messages)); return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c', name: 'make_explanation', input: { title: 'T', visuals: [], body: 'x' } }] }); };
+  const model = async (e, body) => { seen.push(JSON.stringify(body.tools)); return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c', name: 'make_explanation', input: { title: 'T', visuals: [], body: 'x' } }] }); };
   const realFetch = globalThis.fetch; let calls = 0;
   const log = console.log; console.log = () => {};
   try {
     globalThis.fetch = async () => { calls++; return Response.json({ answers: answers() }); };
     await generateArtifact(env, { command: 'explanation', args: 'How does the TCP handshake work?' }, { callModel: model, repairs: 1 });
     assert.equal(calls, 1, 'one planner call however many author calls');
-    assert.ok(seen.length >= 1 && seen.every(m => m.includes('cardPlan')), 'the first call and any repair carry the plan');
+    assert.ok(seen.length >= 1 && seen.every(m => m.includes("This card's visuals: 1) a sequence diagram") && !m.includes('Choose visuals in this order')), 'the first call and any repair carry the plan');
     const seen2 = [];
     globalThis.fetch = async () => new Response('x', { status: 500 });
-    await generateArtifact(env, { command: 'explanation', args: 'How does the TCP handshake work?' }, { callModel: async (e, b) => { seen2.push(JSON.stringify(b.messages)); return model(e, b); }, repairs: 0 });
-    assert.ok(seen2.length >= 1 && seen2.every(m => !m.includes('cardPlan')));
+    await generateArtifact(env, { command: 'explanation', args: 'How does the TCP handshake work?' }, { callModel: async (e, b) => { seen2.push(JSON.stringify(b.tools)); return model(e, b); }, repairs: 0 });
+    assert.ok(seen2.length >= 1 && seen2.every(m => !m.includes("This card's visuals") && m.includes('Choose visuals in this order')), 'no plan: the rules block is back');
   } finally { globalThis.fetch = realFetch; console.log = log; }
 });
 

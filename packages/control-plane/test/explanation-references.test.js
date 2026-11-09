@@ -31,7 +31,7 @@ test('a binary-tree operation puts real tree JSON references in the actual autho
       assert.deepEqual(parseTutorDiagram(example.spec), example.spec);
       assert.ok(prepared.body.system.includes(JSON.stringify(example.spec)));
     }
-    assert.match(prepared.body.system, /illustrative/i);
+    assert.match([prepared.body.system, ...prepared.body.tools.map(t => t.description)].join('\n'), /illustrative/i); // the number rule sits under "# Numbers and maths" in the tool description
     assert.match(prepared.body.system, /source facts/i);
   }
 });

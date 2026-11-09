@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { EXPLANATION_PROFILE_SETTING, EXPLANATION_REGISTRY, explanationProfileBinding, explanationProfileFor, resolveExplanationProfile } from '../src/explanation-models.js';
 import { CHAIN_ENDPOINTS, FALLBACK_SETTING, forGemini, stepRequest, withoutBounds } from '../src/explanation-fast-chain.js';
 import { ARTIFACT_SYSTEM, generateArtifact, prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
+import { explanationSystem } from '../src/agents/learn-artifact.js';
 import { CORE_KINDS } from '../src/explanation-references.js';
 import { MATH_FORMAT } from '../src/agents/math-format.js';
 import { EXPLANATION_GUIDANCE, artifactBlock, explanationProblem, settleExplanationBody } from '../src/learn-primitives.js';
@@ -166,7 +167,7 @@ test('the system prompt as sent: LaTeX spelled out, no control character but new
   assert.ok(sent.includes('reply with exactly one JSON object, the make_explanation input described above, matching the response schema.'));
   const google = stepRequest({ provider: 'google', model: 'gemini-3.5-flash-lite' }, 'low', fast.body).messages[0].content;
   assert.equal(google, sent, 'the Gemini step sends the same system text');
-  assert.equal(tools.system, ARTIFACT_SYSTEM, 'the tool route is unchanged');
+  assert.equal(tools.system, explanationSystem('tools'), 'the tool route: the Explanation system head (no maths or number rule: they sit in the tool description)');
 });
 
 test('an exclusive oneOf is sent as anyOf; a non-exclusive one is refused, not weakened; text documents are inlined, images and PDFs refused', () => {

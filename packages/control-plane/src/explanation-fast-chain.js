@@ -92,7 +92,9 @@ const isRepair = body => body.messages.some(m => Array.isArray(m.content) && m.c
 export function assembledSystem(body, tool = body.tools?.find(t => t.name === TOOL)) {
   const system = [].concat(body.system ?? []).map(b => (typeof b === 'string' ? b : b.text)).join('\n');
   const at = system.indexOf(REFERENCE_MARK), head = at < 0 ? system : system.slice(0, at), refs = at < 0 ? '' : system.slice(at).trim();
-  return `${head}\n\n${tool?.description ?? ''}${refs ? `\n${refs}` : ''}\n${ADDENDUM}`;
+  // The tool description may end with its own "# Output format" part (the interaction guidance); the closing format line joins it under the same heading, after the references.
+  const [description, output] = String(tool?.description ?? '').split('\n\n# Output format\n');
+  return `${head}\n\n${description}${refs ? `\n\n${refs}` : ''}\n\n# Output format${output ? `\n${output}` : ''}${ADDENDUM}`;
 }
 export function stepRequest(step, effort, body, stream = false) {
   const tool = body.tools?.find(t => t.name === TOOL);

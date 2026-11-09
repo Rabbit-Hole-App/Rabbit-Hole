@@ -318,7 +318,7 @@ test('BE.06 actual author request and both output formats (CORE.03-07)', async t
     assert.ok(authorContext(call).includes(MD), 'whole pinned Markdown');
     assert.ok(call.text.includes(MARKER), 'including the distant marker');
     assert.ok(call.text.includes('CLAIM-GINI') && call.text.includes(PLAN.outcome), 'accepted step claims and outcome');
-    assert.match(call.text, /Depth: standard/i);
+    assert.match(call.text, /\*\*Standard\*\* —/); // the Depth section's paragraph for this card's Depth
     assert.match(call.text, /language \\"en\\"/);
     assert.deepEqual([h.checkerCalls.length, JSON.parse(resultRow(h, resultId).check_json).grounding.validation], [0, 'not_run'], 'no citation review; grounding not_run, not passed');
     assert.ok(call.text.includes(INSTRUCTION), 'the original learner instruction reaches the writer');
@@ -417,8 +417,8 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
     assert.equal(changed.status, 202, 'a Depth change on the active roadmap re-plans (be contract: always 202 and a new draft)');
     await h.run();
     assert.equal(h.authorCalls.length, 1);
-    assert.match(h.authorCalls[0].text, /Depth: standard/i, 'the frozen accepted Depth');
-    assert.doesNotMatch(h.authorCalls[0].text, /Depth: deep/i);
+    assert.match(h.authorCalls[0].text, /\*\*Standard\*\* —/, 'the frozen accepted Depth');
+    assert.doesNotMatch(h.authorCalls[0].text, /\*\*Deep\*\* —/);
   });
 });
 

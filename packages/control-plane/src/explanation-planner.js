@@ -66,10 +66,25 @@ export function planFromAnswers(a) {
     confidence: { kind: p1 ?? null, visualType: a.visualType?.confidence ?? null }, probabilities: { kind: a.kind?.probabilities ?? null, visualType: a.visualType?.probabilities ?? null } };
 }
 
-// The sentence the author reads in the request (cardPlan): the decisions made for this card.
-export function planStatement(plan) {
-  const parts = plan.visuals.map((v, i) => `${i + 1}) ${v.type === 'picture' ? 'a picture' : v.kind ? `a ${v.kind} diagram` : `a diagram of one of these kinds, the one that teaches the answer: ${v.choose.join(' or ')}`}`);
-  return `Card plan, decided before you write; follow it. Visuals, in this order: ${parts.join('; ')}${plan.visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}. Depth treatment: ${plan.depthTreatment} (${TREATMENT[plan.depthTreatment]}).`;
+// Owner 2026-11-08 (clean-up): ONE source of truth for a card's visuals. The kinds the learner named (requiredVisuals, the asked items) override the plan; otherwise the
+// plan; with neither (no plan: timeout, error, flag off) the author's own rules choose (learn-artifact.js appends EXPLANATION_VISUAL_RULES).
+// -> { source: 'required' | 'plan' | 'rules', visuals: [{ type: 'picture' } | { type: 'diagram', kind? , choose? }] }
+export function cardVisuals(plan, asked = []) {
+  const items = asked.filter(i => i.kind === 'diagram' || i.kind === 'illustration');
+  if (items.length) {
+    const planned = plan?.visuals?.find(v => v.type === 'diagram');
+    return { source: 'required', visuals: items.map(i => (i.kind === 'illustration' ? { type: 'picture' } : { type: 'diagram', ...(i.diagramKind ? { kind: i.diagramKind } : planned?.kind ? { kind: planned.kind } : planned?.choose ? { choose: planned.choose } : {}) })) };
+  }
+  return plan?.planner === 'jev' ? { source: 'plan', visuals: plan.visuals } : { source: 'rules', visuals: [] };
+}
+// The diagram kinds the card is to hold: the first diagram's kind, or both offered kinds. [] when the rules decide.
+export const visualKinds = ({ visuals }) => { const d = visuals.find(v => v.type === 'diagram'); return d ? (d.kind ? [d.kind] : d.choose ?? []) : []; };
+
+// The "# Visuals for this card" section the author reads: the decisions made for this card, stated as fact (no plan, no required item: null, the rules block goes instead).
+export function visualsStatement(plan, { source, visuals }) {
+  if (source === 'rules') return null;
+  const parts = visuals.map((v, i) => `${i + 1}) ${v.type === 'picture' ? 'a picture' : v.kind ? `a ${v.kind} diagram` : v.choose ? `a diagram of one of these kinds, the one that teaches the answer: ${v.choose.join(' or ')}` : 'a diagram'}`);
+  return `# Visuals for this card\nThis card's visuals: ${parts.join('; ')}${visuals.every(v => v.type === 'picture') ? ' (no diagram)' : ''}.${plan?.depthTreatment ? ` Depth treatment: ${plan.depthTreatment}.` : ''}`;
 }
 
 // The shape example for the planned diagram: the first examples.json entry of its kind (the top kind when the plan is not fixed), else null (no example for that kind).

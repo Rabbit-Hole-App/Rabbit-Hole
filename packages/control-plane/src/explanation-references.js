@@ -47,11 +47,13 @@ function referenceVariants(ref, required) {
   }] : []);
 }
 
-export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [] } = {}) {
+// plannedKinds (owner 2026-11-08, clean-up): the card's resolved diagram kinds (explanation-planner.js cardVisuals); candidates are filtered to them BEFORE keyword scoring, so a
+// reference of another kind is never offered. Empty: no filter (the rules decide the kind).
+export function selectDiagramReferences({ prompt = '', context = '', requiredKinds = [], plannedKinds = [] } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   const source = normalized(contextText(context));
   const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
-  const candidates = diagramReferences.flatMap(ref => referenceVariants(ref, required));
+  const wanted = new Set(plannedKinds), candidates = diagramReferences.flatMap(ref => referenceVariants(ref, required)).filter(ref => !wanted.size || wanted.has(ref.spec.diagram.kind));
   const ranked = candidates.map((ref, index) => ({
     ref, index, direct: topicScore(query, ref), source: topicScore(source, ref),
   }));
@@ -79,11 +81,11 @@ export function selectDiagramReferences({ prompt = '', context = '', requiredKin
 }
 
 // The start of the reference block in a system prompt; the fast chain moves the block to the end of its system message (assembledSystem).
-export const REFERENCE_MARK = '\nApproved diagram references';
+export const REFERENCE_MARK = '\n# Examples\nApproved diagram references';
 export function diagramReferenceContext(references) {
   if (!references.length) return '';
   // Owner N1 (2026-11-08): numbers follow the one number rule in ARTIFACT_SYSTEM (agents/learn-artifact.js); this block carries no second wording of it.
-  const heading = '\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
+  const heading = '\n# Examples\nApproved diagram references (examples, not source facts). Use their supported structure and layout when appropriate. Adapt labels and relationships to the learner\'s question. Do not copy example prose, force a reference, or exceed this card\'s visual count.\n';
   let out = heading;
   for (const ref of references.slice(0, MAX_REFERENCES + 1)) { // the planner's shape example may come first (explanation-planner.js), then at most two topical ones
     const line = JSON.stringify({ id: ref.id, useWhen: ref.useWhen, spec: ref.spec }) + '\n';

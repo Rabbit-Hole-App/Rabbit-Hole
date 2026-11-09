@@ -85,7 +85,7 @@ test('8. typed /explain keeps its full family; the legacy path is the same witho
   await generateArtifact({}, { command: 'explain', args: 'how softmax works' }, { callModel: m.callModel });
   const names = offered(m.seen[0].body);
   for (const id of ['explanation', 'table', 'animation']) assert.ok(names.includes(`make_${id}`), id);
-  assert.equal(m.seen[0].body.system.split('\nApproved diagram references')[0], ARTIFACT_SYSTEM, 'no suffix without the trusted option (Phase 02 diagram references may follow)');
+  assert.equal(m.seen[0].body.system.split('\n# Examples')[0], ARTIFACT_SYSTEM, 'no suffix without the trusted option (Phase 02 diagram references may follow)');
   const narrow = scripted(['ask_clarifying_question', { question: 'Which?' }]);
   await generateArtifact({}, { command: 'explain', args: 'an interactive simulator of softmax' }, { callModel: narrow.callModel });
   assert.deepEqual(offered(narrow.seen[0].body), ['make_animation', 'ask_clarifying_question']);
@@ -149,7 +149,7 @@ test('the passage is the only source material: it rides as context, is never tru
 
 // --- CORE.09 / BE.06a: shared Explanation guidance, Depth targets, display-text caps and the rh-diagram format ------------------------------------
 import { explanationChars, explanationProblem, diagramProblem, EXPLANATION_GUIDANCE } from '../src/learn-primitives.js';
-import { EXPLANATION_BUDGET, EXPLANATION_CAPS, EXPLANATION_OBJECTIVES } from '../src/chat-depth.js';
+import { EXPLANATION_BUDGET, EXPLANATION_CAPS, explanationTarget } from '../src/chat-depth.js';
 
 // File 06 fixtures (fixture-deep-body / fixture-deep-more), as the shared renderer reads them.
 const DEEP_BODY = '## One leaf, one region\n\nThe Approve path requires both age under 30 and income over $50k. Plot those two thresholds on separate axes and the intersection forms a rectangle.\n\n```rh-diagram\n{"version":1,"diagram":{"kind":"flow","title":"Approval path","nodes":[{"id":"a","label":"Age under 30?","role":"decision"},{"id":"b","label":"Income over $50k?","role":"decision"},{"id":"c","label":"Check credit score","role":"outcome"},{"id":"d","label":"Approve","role":"outcome"},{"id":"e","label":"Deny","role":"outcome"}],"edges":[{"from":"a","to":"b","label":"Yes"},{"from":"a","to":"c","label":"No"},{"from":"b","to":"d","label":"Yes"},{"from":"b","to":"e","label":"No"}]}}\n```\n\n## Why a diagonal is harder\n\nEach split is horizontal or vertical. A slanted boundary takes several cuts, forming a staircase.';
@@ -196,7 +196,7 @@ test('CORE.09: a direct question and a roadmap step get the same Explanation gui
     const out = await generateArtifact({}, { command: 'explain', args: 'Why do decision trees split on one feature?', ...(depth === 'standard' ? {} : { depth }) }, { callModel: direct.callModel });
     assert.equal(out.result, 'artifact', depth);
     const desc = direct.seen[0].tools.find(t => t.name === 'make_explanation').description;
-    assert.ok(desc.includes(EXPLANATION_GUIDANCE) && desc.includes(EXPLANATION_OBJECTIVES[depth]) && desc.includes(`at most ${cap.toLocaleString('en-US')} characters`), depth);
+    assert.ok(desc.includes(EXPLANATION_GUIDANCE) && desc.includes(explanationTarget(depth)) && desc.includes(`at most ${cap.toLocaleString('en-US')} characters`), depth);
     assert.ok(JSON.parse(direct.seen[0].messages[0].content).learnerText.includes('Why do decision trees split'), 'the question rides in the request');
     const roadmap = await run(record({ depth, stepTitle: 'Splits' }), [['make_explanation', { title: 'A different model title', body: withVisual('Splits divide the data.') }]]);
     assert.equal(roadmap.out.outcome, 'ok', depth);
