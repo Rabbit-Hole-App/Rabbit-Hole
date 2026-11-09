@@ -356,3 +356,23 @@ Owner decisions after arm E v2 (2026-11-08 ~19:50 PT): the planner stays on (fla
 - Plot scoring standing rule: a wrong point makes the plot wrong; each series is checked against the formula the prose states for that series (a derivative series against the derivative); the sigmoid "7/9 wrong" was a bench error, not a card error. Bench to be fixed after the Gemini run reports.
 - Factual (6/42, 14.3%): deep water-cycle (E = k(T - T0) as a general law: knowledge), deep TCP handshake (options field vs flags: knowledge), deep lr-schedule ("exact values of a typical run": precision/hedging), overview cross-entropy (loss does not dip near the middle: knowledge), overview softmax (softmax of [2,1,0] gives 0.09, diagram says 0.10: an arithmetic error in a model-written value; the formula sampler removes this class), standard BST (halving without "balanced": a precision error; a prompt-level fix later, not now).
 - Next: Gemini run report; then the model decision, once. Full suites on the short-paragraph commit (bd8ea75e7) run when the machine is quiet, before it goes anywhere else.
+
+## Arm E v2 on Gemini 3.5 Flash Lite + the easy set (2026-11-08 ~20:10 PT; runs `2026-11-08T192441-arm-e-v2-gemini-flash-lite-8e861fdb3` $0.52 of $0.60 and `easy-set/2026-11-08T192911-easy-set-gemini-planner` $0.33 of $0.40; bench 30b7e5ae8; machine quiet)
+
+Stack 8e861fdb3 (planner v2, references on), author Gemini 3.5 Flash Lite for every card that was written (41 cards authoredBy google; fireworks skipped 42; one card, overview gradient-descent, failed after its repair: marker/layout twice then "needs one to three visuals", counted as a miss). Frozen: right kind 11/10/9, repairs 3/42, p50 3.58 / p90 4.40 s.
+| check | Gemini + planner | gpt-oss low + planner (arm E v2) | frozen |
+|---|---|---|---|
+| right kind O / S / D (of 14) | 11 / 12 / 11 (34 of 41 delivered) | 10 / 11 / 11 (32/42) | 11 / 10 / 9 (30/42) |
+| keep: right kind at S and D vs 10 / 9 | PASS | PASS | - |
+| keep: repairs <= 5/42 | FAIL 11/42 (6 at Overview) | FAIL 6/42 (3 are the matrix IDs, fixed on the server since) | 3/42 |
+| p50 / p90 whole card | 3.62 / 5.83 s | 4.12 / 6.53 s | 3.58 / 4.40 s |
+| Deep plots (no wrong point) | 3/6, 0 point errors (14 drawn, 3 checked, 25 points) | 3/6 | 4/6 |
+| faithful fully / partly / not (Core) | 24 / 16 / 1 of 41 | 29 / 8 / 3 of 40 | - |
+| beyond-v2 | 7/41 | 2/40 | - |
+| factual-v2, formula-heavy | 3/41 = 7.3% (mean 4.54) | 6/42 = 14.3% (4.24) | - |
+| factual-v2, easy set (42 baseline prompts, Standard) | 2/42 = 4.8% (4.31) | 8/42 = 19.0% (4.12) arm A, 5d, no planner or references | - |
+| cost per card | $0.0032 + planner $0.00005 | $0.0026 + $0.00005 | $0.00258 |
+Planner on Gemini: 4 cards ran without a plan (800 ms timeouts: deep water-cycle, deep and overview TCP handshake, standard water-cycle); latency of the 38 answered p50 264 / p90 592 ms (gpt-oss run 154 / 246); fixed 31 (right 26, acceptable 2, wrong 2: overview Gini and cross-entropy, the plan itself), offered 7 (right 4, acceptable 3); plan vs author disagreements 0; two-diagram cards 0/42; no pictures drawn (TCP handshake as sequence diagrams); easy set on Gemini: p50 3.56 / p90 7.50 s, repairs 4/42, 12 pictures.
+Gemini repairs (11): deep atmosphere (layer detail not single-line), deep and overview Gini (x.unit empty), overview Roman Empire (label too long), overview softmax, attention-weights and standard water-cycle (marker/layout), overview gradient-descent (twice, no card), standard entropy (transformation link index), overview and standard precision-recall (an unrelated "AND truth table" diagram).
+Flagged factual cards: Gemini: overview softmax (2: [2, 1, 0.1] gives 65.9 / 24.2 / 9.9%, not 70 / 26 / 4%), standard and deep cross-entropy (3: "penalty grows exponentially"; -log p grows logarithmically), dodecahedron (2: "three-shaped"; "can tile space" is false), coral-reef (3: branching "reduces hydrodynamic drag" misleading; calcium carbonate imprecise). gpt-oss: the 6 formula-heavy cards above plus the 8 easy-set cards. Repeats across models: worked softmax numbers at Overview (Gemini, gpt-oss E1 and E2); dodecahedron (different false claims). The easy-set comparison is not like for like (arm A 5d had no planner or references).
+Read against the owner's gates: Gemini passes factual <= 10% on both sets and right kind >= 80% (34/41 = 83%); gpt-oss fails both (14.3% / 19.0%, 76%); both fail Deep plots, and both pass the relaxed p90 <= 7 s. Gemini's weaker rows: repairs 26%, beyond-v2 7/41, faithful fully 24/41, 4 planner timeouts at 800 ms, one undelivered card. Model decision is the owner's, once; tie-break order factual, then p90, then cost.
