@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { lintDiagramContent } from './content-contract.js';
-import { diagramReferences } from './reference-library.js';
+import { lintDiagramContent } from '../../scripts/explanation-content-contract.mjs';
+import { diagramReferences } from './offline-reference-library.js';
+import { diagramReferences as registered } from './reference-library.js';
 import { singleDiagramReferences } from './reference-single-variants.js';
 import { parseTutorDiagram } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
@@ -22,7 +23,7 @@ test('all two-panel references have exactly one linked single-diagram variant', 
     assert.deepEqual(single.keywords, panel.keywords);
     assert.deepEqual(single.prompts, panel.prompts);
     assert.deepEqual(single.lessons, panel.lessons);
-    assert.ok(!diagramReferences.some(r => r.id === single.id));
+    assert.ok(!registered.some(r => r.id === single.id));
   }
 });
 

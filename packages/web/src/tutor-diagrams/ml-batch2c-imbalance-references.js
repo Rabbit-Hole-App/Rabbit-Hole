@@ -19,8 +19,8 @@ export const references = [
           kind: 'matrix', layout: 'teaching', title: 'Rates from the same 100 cases',
           columns: ['Fraction', 'Percent'],
           rows: [
-            { id: 'accuracy', heading: 'Accuracy', cells: [String.raw`$\frac{95}{100}$`, '95%'] },
-            { id: 'minority-recall', heading: 'Minority recall', cells: [String.raw`$\frac{0}{5}$`, '0%'] },
+            { id: 'accuracy', heading: 'Accuracy', cells: ['95/100', '95%'] },
+            { id: 'minority-recall', heading: 'Minority recall', cells: ['0/5', '0%'] },
           ],
           emphasis: { cells: [{ row: 'minority-recall', column: 1 }] },
           caption: 'Accuracy uses all 100 cases. Recall uses the 5 actual minority cases.',

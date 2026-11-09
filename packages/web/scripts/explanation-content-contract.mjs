@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import { tokenizeMath } from '../math-tokens.js';
+import { tokenizeMath } from '../src/math-tokens.js';
 
 // Authored display text in the v1 shapes. Structural strings and numeric data stay out of the check.
 const TEXT_FIELDS = new Set([

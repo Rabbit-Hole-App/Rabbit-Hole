@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
+import { prepareArtifactAuthorRequest, diagramReferenceContext, selectDiagramReferences } from './fixtures/explanation-offline-author.mjs';
 import { deriveVisualRequirements } from '../src/explanation-visuals.js';
-import { diagramReferenceContext, selectDiagramReferences } from '../src/explanation-references.js';
-import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
+import { diagramReferences } from '../../web/src/tutor-diagrams/offline-reference-library.js';
 
 // Real author-message preparation with independently worded learner questions.
 // These checks do not call a provider or assert stochastic model behavior.

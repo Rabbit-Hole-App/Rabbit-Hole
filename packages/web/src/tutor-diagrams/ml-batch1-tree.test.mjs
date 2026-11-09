@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { diagramReferences } from './reference-library.js';
+import { diagramReferences } from './offline-reference-library.js';
 import { parseTutorDiagram } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
 
 const getReference = () => {
   const reference = diagramReferences.find(ref => ref.id === 'ml-tree-impurity-gain');
-  assert.ok(reference, 'A worked impurity-gain reference must be available to the author');
+  assert.ok(reference, 'The offline corpus includes the worked impurity-gain reference');
   return reference;
 };
 

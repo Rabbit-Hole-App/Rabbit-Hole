@@ -42,7 +42,7 @@ test('minority recall and accuracy count different populations in the same confu
     ['minority-recall', minorityFound, minorityCases],
   ]) {
     assert.deepEqual(metrics.rows.find(row => row.id === id).cells, [
-      String.raw`$\frac{${correct}}{${cases}}$`, `${100 * correct / cases}%`,
+      `${correct}/${cases}`, `${100 * correct / cases}%`,
     ]);
   }
 });
@@ -85,11 +85,8 @@ for (const id of [accuracyTrap, undersampling]) {
       if (id === accuracyTrap) {
         assert.match(svg, /stroke-width="3" data-tutor-heatmap-cell="1:0"/);
         assert.match(svg, /data-tutor-matrix-cell="minority-recall:1"/);
-        for (const value of ['Actual', 'Predicted', '95', '5', '95%', '0%']) {
+        for (const value of ['Actual', 'Predicted', '95', '5', '95/100', '95%', '0/5', '0%']) {
           assert.ok(svg.includes(`>${value}</tspan>`), `${value} is visible at ${width} px`);
-        }
-        for (const fraction of [String.raw`$\frac{95}{100}$`, String.raw`$\frac{0}{5}$`]) {
-          assert.ok(svg.includes(`data-tutor-tex="${fraction}"`), `${fraction} is typeset at ${width} px`);
         }
       } else {
         const originals = [...svg.matchAll(/data-tutor-sample="([^"]+)"/g)].map(match => match[1]);

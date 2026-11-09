@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { lintDiagramContent } from './content-contract.js';
+import { lintDiagramContent } from '../../scripts/explanation-content-contract.mjs';
 import { parseTutorDiagram } from './spec.js';
 
 const lint = diagram => lintDiagramContent(parseTutorDiagram({ version: 1, diagram }));

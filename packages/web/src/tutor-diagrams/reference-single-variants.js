@@ -1,4 +1,4 @@
-import { diagramReferences } from './reference-library.js';
+import { diagramReferences } from './offline-reference-library.js';
 import { singleSpecs as specsA } from './reference-single-specs-a.js';
 import { singleSpecs as specsB } from './reference-single-specs-b.js';
 

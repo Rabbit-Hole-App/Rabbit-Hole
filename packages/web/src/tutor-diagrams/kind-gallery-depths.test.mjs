@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { lintDiagramContent } from './content-contract.js';
+import { lintDiagramContent } from '../../scripts/explanation-content-contract.mjs';
 import { mathLabel } from './math.js';
 import { parseTutorDiagram, tutorDiagramJsonSchema } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';

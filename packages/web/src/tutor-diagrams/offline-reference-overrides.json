@@ -1,0 +1,1512 @@
+{
+  "ml-feature-scaling-transformation": {
+    "version": 1,
+    "diagram": {
+      "kind": "transformation",
+      "variant": "visual",
+      "title": "Center and scale two features",
+      "operation": "$x' = \\frac{x-150}{50}$ and $y' = \\frac{y-20}{10}$",
+      "before": {
+        "label": "Before",
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "Original feature values",
+          "x": {
+            "label": "Feature $x$",
+            "min": 80,
+            "max": 220,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Feature $y$",
+            "min": 0,
+            "max": 50,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Samples",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 100,
+                  "y": 10,
+                  "id": "a",
+                  "label": "A"
+                },
+                {
+                  "x": 150,
+                  "y": 20,
+                  "id": "b",
+                  "label": "B"
+                },
+                {
+                  "x": 200,
+                  "y": 40,
+                  "id": "c",
+                  "label": "C"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "after": {
+        "label": "After",
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "Centered and scaled values",
+          "x": {
+            "label": "Scaled feature $x'$",
+            "min": -2,
+            "max": 2,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Scaled feature $y'$",
+            "min": -2,
+            "max": 3,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Samples",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": -1,
+                  "y": -1,
+                  "id": "a",
+                  "label": "A"
+                },
+                {
+                  "x": 0,
+                  "y": 0,
+                  "id": "b",
+                  "label": "B"
+                },
+                {
+                  "x": 1,
+                  "y": 2,
+                  "id": "c",
+                  "label": "C"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "identity": {
+        "mode": "preserved",
+        "note": "A, B and C retain their sample IDs; only feature coordinates change."
+      },
+      "caption": "The stated centers and scales are fixed teaching values, not estimates fitted from these three samples."
+    }
+  },
+  "ml-covariate-drift-comparison": {
+    "version": 1,
+    "diagram": {
+      "kind": "coordinate-plot",
+      "title": "Covariate drift: inputs shift",
+      "x": {
+        "label": "Input $x$",
+        "min": 0,
+        "max": 5,
+        "scale": "linear"
+      },
+      "y": {
+        "label": "Target $y$",
+        "min": 0,
+        "max": 10,
+        "scale": "linear"
+      },
+      "series": [
+        {
+          "label": "Reference window",
+          "kind": "scatter",
+          "points": [
+            {
+              "x": 1,
+              "y": 2
+            },
+            {
+              "x": 1.5,
+              "y": 3
+            },
+            {
+              "x": 2,
+              "y": 4
+            }
+          ]
+        },
+        {
+          "label": "Current window",
+          "kind": "scatter",
+          "points": [
+            {
+              "x": 2.5,
+              "y": 5
+            },
+            {
+              "x": 3,
+              "y": 6
+            },
+            {
+              "x": 3.5,
+              "y": 7
+            }
+          ]
+        }
+      ],
+      "caption": "Input values shift while the same illustrative conditional rule $y = 2x$ remains in force."
+    }
+  },
+  "ml-label-prior-drift-comparison": {
+    "version": 1,
+    "diagram": {
+      "kind": "bar-chart",
+      "variant": "grouped",
+      "title": "Label-prior shift: class balance changes",
+      "unit": "samples",
+      "categories": [
+        "Class 0",
+        "Class 1"
+      ],
+      "series": [
+        {
+          "label": "Reference window",
+          "values": [
+            7,
+            3
+          ]
+        },
+        {
+          "label": "Current window",
+          "values": [
+            3,
+            7
+          ]
+        }
+      ],
+      "caption": "Each window contains 10 samples. Label shift assumes the within-class feature distributions remain unchanged."
+    }
+  },
+  "ml-concept-drift-comparison": {
+    "version": 1,
+    "diagram": {
+      "kind": "comparison",
+      "variant": "panels",
+      "title": "Concept drift: the target rule changes",
+      "panels": [
+        {
+          "heading": "Reference window",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Targets follow $y = 2x$",
+            "x": {
+              "label": "Input $x$",
+              "min": 0,
+              "max": 5,
+              "scale": "linear"
+            },
+            "y": {
+              "label": "Target $y$",
+              "min": 0,
+              "max": 10,
+              "scale": "linear"
+            },
+            "series": [
+              {
+                "label": "Observed samples",
+                "kind": "scatter",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 2
+                  },
+                  {
+                    "x": 2,
+                    "y": 4
+                  },
+                  {
+                    "x": 3,
+                    "y": 6
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "heading": "Current window",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Targets follow $y = 8 - 2x$",
+            "x": {
+              "label": "Input $x$",
+              "min": 0,
+              "max": 5,
+              "scale": "linear"
+            },
+            "y": {
+              "label": "Target $y$",
+              "min": 0,
+              "max": 10,
+              "scale": "linear"
+            },
+            "series": [
+              {
+                "label": "Observed samples",
+                "kind": "scatter",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 6
+                  },
+                  {
+                    "x": 2,
+                    "y": 4
+                  },
+                  {
+                    "x": 3,
+                    "y": 2
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "caption": "The input values stay fixed; the illustrative relationship between input and target changes.",
+      "sharedAxes": [
+        "x",
+        "y"
+      ]
+    }
+  },
+  "ml-boosting-correction-transformation": {
+    "version": 1,
+    "diagram": {
+      "kind": "transformation",
+      "variant": "visual",
+      "title": "One residual correction step",
+      "operation": "Update predictions with $F_1 = F_0 + 0.5r$",
+      "before": {
+        "label": "Before",
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "Current predictions",
+          "x": {
+            "label": "Sample position",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Target or prediction",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Targets",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 1,
+                  "id": "a",
+                  "label": "A"
+                },
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "b",
+                  "label": "B"
+                },
+                {
+                  "x": 3,
+                  "y": 3,
+                  "id": "c",
+                  "label": "C"
+                }
+              ]
+            },
+            {
+              "label": "Prediction $F_0$",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 2,
+                  "id": "a"
+                },
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "b"
+                },
+                {
+                  "x": 3,
+                  "y": 2,
+                  "id": "c"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "after": {
+        "label": "After",
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "Updated predictions",
+          "x": {
+            "label": "Sample position",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Target or prediction",
+            "min": 0,
+            "max": 4,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "Targets",
+              "kind": "scatter",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 1,
+                  "id": "a",
+                  "label": "A"
+                },
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "b",
+                  "label": "B"
+                },
+                {
+                  "x": 3,
+                  "y": 3,
+                  "id": "c",
+                  "label": "C"
+                }
+              ]
+            },
+            {
+              "label": "Prediction $F_1$",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 1.5,
+                  "id": "a"
+                },
+                {
+                  "x": 2,
+                  "y": 2,
+                  "id": "b"
+                },
+                {
+                  "x": 3,
+                  "y": 2.5,
+                  "id": "c"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "identity": {
+        "mode": "preserved",
+        "note": "Samples A, B and C keep their targets and IDs. Residuals −1, 0 and 1 yield updates −0.5, 0 and 0.5."
+      },
+      "caption": "This fixed example uses an exact residual correction to illustrate the additive update; no model training is performed."
+    }
+  },
+  "ml-differencing-transformation": {
+    "version": 1,
+    "diagram": {
+      "kind": "transformation",
+      "variant": "visual",
+      "title": "First-difference a short time series",
+      "operation": "Subtract the previous observation to get $\\Delta y_t = y_t - y_{t-1}$",
+      "before": {
+        "label": "Before",
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "Original observations",
+          "x": {
+            "label": "Time",
+            "min": 1,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Observed value",
+            "min": 0,
+            "max": 20,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "$y$",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 10,
+                  "id": "t1",
+                  "label": "t1"
+                },
+                {
+                  "x": 2,
+                  "y": 13,
+                  "id": "t2",
+                  "label": "t2"
+                },
+                {
+                  "x": 3,
+                  "y": 15,
+                  "id": "t3",
+                  "label": "t3"
+                },
+                {
+                  "x": 4,
+                  "y": 19,
+                  "id": "t4",
+                  "label": "t4"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "after": {
+        "label": "After",
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "Consecutive differences",
+          "x": {
+            "label": "Time",
+            "min": 1,
+            "max": 4,
+            "scale": "linear"
+          },
+          "y": {
+            "label": "Difference",
+            "min": 0,
+            "max": 5,
+            "scale": "linear"
+          },
+          "series": [
+            {
+              "label": "$\\Delta y$",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 2,
+                  "y": 3,
+                  "id": "d2",
+                  "label": "d2"
+                },
+                {
+                  "x": 3,
+                  "y": 2,
+                  "id": "d3",
+                  "label": "d3"
+                },
+                {
+                  "x": 4,
+                  "y": 4,
+                  "id": "d4",
+                  "label": "d4"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "identity": {
+        "mode": "mapped",
+        "note": "Each output uses the current and previous observation. The first observation has no earlier value.",
+        "mappings": [
+          {
+            "from": "t1",
+            "to": "d2",
+            "note": "Subtract 10"
+          },
+          {
+            "from": "t2",
+            "to": "d2",
+            "note": "$13 - 10 = 3$"
+          },
+          {
+            "from": "t2",
+            "to": "d3",
+            "note": "Subtract 13"
+          },
+          {
+            "from": "t3",
+            "to": "d3",
+            "note": "$15 - 13 = 2$"
+          },
+          {
+            "from": "t3",
+            "to": "d4",
+            "note": "Subtract 15"
+          },
+          {
+            "from": "t4",
+            "to": "d4",
+            "note": "$19 - 15 = 4$"
+          }
+        ]
+      }
+    }
+  },
+  "ml-soft-vote-probabilities": {
+    "version": 1,
+    "diagram": {
+      "kind": "comparison",
+      "variant": "panels",
+      "title": "Hard and soft voting can pick different classes",
+      "panels": [
+        {
+          "heading": "Start with three models",
+          "diagram": {
+            "kind": "matrix",
+            "layout": "teaching",
+            "title": "Probabilities for the same example",
+            "columns": [
+              "Class A",
+              "Class B"
+            ],
+            "rows": [
+              {
+                "id": "model-1",
+                "heading": "Model 1",
+                "cells": [
+                  "55%",
+                  "45%"
+                ]
+              },
+              {
+                "id": "model-2",
+                "heading": "Model 2",
+                "cells": [
+                  "55%",
+                  "45%"
+                ]
+              },
+              {
+                "id": "model-3",
+                "heading": "Model 3",
+                "cells": [
+                  "5%",
+                  "95%"
+                ]
+              }
+            ],
+            "emphasis": {
+              "cells": [
+                {
+                  "row": "model-1",
+                  "column": 0
+                },
+                {
+                  "row": "model-2",
+                  "column": 0
+                },
+                {
+                  "row": "model-3",
+                  "column": 1
+                }
+              ]
+            },
+            "caption": "Each model’s two probabilities add to 100%. The hard votes are A, A and B."
+          }
+        },
+        {
+          "heading": "Apply the two voting rules",
+          "diagram": {
+            "kind": "matrix",
+            "layout": "teaching",
+            "title": "Hard counts and soft averages",
+            "columns": [
+              "Class A",
+              "Class B"
+            ],
+            "rows": [
+              {
+                "id": "hard",
+                "heading": "Hard",
+                "cells": [
+                  "2 votes",
+                  "1 vote"
+                ]
+              },
+              {
+                "id": "soft",
+                "heading": "Soft",
+                "cells": [
+                  "38.33%",
+                  "61.67%"
+                ]
+              }
+            ],
+            "emphasis": {
+              "cells": [
+                {
+                  "row": "hard",
+                  "column": 0
+                },
+                {
+                  "row": "soft",
+                  "column": 1
+                }
+              ]
+            },
+            "caption": "Hard voting picks A. Soft voting averages $\\frac{55+55+5}{3}$ for A and $\\frac{45+45+95}{3}$ for B. B wins. Averages are rounded."
+          }
+        }
+      ],
+      "caption": "Model 3’s strong support for B outweighs the two narrow leads for A when all models have equal weight."
+    }
+  },
+  "ml-adaboost-weight-update": {
+    "version": 1,
+    "diagram": {
+      "kind": "transformation",
+      "variant": "visual",
+      "title": "AdaBoost gives the missed row more weight",
+      "operation": "Multiply by the factor for each row, then normalize",
+      "before": {
+        "label": "Before the weight update",
+        "diagram": {
+          "kind": "matrix",
+          "layout": "teaching",
+          "title": "Equal weight on every row",
+          "columns": [
+            "Result",
+            "Weight"
+          ],
+          "rows": [
+            {
+              "id": "r1",
+              "heading": "R1",
+              "cells": [
+                "Correct",
+                "$\\frac{1}{4}$"
+              ]
+            },
+            {
+              "id": "r2",
+              "heading": "R2",
+              "cells": [
+                "Correct",
+                "$\\frac{1}{4}$"
+              ]
+            },
+            {
+              "id": "r3",
+              "heading": "R3",
+              "cells": [
+                "Missed",
+                "$\\frac{1}{4}$"
+              ]
+            },
+            {
+              "id": "r4",
+              "heading": "R4",
+              "cells": [
+                "Correct",
+                "$\\frac{1}{4}$"
+              ]
+            }
+          ],
+          "emphasis": {
+            "rows": [
+              "r3"
+            ]
+          },
+          "caption": "Only R3 is missed, so the weighted error is $\\frac{1}{4}$. The binary learner coefficient is $\\alpha=\\ln(3)/2$."
+        }
+      },
+      "after": {
+        "label": "After normalization",
+        "diagram": {
+          "kind": "matrix",
+          "layout": "teaching",
+          "title": "More weight on the missed row",
+          "columns": [
+            "Factor",
+            "Weight"
+          ],
+          "rows": [
+            {
+              "id": "r1",
+              "heading": "R1",
+              "cells": [
+                "$e^{-\\alpha}$",
+                "$\\frac{1}{6}$"
+              ]
+            },
+            {
+              "id": "r2",
+              "heading": "R2",
+              "cells": [
+                "$e^{-\\alpha}$",
+                "$\\frac{1}{6}$"
+              ]
+            },
+            {
+              "id": "r3",
+              "heading": "R3",
+              "cells": [
+                "$e^\\alpha$",
+                "$\\frac{1}{2}$"
+              ]
+            },
+            {
+              "id": "r4",
+              "heading": "R4",
+              "cells": [
+                "$e^{-\\alpha}$",
+                "$\\frac{1}{6}$"
+              ]
+            }
+          ],
+          "emphasis": {
+            "rows": [
+              "r3"
+            ]
+          },
+          "caption": "Divide by the sum of the four scaled weights. The next learner uses these weights, which sum to 1."
+        }
+      },
+      "identity": {
+        "mode": "preserved",
+        "note": "R1–R4 are the same examples in both tables. R3 goes from $\\frac{1}{4}$ to $\\frac{1}{2}$."
+      }
+    }
+  },
+  "ml-bayesian-acquisition-choice": {
+    "version": 1,
+    "diagram": {
+      "kind": "matrix",
+      "layout": "teaching",
+      "title": "How UCB picks the next trial",
+      "columns": [
+        "$\\mu,\\sigma$",
+        "UCB"
+      ],
+      "rows": [
+        {
+          "id": "a",
+          "heading": "A · $d=2$",
+          "cells": [
+            "$0.70,0.02$",
+            "0.72"
+          ]
+        },
+        {
+          "id": "b",
+          "heading": "B · $d=4$",
+          "cells": [
+            "$0.76,0.02$",
+            "0.78"
+          ]
+        },
+        {
+          "id": "c",
+          "heading": "C · $d=6$",
+          "cells": [
+            "$0.73,0.10$",
+            "0.83"
+          ]
+        },
+        {
+          "id": "d",
+          "heading": "D · $d=8$",
+          "cells": [
+            "$0.68,0.08$",
+            "0.76"
+          ]
+        }
+      ],
+      "emphasis": {
+        "cells": [
+          {
+            "row": "c",
+            "column": 1
+          }
+        ]
+      },
+      "caption": "Toy tree depths $d$. The upper confidence bound adds one standard deviation $\\sigma$ to predicted mean $\\mu$. B has the best mean. Try C next."
+    }
+  },
+  "ml-successive-halving-rounds": {
+    "version": 1,
+    "diagram": {
+      "kind": "matrix",
+      "layout": "teaching",
+      "title": "Successive halving keeps top trials",
+      "columns": [
+        "Accuracy",
+        "Decision"
+      ],
+      "rows": [
+        {
+          "id": "a-1",
+          "heading": "A · 1 ep",
+          "cells": [
+            "0.72",
+            "Advance"
+          ]
+        },
+        {
+          "id": "b-1",
+          "heading": "B · 1 ep",
+          "cells": [
+            "0.69",
+            "Stop"
+          ]
+        },
+        {
+          "id": "c-1",
+          "heading": "C · 1 ep",
+          "cells": [
+            "0.75",
+            "Advance"
+          ]
+        },
+        {
+          "id": "d-1",
+          "heading": "D · 1 ep",
+          "cells": [
+            "0.60",
+            "Stop"
+          ]
+        },
+        {
+          "id": "a-2",
+          "heading": "A · 2 ep",
+          "cells": [
+            "0.80",
+            "Advance"
+          ]
+        },
+        {
+          "id": "c-2",
+          "heading": "C · 2 ep",
+          "cells": [
+            "0.78",
+            "Stop"
+          ]
+        },
+        {
+          "id": "a-4",
+          "heading": "A · 4 ep",
+          "cells": [
+            "0.85",
+            "Winner"
+          ]
+        }
+      ],
+      "emphasis": {
+        "cells": [
+          {
+            "row": "a-1",
+            "column": 1
+          },
+          {
+            "row": "c-1",
+            "column": 1
+          },
+          {
+            "row": "a-2",
+            "column": 1
+          },
+          {
+            "row": "a-4",
+            "column": 1
+          }
+        ]
+      },
+      "caption": "Toy held-out accuracy. Keep the top half. Epochs are cumulative. Total spend when resuming is $4 + 2 + 2 = 8$ trial-epochs."
+    }
+  },
+  "ml-minority-accuracy-trap": {
+    "version": 1,
+    "diagram": {
+      "kind": "comparison",
+      "variant": "panels",
+      "title": "95% accuracy, 0% minority recall",
+      "panels": [
+        {
+          "heading": "Count the predictions",
+          "diagram": {
+            "kind": "heatmap",
+            "title": "All cases predicted majority",
+            "rowLabel": "Actual",
+            "columnLabel": "Predicted",
+            "columns": [
+              "Majority",
+              "Minority"
+            ],
+            "rows": [
+              {
+                "label": "Majority",
+                "cells": [
+                  95,
+                  0
+                ]
+              },
+              {
+                "label": "Minority",
+                "cells": [
+                  5,
+                  0
+                ]
+              }
+            ],
+            "range": {
+              "min": 0,
+              "max": 100
+            },
+            "highlights": [
+              {
+                "row": 1,
+                "column": 0
+              }
+            ],
+            "caption": "The outline marks 5 minority misses."
+          }
+        },
+        {
+          "heading": "Calculate each rate",
+          "diagram": {
+            "kind": "matrix",
+            "layout": "teaching",
+            "title": "Rates from the same 100 cases",
+            "columns": [
+              "Fraction",
+              "Percent"
+            ],
+            "rows": [
+              {
+                "id": "accuracy",
+                "heading": "Accuracy",
+                "cells": [
+                  "$\\frac{95}{100}$",
+                  "95%"
+                ]
+              },
+              {
+                "id": "minority-recall",
+                "heading": "Minority recall",
+                "cells": [
+                  "$\\frac{0}{5}$",
+                  "0%"
+                ]
+              }
+            ],
+            "emphasis": {
+              "cells": [
+                {
+                  "row": "minority-recall",
+                  "column": 1
+                }
+              ]
+            },
+            "caption": "Accuracy uses all 100 cases. Recall uses the 5 actual minority cases."
+          }
+        }
+      ]
+    }
+  },
+  "ml-recursive-feature-elimination": {
+    "version": 1,
+    "diagram": {
+      "kind": "matrix",
+      "layout": "teaching",
+      "title": "Recursive feature elimination",
+      "columns": [
+        "Ranking",
+        "Decision"
+      ],
+      "rows": [
+        {
+          "id": "fit-4",
+          "heading": "Fit 4",
+          "cells": [
+            "A:0.80, B:0.60, C:0.30, D:0.10",
+            "Drop D"
+          ]
+        },
+        {
+          "id": "refit-3",
+          "heading": "Refit 3",
+          "cells": [
+            "A:0.75, C:0.40, B:0.22",
+            "Drop B"
+          ]
+        },
+        {
+          "id": "refit-2",
+          "heading": "Refit 2",
+          "cells": [
+            "A:0.77, C:0.45",
+            "Keep A, C"
+          ]
+        }
+      ],
+      "emphasis": {
+        "cells": [
+          {
+            "row": "fit-4",
+            "column": 0
+          },
+          {
+            "row": "refit-3",
+            "column": 0
+          },
+          {
+            "row": "refit-2",
+            "column": 1
+          }
+        ]
+      },
+      "caption": "Illustrative linear model on scaled features. Rank by absolute coefficient. After dropping D, the refit puts C ahead of B. Stop at two."
+    }
+  },
+  "ml-psi-bin-contributions": {
+    "version": 1,
+    "diagram": {
+      "kind": "comparison",
+      "variant": "panels",
+      "title": "PSI adds the shifts across common bins",
+      "panels": [
+        {
+          "heading": "Compare shares on fixed bins",
+          "diagram": {
+            "kind": "histogram",
+            "title": "Reference and current distributions",
+            "xLabel": "Feature value",
+            "binEdges": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "measure": "proportion",
+            "series": [
+              {
+                "label": "Reference",
+                "values": [
+                  0.1,
+                  0.4,
+                  0.4,
+                  0.1
+                ]
+              },
+              {
+                "label": "Current",
+                "values": [
+                  0.05,
+                  0.15,
+                  0.4,
+                  0.4
+                ]
+              }
+            ],
+            "caption": "Both distributions use the same bin edges. Each set of shares sums to 1."
+          }
+        },
+        {
+          "heading": "Calculate and add the contributions",
+          "diagram": {
+            "kind": "matrix",
+            "layout": "teaching",
+            "title": "One term for each shared bin",
+            "columns": [
+              "Ref.",
+              "Current",
+              "PSI part"
+            ],
+            "rows": [
+              {
+                "id": "bin-0",
+                "heading": "$[0, 1)$",
+                "cells": [
+                  "10%",
+                  "5%",
+                  "0.0347"
+                ]
+              },
+              {
+                "id": "bin-1",
+                "heading": "$[1, 2)$",
+                "cells": [
+                  "40%",
+                  "15%",
+                  "0.2452"
+                ]
+              },
+              {
+                "id": "bin-2",
+                "heading": "$[2, 3)$",
+                "cells": [
+                  "40%",
+                  "40%",
+                  "0.0000"
+                ]
+              },
+              {
+                "id": "bin-3",
+                "heading": "$[3, 4]$",
+                "cells": [
+                  "10%",
+                  "40%",
+                  "0.4159"
+                ]
+              },
+              {
+                "id": "total",
+                "heading": "Total",
+                "cells": [
+                  "100%",
+                  "100%",
+                  "0.6958"
+                ]
+              }
+            ],
+            "emphasis": {
+              "cells": [
+                {
+                  "row": "bin-3",
+                  "column": 2
+                }
+              ],
+              "rows": [
+                "total"
+              ]
+            },
+            "caption": "Use $(q-p)\\ln(q/p)$ with reference share $p$ and current share $q$. Sum the unrounded parts, then round the total."
+          }
+        }
+      ],
+      "caption": "The $[3, 4]$ bin contributes most. Its term is $(0.40-0.10)\\ln(0.40/0.10)\\approx0.4159$."
+    }
+  },
+  "ml-time-series-additive-residuals": {
+    "version": 1,
+    "diagram": {
+      "kind": "comparison",
+      "variant": "panels",
+      "title": "Additive time series with residuals",
+      "sharedAxes": [
+        "x"
+      ],
+      "panels": [
+        {
+          "heading": "Observed and trend",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Observed and trend",
+            "x": {
+              "label": "Day",
+              "min": 1,
+              "max": 8,
+              "scale": "linear"
+            },
+            "y": {
+              "label": "Value",
+              "min": 0,
+              "max": 7
+            },
+            "series": [
+              {
+                "label": "Observed",
+                "kind": "line",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 3.25
+                  },
+                  {
+                    "x": 2,
+                    "y": 1.25
+                  },
+                  {
+                    "x": 3,
+                    "y": 4
+                  },
+                  {
+                    "x": 4,
+                    "y": 3
+                  },
+                  {
+                    "x": 5,
+                    "y": 4.5
+                  },
+                  {
+                    "x": 6,
+                    "y": 3.5
+                  },
+                  {
+                    "x": 7,
+                    "y": 6.25
+                  },
+                  {
+                    "x": 8,
+                    "y": 4.25
+                  }
+                ]
+              },
+              {
+                "label": "Trend",
+                "kind": "line",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 2
+                  },
+                  {
+                    "x": 2,
+                    "y": 2.5
+                  },
+                  {
+                    "x": 3,
+                    "y": 3
+                  },
+                  {
+                    "x": 4,
+                    "y": 3.5
+                  },
+                  {
+                    "x": 5,
+                    "y": 4
+                  },
+                  {
+                    "x": 6,
+                    "y": 4.5
+                  },
+                  {
+                    "x": 7,
+                    "y": 5
+                  },
+                  {
+                    "x": 8,
+                    "y": 5.5
+                  }
+                ]
+              }
+            ],
+            "annotations": [
+              {
+                "kind": "reference-line",
+                "axis": "x",
+                "value": 4,
+                "label": "Day 4 · observed 3, trend 3.5"
+              }
+            ]
+          }
+        },
+        {
+          "heading": "Seasonal contribution",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Seasonal contribution",
+            "x": {
+              "label": "Day",
+              "min": 1,
+              "max": 8,
+              "scale": "linear"
+            },
+            "y": {
+              "label": "Contribution",
+              "min": -1,
+              "max": 1
+            },
+            "series": [
+              {
+                "label": "Seasonal contribution",
+                "kind": "line",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 2,
+                    "y": -1
+                  },
+                  {
+                    "x": 3,
+                    "y": 1
+                  },
+                  {
+                    "x": 4,
+                    "y": -1
+                  },
+                  {
+                    "x": 5,
+                    "y": 1
+                  },
+                  {
+                    "x": 6,
+                    "y": -1
+                  },
+                  {
+                    "x": 7,
+                    "y": 1
+                  },
+                  {
+                    "x": 8,
+                    "y": -1
+                  }
+                ]
+              }
+            ],
+            "annotations": [
+              {
+                "kind": "reference-line",
+                "axis": "x",
+                "value": 4,
+                "label": "Day 4 · seasonality −1"
+              }
+            ]
+          }
+        },
+        {
+          "heading": "Residuals",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Residuals",
+            "x": {
+              "label": "Day",
+              "min": 1,
+              "max": 8,
+              "scale": "linear"
+            },
+            "y": {
+              "label": "Contribution",
+              "min": -1,
+              "max": 1
+            },
+            "series": [
+              {
+                "label": "Residual",
+                "kind": "stem",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 0.25
+                  },
+                  {
+                    "x": 2,
+                    "y": -0.25
+                  },
+                  {
+                    "x": 3,
+                    "y": 0
+                  },
+                  {
+                    "x": 4,
+                    "y": 0.5
+                  },
+                  {
+                    "x": 5,
+                    "y": -0.5
+                  },
+                  {
+                    "x": 6,
+                    "y": 0
+                  },
+                  {
+                    "x": 7,
+                    "y": 0.25
+                  },
+                  {
+                    "x": 8,
+                    "y": -0.25
+                  }
+                ]
+              }
+            ],
+            "annotations": [
+              {
+                "kind": "reference-line",
+                "axis": "x",
+                "value": 4,
+                "label": "Day 4 · residual +0.5"
+              }
+            ]
+          }
+        }
+      ],
+      "caption": "Illustrative daily values. $\\text{Observed}=\\text{trend}+\\text{seasonality}+\\text{residual}$. On Day 4, $3.5-1+0.5=3$."
+    }
+  },
+  "ml-rolling-mean-feature": {
+    "version": 1,
+    "diagram": {
+      "kind": "matrix",
+      "layout": "teaching",
+      "title": "Three-day rolling mean before prediction",
+      "columns": [
+        "Past values",
+        "Mean"
+      ],
+      "rows": [
+        {
+          "id": "day-4",
+          "heading": "Day 4",
+          "cells": [
+            "D1:10 D2:13 D3:16",
+            "13"
+          ]
+        },
+        {
+          "id": "day-5",
+          "heading": "Day 5",
+          "cells": [
+            "D2:13 D3:16 D4:19",
+            "16"
+          ]
+        },
+        {
+          "id": "day-6",
+          "heading": "Day 6",
+          "cells": [
+            "D3:16 D4:19 D5:22",
+            "19"
+          ]
+        },
+        {
+          "id": "day-7",
+          "heading": "Day 7",
+          "cells": [
+            "D4:19 D5:22 D6:25",
+            "22"
+          ]
+        }
+      ],
+      "emphasis": {
+        "columns": [
+          1
+        ]
+      },
+      "caption": "Illustrative values. For Day 4, $\\frac{10+13+16}{3}=13$. Each feature uses the three days before its prediction day."
+    }
+  }
+}

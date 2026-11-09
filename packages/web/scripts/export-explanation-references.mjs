@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { diagramReferences, phase02LessonCoverage, PHASE02_SOURCE } from '../src/tutor-diagrams/reference-library.js';
+import { phase02LessonCoverage, PHASE02_SOURCE } from '../src/tutor-diagrams/reference-library.js';
+import { diagramReferences } from '../src/tutor-diagrams/offline-reference-library.js';
 import kindGallery from '../src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { parseTutorDiagram } from '../src/tutor-diagrams/spec.js';
 import { renderTutorDiagram } from '../src/tutor-diagrams/TutorDiagram.js';
@@ -49,7 +50,10 @@ const inter = await readFile(require.resolve('@fontsource-variable/inter/files/i
 const galleryCss = `@font-face{font-family:Inter;src:url(data:font/woff2;base64,${inter.toString('base64')}) format("woff2");font-weight:100 900} ${katexCss}
 *{box-sizing:border-box}body{margin:24px;background:#f6f8f4;color:#202723;font:14px/1.5 Inter,Arial,sans-serif}h1{font-size:24px}h2{font-size:15px;margin:0}p{margin:8px 0 16px;color:#5d675f}a{color:#426db2}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:24px}article{min-width:0;padding:16px;border:1px solid #e3e7e0;border-radius:12px;background:#fffefa}.scene{overflow-x:auto}svg{max-width:none}`;
 await writeFile(resolve(output, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Explanation SVG gallery</title><style>${galleryCss}</style><body><h1>Explanation SVG gallery</h1><p>Actual renderer output from checked reference JSON.</p><h2>Neutral kind shapes</h2><main>${shapePreviews.join('\n')}</main><h2>Worked references</h2><main>${previews.join('\n')}</main></body></html>\n`);
-await writeFile(resolve(output, 'manifest.json'), JSON.stringify({ source: PHASE02_SOURCE, width: 408, references: records, kindGallery: shapeRecords, lessons: phase02LessonCoverage }, null, 2) + '\n');
+const lessons = phase02LessonCoverage.map(({ lesson }) => ({
+  lesson, referenceIds: diagramReferences.filter(ref => ref.lessons.includes(lesson)).map(ref => ref.id),
+}));
+await writeFile(resolve(output, 'manifest.json'), JSON.stringify({ source: PHASE02_SOURCE, width: 408, references: records, kindGallery: shapeRecords, lessons }, null, 2) + '\n');
 const lines = [
   '# Phase 02 written Explanation references', '',
   'These SVGs are produced by the production `renderTutorDiagram` renderer from the adjacent JSON. They are checked teaching examples, not outputs from a live model call. The author receives a relevant bounded subset of the same reference objects.', '',
@@ -61,7 +65,7 @@ const lines = [
   '| Kind | Files |', '| --- | --- |',
   ...shapeRecords.map(r => `| \`${r.kind}\` | [SVG](${r.id}.svg) · [JSON](${r.id}.json) |`), '',
   '## Coverage by lesson', '',
-  ...phase02LessonCoverage.map(r => `- **${r.lesson}:** ${r.referenceIds.map(id => `[${id}](${id}.svg)`).join(', ')}`), '',
+  ...lessons.map(r => `- **${r.lesson}:** ${r.referenceIds.map(id => `[${id}](${id}.svg)`).join(', ')}`), '',
 ];
 await writeFile(resolve(output, 'README.md'), lines.join('\n'));
 console.log(`Exported ${records.length} worked references and ${shapeRecords.length} neutral shape SVG/JSON pairs to ${output}`);

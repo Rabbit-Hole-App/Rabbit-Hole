@@ -2,6 +2,29 @@
 
 The next offline batch adds paraphrases, linked single-diagram alternatives, depth labels and picture prompts. [Set 3 handoff](set3/README.md)
 
+## Rebase onto correct-svg
+
+The previous tip was `ba1a1b285`. The branch was rebased onto the fetched `explain/correct-svg` tip `fbf61630`. All nine named implementation files and 2,156 upstream test and fixture paths match that base. All conflicts were resolved in favor of upstream. [Base commit](https://github.com/Rabbit-Hole-App/Rabbit-Hole/commit/fbf61630b2840d388d2c5ecc84b8220936381757)
+
+The live registry has 150 entries in upstream order. The offline catalogue keeps the 24 previously delivered references awaiting registration and uses the earlier versions of 15 specs whose live counterparts must match upstream tests. The 174 reference specs and 21 gallery shapes produce the same 585 snapshot keys.
+
+| Snapshot change from `ba1a1b285` | 320 px | 408 px | 720 px | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Relationship graph routing | 7 | 7 | 7 | 21 |
+| Flow | 0 | 0 | 0 | 0 |
+| Teaching plot point markers | 15 | 15 | 15 | 45 |
+| MSE formula label | 1 | 1 | 1 | 3 |
+| Unchanged | 172 | 172 | 172 | 516 |
+| **Total compared** | **195** | **195** | **195** | **585** |
+
+The relationship diffs follow upstream graph spacing. The tooltip and schema tests pass. None of the sampled flow nodes carries a tooltip title.
+
+The marker change affects 13 coordinate plots and two comparison diagrams. Upstream's Day 4 alignment test requires the point marker for every sample, so the teaching plot renderer keeps upstream's per-point marks. Removing just those marker elements from both SVGs made each of the 45 render pairs identical. The three remaining diffs come from the upstream `ml-regression-error-metrics` MSE label, which adds a TeX thin space before `12/4`. Rendering that same spec with both renderers gave identical SVGs.
+
+The rebased tree passed 882 focused tests with zero failures or skips, including the refreshed snapshot test. The web build passed with the existing bundle-size warning. The before-and-after archive below records the previous renderer-polish batch.
+
+## Prior offline delivery
+
 The 14 new references follow the request at `87d7d3918b3b5632c82709baa4899a80cbc2f6af` on `explain/refs-keywords`. The full Phase 02 branch now contains 174 worked examples and 21 neutral shapes. The isolated batch branch contains the 14 additions and their focused author tests on the pinned base. [Pinned batch request](https://github.com/Rabbit-Hole-App/Rabbit-Hole/blob/87d7d3918b3b5632c82709baa4899a80cbc2f6af/docs/features/explain-on-canvas/handoff/phase02-library/batch-3-request.md) · [Isolated batch branch](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/chatgpt/explain-ai-ml-batch3) · [Rendered gallery and JSON](references/README.md)
 
 | Prompt ID | Kind | What the example shows |
@@ -27,7 +50,7 @@ The original selector bench passed production parity on the pinned 142-reference
 
 The additional local replay passed all 14 independent paraphrases and kept all 152 local controls, including the named keyword collisions and registered baseline prompts. The integrated tests confirm the selected specs reach `prepareArtifactAuthorRequest` for both phrasings. [Replay results](svg-offline/selector-replay.json)
 
-The full Phase 02 branch also reaches 25/28 with production parity. Its gallery deliberately replaces the older kind-only examples for `water-cycle` and `nn-layers` with `shape-cycle` and `shape-layers`. The full branch's Gini selections differ from the pinned branch because of the earlier Phase 02 reference batches.
+The pre-rebase Phase 02 branch at `ba1a1b285` also reached 25/28 with production parity. That run used its neutral `shape-cycle` and `shape-layers` fallbacks for `water-cycle` and `nn-layers`. The rebased branch uses the upstream selector and registry.
 
 To repeat the benchmark, run it on the pinned tree and the **content-only** patch tree. The patch adds the two reference modules and their registry entries. The shape fallback and later reference edits are outside this comparison. [Content-only patch](svg-offline/ai-ml-refs-at-87d7d3918.patch)
 

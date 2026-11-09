@@ -69,25 +69,6 @@ test('coordinate plot puts values on a linear scale and exposes exact values per
   assert.match(d.tag, /^<rect/);
 });
 
-test('a dense legacy line keeps every vertex and omits its unlabelled markers', () => {
-  const dense = Array.from({ length: 7 }, (_, i) => ({ x: i - 3, y: i - 3 }));
-  const short = dense.slice(0, 6).map(({ x, y }) => ({ x, y: -y }));
-  const scatter = dense.map(({ x }) => ({ x, y: 2 }));
-  const svg = render(quantitativeLayouts['coordinate-plot']({
-    x: { label: 'X', min: -3, max: 3 }, y: { label: 'Y', min: -3, max: 3 },
-    series: [
-      { label: 'Dense line', kind: 'line', points: dense },
-      { label: 'Short line', kind: 'line', points: short },
-      { label: 'Observed', kind: 'scatter', points: scatter },
-    ],
-  }, 320));
-  assert.deepEqual(marks(svg, 'data-tutor-coordinate-point').map(mark => mark.value),
-    [...short, ...scatter].map(({ x, y }) => `${x},${y}`));
-  const denseLine = marks(svg, 'points').find(mark => mark.tag.startsWith('<polyline') && mark.value.split(' ').length === 7);
-  assert.ok(denseLine, 'the rendered line retains all seven vertices');
-  assert.match(svg, /Dense line/);
-});
-
 test('coordinate plot emits finite geometry even for ranges crossing both finite extremes', () => {
   const min = -Number.MAX_VALUE;
   const max = Number.MAX_VALUE;

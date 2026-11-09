@@ -25,7 +25,7 @@ test('the PSI table uses the shared histogram bins and sums the full-precision l
   assert.equal(bins.length, parts.length);
   for (const [i, row] of bins.entries()) {
     const end = i === parts.length - 1 ? ']' : ')';
-    assert.equal(row.heading, `$[${histogram.binEdges[i]}, ${histogram.binEdges[i + 1]}${end}$`);
+    assert.equal(row.heading, `[${histogram.binEdges[i]}, ${histogram.binEdges[i + 1]}${end}`);
     assert.deepEqual(row.cells, [`${reference[i] * 100}%`, `${current[i] * 100}%`, parts[i].toFixed(4)]);
   }
   assert.deepEqual(total.cells, ['100%', '100%', sum(parts).toFixed(4)]);

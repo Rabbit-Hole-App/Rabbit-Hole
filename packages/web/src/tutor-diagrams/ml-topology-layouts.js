@@ -242,8 +242,7 @@ function graph(d, preferredWidth) {
   const laneCounts = { left: 0, right: 0 };
   routes.forEach(r => { r.lane = laneCounts[r.side]++; });
   const nodeW = Math.max(150, ...d.nodes.map(n => nodeWidth(n, 186)));
-  const firstLane = 16, laneSpacing = 24, portGap = 2;
-  const gutters = Object.fromEntries(Object.entries(laneCounts).map(([side, count]) => [side, count ? firstLane + (count - 1) * laneSpacing + 18 : 0]));
+  const gutters = Object.fromEntries(Object.entries(laneCounts).map(([side, count]) => [side, count ? 18 + count * 24 : 0]));
   const width = Math.max(preferredWidth, 2 * PAD + gutters.left + nodeW + gutters.right);
   const nodeX = PAD + gutters.left + (width - 2 * PAD - gutters.left - gutters.right - nodeW) / 2;
   const positions = new Map();
@@ -256,14 +255,12 @@ function graph(d, preferredWidth) {
   const port = (id, route) => {
     const pos = positions.get(id);
     const peers = routes.filter(r => r.side === route.side && (r.from === id || r.to === id));
-    const x = route.side === 'right' ? nodeX + nodeW + portGap : nodeX - portGap;
-    return [x, pos.y + pos.content.height * (peers.indexOf(route) + 1) / (peers.length + 1)];
+    return [nodeX + (route.side === 'right' ? nodeW : 0), pos.y + pos.content.height * (peers.indexOf(route) + 1) / (peers.length + 1)];
   };
   const elements = [];
   for (const r of routes) {
     const from = port(r.from, r), to = port(r.to, r);
-    const offset = firstLane + r.lane * laneSpacing;
-    const laneX = r.side === 'right' ? nodeX + nodeW + offset : nodeX - offset;
+    const laneX = r.side === 'right' ? nodeX + nodeW + 24 + r.lane * 24 : nodeX - 24 - r.lane * 24;
     const upper = positions.get(order.get(r.from) < order.get(r.to) ? r.from : r.to);
     const badgeY = upper.y + upper.content.height + 24;
     elements.push(h('g', { 'data-tutor-edge': `${r.from}:${r.to}`, 'data-tutor-edge-index': r.index },

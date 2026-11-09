@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { diagramReferences } from '../src/tutor-diagrams/reference-library.js';
+import { diagramReferences } from '../src/tutor-diagrams/offline-reference-library.js';
 import kindGallery from '../src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { renderTutorDiagram } from '../src/tutor-diagrams/TutorDiagram.js';
 

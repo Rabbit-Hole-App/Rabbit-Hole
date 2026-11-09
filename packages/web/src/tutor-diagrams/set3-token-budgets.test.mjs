@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { diagramReferences } from './reference-library.js';
+import { diagramReferences } from './offline-reference-library.js';
 import { singleDiagramReferences } from './reference-single-variants.js';
 import galleryDepths from './kind-gallery-depths.json' with { type: 'json' };
 import budgets from './set3-token-budgets.json' with { type: 'json' };
