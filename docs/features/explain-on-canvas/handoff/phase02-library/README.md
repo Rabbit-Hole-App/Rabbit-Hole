@@ -62,6 +62,17 @@ The selector adds **at most two** complete JSON examples and at most 14,000 char
 
 The JSON Schema is nonrecursive and serializable; its size is recorded in the execution receipt below. Runtime checks enforce additional invariants that JSON Schema cannot express. The schema still uses `version: 1` and retains the existing 16,384-character whole-diagram limit. Old specs preserve their existing render treatment; unknown new kinds need the coordinated new reader.
 
+### Worked estimation and validation
+
+The likelihood plot holds the observed count at seven heads in ten flips. The likelihood is 0.1172 at a fair coin and peaks at 0.2668 when the chance of heads is 0.7, with both likelihood values rounded.
+
+The validation matrix holds out two rows per round and fits 1-NN on the other eight. It uses ten ordered feature values from 0 to 9 and labels 0, 0, 0, 0, 1, 1, 1, 1, 1, 1. A tie selects the lower feature value. The five held-out scores average 80%.
+
+| Reference | Brief | Balanced | Detailed |
+| --- | --- | --- | --- |
+| `ml-mle-bernoulli-likelihood` | [408 px SVG](illustrations/ml-mle-bernoulli-likelihood-brief/408.svg) | [408 px SVG](illustrations/ml-mle-bernoulli-likelihood/408.svg) | [408 px SVG](illustrations/ml-mle-bernoulli-likelihood-detailed/408.svg) |
+| `ml-kfold-validation` | [408 px SVG](illustrations/ml-kfold-validation-brief/408.svg) | [408 px SVG](illustrations/ml-kfold-validation/408.svg) | [408 px SVG](illustrations/ml-kfold-validation-detailed/408.svg) |
+
 ## Integration with your active release
 
 1. Fetch `chatgpt/explain-phase02-library` from `rabbit-hole`. Integrate its delta from base `748e561eda37a269e277d913cdc1f9099fe9bf94` onto the active release. Do not reset the release branch to this older base.
