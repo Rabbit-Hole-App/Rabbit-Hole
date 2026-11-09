@@ -240,7 +240,9 @@ export function planOf(raw) {
   if (!e || !e.plan) return null;
   if (e.plan.planner === 'rules') return { planner: 'rules' };
   const d = (e.plan.visuals || []).find(v => v.type === 'diagram');
-  return { planner: 'jev', ms: e.plan.ms ?? null, kind: e.plan.kind ?? null, fixed: e.plan.fixed ?? null, offered: d?.choose || null, treatment: e.plan.depthTreatment ?? null, confidence: e.plan.confidence?.kind ?? null };
+  // physical = the planner's isPhysical probability; pictures = pictures in the plan; physicalOverride only when the server logs it (the raw line does not carry it yet: see the summary's physical counts).
+  return { planner: 'jev', ms: e.plan.ms ?? null, kind: e.plan.kind ?? null, fixed: e.plan.fixed ?? null, offered: d?.choose || null, treatment: e.plan.depthTreatment ?? null, confidence: e.plan.confidence?.kind ?? null,
+    physical: e.plan.flags?.isPhysical ?? null, pictures: (e.plan.visuals || []).filter(v => v.type === 'picture').length, diagrams: (e.plan.visuals || []).filter(v => v.type === 'diagram').length, physicalOverride: e.plan.physicalOverride ?? null };
 }
 // A kind's label against a prompt's labels, as one diagram of a card: right = in a best pattern with one diagram token, acceptable = in an acceptable one, else wrong (pictures are ignored).
 export const kindStatus = (p, k) => { const hit = list => list.some(b => { const d = b.filter(t => t !== 'P'); return d.length === 1 && tokenOk(d[0], `D:${k}`); }); return hit(p.best) ? 'right' : hit(p.acceptable) ? 'acceptable' : 'wrong'; };
@@ -341,6 +343,7 @@ export function summarize(cards) {
     planner: (pl => { if (!pl.length) return null; const jev = pl.filter(c => c.plan.planner === 'jev'), group = cs => ({ cards: cs.length, right: cs.filter(c => c.score === 'right').length, acceptable: cs.filter(c => c.score === 'acceptable').length, wrong: cs.filter(c => c.score === 'wrong').length });
       const dis = jev.filter(c => c.planCheck && !c.planCheck.agree), ok = s => s !== 'wrong';
       return { cards: pl.length, failed: pl.length - jev.length, ms: timing(jev.map(c => c.plan.ms)), pictureOnly: jev.filter(c => !c.plan.kind).length, fixed: group(jev.filter(c => c.plan.kind && c.plan.fixed)), suggested: group(jev.filter(c => c.plan.kind && c.plan.fixed === false)),
+        physical: (ph => ({ cards: ph.length, withPicture: ph.filter(c => c.plan.pictures > 0).length, pictureOnly: ph.filter(c => c.plan.pictures > 0 && c.plan.diagrams === 0).length, both: ph.filter(c => c.plan.pictures > 0 && c.plan.diagrams > 0).length, noPicture: ph.filter(c => c.plan.pictures === 0).map(c => c.id), logged: jev.filter(c => c.plan.physicalOverride).length }))(jev.filter(c => c.plan.physical >= 0.7)),
         disagreements: { cards: dis.length, planOnly: dis.filter(c => ok(c.planCheck.planStatus) && !ok(c.planCheck.authorStatus)).length, authorOnly: dis.filter(c => !ok(c.planCheck.planStatus) && ok(c.planCheck.authorStatus)).length, both: dis.filter(c => ok(c.planCheck.planStatus) && ok(c.planCheck.authorStatus)).length, neither: dis.filter(c => !ok(c.planCheck.planStatus) && !ok(c.planCheck.authorStatus)).length,
           list: dis.map(c => `${at(c)}: plan ${c.planCheck.planKind} (${c.planCheck.offered ? 'offered ' + c.planCheck.offered.join(' or ') : 'fixed'}) = ${c.planCheck.planStatus}; author drew ${c.planCheck.drawn.join('+') || 'no diagram'} = ${c.planCheck.authorStatus}`) } }; })(cards.filter(c => c.plan)),
     repairs: { repaired: rep.length, of: cards.length, byCause, corrections: corr, correctionTotal: Object.values(corr).reduce((s, v) => s + v, 0),
