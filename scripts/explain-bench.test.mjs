@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { arithmetic, compileFormula, criteria, diagramScore, loadSet, matches, scoreCard, scoreMix, summarize, visuals, SET_NAMES } from './explain-bench/score.mjs';
-import { delta, richnessVerdict, run } from './explain-bench/report.mjs';
+import { delta, rankArms, richnessVerdict, run } from './explain-bench/report.mjs';
 import { combine, judgeItems, JUDGE_MODEL } from './explain-bench/judge.mjs';
 
 const fence = d => `\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: d })}\n\`\`\``;
@@ -94,9 +94,9 @@ test('summary and pass criteria: regression every run, formula plots per run, pi
 
 test('delta marks each metric better, worse or same; the richness rule keeps or reverts', () => {
   const mk = (flagged, quantUsed, yes) => ({ cards: { sent: 10, delivered: 10 }, choice: { right: 5, of: 10, acceptable: 0, wrong: 0, rightMixWrongKind: [] }, regression: null, pictures: { given: 0, needed: 0, violations: [], noPictureSubjects: 0 },
-    richness: { diagrams: 10, sizeMedian: 5, graphDiagrams: 0, graphOutside3to8: 0, edges: 0, labelledEdges: 0, fieldUse: {}, labels: 0, numericLabels: 0, proseNounBox: 0, quant: { used: quantUsed, labelled: 8 } },
+    richness: { diagrams: 10, sizeMedian: 5, graphDiagrams: 0, graphOutside3to8: 0, edges: 0, labelledEdges: 0, fieldUse: {}, labels: 0, numericLabels: 0, proseNounBox: 0, quant: { used: quantUsed, labelled: 8 }, quantityPlot: { withPlot: 0, prompts: 0 }, binaryLayout: 0 },
     content: { diagrams: 10, flagged, placeholderEdge: 0, duplicateLabels: 0, nounBoxFlow: 0, bareMaths: 0, relationships: 0, duplicatedRelationshipNodes: 0, kindRight: 0, kindJudged: 0, formulaPlotOk: 0, formulaPrompts: 0, points: 0, pointErrors: 0, faithful: yes === null ? null : { yes, judged: 10 } },
-    factual: null, repairs: { repaired: 2, of: 10, correctionTotal: 0, visualFallback: [], unknownKeysStripped: null }, speed: { all: { p50: 3000, p90: 6000 }, cleanNoPicture: {}, cleanPicture: {}, repaired: {}, within4s: 7, of: 10 },
+    factual: null, repairs: { repaired: 2, of: 10, correctionTotal: 0, corrections: {}, visualFallback: [], unknownKeysStripped: null }, speed: { all: { p50: 3000, p90: 6000 }, cleanNoPicture: {}, cleanPicture: {}, repaired: {}, within4s: 7, of: 10 },
     output: { cardsWithLists: 0, fields: {} }, tokens: null, cost: { perCard: 0.01, total: 0.1 } });
   const rows = delta(mk(4, 2, 8), { ...mk(2, 5, 8), speed: { ...mk(0, 0, 0).speed, all: { p50: 3500, p90: 6000 } } });
   const row = l => rows.find(r => r.label === l);
@@ -180,4 +180,25 @@ test('pictures dropped: a figure with status dropped or a logged picture that ne
   const unknown = scoreCard(p, { set: 'baseline', run: 1, id: 'heart', delivered: true, block: block('p', pic('pic-1')), totalMs: 1 });
   assert.equal(unknown.picturesDropped, null);
   assert.equal(summarize([unknown]).pictures.dropped, null);
+});
+
+test('examples A/B: references from explanation_author_raw attempt 0 split every metric; gates score an arm and the tie-break ranks arms', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'bench-refs-')), dir = join(root, 'raw', 'regression-r1');
+  mkdirSync(join(dir, 'cards'), { recursive: true });
+  const cyc = block('p', fence({ kind: 'cycle', title: 'c', steps: ['Evaporate', 'Condense', 'Fall'] }));
+  const rows = [['water-cycle', [{ attempt: 0, references: ['ref-cycle-1', 'ref-cycle-2'], visuals: [] }], 2500], ['bst', [{ attempt: 0, references: [], visuals: [] }], 3500]];
+  for (const [id, raw, ms] of rows) { const row = { id, delivered: true, totalMs: ms, repaired: false, repairCauses: [], costUsd: 0.01, ledgerUsd: 0.01, raw };
+    writeFileSync(join(dir, 'cards', `${id}.json`), JSON.stringify({ row, response: { result: 'artifact', block: cyc } })); writeFileSync(join(dir, 'results.jsonl'), (existsSync(join(dir, 'results.jsonl')) ? readFileSync(join(dir, 'results.jsonl'), 'utf8') : '') + JSON.stringify(row) + '\n'); }
+  const r = await run({ raw: join(root, 'raw'), out: join(root, 'results'), runId: 'refs' });
+  assert.deepEqual(r.results.cards.map(c => c.references), [{ count: 2, ids: ['ref-cycle-1', 'ref-cycle-2'] }, { count: 0, ids: [] }]);
+  const row = l => r.results.referencesAB.rows.find(x => x[0] === l);
+  assert.deepEqual(row('speed p50 ms, all').slice(1, 3), ['3500', '2500']);
+  const md = readFileSync(join(r.runDir, 'report.md'), 'utf8');
+  assert.match(md, /0 references \(1 cards\) \| 1-2 references \(1 cards\)/);
+  assert.match(md, /Owner decision rule \(examples A\/B\): quality up and repairs not up -> keep/);
+  assert.match(md, /\| 1 \(-\)|\| 2 \(ref-cycle-1, ref-cycle-2\) \|/);
+  const g = Object.fromEntries(r.results.gates.map(x => [x.gate.split(':')[0], x.ok]));
+  assert.equal(g.speed, true); assert.equal(g.factual, null);
+  const fake = (p90, err, cost) => ({ name: `${p90}`, summary: { ...r.results.summary.overall, speed: { ...r.results.summary.overall.speed, all: { n: 2, p50: 2000, p90 } }, factual: { withErrors: err, judged: 10 }, cost: { perCard: cost } }, byRun: r.results.summary.byRun });
+  assert.deepEqual(rankArms([fake(3900, 1, 0.01), fake(3000, 1, 0.02), fake(3500, 0, 0.03)]).map(a => a.name), ['3500', '3000', '3900']);
 });

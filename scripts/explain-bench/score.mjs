@@ -188,6 +188,8 @@ export function scoreCard(p, rec) {
     corrections: rec.diagramCorrections || block?.diagramCorrections || null, visualFallback: rec.visualFallback || block?.visualFallback || null,
     unknownKeysStripped: rec.unknownKeysStripped ?? null, raw: rec.raw ?? null,
     // Pictures dropped: a figure with status "dropped", or (from the app log) a picture that never reached "ready", whose fence the server removed. null = not known (no log).
+    // The author examples the server attached (dev-only log line explanation_author_raw, attempt 0: references [ids]). null = not logged.
+    references: (e => (Array.isArray(e?.references) ? { count: e.references.length, ids: e.references } : null))((rec.raw || []).find(x => (x.attempt ?? 0) === 0)),
     picturesDropped: (f => (rec.picturesDropped || f.length ? [...new Set([...(rec.picturesDropped || []), ...f])] : null))(Object.entries(block?.figures || {}).filter(([, x]) => x?.status === 'dropped').map(([id]) => id)),
     proseLists: block?.proseLists ?? null,
     output: block ? { title: (block.title || '').length, visuals: [...String(block.body).matchAll(FENCE)].reduce((s, m) => s + m[2].trim().length, 0), body: prose.trim().length,
@@ -233,7 +235,11 @@ export function summarize(cards) {
       edges: dg.reduce((s, d) => s + d.edges, 0), labelledEdges: dg.reduce((s, d) => s + d.labelledEdges, 0),
       fieldUse: Object.fromEntries(['caption', 'detail', 'highlightPath', 'units', 'point labels'].map(k => [k, dg.filter(d => d.optional.includes(k)).length])),
       labels: dg.reduce((s, d) => s + d.labels, 0), numericLabels: dg.reduce((s, d) => s + d.numericLabels, 0), proseNounBox: dg.filter(d => d.proseNounBox).length,
-      quant: { labelled: labelled.length, used: labelled.filter(c => c.quantKind).length, list: labelled.map(c => `${at(c)}: ${c.diagrams.map(d => d.kind).join('+') || 'no diagram'}`) } },
+      quant: { labelled: labelled.length, used: labelled.filter(c => c.quantKind).length, list: labelled.map(c => `${at(c)}: ${c.diagrams.map(d => d.kind).join('+') || 'no diagram'}`) },
+      // The 6 quantity prompts (baseline + aiml category "quantity"): a coordinate-plot or bar-chart drawn.
+      quantityPlot: { prompts: D.filter(c => c.category === 'quantity').length, withPlot: D.filter(c => c.category === 'quantity' && c.diagrams.some(d => PLOT_KINDS.includes(d.kind))).length },
+      binaryLayout: dg.filter(d => d.kind === 'tree' && d.spec?.layout === 'binary').length },
+    references: (k => (k.length ? { known: k.length, none: k.filter(c => !c.references.count).length, some: k.filter(c => c.references.count > 0).length } : null))(cards.filter(c => c.references)),
     content: { diagrams: dg.length, flagged: dg.filter(d => d.flagged).length, placeholderEdge: dg.filter(d => d.flags.placeholderEdge.length).length, duplicateLabels: dg.filter(d => d.flags.duplicateLabels.length).length,
       nounBoxFlow: dg.filter(d => d.flags.nounBoxFlow).length, bareMaths: dg.filter(d => d.flags.bareMaths.length).length,
       relationships: dg.filter(d => d.kind === 'relationship').length, duplicatedRelationshipNodes: dg.filter(d => d.duplicatedRelationshipNodes.length).length,
