@@ -197,6 +197,7 @@ function trimIllustrationPayloads(branch, { tensorHosts, parallelPaths, blockSta
 }
 
 // The make_explanation input schema reduced to one bundle: deterministic, so the same bundle serializes to the same bytes on every request.
+const withoutSmooth = branch => { const series = branch.properties?.series?.items; if (series?.properties?.smooth) delete series.properties.smooth; return branch; };
 export function bundledAuthorSchema(schema, bundle) {
   const { quant, fresh, panels, states, tensor, tokenLinks, blockStack } = bundle;
   const allowed = new Set([...CORE_KINDS, ...(quant ? QUANT_KINDS : []), ...(fresh ? NEW_KINDS : []),
@@ -207,7 +208,8 @@ export function bundledAuthorSchema(schema, bundle) {
   const union = spec.properties.diagram, key = union.oneOf ? 'oneOf' : 'anyOf';
   union[key] = union[key].filter(b => allowed.has(diagramKindOf(b)))
     .map(b => ((diagramKindOf(b) === 'comparison' && !panels) || (diagramKindOf(b) === 'transformation' && !states) ? listForm(b) : b))
-    .map(branch => trimIllustrationPayloads(branch, bundle));
+    .map(branch => trimIllustrationPayloads(branch, bundle))
+    .map(withoutSmooth); // Codex c92ec1279: `smooth` is renderer-side (the author never sets it); leaving it out keeps every Gemini bundle byte-identical to before
   // Owner M4 (2026-11-08): at most two panels in the bundle (the spec allows three): each panel costs about 1.5 s of output (966 output tokens, 5.0 s,
   // for one two-panel comparison). The validator still reads a saved three-panel card.
   const comparison = union[key].find(b => b.properties.kind.const === 'comparison');

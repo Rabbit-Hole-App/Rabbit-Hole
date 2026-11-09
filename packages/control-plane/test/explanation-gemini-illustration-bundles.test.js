@@ -35,6 +35,10 @@ for (const [name, args, kind] of STEERED) {
   });
 }
 
+test('no bundle offers `smooth` to the author (Codex smooth curves are renderer-side): the extended plot series carries no `smooth` property', () => {
+  for (const [args, kind] of [['what is a vector embedding?', 'tensor'], ['how does the sigmoid function work?', 'coordinate-plot'], ['what is overfitting?'], ['how does the water cycle work?']]) assert.ok(!JSON.stringify(geminiSchema(args, kind)).includes('"smooth"'), args);
+});
+
 test('the planner-steered bundle carries its kind, and the unsteered bundle carries none of the three illustration kinds', () => {
   for (const kind of ['tensor', 'token-links', 'block-stack']) assert.ok(JSON.stringify(geminiSchema('what is a vector embedding?', kind)).includes(`"const":"${kind}"`), kind);
   const plain = JSON.stringify(geminiSchema('how does the water cycle work?'));
