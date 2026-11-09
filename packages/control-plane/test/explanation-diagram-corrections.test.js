@@ -4,7 +4,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { correctDiagrams, diagramProblem, flowsAsSequences, simplifiedDiagram } from '../src/learn-primitives.js';
+import { correctDiagrams, diagramProblem, flowsAsSequences, relationshipsAsGraphs, simplifiedDiagram } from '../src/learn-primitives.js';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { renderTutorDiagram } from '../../web/src/tutor-diagrams/TutorDiagram.js';
 import { deriveVisualRequirements, fallbackKind } from '../src/explanation-visuals.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { AUTHOR_SEED, AUTHOR_TEMPERATURE, REPAIR_TEMPERATURE, stepRequest } from '../src/explanation-fast-chain.js';
@@ -221,4 +224,20 @@ test('the raw author visuals are logged in dev and test, for the first answer an
   }
   assert.deepEqual(await run({ SMALL_ENV: 'production' }), []);
   assert.deepEqual(await run({}), []);
+});
+
+// Owner C1.1 (2026-11-08): every relationship gets the graph layout, so each node is drawn once (the pairs layout repeats a node in every pair it is in).
+test('C1.1: relationships are drawn as graphs, each node once; a disconnected one keeps the pairs layout', () => {
+  const thermostat = JSON.parse(readFileSync(new URL('../../web/src/tutor-diagrams/examples.json', import.meta.url), 'utf8')).find(e => e.diagram.kind === 'relationship').diagram;
+  const gini = { kind: 'relationship', title: 'Gini impurity', nodes: [{ id: 'A', label: 'Class A' }, { id: 'B', label: 'Class B' }, { id: 'C', label: 'Gini impurity' }], edges: [{ from: 'A', to: 'C', label: 'p_i' }, { from: 'B', to: 'C', label: 'p_i' }] };
+  const ce = { kind: 'relationship', title: 'Cross entropy', nodes: [{ id: 'A', label: 'True distribution $p$' }, { id: 'B', label: 'Model distribution $q$' }, { id: 'C', label: 'Cross entropy $H(p,q)$' }], edges: [{ from: 'A', to: 'C', label: 'input' }, { from: 'B', to: 'C', label: 'output' }, { from: 'A', to: 'B', label: 'compare' }] };
+  for (const d of [thermostat, gini, ce]) {
+    const out = specOf(relationshipsAsGraphs(`Before.\n\n${fence(d)}\n\nAfter.`));
+    assert.equal(out.layout, 'graph', d.title);
+    const svg = renderToStaticMarkup(createElement('svg', null, renderTutorDiagram({ version: 1, diagram: out }, 408).element));
+    for (const n of d.nodes) assert.equal(svg.split(`data-tutor-node="${n.id}"`).length - 1, 1, `${d.title}: ${n.label} drawn once`);
+  }
+  const apart = { kind: 'relationship', title: 'Two pairs', nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }, { id: 'd', label: 'D' }], edges: [{ from: 'a', to: 'b', label: 'x' }, { from: 'c', to: 'd', label: 'y' }] };
+  const md = `Before.\n\n${fence(apart)}\n\nAfter.`;
+  assert.equal(relationshipsAsGraphs(md), md, 'the graph layout refuses a disconnected relationship, so it is left as written');
 });
