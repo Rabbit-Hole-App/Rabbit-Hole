@@ -21,7 +21,7 @@ import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
-import { isMinimized, tileWidth } from './explanation-minimize.js';
+import { isMinimized, minimizable, tileWidth } from './explanation-minimize.js';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
@@ -434,7 +434,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           follow right-aligned; one gap, one height (34px, the old selection bar's; 38px when the CAD tools are in it); the 8px gap above the card is the first-row
           card's limit: fit, reveal and the opening camera keep room for this row below the page header's opaque band (controlRects,
           owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
-          lies over the card or its top port. The one selected card says how it opens: a small Open, never a big button on every card
+          lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
       {selected && ((opens && opener.single === id) || tools) && (
         <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
@@ -442,7 +442,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
               onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
               className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-              Open<ArrowUpRight size={13} />
+              Enter<ArrowUpRight size={13} />
             </button>
           )}
           {tools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{tools}</div>}
@@ -5275,6 +5275,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!quiet) { if (readOnly || lockedRef.current.has(id)) return; snapshot(); }
     setBlocks(previous => patchBlock(previous, id, patch));
   };
+  // Minimize (explanation-minimize.js): the card collapses to a tile where it is; one undo step, saved with the card.
+  const minimizeCard = id => patchBlockNow(id, { minimized: true });
   // A style press sets the default for the next thing drawn, and restyles
   // whatever is selected. Connectors only carry a colour.
   // quiet: a slider's drag, whose one undo step was taken when it started.
@@ -6030,7 +6032,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       zoomToSelection,
       // Focus (canvas-actions-types.js card.focus): the same enterFocus as the card toolbar's button; only where an adapter claims it.
       focus: id => commandsRef.current.enterFocus(id),
-      focusable: object => !!object && object.id !== focusRef.current?.id && !!adapterFor(object, { view: viewRef.current, readOnly }),
+      focusable: object => !!object && object.id !== focusRef.current?.id && !isMinimized(object) && !!adapterFor(object, { view: viewRef.current, readOnly }),
       supportsCardLayout: object => !!object && supportsCardLayout(object),
       fullContent: object => object?.cardLayout?.mode === 'full',
       setCardLayout: (id, mode) => setCardLayout(id, mode),
@@ -6152,7 +6154,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
     ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
   }), [canDig, canAsk, canNote]);
-  const soleFocus = selection.length === 1 && !focus ? adapterFor(objectById(selection[0]), { view, readOnly }) : null;
+  const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
+  // An Explanation card has Minimize in the toolbar where other cards have Focus (its Focus is in its context menu); a minimized one has neither.
+  const soleFocus = soleObject && !minimizable(soleObject) ? adapterFor(soleObject, { view, readOnly }) : null;
+  const soleMinimize = soleObject && minimizable(soleObject) && !soleObject.minimized && !readOnly && !localCopy && !lockedRef.current.has(soleObject.id) ? () => minimizeCard(soleObject.id) : null;
   // On a shared page (view-only or a local copy), a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
   const barCut = id => { if (!permissions?.shared) return false; const box = boxesOf([id])[0], width = surface.current?.clientWidth; return !!box && !!width && (view.x + (box.x + box.w) * view.z > width || view.y + box.y * view.z < 40); };
@@ -6168,7 +6173,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
