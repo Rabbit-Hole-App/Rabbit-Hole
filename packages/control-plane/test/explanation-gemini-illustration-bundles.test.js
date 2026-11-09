@@ -40,3 +40,7 @@ test('the planner-steered bundle carries its kind, and the unsteered bundle carr
   const plain = JSON.stringify(geminiSchema('how does the water cycle work?'));
   for (const kind of ['tensor', 'token-links', 'block-stack']) assert.ok(!plain.includes(`"const":"${kind}"`), `unsteered bundle must not carry ${kind}`);
 });
+
+test('the unsteered bundle is unchanged by the three illustration kinds: 134 properties, 9,833 characters (measured before the kinds were added)', () => {
+  for (const args of ['how does the water cycle work?', 'how does the TCP handshake work?', 'stack vs queue']) { const s = geminiSchema(args); assert.equal(props(s), 134, args); assert.equal(JSON.stringify(s).length, 9833, args); }
+});

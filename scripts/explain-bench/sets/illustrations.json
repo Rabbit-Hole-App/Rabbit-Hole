@@ -289,6 +289,37 @@
      ]
     }
    }
+  },
+  {
+   "id": "overfitting",
+   "group": "illustration",
+   "prompt": "what is overfitting?",
+   "needsPicture": false,
+   "noPicture": true,
+   "badKinds": [
+    "figure",
+    "timeline",
+    "cycle",
+    "layers"
+   ],
+   "best": [],
+   "acceptable": [],
+   "minSeries": 2,
+   "depths": {
+    "standard": {
+     "kinds": [
+      "coordinate-plot"
+     ],
+     "acceptableKinds": [
+      "comparison"
+     ],
+     "sketch": [
+      "Core: One plot on shared axes: the observed points drawn once as scatter, a simple-fit line and an overfit line, and one labelled held-out point the overfit line misses.",
+      "Optional: Axis labels naming the input and the target; a caption saying what to notice."
+     ]
+    }
+   },
+   "want": "multi-series coordinate-plot: observed scatter + simple-fit line + overfit line + one annotated held-out point; the sentence before the plot points at it"
   }
  ]
 }
