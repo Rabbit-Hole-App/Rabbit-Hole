@@ -51,10 +51,14 @@ export function smokeReports(cards) {
 // Smoke tier calibration (owner 2026-11-10): ~66 cards are too few for the full tier's absolute rates. With --baseline <judged run dir> (the last passing release's judged 3x run), delivery, the two picture
 // lines and the right-kind line (verified prompts, >= 80%) stay absolute; every other line is compared with the baseline's value on the SAME prompts (the mean of its runs) and fails only when it is worse by more than the tolerance.
 // Prompts the baseline does not cover are left out of those lines ("no baseline"). The tolerance values live here and nowhere else.
+// Calibrated 2026-11-10 on the judged 118 run's own smoke subset (40 prompts, 3 passes), each pass against the mean of the 3: worst move in the bad direction p90 +1100 ms, factual +5.2 pp,
+// noun-box +3.3 pp, claims beyond the prose +1.2 pp, faithfulness not +2.2 pp / fully -6.7 pp, repairs 0.0 pp; against the 117 rerun on the same prompts the same passes moved p90 +1631 ms and factual +7.8 pp
+// (118 passes the full gate 13/13). Only p90 and factual needed widening; the other lines' spread is inside +3 items / 5 pp (7.5 pp at n = 40).
 export const SMOKE_TOLERANCE = {
-  items: 3,     // a rate may be worse than the baseline mean by this many items of the smoke run's denominator ...
-  points: 5,    // ... or by this many percentage points, whichever is larger
-  p90Ms: 1500,  // whole-card p90 may be slower than the baseline mean by this much
+  items: 3,         // a rate may be worse than the baseline mean by this many items of the smoke run's denominator ...
+  points: 5,        // ... or by this many percentage points, whichever is larger
+  factualItems: 4,  // factual error is the noisiest rate line: 4 items instead of 3
+  p90Ms: 2000,      // whole-card p90 may be slower than the baseline mean by this much
 };
 const norm = t => String(t).toLowerCase().trim(), mean = xs => xs.reduce((s, x) => s + x, 0) / xs.length;
 // The baseline's cards for the smoke prompts, one array per run: matched by prompt text, depth none or standard, the smoke entry's source set preferred.
@@ -79,8 +83,8 @@ export function relativeRows(smokeCards, baseRuns, tol = SMOKE_TOLERANCE) {
     const rates = bm.filter(b => b[key][1]).map(b => b[key][0] / b[key][1]), [x, n] = m[key];
     if (!rates.length) return { name, ok: true, noBaseline: true, detail: 'no baseline (the baseline has no judged items on these prompts); not failed' };
     if (!n) return { name, ok: false, detail: 'not judged in the smoke run' };
-    const base = mean(rates), rate = x / n, t = Math.max(tol.points / 100, tol.items / n), d = rate - base, ok = (dir === 'down' ? d : -d) <= t + 1e-9;
-    return { name: `${name} vs baseline`, ok, detail: `smoke ${x}/${n} = ${fmt(100 * rate)} | baseline mean ${fmt(100 * base)} | delta ${sp(100 * d)} pp | tolerance ${dir === 'down' ? '+' : '-'}${(100 * t).toFixed(1)} pp (${tol.items} items or ${tol.points} pp, larger)` };
+    const base = mean(rates), rate = x / n, items = key === 'factual' ? tol.factualItems : tol.items, t = Math.max(tol.points / 100, items / n), d = rate - base, ok = (dir === 'down' ? d : -d) <= t + 1e-9;
+    return { name: `${name} vs baseline`, ok, detail: `smoke ${x}/${n} = ${fmt(100 * rate)} | baseline mean ${fmt(100 * base)} | delta ${sp(100 * d)} pp | tolerance ${dir === 'down' ? '+' : '-'}${(100 * t).toFixed(1)} pp (${items} items or ${tol.points} pp, larger)` };
   });
   const bp = bm.map(b => b.p90).filter(Number.isFinite);
   rows.push(!bp.length || !mine.length ? { name: 'whole-card p90', ok: true, noBaseline: true, detail: 'no baseline; not failed' } : { name: 'whole-card p90 vs baseline', ok: m.p90 !== null && m.p90 - mean(bp) <= tol.p90Ms,

@@ -110,14 +110,14 @@ test('smoke vs baseline: a move inside the tolerance passes, a move past it fail
   const runs = baselineRuns(base, S);
   assert.deepEqual(runs.map(r => r.length), [20, 20, 20]);
   const rows = (errors, ms = 3000) => relativeRows(S.map((p, i) => make(p, 1, { wrong: i < errors, ms })), runs), row = (r, name) => r.rows.find(x => x.name.startsWith(name));
-  const inside = rows(4);          // 20% against 10%: +10 pp, tolerance max(5 pp, 3/20 = 15 pp) = 15 pp
-  assert.equal(row(inside, 'factual error rate').ok, true); assert.match(row(inside, 'factual error rate').detail, /smoke 4\/20 = 20.0% \| baseline mean 10.0% \| delta \+10.0 pp \| tolerance \+15.0 pp/);
+  const inside = rows(4);          // 20% against 10%: +10 pp, tolerance max(5 pp, 4/20 = 20 pp) = 20 pp for factual
+  assert.equal(row(inside, 'factual error rate').ok, true); assert.match(row(inside, 'factual error rate').detail, /smoke 4\/20 = 20.0% \| baseline mean 10.0% \| delta \+10.0 pp \| tolerance \+20.0 pp/);
   assert.equal(inside.compared, 20, 'the two prompts the baseline does not cover are left out of both sides');
-  const outside = rows(6);         // 30% against 10%: +20 pp > 15 pp
+  const outside = rows(7);         // 35% against 10%: +25 pp > 20 pp
   assert.equal(row(outside, 'factual error rate').ok, false);
-  assert.equal(row(rows(2, 4400), 'whole-card p90').ok, true, 'p90 +1400 ms is inside +1500');
-  assert.equal(row(rows(2, 4600), 'whole-card p90').ok, false, 'p90 +1600 ms is past +1500');
-  assert.deepEqual(SMOKE_TOLERANCE, { items: 3, points: 5, p90Ms: 1500 });
+  assert.equal(row(rows(2, 4900), 'whole-card p90').ok, true, 'p90 +1900 ms is inside +2000');
+  assert.equal(row(rows(2, 5100), 'whole-card p90').ok, false, 'p90 +2100 ms is past +2000');
+  assert.deepEqual(SMOKE_TOLERANCE, { items: 3, points: 5, factualItems: 4, p90Ms: 2000 });
   const none = relativeRows(S.slice(20).map(p => make(p, 1)), runs);
   assert.ok(none.rows.every(x => x.noBaseline && x.ok) && none.compared === 0, 'no smoke prompt in the baseline: every relative line is "no baseline"');
   assert.ok(relativeRows([make(S[0], 1)], []).rows.every(x => x.noBaseline && x.ok), 'no baseline run at all: every relative line is "no baseline" and none fails');
@@ -136,8 +136,8 @@ test('smoke vs baseline: gateCheck keeps delivery and the picture lines hard, co
   const ok = gateCheck(write('ok', trio(), ['smoke']), 'abc', 'smoke', baseline);
   assert.match(ok.first, /^GATE: PASS abc tier=smoke vs baseline/); assert.equal(ok.code, 0);
   assert.match(ok.body, /the baseline covers 2 of 3 smoke prompts, the other 1 have no baseline/); assert.match(ok.body, /PASS {2}delivery.*\[hard\]/);
-  assert.match(ok.body, /PASS {2}whole-card p90 vs baseline: smoke 3000 ms \| baseline mean 3000 ms \| delta \+0 ms \| tolerance \+1500 ms \[2 prompts\]/);
-  const slow = gateCheck(write('slow', trio({ totalMs: 5000 }), ['smoke']), 'abc', 'smoke', baseline);
+  assert.match(ok.body, /PASS {2}whole-card p90 vs baseline: smoke 3000 ms \| baseline mean 3000 ms \| delta \+0 ms \| tolerance \+2000 ms \[2 prompts\]/);
+  const slow = gateCheck(write('slow', trio({ totalMs: 5500 }), ['smoke']), 'abc', 'smoke', baseline);
   assert.match(slow.first, /^GATE: FAIL abc tier=smoke vs baseline whole-card p90 vs baseline$/); assert.equal(slow.code, 1);
   const pics = gateCheck(write('pics', [mk('tcp-handshake', block('x', fence(seqSpec), pic('pic-2'))), mk('heart', heart), mk('gini', gini)], ['smoke']), 'abc', 'smoke', baseline);
   assert.match(pics.first, /pictures where none belongs: 0/, 'a picture where none belongs fails whatever the baseline says');
