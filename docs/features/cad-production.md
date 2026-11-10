@@ -1,6 +1,59 @@
 # Ongoing CAD production activation
 
-Updated 2026-10-17. **Authorized, not activated: required account access remains missing.** The owner replaced the finite 30-day pilot with ongoing production authorization: $35 infrastructure plus $10 model usage per UTC calendar month, globally across users/jobs, until changed or cancelled. No expiry, automatic deletion, or monthly reapproval. Latest remote main inspected: `d16c3a456b19ad1cb816c5470380e997e102e9a3`. No billable resources or model requests have been created in this pass.
+Updated 2026-10-18 Pacific. **Activated: new `/cad` generation is enabled on https://digrabbithole.com.** PR #3 shipped implementation `6962d35179e9ead3159402b4f9abb8c82cc1eb5c`; remote main was reconfirmed at that SHA during this documentation pass. General generation opened on 2026-10-18 at approximately 10:40 Pacific after verification. The executor remains provisioned under the ongoing authorization: **$35 infrastructure + $10 model usage per UTC calendar month**, globally across users and jobs, plus the 2 GiB monthly transfer allowance. There is **no expiry, resource-removal timer or monthly reapproval**.
+
+## Test the live feature
+
+1. Sign in at https://digrabbithole.com/sign-in and open a writable canvas.
+2. Enter `/cad` and describe the part with explicit dimensions and units. For example: `Create a solid rectangular plate, 40 mm x 20 mm x 5 mm, no holes or fillets. Use millimetres.` Confirm the displayed generation action. This starts paid work against the shared monthly allowance.
+3. Wait for the saved CAD card, choose **Interact**, then rotate, pan and zoom. Reload the page and confirm the same model remains interactive.
+4. The original verified card is at https://digrabbithole.com/apps/canvas-35ca6336 (owner access required). Viewing this saved card requires no new model generation. Shared viewers may interact with accessible saved models without editing, regenerating or accepting revisions.
+
+The original fresh plate took **85.744 seconds** from submission to a saved interactive card. A separate stopped-to-health wake measurement was **3.240 seconds**; it is not included in or added to the plate timing. These are observations, not latency guarantees. No additional generation was run for this documentation update.
+
+## Activation and verification evidence
+
+- [PR #3](https://github.com/Rabbit-Hole-App/Rabbit-Hole/pull/3) and [production deployment](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/39149789590): successful, production smoke **5 passed / 0 failed**, deployment 96 seconds.
+- [Final-head verification](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/39147983218), [six browser groups](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/39147983137), [Windows gate](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/39148596937), and [preview](https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/39149530921) passed. Windows: 45 stages, no failures/retries; unit log 5,224 passed, 0 failed, 72 skipped, 0 cancelled. Skips are not coverage.
+- Production `CAD_JOBS` and the `cad-jobs-1` Durable Object migration are deployed. Existing D1/R2 are reused; **no D1 migration was applied during activation**. Dedicated CAD model configuration, executor credentials and general admission are installed. The checked-in disabled defaults are preparation defaults, not the live enable state.
+- The fresh 40 x 20 x 5 mm plate produced one solid, volume 4,000 mm3, validated STEP/GLB/PNG checksums, interactive controls and reload persistence. Owner artifact reads returned 200; anonymous reads returned 401.
+- Preserve the original scenario counts: **3 passed / 1 failed / 0 skipped / 1 interrupted**. The failure was the test harness importing Three.js's CommonJS entry as ESM, not a geometry defect. Saved-artifact follow-ups used the proper ESM import and original tolerances: **4 passed / 0 failed**, plus reload **1 passed / 0 failed / 0 interrupted**. No second generation or automatic retry occurred.
+- The two-phase generation/review path completed within its durable two-call cap. Application owner usage increased by **$0.021702**, with no unknown/reserved/estimated usage afterward. This is an aggregate application-ledger delta, not a uniquely filtered job-cost export or independently reconciled provider invoice.
+
+## Monthly headroom and pause behavior
+
+Read-only executor health and sanitized Fly configuration were checked on **2026-10-18 at approximately 17:14 Pacific (2026-10-19 00:14 UTC)**. Health returned `ok:true`, `admission:true`, `busy:false` and the verified executor source `efed2a3c80bee3ca86d8dc66c24a93b6e647308d`. No model request, accounting reset, migration or configuration change was performed.
+
+| Allowance | Verified observation | Remaining headroom |
+| --- | --- | --- |
+| October executor transfer | Live ledger: 2,022,582,912 bytes reserved of 2,147,483,648 | **124,900,736 bytes (119.1 MiB)** |
+| Monthly CAD models | $10 global reservation ceiling; each admitted production job reserves up to $0.20. Activation recorded $0.021702 application usage. | **Current global remainder not read in this pass.** $9.80 would remain after exactly one $0.20 reservation; this conditional calculation is not a live balance and does not substitute for the global ledger. |
+| Monthly infrastructure | Activation configuration reserved $32 fixed + $1 October setup, plus lifetime retained artifacts at $0.02/decimal GB-month and recorded adjustments, under $35. | **Current global projection not read in this pass.** At most $2 remains after the fixed/setup reservations, before retained storage and any adjustments. This is reserved cost headroom, not provider invoice headroom. |
+
+The global model/infrastructure ledger is in the fixed `CAD_JOBS` actor `cad:production-budget`, key `production:model-budget`. Its existing internal read is `GET https://cad/production-budget-status` through that actor binding. There is no deployed public status route or available operator-bound read context in this pass. Do not invent an HTTP endpoint, infer the global total from one owner's usage, or claim the conditional figures above are current. The next accounting action is a read through an authenticated operator context bound to the existing actor; it requires no generation, ledger mutation or D1 command. Provider invoices remain unreconciled.
+
+October's limited transfer capacity comes from **2,011,048,576 bytes conservatively reserved for setup image traffic**, not measured wire usage. Each maximum-size execution attempt reserves **10 MiB output + 1 MiB overhead = 11,534,336 bytes**, including failed/re-dispatched attempts; these reservations are not refunded. The current balance fits **10 further maximum-size attempts**, leaving 9,557,376 bytes. The next maximum-size attempt would be refused because its reservation would exceed 2 GiB. Other limits can stop generation sooner; smaller configured attempts may fit, so this is an attempt-size calculation rather than a guaranteed number of successful jobs.
+
+On transfer refusal the executor refuses dispatch and requests the configured owner alert; the control plane records the current-month transfer pause. The alert's prior provider status was `sent`, not independently confirmed inbox delivery. Admission does not proactively stop at ten counted user clicks: it checks reserved bytes for each attempt. A failed attempt may already have consumed model budget before executor admission, so the controls must not be described as guaranteeing a free refusal.
+
+The next UTC month starts **2026-11-01 00:00 UTC (October 31, 17:00 Pacific)**. Separate monthly capacity then becomes available automatically within the same authorization; historical reservations remain intact. Jobs near rollover reserve both applicable months. Model, transfer or infrastructure admission may pause earlier when accepting the pending reservation would exceed a limit. Retained artifact storage carries forward. Saved-model viewing remains available throughout a generation pause.
+
+## Ongoing executor operation
+
+Live configuration confirms one Fly machine `8e2570a74ed058` in `iad`, shared 2 CPU / 4 GiB, and one encrypted 1 GiB volume `vol_rkgoplxl3pqj3dk4`, mounted at `/var/cad/budget`. Automatic startup is enabled and minimum running machines is zero. Proxy autostop is deliberately off because a 202 response does not mean a background build finished; the server exits after **five idle minutes with no active build**. No resource was stopped, removed or reconfigured in this documentation pass. A health read may wake the machine, after which the same idle behavior applies.
+
+Keep the executor and volume available indefinitely until the owner changes or cancels authorization. No monthly renewal or additional services are authorized. Budgets are global operating limits, **not provider-enforced billing caps**; a separate provider-side $10 cap was not independently verified and is not a new activation prerequisite. Reservations include pending work, setup, failures and storage. Do not increase limits, add machines/providers, reset the ledger or silently discard old accounting. Saved artifacts remain in R2 across idle shutdown.
+
+Limitations remain: single machine/volume, one execution slot, no fairness/HA guarantee, bounded artifact/retained-storage limits, no manufacturing-suitability certification, and incomplete adversarial resource-exhaustion qualification. Historical shared-viewer evidence remains at its original SHA. Ctrl+K, Equation and autocomplete work is separate and **does not inherit CAD's production approval**.
+
+## Historical preparation record — 2026-10-17, superseded by activation above
+
+The sections below preserve the original proposal, assumptions, access blockers and preparation results for audit. Their future-tense activation instructions, missing-access statements and provisional ETA are historical, not the current production state. Do not rerun provisioning or initialization from this record.
+
+<details>
+<summary>Expand the superseded preparation record</summary>
+
+Original status: **Authorized, not activated: required account access remains missing.** The owner replaced the finite 30-day pilot with ongoing production authorization: $35 infrastructure plus $10 model usage per UTC calendar month, globally across users/jobs, until changed or cancelled. No expiry, automatic deletion, or monthly reapproval. Then-current remote main: `d16c3a456b19ad1cb816c5470380e997e102e9a3`. No billable resources or model requests had been created at that preparation checkpoint.
 
 ## Current state and exact prerequisites
 
@@ -117,3 +170,5 @@ Provisional activation range: **45–90 minutes after approval and verified acco
 - [ ] Provision, gate, deploy and run the bounded production scenario after access is available. No billable action or provider request has been made yet.
 
 Ctrl+K expansion uses its separate `feature/ctrlk-tools-wave1` worktree and capability contract. Local checkpoint `68b06320` has 39 passing deterministic checks (zero failed/skipped); Preview/Accept product integration is still pending and it is not deployed. It does not inherit CAD model or production approvals.
+
+</details>
