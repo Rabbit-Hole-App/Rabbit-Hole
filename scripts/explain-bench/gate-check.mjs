@@ -1,7 +1,8 @@
 // The release gate, two tiers (owner 2026-11-09; rule in docs/features/explain/benchmarks/test-ledger.md).
-//   node scripts/explain-bench/gate-check.mjs <report dir with results.json> <SHA> [--tier smoke|full] [--out <file>]
+//   node scripts/explain-bench/gate-check.mjs <report dir with results.json> <SHA> [--tier smoke|full] [--baseline <judged run dir>] [--out <file>]
 // Tier "full" (3x of today's six core sets): the thirteen lines of the 117/118 overnight gate, each with its per-run values (the spread column).
-// Tier "smoke" (one run of the smoke set): the same limits; delivery and the two picture lines are full counts that fail hard, every other line is reported with its value and fails only when it is past its limit.
+// Tier "smoke" (one pass of the smoke set): without --baseline the same limits, delivery and the two picture lines hard, the rest reported. With --baseline <judged run dir> (owner 2026-11-10): delivery, the two picture lines and
+// right kind on verified prompts are absolute; every other line is compared with the baseline's mean on the same prompts and fails only past SMOKE_TOLERANCE.
 // The tier defaults to smoke when the run holds only the smoke set. Writes <dir>/gate-result.txt (or --out): first line `GATE: PASS|FAIL|INVALID <SHA> tier=<tier> ...`, then one line per gate.
 // Exit 0 pass, 1 fail, 3 invalid (a provider outage: pictures the image provider refused), 2 bad arguments.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -9,7 +10,7 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { KINDS } from './build-smoke-set.mjs';
-import { quantile, summarize } from './score.mjs';
+import { loadSet, quantile, summarize } from './score.mjs';
 
 export const CORE = ['regression', 'baseline', 'aiml', 'sequence', 'content', 'correct-svg']; // the sets of the 116 baseline and the clean-up run (423 cards); `illustrations` is reported elsewhere
 // The clean-up run (2026-11-08T222201, fully judged 2026-11-08T233456): the reference for "not worse".
@@ -47,10 +48,51 @@ export function smokeReports(cards) {
     `REPORTED  prompts whose kind is not verified (kind-reference prompts): right ${ref.filter(c => c.score === 'right').length}/${ref.length}${ref.some(c => c.score !== 'right') ? ` (${ref.filter(c => c.score !== 'right').map(c => c.id).join(', ')})` : ''}`];
 }
 
-export function gateCheck(dir, sha = '<SHA>', tier = null) {
+// Smoke tier calibration (owner 2026-11-10): ~66 cards are too few for the full tier's absolute rates. With --baseline <judged run dir> (the last passing release's judged 3x run), delivery, the two picture
+// lines and the right-kind line (verified prompts, >= 80%) stay absolute; every other line is compared with the baseline's value on the SAME prompts (the mean of its runs) and fails only when it is worse by more than the tolerance.
+// Prompts the baseline does not cover are left out of those lines ("no baseline"). The tolerance values live here and nowhere else.
+export const SMOKE_TOLERANCE = {
+  items: 3,     // a rate may be worse than the baseline mean by this many items of the smoke run's denominator ...
+  points: 5,    // ... or by this many percentage points, whichever is larger
+  p90Ms: 1500,  // whole-card p90 may be slower than the baseline mean by this much
+};
+const norm = t => String(t).toLowerCase().trim(), mean = xs => xs.reduce((s, x) => s + x, 0) / xs.length;
+// The baseline's cards for the smoke prompts, one array per run: matched by prompt text, depth none or standard, the smoke entry's source set preferred.
+export function baselineRuns(baseCards, smokePrompts) {
+  const byText = new Map(smokePrompts.map(p => [norm(p.prompt), p])), best = new Map(), runs = new Map();
+  for (const c of baseCards) {
+    const p = byText.get(norm(c.prompt)); if (!p || (c.depth && c.depth !== 'standard')) continue;
+    const k = `${c.run}|${p.id}`, pref = p.smoke.source.set === c.set;
+    if (!best.has(k) || (pref && !best.get(k).pref)) best.set(k, { c, p, pref });
+  }
+  for (const { c, p } of best.values()) (runs.get(c.run) || runs.set(c.run, []).get(c.run)).push({ ...c, id: p.id });
+  return [...runs.values()];
+}
+const relMetrics = cards => { const S = summarize(cards), f = S.factual, fa = S.content.faithful, b = S.content.beyond;
+  return { factual: [f?.withErrors ?? 0, f?.judged ?? 0], repairs: [S.repairs.repaired, S.repairs.of], noun: [S.content.flagged ?? 0, S.content.diagrams], not: [fa?.not ?? 0, fa?.judged ?? 0], fully: [fa?.fully ?? 0, fa?.judged ?? 0], beyond: [b?.yes ?? 0, b?.judged ?? 0], p90: quantile(cards.map(c => c.totalMs), 0.9) }; };
+const REL = [['factual error rate', 'factual', 'down'], ['repairs', 'repairs', 'down'], ['noun-box or placeholder labels', 'noun', 'down'], ['faithfulness: "not"', 'not', 'down'], ['faithfulness: "fully"', 'fully', 'up'], ['claims beyond the prose', 'beyond', 'down']];
+// One smoke pass against the baseline runs -> rows { name, ok, detail, noBaseline }. Both sides are restricted to the prompts the baseline covers.
+export function relativeRows(smokeCards, baseRuns, tol = SMOKE_TOLERANCE) {
+  const have = new Set(baseRuns.flat().map(c => norm(c.prompt))), mine = smokeCards.filter(c => have.has(norm(c.prompt))), m = relMetrics(mine), bm = baseRuns.map(relMetrics), sp = (x, d = 1) => { const v = Math.abs(x).toFixed(d); return `${x < 0 && Number(v) !== 0 ? '-' : '+'}${v}`; };
+  const rows = REL.map(([name, key, dir]) => {
+    if (!mine.length) return { name, ok: true, noBaseline: true, detail: 'no baseline (none of the smoke prompts is in the baseline run); not failed' };
+    const rates = bm.filter(b => b[key][1]).map(b => b[key][0] / b[key][1]), [x, n] = m[key];
+    if (!rates.length) return { name, ok: true, noBaseline: true, detail: 'no baseline (the baseline has no judged items on these prompts); not failed' };
+    if (!n) return { name, ok: false, detail: 'not judged in the smoke run' };
+    const base = mean(rates), rate = x / n, t = Math.max(tol.points / 100, tol.items / n), d = rate - base, ok = (dir === 'down' ? d : -d) <= t + 1e-9;
+    return { name: `${name} vs baseline`, ok, detail: `smoke ${x}/${n} = ${fmt(100 * rate)} | baseline mean ${fmt(100 * base)} | delta ${sp(100 * d)} pp | tolerance ${dir === 'down' ? '+' : '-'}${(100 * t).toFixed(1)} pp (${tol.items} items or ${tol.points} pp, larger)` };
+  });
+  const bp = bm.map(b => b.p90).filter(Number.isFinite);
+  rows.push(!bp.length || !mine.length ? { name: 'whole-card p90', ok: true, noBaseline: true, detail: 'no baseline; not failed' } : { name: 'whole-card p90 vs baseline', ok: m.p90 !== null && m.p90 - mean(bp) <= tol.p90Ms,
+    detail: `smoke ${m.p90} ms | baseline mean ${Math.round(mean(bp))} ms | delta ${sp(m.p90 - mean(bp), 0)} ms | tolerance +${tol.p90Ms} ms` });
+  return { rows, compared: new Set(mine.map(c => norm(c.prompt))).size };
+}
+
+export function gateCheck(dir, sha = '<SHA>', tier = null, baselineDir = null) {
   const results = JSON.parse(readFileSync(join(dir, 'results.json'), 'utf8')), sets = Object.keys(results.summary.sets);
   tier ||= sets.length === 1 && sets[0] === 'smoke' ? 'smoke' : 'full';
   const cards = results.cards.filter(c => (tier === 'smoke' ? c.set === 'smoke' : CORE.includes(c.set))), runs = [...new Set(cards.map(c => c.run))].sort((a, b) => a - b);
+  if (tier === 'smoke' && baselineDir) return smokeAgainstBaseline(dir, sha, cards, runs, baselineDir);
   const rows = lines(tier).map(([name, hard, f]) => {
     const all = f(summarize(cards), cards), per = tier === 'full' && runs.length > 1 ? runs.map(r => { const sub = cards.filter(c => c.run === r); return `r${r} ${f(summarize(sub), sub).value}`; }) : [];
     return { name, hard, ok: all.ok, detail: `${all.detail}${per.length ? ` | spread: ${per.join(', ')}` : ''}${tier === 'smoke' && !hard ? ' (reported)' : ''}` };
@@ -64,10 +106,28 @@ export function gateCheck(dir, sha = '<SHA>', tier = null) {
   return { tier, first, body, rows, code: invalid ? 3 : failed.length ? 1 : 0 };
 }
 
+// Smoke against a baseline: each pass of the smoke set in results.json (normally one) is judged on its own; the verdict fails if any pass fails.
+function smokeAgainstBaseline(dir, sha, cards, runs, baselineDir) {
+  const prompts = loadSet('smoke').prompts, base = JSON.parse(readFileSync(join(resolve(baselineDir), 'results.json'), 'utf8')), baseRuns = baselineRuns(base.cards, prompts);
+  const covered = new Set(baseRuns.flat().map(c => norm(c.prompt))), hard = lines('smoke').filter(([name, h]) => h || name.startsWith('right kind')), out = [];
+  for (const r of runs) {
+    const sub = cards.filter(c => c.run === r), tag = runs.length > 1 ? `r${r} ` : '', S = summarize(sub);
+    for (const [name, , f] of hard) { const x = f(S, sub); out.push({ name: `${tag}${name}`, ok: x.ok, hard: true, detail: x.detail }); }
+    const { rows, compared } = relativeRows(sub, baseRuns);
+    out.push(...rows.map(x => ({ ...x, name: `${tag}${x.name}`, detail: `${x.detail}${x.noBaseline ? '' : ` [${compared} prompts]`}` })));
+  }
+  const dropped = cards.filter(c => Array.isArray(c.picturesDropped) && c.picturesDropped.length).length, invalid = dropped >= 5 ? `${dropped} cards lost their picture to the image provider` : '';
+  const failed = out.filter(g => !g.ok), first = invalid ? `GATE: INVALID ${sha} tier=smoke provider outage: ${invalid}; the gate table below is not a verdict` : failed.length ? `GATE: FAIL ${sha} tier=smoke vs baseline ${failed.map(g => g.name).join('; ')}` : `GATE: PASS ${sha} tier=smoke vs baseline`;
+  const mine = new Set(cards.map(c => norm(c.prompt))), n = [...mine].filter(p => covered.has(p)).length;
+  const body = [first, `report: ${dir}`, `baseline: ${resolve(baselineDir)} (${baseRuns.length} runs, mean of its runs on the same prompts)`, `cards: ${cards.length} (smoke set, ${runs.length} pass${runs.length > 1 ? 'es' : ''}); the baseline covers ${n} of ${mine.size} smoke prompts, the other ${mine.size - n} have no baseline and are left out of the relative lines`,
+    ...out.map(g => `${g.noBaseline ? 'NO BASELINE' : g.ok ? 'PASS' : 'FAIL'}  ${g.name}${g.hard ? ' [hard]' : ''}: ${g.detail}`), ...smokeReports(cards), ''].join('\n');
+  return { tier: 'smoke', first, body, rows: out, code: invalid ? 3 : failed.length ? 1 : 0 };
+}
+
 if (resolve(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
-  const { values: a, positionals: [dir, sha] } = parseArgs({ options: { tier: { type: 'string' }, out: { type: 'string' } }, allowPositionals: true });
-  if (!dir || (a.tier && !['smoke', 'full'].includes(a.tier))) { console.error('usage: gate-check.mjs <report dir> <SHA> [--tier smoke|full] [--out <file>]'); process.exit(2); }
-  const g = gateCheck(resolve(dir), sha, a.tier);
+  const { values: a, positionals: [dir, sha] } = parseArgs({ options: { tier: { type: 'string' }, out: { type: 'string' }, baseline: { type: 'string' } }, allowPositionals: true });
+  if (!dir || (a.tier && !['smoke', 'full'].includes(a.tier)) || (a.baseline && a.tier !== 'smoke')) { console.error('usage: gate-check.mjs <report dir> <SHA> [--tier smoke|full] [--baseline <judged run dir> (smoke only)] [--out <file>]'); process.exit(2); }
+  const g = gateCheck(resolve(dir), sha, a.tier, a.baseline);
   writeFileSync(a.out || join(resolve(dir), 'gate-result.txt'), g.body);
   console.log(g.body);
   process.exit(g.code);

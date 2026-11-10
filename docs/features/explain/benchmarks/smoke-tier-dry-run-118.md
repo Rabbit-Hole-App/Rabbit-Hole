@@ -1,97 +1,97 @@
 # Smoke tier dry run on the judged 118 cards (118-c0e8f365a)
 
-Source: `C:/s/spec/benchmarks/explain-bench/2026-11-09T145238-118-3x-judged` (raw `C:\s\spec\benchmarks\explain-bench\2026-11-09T134635-118-3x-gate-c0e8f365a-fresh-ledger\raw`). Offline: no stack, no generation, no judge call. Tooling: branch `explain/smoke-tier`.
+Source: `C:/s/spec/benchmarks/explain-bench/2026-11-09T145415-118-3x-judged` (raw `C:\s\spec\benchmarks\explain-bench\2026-11-09T134635-118-3x-gate-c0e8f365a-fresh-ledger\raw`). Offline: no stack, no generation, no judge call. Tooling: branch `explain/smoke-tier`.
 
-## 1. Smoke lines on the 118 cards whose prompt text is in smoke.json
+## 1. Smoke gate on the 118 cards, baseline-relative
 
-40 of 66 smoke prompts have 118 cards (120 cards over 3 runs, depth none or standard). The other 26 (demo-lesson04, figure-chapters, reference-library, review-batch-01, phase02-batch prompts) were not in the 118 run.
+The smoke prompts that have 118 cards (40 of 66; 120 cards, 3 passes) are scored one pass at a time, as a real smoke run would be: `gate-check.mjs --tier smoke --baseline <dir>`. Tolerance: the larger of 3 items or 5 percentage points; p90 +1500 ms. Hard lines: delivery, pictures needed 100%, none belongs 0, right kind on verified prompts >= 80%.
 
-### Pooled
+### 1a. Baseline = the same 118 run (sanity: must pass)
 
 ```
-GATE: FAIL 118-c0e8f365a tier=smoke faithfulness: "not" not worse than the clean-up (+3); faithfulness: "fully" not worse than the clean-up (-3)
-report: C:/s/explain-smoke-scratch/gate-118-c0e8f365a-pooled
-cards: 120 (smoke set, 3 runs)
-PASS  delivery: at least 99% of cards delivered [hard]: 120/120
-PASS  factual error <= 10% (overall): 9/119 = 7.6% (reported)
-PASS  factual error <= 10% (baseline): 1/45 = 2.2% (reported)
-PASS  right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below): 115/117 = 98.3% (reported)
-PASS  pictures where needed: 100% [hard]: 30/30
-PASS  pictures where none belongs: 0 [hard]: 0/87
-PASS  repairs < 15%: 3/120 = 2.5% (reported)
-PASS  whole-card p90 <= 7000 ms: p90 4927 ms (p50 3303 ms) (reported)
-PASS  noun-box or placeholder labels < 5% of diagrams: 2/118 = 1.7% (reported)
-FAIL  faithfulness: "not" not worse than the clean-up (+3): not 5/45 (limit 4; clean-up 5/185) (reported)
-FAIL  faithfulness: "fully" not worse than the clean-up (-3): fully 15/45 (floor 18; clean-up 86/185) (reported)
-PASS  claims beyond the prose not worse than the clean-up (+3): 11/118 (limit 25; clean-up 73/385) (reported)
+GATE: PASS 118 tier=smoke vs baseline
+report: C:/s/explain-smoke-scratch/gate-bl-118
+baseline: C:\s\spec\benchmarks\explain-bench\2026-11-09T145415-118-3x-judged (3 runs, mean of its runs on the same prompts)
+cards: 120 (smoke set, 3 passes); the baseline covers 40 of 40 smoke prompts, the other 0 have no baseline and are left out of the relative lines
+PASS  r1 delivery: at least 99% of cards delivered [hard]: 40/40
+PASS  r1 right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below) [hard]: 39/39 = 100.0%
+PASS  r1 pictures where needed: 100% [hard]: 10/10
+PASS  r1 pictures where none belongs: 0 [hard]: 0/29
+PASS  r1 factual error rate vs baseline: smoke 1/40 = 2.5% | baseline mean 7.6% | delta -5.1 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 repairs vs baseline: smoke 1/40 = 2.5% | baseline mean 2.5% | delta +0.0 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 noun-box or placeholder labels vs baseline: smoke 0/40 = 0.0% | baseline mean 1.7% | delta -1.7 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 faithfulness: "not" vs baseline: smoke 2/15 = 13.3% | baseline mean 11.1% | delta +2.2 pp | tolerance +20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 faithfulness: "fully" vs baseline: smoke 6/15 = 40.0% | baseline mean 33.3% | delta +6.7 pp | tolerance -20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 claims beyond the prose vs baseline: smoke 3/40 = 7.5% | baseline mean 9.3% | delta -1.8 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 whole-card p90 vs baseline: smoke 4280 ms | baseline mean 5259 ms | delta -979 ms | tolerance +1500 ms [40 prompts]
+PASS  r2 delivery: at least 99% of cards delivered [hard]: 40/40
+PASS  r2 right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below) [hard]: 37/39 = 94.9%
+PASS  r2 pictures where needed: 100% [hard]: 10/10
+PASS  r2 pictures where none belongs: 0 [hard]: 0/29
+PASS  r2 factual error rate vs baseline: smoke 3/40 = 7.5% | baseline mean 7.6% | delta -0.1 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 repairs vs baseline: smoke 1/40 = 2.5% | baseline mean 2.5% | delta +0.0 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 noun-box or placeholder labels vs baseline: smoke 0/38 = 0.0% | baseline mean 1.7% | delta -1.7 pp | tolerance +7.9 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 faithfulness: "not" vs baseline: smoke 1/15 = 6.7% | baseline mean 11.1% | delta -4.4 pp | tolerance +20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 faithfulness: "fully" vs baseline: smoke 4/15 = 26.7% | baseline mean 33.3% | delta -6.7 pp | tolerance -20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 claims beyond the prose vs baseline: smoke 4/38 = 10.5% | baseline mean 9.3% | delta +1.2 pp | tolerance +7.9 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 whole-card p90 vs baseline: smoke 6359 ms | baseline mean 5259 ms | delta +1100 ms | tolerance +1500 ms [40 prompts]
+PASS  r3 delivery: at least 99% of cards delivered [hard]: 40/40
+PASS  r3 right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below) [hard]: 39/39 = 100.0%
+PASS  r3 pictures where needed: 100% [hard]: 10/10
+PASS  r3 pictures where none belongs: 0 [hard]: 0/29
+PASS  r3 factual error rate vs baseline: smoke 5/39 = 12.8% | baseline mean 7.6% | delta +5.2 pp | tolerance +7.7 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 repairs vs baseline: smoke 1/40 = 2.5% | baseline mean 2.5% | delta +0.0 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 noun-box or placeholder labels vs baseline: smoke 2/40 = 5.0% | baseline mean 1.7% | delta +3.3 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 faithfulness: "not" vs baseline: smoke 2/15 = 13.3% | baseline mean 11.1% | delta +2.2 pp | tolerance +20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 faithfulness: "fully" vs baseline: smoke 5/15 = 33.3% | baseline mean 33.3% | delta +0.0 pp | tolerance -20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 claims beyond the prose vs baseline: smoke 4/40 = 10.0% | baseline mean 9.3% | delta +0.7 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 whole-card p90 vs baseline: smoke 5139 ms | baseline mean 5259 ms | delta -120 ms | tolerance +1500 ms [40 prompts]
 REPORTED  diagram kinds drawn: 15/24 (not drawn: histogram, box-plot, heatmap, number-line, sample-set, argument, t-account, waterfall, tensor)
 REPORTED  prompts whose kind is not verified (kind-reference prompts): right 3/3
 ```
 
-### Run 1
+### 1b. Baseline = the 117 rerun judged run (where 118 differs from 117)
 
 ```
-GATE: PASS 118-c0e8f365a tier=smoke
-report: C:/s/explain-smoke-scratch/gate-118-c0e8f365a-1
-cards: 40 (smoke set, 1 run)
-PASS  delivery: at least 99% of cards delivered [hard]: 40/40
-PASS  factual error <= 10% (overall): 1/40 = 2.5% (reported)
-PASS  factual error <= 10% (baseline): 0/15 = 0.0% (reported)
-PASS  right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below): 39/39 = 100.0% (reported)
-PASS  pictures where needed: 100% [hard]: 10/10
-PASS  pictures where none belongs: 0 [hard]: 0/29
-PASS  repairs < 15%: 1/40 = 2.5% (reported)
-PASS  whole-card p90 <= 7000 ms: p90 4280 ms (p50 3106 ms) (reported)
-PASS  noun-box or placeholder labels < 5% of diagrams: 0/40 = 0.0% (reported)
-PASS  faithfulness: "not" not worse than the clean-up (+3): not 2/15 (limit 3; clean-up 5/185) (reported)
-PASS  faithfulness: "fully" not worse than the clean-up (-3): fully 6/15 (floor 4; clean-up 86/185) (reported)
-PASS  claims beyond the prose not worse than the clean-up (+3): 3/40 (limit 11; clean-up 73/385) (reported)
+GATE: FAIL 118 tier=smoke vs baseline r2 whole-card p90 vs baseline; r3 factual error rate vs baseline
+report: C:/s/explain-smoke-scratch/gate-bl-118
+baseline: C:\s\spec\benchmarks\explain-bench\2026-11-09T105915-117-rerun-3x-judged (3 runs, mean of its runs on the same prompts)
+cards: 120 (smoke set, 3 passes); the baseline covers 40 of 40 smoke prompts, the other 0 have no baseline and are left out of the relative lines
+PASS  r1 delivery: at least 99% of cards delivered [hard]: 40/40
+PASS  r1 right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below) [hard]: 39/39 = 100.0%
+PASS  r1 pictures where needed: 100% [hard]: 10/10
+PASS  r1 pictures where none belongs: 0 [hard]: 0/29
+PASS  r1 factual error rate vs baseline: smoke 1/40 = 2.5% | baseline mean 5.0% | delta -2.5 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 repairs vs baseline: smoke 1/40 = 2.5% | baseline mean 4.2% | delta -1.7 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 noun-box or placeholder labels vs baseline: smoke 0/40 = 0.0% | baseline mean 1.7% | delta -1.7 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 faithfulness: "not" vs baseline: smoke 2/15 = 13.3% | baseline mean 8.9% | delta +4.4 pp | tolerance +20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 faithfulness: "fully" vs baseline: smoke 6/15 = 40.0% | baseline mean 33.3% | delta +6.7 pp | tolerance -20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 claims beyond the prose vs baseline: smoke 3/40 = 7.5% | baseline mean 12.5% | delta -5.0 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r1 whole-card p90 vs baseline: smoke 4280 ms | baseline mean 4728 ms | delta -448 ms | tolerance +1500 ms [40 prompts]
+PASS  r2 delivery: at least 99% of cards delivered [hard]: 40/40
+PASS  r2 right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below) [hard]: 37/39 = 94.9%
+PASS  r2 pictures where needed: 100% [hard]: 10/10
+PASS  r2 pictures where none belongs: 0 [hard]: 0/29
+PASS  r2 factual error rate vs baseline: smoke 3/40 = 7.5% | baseline mean 5.0% | delta +2.5 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 repairs vs baseline: smoke 1/40 = 2.5% | baseline mean 4.2% | delta -1.7 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 noun-box or placeholder labels vs baseline: smoke 0/38 = 0.0% | baseline mean 1.7% | delta -1.7 pp | tolerance +7.9 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 faithfulness: "not" vs baseline: smoke 1/15 = 6.7% | baseline mean 8.9% | delta -2.2 pp | tolerance +20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 faithfulness: "fully" vs baseline: smoke 4/15 = 26.7% | baseline mean 33.3% | delta -6.7 pp | tolerance -20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r2 claims beyond the prose vs baseline: smoke 4/38 = 10.5% | baseline mean 12.5% | delta -2.0 pp | tolerance +7.9 pp (3 items or 5 pp, larger) [40 prompts]
+FAIL  r2 whole-card p90 vs baseline: smoke 6359 ms | baseline mean 4728 ms | delta +1631 ms | tolerance +1500 ms [40 prompts]
+PASS  r3 delivery: at least 99% of cards delivered [hard]: 40/40
+PASS  r3 right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below) [hard]: 39/39 = 100.0%
+PASS  r3 pictures where needed: 100% [hard]: 10/10
+PASS  r3 pictures where none belongs: 0 [hard]: 0/29
+FAIL  r3 factual error rate vs baseline: smoke 5/39 = 12.8% | baseline mean 5.0% | delta +7.8 pp | tolerance +7.7 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 repairs vs baseline: smoke 1/40 = 2.5% | baseline mean 4.2% | delta -1.7 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 noun-box or placeholder labels vs baseline: smoke 2/40 = 5.0% | baseline mean 1.7% | delta +3.3 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 faithfulness: "not" vs baseline: smoke 2/15 = 13.3% | baseline mean 8.9% | delta +4.4 pp | tolerance +20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 faithfulness: "fully" vs baseline: smoke 5/15 = 33.3% | baseline mean 33.3% | delta +0.0 pp | tolerance -20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 claims beyond the prose vs baseline: smoke 4/40 = 10.0% | baseline mean 12.5% | delta -2.5 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  r3 whole-card p90 vs baseline: smoke 5139 ms | baseline mean 4728 ms | delta +411 ms | tolerance +1500 ms [40 prompts]
 REPORTED  diagram kinds drawn: 15/24 (not drawn: histogram, box-plot, heatmap, number-line, sample-set, argument, t-account, waterfall, tensor)
-REPORTED  prompts whose kind is not verified (kind-reference prompts): right 1/1
-```
-
-### Run 2
-
-```
-GATE: PASS 118-c0e8f365a tier=smoke
-report: C:/s/explain-smoke-scratch/gate-118-c0e8f365a-2
-cards: 40 (smoke set, 1 run)
-PASS  delivery: at least 99% of cards delivered [hard]: 40/40
-PASS  factual error <= 10% (overall): 3/40 = 7.5% (reported)
-PASS  factual error <= 10% (baseline): 1/15 = 6.7% (reported)
-PASS  right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below): 37/39 = 94.9% (reported)
-PASS  pictures where needed: 100% [hard]: 10/10
-PASS  pictures where none belongs: 0 [hard]: 0/29
-PASS  repairs < 15%: 1/40 = 2.5% (reported)
-PASS  whole-card p90 <= 7000 ms: p90 6359 ms (p50 3410 ms) (reported)
-PASS  noun-box or placeholder labels < 5% of diagrams: 0/38 = 0.0% (reported)
-PASS  faithfulness: "not" not worse than the clean-up (+3): not 1/15 (limit 3; clean-up 5/185) (reported)
-PASS  faithfulness: "fully" not worse than the clean-up (-3): fully 4/15 (floor 4; clean-up 86/185) (reported)
-PASS  claims beyond the prose not worse than the clean-up (+3): 4/38 (limit 10; clean-up 73/385) (reported)
-REPORTED  diagram kinds drawn: 14/24 (not drawn: bar-chart, histogram, box-plot, heatmap, number-line, sample-set, argument, t-account, waterfall, tensor)
-REPORTED  prompts whose kind is not verified (kind-reference prompts): right 1/1
-```
-
-### Run 3
-
-```
-GATE: FAIL 118-c0e8f365a tier=smoke factual error <= 10% (overall); noun-box or placeholder labels < 5% of diagrams
-report: C:/s/explain-smoke-scratch/gate-118-c0e8f365a-3
-cards: 40 (smoke set, 1 run)
-PASS  delivery: at least 99% of cards delivered [hard]: 40/40
-FAIL  factual error <= 10% (overall): 5/39 = 12.8% (reported)
-PASS  factual error <= 10% (baseline): 0/15 = 0.0% (reported)
-PASS  right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below): 39/39 = 100.0% (reported)
-PASS  pictures where needed: 100% [hard]: 10/10
-PASS  pictures where none belongs: 0 [hard]: 0/29
-PASS  repairs < 15%: 1/40 = 2.5% (reported)
-PASS  whole-card p90 <= 7000 ms: p90 5139 ms (p50 3314 ms) (reported)
-FAIL  noun-box or placeholder labels < 5% of diagrams: 2/40 = 5.0% (reported)
-PASS  faithfulness: "not" not worse than the clean-up (+3): not 2/15 (limit 3; clean-up 5/185) (reported)
-PASS  faithfulness: "fully" not worse than the clean-up (-3): fully 5/15 (floor 4; clean-up 86/185) (reported)
-PASS  claims beyond the prose not worse than the clean-up (+3): 4/40 (limit 11; clean-up 73/385) (reported)
-REPORTED  diagram kinds drawn: 14/24 (not drawn: bar-chart, histogram, box-plot, heatmap, number-line, sample-set, argument, t-account, waterfall, tensor)
-REPORTED  prompts whose kind is not verified (kind-reference prompts): right 1/1
+REPORTED  prompts whose kind is not verified (kind-reference prompts): right 3/3
 ```
 
 ## 2. Carried verdicts
@@ -134,6 +134,7 @@ Carry reference: the 117 rerun judged run, with a copy of the judge cache from b
 
 ## Notes
 
-- The same smoke subset taken from the 117 rerun gives faithfulness not 4/45 and fully 15/45 pooled, so the two faithfulness lines (limits scaled from the clean-up run on the six core sets) fail on 117 as well as on 118 (not 5/45 against a limit of 4, fully 15/45 against a floor of 18) because the smoke composition has more sketch-heavy prompts; they need a limit calibrated on a smoke baseline.
-- bar-chart now has evidence in the 118 run through the smoke prompt softmax; heatmap, number-line, sample-set, histogram, box-plot, argument, t-account, waterfall and tensor have none (their prompts are in sets the 118 run did not include, or the prompt drew another kind: tensor 0/3).
-- Regenerate: `node scripts/explain-bench/gate-check.mjs` over a relabelled subset, plus `report.mjs --judge-dry-run --carry-from` (scratch drivers `an118.mjs` and `subset.cjs` in `C:/s/explain-smoke-scratch`).
+- The 118 run passes the full gate 13/13, yet scored one pass at a time against the 117 rerun the smoke gate fails 2 of its 3 passes by a hair: r2 p90 +1631 ms against +1500, r3 factual +7.8 pp against +7.7 pp. The 118 run varies against its own mean by up to +1100 ms p90 and +5.2 pp factual from pass to pass, so with the current SMOKE_TOLERANCE a clean candidate fails a single smoke pass about as often as not on those two lines; widening p90 to about +2000 ms and factual to 4 items would cover it (not applied: owner values).
+- Faithfulness "not" and "fully" now compare with the baseline on the same 15 judged items per pass and pass in every case (tolerance 3 items = 20 pp).
+- bar-chart has evidence in the 118 run through the smoke prompt softmax; heatmap, number-line, sample-set, histogram, box-plot, argument, t-account, waterfall have none (prompts in sets the 118 run did not include); tensor 0/3.
+- Regenerate with the scratch drivers `an118.mjs`, `gate118.mjs`, `subset.cjs` (in `C:/s/explain-smoke-scratch`; offline).

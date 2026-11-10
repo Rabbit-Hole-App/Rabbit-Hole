@@ -8,7 +8,7 @@ import { SET_NAMES, loadSet, scoreCard } from './explain-bench/score.mjs';
 import { run } from './explain-bench/report.mjs';
 import { RUBRICS, useRubrics } from './explain-bench/judge.mjs';
 import { cardHash, identity, referenceCopied } from './explain-bench/carry.mjs';
-import { gateCheck, lines as gateLines } from './explain-bench/gate-check.mjs';
+import { SMOKE_TOLERANCE, baselineRuns, gateCheck, lines as gateLines, relativeRows } from './explain-bench/gate-check.mjs';
 import { KINDS, rng, shuffle } from './explain-bench/build-smoke-set.mjs';
 
 const fence = d => `\`\`\`rh-diagram\n${JSON.stringify({ version: 1, diagram: d })}\n\`\`\``;
@@ -97,4 +97,52 @@ test('gate-check: smoke fails hard on delivery and the two picture lines, report
   assert.equal(gateLines('smoke').length, 12); assert.equal(gateLines('full').length, 13, 'the full tier keeps today\'s thirteen lines');
   const full = gateCheck(write('full', [{ ...good[0], set: 'baseline', run: 1 }, { ...good[0], set: 'baseline', run: 2 }], ['baseline']), 'abc');
   assert.equal(full.tier, 'full'); assert.match(full.body, /delivery: at least 99% of cards delivered: 2\/2 \| spread: r1 1\/1, r2 1\/1/);
+});
+
+// ---- Smoke gate against a baseline (owner 2026-11-10): hard absolute lines, every other line relative to the baseline's mean on the same prompts. ----
+
+test('smoke vs baseline: a move inside the tolerance passes, a move past it fails, prompts without a baseline are left out', () => {
+  const S = loadSet('smoke').prompts.slice(0, 22), flow2 = block('x', fence({ kind: 'flow', title: 'f', nodes: [{ id: 'a', label: 'Start', role: 'process' }, { id: 'b', label: 'End', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] }));
+  const make = (p, run, { wrong = false, ms = 3000, set = 'smoke' } = {}) => { const c = scoreCard(p, { set, run, id: p.id, delivered: true, block: flow2, totalMs: ms, repaired: false, repairCauses: [], costUsd: 0.01, costSource: 'ledger' });
+    c.judge = { factual: { score: wrong ? 2 : 5, errors: wrong ? [{ claim: 'x', why: 'y' }] : [] } }; c.diagrams.forEach(d => { d.beyond = { verdict: 'no' }; }); return c; };
+  // baseline: 20 prompts x 3 runs with 2 factual errors a run (10%); the last 2 smoke prompts are not in it
+  const base = [1, 2, 3].flatMap(r => S.slice(0, 20).map((p, i) => make(p, r, { wrong: i < 2, set: p.smoke.source.set })));
+  const runs = baselineRuns(base, S);
+  assert.deepEqual(runs.map(r => r.length), [20, 20, 20]);
+  const rows = (errors, ms = 3000) => relativeRows(S.map((p, i) => make(p, 1, { wrong: i < errors, ms })), runs), row = (r, name) => r.rows.find(x => x.name.startsWith(name));
+  const inside = rows(4);          // 20% against 10%: +10 pp, tolerance max(5 pp, 3/20 = 15 pp) = 15 pp
+  assert.equal(row(inside, 'factual error rate').ok, true); assert.match(row(inside, 'factual error rate').detail, /smoke 4\/20 = 20.0% \| baseline mean 10.0% \| delta \+10.0 pp \| tolerance \+15.0 pp/);
+  assert.equal(inside.compared, 20, 'the two prompts the baseline does not cover are left out of both sides');
+  const outside = rows(6);         // 30% against 10%: +20 pp > 15 pp
+  assert.equal(row(outside, 'factual error rate').ok, false);
+  assert.equal(row(rows(2, 4400), 'whole-card p90').ok, true, 'p90 +1400 ms is inside +1500');
+  assert.equal(row(rows(2, 4600), 'whole-card p90').ok, false, 'p90 +1600 ms is past +1500');
+  assert.deepEqual(SMOKE_TOLERANCE, { items: 3, points: 5, p90Ms: 1500 });
+  const none = relativeRows(S.slice(20).map(p => make(p, 1)), runs);
+  assert.ok(none.rows.every(x => x.noBaseline && x.ok) && none.compared === 0, 'no smoke prompt in the baseline: every relative line is "no baseline"');
+  assert.ok(relativeRows([make(S[0], 1)], []).rows.every(x => x.noBaseline && x.ok), 'no baseline run at all: every relative line is "no baseline" and none fails');
+});
+
+test('smoke vs baseline: gateCheck keeps delivery and the picture lines hard, compares the rest with the baseline, and a full-tier run is unchanged', () => {
+  const S = loadSet('smoke').prompts, P = id => S.find(p => p.id === id);
+  const mk = (id, b, extra = {}, set = 'smoke') => { const c = scoreCard(P(id), { set, run: 1, id, delivered: !!b, block: b, totalMs: 3000, repaired: false, repairCauses: [], costUsd: 0.01, costSource: 'ledger', ...extra });
+    c.smoke = { source: P(id).smoke.source, unverified: !!P(id).smoke.unverified }; c.judge = { factual: { score: 5, errors: [] } }; c.diagrams.forEach(d => { d.beyond = { verdict: 'no' }; if (c.sketch) d.faithful = { verdict: 'fully' }; }); return c; };
+  const tcp = block('The client and the server talk.', fence(seqSpec)), heart = block('The heart pumps.', fence({ kind: 'cycle', title: 'c', steps: ['Fill', 'Squeeze'] }), pic('pic-1'));
+  const gini = block('The Gini impurity is $G = 2p(1-p)$.', fence({ kind: 'coordinate-plot', title: 'G', x: { label: 'p', min: 0, max: 1 }, y: { label: 'G', min: 0, max: 1 }, series: [{ label: 'G', kind: 'line', points: [0, 0.5, 1].map((x, k) => ({ x, y: [0, 0.5, 0][k] })) }] }));
+  const write = (name, cards, sets) => { const dir = mkdtempSync(join(tmpdir(), `bench-bl-${name}-`)); writeFileSync(join(dir, 'results.json'), JSON.stringify({ summary: { sets: Object.fromEntries(sets.map(s => [s, {}])) }, cards })); return dir; };
+  const trio = (extra = {}) => [mk('tcp-handshake', tcp, extra), mk('heart', heart, extra), mk('gini', gini, extra)];
+  // the baseline run: the same prompts under their source sets, 3 runs, 2 of the 3 prompts covered
+  const baseline = write('base', [1, 2, 3].flatMap(r => [mk('tcp-handshake', tcp, { run: r }, 'sequence'), mk('heart', heart, { run: r }, 'baseline')]), ['sequence', 'baseline']);
+  const ok = gateCheck(write('ok', trio(), ['smoke']), 'abc', 'smoke', baseline);
+  assert.match(ok.first, /^GATE: PASS abc tier=smoke vs baseline/); assert.equal(ok.code, 0);
+  assert.match(ok.body, /the baseline covers 2 of 3 smoke prompts, the other 1 have no baseline/); assert.match(ok.body, /PASS {2}delivery.*\[hard\]/);
+  assert.match(ok.body, /PASS {2}whole-card p90 vs baseline: smoke 3000 ms \| baseline mean 3000 ms \| delta \+0 ms \| tolerance \+1500 ms \[2 prompts\]/);
+  const slow = gateCheck(write('slow', trio({ totalMs: 5000 }), ['smoke']), 'abc', 'smoke', baseline);
+  assert.match(slow.first, /^GATE: FAIL abc tier=smoke vs baseline whole-card p90 vs baseline$/); assert.equal(slow.code, 1);
+  const pics = gateCheck(write('pics', [mk('tcp-handshake', block('x', fence(seqSpec), pic('pic-2'))), mk('heart', heart), mk('gini', gini)], ['smoke']), 'abc', 'smoke', baseline);
+  assert.match(pics.first, /pictures where none belongs: 0/, 'a picture where none belongs fails whatever the baseline says');
+  const nobase = gateCheck(write('nb', trio(), ['smoke']), 'abc', 'smoke', write('empty', [], ['baseline']));
+  assert.match(nobase.body, /NO BASELINE {2}factual error rate/); assert.equal(nobase.code, 0, 'no baseline is reported, not failed');
+  const full = gateCheck(write('full', [{ ...trio()[0], set: 'baseline', run: 1 }], ['baseline']), 'abc');
+  assert.equal(full.tier, 'full'); assert.equal(gateLines('full').length, 13);
 });
