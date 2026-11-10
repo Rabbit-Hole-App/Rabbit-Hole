@@ -222,7 +222,8 @@ test('correct-svg: per-depth kinds and sketch score each card; folders carry the
   const deep = scoreCard(sig, { set: 'correct-svg', run: 1, depth: 'deep', id: 'sigmoid', delivered: true, block: block(prose, fence(sigmoidPlot([0.12, 0.5, 0.88]))), totalMs: 1 });
   assert.deepEqual([deep.score, deep.depth, deep.sketch], ['right', 'deep', sig.depths.deep.sketch]);
   const over = scoreCard(sig, { set: 'correct-svg', run: 1, depth: 'overview', id: 'sigmoid', delivered: true, block: block('p', fence(flow(['Take any number', 'Squash it', 'Between 0 and 1 = output']))), totalMs: 1 });
-  assert.equal(over.score, 'wrong'); assert.deepEqual(over.diagrams[0].flags.formulaLabels, ['Between 0 and 1 = output']);
+  assert.equal(over.score, 'acceptable'); // the flow relabel (sets/correct-svg.json, sigmoid overview): flow is an acceptable kind now, so the overview criterion below fails on the formula label, not the kind
+  assert.deepEqual(over.diagrams[0].flags.formulaLabels, ['Between 0 and 1 = output']);
   const c = criteria(set, [deep, over]);
   assert.equal(c.find(x => x.rule.startsWith('overview')).ok, false);
   assert.match(c.find(x => x.rule.startsWith('deep')).detail, /^1\/1, 0 point errors$/);
