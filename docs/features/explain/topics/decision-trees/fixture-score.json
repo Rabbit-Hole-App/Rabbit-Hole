@@ -20,12 +20,6 @@
           "passed": null
         },
         {
-          "name": "human-prompts",
-          "actual": null,
-          "target": "required input",
-          "passed": null
-        },
-        {
           "name": "prompt-mapping",
           "actual": null,
           "target": "required input",
@@ -34,7 +28,6 @@
       ],
       "issues": [
         "Generated prompts are missing.",
-        "prompts.human.json is missing; teaching-point overlap is unscored.",
         "An explicit reviewer-model prompt mapping is required; overlap was not guessed."
       ],
       "mismatches": [],

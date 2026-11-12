@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, mkdir, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { validatePrompts } from '../schemas.mjs';
@@ -8,6 +8,7 @@ import { runPipeline } from '../run.mjs';
 import { loadState } from '../state.mjs';
 import { makeSet } from '../sets.mjs';
 import { evaluateCoverage, selectAtDepth } from '../coverage.mjs';
+import { run as coverageStage } from '../stages/02-coverage.mjs';
 
 export const promptFixture = () => ({
   topic: 'logistic-regression',
@@ -87,11 +88,20 @@ test('coverage reuses only one identical worked kind at all three depths and aff
   assert.equal((await evaluateCoverage(prompts, { ...options, select: async () => hit('shape-tree') }))[0].decision, 'NEW');
 });
 
-test('coverage passes planner kinds and masks shipped Lesson04 before scoring', async () => {
+test('coverage passes planner kinds and masks shipped Lesson04 before scoring', async t => {
   const planner = async () => ({ planner: 'jev', kind: 'coordinate-plot', visuals: [{ type: 'diagram', kind: 'coordinate-plot' }] });
   const visible = await selectAtDepth({ prompt: 'how does a decision tree search for the best threshold on one feature?', depth: 'standard', planner });
   assert.deepEqual(visible.plannedKinds, ['coordinate-plot']);
   assert.ok(visible.references.some(ref => ref.id.startsWith('ml-trees-')));
   const masked = await selectAtDepth({ prompt: 'how does a decision tree search for the best threshold on one feature?', depth: 'standard', planner, fixture: true });
   assert.ok(masked.references.every(ref => !ref.id.startsWith('ml-trees-')));
+  const topicDir = await mkdtemp(join(tmpdir(), 'coverage-fixture-'));
+  t.after(() => rm(topicDir, { recursive: true, force: true }));
+  const fixtureDir = join(topicDir, 'fixture');
+  await mkdir(fixtureDir);
+  await writeFile(join(topicDir, 'prompts.json'), JSON.stringify({ prompts: [{ id: 1, prompt: 'how does a decision tree search for the best threshold on one feature?', kind: 'coordinate-plot' }] }));
+  await writeFile(join(fixtureDir, 'coverage-judge.json'), JSON.stringify({ topic: 'fixture', answers: { '01': false } }));
+  const result = await coverageStage({ topic: 'fixture', topicDir, fixtureDir, fixture: true, config: {}, planner });
+  assert.equal(result.status, 'ok');
+  assert.equal(JSON.parse(await readFile(join(topicDir, 'coverage.json'))).prompts[0].decision, 'NEW');
 });

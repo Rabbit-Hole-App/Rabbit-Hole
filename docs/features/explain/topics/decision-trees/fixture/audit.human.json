@@ -1,0 +1,84 @@
+{
+ "topic": "decision-trees",
+ "note": "Reviewer audit of demo pack v2 (1f0f9806; 13 bare Balanced cards on the 118 merge stack 98e3d9726), 2026-11-09, as recorded in docs/features/explain/review/demo-lesson04/REVIEW.md on explain/demo-lesson04.",
+ "cards": [
+  {
+   "id": "01",
+   "referenceId": "ml-trees-decision-regions",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "02",
+   "referenceId": "ml-trees-gini-vs-entropy",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "03",
+   "referenceId": "ml-trees-gini-split",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "04",
+   "referenceId": "ml-trees-threshold-search",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "05",
+   "referenceId": "ml-trees-grown-tree",
+   "verdict": "regenerate",
+   "reason": "Author drew ml-tree-split-path (sent alongside) as an outline instead of ml-trees-grown-tree: wrong sibling reference of the same kind."
+  },
+  {
+   "id": "06",
+   "referenceId": "ml-trees-depth-overfit",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "07",
+   "referenceId": "ml-trees-cost-complexity-pruning",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "08",
+   "referenceId": "ml-trees-regression-step-fit",
+   "verdict": "hold",
+   "reason": "Card is the reference copied; the reference labels 16 leaves as depth 5 (that is depth 4). Known factual error in the reference (fixed by 553a3680)."
+  },
+  {
+   "id": "09",
+   "referenceId": "ml-trees-bootstrap-roots",
+   "verdict": "regenerate",
+   "reason": "Label-rebuilt card with a 6-draw sample; body says 6 rows and names C, E, G, H as omitted while the diagram shows them drawn."
+  },
+  {
+   "id": "10",
+   "referenceId": "ml-trees-bootstrap-coverage",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "11",
+   "referenceId": "ml-trees-majority-vote",
+   "verdict": "ship",
+   "reason": "Role words 'Parallel:'/'Merge:' inherited from the reference's role fields; recorded under the body, ships."
+  },
+  {
+   "id": "12",
+   "referenceId": "ml-trees-forest-size-accuracy",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "13",
+   "referenceId": "ml-trees-feature-importance",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  }
+ ]
+}

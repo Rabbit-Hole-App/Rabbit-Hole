@@ -16,6 +16,13 @@ export const DEFECTIVE_CASES = Object.freeze([
   { id: 'ml-trees-forest-size-accuracy', sha: '06721c8b' },
   { id: 'ml-trees-depth-overfit', sha: 'c3e40994' },
   { id: 'ml-trees-feature-importance', sha: 'c3e40994' },
+  { id: 'ml-trees-candidate-split', sha: 'c3e40994' },
+  { id: 'ml-trees-gini-split', sha: 'c3e40994' },
+  { id: 'ml-trees-grown-tree', sha: 'c3e40994' },
+  { id: 'ml-trees-decision-regions', sha: 'c3e40994' },
+  { id: 'ml-trees-bootstrap-roots', sha: 'c3e40994' },
+  { id: 'ml-trees-feature-subsets', sha: 'c3e40994' },
+  { id: 'ml-trees-majority-vote', sha: 'c3e40994' },
 ].map(Object.freeze));
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
