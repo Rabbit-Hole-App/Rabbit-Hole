@@ -302,6 +302,8 @@
     "packages/web/src/inline-image-replacement.js": ["ctrlk-image-replacement-check.mjs","packages/web/src/inline-image-replacement.test.mjs"],
     "packages/web/e2e/ctrlk-image-replacement-check.mjs": ["ctrlk-image-replacement-check.mjs"],
     "packages/web/src/inline-source-readings.js": ["ctrlk-source-derivative-check.mjs","packages/web/src/inline-ai-session.test.mjs","packages/web/src/inline-source-readings.test.mjs"],
+    "packages/web/src/inline-highlight.js": ["packages/web/src/inline-highlight.test.mjs"],
+    "packages/web/src/inline-highlight-mark.js": ["packages/web/src/inline-highlight.test.mjs"],
     "packages/web/src/inline-polynomial-derivative.js": ["ctrlk-source-derivative-check.mjs","packages/web/src/inline-polynomial-derivative.test.mjs"],
     "packages/web/e2e/ctrlk-source-derivative-check.mjs": ["ctrlk-source-derivative-check.mjs"],
     "packages/web/src/inline-compute.js": ["ctrlk-compute-check.mjs","packages/web/src/inline-compute.test.mjs"],
