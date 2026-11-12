@@ -9,7 +9,7 @@ This document routes work to the detailed screen handoffs and shared component l
 | Screen | Required implementation handoff | Complete HTML reference | Status |
 | --- | --- | --- | --- |
 | Canvas Chat composer and commands | [CHAT-PANEL.md](CHAT-PANEL.md) | [Composer](clean/07-chat-composer.html), [Answer detail](clean/60-chat-answer-detail.html), [Slash commands](clean/61-slash-commands.html) | Approved HTML references |
-| Canvas Search | [CANVAS-SEARCH.md](CANVAS-SEARCH.md) | [62-canvas-search.html](clean/62-canvas-search.html) | Filter search, matching icons and keyboard interactions checked in fixtures. Browser and runtime verification pending |
+| Canvas Search | [CANVAS-SEARCH.md](CANVAS-SEARCH.md) | [62-canvas-search.html](clean/62-canvas-search.html) | Component map and Search reference. Viewer icon visible and inactive. Viewer panel deferred. Browser and runtime verification pending |
 | Start a rabbit hole | [START-DIALOG.md](START-DIALOG.md) | [12-start-rabbit-hole.html](clean/12-start-rabbit-hole.html) | Templates and source mapping pushed; runtime integration and browser verification pending |
 | Sidebar, Search, Trash, Notifications and Feedback | [SIDEBAR.md](SIDEBAR.md) | [16-sidebar.html](clean/16-sidebar.html), [Search](clean/51-explore-library-search.html) | Clear search and focus recovery checked in the fixture. Browser and runtime verification pending |
 | Settings and account states | [SETTINGS.md](SETTINGS.md) | [21-settings.html](clean/21-settings.html) | Async states and API contract tested; browser verification and runtime integration pending |
@@ -23,6 +23,8 @@ This document routes work to the detailed screen handoffs and shared component l
 **For Start a rabbit hole, read START-DIALOG.md in full.** It maps every visible element to its canonical template, component, CSS selector, behavior script and icon. It distinguishes existing primitives from the four newly authorized templates and records the latest copy, button, resize and focus corrections.
 
 **For the sidebar and its panels, read SIDEBAR.md in full.** It maps the shell, four panels, shared primitives, icons and behavior, including feedback submission confirmation and concise copy.
+
+**For Canvas Search, read CANVAS-SEARCH.md in full.** It maps the header, fields, filter menu, checkboxes, result rows, icons, tooltips and resizing to their existing components and editable sources. It records the latest focus, selection and Image-icon corrections. Keep the viewer icon visible and inactive in this reference. Context, Files and Graph belong to the app's separate companion viewer, which has its own later review.
 
 **For Settings, read SETTINGS.md in full.** It maps all five panes, state previews, the server handle-conflict contract and outstanding browser checks. Dark-theme tokens are deferred until the end.
 

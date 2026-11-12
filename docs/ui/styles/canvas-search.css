@@ -79,7 +79,6 @@
 .canvas-search-resize:focus-visible { outline-offset:-2px; }
 #canvas-search-panel [aria-disabled="true"] { cursor:default; }
 #canvas-search-panel [aria-disabled="true"]:hover { color:inherit; background:transparent; }
-#search-viewer .chat-text-button[aria-pressed="true"] { background:var(--blue-soft); color:var(--primary); }
 #canvas-search-panel [hidden], #canvas-search-panel[hidden], #reopen-canvas-search[hidden] { display:none!important; }
 @media (max-width:600px) {
   #canvas-search-panel { height:calc(100dvh - 32px); }

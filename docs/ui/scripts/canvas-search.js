@@ -328,17 +328,6 @@
 
   const pin = panel.querySelector('[aria-label="Keep panel open"]');
   pin.addEventListener('click', () => pin.setAttribute('aria-pressed', String(pin.getAttribute('aria-pressed') !== 'true')));
-  const viewer = get('search-viewer');
-  const viewerButton = panel.querySelector('[data-viewer]');
-  viewerButton.addEventListener('click', () => {
-    viewer.hidden = !viewer.hidden;
-    viewerButton.setAttribute('aria-pressed', String(!viewer.hidden));
-  });
-  viewer.addEventListener('click', event => {
-    const choice = event.target.closest('button');
-    if (choice) viewer.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button === choice)));
-  });
-
   // Left-edge version of the shared sidebar's pointer and keyboard width control.
   const edge = panel.querySelector('[role="separator"]');
   let drag;

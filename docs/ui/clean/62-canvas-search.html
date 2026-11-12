@@ -467,7 +467,6 @@ button.ui-draw:active,button.ui-draw.is-pressed{background:#eac6ad!important;bor
 .canvas-search-resize:focus-visible { outline-offset:-2px; }
 #canvas-search-panel [aria-disabled="true"] { cursor:default; }
 #canvas-search-panel [aria-disabled="true"]:hover { color:inherit; background:transparent; }
-#search-viewer .chat-text-button[aria-pressed="true"] { background:var(--blue-soft); color:var(--primary); }
 #canvas-search-panel [hidden], #canvas-search-panel[hidden], #reopen-canvas-search[hidden] { display:none!important; }
 @media (max-width:600px) {
   #canvas-search-panel { height:calc(100dvh - 32px); }
@@ -567,7 +566,7 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
     </button>
   </div>
   <div class="chat-nav-tools">
-    <button type="button" class="chat-icon" data-viewer aria-label="Context, Files and Graph" data-tooltip-label="Context, Files and Graph" aria-pressed="false" aria-controls="search-viewer">
+    <button type="button" class="chat-icon" data-viewer aria-label="Context, Files and Graph" data-tooltip-label="Context, Files and Graph" aria-pressed="false" aria-disabled="true">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#canvas-header--PanelLeft"/></svg>
     </button>
     <button type="button" class="chat-icon" aria-label="Keep panel open" data-tooltip-label="Keep panel open" aria-pressed="true">
@@ -579,14 +578,7 @@ main.clean-stage { max-width:1020px; margin:0 auto; padding:28px 20px; }
   </div>
 </nav>
 
-  <div id="search-viewer" class="chat-nav" role="group" aria-label="Viewer" hidden>
-  <div class="chat-nav-tabs">
-    <button class="chat-text-button" type="button" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#canvas-header--Files"></use></svg>Context</button>
-    <button class="chat-text-button" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#canvas-header--FolderTree"></use></svg>Files</button>
-    <button class="chat-text-button" type="button" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icons--icon-Network"></use></svg>Graph</button>
-  </div>
-</div>
-<div class="canvas-search-body">
+  <div class="canvas-search-body">
   <div class="canvas-search-toolbar">
     <label class="library-search canvas-search-field">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#library--library-search"></use></svg>
@@ -992,17 +984,6 @@ const searchFilterGroups = [
 
   const pin = panel.querySelector('[aria-label="Keep panel open"]');
   pin.addEventListener('click', () => pin.setAttribute('aria-pressed', String(pin.getAttribute('aria-pressed') !== 'true')));
-  const viewer = get('search-viewer');
-  const viewerButton = panel.querySelector('[data-viewer]');
-  viewerButton.addEventListener('click', () => {
-    viewer.hidden = !viewer.hidden;
-    viewerButton.setAttribute('aria-pressed', String(!viewer.hidden));
-  });
-  viewer.addEventListener('click', event => {
-    const choice = event.target.closest('button');
-    if (choice) viewer.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button === choice)));
-  });
-
   // Left-edge version of the shared sidebar's pointer and keyboard width control.
   const edge = panel.querySelector('[role="separator"]');
   let drag;
