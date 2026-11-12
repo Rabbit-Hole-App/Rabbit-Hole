@@ -9,4 +9,3 @@ packages/control-plane/src/telemetry-events/index.js merge=union
 packages/web/src/animation3d/testdata/sgd-golden.json text eol=lf
 # The demo-lesson04 runner is run by Git Bash: a CRLF checkout breaks it.
 scripts/explain-bench/*.sh text eol=lf
-docs/features/explain-on-canvas/handoff/figure-briefs export-ignore

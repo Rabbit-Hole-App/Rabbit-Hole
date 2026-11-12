@@ -20,32 +20,8 @@ function smallApi() {
 const proxy = process.env.VITE_PRIVATE_BYOC === 'true' ? undefined
   : Object.fromEntries(['/api', '/login', '/auth', '^/a/'].map((p) => [p, { target: smallApi(), changeOrigin: true }]));
 
-const figureBriefsPath = '/docs/features/explain-on-canvas/handoff/figure-briefs/';
-function hasFigureBriefPath(value) {
-  return value.replaceAll('\\', '/').toLowerCase().includes(figureBriefsPath);
-}
-function excludeFigureBriefs(value) {
-  if (hasFigureBriefPath(value)) throw new Error('Internal figure briefs are excluded from the web app');
-}
-
 export default defineConfig({
-  plugins: [{
-    name: 'rabbit-hole-exclude-figure-briefs',
-    enforce: 'pre',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        let pathname = req.url?.split('?', 1)[0] ?? '';
-        try { pathname = decodeURIComponent(pathname); } catch { return next(); }
-        if (!pathname.includes('/@fs/') || !hasFigureBriefPath(pathname)) return next();
-        res.statusCode = 403;
-        res.end();
-      });
-    },
-    load: excludeFigureBriefs,
-    // CSS URLs and HTML assets can enter the bundle without a module load.
-    transform: excludeFigureBriefs,
-    transformIndexHtml: { order: 'pre', handler: excludeFigureBriefs },
-  }, react(), tailwindcss(), {
+  plugins: [react(), tailwindcss(), {
     name: 'rabbit-hole-public-pages',
     configureServer(server) {
       if (process.env.VITE_COACHING_DEV !== 'true' || process.env.VITE_PRIVATE_BYOC === 'true') return;
@@ -69,7 +45,6 @@ export default defineConfig({
   // /assets/* is cache-poisoned on workers.dev (stale edge entries that outlive deploys); /static is virgin
   build: {
     assetsDir: 'static',
-    assetsInlineLimit: excludeFigureBriefs,
     // Landing, sign-in and the support pages are in every build except private BYOC: production
     // (app-worker.js) serves them without the dev flag. The legacy small-cp serves none of them.
     ...(process.env.VITE_PRIVATE_BYOC !== 'true' ? {
@@ -90,12 +65,6 @@ export default defineConfig({
   },
   // Module workers, so the file parser worker (src/file-parse.worker.js) loads SheetJS or mammoth only for the format it opens.
   worker: { format: 'es' },
-  server: {
-    proxy,
-    fs: {
-      // Vite replaces its default deny list when configured.
-      deny: ['.env', '.env.*', '*.{crt,pem,key,p12,pfx,cer,der}', '.npmrc', '.yarnrc.yml', '**/.git/**', '**/figure-briefs/**'],
-    },
-  },
+  server: { proxy },
   preview: { proxy }, // `vite preview` = production bundle against the same control plane
 });
