@@ -114,7 +114,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
     let check;
     try { check = ajv.compile(schema); }
     catch { throw new Error('Invalid agent JSON schema'); }
-    let feedback = '';
+    let feedback = '', stopReason = 'unknown';
     for (let attempt = 1; attempt <= 2; attempt++) {
       let body;
       try {
@@ -143,6 +143,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
       if (transportFailed) throw new Error('Provider transport failed; reconcile unknown usage before retrying');
       if (!response.ok || payload?.error || payload?.status === 'failed') throw new Error(`Provider request failed: HTTP ${response.status}${/^[a-z_]{1,40}$/.test(payload?.error?.type ?? '') ? ` ${payload.error.type}` : ''}`); // status and error type only: provider message text stays out (it may echo request content)
       if (!usage) throw new Error('Provider returned unknown usage; reconcile it before retrying');
+      stopReason = String(payload?.stop_reason ?? payload?.incomplete_details?.reason ?? payload?.status ?? 'unknown').slice(0, 40);
       try {
         let value;
         try { value = JSON.parse(outputText(payload, provider)); }
@@ -154,7 +155,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
         feedback = redact(error.message, config).slice(0, 4000);
       }
     }
-    throw new Error('Agent output failed schema validation after two attempts');
+    throw new Error(`Agent output failed schema validation after two attempts (last stop_reason ${stopReason}): ${feedback}`);
   }
   return { call };
 }
