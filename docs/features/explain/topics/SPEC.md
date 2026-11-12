@@ -1,18 +1,22 @@
-# Lesson pipeline — build specification for Codex (v1.1, 2026-11-09 14:45 — includes the answers to Codex's six questions)
+# Topic pipeline — build specification for Codex (v1.2, 2026-11-12 13:20 — v1.1 + topic naming; v1.1 included the answers to Codex's six questions)
 
 Owner: Rabbit Hole. Author of this spec: the Reviewer. Builder: Codex. Operator after approval: Claude Code (keys, stack, database, release tooling live on his machine). Nothing in this spec starts before the owner says go, and nothing is merged into a release before the 118 gate is through.
 
 ## 1. What is being built, in one paragraph
 
-One command, `node scripts/lesson-pipeline/run.mjs <NN>`, turns a curriculum lesson into worked `/explain` references and proves them live, with no human in the loop except at four stop points. It writes 12 learner prompts from the lesson page, checks which already hit an existing reference, authors the missing references with a GPT model, verifies the figures with a vision model, integrates them into the release candidate, runs the 12 prompts through live `/explain`, audits the cards against the references with a vision model, deploys the preview and stops with "READY" for the owner to record. Every stage reads and writes files in `docs/features/explain/lessons/<NN>/`, is resumable, and is scored against a fixture for Lesson 04 (the lesson built by hand on 2026-11-09) so we can tell whether the automated run reproduces what the humans did.
+One command, `node scripts/topic-pipeline/run.mjs <topic>`, turns a curriculum lesson into worked `/explain` references and proves them live, with no human in the loop except at four stop points. It writes 12 learner prompts from the lesson page, checks which already hit an existing reference, authors the missing references with a GPT model, verifies the figures with a vision model, integrates them into the release candidate, runs the 12 prompts through live `/explain`, audits the cards against the references with a vision model, deploys the preview and stops with "READY" for the owner to record. Every stage reads and writes files in `docs/features/explain/topics/<topic>/`, is resumable, and is scored against a fixture for Lesson 04 (the lesson built by hand on 2026-11-09) so we can tell whether the automated run reproduces what the humans did.
 
 ## 2. Repository layout
 
+### 2a. Naming — topics, not lessons (v1.2)
+Every artefact is named by its **topic slug** (`decision-trees`, `logistic-regression`, …), never by a lesson number: the docs folder `docs/features/explain/topics/<topic>/`, the branch `topic/<topic>`, the modules `topic-<topic>-*.js`, the bench set `demo-<topic>.json`, the CLI `run.mjs <topic>`. A topic can serve several curriculum lessons and will later take prompts that come from no lesson at all (learner questions, owner requests). The lesson is metadata: `topics/<topic>/topic.json` = `{ topic, title, lessons: ["03"], sources: [{ kind: "curriculum", path, revision }] }`, and every prompt in `prompts.json` carries `origin: "lesson" | "learner" | "owner"` plus `lesson` when it has one. `topics/queue.json` lists `{ topic, lessons }` in run order. The shipped Lesson 04 modules keep their existing `lesson-decision-trees-*` names (exemplar; renaming shipped files is out of scope); everything the pipeline writes follows the topic rule. The `lessons` tag on registry references stays as it is today.
+
+
 ```
-scripts/lesson-pipeline/
-  run.mjs                 CLI: run <NN> [--from <stage>] [--to <stage>] [--approve-prompts] [--go] [--dry-run] [--fixture]
+scripts/topic-pipeline/
+  run.mjs                 CLI: run <topic> [--from <stage>] [--to <stage>] [--approve-prompts] [--go] [--dry-run] [--fixture]
   config.example.json     every key, path, model and URL the pipeline needs; Claude Code copies it to config.local.json (git-ignored) and fills it in
-  state.mjs               read/write docs/features/explain/lessons/<NN>/state.json; stage status, attempts, timestamps, artefact paths
+  state.mjs               read/write docs/features/explain/topics/<topic>/state.json; stage status, attempts, timestamps, artefact paths
   agents/
     client.mjs            one wrapper for both providers: call(agent, inputs) → validated JSON; retries on schema failure (≤ 2); logs tokens + cost per call to state
     schemas/*.json        JSON Schema for each agent's output
@@ -23,16 +27,17 @@ scripts/lesson-pipeline/
     reference-linter.mjs  the invariants in §6, runnable alone: node checks/reference-linter.mjs <module path> → exit 1 with a list
     contact-sheet.mjs     renders every preview of a lesson at 408 px into one PNG grid + numbers.json (every numeric literal in titles, captions, labels, with its source line)
     paraphrase-replay.mjs 5 paraphrases per prompt through the selector WITH planner kinds; first-pick rate
-    fixture-score.mjs     compares a stage's output with docs/features/explain/lessons/04/fixture/ (§9) and prints agreement
+    fixture-score.mjs     compares a stage's output with docs/features/explain/topics/decision-trees/fixture/ (§9) and prints agreement
   notify.mjs              writes READY.md / STOPPED.md and posts to the webhook in config (Slack or email; the owner decides which)
-docs/features/explain/lessons/
+docs/features/explain/topics/
   README.md               how to run, the stop rules, the folder contract
-  <NN>/
-    prompts.json coverage.json author/ (round-N logs) verify.json pack/ (the review pack) audit.json READY.md state.json
-  04/fixture/             ground truth from the manual Lesson 04 run (provided by the Reviewer, §9)
+  <topic>/
+    topic.json prompts.json coverage.json author/ (round-N logs) verify.json pack/ (the review pack) audit.json READY.md state.json
+  decision-trees/fixture/ ground truth from the manual Lesson 04 run (provided by the Reviewer, §9)
+  topic.json per topic; queue.json; SPEC.md; SOP.md
 ```
 
-Lesson sources: the curriculum markdown at the audited revision `e7db050e64bde3be17a9381476f748da26d85692` (`phases/02-ml-fundamentals/<slug>/docs/en.md`); the lesson queue and slugs are in `docs/features/explain-on-canvas/handoff/figure-briefs/briefs/README.md`.
+Topic sources: the curriculum markdown at the audited revision `e7db050e64bde3be17a9381476f748da26d85692` (`phases/02-ml-fundamentals/<slug>/docs/en.md`); the lesson queue and slugs are in `docs/features/explain-on-canvas/handoff/figure-briefs/briefs/README.md`.
 
 ## 3. Config (config.example.json — Claude Code fills the local copy)
 
@@ -60,7 +65,7 @@ Every stage: `run(ctx) → { status: 'ok' | 'stop' | 'fail', artefacts: [...], n
 - In: lesson markdown; the kinds catalogue (generated from the Zod spec: kind → one line); SOP §2.
 - Out: `prompts.json` — `{ lesson, slug, toyData: { rows: [...], features: [...], label, usedBy: [ids] }, extraData?: {...}, prompts: [{ id, prompt, kind, content, keywords: [2–3 strings of ≤ 3 words], data: 'toy-exact' | 'illustrative', why }] }` (schema in `agents/schemas/prompts.json`).
 - Gate: schema-valid; exactly 12 prompts, ids 1–12, prompt strings unique; kinds ∈ catalogue; ≥ 6 coordinate-plot; at most 3 prompts of any other single kind; prompts lowercase, end with `?`, ≤ 140 chars.
-- With `--approve-prompts`: write the file, `stop` at **STOP-1** until `run.mjs <NN> --from 02` (the owner may edit the file first).
+- With `--approve-prompts`: write the file, `stop` at **STOP-1** until `run.mjs <topic> --from 02` (the owner may edit the file first).
 
 ### 02 Coverage — script
 - For each prompt: run the planner the way the live path does (`packages/control-plane/src/explanation-planner.js`, same inputs as the server, no picture provider; it is a model call, keys from `config.planner`) and call the selector **exactly as the server does**, with both planner-derived `plannedKinds` and learner-requested `requiredKinds`, for the three depths. Preferably lift the server's call into one shared helper (e.g. `selectForAuthor({ prompt, depth, plan })` in `explanation-references.js`) used by server and pipeline alike, so parity is structural; minimal change, covered by the existing selector tests.
@@ -70,8 +75,8 @@ Every stage: `run(ctx) → { status: 'ok' | 'stop' | 'fail', artefacts: [...], n
 
 ### 03 Author — agent **author** (OpenAI, author model), ≤ `authorRounds`
 - In: `prompts.json`, `coverage.json`, SOP §4 rules, the toy-data template, **one exemplar**: Lesson 04's `lesson-decision-trees-*.js` files and walkthrough as the pattern to follow, the Zod spec excerpt for each kind used, the token-budget rule, and on retries the verbatim linter/test output.
-- Out: files, returned as `{ files: [{ path, content }] }` and written by the orchestrator onto branch `lesson/<NN>` (created from the release branch; in `--fixture` dry-run mode the branch is `lesson/04-dryrun`, the module is `lesson-decision-trees-dryrun-*`, and all ids carry the prefix `ml-dry-trees-` so nothing collides with the shipped Lesson 04): `packages/web/src/tutor-diagrams/lesson-<slug>-data.js`, `lesson-<slug>-references.js` (+ `.test.mjs` recomputing every number), `lesson-<slug>-token-budgets.json`, registry wiring in `reference-library.js`, replay cases, `docs/features/explain-on-canvas/handoff/phase02-library/lesson-walkthroughs/<NN>-<slug>.md`, lesson-brief link. For REUSE prompts: no edit to the existing reference module — write a lesson-local overlay `lesson-<slug>-overlays.js` exporting `{ [referenceId]: { prompts: [...], keywords: [...] } }`, applied when `reference-library.js` loads; the linter checks overlays too.
-- Orchestrator then runs, in order: `node --test` on the lesson tests; `checks/reference-linter.mjs`; `packages/web/scripts/illustration-previews.mjs` (previews at 408/natural/960 + `spec.json`); `packages/web/scripts/explanation-svg-snapshots.mjs` (update); the selector replay with planner kinds (every prompt → its reference first at 3 depths; zero prior pick changes); `checks/paraphrase-replay.mjs` (≥ 80 % first-pick); `checks/contact-sheet.mjs`. Any failure → next round with the output appended. All green → commit "Lesson <NN>: references" (one commit per round; squash at approval).
+- Out: files, returned as `{ files: [{ path, content }] }` and written by the orchestrator onto branch `topic/<topic>` (created from the release branch; in `--fixture` dry-run mode the branch is `topic/decision-trees-dryrun`, the module is `lesson-decision-trees-dryrun-*`, and all ids carry the prefix `ml-dry-trees-` so nothing collides with the shipped Lesson 04): `packages/web/src/tutor-diagrams/topic-<topic>-data.js`, `topic-<topic>-references.js` (+ `.test.mjs` recomputing every number), `topic-<topic>-token-budgets.json`, registry wiring in `reference-library.js`, replay cases, `docs/features/explain-on-canvas/handoff/phase02-library/topic-walkthroughs/<topic>.md`, lesson-brief link. For REUSE prompts: no edit to the existing reference module — write a lesson-local overlay `topic-<topic>-overlays.js` exporting `{ [referenceId]: { prompts: [...], keywords: [...] } }`, applied when `reference-library.js` loads; the linter checks overlays too.
+- Orchestrator then runs, in order: `node --test` on the topic's tests; `checks/reference-linter.mjs`; `packages/web/scripts/illustration-previews.mjs` (previews at 408/natural/960 + `spec.json`); `packages/web/scripts/explanation-svg-snapshots.mjs` (update); the selector replay with planner kinds (every prompt → its reference first at 3 depths; zero prior pick changes); `checks/paraphrase-replay.mjs` (≥ 80 % first-pick); `checks/contact-sheet.mjs`. Any failure → next round with the output appended. All green → commit "Lesson <NN>: references" (one commit per round; squash at approval).
 - Gate: all checks green within `authorRounds`; else `fail`.
 
 ### 04 Verify — agent **verifier** (Anthropic, vision)
@@ -80,14 +85,14 @@ Every stage: `run(ctx) → { status: 'ok' | 'stop' | 'fail', artefacts: [...], n
 - Fix list → stage 03 again (≤ `verifyRounds`), then **STOP-2** (human) if still not all ship.
 
 ### 05 Integrate — script, calling Claude Code's existing tooling
-- Cherry-pick the lesson commit(s) from `lesson/<NN>` into the release branch (lesson files + snapshots only; refuse if the diff touches anything outside `packages/web/src/tutor-diagrams/lesson-*` (including `lesson-<slug>-overlays.js`), the lesson's previews, snapshots, token budgets, `reference-library.js`, the walkthrough and brief).
-- Run: focused suites, snapshot test, selector parity, the A1 bundle property count (must stay ≤ 362), and the tier-1 smoke set via `bench.mjs --sets smoke` (set file `scripts/explain-bench/sets/smoke.json`, built by Claude Code under his two-tier-gate task; if absent, run `--sets demo-<NN>` only and record "smoke set missing").
+- Cherry-pick the lesson commit(s) from `topic/<topic>` into the release branch (lesson files + snapshots only; refuse if the diff touches anything outside `packages/web/src/tutor-diagrams/lesson-*` (including `topic-<topic>-overlays.js`), the lesson's previews, snapshots, token budgets, `reference-library.js`, the walkthrough and brief).
+- Run: focused suites, snapshot test, selector parity, the A1 bundle property count (must stay ≤ 362), and the tier-1 smoke set via `bench.mjs --sets smoke` (set file `scripts/explain-bench/sets/smoke.json`, built by Claude Code under his two-tier-gate task; if absent, run `--sets demo-<topic>` only and record "smoke set missing").
 - Gate: all green; else `fail`.
 
 ### 06 Pack — script, calling the bench
-- Write `scripts/explain-bench/sets/demo-<NN>.json` from `prompts.json` (same format as `sets/demo-lesson04.json`: id, prompt, expected reference id, expected kind, depth standard).
-- Run `node scripts/explain-bench/bench.mjs --base <stack> --vars <vars> --log <appLog> --persist <persist> --sets demo-<NN> --runs 1 --judge --judge-only factual --cap <capUsd>` against the stack started from the release branch (`stack.startCmd` / `stopCmd` from config).
-- Export the pack with a **generalised** `scripts/explain-bench/lesson-pack.mjs` (derive it from `demo-lesson04-pack.mjs`: parameterise the set name, reference lookup from the lesson branch, output folder `docs/features/explain/lessons/<NN>/pack/`; keep the card.md / pipeline / visual / `reference-408.svg` / index.md format).
+- Write `scripts/explain-bench/sets/demo-<topic>.json` from `prompts.json` (same format as `sets/demo-lesson04.json`: id, prompt, expected reference id, expected kind, depth standard).
+- Run `node scripts/explain-bench/bench.mjs --base <stack> --vars <vars> --log <appLog> --persist <persist> --sets demo-<topic> --runs 1 --judge --judge-only factual --cap <capUsd>` against the stack started from the release branch (`stack.startCmd` / `stopCmd` from config).
+- Export the pack with a **generalised** `scripts/explain-bench/topic-pack.mjs` (derive it from `demo-lesson04-pack.mjs`: parameterise the set name, reference lookup from the lesson branch, output folder `docs/features/explain/topics/<topic>/pack/`; keep the card.md / pipeline / visual / `reference-408.svg` / index.md format).
 - Gate: intended reference sent 12/12 (from the `References sent` pipeline line); model kind = reference kind ≥ 11/12; delivered 12/12; else **STOP-3** (human) with the failing pipeline lines in `STOPPED.md`.
 
 ### 07 Audit — agent **auditor** (Anthropic, vision)
@@ -101,7 +106,7 @@ Every stage: `run(ctx) → { status: 'ok' | 'stop' | 'fail', artefacts: [...], n
 - Write `READY.md`: preview URL, the record list (ship cards), the prompt wording to type, cards skipped and why, cost so far. Notify. **STOP-4** (owner records).
 
 ### 09 Release — script, only with `--go`
-- Tier-1 release of the release branch via Claude Code's launcher scripts (named in config), ledger row appended to `docs/features/explain/benchmarks/test-ledger.md`, next lesson id written to `docs/features/explain/lessons/queue.json`.
+- Tier-1 release of the release branch via Claude Code's launcher scripts (named in config), ledger row appended to `docs/features/explain/benchmarks/test-ledger.md`, next lesson id written to `docs/features/explain/topics/queue.json`.
 
 ## 5. Agents — models, I/O, prompt ownership
 
@@ -132,7 +137,7 @@ For every reference in a lesson module, at all three depths:
 Exit 1 with a list `{ id, depth, rule, detail }`.
 
 ## 6b. Isolation for stage 03 (operator machine has no container runtime)
-Authored files are written into a separate git worktree for `lesson/<NN>` (never the operator's main checkout). The linter (incl. rule 11) runs on the text first. Tests run in a child `node --test` under Node ≥ 24's permission model: `node --permission --allow-fs-read=<worktree> --allow-fs-write=<worktree>` (no `--allow-child-process`, no `--allow-worker`), scrubbed environment (no keys, no `.env`, no path to `config.local.json`), `cwd` = worktree, 10-minute timeout. This is process-level isolation; rule 11 is what keeps authored code from reaching the network or the shell.
+Authored files are written into a separate git worktree for `topic/<topic>` (never the operator's main checkout). The linter (incl. rule 11) runs on the text first. Tests run in a child `node --test` under Node ≥ 24's permission model: `node --permission --allow-fs-read=<worktree> --allow-fs-write=<worktree>` (no `--allow-child-process`, no `--allow-worker`), scrubbed environment (no keys, no `.env`, no path to `config.local.json`), `cwd` = worktree, 10-minute timeout. This is process-level isolation; rule 11 is what keeps authored code from reaching the network or the shell.
 
 ## 6c. Tooling source
 `repo.toolingRef` (default `38e02e612` on `explain/quality-bench`) names the checkout that supplies the bench, judge, pack exporter, sets and slug index. Claude Code is merging that SHA as a real merge commit into `release/explain-119-bench` (then bench-117, demo-lesson04, smoke-tier); when reported, the default moves to that branch, and to `main` once 119 ships.
@@ -141,10 +146,10 @@ Authored files are written into a separate git worktree for `lesson/<NN>` (never
 
 | Stop | Where | Written | Resume |
 |---|---|---|---|
-| STOP-1 | after 01 if `--approve-prompts` | `prompts.json` | `run.mjs <NN> --from 02` |
+| STOP-1 | after 01 if `--approve-prompts` | `prompts.json` | `run.mjs <topic> --from 02` |
 | STOP-2 | 04 verify not all ship after `verifyRounds` | `STOPPED.md` with the fix list | human fixes or edits prompts; `--from 03` |
 | STOP-3 | 06 pack below threshold, or 07 any hold | `STOPPED.md` with pipeline lines / holds | human; `--from 06` |
-| STOP-4 | after 08 | `READY.md` | owner records; `run.mjs <NN> --go` runs 09 |
+| STOP-4 | after 08 | `READY.md` | owner records; `run.mjs <topic> --go` runs 09 |
 
 Release never happens without `--go`. Any stage may be re-run with `--from`; artefacts of later stages are archived under `history/` in the lesson folder, never overwritten silently.
 
@@ -152,21 +157,21 @@ Release never happens without `--go`. Any stage may be re-run with `--from`; art
 
 - `scripts/explain-bench/bench.mjs` (README in the same folder): card generation + judges against a local stack; flags `--sets`, `--runs`, `--judge --judge-only factual`, `--cap`, `--log`, `--persist`, `--only`.
 - `scripts/explain-bench/report.mjs` for re-scoring saved cards.
-- `scripts/explain-bench/demo-lesson04-pack.mjs` → generalise to `lesson-pack.mjs` (keep the per-card format: card.md with body + pipeline, `visual-1.{json,svg,png}`, `card.png`, `reference-408.svg`, `index.md`).
+- `scripts/explain-bench/demo-lesson04-pack.mjs` → generalise to `topic-pack.mjs` (keep the per-card format: card.md with body + pipeline, `visual-1.{json,svg,png}`, `card.png`, `reference-408.svg`, `index.md`).
 - `scripts/explain-bench/sets/demo-lesson04.json` as the set-file format.
 - `packages/web/scripts/illustration-previews.mjs` (previews), `packages/web/scripts/explanation-svg-snapshots.mjs` (snapshots), the selector replay tests in `packages/web/src/tutor-diagrams/`, `packages/control-plane/src/explanation-references.js` (`selectDiagramReferences`) and `explanation-planner.js` (planner).
 - The release launcher scripts and preview deploy are Claude Code's; the pipeline shells out to the commands named in config.
 
 ## 9. The Lesson 04 fixture and the dry run (acceptance test)
 
-`docs/features/explain/lessons/04/fixture/` (provided by the Reviewer before approval):
+`docs/features/explain/topics/decision-trees/fixture/` (provided by the Reviewer before approval):
 - `prompts.human.json` — the 13 demo prompts with kinds and content, as used on 2026-11-09.
 - `references.human/` — Codex's 15 `ml-trees-*` references (specs + 408 previews) as shipped in release 118.
 - `references.defective/` — the pre-fix versions extracted from git history, with `expected-verdicts.json` (id@sha → ship|fix, reason; mapping supplied by the Reviewer): `ml-trees-threshold-search`@c3e40994 ("Weighted Gini in 48ths"), `ml-trees-regression-step-fit`@5de6a499 (16 leaves labelled depth 5), `ml-trees-majority-vote`@06721c8b ("Parallel:"/"Merge:" labels), `ml-trees-gini-vs-entropy`@06721c8b (raw LaTeX caption), `ml-trees-forest-size-accuracy`@06721c8b (log ticks 3.7606/14.1421/53.183), `ml-trees-depth-overfit`@c3e40994 and `ml-trees-feature-importance`@c3e40994 (pilot fix verdicts). The verifier is scored on defective ∪ corrected.
 - `verify.human.json` — the Reviewer's per-figure verdicts on the pilot (c3e40994: ship 6 / fix 4 with reasons) **and** the depth-5 mislabel that was missed by the Reviewer and caught by the judge.
 - `pack.human/` — demo pack v2 (1f0f9806) and `audit.human.json` (ship 10 / regenerate 2 / hold 1 with reasons).
 
-`run.mjs 04 --dry-run --fixture` runs stages 01–07 for Lesson 04 from scratch on a `lesson/04-dryrun` branch (never touching the shipped Lesson 04; stage 05 integrates into a throwaway `release/dryrun-04` branch and the stack for stage 06 is started from it on Claude Code's machine) and prints, via `checks/fixture-score.mjs`:
+`run.mjs decision-trees --dry-run --fixture` runs stages 01–07 for Lesson 04 from scratch on a `topic/decision-trees-dryrun` branch (never touching the shipped Lesson 04; stage 05 integrates into a throwaway `release/dryrun-decision-trees` branch and the stack for stage 06 is started from it on Claude Code's machine) and prints, via `checks/fixture-score.mjs`:
 - 01: teaching-point overlap with `prompts.human.json` (the verifier agent maps prompt↔prompt) — **target ≥ 9/12**; kind agreement on matched pairs ≥ 80 %.
 - 03: linter green; paraphrase first-pick ≥ 80 %; rounds used.
 - 04 (verifier run on the **human** references, not the agent's): agreement with `verify.human.json` **≥ 8/10**, and it must flag both the "48ths" axis and the depth-5/16-leaves mislabel.
@@ -180,12 +185,12 @@ Approval = all targets met, or every miss explained and accepted by the Reviewer
 
 ## 10. Deliverables and order (push after each; the Reviewer reviews each push)
 
-1. Skeleton: `run.mjs`, `state.mjs`, `config.example.json`, stage stubs, `notify.mjs`, README, and `docs/features/explain/lessons/SOP.md` (the Reviewer's SOP text, supplied with this spec — commit it verbatim; the stage prompts cite its sections). Stage 02 working (coverage with planner kinds). `checks/reference-linter.mjs` + `contact-sheet.mjs` + `paraphrase-replay.mjs`, run on the existing Lesson 04 references (report what they flag — the linter must flag the known defects in the pre-polish commits and pass on 553a3680/ae9bf069 except where it should not).
+1. Skeleton: `run.mjs`, `state.mjs`, `config.example.json`, stage stubs, `notify.mjs`, README, and `docs/features/explain/topics/SOP.md` (the Reviewer's SOP text, supplied with this spec — commit it verbatim; the stage prompts cite its sections). Stage 02 working (coverage with planner kinds). `checks/reference-linter.mjs` + `contact-sheet.mjs` + `paraphrase-replay.mjs`, run on the existing Lesson 04 references (report what they flag — the linter must flag the known defects in the pre-polish commits and pass on 553a3680/ae9bf069 except where it should not).
 2. Agents: `client.mjs` for both providers, schemas, v0 prompt drafts, stages 01, 04, 07 runnable on fixture inputs (`--fixture` mode uses the human references/pack as input so the agents can be scored without authoring).
-3. Stage 03 author loop with the exemplar and retries; stage 06 pack via the bench and `lesson-pack.mjs`; stage 05/08/09 shelling out to the config commands (no-ops with clear messages when a command is empty).
-4. `run.mjs 04 --dry-run --fixture` end to end; `fixture-score.mjs` report; README complete.
+3. Stage 03 author loop with the exemplar and retries; stage 06 pack via the bench and `topic-pack.mjs`; stage 05/08/09 shelling out to the config commands (no-ops with clear messages when a command is empty).
+4. `run.mjs decision-trees --dry-run --fixture` end to end; `fixture-score.mjs` report; README complete.
 
-Tests: `node --test scripts/lesson-pipeline/**/*.test.mjs` — schema validation, linter rules each with a failing and a passing case, state resume, stop points, set-file generation, pack generalisation on the demo-lesson04 run dir. No live calls in tests (provider clients mocked).
+Tests: `node --test scripts/topic-pipeline/**/*.test.mjs` — schema validation, linter rules each with a failing and a passing case, state resume, stop points, set-file generation, pack generalisation on the demo-lesson04 run dir. No live calls in tests (provider clients mocked).
 
 ## 11. Non-goals (do not build)
 - No new renderer kinds or schema changes; a prompt whose kind the renderer cannot draw is written to `gaps.md` and skipped (the lesson proceeds with the rest).
@@ -195,4 +200,4 @@ Tests: `node --test scripts/lesson-pipeline/**/*.test.mjs` — schema validation
 - No handling of pictures: the smoke/pack prompts are diagram prompts.
 
 ## 12. Reporting to the Reviewer (per push)
-SHA; which deliverable; what runs (`run.mjs 04 --from X --to Y --fixture` output); linter report on the existing Lesson 04 commits; costs of any agent calls; what you could not do and why.
+SHA; which deliverable; what runs (`run.mjs decision-trees --from X --to Y --fixture` output); linter report on the existing Lesson 04 commits; costs of any agent calls; what you could not do and why.
