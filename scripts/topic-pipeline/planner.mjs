@@ -14,6 +14,7 @@ export function createPlanner(config, { fixturePlans, fetchImpl = globalThis.fet
     }
     if (!config.planner?.apiKey || !config.planner?.endpoint) throw new Error('Configure the planner key and endpoint in config.local.json');
     budget.estimateUsd ??= estimateTopic(config);
+    if (budget.calls.some(entry => entry.usageKnown === false)) throw new Error('Reconcile unknown usage before another paid call');
     if (budget.spendUsd > budget.estimateUsd * 1.2) throw new Error('Actual spend exceeds the admitted estimate');
     const started = Date.now();
     const plan = await planExplanation({ TYPESAFE_API_KEY: config.planner.apiKey }, { question: prompt, depth }, {
@@ -22,10 +23,13 @@ export function createPlanner(config, { fixturePlans, fetchImpl = globalThis.fet
         catch { throw new Error('Planner request failed'); }
       },
     });
-    if (!plan) throw new Error('The live planner failed. Coverage requires a successful plan.');
-    if (!Number.isFinite(plan.inputTokens)) throw new Error('The planner response has no token usage for spend accounting');
+    if (!plan || !Number.isFinite(plan.inputTokens)) {
+      recordSpend(budget, { agent: 'planner', model: 'jev-latest', inputTokens: 0, outputTokens: 0, usd: 0, usageKnown: false, ms: Date.now() - started });
+      await onUsage?.();
+      throw new Error('The planner returned no accountable plan. Reconcile unknown usage before retrying.');
+    }
     const entry = { agent: 'planner', model: 'jev-latest', inputTokens: plan.inputTokens, outputTokens: 0,
-      usd: callPrice(config, 'jev-latest', plan.inputTokens, 0), ms: Date.now() - started };
+      usd: callPrice(config, 'jev-latest', plan.inputTokens, 0), usageKnown: true, ms: Date.now() - started };
     recordSpend(budget, entry);
     await onUsage?.(entry);
     return plan;

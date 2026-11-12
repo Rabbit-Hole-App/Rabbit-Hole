@@ -17,6 +17,10 @@ export async function loadConfig(path) {
   }
   config.repo.toolingRef ??= '38e02e612';
   if (config.planner?.fixtureFile) config.planner.fixtureFile = resolve(base, config.planner.fixtureFile);
+  for (const [section, keys] of Object.entries({ stack: ['varsFile', 'appLog', 'persistDir'], bench: ['outRoot'], preview: ['urlFile'], release: ['ledgerPath', 'queuePath'] })) {
+    for (const key of keys) if (config[section]?.[key]) config[section][key] = resolve(base, config[section][key]);
+  }
+  if (config.bench?.fixtureRuns) config.bench.fixtureRuns = config.bench.fixtureRuns.map(path => resolve(base, path));
   config.limits ??= { authorRounds: 3, verifyRounds: 2, perLessonUsd: 15 };
   return config;
 }

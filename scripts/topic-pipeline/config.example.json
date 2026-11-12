@@ -49,7 +49,10 @@
   "bench": {
     "outRoot": "",
     "judgeCapUsd": 1,
-    "capUsd": 2
+    "capUsd": 2,
+    "estUsdPerCard": null,
+    "fixtureRuns": [],
+    "noPng": false
   },
   "preview": {
     "deployCmd": "",

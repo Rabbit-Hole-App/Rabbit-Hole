@@ -69,12 +69,13 @@ export async function main(argv = process.argv.slice(2)) {
   if (positionals.length !== 1 || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(topic)) throw new Error('Usage: node scripts/topic-pipeline/run.mjs <topic> [--from 01] [--to 08] [--fixture]');
   const config = await loadConfig(values.config);
   config.overrides = Object.fromEntries(Object.entries(values).filter(([key]) => /model|effort/.test(key)));
+  config.run = { fixture: !!values.fixture, dryRun: !!values['dry-run'] };
   const stages = {};
   for (const name of stageNames) {
     stages[name.slice(0, 2)] = async ctx => (await import(`./stages/${name}.mjs`)).run(ctx);
   }
   const result = await runPipeline({ topic, ...getTopicPaths(config, topic), config, stages,
-    from: values.from, to: values.to, approvePrompts: values['approve-prompts'], go: values.go,
+    from: values.from, to: values.to ?? (values['dry-run'] ? '07' : undefined), approvePrompts: values['approve-prompts'], go: values.go,
     dryRun: values['dry-run'], fixture: values.fixture,
     preflight: !(values.from === '02' && values.to === '02' && config.planner?.fixtureFile),
     onStage: (id, output) => console.log(JSON.stringify({ stage: id, status: output.status, stop: output.stop, notes: redact(output.notes, config) })),
