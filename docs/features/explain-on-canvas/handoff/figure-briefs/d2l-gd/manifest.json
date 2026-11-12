@@ -1,0 +1,224 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_optimization/gd.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:09:59.629Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_27_0.svg",
+      "file": "01-output-gd-79c039-27-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_27_0.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_30_1.svg",
+      "file": "02-output-gd-79c039-30-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_30_1.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_33_0.svg",
+      "file": "03-output-gd-79c039-33-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_33_0.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_39_1.svg",
+      "file": "04-output-gd-79c039-39-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_39_1.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_42_1.svg",
+      "file": "05-output-gd-79c039-42-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_42_1.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_45_1.svg",
+      "file": "06-output-gd-79c039-45-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_45_1.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_51_1.svg",
+      "file": "07-output-gd-79c039-51-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_51_1.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_54_1.svg",
+      "file": "08-output-gd-79c039-54-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_54_1.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_57_1.svg",
+      "file": "09-output-gd-79c039-57-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_57_1.svg"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_63_1.svg",
+      "file": "10-output-gd-79c039-63-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_63_1.svg"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_66_1.svg",
+      "file": "11-output-gd-79c039-66-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_66_1.svg"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_69_1.svg",
+      "file": "12-output-gd-79c039-69-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_69_1.svg"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_87_1.svg",
+      "file": "13-output-gd-79c039-87-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_87_1.svg"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_90_1.svg",
+      "file": "14-output-gd-79c039-90-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_90_1.svg"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_93_1.svg",
+      "file": "15-output-gd-79c039-93-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_93_1.svg"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_99_1.svg",
+      "file": "16-output-gd-79c039-99-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_99_1.svg"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_102_1.svg",
+      "file": "17-output-gd-79c039-102-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_102_1.svg"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_105_1.svg",
+      "file": "18-output-gd-79c039-105-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_105_1.svg"
+    },
+    {
+      "order": 19,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_111_1.svg",
+      "file": "19-output-gd-79c039-111-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_111_1.svg"
+    },
+    {
+      "order": 20,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_114_1.svg",
+      "file": "20-output-gd-79c039-114-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_114_1.svg"
+    },
+    {
+      "order": 21,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_117_1.svg",
+      "file": "21-output-gd-79c039-117-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_117_1.svg"
+    },
+    {
+      "order": 22,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_123_1.svg",
+      "file": "22-output-gd-79c039-123-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_123_1.svg"
+    },
+    {
+      "order": 23,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_126_1.svg",
+      "file": "23-output-gd-79c039-126-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_126_1.svg"
+    },
+    {
+      "order": 24,
+      "figureUrl": "https://d2l.ai/_images/output_gd_79c039_129_1.svg",
+      "file": "24-output-gd-79c039-129-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gd_79c039_129_1.svg"
+    }
+  ]
+}

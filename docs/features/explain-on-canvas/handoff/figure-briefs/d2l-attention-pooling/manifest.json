@@ -1,0 +1,188 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_attention-mechanisms-and-transformers/attention-pooling.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:13:22.113Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_18_0.svg",
+      "file": "01-output-attention-pooling-d5e6b2-18-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_18_0.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_21_1.svg",
+      "file": "02-output-attention-pooling-d5e6b2-21-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_21_1.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_24_0.png",
+      "file": "03-output-attention-pooling-d5e6b2-24-0.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_24_0.png"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_27_0.svg",
+      "file": "04-output-attention-pooling-d5e6b2-27-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_27_0.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_63_0.svg",
+      "file": "05-output-attention-pooling-d5e6b2-63-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_63_0.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_66_0.svg",
+      "file": "06-output-attention-pooling-d5e6b2-66-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_66_0.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_69_0.png",
+      "file": "07-output-attention-pooling-d5e6b2-69-0.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_69_0.png"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_72_0.svg",
+      "file": "08-output-attention-pooling-d5e6b2-72-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_72_0.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_78_0.svg",
+      "file": "09-output-attention-pooling-d5e6b2-78-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_78_0.svg"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_81_0.svg",
+      "file": "10-output-attention-pooling-d5e6b2-81-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_81_0.svg"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_84_0.png",
+      "file": "11-output-attention-pooling-d5e6b2-84-0.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_84_0.png"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_87_0.svg",
+      "file": "12-output-attention-pooling-d5e6b2-87-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_87_0.svg"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_93_0.svg",
+      "file": "13-output-attention-pooling-d5e6b2-93-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_93_0.svg"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_96_0.svg",
+      "file": "14-output-attention-pooling-d5e6b2-96-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_96_0.svg"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_99_0.png",
+      "file": "15-output-attention-pooling-d5e6b2-99-0.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_99_0.png"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_102_0.svg",
+      "file": "16-output-attention-pooling-d5e6b2-102-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_102_0.svg"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_108_0.svg",
+      "file": "17-output-attention-pooling-d5e6b2-108-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_108_0.svg"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_111_0.svg",
+      "file": "18-output-attention-pooling-d5e6b2-111-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_111_0.svg"
+    },
+    {
+      "order": 19,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_114_0.png",
+      "file": "19-output-attention-pooling-d5e6b2-114-0.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_114_0.png"
+    },
+    {
+      "order": 20,
+      "figureUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_117_0.svg",
+      "file": "20-output-attention-pooling-d5e6b2-117-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-pooling_d5e6b2_117_0.svg"
+    }
+  ]
+}

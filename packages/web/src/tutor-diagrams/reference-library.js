@@ -1,4 +1,5 @@
 import originalExamples from './examples.json' with { type: 'json' };
+import learnerKeywords from './reference-learner-keywords.json' with { type: 'json' };
 import { references as batch1Followups } from './batch-1-followup-references.js';
 import { references as statistical } from './ml-statistical-references.js';
 import { references as plot } from './ml-plot-references.js';
@@ -35,9 +36,12 @@ import { transformerAttentionReferences } from './transformer-attention-referenc
 import { transformerMultiheadReference } from './transformer-multihead-reference.js';
 import { transformerEncoderReference } from './transformer-encoder-reference.js';
 import { transformerDecoderReferences } from './transformer-decoder-references.js';
+import { figureChapterReferences } from './figure-chapter-references.js';
 import { lessonDecisionTreesReferences } from './lesson-decision-trees-references.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
+
+export { transformerFigureReferences } from './transformer-figure-references.js';
 
 export const transformerWalkthroughReferences = Object.freeze([
   transformerEmbeddingReference, ...tensorReferences, ...transformerAttentionReferences,
@@ -72,9 +76,18 @@ export const diagramReferences = Object.freeze([
   ...batch4aPrediction, ...batch4aLogistic, ...illustrationReferences, ...generic,
   ...transformerWalkthroughReferences.filter(ref => !illustrationReferences.includes(ref)),
   ...batch1FollowupReferences,
+  ...figureChapterReferences,
   ...lessonDecisionTreesReferences,
   ...estimationEvaluationReferences,
-]);
+].map(ref => {
+  const topics = learnerKeywords[ref.id];
+  if (!topics) return ref;
+  return {
+    ...ref,
+    keywords: [...ref.keywords, ...topics],
+    shortKeywords: [...(ref.shortKeywords ?? []), ...topics],
+  };
+}));
 
 export const PHASE02_SOURCE = Object.freeze({
   repository: 'rohitg00/ai-engineering-from-scratch',

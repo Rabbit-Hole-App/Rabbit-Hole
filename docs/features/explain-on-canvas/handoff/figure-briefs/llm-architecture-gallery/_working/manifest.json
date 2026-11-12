@@ -1,0 +1,2138 @@
+{
+  "sourceUrl": "https://sebastianraschka.com/llm-architecture-gallery/",
+  "group": "raschka",
+  "retrievedAt": "2026-11-09T17:39:52.373Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/hero/architecture-gallery-hero-640w.webp",
+      "context": {
+        "alt": "Architecture contact sheet showing the models featured in the LLM Architecture Gallery",
+        "caption": "",
+        "heading": "A curated reference for modern language-model architectures",
+        "before": "Nov 9 last updated",
+        "after": "The gallery focuses on text-only LLMs and language-model backbones. For multimodal releases, cards usually describe the text decoder/backbone rather than every vision, audio, or image-generation component.",
+        "svgText": []
+      },
+      "file": "01-architecture-gallery-hero-640w.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/hero/architecture-gallery-hero-640w.webp"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/poster/redbubble-1-320w.webp",
+      "context": {
+        "alt": "Preview of a printed LLM Architecture Gallery poster",
+        "caption": "",
+        "heading": "A curated reference for modern language-model architectures",
+        "before": "Corrections are welcome in the issue tracker. If the latest changes are missing, try a hard reload (macOS: Command + Shift + R; Windows: Ctrl + F5).",
+        "after": "Purchase the print-ready digital download of the gallery.",
+        "svgText": []
+      },
+      "file": "02-redbubble-1-320w.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/poster/redbubble-1-320w.webp"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-2-xl.webp",
+      "context": {
+        "alt": "Figure 2: GPT-2 XL 1.5B",
+        "caption": "",
+        "heading": "GPT-2 XL (1.5B)",
+        "before": "No models match these filters.",
+        "after": "Late-2019 dense baseline included here as a reference point for how much decoder stacks have changed since GPT-2.",
+        "svgText": []
+      },
+      "file": "03-gpt-2-xl.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-2-xl.webp"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-8b.webp",
+      "context": {
+        "alt": "Figure 10: Llama 3 8B",
+        "caption": "",
+        "heading": "Llama 3 (8B)",
+        "before": "Compare",
+        "after": "Reference dense Llama stack used to contrast OLMo 2's normalization and attention choices.",
+        "svgText": []
+      },
+      "file": "04-llama-3-8b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-8b.webp"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-2-1b.webp",
+      "context": {
+        "alt": "Figure 18: Llama 3.2 1B",
+        "caption": "",
+        "heading": "Llama 3.2 (1B)",
+        "before": "Compare",
+        "after": "Small dense Llama baseline in the Qwen comparison, with fewer layers but more width.",
+        "svgText": []
+      },
+      "file": "05-llama-3-2-1b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-2-1b.webp"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-2-7b.webp",
+      "context": {
+        "alt": "Figure 10: OLMo 2 7B",
+        "caption": "",
+        "heading": "OLMo 2 (7B)",
+        "before": "Compare",
+        "after": "Transparent dense model that keeps classic MHA and pushes normalization changes for training stability.",
+        "svgText": []
+      },
+      "file": "06-olmo-2-7b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-2-7b.webp"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-r1-671-billion.webp",
+      "context": {
+        "alt": "Figure 17: DeepSeek V3",
+        "caption": "",
+        "heading": "DeepSeek V3 (671B)",
+        "before": "Compare",
+        "after": "DeepSeek's flagship template kicked off the recent wave of large open MoE models.",
+        "svgText": []
+      },
+      "file": "07-deepseek-v3-r1-671-billion.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-r1-671-billion.webp"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-r1-671-billion.webp",
+      "context": {
+        "alt": "Figure 25.2: DeepSeek R1",
+        "caption": "",
+        "heading": "DeepSeek R1 (671B)",
+        "before": "Compare",
+        "after": "Reasoning-tuned DeepSeek model built on the V3 architecture rather than a new base design.",
+        "svgText": []
+      },
+      "file": "08-deepseek-v3-r1-671-billion.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-r1-671-billion.webp"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-3-27b.webp",
+      "context": {
+        "alt": "Figure 16: Gemma 3 27B",
+        "caption": "",
+        "heading": "Gemma 3 (27B)",
+        "before": "Compare",
+        "after": "Gemma's flagship text stack leans on local attention more aggressively than Gemma 2.",
+        "svgText": []
+      },
+      "file": "09-gemma-3-27b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-3-27b.webp"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-3-1-small-24b.webp",
+      "context": {
+        "alt": "Figure 16: Mistral Small 3.1 24B",
+        "caption": "",
+        "heading": "Mistral Small 3.1 (24B)",
+        "before": "Compare",
+        "after": "Fast dense 24B model that drops the sliding-window setup used in older Mistral releases.",
+        "svgText": []
+      },
+      "file": "10-mistral-3-1-small-24b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-3-1-small-24b.webp"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-4-maverick-400b.webp",
+      "context": {
+        "alt": "Figure 17: Llama 4 Maverick",
+        "caption": "",
+        "heading": "Llama 4 Maverick (400B)",
+        "before": "Compare",
+        "after": "Meta's large MoE follows the DeepSeek V3 playbook but with a more conventional attention stack.",
+        "svgText": []
+      },
+      "file": "11-llama-4-maverick-400b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-4-maverick-400b.webp"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-0-6b.webp",
+      "context": {
+        "alt": "Figure 18: Qwen3 0.6B",
+        "caption": "",
+        "heading": "Qwen3 (0.6B)",
+        "before": "Compare",
+        "after": "Tiny current-generation Qwen model that trades width for more depth and a low memory footprint.",
+        "svgText": []
+      },
+      "file": "12-qwen3-0-6b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-0-6b.webp"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-235b-a22b.webp",
+      "context": {
+        "alt": "Figure 19: Qwen3 235B-A22B",
+        "caption": "",
+        "heading": "Qwen3 (235B-A22B)",
+        "before": "Compare",
+        "after": "Large sparse Qwen variant that stays very close to DeepSeek V3 while removing the shared expert.",
+        "svgText": []
+      },
+      "file": "13-qwen3-235b-a22b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-235b-a22b.webp"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-30b-a3b.webp",
+      "context": {
+        "alt": "Figure 27: Qwen3 30B-A3B",
+        "caption": "",
+        "heading": "Qwen3 (30B-A3B)",
+        "before": "Compare",
+        "after": "Small sparse Qwen3 model that sits close to GPT-OSS in active size but uses a deeper stack.",
+        "svgText": []
+      },
+      "file": "14-qwen3-30b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-30b-a3b.webp"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-32b.webp",
+      "context": {
+        "alt": "Figure 45: Qwen3 32B",
+        "caption": "",
+        "heading": "Qwen3 (32B)",
+        "before": "Compare",
+        "after": "Large dense Qwen3 model that serves as the clearest like-for-like comparison for OLMo 3 32B.",
+        "svgText": []
+      },
+      "file": "15-qwen3-32b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-32b.webp"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-4b.webp",
+      "context": {
+        "alt": "Figure 21: Qwen3 4B",
+        "caption": "",
+        "heading": "Qwen3 (4B)",
+        "before": "Compare",
+        "after": "Mid-size dense Qwen3 model used here as a clean baseline against SmolLM3 and Tiny Aya.",
+        "svgText": []
+      },
+      "file": "16-qwen3-4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-4b.webp"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8b.webp",
+      "context": {
+        "alt": "Figure 44: Qwen3 8B",
+        "caption": "",
+        "heading": "Qwen3 (8B)",
+        "before": "Compare",
+        "after": "Dense Qwen3 baseline used here to show how little OLMo 3 changed the overall decoder recipe.",
+        "svgText": []
+      },
+      "file": "17-qwen3-8b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8b.webp"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/smollm3-3b.webp",
+      "context": {
+        "alt": "Figure 21: SmolLM3 3B",
+        "caption": "",
+        "heading": "SmolLM3 (3B)",
+        "before": "Compare",
+        "after": "Compact dense model that experiments with leaving out positional encodings in selected layers.",
+        "svgText": []
+      },
+      "file": "18-smollm3-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/smollm3-3b.webp"
+    },
+    {
+      "order": 19,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-1-trillion.webp",
+      "context": {
+        "alt": "Figure 25.1: Kimi K2",
+        "caption": "",
+        "heading": "Kimi K2 (1T)",
+        "before": "Compare",
+        "after": "Trillion-parameter Moonshot model that essentially scales the DeepSeek V3 recipe upward.",
+        "svgText": []
+      },
+      "file": "19-kimi-k2-1-trillion.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-1-trillion.webp"
+    },
+    {
+      "order": 20,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-5-355b.webp",
+      "context": {
+        "alt": "Figure 34: GLM-4.5 355B",
+        "caption": "",
+        "heading": "GLM-4.5 (355B)",
+        "before": "Compare",
+        "after": "Agent-oriented instruction/reasoning hybrid that borrows DeepSeek's dense-prefix MoE layout.",
+        "svgText": []
+      },
+      "file": "20-glm-4-5-355b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-5-355b.webp"
+    },
+    {
+      "order": 21,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-oss-120b.webp",
+      "context": {
+        "alt": "Figure 26: GPT-OSS 120B",
+        "caption": "",
+        "heading": "GPT-OSS (120B)",
+        "before": "Compare",
+        "after": "Larger gpt-oss variant keeps the same alternating-attention recipe as the 20B model.",
+        "svgText": []
+      },
+      "file": "21-gpt-oss-120b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-oss-120b.webp"
+    },
+    {
+      "order": 22,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-oss-20b.webp",
+      "context": {
+        "alt": "Figure 26: GPT-OSS 20B",
+        "caption": "",
+        "heading": "GPT-OSS (20B)",
+        "before": "Compare",
+        "after": "OpenAI's smaller open-weight MoE model favors width and alternating local/global attention.",
+        "svgText": []
+      },
+      "file": "22-gpt-oss-20b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gpt-oss-20b.webp"
+    },
+    {
+      "order": 23,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-3-270m.webp",
+      "context": {
+        "alt": "Figure 16: Gemma 3 270M",
+        "caption": "",
+        "heading": "Gemma 3 (270M)",
+        "before": "Compare",
+        "after": "Tiny Gemma 3 variant that preserves the family's local-global attention recipe at a toy scale.",
+        "svgText": []
+      },
+      "file": "23-gemma-3-270m.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-3-270m.webp"
+    },
+    {
+      "order": 24,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/grok-2-5-270b.webp",
+      "context": {
+        "alt": "Figure 32: Grok 2.5 270B",
+        "caption": "",
+        "heading": "Grok 2.5 (270B)",
+        "before": "Compare",
+        "after": "Rare production-model release that shows an older MoE style with fewer, larger experts.",
+        "svgText": []
+      },
+      "file": "24-grok-2-5-270b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/grok-2-5-270b.webp"
+    },
+    {
+      "order": 25,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-next-80b-a3b.webp",
+      "context": {
+        "alt": "Figure 35: Qwen3 Next 80B-A3B",
+        "caption": "",
+        "heading": "Qwen3 Next (80B-A3B)",
+        "before": "Compare",
+        "after": "Efficiency-focused Qwen refresh that swaps standard attention for a DeltaNet-attention hybrid.",
+        "svgText": []
+      },
+      "file": "25-qwen3-next-80b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-next-80b-a3b.webp"
+    },
+    {
+      "order": 26,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-230b.webp",
+      "context": {
+        "alt": "Figure 39: MiniMax M2 230B",
+        "caption": "",
+        "heading": "MiniMax M2 (230B)",
+        "before": "Compare",
+        "after": "MiniMax's flagship returns to full attention and looks like a leaner, sparser cousin of Qwen3.",
+        "svgText": []
+      },
+      "file": "26-minimax-m2-230b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-230b.webp"
+    },
+    {
+      "order": 27,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-linear-48b-a3b.webp",
+      "context": {
+        "alt": "Figure 42: Kimi Linear 48B-A3B",
+        "caption": "",
+        "heading": "Kimi Linear (48B-A3B)",
+        "before": "Compare",
+        "after": "Linear-attention hybrid that keeps a transformer backbone but replaces most full-attention layers.",
+        "svgText": []
+      },
+      "file": "27-kimi-linear-48b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-linear-48b-a3b.webp"
+    },
+    {
+      "order": 28,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-3-32b.webp",
+      "context": {
+        "alt": "Figure 45: OLMo 3 32B",
+        "caption": "",
+        "heading": "OLMo 3 (32B)",
+        "before": "Compare",
+        "after": "Scaled-up OLMo 3 keeps the same block design but moves to grouped-query attention.",
+        "svgText": []
+      },
+      "file": "28-olmo-3-32b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-3-32b.webp"
+    },
+    {
+      "order": 29,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-3-7b.webp",
+      "context": {
+        "alt": "Figure 44: OLMo 3 7B",
+        "caption": "",
+        "heading": "OLMo 3 (7B)",
+        "before": "Compare",
+        "after": "New transparent Allen AI model that keeps OLMo's post-norm flavor while modernizing context handling.",
+        "svgText": []
+      },
+      "file": "29-olmo-3-7b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/olmo-3-7b.webp"
+    },
+    {
+      "order": 30,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-2-671b.webp",
+      "context": {
+        "alt": "Figure 48: DeepSeek V3.2",
+        "caption": "",
+        "heading": "DeepSeek V3.2 (671B)",
+        "before": "Compare",
+        "after": "DeepSeek's successor keeps the V3 template but adds sparse attention to cut long-context costs.",
+        "svgText": []
+      },
+      "file": "30-deepseek-v3-2-671b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v3-2-671b.webp"
+    },
+    {
+      "order": 31,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-3-large-673-billion.webp",
+      "context": {
+        "alt": "Figure 50: Mistral Large 3",
+        "caption": "",
+        "heading": "Mistral Large 3 (673B)",
+        "before": "Compare",
+        "after": "Mistral's new flagship effectively adopts the DeepSeek architecture and retunes the expert sizes.",
+        "svgText": []
+      },
+      "file": "31-mistral-3-large-673-billion.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-3-large-673-billion.webp"
+    },
+    {
+      "order": 32,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-nano-30b-a3b.webp",
+      "context": {
+        "alt": "Figure 51.1: Nemotron 3 Nano 30B-A3B",
+        "caption": "",
+        "heading": "Nemotron 3 Nano (30B-A3B)",
+        "before": "Compare",
+        "after": "NVIDIA's Nano model is the most extreme transformer-state-space hybrid in the gallery.",
+        "svgText": []
+      },
+      "file": "32-nemotron-3-nano-30b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-nano-30b-a3b.webp"
+    },
+    {
+      "order": 33,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo-v2-flash-309b.webp",
+      "context": {
+        "alt": "Figure 52: Xiaomi MiMo-V2-Flash 309B",
+        "caption": "",
+        "heading": "Xiaomi MiMo-V2-Flash (309B)",
+        "before": "Compare",
+        "after": "Large MoE model that pushes sliding-window attention harder than most contemporaries.",
+        "svgText": []
+      },
+      "file": "33-xiaomi-mimo-v2-flash-309b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo-v2-flash-309b.webp"
+    },
+    {
+      "order": 34,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-7-355b.webp",
+      "context": {
+        "alt": "Figure 57: GLM-4.7 355B",
+        "caption": "",
+        "heading": "GLM-4.7 (355B)",
+        "before": "Compare",
+        "after": "Immediate GLM predecessor that stays closer to the older GLM-4.5 style before the MLA shift.",
+        "svgText": []
+      },
+      "file": "34-glm-4-7-355b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-7-355b.webp"
+    },
+    {
+      "order": 35,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/arcee-ai-trinity-large-400b.webp",
+      "context": {
+        "alt": "Figure 53: Arcee AI Trinity Large 400B",
+        "caption": "",
+        "heading": "Arcee AI Trinity Large (400B)",
+        "before": "Compare",
+        "after": "Arcee's flagship blends several efficiency tricks into a DeepSeek-like coarse MoE design; the AA score shown here refers to the Trinity Large Thinking checkpoint.",
+        "svgText": []
+      },
+      "file": "35-arcee-ai-trinity-large-400b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/arcee-ai-trinity-large-400b.webp"
+    },
+    {
+      "order": 36,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5-744b.webp",
+      "context": {
+        "alt": "Figure 56: GLM-5 744B",
+        "caption": "",
+        "heading": "GLM-5 (744B)",
+        "before": "Compare",
+        "after": "Huge GLM refresh that adopts both MLA and DeepSeek Sparse Attention for flagship-scale inference.",
+        "svgText": []
+      },
+      "file": "36-glm-5-744b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5-744b.webp"
+    },
+    {
+      "order": 37,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-super-120b-a12b.webp",
+      "context": {
+        "alt": "Figure 51.3: Nemotron 3 Super 120B-A12B",
+        "caption": "",
+        "heading": "Nemotron 3 Super (120B-A12B)",
+        "before": "Compare",
+        "after": "The Super variant scales up Nano and adds both latent experts and native speculative decoding support.",
+        "svgText": []
+      },
+      "file": "37-nemotron-3-super-120b-a12b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-super-120b-a12b.webp"
+    },
+    {
+      "order": 38,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-31b.webp",
+      "context": {
+        "alt": "Figure 58: Gemma 4 31B",
+        "caption": "",
+        "heading": "Gemma 4 (31B)",
+        "before": "Compare",
+        "after": "Dense Gemma 4 scales the family to a 256K-context multimodal checkpoint without changing the core local-global recipe much.",
+        "svgText": []
+      },
+      "file": "38-gemma-4-31b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-31b.webp"
+    },
+    {
+      "order": 39,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-26b-a4b.webp",
+      "context": {
+        "alt": "Figure 60: Gemma 4 26B-A4B",
+        "caption": "",
+        "heading": "Gemma 4 (26B-A4B)",
+        "before": "Compare",
+        "after": "Sparse Gemma 4 variant that keeps the local:global attention backbone while swapping dense FFNs for MoE layers.",
+        "svgText": []
+      },
+      "file": "39-gemma-4-26b-a4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-26b-a4b.webp"
+    },
+    {
+      "order": 40,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-12b.webp",
+      "context": {
+        "alt": "Figure 59: Gemma 4 12B",
+        "caption": "",
+        "heading": "Gemma 4 (12B)",
+        "before": "Compare",
+        "after": "Dense Gemma 4 12B Unified uses an encoder-free multimodal input path, while its text decoder keeps the 31B-style local-global attention recipe.",
+        "svgText": []
+      },
+      "file": "40-gemma-4-12b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-12b.webp"
+    },
+    {
+      "order": 41,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-2-3b.webp",
+      "context": {
+        "alt": "Figure 29: Llama 3.2 3B",
+        "caption": "",
+        "heading": "Llama 3.2 (3B)",
+        "before": "Compare",
+        "after": "Small Llama baseline used to show how closely Nanbeige follows the mainstream compact decoder recipe.",
+        "svgText": []
+      },
+      "file": "41-llama-3-2-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/llama-3-2-3b.webp"
+    },
+    {
+      "order": 42,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-coder-flash-30b-a3b-mixture-of-experts.webp",
+      "context": {
+        "alt": "Figure 16: Qwen3 Coder Flash 30B-A3B",
+        "caption": "",
+        "heading": "Qwen3 Coder Flash (30B-A3B)",
+        "before": "Compare",
+        "after": "Coding-tuned Qwen model that keeps a straightforward grouped-query MoE stack instead of the newer hybrid-attention variants.",
+        "svgText": []
+      },
+      "file": "42-qwen3-coder-flash-30b-a3b-mixture-of-experts.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-coder-flash-30b-a3b-mixture-of-experts.webp"
+    },
+    {
+      "order": 43,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-5.webp",
+      "context": {
+        "alt": "Figure 8: Kimi K2.5",
+        "caption": "",
+        "heading": "Kimi K2.5 (1T)",
+        "before": "Compare",
+        "after": "Native-multimodal Moonshot flagship that keeps the K2/DeepSeek-style MoE layout and pushes native context to 256k.",
+        "svgText": []
+      },
+      "file": "43-kimi-k2-5.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-5.webp"
+    },
+    {
+      "order": 44,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/step-3-5-flash-196b.webp",
+      "context": {
+        "alt": "Figure 12: Step 3.5 Flash 196B",
+        "caption": "",
+        "heading": "Step 3.5 Flash (196B)",
+        "before": "Compare",
+        "after": "Throughput-oriented MoE model that stays competitive with much larger DeepSeek-style systems.",
+        "svgText": []
+      },
+      "file": "44-step-3-5-flash-196b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/step-3-5-flash-196b.webp"
+    },
+    {
+      "order": 45,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nanbeige-4-1-3b.webp",
+      "context": {
+        "alt": "Figure 29: Nanbeige 4.1 3B",
+        "caption": "",
+        "heading": "Nanbeige 4.1 (3B)",
+        "before": "Compare",
+        "after": "Small on-device oriented model that stays close to Llama 3.2 while nudging the scaling choices.",
+        "svgText": []
+      },
+      "file": "45-nanbeige-4-1-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nanbeige-4-1-3b.webp"
+    },
+    {
+      "order": 46,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-5-230b.webp",
+      "context": {
+        "alt": "Figure 26: MiniMax M2.5 230B",
+        "caption": "",
+        "heading": "MiniMax-M2.5 (230B)",
+        "before": "Compare",
+        "after": "Popular 230B coder that opts for a classic architecture instead of the newer hybrid-attention ideas.",
+        "svgText": []
+      },
+      "file": "46-minimax-m2-5-230b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-5-230b.webp"
+    },
+    {
+      "order": 47,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tiny-aya-3-35b.webp",
+      "context": {
+        "alt": "Figure 35: Tiny Aya 3.35B",
+        "caption": "",
+        "heading": "Tiny Aya (3.35B)",
+        "before": "Compare",
+        "after": "Compact multilingual model from Cohere with a rare parallel transformer block.",
+        "svgText": []
+      },
+      "file": "47-tiny-aya-3-35b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tiny-aya-3-35b.webp"
+    },
+    {
+      "order": 48,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-2-5-1t.webp",
+      "context": {
+        "alt": "Figure 32: Ling 2.5 1T",
+        "caption": "",
+        "heading": "Ling 2.5 (1T)",
+        "before": "Compare",
+        "after": "Trillion-parameter long-context model that swaps DeltaNet for Lightning Attention.",
+        "svgText": []
+      },
+      "file": "48-ling-2-5-1t.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-2-5-1t.webp"
+    },
+    {
+      "order": 49,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-5-397b.webp",
+      "context": {
+        "alt": "Figure 31: Qwen3.5 397B",
+        "caption": "",
+        "heading": "Qwen3.5 (397B)",
+        "before": "Compare",
+        "after": "Mainline Qwen refresh that brings the Next-style hybrid attention into the flagship series.",
+        "svgText": []
+      },
+      "file": "49-qwen3-5-397b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-5-397b.webp"
+    },
+    {
+      "order": 50,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/sarvam-30b.webp",
+      "context": {
+        "alt": "Figure 38: Sarvam 30B",
+        "caption": "",
+        "heading": "Sarvam (30B)",
+        "before": "Compare",
+        "after": "Reasoning-oriented Indian-language sparse MoE that keeps GQA at the smaller size.",
+        "svgText": []
+      },
+      "file": "50-sarvam-30b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/sarvam-30b.webp"
+    },
+    {
+      "order": 51,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/sarvam-105b.webp",
+      "context": {
+        "alt": "Figure 38: Sarvam 105B",
+        "caption": "",
+        "heading": "Sarvam (105B)",
+        "before": "Compare",
+        "after": "Larger Sarvam variant keeps the sparse MoE layout but switches from GQA to MLA.",
+        "svgText": []
+      },
+      "file": "51-sarvam-105b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/sarvam-105b.webp"
+    },
+    {
+      "order": 52,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/phi-4.webp",
+      "context": {
+        "alt": "Figure 1: Phi-4",
+        "caption": "",
+        "heading": "Phi-4 (14B)",
+        "before": "Compare",
+        "after": "Microsoft's 14B dense Phi refresh stays close to Phi-3-medium but swaps its sliding-window attention for full-context GQA and a larger tokenizer.",
+        "svgText": []
+      },
+      "file": "52-phi-4.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/phi-4.webp"
+    },
+    {
+      "order": 53,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xlstm-7b.webp",
+      "context": {
+        "alt": "Figure 1: xLSTM 7B",
+        "caption": "",
+        "heading": "xLSTM (7B)",
+        "before": "Compare",
+        "after": "Recurrent 7B language model that replaces self-attention with xLSTM blocks built around matrix memory.",
+        "svgText": []
+      },
+      "file": "53-xlstm-7b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xlstm-7b.webp"
+    },
+    {
+      "order": 54,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-5-air.webp",
+      "context": {
+        "alt": "Figure 1: GLM-4.5-Air",
+        "caption": "",
+        "heading": "GLM-4.5-Air (106B)",
+        "before": "Compare",
+        "after": "Compact GLM-4.5 companion that keeps the same agent-oriented sparse MoE recipe at a smaller serving footprint.",
+        "svgText": []
+      },
+      "file": "54-glm-4-5-air.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-4-5-air.webp"
+    },
+    {
+      "order": 55,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ouro-2-6b.webp",
+      "context": {
+        "alt": "Figure 1: Ouro-Thinking 2.6B",
+        "caption": "",
+        "heading": "Ouro-Thinking (2.6B)",
+        "before": "Compare",
+        "after": "ByteDance's dense LoopLM reuses one 48-layer MHA stack across four recurrent passes and trains an exit gate over the intermediate representations.",
+        "svgText": []
+      },
+      "file": "55-ouro-2-6b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ouro-2-6b.webp"
+    },
+    {
+      "order": 56,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/intellect-3.webp",
+      "context": {
+        "alt": "Figure 1: INTELLECT-3",
+        "caption": "",
+        "heading": "INTELLECT-3 (106B)",
+        "before": "Compare",
+        "after": "Large-scale RL post-training of GLM-4.5-Air that keeps the compact 106B sparse MoE backbone intact.",
+        "svgText": []
+      },
+      "file": "56-intellect-3.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/intellect-3.webp"
+    },
+    {
+      "order": 57,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/longcat-flash-lite-68-5b-a3b.webp",
+      "context": {
+        "alt": "Figure 1: LongCat-Flash-Lite 68.5B-A3B",
+        "caption": "",
+        "heading": "LongCat-Flash-Lite (68.5B-A3B)",
+        "before": "Compare",
+        "after": "Meituan's LongCat-Next text backbone is a lightweight MoE that shifts a large share of parameters into N-gram embeddings while keeping sparse inference around 3B active parameters.",
+        "svgText": []
+      },
+      "file": "57-longcat-flash-lite-68-5b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/longcat-flash-lite-68-5b-a3b.webp"
+    },
+    {
+      "order": 58,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-small-4.webp",
+      "context": {
+        "alt": "Figure 1: Mistral Small 4",
+        "caption": "",
+        "heading": "Mistral Small 4 (119B)",
+        "before": "Compare",
+        "after": "Multimodal Mistral Small refresh that jumps from the older dense 24B stack to an MLA-based sparse MoE design.",
+        "svgText": []
+      },
+      "file": "58-mistral-small-4.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-small-4.webp"
+    },
+    {
+      "order": 59,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-nano-4b.webp",
+      "context": {
+        "alt": "Figure 1: Nemotron 3 Nano 4B",
+        "caption": "",
+        "heading": "Nemotron 3 Nano (4B)",
+        "before": "Compare",
+        "after": "Compact on-device hybrid that compresses Nemotron Nano 9B v2 into a mostly Mamba-2 stack with only four attention layers.",
+        "svgText": []
+      },
+      "file": "59-nemotron-3-nano-4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-nano-4b.webp"
+    },
+    {
+      "order": 60,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-7-230b.webp",
+      "context": {
+        "alt": "Figure 1: MiniMax M2.7 230B",
+        "caption": "",
+        "heading": "MiniMax M2.7 (230B)",
+        "before": "Compare",
+        "after": "Agent-focused 230B follow-up built for self-evolution, agent harnesses, and productivity workflows.",
+        "svgText": []
+      },
+      "file": "60-minimax-m2-7-230b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m2-7-230b.webp"
+    },
+    {
+      "order": 61,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-e2b.webp",
+      "context": {
+        "alt": "Figure 2: Gemma 4 E2B",
+        "caption": "",
+        "heading": "Gemma 4 (E2B)",
+        "before": "Compare",
+        "after": "Smallest Gemma 4 edge model keeps the family's hybrid attention stack and adds native audio on a phone-scale multimodal footprint. Uses per-layer embeddings, which add small layer-specific token vectors without scaling the full compute path, so its compute footprint is closer to 2.3B than a full 5.1B dense model.",
+        "svgText": []
+      },
+      "file": "61-gemma-4-e2b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-e2b.webp"
+    },
+    {
+      "order": 62,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-e4b.webp",
+      "context": {
+        "alt": "Figure 2: Gemma 4 E4B",
+        "caption": "",
+        "heading": "Gemma 4 (E4B)",
+        "before": "Compare",
+        "after": "Larger Gemma 4 edge variant keeps the same multimodal hybrid recipe but doubles width and KV heads for a stronger 128K mobile checkpoint. Uses per-layer embeddings, which add small layer-specific token vectors without scaling the full compute path, so its compute footprint is closer to 4.5B than a full 8B dense model.",
+        "svgText": []
+      },
+      "file": "62-gemma-4-e4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/gemma-4-e4b.webp"
+    },
+    {
+      "order": 63,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-flash.webp",
+      "context": {
+        "alt": "Figure 17: DeepSeek V4-Flash",
+        "caption": "",
+        "heading": "DeepSeek V4-Flash (284B)",
+        "before": "Compare",
+        "after": "DeepSeek's efficient V4 preview keeps the million-token architecture while reducing the MoE scale to 284B parameters and 13B active parameters.",
+        "svgText": []
+      },
+      "file": "63-deepseek-v4-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-flash.webp"
+    },
+    {
+      "order": 64,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-pro.webp",
+      "context": {
+        "alt": "Figure 17: DeepSeek V4-Pro",
+        "caption": "",
+        "heading": "DeepSeek V4-Pro (1.6T)",
+        "before": "Compare",
+        "after": "DeepSeek's flagship V4 preview scales to 1.6T parameters and introduces compressed sparse attention plus manifold-constrained hyper-connections for million-token contexts.",
+        "svgText": []
+      },
+      "file": "64-deepseek-v4-pro.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-pro.webp"
+    },
+    {
+      "order": 65,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-xs2.webp",
+      "context": {
+        "alt": "Figure 9: Laguna XS.2",
+        "caption": "",
+        "heading": "Laguna XS.2 (33B)",
+        "before": "Compare",
+        "after": "Poolside's open-weight agentic coding MoE uses mixed sliding-window/global attention and activates only 3B of 33B parameters per token.",
+        "svgText": []
+      },
+      "file": "65-laguna-xs2.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-xs2.webp"
+    },
+    {
+      "order": 66,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/zaya1-8b.webp",
+      "context": {
+        "alt": "Figure 11: ZAYA1-8B",
+        "caption": "",
+        "heading": "ZAYA1-8B (8.4B)",
+        "before": "Compare",
+        "after": "Zyphra's compact reasoning MoE pairs CCA/GQA attention updates with top-1 routed expert FFN updates to keep fewer than 1B parameters active per token.",
+        "svgText": []
+      },
+      "file": "66-zaya1-8b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/zaya1-8b.webp"
+    },
+    {
+      "order": 67,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5-1.webp",
+      "context": {
+        "alt": "Figure 1: GLM-5.1",
+        "caption": "",
+        "heading": "GLM-5.1 (744B)",
+        "before": "Compare",
+        "after": "Post-trained GLM refresh that keeps the GLM-5 backbone intact but targets stronger long-horizon agentic coding.",
+        "svgText": []
+      },
+      "file": "67-glm-5-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5-1.webp"
+    },
+    {
+      "order": 68,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-6-35b-a3b.webp",
+      "context": {
+        "alt": "Figure 1: Qwen3.6 35B-A3B",
+        "caption": "",
+        "heading": "Qwen3.6 (35B-A3B)",
+        "before": "Compare",
+        "after": "Compact Qwen3.6 open-weight MoE that keeps the Qwen3.5 hybrid Gated DeltaNet/Gated Attention recipe while activating only about 3B parameters.",
+        "svgText": []
+      },
+      "file": "68-qwen3-6-35b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-6-35b-a3b.webp"
+    },
+    {
+      "order": 69,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-6.webp",
+      "context": {
+        "alt": "Figure 1: Kimi K2.6",
+        "caption": "",
+        "heading": "Kimi K2.6 (1T)",
+        "before": "Compare",
+        "after": "Native-multimodal K2.5 successor that keeps the same 1T sparse MoE backbone while targeting stronger long-horizon coding, design, and agent orchestration.",
+        "svgText": []
+      },
+      "file": "69-kimi-k2-6.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-6.webp"
+    },
+    {
+      "order": 70,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-6-27b.webp",
+      "context": {
+        "alt": "Figure 1: Qwen3.6 27B",
+        "caption": "",
+        "heading": "Qwen3.6 (27B)",
+        "before": "Compare",
+        "after": "Dense Qwen3.6 model that keeps the Qwen3.5-style Gated DeltaNet/Gated Attention hybrid stack while replacing MoE blocks with dense FFNs.",
+        "svgText": []
+      },
+      "file": "70-qwen3-6-27b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-6-27b.webp"
+    },
+    {
+      "order": 71,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo-v2-5-310b.webp",
+      "context": {
+        "alt": "Figure 1: Xiaomi MiMo-V2.5 310B",
+        "caption": "",
+        "heading": "Xiaomi MiMo-V2.5 (310B)",
+        "before": "Compare",
+        "after": "Omnimodal sparse MoE model that extends the MiMo-V2-Flash backbone with vision and audio encoders.",
+        "svgText": []
+      },
+      "file": "71-xiaomi-mimo-v2-5-310b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo-v2-5-310b.webp"
+    },
+    {
+      "order": 72,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo25-pro.webp",
+      "context": {
+        "alt": "Figure 1: Xiaomi MiMo-V2.5-Pro 1.02T",
+        "caption": "",
+        "heading": "Xiaomi MiMo-V2.5-Pro (1.02T)",
+        "before": "Compare",
+        "after": "Trillion-parameter sparse MoE model for long-horizon agentic and software-engineering tasks.",
+        "svgText": []
+      },
+      "file": "72-xiaomi-mimo25-pro.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/xiaomi-mimo25-pro.webp"
+    },
+    {
+      "order": 73,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-2-6-1t.webp",
+      "context": {
+        "alt": "Figure 1: Ling 2.6 1T",
+        "caption": "",
+        "heading": "Ling 2.6 (1T)",
+        "before": "Compare",
+        "after": "Ling 2.5 successor that keeps the Lightning Attention and MLA hybrid stack while adding an MTP layer for multi-token prediction.",
+        "svgText": []
+      },
+      "file": "73-ling-2-6-1t.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-2-6-1t.webp"
+    },
+    {
+      "order": 74,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tencent-hy3.webp",
+      "context": {
+        "alt": "Figure 1: Tencent Hy3-preview 295B-A21B",
+        "caption": "",
+        "heading": "Tencent Hy3-preview (295B-A21B)",
+        "before": "Compare",
+        "after": "Tencent Hunyuan's 295B sparse MoE preview combines a dense first FFN layer, GQA with QK-Norm, and one extra MTP layer for faster generation.",
+        "svgText": []
+      },
+      "file": "74-tencent-hy3.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tencent-hy3.webp"
+    },
+    {
+      "order": 75,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/granite-4.1.webp",
+      "context": {
+        "alt": "Figure 1: Granite 4.1 30B",
+        "caption": "",
+        "heading": "Granite 4.1 (30B)",
+        "before": "Compare",
+        "after": "IBM's dense 30B Granite 4.1 model keeps a straightforward long-context GQA transformer stack and improves tool calling, instruction following, and chat behavior through post-training.",
+        "svgText": []
+      },
+      "file": "75-granite-4-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/granite-4.1.webp"
+    },
+    {
+      "order": 76,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/command-a-plus.webp",
+      "context": {
+        "alt": "Figure 1: Command A+ 218B-A25B",
+        "caption": "",
+        "heading": "Command A+ (218B-A25B)",
+        "before": "Compare",
+        "after": "Cohere's open sparse MoE model scales the Command A parallel transformer block to 218B total parameters while keeping 25B active per token.",
+        "svgText": []
+      },
+      "file": "76-command-a-plus.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/command-a-plus.webp"
+    },
+    {
+      "order": 77,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-1-2b.webp",
+      "context": {
+        "alt": "Figure 1: LFM2.5 1.2B",
+        "caption": "",
+        "heading": "LFM2.5 (1.2B)",
+        "before": "Compare",
+        "after": "Liquid AI's 1.2B LFM2.5 model keeps the 16-layer hybrid LIV convolution and GQA stack at a wider hidden size.",
+        "svgText": []
+      },
+      "file": "77-lfm2-5-1-2b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-1-2b.webp"
+    },
+    {
+      "order": 78,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-350m.webp",
+      "context": {
+        "alt": "Figure 1: LFM2.5 350M",
+        "caption": "",
+        "heading": "LFM2.5 (350M)",
+        "before": "Compare",
+        "after": "Liquid AI's compact LFM2.5 model combines double-gated LIV convolution blocks with periodic GQA layers.",
+        "svgText": []
+      },
+      "file": "78-lfm2-5-350m.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-350m.webp"
+    },
+    {
+      "order": 79,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-8b-a1b.webp",
+      "context": {
+        "alt": "Figure 1: LFM2.5 8B-A1B",
+        "caption": "",
+        "heading": "LFM2.5 (8B-A1B)",
+        "before": "Compare",
+        "after": "Liquid AI's sparse LFM2.5 model combines LIV convolution, GQA, and MoE routing with 4 of 32 experts active per token.",
+        "svgText": []
+      },
+      "file": "79-lfm2-5-8b-a1b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm2-5-8b-a1b.webp"
+    },
+    {
+      "order": 80,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mellum2.webp",
+      "context": {
+        "alt": "Figure 1: JetBrains Mellum2 Thinking 12B-A2.5B",
+        "caption": "",
+        "heading": "JetBrains Mellum2 Thinking (12B-A2.5B)",
+        "before": "Compare",
+        "after": "JetBrains' Mellum2 Thinking is a compact reasoning-tuned sparse MoE for code and agentic workflows.",
+        "svgText": []
+      },
+      "file": "80-mellum2.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mellum2.webp"
+    },
+    {
+      "order": 81,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-ultra-550b-a55b.webp",
+      "context": {
+        "alt": "Figure 1: Nemotron 3 Ultra 550B-A55B",
+        "caption": "",
+        "heading": "Nemotron 3 Ultra (550B-A55B)",
+        "before": "Compare",
+        "after": "NVIDIA's Ultra model scales the Nemotron 3 hybrid stack to 550B total parameters while keeping 55B active per token.",
+        "svgText": []
+      },
+      "file": "81-nemotron-3-ultra-550b-a55b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-ultra-550b-a55b.webp"
+    },
+    {
+      "order": 82,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/north-mini-code.webp",
+      "context": {
+        "alt": "Figure 1: North Mini Code 30B-A3B",
+        "caption": "",
+        "heading": "North Mini Code (30B-A3B)",
+        "before": "Compare",
+        "after": "Cohere's compact agentic coding MoE adapts the parallel Cohere2-MoE block to a 30B total, 3B active model.",
+        "svgText": []
+      },
+      "file": "82-north-mini-code.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/north-mini-code.webp"
+    },
+    {
+      "order": 83,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-7-code.webp",
+      "context": {
+        "alt": "Figure 1: Kimi K2.7 Code",
+        "caption": "",
+        "heading": "Kimi K2.7 Code (1T)",
+        "before": "Compare",
+        "after": "Coding-focused K2.6 successor that keeps the same 1T sparse MoE text backbone and emphasizes long-horizon software engineering agents.",
+        "svgText": []
+      },
+      "file": "83-kimi-k2-7-code.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k2-7-code.webp"
+    },
+    {
+      "order": 84,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m3.webp",
+      "context": {
+        "alt": "Figure 1: MiniMax M3 428B",
+        "caption": "",
+        "heading": "MiniMax M3 (428B)",
+        "before": "Compare",
+        "after": "Native multimodal MiniMax model that adds sparse attention to an M2-style MoE backbone for 1M-token context.",
+        "svgText": []
+      },
+      "file": "84-minimax-m3.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m3.webp"
+    },
+    {
+      "order": 85,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/vibethinker-3b.webp",
+      "context": {
+        "alt": "Figure 1: VibeThinker-3B",
+        "caption": "",
+        "heading": "VibeThinker-3B (3B)",
+        "before": "Compare",
+        "after": "Qwen2.5-Coder-based dense reasoner whose gains mainly come from verifier-driven post-training rather than a new block design.",
+        "svgText": []
+      },
+      "file": "85-vibethinker-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/vibethinker-3b.webp"
+    },
+    {
+      "order": 86,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5.2.webp",
+      "context": {
+        "alt": "Figure 1: GLM-5.2",
+        "caption": "",
+        "heading": "GLM-5.2 (744B)",
+        "before": "Compare",
+        "after": "Long-context GLM refresh that keeps the 744B sparse MoE backbone and adds IndexShare for 1M-token DSA inference.",
+        "svgText": []
+      },
+      "file": "86-glm-5-2.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5.2.webp"
+    },
+    {
+      "order": 87,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-xs-2-1.webp",
+      "context": {
+        "alt": "Figure 1: Laguna XS 2.1",
+        "caption": "",
+        "heading": "Laguna XS 2.1 (33B)",
+        "before": "Compare",
+        "after": "Poolside's 33B Laguna refresh extends the sparse MoE architecture to 262k context while keeping about 3B parameters active per token.",
+        "svgText": []
+      },
+      "file": "87-laguna-xs-2-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-xs-2-1.webp"
+    },
+    {
+      "order": 88,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/soofi.webp",
+      "context": {
+        "alt": "Figure 1: Soofi S 30B-A3B",
+        "caption": "",
+        "heading": "Soofi S (30B-A3B)",
+        "before": "Compare",
+        "after": "German-English base model that retrains the Nemotron 3 Nano architecture on 26.68T tokens with a fully documented data mixture.",
+        "svgText": []
+      },
+      "file": "88-soofi.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/soofi.webp"
+    },
+    {
+      "order": 89,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/inkling.webp",
+      "context": {
+        "alt": "Figure 1: Inkling",
+        "caption": "",
+        "heading": "Inkling (975B)",
+        "before": "Compare",
+        "after": "Thinking Machines Lab's native multimodal model combines a 66-layer sparse MoE decoder with a 5:1 mix of local and global GQA.",
+        "svgText": []
+      },
+      "file": "89-inkling.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/inkling.webp"
+    },
+    {
+      "order": 90,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/btl-3-27b.webp",
+      "context": {
+        "alt": "Figure 1: BTL-3 27B",
+        "caption": "",
+        "heading": "BTL-3 (27B)",
+        "before": "Compare",
+        "after": "Agent-oriented Qwen3.6-27B derivative that adds a rank-32 LoRA adapter for coding, structured tool use, and long multi-turn execution.",
+        "svgText": []
+      },
+      "file": "90-btl-3-27b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/btl-3-27b.webp"
+    },
+    {
+      "order": 91,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/antares-1b.webp",
+      "context": {
+        "alt": "Figure 1: Antares 1B",
+        "caption": "",
+        "heading": "Antares (1B)",
+        "before": "Compare",
+        "after": "Cisco Foundation AI's compact terminal agent uses a dense Granite 4.0 backbone and is post-trained with SFT and GRPO for vulnerability localization.",
+        "svgText": []
+      },
+      "file": "91-antares-1b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/antares-1b.webp"
+    },
+    {
+      "order": 92,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-s-2-1.webp",
+      "context": {
+        "alt": "Figure 1: Laguna S 2.1",
+        "caption": "",
+        "heading": "Laguna S 2.1 (118B)",
+        "before": "Compare",
+        "after": "Poolside's 118B sparse MoE scales the Laguna XS recipe to 48 layers and 1M context while activating about 8B parameters per token.",
+        "svgText": []
+      },
+      "file": "92-laguna-s-2-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/laguna-s-2-1.webp"
+    },
+    {
+      "order": 93,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/motif-3-beta.webp",
+      "context": {
+        "alt": "Figure 1: Motif 3 Beta",
+        "caption": "",
+        "heading": "Motif 3 Beta (314B)",
+        "before": "Compare",
+        "after": "Large sparse MoE that combines Grouped Differential Latent Attention, per-expert PolyNorm, and modified mHC in a 53-layer decoder.",
+        "svgText": []
+      },
+      "file": "93-motif-3-beta.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/motif-3-beta.webp"
+    },
+    {
+      "order": 94,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nanbeige-4-2-3b.webp",
+      "context": {
+        "alt": "Figure 1: Nanbeige 4.2 3B",
+        "caption": "",
+        "heading": "Nanbeige 4.2 (3B)",
+        "before": "Compare",
+        "after": "Compact agentic model that runs the same 22-layer dense transformer stack twice, resulting in 44 transformer blocks (layers) without duplicating the layer weights.",
+        "svgText": []
+      },
+      "file": "94-nanbeige-4-2-3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nanbeige-4-2-3b.webp"
+    },
+    {
+      "order": 95,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/solar-open-2.webp",
+      "context": {
+        "alt": "Figure 1: Solar Open 2",
+        "caption": "",
+        "heading": "Solar Open 2 (250B)",
+        "before": "Compare",
+        "after": "Upstage's sparse hybrid alternates one gated GQA layer with three Kimi Delta Attention layers and reaches a 1M-token context without positional embeddings.",
+        "svgText": []
+      },
+      "file": "95-solar-open-2.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/solar-open-2.webp"
+    },
+    {
+      "order": 96,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k3.webp",
+      "context": {
+        "alt": "Figure 1: Kimi K3",
+        "caption": "",
+        "heading": "Kimi K3 (2.8T)",
+        "before": "Compare",
+        "after": "2.8T sparse hybrid that combines a 3:1 KDA and Gated MLA stack with Block Attention Residuals and Stable LatentMoE. It is also native multimodal, but the figure focuses on the text portion.",
+        "svgText": []
+      },
+      "file": "96-kimi-k3.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k3.webp"
+    },
+    {
+      "order": 97,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-3-0-flash.webp",
+      "context": {
+        "alt": "Figure 1: Ling 3.0 Flash",
+        "caption": "",
+        "heading": "Ling 3.0 Flash (124B)",
+        "before": "Compare",
+        "after": "Hybrid MoE that alternates five Kimi Delta Attention layers with one gated MLA layer.",
+        "svgText": []
+      },
+      "file": "97-ling-3-0-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-3-0-flash.webp"
+    },
+    {
+      "order": 98,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/muse-glimmer-30b.webp",
+      "context": {
+        "alt": "Figure 1: Muse Glimmer 30B",
+        "caption": "",
+        "heading": "Muse Glimmer (30B)",
+        "before": "Compare",
+        "after": "Meta's dense 29.6B multimodal model combines a 52-layer sandwich-norm decoder with gated GQA and a separate perception encoder; the figure focuses on the text backbone.",
+        "svgText": []
+      },
+      "file": "98-muse-glimmer-30b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/muse-glimmer-30b.webp"
+    },
+    {
+      "order": 99,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-5-lightning-30b-a3b.webp",
+      "context": {
+        "alt": "Figure 1: Nemotron 3.5 Lightning 30B-A3B",
+        "caption": "",
+        "heading": "Nemotron 3.5 Lightning (30B-A3B)",
+        "before": "Compare",
+        "after": "NVIDIA's 30B hybrid model keeps 3B parameters active and extends the Nemotron 3 Nano backbone with a 1M-token context window and multi-token prediction.",
+        "svgText": []
+      },
+      "file": "99-nemotron-3-5-lightning-30b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-5-lightning-30b-a3b.webp"
+    },
+    {
+      "order": 100,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8-27b.webp",
+      "context": {
+        "alt": "Figure 1: Qwen3.8 27B",
+        "caption": "",
+        "heading": "Qwen3.8 (27B)",
+        "before": "Compare",
+        "after": "Dense 27B native vision-language model with a 64-layer Gated DeltaNet and Gated Attention language backbone; the figure omits the vision encoder and MTP head.",
+        "svgText": []
+      },
+      "file": "100-qwen3-8-27b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8-27b.webp"
+    },
+    {
+      "order": 101,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ornith-1-5-35b-a3b.webp",
+      "context": {
+        "alt": "Figure 1: Ornith 1.5 35B-A3B",
+        "caption": "",
+        "heading": "Ornith 1.5 (35B-A3B)",
+        "before": "Compare",
+        "after": "Uses the same sparse-hybrid decoder geometry as Qwen3.6 35B-A3B, paired with Ornith's self-improvement training recipe.",
+        "svgText": []
+      },
+      "file": "101-ornith-1-5-35b-a3b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ornith-1-5-35b-a3b.webp"
+    },
+    {
+      "order": 102,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5.3-flash.webp",
+      "context": {
+        "alt": "Figure 1: GLM-5.3-Flash",
+        "caption": "",
+        "heading": "GLM-5.3-Flash (320B)",
+        "before": "Compare",
+        "after": "Natively multimodal GLM refresh, previously previewed as Ox Alpha, that replaces most MLA/DSA layers with Kimi Delta Attention and adds four-stream mHC.",
+        "svgText": []
+      },
+      "file": "102-glm-5-3-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/glm-5.3-flash.webp"
+    },
+    {
+      "order": 103,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8-flash-next.webp",
+      "context": {
+        "alt": "Figure 1: Qwen3.8-Flash-Next 125B-A6B",
+        "caption": "",
+        "heading": "Qwen3.8-Flash-Next (125B-A6B)",
+        "before": "Compare",
+        "after": "Experimental vision-language MoE whose text backbone combines Gated DeltaNet, micro-block QSA, four-branch gated residuals, and n-gram embeddings; the figure omits the vision encoder and MTP head.",
+        "svgText": []
+      },
+      "file": "103-qwen3-8-flash-next.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/qwen3-8-flash-next.webp"
+    },
+    {
+      "order": 104,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tencent-hy4.webp",
+      "context": {
+        "alt": "Figure 1: Tencent Hy4-preview 770B-A49B",
+        "caption": "",
+        "heading": "Tencent Hy4-preview (770B-A49B)",
+        "before": "Compare",
+        "after": "Tencent's 770B sparse MoE combines gated DeepSeek Sparse Attention, cross-layer index reuse, and four-stream identity Hyper-Connections.",
+        "svgText": []
+      },
+      "file": "104-tencent-hy4.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/tencent-hy4.webp"
+    },
+    {
+      "order": 105,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-1-flash.webp",
+      "context": {
+        "alt": "Figure 1: DeepSeek V4.1-Flash",
+        "caption": "",
+        "heading": "DeepSeek V4.1-Flash (552B)",
+        "before": "Compare",
+        "after": "Causal encoder-decoder MoE with CSA2 cache sharing, Engram memory, and a million-token context. The figure shows the text backbone.",
+        "svgText": []
+      },
+      "file": "105-deepseek-v4-1-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/deepseek-v4-1-flash.webp"
+    },
+    {
+      "order": 106,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/step-5.webp",
+      "context": {
+        "alt": "Figure 1: Step-5 Preview 600B",
+        "caption": "",
+        "heading": "Step-5 Preview (600B)",
+        "before": "Compare",
+        "after": "StepFun's 92-layer MoE pairs 512-token sliding-window attention with sparse GQA for a 1M-token context window; the figure shows the text decoder.",
+        "svgText": []
+      },
+      "file": "106-step-5.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/step-5.webp"
+    },
+    {
+      "order": 107,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mimo-2.6-flash.webp",
+      "context": {
+        "alt": "Figure 1: Xiaomi MiMo-V2.6-Flash-RL 309B",
+        "caption": "",
+        "heading": "Xiaomi MiMo-V2.6-Flash-RL (309B)",
+        "before": "Compare",
+        "after": "Omnimodal sparse MoE model with the MiMo-V2.5 text backbone, mixed-domain reinforcement learning, and a five-layer DFlash speculative decoder.",
+        "svgText": []
+      },
+      "file": "107-mimo-2-6-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mimo-2.6-flash.webp"
+    },
+    {
+      "order": 108,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mimo-2.6-pro.webp",
+      "context": {
+        "alt": "Figure 1: Xiaomi MiMo-V2.6-Pro-RL 1.02T",
+        "caption": "",
+        "heading": "Xiaomi MiMo-V2.6-Pro-RL (1.02T)",
+        "before": "Compare",
+        "after": "Omnimodal sparse MoE model with the MiMo-V2.5-Pro text backbone, mixed-domain reinforcement learning, and a five-layer DFlash speculative decoder.",
+        "svgText": []
+      },
+      "file": "108-mimo-2-6-pro.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mimo-2.6-pro.webp"
+    },
+    {
+      "order": 109,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ember-1.webp",
+      "context": {
+        "alt": "Figure 1: Ember-1",
+        "caption": "",
+        "heading": "Ember-1 (2.8T)",
+        "before": "Compare",
+        "after": "Fireworks' Kimi K3 derivative, post-trained for shorter reasoning traces. Architecture details follow the published Kimi K3 base model; the diagram focuses on its text backbone.",
+        "svgText": []
+      },
+      "file": "109-ember-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ember-1.webp"
+    },
+    {
+      "order": 110,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/naive-n0-5-flash-309b.webp",
+      "context": {
+        "alt": "Figure 1: Naive-N0.5-Flash 309B",
+        "caption": "",
+        "heading": "Naive-N0.5-Flash (309B)",
+        "before": "Compare",
+        "after": "MiMo-V2.5-derived sparse MoE that replaces its global attention layers with GQA-based DeepSeek Sparse Attention for a native 1M-token context.",
+        "svgText": []
+      },
+      "file": "110-naive-n0-5-flash-309b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/naive-n0-5-flash-309b.webp"
+    },
+    {
+      "order": 111,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kolibri-1.webp",
+      "context": {
+        "alt": "Figure 1: Kolibri-1 78B",
+        "caption": "",
+        "heading": "Kolibri-1 (78B)",
+        "before": "Compare",
+        "after": "Aleph Alpha's German-English reasoning model uses 50 MoE blocks with a 4:1 mix of sliding-window and global GQA.",
+        "svgText": []
+      },
+      "file": "111-kolibri-1.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kolibri-1.webp"
+    },
+    {
+      "order": 112,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-3-1-flash.webp",
+      "context": {
+        "alt": "Figure 1: Ling 3.1 Flash",
+        "caption": "",
+        "heading": "Ling 3.1 Flash (560B)",
+        "before": "Compare",
+        "after": "Hybrid MoE that extends Ling 3.0 Flash to 72 layers, with seven Kimi Delta Attention layers for every gated MLA layer.",
+        "svgText": []
+      },
+      "file": "112-ling-3-1-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/ling-3-1-flash.webp"
+    },
+    {
+      "order": 113,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/muse-spark-open.webp",
+      "context": {
+        "alt": "Figure 1: Muse Spark Open 816B-A42B",
+        "caption": "",
+        "heading": "Muse Spark Open (816B-A42B)",
+        "before": "Compare",
+        "after": "Meta's multimodal MoE model combines 62 latent-expert blocks with gated GQA, local-only RoPE, global NoPE, and learned residual gates; the figure focuses on the text decoder.",
+        "svgText": []
+      },
+      "file": "113-muse-spark-open.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/muse-spark-open.webp"
+    },
+    {
+      "order": 114,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-5-super-vl-120b-a12b.webp",
+      "context": {
+        "alt": "Figure 1: Nemotron 3.5 Super VL 120B-A12B",
+        "caption": "",
+        "heading": "Nemotron 3.5 Super VL (120B-A12B)",
+        "before": "Compare",
+        "after": "NVIDIA's vision-language model extends the Nemotron 3 Super backbone with C-RADIO vision encoding and shared-weight multi-token prediction. The figure shows the language backbone, with the vision encoder and MTP omitted.",
+        "svgText": []
+      },
+      "file": "114-nemotron-3-5-super-vl-120b-a12b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/nemotron-3-5-super-vl-120b-a12b.webp"
+    },
+    {
+      "order": 115,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/reflection-beam.webp",
+      "context": {
+        "alt": "Figure 1: Reflection Beam 501B",
+        "caption": "",
+        "heading": "Reflection Beam (501B)",
+        "before": "Compare",
+        "after": "Text-only MoE decoder with three dense FFN layers followed by 49 expert layers. Each MoE layer activates 8 of 256 experts without a shared expert.",
+        "svgText": []
+      },
+      "file": "115-reflection-beam.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/reflection-beam.webp"
+    },
+    {
+      "order": 116,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/dory-1-0-4b.webp",
+      "context": {
+        "alt": "Figure 1: Dory1.0 4B",
+        "caption": "",
+        "heading": "Dory1.0 (4B)",
+        "before": "Compare",
+        "after": "NVIDIA's dense looped transformer applies a shared 20-block core twice between 8-block input and output stacks, using normalized GPT (nGPT) residual updates.",
+        "svgText": []
+      },
+      "file": "116-dory-1-0-4b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/dory-1-0-4b.webp"
+    },
+    {
+      "order": 117,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/recursive-flint.webp",
+      "context": {
+        "alt": "Figure 1: Recursive Flint 40B-A2.5B",
+        "caption": "",
+        "heading": "Recursive Flint (40B-A2.5B)",
+        "before": "Compare",
+        "after": "Recursive's coding model uses two dense FFN layers followed by 47 MoE layers. The active-parameter count includes the output head.",
+        "svgText": []
+      },
+      "file": "117-recursive-flint.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/recursive-flint.webp"
+    },
+    {
+      "order": 118,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m3.1-flash.webp",
+      "context": {
+        "alt": "Figure 1: MiniMax M3.1-Flash 428B",
+        "caption": "",
+        "heading": "MiniMax M3.1-Flash (428B)",
+        "before": "Compare",
+        "after": "MiniMax M3 successor with sparse attention in all 60 decoder layers, quantization-aware training, and a DSpark draft head for speculative decoding.",
+        "svgText": []
+      },
+      "file": "118-minimax-m3-1-flash.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/minimax-m3.1-flash.webp"
+    },
+    {
+      "order": 119,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm3-1-7b.webp",
+      "context": {
+        "alt": "Figure 1: LFM3 1.7B",
+        "caption": "",
+        "heading": "LFM3 (1.7B)",
+        "before": "Compare",
+        "after": "Liquid AI's 1.73B dense hybrid combines short convolutions with sliding-window and global GQA in a 24-layer stack.",
+        "svgText": []
+      },
+      "file": "119-lfm3-1-7b.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/lfm3-1-7b.webp"
+    },
+    {
+      "order": 120,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-large-4.webp",
+      "context": {
+        "alt": "Figure 1: Mistral Large 4",
+        "caption": "",
+        "heading": "Mistral Large 4 (1T)",
+        "before": "Compare",
+        "after": "Mistral's trillion-parameter multimodal MoE combines MLA with sparse token selection and cross-layer KV sharing.",
+        "svgText": []
+      },
+      "file": "120-mistral-large-4.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/mistral-large-4.webp"
+    },
+    {
+      "order": 121,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k3-1-pro.webp",
+      "context": {
+        "alt": "Figure 1: Kimi K3.1 Pro",
+        "caption": "",
+        "heading": "Kimi K3.1 Pro (2.8T)",
+        "before": "Compare",
+        "after": "Post-trained from Kimi K3, with its 24 Gated MLA layers converted to Gated DeepSeek Sparse Attention. The figure shows the text backbone of this native multimodal model.",
+        "svgText": []
+      },
+      "file": "121-kimi-k3-1-pro.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/architectures/thumbnails/kimi-k3-1-pro.webp"
+    },
+    {
+      "order": 122,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/the-big-llm-architecture-comparison.webp",
+      "context": {
+        "alt": "The Big LLM Architecture Comparison overview figure",
+        "caption": "",
+        "heading": "The Big LLM Architecture Comparison",
+        "before": "The original comparison article that walks through the architecture figures in context and explains the key design choices across dense, MoE, MLA, and hybrid decoder families.",
+        "after": "Source article",
+        "svgText": []
+      },
+      "file": "122-the-big-llm-architecture-comparison.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/the-big-llm-architecture-comparison.webp",
+      "sourceOrder": 123
+    },
+    {
+      "order": 123,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/from-gpt-2-to-gpt-oss.webp",
+      "context": {
+        "alt": "From GPT-2 to gpt-oss: Analyzing the Architectural Advances hero image",
+        "caption": "",
+        "heading": "From GPT-2 to gpt-oss: Analyzing the Architectural Advances",
+        "before": "A focused follow-up article on the GPT-2 to gpt-oss shift, covering the architectural changes around RoPE, SwiGLU, MoE, GQA, sliding-window attention, and RMSNorm.",
+        "after": "Source article",
+        "svgText": []
+      },
+      "file": "123-from-gpt-2-to-gpt-oss.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/from-gpt-2-to-gpt-oss.webp",
+      "sourceOrder": 124
+    },
+    {
+      "order": 124,
+      "figureUrl": "https://sebastianraschka.com/images/blog/2025/technical-deepseek/hero.webp",
+      "context": {
+        "alt": "From DeepSeek V3 to V3.2: Architecture, Sparse Attention, and RL Updates hero image",
+        "caption": "",
+        "heading": "From DeepSeek V3 to V3.2: Architecture, Sparse Attention, and RL Updates",
+        "before": "A DeepSeek-focused follow-up covering the V3.2 architecture updates, sparse attention changes, and the broader RL-related developments around the release.",
+        "after": "Source article",
+        "svgText": []
+      },
+      "file": "124-hero.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/images/blog/2025/technical-deepseek/hero.webp",
+      "sourceOrder": 125
+    },
+    {
+      "order": 125,
+      "figureUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/a-dream-of-spring-for-open-weight.webp",
+      "context": {
+        "alt": "A Dream of Spring for Open-Weight LLMs hero image",
+        "caption": "",
+        "heading": "A Dream of Spring for Open-Weight LLMs",
+        "before": "Follow-up article covering the additional open-weight architecture releases from early 2026, including the newer MiniMax, Qwen, Ling, and Sarvam families.",
+        "after": "Canonical URL",
+        "svgText": []
+      },
+      "file": "125-a-dream-of-spring-for-open-weight.webp",
+      "status": "downloaded",
+      "sourceFormat": "webp",
+      "firstFrame": false,
+      "resolvedUrl": "https://sebastianraschka.com/llm-architecture-gallery/images/source-articles/a-dream-of-spring-for-open-weight.webp",
+      "sourceOrder": 126
+    }
+  ],
+  "title": "LLM Architecture Gallery",
+  "status": "retrieved"
+}

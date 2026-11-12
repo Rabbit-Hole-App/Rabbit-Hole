@@ -1,0 +1,305 @@
+{
+  "sourceUrl": "https://jalammar.github.io/illustrated-stable-diffusion/",
+  "group": "alammar",
+  "retrievedAt": "2026-11-09T10:07:52.880Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-text-to-image.png",
+      "file": "01-stable-diffusion-text-to-image.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-text-to-image.png"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-img2img-image-to-image.png",
+      "file": "02-stable-diffusion-img2img-image-to-image.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-img2img-image-to-image.png"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-text-understanding-component-image-generation.png",
+      "file": "03-stable-diffusion-text-understanding-component-image-generation.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-text-understanding-component-image-generation.png"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/Stable-diffusion-text-info-to-image-generator.png",
+      "file": "04-stable-diffusion-text-info-to-image-generator.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/Stable-diffusion-text-info-to-image-generator.png"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/Stable-diffusion-image-generator-information-creator.png",
+      "file": "05-stable-diffusion-image-generator-information-creator.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/Stable-diffusion-image-generator-information-creator.png"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-cliptext-unet-autoencoder-decoder.png",
+      "file": "06-stable-diffusion-cliptext-unet-autoencoder-decoder.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-cliptext-unet-autoencoder-decoder.png"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-components-and-tensors.png",
+      "file": "07-stable-diffusion-components-and-tensors.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-components-and-tensors.png"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-diffusion-process.png",
+      "file": "08-stable-diffusion-diffusion-process.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-diffusion-process.png"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-latent-space-pixel-space.png",
+      "file": "09-stable-diffusion-latent-space-pixel-space.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-latent-space-pixel-space.png"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-unet-steps.png",
+      "file": "10-stable-diffusion-unet-steps.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-unet-steps.png"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-denoising-steps-latents.png",
+      "file": "11-stable-diffusion-denoising-steps-latents.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-denoising-steps-latents.png"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-forward-diffusion-training-example.png",
+      "file": "12-stable-diffusion-forward-diffusion-training-example.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-forward-diffusion-training-example.png"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-forward-diffusion-training-example-2.png",
+      "file": "13-stable-diffusion-forward-diffusion-training-example-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-forward-diffusion-training-example-2.png"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-u-net-noise-training-examples-2.png",
+      "file": "14-stable-diffusion-u-net-noise-training-examples-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-u-net-noise-training-examples-2.png"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-u-net-noise-training-step.png",
+      "file": "15-stable-diffusion-u-net-noise-training-step.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-u-net-noise-training-step.png"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-denoising-step-1v2.png",
+      "file": "16-stable-diffusion-denoising-step-1v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-denoising-step-1v2.png"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-denoising-step-2v2.png",
+      "file": "17-stable-diffusion-denoising-step-2v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-denoising-step-2v2.png"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-image-generation-v2.png",
+      "file": "18-stable-diffusion-image-generation-v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-image-generation-v2.png"
+    },
+    {
+      "order": 19,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-autoencoder.png",
+      "file": "19-stable-diffusion-autoencoder.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-autoencoder.png"
+    },
+    {
+      "order": 20,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-latent-forward-process-v2.png",
+      "file": "20-stable-diffusion-latent-forward-process-v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-latent-forward-process-v2.png"
+    },
+    {
+      "order": 21,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-forward-and-reverse-process-v2.png",
+      "file": "21-stable-diffusion-forward-and-reverse-process-v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-forward-and-reverse-process-v2.png"
+    },
+    {
+      "order": 22,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/article-Figure3-1-1536x762.png",
+      "file": "22-article-figure3-1-1536x762.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/article-Figure3-1-1536x762.png"
+    },
+    {
+      "order": 23,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/text-language-models-clip-image-generation.png",
+      "file": "23-text-language-models-clip-image-generation.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/text-language-models-clip-image-generation.png"
+    },
+    {
+      "order": 24,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/images-and-captions-dataset.png",
+      "file": "24-images-and-captions-dataset.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/images-and-captions-dataset.png"
+    },
+    {
+      "order": 25,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/clip-training-step-1.png",
+      "file": "25-clip-training-step-1.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/clip-training-step-1.png"
+    },
+    {
+      "order": 26,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/clip-training-step-2.png",
+      "file": "26-clip-training-step-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/clip-training-step-2.png"
+    },
+    {
+      "order": 27,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/clip-training-step-3.png",
+      "file": "27-clip-training-step-3.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/clip-training-step-3.png"
+    },
+    {
+      "order": 28,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-unet-inputs-v2.png",
+      "file": "28-stable-diffusion-unet-inputs-v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-unet-inputs-v2.png"
+    },
+    {
+      "order": 29,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-text-dataset-v2.png",
+      "file": "29-stable-diffusion-text-dataset-v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/stable-diffusion-text-dataset-v2.png"
+    },
+    {
+      "order": 30,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/unet-inputs-outputs-v2.png",
+      "file": "30-unet-inputs-outputs-v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/unet-inputs-outputs-v2.png"
+    },
+    {
+      "order": 31,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/unit-resnet-steps-v2.png",
+      "file": "31-unit-resnet-steps-v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/unit-resnet-steps-v2.png"
+    },
+    {
+      "order": 32,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/unet-with-text-inputs-outputs-v2.png",
+      "file": "32-unet-with-text-inputs-outputs-v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/unet-with-text-inputs-outputs-v2.png"
+    },
+    {
+      "order": 33,
+      "figureUrl": "https://jalammar.github.io/images/stable-diffusion/unet-with-text-steps-v2.png",
+      "file": "33-unet-with-text-steps-v2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/stable-diffusion/unet-with-text-steps-v2.png"
+    }
+  ]
+}

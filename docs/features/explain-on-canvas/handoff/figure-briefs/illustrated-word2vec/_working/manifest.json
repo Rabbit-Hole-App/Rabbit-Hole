@@ -1,0 +1,1046 @@
+{
+  "sourceUrl": "https://jalammar.github.io/illustrated-word2vec/",
+  "group": "alammar",
+  "retrievedAt": "2026-11-09T17:31:20.590Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "The Illustrated Word2vec",
+        "before": "Discussions: Hacker News (347 points, 37 comments), Reddit r/MachineLearning (151 points, 19 comments) Translations: Chinese (Simplified), French, Korean, Portuguese, Russian",
+        "after": "I find the concept of embeddings to be one of the most fascinating ideas in machine learning. If you’ve ever used Siri, Google Assistant, Alexa, Google Translate, or even smartphone keyboard with next-word prediction, then chances are you’ve benefitted from this idea that has become central to Natural Language Processing models. There has been quite a development over the last couple of decades in using embeddings for neural models (Recent developments include contextualized word embeddings leading to cutting-edge models like BERT and GPT2).",
+        "svgText": []
+      },
+      "file": "01-word2vec.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec.png"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/big-five-personality-traits-score.png",
+      "context": {
+        "alt": "",
+        "caption": "Example of the result of a Big Five Personality Trait test. It can really tell you a lot about yourself and is shown to have predictive ability in academic, personal, and professional success. This is one place to find your results.",
+        "heading": "Personality Embeddings: What are you like?",
+        "before": "On a scale of 0 to 100, how introverted/extraverted are you (where 0 is the most introverted, and 100 is the most extraverted)? Have you ever taken a personality test like MBTI – or even better, the Big Five Personality Traits test? If you haven’t, these are tests that ask you a list of questions, then score you on a number of axes, introversion/extraversion being one of them.",
+        "after": "Imagine I’ve scored 38/100 as my introversion/extraversion score. we can plot that in this way:",
+        "svgText": []
+      },
+      "file": "02-big-five-personality-traits-score.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/big-five-personality-traits-score.png"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/introversion-extraversion-100.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Personality Embeddings: What are you like?",
+        "before": "Imagine I’ve scored 38/100 as my introversion/extraversion score. we can plot that in this way:",
+        "after": "Let’s switch the range to be from -1 to 1:",
+        "svgText": []
+      },
+      "file": "03-introversion-extraversion-100.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/introversion-extraversion-100.png"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/introversion-extraversion-1.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Personality Embeddings: What are you like?",
+        "before": "Let’s switch the range to be from -1 to 1:",
+        "after": "How well do you feel you know a person knowing only this one piece of information about them? Not much. People are complex. So let’s add another dimension – the score of one other trait from the test.",
+        "svgText": []
+      },
+      "file": "04-introversion-extraversion-1.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/introversion-extraversion-1.png"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/two-traits-vector.png",
+      "context": {
+        "alt": "",
+        "caption": "We can represent the two dimensions as a point on the graph, or better yet, as a vector from the origin to that point. We have incredible tools to deal with vectors that will come in handy very shortly.",
+        "heading": "Personality Embeddings: What are you like?",
+        "before": "How well do you feel you know a person knowing only this one piece of information about them? Not much. People are complex. So let’s add another dimension – the score of one other trait from the test.",
+        "after": "I’ve hidden which traits we’re plotting just so you get used to not knowing what each dimension represents – but still getting a lot of value from the vector representation of a person’s personality.",
+        "svgText": []
+      },
+      "file": "05-two-traits-vector.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/two-traits-vector.png"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/personality-two-persons.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Personality Embeddings: What are you like?",
+        "before": "We can now say that this vector partially represents my personality. The usefulness of such representation comes when you want to compare two other people to me. Say I get hit by a bus and I need to be replaced by someone with a similar personality. In the following figure, which of the two people is more similar to me?",
+        "after": "When dealing with vectors, a common way to calculate a similarity score is cosine_similarity:",
+        "svgText": []
+      },
+      "file": "06-personality-two-persons.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/personality-two-persons.png"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/cosine-similarity.png",
+      "context": {
+        "alt": "",
+        "caption": "Person #1 is more similar to me in personality. Vectors pointing at the same direction (length plays a role as well) have a higher cosine similarity score.",
+        "heading": "Personality Embeddings: What are you like?",
+        "before": "When dealing with vectors, a common way to calculate a similarity score is cosine_similarity:",
+        "after": "Yet again, two dimensions aren’t enough to capture enough information about how different people are. Decades of psychology research have led to five major traits (and plenty of sub-traits). So let’s use all five dimensions in our comparison:",
+        "svgText": []
+      },
+      "file": "07-cosine-similarity.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/cosine-similarity.png"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/big-five-vectors.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Personality Embeddings: What are you like?",
+        "before": "Yet again, two dimensions aren’t enough to capture enough information about how different people are. Decades of psychology research have led to five major traits (and plenty of sub-traits). So let’s use all five dimensions in our comparison:",
+        "after": "The problem with five dimensions is that we lose the ability to draw neat little arrows in two dimensions. This is a common challenge in machine learning where we often have to think in higher-dimensional space. The good thing is, though, that cosine_similarity still works. It works with any number of dimensions:",
+        "svgText": []
+      },
+      "file": "08-big-five-vectors.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/big-five-vectors.png"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/embeddings-cosine-personality.png",
+      "context": {
+        "alt": "",
+        "caption": "cosine_similarity works for any number of dimensions. These are much better scores because they're calculated based on a higher resolution representation of the things being compared.",
+        "heading": "Personality Embeddings: What are you like?",
+        "before": "The problem with five dimensions is that we lose the ability to draw neat little arrows in two dimensions. This is a common challenge in machine learning where we often have to think in higher-dimensional space. The good thing is, though, that cosine_similarity still works. It works with any number of dimensions:",
+        "after": "At the end of this section, I want us to come out with two central ideas:",
+        "svgText": []
+      },
+      "file": "09-embeddings-cosine-personality.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/embeddings-cosine-personality.png"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/section-1-takeaway-vectors-cosine.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Personality Embeddings: What are you like?",
+        "before": "At the end of this section, I want us to come out with two central ideas:",
+        "after": "With this understanding, we can proceed to look at trained word-vector examples (also called word embeddings) and start looking at some of their interesting properties.",
+        "svgText": []
+      },
+      "file": "10-section-1-takeaway-vectors-cosine.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/section-1-takeaway-vectors-cosine.png"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/king-white-embedding.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word Embeddings",
+        "before": "It’s a list of 50 numbers. We can’t tell much by looking at the values. But let’s visualize it a bit so we can compare it other word vectors. Let’s put all these numbers in one row:",
+        "after": "Let’s color code the cells based on their values (red if they’re close to 2, white if they’re close to 0, blue if they’re close to -2):",
+        "svgText": []
+      },
+      "file": "11-king-white-embedding.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/king-white-embedding.png"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/king-colored-embedding.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word Embeddings",
+        "before": "Let’s color code the cells based on their values (red if they’re close to 2, white if they’re close to 0, blue if they’re close to -2):",
+        "after": "We’ll proceed by ignoring the numbers and only looking at the colors to indicate the values of the cells. Let’s now contrast “King” against other words:",
+        "svgText": []
+      },
+      "file": "12-king-colored-embedding.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/king-colored-embedding.png"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/king-man-woman-embedding.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word Embeddings",
+        "before": "We’ll proceed by ignoring the numbers and only looking at the colors to indicate the values of the cells. Let’s now contrast “King” against other words:",
+        "after": "See how “Man” and “Woman” are much more similar to each other than either of them is to “king”? This tells you something. These vector representations capture quite a bit of the information/meaning/associations of these words.",
+        "svgText": []
+      },
+      "file": "13-king-man-woman-embedding.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/king-man-woman-embedding.png"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/queen-woman-girl-embeddings.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word Embeddings",
+        "before": "Here’s another list of examples (compare by vertically scanning the columns looking for columns with similar colors):",
+        "after": "A few things to point out:",
+        "svgText": []
+      },
+      "file": "14-queen-woman-girl-embeddings.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/queen-woman-girl-embeddings.png"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/king-man+woman-gensim.png",
+      "context": {
+        "alt": "",
+        "caption": "Using the Gensim library in python, we can add and subtract word vectors, and it would find the most similar words to the resulting vector. The image shows a list of the most similar words, each with its cosine similarity.",
+        "heading": "Analogies",
+        "before": "The famous examples that show an incredible property of embeddings is the concept of analogies. We can add and subtract word embeddings and arrive at interesting results. The most famous example is the formula: “king” - “man” + “woman”:",
+        "after": "We can visualize this analogy as we did previously:",
+        "svgText": []
+      },
+      "file": "15-king-man-woman-gensim.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/king-man+woman-gensim.png"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/king-analogy-viz.png",
+      "context": {
+        "alt": "",
+        "caption": "The resulting vector from \"king-man+woman\" doesn't exactly equal \"queen\", but \"queen\" is the closest word to it from the 400,000 word embeddings we have in this collection.",
+        "heading": "Analogies",
+        "before": "We can visualize this analogy as we did previously:",
+        "after": "Now that we’ve looked at trained word embeddings, let’s learn more about the training process. But before we get to word2vec, we need to look at a conceptual parent of word embeddings: the neural language model.",
+        "svgText": []
+      },
+      "file": "16-king-analogy-viz.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/king-analogy-viz.png"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/swiftkey-keyboard.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Language Modeling",
+        "before": "If one wanted to give an example of an NLP application, one of the best examples would be the next-word prediction feature of a smartphone keyboard. It’s a feature that billions of people use hundreds of times every day.",
+        "after": "Next-word prediction is a task that can be addressed by a language model. A language model can take a list of words (let’s say two words), and attempt to predict the word that follows them.",
+        "svgText": []
+      },
+      "file": "17-swiftkey-keyboard.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/swiftkey-keyboard.png"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/thou-shalt-_.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Language Modeling",
+        "before": "In the screenshot above, we can think of the model as one that took in these two green words (thou shalt) and returned a list of suggestions (“not” being the one with the highest probability):",
+        "after": "",
+        "svgText": []
+      },
+      "file": "18-thou-shalt.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/thou-shalt-_.png"
+    },
+    {
+      "order": 19,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/language_model_blackbox.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Language Modeling",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "19-language-model-blackbox.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/language_model_blackbox.png"
+    },
+    {
+      "order": 20,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/language_model_blackbox_output_vector.png",
+      "context": {
+        "alt": "",
+        "caption": "The output of the neural language model is a probability score for all the words the model knows. We're referring to the probability as a percentage here, but 40% would actually be represented as 0.4 in the output vector.",
+        "heading": "Language Modeling",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "20-language-model-blackbox-output-vector.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/language_model_blackbox_output_vector.png"
+    },
+    {
+      "order": 21,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/neural-language-model-prediction.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Language Modeling",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "21-neural-language-model-prediction.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/neural-language-model-prediction.png"
+    },
+    {
+      "order": 22,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/neural-language-model-embedding.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Language Modeling",
+        "before": "The first step is the most relevant for us as we discuss embeddings. One of the results of the training process was this matrix that contains an embedding for each word in our vocabulary. During prediction time, we just look up the embeddings of the input word, and use them to calculate the prediction:",
+        "after": "Let’s now turn to the training process to learn more about how this embedding matrix was developed.",
+        "svgText": []
+      },
+      "file": "22-neural-language-model-embedding.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/neural-language-model-embedding.png"
+    },
+    {
+      "order": 23,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/wikipedia-sliding-window.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Language Model Training",
+        "before": "Words get their embeddings by us looking at which other words they tend to appear next to. The mechanics of that is that",
+        "after": "As this window slides against the text, we (virtually) generate a dataset that we use to train a model. To look exactly at how that’s done, let’s see how the sliding window processes this phrase:",
+        "svgText": []
+      },
+      "file": "23-wikipedia-sliding-window.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/wikipedia-sliding-window.png"
+    },
+    {
+      "order": 24,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/lm-sliding-window.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Language Model Training",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "24-lm-sliding-window.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/lm-sliding-window.png"
+    },
+    {
+      "order": 25,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/lm-sliding-window-2.png",
+      "context": {
+        "alt": "",
+        "caption": "We now have generated the first sample in the dataset we can later use to train a language model.",
+        "heading": "Language Model Training",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "25-lm-sliding-window-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/lm-sliding-window-2.png"
+    },
+    {
+      "order": 26,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/lm-sliding-window-3.png",
+      "context": {
+        "alt": "",
+        "caption": "An the second example is now generated.",
+        "heading": "Language Model Training",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "26-lm-sliding-window-3.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/lm-sliding-window-3.png"
+    },
+    {
+      "order": 27,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/lm-sliding-window-4.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Language Model Training",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "27-lm-sliding-window-4.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/lm-sliding-window-4.png"
+    },
+    {
+      "order": 28,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/jay_was_hit_by_a_.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Look both ways",
+        "before": "Knowing what you know from earlier in the post, fill in the blank:",
+        "after": "The context I gave you here is five words before the blank word (and an earlier mention of “bus”). I’m sure most people would guess the word bus goes into the blank. But what if I gave you one more piece of information – a word after the blank, would that change your answer?",
+        "svgText": []
+      },
+      "file": "28-jay-was-hit-by-a.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/jay_was_hit_by_a_.png"
+    },
+    {
+      "order": 29,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/jay_was_hit_by_a_bus.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Look both ways",
+        "before": "The context I gave you here is five words before the blank word (and an earlier mention of “bus”). I’m sure most people would guess the word bus goes into the blank. But what if I gave you one more piece of information – a word after the blank, would that change your answer?",
+        "after": "This completely changes what should go in the blank. the word red is now the most likely to go into the blank. What we learn from this is the words both before and after a specific word carry informational value. It turns out that accounting for both directions (words to the left and to the right of the word we’re guessing) leads to better word embeddings. Let’s see how we can adjust the way we’re training the model to account for this.",
+        "svgText": []
+      },
+      "file": "29-jay-was-hit-by-a-bus.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/jay_was_hit_by_a_bus.png"
+    },
+    {
+      "order": 30,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/continuous-bag-of-words-example.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Skipgram",
+        "before": "Instead of only looking two words before the target word, we can also look at two words after it.",
+        "after": "If we do this, the dataset we’re virtually building and training the model against would look like this:",
+        "svgText": []
+      },
+      "file": "30-continuous-bag-of-words-example.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/continuous-bag-of-words-example.png"
+    },
+    {
+      "order": 31,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/continuous-bag-of-words-dataset.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Skipgram",
+        "before": "If we do this, the dataset we’re virtually building and training the model against would look like this:",
+        "after": "This is called a Continuous Bag of Words architecture and is described in one of the word2vec papers [pdf]. Another architecture that also tended to show great results does things a little differently.",
+        "svgText": []
+      },
+      "file": "31-continuous-bag-of-words-dataset.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/continuous-bag-of-words-dataset.png"
+    },
+    {
+      "order": 32,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window.png",
+      "context": {
+        "alt": "",
+        "caption": "The word in the green slot would be the input word, each pink box would be a possible output.",
+        "heading": "Skipgram",
+        "before": "Instead of guessing a word based on its context (the words before and after it), this other architecture tries to guess neighboring words using the current word. We can think of the window it slides against the training text as looking like this:",
+        "after": "The pink boxes are in different shades because this sliding window actually creates four separate samples in our training dataset:",
+        "svgText": []
+      },
+      "file": "32-skipgram-sliding-window.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window.png"
+    },
+    {
+      "order": 33,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-samples.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Skipgram",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "33-skipgram-sliding-window-samples.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-samples.png"
+    },
+    {
+      "order": 34,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-1.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Skipgram",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "34-skipgram-sliding-window-1.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-1.png"
+    },
+    {
+      "order": 35,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-2.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Skipgram",
+        "before": "",
+        "after": "We then slide our window to the next position:",
+        "svgText": []
+      },
+      "file": "35-skipgram-sliding-window-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-2.png"
+    },
+    {
+      "order": 36,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-3.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Skipgram",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "36-skipgram-sliding-window-3.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-3.png"
+    },
+    {
+      "order": 37,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-4.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Skipgram",
+        "before": "",
+        "after": "A couple of positions later, we have a lot more examples:",
+        "svgText": []
+      },
+      "file": "37-skipgram-sliding-window-4.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-4.png"
+    },
+    {
+      "order": 38,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-5.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Skipgram",
+        "before": "",
+        "after": "Now that we have our skipgram training dataset that we extracted from existing running text, let’s glance at how we use it to train a basic neural language model that predicts the neighboring word.",
+        "svgText": []
+      },
+      "file": "38-skipgram-sliding-window-5.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-sliding-window-5.png"
+    },
+    {
+      "order": 39,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Revisiting the training process",
+        "before": "",
+        "after": "We start with the first sample in our dataset. We grab the feature and feed to the untrained model asking it to predict an appropriate neighboring word.",
+        "svgText": []
+      },
+      "file": "39-skipgram-language-model-training.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training.png"
+    },
+    {
+      "order": 40,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training-2.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Revisiting the training process",
+        "before": "",
+        "after": "The model conducts the three steps and outputs a prediction vector (with a probability assigned to each word in its vocabulary). Since the model is untrained, it’s prediction is sure to be wrong at this stage. But that’s okay. We know what word it should have guessed – the label/output cell in the row we’re currently using to train the model:",
+        "svgText": []
+      },
+      "file": "40-skipgram-language-model-training-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training-2.png"
+    },
+    {
+      "order": 41,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training-3.png",
+      "context": {
+        "alt": "",
+        "caption": "The 'target vector' is one where the target word has the probability 1, and all other words have the probability 0.",
+        "heading": "Revisiting the training process",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "41-skipgram-language-model-training-3.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training-3.png"
+    },
+    {
+      "order": 42,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training-4.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Revisiting the training process",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "42-skipgram-language-model-training-4.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training-4.png"
+    },
+    {
+      "order": 43,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training-5.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Revisiting the training process",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "43-skipgram-language-model-training-5.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-language-model-training-5.png"
+    },
+    {
+      "order": 44,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/language-model-expensive.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Negative Sampling",
+        "before": "Recall the three steps of how this neural language model calculates its prediction:",
+        "after": "",
+        "svgText": []
+      },
+      "file": "44-language-model-expensive.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/language-model-expensive.png"
+    },
+    {
+      "order": 45,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/predict-neighboring-word.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Negative Sampling",
+        "before": "We’ll focus on step 1. in this post as we’re focusing on embeddings. To generate high-quality embeddings using a high-performance model, we can switch the model’s task from predicting a neighboring word:",
+        "after": "And switch it to a model that takes the input and output word, and outputs a score indicating if they’re neighbors or not (0 for “not neighbors”, 1 for “neighbors”).",
+        "svgText": []
+      },
+      "file": "45-predict-neighboring-word.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/predict-neighboring-word.png"
+    },
+    {
+      "order": 46,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/are-the-words-neighbors.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Negative Sampling",
+        "before": "And switch it to a model that takes the input and output word, and outputs a score indicating if they’re neighbors or not (0 for “not neighbors”, 1 for “neighbors”).",
+        "after": "This simple switch changes the model we need from a neural network, to a logistic regression model – thus it becomes much simpler and much faster to calculate.",
+        "svgText": []
+      },
+      "file": "46-are-the-words-neighbors.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/are-the-words-neighbors.png"
+    },
+    {
+      "order": 47,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-dataset.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Negative Sampling",
+        "before": "",
+        "after": "",
+        "svgText": []
+      },
+      "file": "47-word2vec-training-dataset.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-dataset.png"
+    },
+    {
+      "order": 48,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-smartass-model.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Negative Sampling",
+        "before": "This can now be computed at blazing speed – processing millions of examples in minutes. But there’s one loophole we need to close. If all of our examples are positive (target: 1), we open ourself to the possibility of a smartass model that always returns 1 – achieving 100% accuracy, but learning nothing and generating garbage embeddings.",
+        "after": "To address this, we need to introduce negative samples to our dataset – samples of words that are not neighbors. Our model needs to return 0 for those samples. Now that’s a challenge that the model has to work hard to solve – but still at blazing fast speed.",
+        "svgText": []
+      },
+      "file": "48-word2vec-smartass-model.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-smartass-model.png"
+    },
+    {
+      "order": 49,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-negative-sampling.png",
+      "context": {
+        "alt": "",
+        "caption": "For each sample in our dataset, we add negative examples. Those have the same input word, and a 0 label.",
+        "heading": "Negative Sampling",
+        "before": "",
+        "after": "But what do we fill in as output words? We randomly sample words from our vocabulary",
+        "svgText": []
+      },
+      "file": "49-word2vec-negative-sampling.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-negative-sampling.png"
+    },
+    {
+      "order": 50,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-negative-sampling-2.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Negative Sampling",
+        "before": "",
+        "after": "This idea is inspired by Noise-contrastive estimation [pdf]. We are contrasting the actual signal (positive examples of neighboring words) with noise (randomly selected words that are not neighbors). This leads to a great tradeoff of computational and statistical efficiency.",
+        "svgText": []
+      },
+      "file": "50-word2vec-negative-sampling-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-negative-sampling-2.png"
+    },
+    {
+      "order": 51,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/skipgram-with-negative-sampling.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Skipgram with Negative Sampling (SGNS)",
+        "before": "We have now covered two of the central ideas in word2vec: as a pair, they’re called skipgram with negative sampling.",
+        "after": "Now that we’ve established the two central ideas of skipgram and negative sampling, we can proceed to look closer at the actual word2vec training process.",
+        "svgText": []
+      },
+      "file": "51-skipgram-with-negative-sampling.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/skipgram-with-negative-sampling.png"
+    },
+    {
+      "order": 52,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-embedding-context-matrix.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word2vec Training Process",
+        "before": "At the start of the training phase, we create two matrices – an Embedding matrix and a Context matrix. These two matrices have an embedding for each word in our vocabulary (So vocab_size is one of their dimensions). The second dimension is how long we want each embedding to be (embedding_size – 300 is a common value, but we’ve looked at an example of 50 earlier in this post).",
+        "after": "At the start of the training process, we initialize these matrices with random values. Then we start the training process. In each training step, we take one positive example and its associated negative examples. Let’s take our first group:",
+        "svgText": []
+      },
+      "file": "52-word2vec-embedding-context-matrix.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-embedding-context-matrix.png"
+    },
+    {
+      "order": 53,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-example.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word2vec Training Process",
+        "before": "At the start of the training process, we initialize these matrices with random values. Then we start the training process. In each training step, we take one positive example and its associated negative examples. Let’s take our first group:",
+        "after": "Now we have four words: the input word not and output/context words: thou (the actual neighbor), aaron, and taco (the negative examples). We proceed to look up their embeddings – for the input word, we look in the Embedding matrix. For the context words, we look in the Context matrix (even though both matrices have an embedding for every word in our vocabulary).",
+        "svgText": []
+      },
+      "file": "53-word2vec-training-example.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-example.png"
+    },
+    {
+      "order": 54,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-lookup-embeddings.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word2vec Training Process",
+        "before": "Now we have four words: the input word not and output/context words: thou (the actual neighbor), aaron, and taco (the negative examples). We proceed to look up their embeddings – for the input word, we look in the Embedding matrix. For the context words, we look in the Context matrix (even though both matrices have an embedding for every word in our vocabulary).",
+        "after": "Then, we take the dot product of the input embedding with each of the context embeddings. In each case, that would result in a number, that number indicates the similarity of the input and context embeddings",
+        "svgText": []
+      },
+      "file": "54-word2vec-lookup-embeddings.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-lookup-embeddings.png"
+    },
+    {
+      "order": 55,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-dot-product.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word2vec Training Process",
+        "before": "Then, we take the dot product of the input embedding with each of the context embeddings. In each case, that would result in a number, that number indicates the similarity of the input and context embeddings",
+        "after": "Now we need a way to turn these scores into something that looks like probabilities – we need them to all be positive and have values between zero and one. This is a great task for sigmoid, the logistic operation.",
+        "svgText": []
+      },
+      "file": "55-word2vec-training-dot-product.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-dot-product.png"
+    },
+    {
+      "order": 56,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-dot-product-sigmoid.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word2vec Training Process",
+        "before": "Now we need a way to turn these scores into something that looks like probabilities – we need them to all be positive and have values between zero and one. This is a great task for sigmoid, the logistic operation.",
+        "after": "And we can now treat the output of the sigmoid operations as the model’s output for these examples. You can see that taco has the highest score and aaron still has the lowest score both before and after the sigmoid operations.",
+        "svgText": []
+      },
+      "file": "56-word2vec-training-dot-product-sigmoid.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-dot-product-sigmoid.png"
+    },
+    {
+      "order": 57,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-error.png",
+      "context": {
+        "alt": "",
+        "caption": "error = target - sigmoid_scores",
+        "heading": "Word2vec Training Process",
+        "before": "Now that the untrained model has made a prediction, and seeing as though we have an actual target label to compare against, let’s calculate how much error is in the model’s prediction. To do that, we just subtract the sigmoid scores from the target labels.",
+        "after": "",
+        "svgText": []
+      },
+      "file": "57-word2vec-training-error.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-error.png"
+    },
+    {
+      "order": 58,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-update.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word2vec Training Process",
+        "before": "Here comes the “learning” part of “machine learning”. We can now use this error score to adjust the embeddings of not, thou, aaron, and taco so that the next time we make this calculation, the result would be closer to the target scores.",
+        "after": "This concludes the training step. We emerge from it with slightly better embeddings for the words involved in this step (not, thou, aaron, and taco). We now proceed to our next step (the next positive sample and its associated negative samples) and do the same process again.",
+        "svgText": []
+      },
+      "file": "58-word2vec-training-update.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-update.png"
+    },
+    {
+      "order": 59,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-example-2.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word2vec Training Process",
+        "before": "This concludes the training step. We emerge from it with slightly better embeddings for the words involved in this step (not, thou, aaron, and taco). We now proceed to our next step (the next positive sample and its associated negative samples) and do the same process again.",
+        "after": "The embeddings continue to be improved while we cycle through our entire dataset for a number of times. We can then stop the training process, discard the Context matrix, and use the Embeddings matrix as our pre-trained embeddings for the next task.",
+        "svgText": []
+      },
+      "file": "59-word2vec-training-example-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-training-example-2.png"
+    },
+    {
+      "order": 60,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-window-size.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Window Size and Number of Negative Samples",
+        "before": "Two key hyperparameters in the word2vec training process are the window size and the number of negative samples.",
+        "after": "Different tasks are served better by different window sizes. One heuristic is that smaller window sizes (2-15) lead to embeddings where high similarity scores between two embeddings indicates that the words are interchangeable (notice that antonyms are often interchangable if we’re only looking at their surrounding words – e.g. good and bad often appear in similar contexts). Larger window sizes (15-50, or even more) lead to embeddings where similarity is more indicative of relatedness of the words. In practice, you’ll often have to provide annotations that guide the embedding process leading to a useful similarity sense for your task. The Gensim default window size is 5 (five words before and five words after the input word, in addition to the input word itself).",
+        "svgText": []
+      },
+      "file": "60-word2vec-window-size.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-window-size.png"
+    },
+    {
+      "order": 61,
+      "figureUrl": "https://jalammar.github.io/images/word2vec/word2vec-negative-samples.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Window Size and Number of Negative Samples",
+        "before": "Different tasks are served better by different window sizes. One heuristic is that smaller window sizes (2-15) lead to embeddings where high similarity scores between two embeddings indicates that the words are interchangeable (notice that antonyms are often interchangable if we’re only looking at their surrounding words – e.g. good and bad often appear in similar contexts). Larger window sizes (15-50, or even more) lead to embeddings where similarity is more indicative of relatedness of the words. In practice, you’ll often have to provide annotations that guide the embedding process leading to a useful similarity sense for your task. The Gensim default window size is 5 (five words before and five words after the input word, in addition to the input word itself).",
+        "after": "The number of negative samples is another factor of the training process. The original paper prescribes 5-20 as being a good number of negative samples. It also states that 2-5 seems to be enough when you have a large enough dataset. The Gensim default is 5 negative samples.",
+        "svgText": []
+      },
+      "file": "61-word2vec-negative-samples.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/word2vec/word2vec-negative-samples.png"
+    }
+  ],
+  "title": "The Illustrated Word2vec",
+  "status": "retrieved"
+}

@@ -1,0 +1,89 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_multilayer-perceptrons/dropout.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:09:49.309Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/dropout2.svg",
+      "file": "01-dropout2.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/dropout2.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_dropout_1110bf_63_0.svg",
+      "file": "02-output-dropout-1110bf-63-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_dropout_1110bf_63_0.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_dropout_1110bf_66_0.svg",
+      "file": "03-output-dropout-1110bf-66-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_dropout_1110bf_66_0.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_dropout_1110bf_69_0.svg",
+      "file": "04-output-dropout-1110bf-69-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_dropout_1110bf_69_0.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_dropout_1110bf_72_0.svg",
+      "file": "05-output-dropout-1110bf-72-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_dropout_1110bf_72_0.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_dropout_1110bf_95_0.svg",
+      "file": "06-output-dropout-1110bf-95-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_dropout_1110bf_95_0.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_dropout_1110bf_98_0.svg",
+      "file": "07-output-dropout-1110bf-98-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_dropout_1110bf_98_0.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_dropout_1110bf_101_0.svg",
+      "file": "08-output-dropout-1110bf-101-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_dropout_1110bf_101_0.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_dropout_1110bf_104_0.svg",
+      "file": "09-output-dropout-1110bf-104-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_dropout_1110bf_104_0.svg"
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_attention-mechanisms-and-transformers/bahdanau-attention.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:14:04.078Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/seq2seq-state.svg",
+      "file": "01-seq2seq-state.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/seq2seq-state.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/seq2seq-details-attention.svg",
+      "file": "02-seq2seq-details-attention.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/seq2seq-details-attention.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_60_0.svg",
+      "file": "03-output-bahdanau-attention-dd4710-60-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_60_0.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_63_0.svg",
+      "file": "04-output-bahdanau-attention-dd4710-63-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_63_0.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_66_0.svg",
+      "file": "05-output-bahdanau-attention-dd4710-66-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_66_0.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_69_0.svg",
+      "file": "06-output-bahdanau-attention-dd4710-69-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_69_0.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_90_0.svg",
+      "file": "07-output-bahdanau-attention-dd4710-90-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_90_0.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_93_0.svg",
+      "file": "08-output-bahdanau-attention-dd4710-93-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_93_0.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_96_0.svg",
+      "file": "09-output-bahdanau-attention-dd4710-96-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_96_0.svg"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_99_0.svg",
+      "file": "10-output-bahdanau-attention-dd4710-99-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_bahdanau-attention_dd4710_99_0.svg"
+    }
+  ]
+}

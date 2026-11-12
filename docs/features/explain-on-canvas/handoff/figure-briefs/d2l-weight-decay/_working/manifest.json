@@ -1,0 +1,374 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_linear-regression/weight-decay.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:33:38.217Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_78_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_78_1.svg",
+        "caption": "",
+        "heading": "3.7.3.3. Training without Regularization",
+        "before": "We now run this code with lambd = 0, disabling weight decay. Note that we overfit badly, decreasing the training error but not the validation error—a textbook case of overfitting.",
+        "after": "Below, we run with substantial weight decay. Note that the training error increases but the validation error decreases. This is precisely the effect we expect from regularization.",
+        "svgText": [
+          "CE ee",
+          "10-4 J",
+          "— train_loss",
+          "-=- val_loss",
+          "T",
+          "T",
+          "T",
+          "0",
+          "2",
+          "4",
+          "6",
+          "8",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "01-output-weight-decay-63fc98-78-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_78_1.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_81_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_81_1.svg",
+        "caption": "",
+        "heading": "3.7.3.3. Training without Regularization",
+        "before": "We now run this code with lambd = 0, disabling weight decay. Note that we overfit badly, decreasing the training error but not the validation error—a textbook case of overfitting.",
+        "after": "Below, we run with substantial weight decay. Note that the training error increases but the validation error decreases. This is precisely the effect we expect from regularization.",
+        "svgText": [
+          "= eee eee ee",
+          "10-4",
+          "— train_loss",
+          "10-> 3 =-- val_loss",
+          "T",
+          "T",
+          "T",
+          "0",
+          "2",
+          "4",
+          "6",
+          "8",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "02-output-weight-decay-63fc98-81-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_81_1.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_84_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_84_1.svg",
+        "caption": "",
+        "heading": "3.7.3.3. Training without Regularization",
+        "before": "We now run this code with lambd = 0, disabling weight decay. Note that we overfit badly, decreasing the training error but not the validation error—a textbook case of overfitting.",
+        "after": "Below, we run with substantial weight decay. Note that the training error increases but the validation error decreases. This is precisely the effect we expect from regularization.",
+        "svgText": [
+          "= eee eee ee",
+          "10-? |",
+          "10-3 |",
+          "10-4 |",
+          "— train_loss",
+          "107° 4",
+          "-=- val_loss",
+          "T",
+          "T",
+          "T",
+          "0",
+          "2",
+          "4",
+          "6",
+          "8",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "03-output-weight-decay-63fc98-84-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_84_1.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_87_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_87_1.svg",
+        "caption": "",
+        "heading": "3.7.3.3. Training without Regularization",
+        "before": "We now run this code with lambd = 0, disabling weight decay. Note that we overfit badly, decreasing the training error but not the validation error—a textbook case of overfitting.",
+        "after": "Below, we run with substantial weight decay. Note that the training error increases but the validation error decreases. This is precisely the effect we expect from regularization.",
+        "svgText": [
+          "es eee eee eee eee",
+          "10-4 - —— train_loss",
+          "-=- val_loss",
+          "T",
+          "T",
+          "T",
+          "0",
+          "2",
+          "4",
+          "6",
+          "8",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "04-output-weight-decay-63fc98-87-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_87_1.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_93_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_93_1.svg",
+        "caption": "",
+        "heading": "3.7.3.4. Using Weight Decay",
+        "before": "Below, we run with substantial weight decay. Note that the training error increases but the validation error decreases. This is precisely the effect we expect from regularization.",
+        "after": "Because weight decay is ubiquitous in neural network optimization, the deep learning framework makes it especially convenient, integrating weight decay into the optimization algorithm itself for easy use in combination with any loss function. Moreover, this integration serves a computational benefit, allowing implementation tricks to add weight decay to the algorithm, without any additional computational overhead. Since the weight decay portion of the update depends only on the current value of each parameter, the optimizer must touch each parameter once anyway.",
+        "svgText": [
+          "— train_loss",
+          "--- val_loss",
+          "~~",
+          "oT ase |",
+          "10-2 -",
+          "0",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "05-output-weight-decay-63fc98-93-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_93_1.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_96_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_96_1.svg",
+        "caption": "",
+        "heading": "3.7.3.4. Using Weight Decay",
+        "before": "Below, we run with substantial weight decay. Note that the training error increases but the validation error decreases. This is precisely the effect we expect from regularization.",
+        "after": "Because weight decay is ubiquitous in neural network optimization, the deep learning framework makes it especially convenient, integrating weight decay into the optimization algorithm itself for easy use in combination with any loss function. Moreover, this integration serves a computational benefit, allowing implementation tricks to add weight decay to the algorithm, without any additional computational overhead. Since the weight decay portion of the update depends only on the current value of each parameter, the optimizer must touch each parameter once anyway.",
+        "svgText": [
+          "— train_loss",
+          "--- val_loss",
+          "aoe",
+          "ee ee ~._|",
+          "10-2 5",
+          "0",
+          "2",
+          "4",
+          "6",
+          "8",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "06-output-weight-decay-63fc98-96-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_96_1.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_99_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_99_1.svg",
+        "caption": "",
+        "heading": "3.7.3.4. Using Weight Decay",
+        "before": "Below, we run with substantial weight decay. Note that the training error increases but the validation error decreases. This is precisely the effect we expect from regularization.",
+        "after": "Because weight decay is ubiquitous in neural network optimization, the deep learning framework makes it especially convenient, integrating weight decay into the optimization algorithm itself for easy use in combination with any loss function. Moreover, this integration serves a computational benefit, allowing implementation tricks to add weight decay to the algorithm, without any additional computational overhead. Since the weight decay portion of the update depends only on the current value of each parameter, the optimizer must touch each parameter once anyway.",
+        "svgText": [
+          "— train_loss",
+          "--- val_loss",
+          "=",
+          "“se J",
+          "10-2 7",
+          "0",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "07-output-weight-decay-63fc98-99-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_99_1.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_102_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_102_1.svg",
+        "caption": "",
+        "heading": "3.7.3.4. Using Weight Decay",
+        "before": "Below, we run with substantial weight decay. Note that the training error increases but the validation error decreases. This is precisely the effect we expect from regularization.",
+        "after": "Because weight decay is ubiquitous in neural network optimization, the deep learning framework makes it especially convenient, integrating weight decay into the optimization algorithm itself for easy use in combination with any loss function. Moreover, this integration serves a computational benefit, allowing implementation tricks to add weight decay to the algorithm, without any additional computational overhead. Since the weight decay portion of the update depends only on the current value of each parameter, the optimizer must touch each parameter once anyway.",
+        "svgText": [
+          "— train_loss",
+          "--- val_loss",
+          "ws",
+          "= a ~~.",
+          "10-2",
+          "0",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "08-output-weight-decay-63fc98-102-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_102_1.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_126_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_126_1.svg",
+        "caption": "",
+        "heading": "3.7.4. Concise Implementation",
+        "before": "The plot looks similar to that when we implemented weight decay from scratch. However, this version runs faster and is easier to implement, benefits that will become more pronounced as you address larger problems and this work becomes more routine.",
+        "after": "So far, we have touched upon one notion of what constitutes a simple linear function. However, even for simple nonlinear functions, the situation can be much more complex. To see this, the concept of reproducing kernel Hilbert space (RKHS) allows one to apply tools introduced for linear functions in a nonlinear context. Unfortunately, RKHS-based algorithms tend to scale poorly to large, high-dimensional data. In this book we will often adopt the common heuristic whereby weight decay is applied to all layers of a deep network.",
+        "svgText": [
+          "10-1 4",
+          "ee",
+          "10°? -",
+          "— train_loss",
+          "8 val_loss",
+          "10-3 -",
+          "2",
+          "4",
+          "6",
+          "8",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "09-output-weight-decay-63fc98-126-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_126_1.svg"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_129_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_129_1.svg",
+        "caption": "",
+        "heading": "3.7.4. Concise Implementation",
+        "before": "The plot looks similar to that when we implemented weight decay from scratch. However, this version runs faster and is easier to implement, benefits that will become more pronounced as you address larger problems and this work becomes more routine.",
+        "after": "So far, we have touched upon one notion of what constitutes a simple linear function. However, even for simple nonlinear functions, the situation can be much more complex. To see this, the concept of reproducing kernel Hilbert space (RKHS) allows one to apply tools introduced for linear functions in a nonlinear context. Unfortunately, RKHS-based algorithms tend to scale poorly to large, high-dimensional data. In this book we will often adopt the common heuristic whereby weight decay is applied to all layers of a deep network.",
+        "svgText": [
+          "— me et se",
+          "TT |",
+          "10-2 4",
+          "—— train_loss",
+          "=== val_loss",
+          "10-3 7",
+          "0",
+          "2",
+          "4",
+          "6",
+          "8",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "10-output-weight-decay-63fc98-129-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_129_1.svg"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_132_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_132_1.svg",
+        "caption": "",
+        "heading": "3.7.4. Concise Implementation",
+        "before": "The plot looks similar to that when we implemented weight decay from scratch. However, this version runs faster and is easier to implement, benefits that will become more pronounced as you address larger problems and this work becomes more routine.",
+        "after": "So far, we have touched upon one notion of what constitutes a simple linear function. However, even for simple nonlinear functions, the situation can be much more complex. To see this, the concept of reproducing kernel Hilbert space (RKHS) allows one to apply tools introduced for linear functions in a nonlinear context. Unfortunately, RKHS-based algorithms tend to scale poorly to large, high-dimensional data. In this book we will often adopt the common heuristic whereby weight decay is applied to all layers of a deep network.",
+        "svgText": [
+          "A ee ee me",
+          "= ee ee ee ee ee oe",
+          "10°? -",
+          "—— train_loss",
+          "-=- val_loss",
+          "10°? -",
+          "0",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "11-output-weight-decay-63fc98-132-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_132_1.svg"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_135_1.svg",
+      "context": {
+        "alt": "../_images/output_weight-decay_63fc98_135_1.svg",
+        "caption": "",
+        "heading": "3.7.4. Concise Implementation",
+        "before": "The plot looks similar to that when we implemented weight decay from scratch. However, this version runs faster and is easier to implement, benefits that will become more pronounced as you address larger problems and this work becomes more routine.",
+        "after": "So far, we have touched upon one notion of what constitutes a simple linear function. However, even for simple nonlinear functions, the situation can be much more complex. To see this, the concept of reproducing kernel Hilbert space (RKHS) allows one to apply tools introduced for linear functions in a nonlinear context. Unfortunately, RKHS-based algorithms tend to scale poorly to large, high-dimensional data. In this book we will often adopt the common heuristic whereby weight decay is applied to all layers of a deep network.",
+        "svgText": [
+          "107! 4",
+          "— train_loss",
+          "--- val_loss",
+          "— me oe ee",
+          "=e oe",
+          "10-2 4",
+          "0",
+          "10",
+          "epoch"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "12-output-weight-decay-63fc98-135-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_weight-decay_63fc98_135_1.svg"
+    }
+  ],
+  "title": "3.7. Weight Decay SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

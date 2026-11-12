@@ -1,0 +1,53 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_attention-mechanisms-and-transformers/queries-keys-values.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:13:15.866Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/qkv.svg",
+      "file": "01-qkv.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/qkv.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_33_0.svg",
+      "file": "02-output-queries-keys-values-7fe0e8-33-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_33_0.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_36_1.svg",
+      "file": "03-output-queries-keys-values-7fe0e8-36-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_36_1.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_39_0.svg",
+      "file": "04-output-queries-keys-values-7fe0e8-39-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_39_0.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_42_0.svg",
+      "file": "05-output-queries-keys-values-7fe0e8-42-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_queries-keys-values_7fe0e8_42_0.svg"
+    }
+  ]
+}

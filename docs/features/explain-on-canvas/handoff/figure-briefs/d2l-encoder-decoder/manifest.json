@@ -1,0 +1,17 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_recurrent-modern/encoder-decoder.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:39:42.434Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/encoder-decoder.svg",
+      "file": "01-encoder-decoder.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/encoder-decoder.svg"
+    }
+  ]
+}

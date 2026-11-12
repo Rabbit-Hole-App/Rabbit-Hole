@@ -1,0 +1,44 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_convolutional-neural-networks/pooling.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:36:56.272Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/pooling.svg",
+      "context": {
+        "alt": "../_images/pooling.svg",
+        "caption": "Fig. 7.5.1 Max-pooling with a pooling window shape of \\(2\\times 2\\). The shaded portions are the first output element as well as the input tensor elements used for the output computation: \\(\\max(0, 1, 3, 4)=4\\).",
+        "heading": "7.5.1. Maximum Pooling and Average Pooling",
+        "before": "In both cases, as with the cross-correlation operator, we can think of the pooling window as starting from the upper-left of the input tensor and sliding across it from left to right and top to bottom. At each location that the pooling window hits, it computes the maximum or average value of the input subtensor in the window, depending on whether max or average pooling is employed.",
+        "after": "The output tensor in Fig. 7.5.1 has a height of 2 and a width of 2. The four elements are derived from the maximum value in each pooling window:",
+        "svgText": [
+          "Input",
+          "Output",
+          "0",
+          "1",
+          "2",
+          "4",
+          "5",
+          "3",
+          "4",
+          "2x2",
+          "Max-pooling",
+          "7",
+          "8",
+          "6",
+          "7",
+          "8"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "01-pooling.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/pooling.svg"
+    }
+  ],
+  "title": "7.5. Pooling SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

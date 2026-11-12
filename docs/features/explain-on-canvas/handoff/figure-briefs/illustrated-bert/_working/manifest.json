@@ -1,0 +1,468 @@
+{
+  "sourceUrl": "https://jalammar.github.io/illustrated-bert/",
+  "group": "alammar",
+  "retrievedAt": "2026-11-09T17:29:47.501Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://jalammar.github.io/images/transformer-ber-ulmfit-elmo.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "The Illustrated BERT, ELMo, and co. (How NLP Cracked Transfer Learning)",
+        "before": "The year 2018 has been an inflection point for machine learning models handling text (or more accurately, Natural Language Processing or NLP for short). Our conceptual understanding of how best to represent words and sentences in a way that best captures underlying meanings and relationships is rapidly evolving. Moreover, the NLP community has been putting forward incredibly powerful components that you can freely download and use in your own models and pipelines (It’s been referred to as NLP’s ImageNet moment, referencing how years ago similar developments accelerated the development of machine learning in Computer Vision tasks).",
+        "after": "(ULM-FiT has nothing to do with Cookie Monster. But I couldn’t think of anything else..)",
+        "svgText": []
+      },
+      "file": "01-transformer-ber-ulmfit-elmo.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/transformer-ber-ulmfit-elmo.png"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://jalammar.github.io/images/bert-transfer-learning.png",
+      "context": {
+        "alt": "",
+        "caption": "The two steps of how BERT is developed. You can download the model pre-trained in step 1 (trained on un-annotated data), and only worry about fine-tuning it for step 2. [Source for book icon].",
+        "heading": "The Illustrated BERT, ELMo, and co. (How NLP Cracked Transfer Learning)",
+        "before": "One of the latest milestones in this development is the release of BERT, an event described as marking the beginning of a new era in NLP. BERT is a model that broke several records for how well models can handle language-based tasks. Soon after the release of the paper describing the model, the team also open-sourced the code of the model, and made available for download versions of the model that were already pre-trained on massive datasets. This is a momentous development since it enables anyone building a machine learning model involving language processing to use this powerhouse as a readily-available component – saving the time, energy, knowledge, and resources that would have gone to training a language-processing model from scratch.",
+        "after": "BERT builds on top of a number of clever ideas that have been bubbling up in the NLP community recently – including but not limited to Semi-supervised Sequence Learning (by Andrew Dai and Quoc Le), ELMo (by Matthew Peters and researchers from AI2 and UW CSE), ULMFiT (by fast.ai founder Jeremy Howard and Sebastian Ruder), the OpenAI transformer (by OpenAI researchers Radford, Narasimhan, Salimans, and Sutskever), and the Transformer (Vaswani et al).",
+        "svgText": []
+      },
+      "file": "02-bert-transfer-learning.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-transfer-learning.png"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://jalammar.github.io/images/BERT-classification-spam.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Example: Sentence Classification",
+        "before": "The most straight-forward way to use BERT is to use it to classify a single piece of text. This model would look like this:",
+        "after": "To train such a model, you mainly have to train the classifier, with minimal changes happening to the BERT model during the training phase. This training process is called Fine-Tuning, and has roots in Semi-supervised Sequence Learning and ULMFiT.",
+        "svgText": []
+      },
+      "file": "03-bert-classification-spam.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/BERT-classification-spam.png"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://jalammar.github.io/images/spam-labeled-dataset.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Example: Sentence Classification",
+        "before": "For people not versed in the topic, since we’re talking about classifiers, then we are in the supervised-learning domain of machine learning. Which would mean we need a labeled dataset to train such a model. For this spam classifier example, the labeled dataset would be a list of email messages and a label (“spam” or “not spam” for each message).",
+        "after": "Other examples for such a use-case include:",
+        "svgText": []
+      },
+      "file": "04-spam-labeled-dataset.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/spam-labeled-dataset.png"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://jalammar.github.io/images/bert-base-bert-large.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Model Architecture",
+        "before": "Now that you have an example use-case in your head for how BERT can be used, let’s take a closer look at how it works.",
+        "after": "The paper presents two model sizes for BERT:",
+        "svgText": []
+      },
+      "file": "05-bert-base-bert-large.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-base-bert-large.png"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://jalammar.github.io/images/bert-base-bert-large-encoders.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Model Architecture",
+        "before": "BERT is basically a trained Transformer Encoder stack. This is a good time to direct you to read my earlier post The Illustrated Transformer which explains the Transformer model – a foundational concept for BERT and the concepts we’ll discuss next.",
+        "after": "Both BERT model sizes have a large number of encoder layers (which the paper calls Transformer Blocks) – twelve for the Base version, and twenty four for the Large version. These also have larger feedforward-networks (768 and 1024 hidden units respectively), and more attention heads (12 and 16 respectively) than the default configuration in the reference implementation of the Transformer in the initial paper (6 encoder layers, 512 hidden units, and 8 attention heads).",
+        "svgText": []
+      },
+      "file": "06-bert-base-bert-large-encoders.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-base-bert-large-encoders.png"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://jalammar.github.io/images/bert-input-output.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Model Inputs",
+        "before": "Both BERT model sizes have a large number of encoder layers (which the paper calls Transformer Blocks) – twelve for the Base version, and twenty four for the Large version. These also have larger feedforward-networks (768 and 1024 hidden units respectively), and more attention heads (12 and 16 respectively) than the default configuration in the reference implementation of the Transformer in the initial paper (6 encoder layers, 512 hidden units, and 8 attention heads).",
+        "after": "The first input token is supplied with a special [CLS] token for reasons that will become apparent later on. CLS here stands for Classification.",
+        "svgText": []
+      },
+      "file": "07-bert-input-output.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-input-output.png"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://jalammar.github.io/images/bert-encoders-input.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Model Inputs",
+        "before": "Just like the vanilla encoder of the transformer, BERT takes a sequence of words as input which keep flowing up the stack. Each layer applies self-attention, and passes its results through a feed-forward network, and then hands it off to the next encoder.",
+        "after": "In terms of architecture, this has been identical to the Transformer up until this point (aside from size, which are just configurations we can set). It is at the output that we first start seeing how things diverge.",
+        "svgText": []
+      },
+      "file": "08-bert-encoders-input.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-encoders-input.png"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://jalammar.github.io/images/bert-output-vector.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Model Outputs",
+        "before": "Each position outputs a vector of size hidden_size (768 in BERT Base). For the sentence classification example we’ve looked at above, we focus on the output of only the first position (that we passed the special [CLS] token to).",
+        "after": "That vector can now be used as the input for a classifier of our choosing. The paper achieves great results by just using a single-layer neural network as the classifier.",
+        "svgText": []
+      },
+      "file": "09-bert-output-vector.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-output-vector.png"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://jalammar.github.io/images/bert-classifier.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Model Outputs",
+        "before": "That vector can now be used as the input for a classifier of our choosing. The paper achieves great results by just using a single-layer neural network as the classifier.",
+        "after": "If you have more labels (for example if you’re an email service that tags emails with “spam”, “not spam”, “social”, and “promotion”), you just tweak the classifier network to have more output neurons that then pass through softmax.",
+        "svgText": []
+      },
+      "file": "10-bert-classifier.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-classifier.png"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://jalammar.github.io/images/vgg-net-classifier.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Parallels with Convolutional Nets",
+        "before": "For those with a background in computer vision, this vector hand-off should be reminiscent of what happens between the convolution part of a network like VGGNet and the fully-connected classification portion at the end of the network.",
+        "after": "These new developments carry with them a new shift in how words are encoded. Up until now, word-embeddings have been a major force in how leading NLP models deal with language. Methods like Word2Vec and Glove have been widely used for such tasks. Let’s recap how those are used before pointing to what has now changed.",
+        "svgText": []
+      },
+      "file": "11-vgg-net-classifier.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/vgg-net-classifier.png"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://jalammar.github.io/images/glove-embedding.png",
+      "context": {
+        "alt": "",
+        "caption": "The GloVe word embedding of the word \"stick\" - a vector of 200 floats (rounded to two decimals). It goes on for two hundred values.",
+        "heading": "Word Embedding Recap",
+        "before": "The field quickly realized it’s a great idea to use embeddings that were pre-trained on vast amounts of text data instead of training them alongside the model on what was frequently a small dataset. So it became possible to download a list of words and their embeddings generated by pre-training with Word2Vec or GloVe. This is an example of the GloVe embedding of the word “stick” (with an embedding vector size of 200)",
+        "after": "Since these are large and full of numbers, I use the following basic shape in the figures in my posts to show vectors:",
+        "svgText": []
+      },
+      "file": "12-glove-embedding.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/glove-embedding.png"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://jalammar.github.io/images/vector-boxes.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Word Embedding Recap",
+        "before": "Since these are large and full of numbers, I use the following basic shape in the figures in my posts to show vectors:",
+        "after": "If we’re using this GloVe representation, then the word “stick” would be represented by this vector no-matter what the context was. “Wait a minute” said a number of NLP researchers (Peters et. al., 2017, McCann et. al., 2017, and yet again Peters et. al., 2018 in the ELMo paper ), “stick”” has multiple meanings depending on where it’s used. Why not give it an embedding based on the context it’s used in – to both capture the word meaning in that context as well as other contextual information?”. And so, contextualized word-embeddings were born.",
+        "svgText": []
+      },
+      "file": "13-vector-boxes.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/vector-boxes.png"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://jalammar.github.io/images/elmo-embedding-robin-williams.png",
+      "context": {
+        "alt": "",
+        "caption": "Contextualized word-embeddings can give words different embeddings based on the meaning they carry in the context of the sentence. Also, RIP Robin Williams",
+        "heading": "ELMo: Context Matters",
+        "before": "If we’re using this GloVe representation, then the word “stick” would be represented by this vector no-matter what the context was. “Wait a minute” said a number of NLP researchers (Peters et. al., 2017, McCann et. al., 2017, and yet again Peters et. al., 2018 in the ELMo paper ), “stick”” has multiple meanings depending on where it’s used. Why not give it an embedding based on the context it’s used in – to both capture the word meaning in that context as well as other contextual information?”. And so, contextualized word-embeddings were born.",
+        "after": "Instead of using a fixed embedding for each word, ELMo looks at the entire sentence before assigning each word in it an embedding. It uses a bi-directional LSTM trained on a specific task to be able to create those embeddings.",
+        "svgText": []
+      },
+      "file": "14-elmo-embedding-robin-williams.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/elmo-embedding-robin-williams.png"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://jalammar.github.io/images/elmo-word-embedding.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "ELMo: Context Matters",
+        "before": "Instead of using a fixed embedding for each word, ELMo looks at the entire sentence before assigning each word in it an embedding. It uses a bi-directional LSTM trained on a specific task to be able to create those embeddings.",
+        "after": "ELMo provided a significant step towards pre-training in the context of NLP. The ELMo LSTM would be trained on a massive dataset in the language of our dataset, and then we can use it as a component in other models that need to handle language.",
+        "svgText": []
+      },
+      "file": "15-elmo-word-embedding.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/elmo-word-embedding.png"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://jalammar.github.io/images/Bert-language-modeling.png",
+      "context": {
+        "alt": "",
+        "caption": "A step in the pre-training process of ELMo: Given “Let’s stick to” as input, predict the next most likely word – a language modeling task. When trained on a large dataset, the model starts to pick up on language patterns. It’s unlikely it’ll accurately guess the next word in this example. More realistically, after a word such as “hang”, it will assign a higher probability to a word like “out” (to spell “hang out”) than to “camera”.",
+        "heading": "ELMo: Context Matters",
+        "before": "ELMo gained its language understanding from being trained to predict the next word in a sequence of words - a task called Language Modeling. This is convenient because we have vast amounts of text data that such a model can learn from without needing labels.",
+        "after": "We can see the hidden state of each unrolled-LSTM step peaking out from behind ELMo’s head. Those come in handy in the embedding process after this pre-training is done.",
+        "svgText": []
+      },
+      "file": "16-bert-language-modeling.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/Bert-language-modeling.png"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://jalammar.github.io/images/elmo-forward-backward-language-model-embedding.png",
+      "context": {
+        "alt": "",
+        "caption": "Great slides on ELMo",
+        "heading": "ELMo: Context Matters",
+        "before": "ELMo actually goes a step further and trains a bi-directional LSTM – so that its language model doesn’t only have a sense of the next word, but also the previous word.",
+        "after": "ELMo comes up with the contextualized embedding through grouping together the hidden states (and initial embedding) in a certain way (concatenation followed by weighted summation).",
+        "svgText": []
+      },
+      "file": "17-elmo-forward-backward-language-model-embedding.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/elmo-forward-backward-language-model-embedding.png"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://jalammar.github.io/images/elmo-embedding.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "ELMo: Context Matters",
+        "before": "ELMo comes up with the contextualized embedding through grouping together the hidden states (and initial embedding) in a certain way (concatenation followed by weighted summation).",
+        "after": "ULM-FiT introduced methods to effectively utilize a lot of what the model learns during pre-training – more than just embeddings, and more than contextualized embeddings. ULM-FiT introduced a language model and a process to effectively fine-tune that language model for various tasks.",
+        "svgText": []
+      },
+      "file": "18-elmo-embedding.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/elmo-embedding.png"
+    },
+    {
+      "order": 19,
+      "figureUrl": "https://jalammar.github.io/images/openai-transformer-1.png",
+      "context": {
+        "alt": "",
+        "caption": "The OpenAI Transformer is made up of the decoder stack from the Transformer",
+        "heading": "OpenAI Transformer: Pre-training a Transformer Decoder for Language Modeling",
+        "before": "It turns out we don’t need an entire Transformer to adopt transfer learning and a fine-tunable language model for NLP tasks. We can do with just the decoder of the transformer. The decoder is a good choice because it’s a natural choice for language modeling (predicting the next word) since it’s built to mask future tokens – a valuable feature when it’s generating a translation word by word.",
+        "after": "The model stacked twelve decoder layers. Since there is no encoder in this set up, these decoder layers would not have the encoder-decoder attention sublayer that vanilla transformer decoder layers have. It would still have the self-attention layer, however (masked so it doesn’t peak at future tokens).",
+        "svgText": []
+      },
+      "file": "19-openai-transformer-1.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/openai-transformer-1.png"
+    },
+    {
+      "order": 20,
+      "figureUrl": "https://jalammar.github.io/images/openai-transformer-language-modeling.png",
+      "context": {
+        "alt": "",
+        "caption": "The OpenAI Transformer is now ready to be trained to predict the next word on a dataset made up of 7,000 books.",
+        "heading": "OpenAI Transformer: Pre-training a Transformer Decoder for Language Modeling",
+        "before": "With this structure, we can proceed to train the model on the same language modeling task: predict the next word using massive (unlabeled) datasets. Just, throw the text of 7,000 books at it and have it learn! Books are great for this sort of task since it allows the model to learn to associate related information even if they’re separated by a lot of text – something you don’t get for example, when you’re training with tweets, or articles.",
+        "after": "Now that the OpenAI transformer is pre-trained and its layers have been tuned to reasonably handle language, we can start using it for downstream tasks. Let’s first look at sentence classification (classify an email message as “spam” or “not spam”):",
+        "svgText": []
+      },
+      "file": "20-openai-transformer-language-modeling.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/openai-transformer-language-modeling.png"
+    },
+    {
+      "order": 21,
+      "figureUrl": "https://jalammar.github.io/images/openai-transformer-sentence-classification.png",
+      "context": {
+        "alt": "",
+        "caption": "How to use a pre-trained OpenAI transformer to do sentence clasification",
+        "heading": "Transfer Learning to Downstream Tasks",
+        "before": "Now that the OpenAI transformer is pre-trained and its layers have been tuned to reasonably handle language, we can start using it for downstream tasks. Let’s first look at sentence classification (classify an email message as “spam” or “not spam”):",
+        "after": "The OpenAI paper outlines a number of input transformations to handle the inputs for different types of tasks. The following image from the paper shows the structures of the models and input transformations to carry out different tasks.",
+        "svgText": []
+      },
+      "file": "21-openai-transformer-sentence-classification.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/openai-transformer-sentence-classification.png"
+    },
+    {
+      "order": 22,
+      "figureUrl": "https://jalammar.github.io/images/openai-input%20transformations.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Transfer Learning to Downstream Tasks",
+        "before": "The OpenAI paper outlines a number of input transformations to handle the inputs for different types of tasks. The following image from the paper shows the structures of the models and input transformations to carry out different tasks.",
+        "after": "Isn’t that clever?",
+        "svgText": []
+      },
+      "file": "22-openai-input-20transformations.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/openai-input%20transformations.png"
+    },
+    {
+      "order": 23,
+      "figureUrl": "https://jalammar.github.io/images/BERT-language-modeling-masked-lm.png",
+      "context": {
+        "alt": "",
+        "caption": "BERT's clever language modeling task masks 15% of words in the input and asks the model to predict the missing word.",
+        "heading": "Masked Language Model",
+        "before": "“We’ll use masks”, said BERT confidently.",
+        "after": "Finding the right task to train a Transformer stack of encoders is a complex hurdle that BERT resolves by adopting a “masked language model” concept from earlier literature (where it’s called a Cloze task).",
+        "svgText": []
+      },
+      "file": "23-bert-language-modeling-masked-lm.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/BERT-language-modeling-masked-lm.png"
+    },
+    {
+      "order": 24,
+      "figureUrl": "https://jalammar.github.io/images/bert-next-sentence-prediction.png",
+      "context": {
+        "alt": "",
+        "caption": "The second task BERT is pre-trained on is a two-sentence classification task. The tokenization is oversimplified in this graphic as BERT actually uses WordPieces as tokens rather than words --- so some words are broken down into smaller chunks.",
+        "heading": "Two-sentence Tasks",
+        "before": "To make BERT better at handling relationships between multiple sentences, the pre-training process includes an additional task: Given two sentences (A and B), is B likely to be the sentence that follows A, or not?",
+        "after": "The BERT paper shows a number of ways to use BERT for different tasks.",
+        "svgText": []
+      },
+      "file": "24-bert-next-sentence-prediction.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-next-sentence-prediction.png"
+    },
+    {
+      "order": 25,
+      "figureUrl": "https://jalammar.github.io/images/bert-tasks.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "Task specific-Models",
+        "before": "The BERT paper shows a number of ways to use BERT for different tasks.",
+        "after": "The fine-tuning approach isn’t the only way to use BERT. Just like ELMo, you can use the pre-trained BERT to create contextualized word embeddings. Then you can feed these embeddings to your existing model – a process the paper shows yield results not far behind fine-tuning BERT on a task such as named-entity recognition.",
+        "svgText": []
+      },
+      "file": "25-bert-tasks.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-tasks.png"
+    },
+    {
+      "order": 26,
+      "figureUrl": "https://jalammar.github.io/images/bert-contexualized-embeddings.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "BERT for feature extraction",
+        "before": "The fine-tuning approach isn’t the only way to use BERT. Just like ELMo, you can use the pre-trained BERT to create contextualized word embeddings. Then you can feed these embeddings to your existing model – a process the paper shows yield results not far behind fine-tuning BERT on a task such as named-entity recognition.",
+        "after": "Which vector works best as a contextualized embedding? I would think it depends on the task. The paper examines six choices (Compared to the fine-tuned model which achieved a score of 96.4):",
+        "svgText": []
+      },
+      "file": "26-bert-contexualized-embeddings.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-contexualized-embeddings.png"
+    },
+    {
+      "order": 27,
+      "figureUrl": "https://jalammar.github.io/images/bert-feature-extraction-contextualized-embeddings.png",
+      "context": {
+        "alt": "",
+        "caption": "",
+        "heading": "BERT for feature extraction",
+        "before": "Which vector works best as a contextualized embedding? I would think it depends on the task. The paper examines six choices (Compared to the fine-tuned model which achieved a score of 96.4):",
+        "after": "The best way to try out BERT is through the BERT FineTuning with Cloud TPUs notebook hosted on Google Colab. If you’ve never used Cloud TPUs before, this is also a good starting point to try them as well as the BERT code works on TPUs, CPUs and GPUs as well.",
+        "svgText": []
+      },
+      "file": "27-bert-feature-extraction-contextualized-embeddings.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/bert-feature-extraction-contextualized-embeddings.png"
+    }
+  ],
+  "title": "The Illustrated BERT, ELMo, and co. (How NLP Cracked Transfer Learning)",
+  "status": "retrieved"
+}
