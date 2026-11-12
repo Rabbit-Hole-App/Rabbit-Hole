@@ -224,6 +224,38 @@ function collisionFlags(references, supplied = []) {
   return flags;
 }
 
+/** Validate the new routing layer only. Existing specs, keyword lists and numeric
+ * provenance remain trusted legacy data. Supply selector records for keyword collisions. */
+export function lintOverlays({ overlays = {}, references = [], prompts = [], source, repoRoot = process.cwd(), topic, collisions = [] } = {}) {
+  const files = sourceFiles(source).map(file => ({ ...file, path: file.path === '<module>' || file.path === 'module'
+    ? `${DIAGRAM_ROOT}/topic-${topic}-overlays.js` : file.path === 'test' ? `${DIAGRAM_ROOT}/topic-${topic}-overlays.test.mjs` : file.path }));
+  const flags = files.length ? lintAuthoredFiles({ files, repoRoot, topic }) : [];
+  if (!overlays || typeof overlays !== 'object' || Array.isArray(overlays)) return [...flags, flag('<overlays>', '*', 2, 'Overlays must be an object keyed by existing reference ID.')];
+  const entries = promptEntries(prompts), byId = new Map(references.map(ref => [ref.id, ref]));
+  const affectedPrompts = new Set();
+  for (const [id, overlay] of Object.entries(overlays)) {
+    if (!byId.has(id)) flags.push(flag(id, '*', 2, 'Overlay refers to an unknown reference.'));
+    const validPrompts = Array.isArray(overlay?.prompts) && overlay.prompts.length > 0 && overlay.prompts.every(prompt => typeof prompt === 'string' && prompt.trim());
+    const validKeywords = Array.isArray(overlay?.keywords) && overlay.keywords.length >= 2 && overlay.keywords.length <= 3
+      && overlay.keywords.every(keyword => typeof keyword === 'string' && keyword.trim() && keyword === keyword.toLowerCase() && keyword.trim().split(/\s+/u).length <= 3);
+    if (!validPrompts || !validKeywords) flags.push(flag(id, '*', 2, 'Overlay needs verbatim prompts and 2–3 lowercase keywords of at most 3 words.'));
+    if (validPrompts) for (const prompt of overlay.prompts) {
+      affectedPrompts.add(prompt);
+      if (entries.length && !entries.some(entry => entry.prompt === prompt && (!referenceForPrompt(entry) || referenceForPrompt(entry) === id))) {
+        flags.push(flag(id, '*', 2, `Overlay prompt is not an authoritative verbatim prompt for this reference: ${JSON.stringify(prompt)}`));
+      }
+    }
+    for (const entry of entries.filter(entry => referenceForPrompt(entry) === id)) {
+      affectedPrompts.add(entry.prompt);
+      if (!byId.get(id)?.prompts?.includes(entry.prompt) && !(Array.isArray(overlay?.prompts) && overlay.prompts.includes(entry.prompt))) flags.push(flag(id, '*', 2, `Lesson prompt is missing verbatim from the reference/overlay: ${JSON.stringify(entry.prompt)}`));
+    }
+  }
+  const selectionViews = references.map(ref => ({ ...ref,
+    prompts: [...new Set([...(ref.prompts ?? []), ...(Array.isArray(overlays[ref.id]?.prompts) ? overlays[ref.id].prompts : [])])].filter(prompt => affectedPrompts.has(prompt)),
+  }));
+  return [...flags, ...collisionFlags(selectionViews, collisions)];
+}
+
 /** Pure checks. source is text or [{path,content}]; derived is derived() or its JSON result.
  * Coverage records carry actual selected references; the linter does not emulate the selector. */
 export function lintReferences({ references = [], prompts = [], source, derived, authored = false, collisions = [] } = {}) {
@@ -380,8 +412,12 @@ function exportedReferences(module) {
   return Object.values(module).find(value => Array.isArray(value) && value.length && value.every(ref => ref?.id && ref?.spec?.diagram)) ?? [];
 }
 
-function overlayMap(module) {
-  return module.overlays ?? module.default ?? Object.entries(module).find(([key]) => /overlays/iu.test(key))?.[1] ?? {};
+function overlayMap(module, fallback = false) {
+  if ('overlays' in module) return module.overlays;
+  const named = Object.entries(module).find(([key]) => /overlays/iu.test(key));
+  if (named) return named[1];
+  if ('default' in module && !Array.isArray(module.default)) return module.default;
+  return fallback ? Object.values(module).find(value => value && typeof value === 'object' && !Array.isArray(value)) ?? {} : {};
 }
 
 /** Static checks complete before any candidate import. Existing dependencies outside the
@@ -393,6 +429,8 @@ export async function lintModule(modulePath, options = {}) {
   const inferred = path.basename(absolute).match(/^(?:topic|lesson)-(.+?)-(?:references|overlays)\.[cm]?js$/u)?.[1];
   const topic = options.topic ?? options.slug ?? inferred;
   const prefix = path.basename(absolute).startsWith('lesson-') ? 'lesson' : 'topic';
+  const authoredMode = Boolean(options.authored) || /^topic-.+-overlays\.[cm]?js$/u.test(path.basename(absolute));
+  const registryPath = path.join(root, DIAGRAM_ROOT, 'reference-library.js');
   const files = [], visited = new Set(), inspectionFlags = [], declared = options.files ?? options.authoredFiles;
   if (declared) for (const file of declared) files.push(typeof file === 'string' ? { path: slash(path.relative(root, path.resolve(root, file))), content: await readFile(path.resolve(root, file), 'utf8') } : file);
   const declaredPaths = new Set(files.map(file => path.resolve(root, file.path)));
@@ -411,36 +449,50 @@ export async function lintModule(modulePath, options = {}) {
       if (!inside(path.join(root, DIAGRAM_ROOT), child) || !/\.[cm]?js$/u.test(child) || !existsSync(child)) continue;
       const sameTopic = topic && path.basename(child).startsWith(`${prefix}-${topic}-`);
       // Every declared authored file is checked, even behind a trusted dependency.
-      await inspect(child, options.authored && (declaredPaths.has(child) || sameTopic));
+      await inspect(child, authoredMode && (declaredPaths.has(child) || sameTopic));
     }
   }
   try {
-    await inspect(absolute, Boolean(options.authored));
-    if (options.authored) {
+    await inspect(absolute, authoredMode);
+    if (authoredMode) {
       const candidateTests = [absolute.replace(/\.[cm]?js$/u, '.test.mjs'), path.join(path.dirname(absolute), `${prefix}-${topic}-data.test.mjs`)];
       for (const candidate of candidateTests) if (existsSync(candidate)) await inspect(candidate, true);
     }
-    if (options.overlayPath) await inspect(path.resolve(root, options.overlayPath), Boolean(options.authored));
+    if (options.overlayPath) await inspect(path.resolve(root, options.overlayPath), authoredMode);
+    // Standalone overlays resolve reused IDs through the existing registry. Check any
+    // declared/same-topic registry dependencies before either candidate or registry imports.
+    if (authoredMode && existsSync(registryPath)) await inspect(registryPath, declaredPaths.has(registryPath));
   } catch (error) { return [flag('<module>', 'source', 11, `Cannot inspect module closure: ${error.message}`)]; }
-  const staticFlags = options.authored ? [...inspectionFlags, ...lintAuthoredFiles({ files, repoRoot: root, topic })] : [];
+  const staticFlags = authoredMode ? [...inspectionFlags, ...lintAuthoredFiles({ files, repoRoot: root, topic })] : [];
   if (staticFlags.some(issue => issue.severity === 'error')) return staticFlags;
-  let module, overlays = options.overlays ?? {};
+  let module, overlays;
   try {
     module = await import(pathToFileURL(absolute).href);
-    if (options.overlayPath) overlays = overlayMap(await import(pathToFileURL(path.resolve(root, options.overlayPath)).href));
-    else overlays = { ...overlayMap({ overlays: module.overlays ?? Object.entries(module).find(([key]) => /overlays/iu.test(key))?.[1] }), ...overlays };
+    if (options.overlayPath) overlays = overlayMap(await import(pathToFileURL(path.resolve(root, options.overlayPath)).href), true);
+    else overlays = overlayMap(module, !exportedReferences(module).length);
+    if (options.overlays !== undefined) overlays = overlays && options.overlays && typeof overlays === 'object' && typeof options.overlays === 'object'
+      && !Array.isArray(overlays) && !Array.isArray(options.overlays) ? { ...overlays, ...options.overlays } : options.overlays;
   } catch (error) { return [flag('<module>', 'source', 11, `Checked module could not be imported: ${error.message}`)]; }
-  const references = exportedReferences(module).map(ref => ({ ...ref, ...(overlays[ref.id] ? {
-    prompts: [...new Set([...(ref.prompts ?? []), ...(overlays[ref.id].prompts ?? [])])],
-    keywords: [...new Set([...(ref.keywords ?? []), ...(overlays[ref.id].keywords ?? [])])],
-  } : {}) }));
-  const result = lintReferences({ ...options, references, source: files.length ? files : options.source, derived: module.derived });
-  if (!references.length) result.push(flag('<module>', '*', 2, 'No exported reference array was found.'));
-  for (const [id, overlay] of Object.entries(overlays)) {
-    if (!references.some(ref => ref.id === id)) result.push(flag(id, '*', 2, 'Overlay refers to an unknown reference.'));
-    if (!Array.isArray(overlay.prompts) || !overlay.prompts.length || overlay.prompts.some(prompt => typeof prompt !== 'string') || !Array.isArray(overlay.keywords) || overlay.keywords.length < 2 || overlay.keywords.length > 3 || overlay.keywords.some(keyword => typeof keyword !== 'string' || keyword !== keyword.toLowerCase() || keyword.trim().split(/\s+/u).length > 3)) result.push(flag(id, '*', 2, 'Overlay needs verbatim prompts and 2–3 lowercase keywords of at most 3 words.'));
+  const ownReferences = exportedReferences(module);
+  const standaloneOverlay = !ownReferences.length && (/-overlays\.[cm]?js$/u.test(absolute)
+    || 'overlays' in module || 'default' in module || Object.keys(module).some(key => /overlays/iu.test(key))
+    || Object.values(overlays ?? {}).some(value => value && typeof value === 'object' && ('prompts' in value || 'keywords' in value)));
+  const hasOverlays = standaloneOverlay || overlays === null || Array.isArray(overlays) || Object.keys(overlays ?? {}).length > 0;
+  let baseReferences = options.references ?? options.baseReferences ?? ownReferences;
+  if (hasOverlays && !options.references && !options.baseReferences && (standaloneOverlay || existsSync(registryPath))
+    && (standaloneOverlay || Object.keys(overlays ?? {}).some(id => !ownReferences.some(ref => ref.id === id)))) {
+    try { baseReferences = (await import(pathToFileURL(registryPath).href)).diagramReferences; }
+    catch (error) { return [flag('<overlays>', 'source', 11, `Cannot load the trusted reference registry: ${error.message}`)]; }
   }
-  return result;
+  const references = [...new Map([...baseReferences, ...ownReferences].map(ref => [ref.id, ref])).values()];
+  if (standaloneOverlay) return lintOverlays({ ...options, overlays, references, source: undefined });
+  const views = ownReferences.map(ref => ({ ...ref, prompts: [...new Set([...(ref.prompts ?? []), ...(Array.isArray(overlays?.[ref.id]?.prompts) ? overlays[ref.id].prompts : [])])] }));
+  const overlayPrompts = new Set(Object.values(overlays ?? {}).flatMap(overlay => Array.isArray(overlay?.prompts) ? overlay.prompts : []));
+  const prompts = promptEntries(options.prompts).filter(entry => referenceForPrompt(entry) ? ownReferences.some(ref => ref.id === referenceForPrompt(entry))
+    : !overlayPrompts.has(entry.prompt) || views.some(ref => ref.prompts.includes(entry.prompt)));
+  const result = lintReferences({ ...options, references: views, prompts, source: files.length ? files : options.source, derived: module.derived });
+  if (!ownReferences.length) result.push(flag('<module>', '*', 2, 'No exported reference array was found.'));
+  return hasOverlays ? [...new Map([...result, ...lintOverlays({ ...options, overlays, references, source: undefined })].map(issue => [JSON.stringify(issue), issue])).values()] : result;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

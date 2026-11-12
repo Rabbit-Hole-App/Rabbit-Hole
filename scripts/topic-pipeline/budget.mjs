@@ -25,7 +25,8 @@ export function callPrice(config, model, input, output) {
 
 export function estimateTopic(config) {
   const counts = { 'prompt-writer': 1, 'coverage-judge': 12, author: config.limits.authorRounds,
-    verifier: config.limits.verifyRounds, auditor: 12 * (config.limits.regenerateOnce ? 2 : 1) };
+    verifier: 3 * config.limits.verifyRounds + (config.run?.fixture ? 7 : 0),
+    auditor: 12 * (config.limits.regenerateOnce ? 2 : 1) + (config.run?.fixture ? 13 : 0) };
   let estimate = 0;
   for (const [agent, count] of Object.entries(counts)) {
     if (!Number.isInteger(count) || count < 1) throw new Error('Configure positive round limits');
@@ -33,6 +34,11 @@ export function estimateTopic(config) {
     estimate += count * callPrice(config, agentSettings(config, agent).model, input, output);
   }
   estimate += 216 * config.limits.authorRounds * callPrice(config, 'jev-latest', 4000, 0);
+  if (config.bench) {
+    const { capUsd, judgeCapUsd } = config.bench;
+    if (![capUsd, judgeCapUsd].every(value => Number.isFinite(value) && value >= 0)) throw new Error('Configure nonnegative bench generation and judge caps');
+    estimate += 3 * (capUsd + judgeCapUsd);
+  }
   if (!Number.isFinite(config.limits.perLessonUsd) || config.limits.perLessonUsd <= 0) throw new Error('Configure a positive perLessonUsd limit');
   if (estimate > config.limits.perLessonUsd) throw new Error('Preflight estimate exceeds limits.perLessonUsd');
   return estimate;

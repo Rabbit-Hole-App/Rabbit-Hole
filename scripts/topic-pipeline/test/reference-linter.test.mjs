@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { getEncoding } from 'js-tiktoken';
-import { countSpecTokens, lintAuthoredFiles, lintModule, lintReferences } from '../checks/reference-linter.mjs';
+import { countSpecTokens, lintAuthoredFiles, lintModule, lintOverlays, lintReferences } from '../checks/reference-linter.mjs';
 
 const spec = diagram => ({ version: 1, diagram });
 const tree = nodes => spec({ kind: 'tree', nodes });
@@ -230,4 +230,38 @@ test('rule 2: overlays receive prompt/keyword checks and preserve verbatim cover
   const bad = await lintModule(module, { repoRoot: root, overlays: { 'ml-fixture': { prompts: [], keywords: ['Too Long Keyword With Words'] }, 'ml-unknown': { prompts: ['q?'], keywords: ['one', 'two'] } } });
   assert.ok(ofRule(bad, 2).some(issue => issue.detail.includes('Overlay needs')));
   assert.ok(ofRule(bad, 2).some(issue => issue.detail.includes('unknown')));
+
+  const base = reference();
+  base.keywords.push('chosen branch');
+  base.depths.overview.spec = base.spec;
+  base.depths.deep.spec = base.spec;
+  const original = structuredClone(base);
+  const overlays = { [base.id]: { prompts: ['an added prompt?'], keywords: ['new learner phrase', 'added prompt'] } };
+  const prompts = [{ referenceId: base.id, prompt: 'an added prompt?' }];
+  assert.deepEqual(lintOverlays({ overlays, references: [base], prompts }), []);
+  assert.deepEqual(base, original, 'overlay validation leaves the legacy reference unchanged');
+  const merged = await lintModule(module, { repoRoot: root, prompts, overlays });
+  assert.equal(ofRule(merged, 2).length, 0, 'base keywords and overlay keywords have separate 2–3 entry limits');
+  assert.ok(ofRule(lintOverlays({ overlays, references: [base], prompts: [{ referenceId: base.id, prompt: 'An added prompt?' }] }), 2).length);
+  assert.ok(ofRule(lintOverlays({ overlays: { [base.id]: { ...overlays[base.id], keywords: ['', 'valid'] } }, references: [base] }), 2).length);
+  assert.ok(ofRule(lintOverlays({ overlays: { [base.id]: { prompts: {}, keywords: ['one', 'two'] } }, references: [base], prompts }), 2).length);
+  const other = { ...reference(), id: 'ml-other', prompts: ['an added prompt?'] };
+  assert.equal(ofRule(lintOverlays({ overlays, references: [base, other], prompts }), 8).length, 6);
+  assert.equal(ofRule(lintOverlays({ overlays, references: [base], prompts, collisions: [{ depth: 'balanced', references: [base, other] }] }), 8).length, 2);
+
+  const registry = await fixture(t, {
+    'reference-library.js': `export const diagramReferences = ${JSON.stringify([base])};`,
+    'topic-fixture-overlays.js': `export const fixtureOverlays = ${JSON.stringify(overlays)};`,
+    'topic-fixture-default-overlays.js': `export default ${JSON.stringify(overlays)};`,
+    'topic-fixture-unsafe-overlays.js': `throw new Error('OVERLAY EXECUTED'); export const overlays = {}; // fetch`,
+  });
+  for (const name of ['topic-fixture-overlays.js', 'topic-fixture-default-overlays.js']) {
+    assert.deepEqual(await lintModule(path.join(registry.folder, name), { repoRoot: registry.root, topic: 'fixture', prompts }), [], 'standalone overlays do not re-lint legacy depths, keywords or derived()');
+  }
+  const unsafe = await lintModule(path.join(registry.folder, 'topic-fixture-unsafe-overlays.js'), { repoRoot: registry.root, topic: 'fixture' });
+  assert.ok(unsafe.some(issue => issue.rule === 11 && issue.detail.includes('fetch')));
+  assert.ok(unsafe.every(issue => !issue.detail.includes('OVERLAY EXECUTED')));
+  const source = [{ path: 'packages/web/src/tutor-diagrams/topic-fixture-overlays.js', content: `export const overlays = ${JSON.stringify(overlays)};` }];
+  assert.deepEqual(lintOverlays({ overlays, references: [base], prompts, source, repoRoot: registry.root, topic: 'fixture' }), []);
+  assert.ok(ofRule(lintOverlays({ overlays, references: [base], source: [{ ...source[0], content: source[0].content + '\n// fetch' }], repoRoot: registry.root, topic: 'fixture' }), 11).length);
 });

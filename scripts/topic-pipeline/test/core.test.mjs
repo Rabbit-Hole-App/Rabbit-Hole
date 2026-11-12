@@ -65,13 +65,13 @@ test('STOP-1 through STOP-4 halt and only READY plus --go enters release', async
 });
 
 test('set generation uses intended reference, diagram kind and standard depth', () => {
-  const set = makeSet({ topic: 'logistic-regression', prompts: [{ id: 1, prompt: 'why?', kind: 'tree', referenceId: 'ml-dry-trees-a' }] });
+  const set = makeSet({ topic: 'logistic-regression', estUsdPerCard: 0.012, prompts: [{ id: 1, prompt: 'why?', kind: 'tree', referenceId: 'ml-dry-trees-a' }] });
   assert.equal(set.prompts[0].prompt, 'why?');
   assert.equal(set.prompts[0].referenceId, 'ml-dry-trees-a');
   assert.equal(set.prompts[0].referenceKind, 'tree');
   assert.deepEqual(set.prompts[0].askDepths, ['standard']);
   assert.deepEqual(set.defaultDepths, ['standard']);
-  assert.throws(() => makeSet({ topic: 'logistic-regression', prompts: [{ id: 1, prompt: 'why?', kind: 'tree' }] }), /reference/);
+  assert.throws(() => makeSet({ topic: 'logistic-regression', estUsdPerCard: 0.012, prompts: [{ id: 1, prompt: 'why?', kind: 'tree' }] }), /reference/);
 });
 
 test('coverage reuses only one identical worked kind at all three depths and affirmative judge', async () => {

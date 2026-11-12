@@ -5,11 +5,23 @@ import { join, resolve, relative, isAbsolute } from 'node:path';
 import { readJson, writeJson } from '../state.mjs';
 import { validateTopic, validatePrompts, promptsSchema, kindCatalogue } from '../schemas.mjs';
 import { callAgent } from '../agents/call.mjs';
+import { fileExists } from '../agents/fixture-inputs.mjs';
+import { toolPath } from '../tooling.mjs';
 
 const execute = promisify(execFile);
 
 export async function run(ctx) {
-  const metadata = validateTopic(await readJson(join(ctx.topicDir, 'topic.json')));
+  const metadataPath = join(ctx.topicDir, 'topic.json');
+  if (!await fileExists(metadataPath)) {
+    const index = await readFile(await toolPath(ctx.config, 'slugIndex'), 'utf8');
+    const rows = [...index.matchAll(/\[(\d{2})\s*[·.-]\s*([^\]]+)\]\((\d{2}-[a-z0-9-]+)\.md\)/g)]
+      .filter(match => match[3].replace(/^\d{2}-/, '') === ctx.topic);
+    if (!rows.length) throw new Error('Topic has no curriculum mapping. Supply topic.json with its source metadata.');
+    const metadata = { topic: ctx.topic, title: rows[0][2], lessons: rows.map(row => row[1]),
+      sources: rows.map(row => ({ kind: 'curriculum', path: ctx.config.sources.lessonPath.replace('<slug>', row[3]), revision: ctx.config.sources.revision })) };
+    await writeJson(metadataPath, validateTopic(metadata));
+  }
+  const metadata = validateTopic(await readJson(metadataPath));
   if (metadata.topic !== ctx.topic) throw new Error('Topic metadata does not match the requested topic');
   const sources = [];
   for (const source of metadata.sources) {
