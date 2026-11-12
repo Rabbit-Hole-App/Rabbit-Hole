@@ -45,7 +45,7 @@ export async function runPipeline(options) {
         state.stages[id] = { ...result, attempts, startedAt, finishedAt: new Date().toISOString() };
         state.status = 'stop';
         await saveState(topicDir, state);
-        try { await notify(ctx, result.stop, result.notes); }
+        try { await notify(ctx, result.stop, result.notificationText ?? result.notes); }
         catch { result.notes += ' Notification failed. The stop checkpoint is saved.'; result.notificationFailed = true; }
       }
       state.stages[id] = { ...result, attempts, startedAt, finishedAt: new Date().toISOString() };

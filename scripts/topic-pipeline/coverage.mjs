@@ -13,7 +13,7 @@ export async function selectAtDepth({ prompt, depth, planner, plan: suppliedPlan
   const visualRequirements = deriveVisualRequirements(text);
   const input = planWithReferenceKind({ args: text, depth, plan, visualRequirements }, { excludeReferencePrefixes });
   const asked = (visualRequirements.items ?? []).filter(item => !item.implied);
-  return selectForAuthor({ prompt: text, context, depth, plan: input.plan, asked, planned: true, excludeReferencePrefixes });
+  return { ...selectForAuthor({ prompt: text, context, depth, plan: input.plan, asked, planned: true, excludeReferencePrefixes }), plan: input.plan };
 }
 
 export async function evaluateCoverage(prompts, { planner, select, judge, fixture = false, topic = 'decision-trees', context = '' }) {
@@ -30,7 +30,7 @@ export async function evaluateCoverage(prompts, { planner, select, judge, fixtur
       const collision = worked.some((ref, i) => worked.slice(i + 1).some(other => other.spec.diagram.kind === ref.spec.diagram.kind));
       selections.push({ depth, firstHit: first?.sourceId ?? first?.id ?? null, isWorked: isWorked(first),
         kind: first?.spec.diagram.kind ?? null, collision, references: refs,
-        plannedKinds: selection.plannedKinds ?? [], requiredKinds: selection.requiredKinds ?? [], steer: selection.steer ?? null });
+        plannedKinds: selection.plannedKinds ?? [], requiredKinds: selection.requiredKinds ?? [], steer: selection.steer ?? null, plan: selection.plan ?? null });
     }
     const first = selections[0];
     const candidate = selections.every(hit => hit.isWorked && hit.firstHit === first.firstHit && hit.kind === row.kind);

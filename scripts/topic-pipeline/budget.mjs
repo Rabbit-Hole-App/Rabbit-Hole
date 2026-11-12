@@ -32,7 +32,7 @@ export function estimateTopic(config) {
     const { input, output } = ceilings[agent];
     estimate += count * callPrice(config, agentSettings(config, agent).model, input, output);
   }
-  estimate += 36 * callPrice(config, 'jev-latest', 4000, 0);
+  estimate += 216 * config.limits.authorRounds * callPrice(config, 'jev-latest', 4000, 0);
   if (!Number.isFinite(config.limits.perLessonUsd) || config.limits.perLessonUsd <= 0) throw new Error('Configure a positive perLessonUsd limit');
   if (estimate > config.limits.perLessonUsd) throw new Error('Preflight estimate exceeds limits.perLessonUsd');
   return estimate;

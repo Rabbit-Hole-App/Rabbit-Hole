@@ -2,15 +2,24 @@ import { join } from 'node:path';
 import { readJson, writeJson, saveState } from '../state.mjs';
 import { evaluateCoverage } from '../coverage.mjs';
 import { createPlanner } from '../planner.mjs';
+import { callAgent } from '../agents/call.mjs';
+import { judgeSchema } from '../schemas.mjs';
+import { fileExists } from '../agents/fixture-inputs.mjs';
 
 export async function run(ctx) {
   const prompts = await readJson(join(ctx.topicDir, 'prompts.json'));
-  const answers = ctx.judge ? null : await readJson(join(ctx.fixtureDir, 'coverage-judge.json'));
+  const answerPath = join(ctx.fixtureDir, 'coverage-judge.json');
+  const answers = !ctx.judge && ctx.fixture && await fileExists(answerPath) ? await readJson(answerPath) : null;
   const recorded = ctx.config.planner?.fixtureFile ? await readJson(ctx.config.planner.fixtureFile) : null;
   const planner = ctx.planner ?? createPlanner(ctx.config, { fixturePlans: recorded, state: ctx.state, onUsage: () => saveState(ctx.topicDir, ctx.state) });
-  const judge = ctx.judge ?? (async row => {
-    if (typeof answers[String(row.id)] !== 'boolean') throw new Error(`Missing fixture judge answer for prompt ${row.id}`);
-    return answers[String(row.id)];
+  const judge = ctx.judge ?? (async (row, reference) => {
+    if (answers) {
+      if (typeof answers[String(row.id)] !== 'boolean') throw new Error(`Missing fixture judge answer for prompt ${row.id}`);
+      return answers[String(row.id)];
+    }
+    const result = await callAgent(ctx, 'coverage-judge', { content: row.content,
+      reference: { title: reference.spec.diagram.title ?? '', caption: reference.spec.diagram.caption ?? '', useWhen: reference.useWhen } }, { schema: judgeSchema });
+    return result.sameTeachingPoint;
   });
   const rows = await evaluateCoverage(prompts.prompts, { planner, judge, fixture: ctx.fixture, topic: ctx.topic });
   const path = join(ctx.topicDir, 'coverage.json');

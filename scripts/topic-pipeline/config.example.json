@@ -4,7 +4,8 @@
     "endpoint": "https://api.anthropic.com/v1/messages",
     "reviewerModel": "claude-fable-5-1",
     "judgeModel": "claude-sonnet-5-5",
-    "effort": "high"
+    "effort": "high",
+    "apiVersion": "2026-10-21"
   },
   "openai": {
     "apiKey": "",
@@ -38,7 +39,8 @@
     "fixtureRoot": "",
     "curriculumRoot": "",
     "slugIndex": "",
-    "topicsRoot": ""
+    "topicsRoot": "",
+    "sourceRoot": ""
   },
   "sources": {
     "revision": "e7db050e64bde3be17a9381476f748da26d85692",
@@ -80,5 +82,14 @@
       "inputPerMillionUsd": null,
       "outputPerMillionUsd": 0
     }
+  },
+  "integration": {
+    "commands": [],
+    "propertyCountCmd": ""
+  },
+  "release": {
+    "commands": [],
+    "ledgerPath": "",
+    "queuePath": ""
   }
 }
