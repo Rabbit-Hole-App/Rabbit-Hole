@@ -14,7 +14,7 @@ import { BAD, BOARD, FAIL, FULL, GOOD, ID_A, ID_B, INSTRUCTION, KEY, ORIGIN, SHO
 
 // Brings a roadmap to an accepted plan with one pending proposal.
 async function toProposal(h, { revise = false } = {}) {
-  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
+  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'balanced', actionKey: KEY('create') });
   assert.equal(created.status, 202);
   let view = created.body, id = created.body.roadmapId;
   assert.equal(view.roadmap.state, 'proposed', 'planning ran from the outbox event');
@@ -43,7 +43,7 @@ test('the complete loop: invitation, dismiss, accept, plan, revise, accept plan,
   const second = (await h.json('POST', '/api/learn/roadmap/invitations', { boardId: BOARD, sourceKeys: [`file:${ID_B}`], idleKey: 'idle-3-aaaaaaaa' })).body.invitation;
   assert.equal(second.state, 'offered');
   // 2 Explain on canvas: the roadmap is created from that invitation with the learner's words verbatim; planning ran from its event.
-  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, invitationId: second.id, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
+  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, invitationId: second.id, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'balanced', actionKey: KEY('create') });
   assert.equal(created.status, 202);
   const id = created.body.roadmapId;
   assert.equal(rows(h.w.sqlite, 'SELECT state FROM learn_roadmap_invitations WHERE id = ?', second.id)[0].state, 'accepted');

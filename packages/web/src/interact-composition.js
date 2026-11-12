@@ -350,7 +350,7 @@ const timelineRecord = z.object({
   playbackRate: z.number().positive().finite().max(PLAN_LIMITS.playbackRate), initialTime: z.literal(0), initialPlayback: z.literal('paused'), step: z.number().positive().finite(),
 }).strict();
 export const CardCompositionSchema = z.object({
-  version: z.literal(COMPOSITION_VERSION), planHash: hex, depth: z.enum(['overview', 'standard', 'deep']), title: planText(PLAN_LIMITS.title), cardDescription: planText(PLAN_LIMITS.cardDescription),
+  version: z.literal(COMPOSITION_VERSION), planHash: hex, depth: z.enum(['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep']), title: planText(PLAN_LIMITS.title), cardDescription: planText(PLAN_LIMITS.cardDescription),
   order: z.array(z.enum(CARD_ORDER)).max(CARD_ORDER.length),
   supporting: z.array(z.object({ id: stable, title: planText(PLAN_LIMITS.title), artifact: artifactRef, runtime, readoutIds: z.array(stable).max(16),
     parameterBindings: z.array(z.object({ fromInputId: stable, toInputId: stable }).strict()).max(8), readOnly: z.literal(true), snapshotTime: z.literal(SNAPSHOT_TIME) }).strict()).max(PLAN_LIMITS.supports),

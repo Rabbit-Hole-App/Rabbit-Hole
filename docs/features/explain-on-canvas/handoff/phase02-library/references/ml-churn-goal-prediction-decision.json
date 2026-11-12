@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "From churn goal to action",
+    "caption": "With 1,000 eligible users, 5% allows 50 offers. Use a random holdout to estimate the effect on cancellations.",
+    "kind": "flow",
+    "nodes": [
+      {
+        "id": "goal",
+        "label": "Reduce cancellations",
+        "role": "process"
+      },
+      {
+        "id": "predict",
+        "label": "Predict each user’s 30-day cancellation probability",
+        "role": "process"
+      },
+      {
+        "id": "offer",
+        "label": "Send retention offers nightly to the highest-risk 5%",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal",
+        "to": "predict",
+        "label": "Prediction target"
+      },
+      {
+        "from": "predict",
+        "to": "offer",
+        "label": "Rank by risk"
+      }
+    ]
+  }
+}

@@ -1,4 +1,5 @@
 import originalExamples from './examples.json' with { type: 'json' };
+import { references as batch1Followups } from './batch-1-followup-references.js';
 import { references as statistical } from './ml-statistical-references.js';
 import { references as plot } from './ml-plot-references.js';
 import { references as topology } from './ml-topology-references.js';
@@ -16,6 +17,39 @@ import { references as batch2cImbalance } from './ml-batch2c-imbalance-reference
 import { references as batch3aForecast } from './ml-batch3a-forecast-references.js';
 import { references as batch3aCorrelation } from './ml-batch3a-correlation-references.js';
 import { references as batch3aSeries } from './ml-batch3a-series-references.js';
+import { references as batch3Topology } from './ml-batch3-topology-references.js';
+import { references as batch3Teaching } from './ml-batch3-teaching-references.js';
+import { references as batch3bDensity } from './ml-batch3b-anomaly-density-references.js';
+import { references as batch3bDecisions } from './ml-batch3b-anomaly-decisions-references.js';
+import { references as batch3cFlow } from './ml-batch3c-system-flow-references.js';
+import { references as batch3cServing } from './ml-batch3c-system-serving-references.js';
+import { references as batch4aPrediction } from './ml-batch4a-prediction-references.js';
+import { references as batch4aLogistic } from './ml-batch4a-logistic-references.js';
+import { tensorReferences } from './illustration-tensor-reference.js';
+import { tokenLinksReferences } from './illustration-token-links-reference.js';
+import { architectureReferences } from './illustration-architecture-references.js';
+import { moeReferences } from './illustration-moe-reference.js';
+
+import { transformerEmbeddingReference } from './transformer-embedding-reference.js';
+import { transformerAttentionReferences } from './transformer-attention-references.js';
+import { transformerMultiheadReference } from './transformer-multihead-reference.js';
+import { transformerEncoderReference } from './transformer-encoder-reference.js';
+import { transformerDecoderReferences } from './transformer-decoder-references.js';
+import { lessonDecisionTreesReferences } from './lesson-decision-trees-references.js';
+import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
+import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
+
+export const transformerWalkthroughReferences = Object.freeze([
+  transformerEmbeddingReference, ...tensorReferences, ...transformerAttentionReferences,
+  transformerMultiheadReference, transformerEncoderReference, ...transformerDecoderReferences,
+]);
+
+export const illustrationReferences = Object.freeze([
+  ...tensorReferences, ...tokenLinksReferences, ...architectureReferences, ...moeReferences,
+]);
+
+export const batch1FollowupReferences = Object.freeze(batch1Followups);
+export const estimationEvaluationReferences = Object.freeze([mleBernoulliReference, kfoldValidationReference]);
 
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.
@@ -31,7 +65,15 @@ export const diagramReferences = Object.freeze([
   ...batch2aEncoding, ...batch2aTransform, ...batch2aEvaluation,
   ...batch2bFits, ...batch2bEnsembles, ...batch2bTuning,
   ...batch2cImbalance, ...batch2cElimination, ...batch2cPsi,
-  ...batch3aSeries, ...batch3aCorrelation, ...batch3aForecast, ...generic,
+  ...batch3aSeries, ...batch3aCorrelation, ...batch3aForecast,
+  ...batch3Topology, ...batch3Teaching,
+  ...batch3bDensity, ...batch3bDecisions,
+  ...batch3cFlow, ...batch3cServing,
+  ...batch4aPrediction, ...batch4aLogistic, ...illustrationReferences, ...generic,
+  ...transformerWalkthroughReferences.filter(ref => !illustrationReferences.includes(ref)),
+  ...batch1FollowupReferences,
+  ...lessonDecisionTreesReferences,
+  ...estimationEvaluationReferences,
 ]);
 
 export const PHASE02_SOURCE = Object.freeze({

@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "variant": "panels",
+    "title": "Dense vs MoE decoder block",
+    "panels": [
+      {
+        "heading": "Dense",
+        "diagram": {
+          "kind": "block-stack",
+          "title": "Dense",
+          "blocks": [
+            {
+              "id": "an",
+              "label": "Pre-attn RMSNorm"
+            },
+            {
+              "id": "att",
+              "label": "Causal GQA"
+            },
+            {
+              "id": "fn",
+              "label": "Pre-FFN RMSNorm"
+            },
+            {
+              "id": "ff",
+              "role": "changed",
+              "label": "SwiGLU FFN",
+              "diagram": {
+                "kind": "flow",
+                "steps": [
+                  "Project gate and value",
+                  "Apply SiLU and multiply",
+                  "Project down"
+                ]
+              }
+            }
+          ],
+          "edges": [
+            {
+              "kind": "residual",
+              "from": "an",
+              "to": "att"
+            },
+            {
+              "kind": "residual",
+              "from": "fn",
+              "to": "ff"
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Mixture of experts",
+        "diagram": {
+          "kind": "block-stack",
+          "title": "Mixture of experts",
+          "blocks": [
+            {
+              "id": "an",
+              "label": "Pre-attn RMSNorm"
+            },
+            {
+              "id": "att",
+              "label": "Causal GQA"
+            },
+            {
+              "id": "fn",
+              "label": "Pre-FFN RMSNorm"
+            },
+            {
+              "id": "ff",
+              "role": "changed",
+              "label": "MoE FFN",
+              "diagram": {
+                "kind": "flow",
+                "steps": [
+                  "Score experts",
+                  "Run top-ranked experts",
+                  "Weight and sum"
+                ]
+              }
+            }
+          ],
+          "edges": [
+            {
+              "kind": "residual",
+              "from": "an",
+              "to": "att"
+            },
+            {
+              "kind": "residual",
+              "from": "fn",
+              "to": "ff"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

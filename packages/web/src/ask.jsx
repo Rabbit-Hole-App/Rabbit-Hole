@@ -790,7 +790,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
-        // R2: the learner's Depth for this canvas (Standard sends nothing).
+        // R2: the learner's Depth for this canvas (Balanced sends nothing).
         ...depthSnapshot,
         // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
         // An Edit target names its exact revision (edit: the server revises that one or refuses); otherwise the implicit latest live one.
@@ -906,7 +906,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             askedId(d.userMessageId != null ? String(d.userMessageId) : null);
             if (chatThread) { setMsgs(messages => withDone(messages, replyId, d)); chatThread.adopt(d.threadId, message.slice(0, 120)); }
             threadId.current = d.threadId;
-            if (lessonRequest) { const { instruction, source, scope } = lessonRequest; lessonRequest = null; roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'standard', instruction, source: (lessonSources || []).find(s => s.key === source) || null, threadId: d.threadId, scope: scope && typeof scope === 'object' ? scope : null }); } // BE.01a: bound to the durable thread before it starts
+            if (lessonRequest) { const { instruction, source, scope } = lessonRequest; lessonRequest = null; roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'balanced', instruction, source: (lessonSources || []).find(s => s.key === source) || null, threadId: d.threadId, scope: scope && typeof scope === 'object' ? scope : null }); } // BE.01a: bound to the durable thread before it starts
             if (panelAsk) { sheetThread.current = d.threadId; rememberSheetThread(appName, d.threadId); }
             if (repository && d.commit) setRepositoryCommit(d.commit);
             if (responseGraph && onGraph) onGraph(responseGraph);

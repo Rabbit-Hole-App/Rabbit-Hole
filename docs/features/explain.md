@@ -1,3 +1,5 @@
+> Depth names (renamed 2026-11-08): Brief = Overview, Balanced = Standard, Detailed = Deep. The names in this file below are updated where they name the learner's Depth; stored values written with the old names are read through an alias map (`packages/control-plane/src/chat-depth.js` `DEPTH_ALIASES`).
+
 # /explain — workflow and implementation specification
 
 Built from [slash-command-template.md](slash-command-template.md), version 1. This specification extracts the written Explanation work from the Tutor roadmap and implementation checklist. The detailed shared Tutor lifecycle continues to be owned by those two source documents.
@@ -58,7 +60,7 @@ This is what `/explain` is for now. It supersedes the later-stage parts of this 
 
 | Feature | Status | Production flag |
 | --- | --- | --- |
-| Written Explanation card: Markdown, tables, Depth (Overview, Standard, Deep), selected source, pinned title, one reading flow, same card on reopen | Built, deployed | on |
+| Written Explanation card: Markdown, tables, Depth (Brief, Balanced, Detailed), selected source, pinned title, one reading flow, same card on reopen | Built, deployed | on |
 | SVG diagrams: the author writes a TutorDiagram spec (labels, roles, links); our renderer (`packages/web/src/tutor-diagrams/`) lays it out and draws SVG, 17 kinds (flow, comparison, timeline, sequence, matrix, layers and others). A requested table or diagram is required, and a broken one goes back for repair | Built, deployed (release 103; required-visual check release 112) | on |
 | Highlighted path through a flow diagram for a worked case (E3) | Built, deployed (release 112) | on |
 | Recraft illustration: "Add illustration" on the card opens Chat with `/image` and a prompt about the card (never sent by itself); Recraft V4.1 Flash makes the picture, attached as a figure with a caption (`IllustrationFigure.jsx`) | Built, deployed (release 103); `RECRAFT_API_KEY` set on `rabbit-hole-app` | image generation on |
@@ -101,9 +103,9 @@ A learner asks a question, optionally supplies source material and chooses a Dep
 | Public identity | `/explain`, label Explanation, internal command ID `explanation`, `make_explanation` output and `type:'explanation'` card | Roadmap §9.2 and current command registry |
 | Direct input | Learner question plus effective Depth and optional authorized source context | Roadmap §3.9, CORE.09 |
 | Tutor input | Full supported pinned document, accepted outcome, scope, step title/description/goal/claims, language, Depth and instruction/revisions | Roadmap §5.2, CORE.03/05 |
-| Teaching objective | Overview gives central idea/mechanism. Standard explains how and why so the learner can transfer it. Deep develops reasoning, assumptions, limitations and useful consequences. | Roadmap §3.9 |
+| Teaching objective | Brief gives central idea/mechanism. Balanced explains how and why so the learner can transfer it. Detailed develops reasoning, assumptions, limitations and useful consequences. | Roadmap §3.9 |
 | Main answer | Body answers the question on its own. Optional sections add an example, prediction or further reasoning. | CORE.09 |
-| Content budgets | Overview ≤600, Standard ≤1,000, Deep ≤1,500 normalized display-text Unicode code points, inclusive | CORE.09, BE.06a |
+| Content budgets | Brief ≤600, Balanced ≤1,000, Detailed ≤1,500 normalized display-text Unicode code points, inclusive | CORE.09, BE.06a |
 | Accepted title | Tutor accepted title wins over model title before counting and remains bound across generation, save and reload | CORE.03/05/09 |
 | Presentation | Pinned title and one reading flow, with diagrams/tables and supplementary content inside the same card | Roadmap §3.9 and approved UI 07 |
 | Ordinary Tutor author | One content-author dispatch, `repairs:0`, retained deterministic/source/safety/payment checks, truthful terminal failure and settlement | Roadmap §5.3, CORE.04/06 |
@@ -118,9 +120,9 @@ Latest explicit owner decisions govern product behavior. The specific approved E
 
 | Depth | Teaching objective |
 | --- | --- |
-| Overview | Explain the central idea and essential mechanism in everyday language. A concrete example can make the idea easier to follow. |
-| Standard | Explain how and why the mechanism works, with enough reasoning to apply it to another case. |
-| Deep | Develop the reasoning and relevant assumptions, limitations or connections. Work through a calculation or consequence when it helps. |
+| Brief | Explain the central idea and essential mechanism in everyday language. A concrete example can make the idea easier to follow. |
+| Balanced | Explain how and why the mechanism works, with enough reasoning to apply it to another case. |
+| Detailed | Develop the reasoning and relevant assumptions, limitations or connections. Work through a calculation or consequence when it helps. |
 
 The main body answers the question on its own. Optional sections can add a worked example, prediction or further reasoning. Choose headings and structure to suit the subject. Use a table for comparisons across shared attributes and a supported TutorDiagram for branching decisions, relationships or a process. Either format is available at every Depth. **An explicitly requested table or supported diagram is required, including at Overview.** Otherwise the author may choose whether a visual helps. Explain what the learner should notice in a visual; shorten surrounding prose to fit the cap rather than omit a requested visual.
 
@@ -229,7 +231,9 @@ These are implementation requirements, not existing fields. Add a server-owned, 
 
 Bind the record to the actual author request, quote/fingerprint where applicable, validation and saved artifact provenance. Keep explicit requirements through revisions, retries and prepared-result reuse; a newly accepted changed request gets a new binding. The validator must find a parsed, complete corresponding table or valid supported diagram in the final body/sections after final-title application and any allowed cleanup. A fence or a promise that a figure exists is insufficient. Check deterministic declared structure/content where possible; factual correctness and purpose matching also remain acceptance/benchmark checks, not a claim that schema validation proves every statement.
 
-For EX-01, a real Markdown table comparing early and late cooling is mandatory at **Overview, Standard and Deep**. For EX-07, a valid `flow` diagram with the requested decisions, Yes/No branches and outcomes is mandatory. No standalone table card replaces the requested written Explanation card. A missing/invalid required visual follows the existing validation failure lifecycle with a stable internal reason, such as `required_visual_missing` or `required_visual_invalid`; do not publish or save a successful prose-only replacement. Direct generation may use only its existing bounded repair. Ordinary Tutor remains `repairs:0`, one author call.
+Use action phrases beginning with verbs for flow steps. Block-stack components use their names, including role-tagged component steps in an inset. Untagged steps in an inset flow describe actions. Use single dollar delimiters for mathematical expressions. A plus sign joining two component names is ordinary label text.
+
+For EX-01, a real Markdown table comparing early and late cooling is mandatory at **Brief, Balanced and Detailed**. For EX-07, a valid `flow` diagram with the requested decisions, Yes/No branches and outcomes is mandatory. No standalone table card replaces the requested written Explanation card. A missing/invalid required visual follows the existing validation failure lifecycle with a stable internal reason, such as `required_visual_missing` or `required_visual_invalid`; do not publish or save a successful prose-only replacement. Direct generation may use only its existing bounded repair. Ordinary Tutor remains `repairs:0`, one author call.
 
 `dropInvalidDiagrams` may be used only for an **optional** diagram when the remaining answer is coherent, within budget and contains no dangling reference to the dropped figure. Record that optional degradation in the result/diagnostic receipt. If safe fallback cannot be established, fail truthfully. **A card should not fail (owner, 2026-11-08):** when the invalid diagram is the card's only visual and no repair is left, the server replaces it, with no model call, by a straight `flow` of its own labels in the order written (each a process, the last the outcome; title and caption kept), provided that card passes every check; otherwise the prose card is delivered without a visual. The card records `visualFallback: 'simplified' | 'dropped'` (and the result `diagramsSimplified`) for the benchmark; the learner sees no error. A required visual and a dangling reference still fail as above. Saved legacy cards retain their reader compatibility; the new policy applies to newly authored/new-contract reused output.
 
@@ -330,7 +334,7 @@ Paths below are repository-relative and verified on main `34a63b7d2322d0bb70a086
 | `packages/web/src/learn-slash.js::runLearnCommand` | Written `generateCommand` → artifact route; durable `startExplain` is the playable engine. | EXP-02/04 |
 | `packages/control-plane/src/learn-artifact.js` | Main supplies `prepareArtifactAuthorRequest` and `generateArtifact(...,{title})`, absent on review-correction branch. E0 reuses them with quotation/dispatch callers; apply accepted title before counting. Preserve artifact authorization and direct bounded repair. | EXP-03/04/08/12 |
 | `packages/control-plane/src/learn-primitives.js` | Primitive schema, teaching guidance, pure visible-text validation, diagram validation/drop fallback. | EXP-03/04/06 |
-| `packages/control-plane/src/chat-depth.js` | Explicit objectives and inclusive caps; Standard default. | EXP-03/04 |
+| `packages/control-plane/src/chat-depth.js` | Explicit objectives and inclusive caps; Balanced default. | EXP-03/04 |
 | `packages/control-plane/src/agents/learn-artifact.js`, `agents/roadmap-plan.js`, `agents/roadmap-card.js` | Artifact-wide prompt, planner/reviser rules and accepted-step suffix. | EXP-04 |
 | `packages/control-plane/src/roadmap/roadmap-generate.js`, `roadmap-run.js` | Frozen accepted author input, real quote/fingerprint, one metered call and workflow result. | EXP-04/08 |
 | `packages/control-plane/src/learn-models.js`, `ask.js`, `explain-celeris-dev.js` | Existing task model resolution and isolated dev experiment transport. | EXP-01/06/09 |
@@ -371,7 +375,7 @@ File 04 is historical. The source roadmap's final §4.6 paragraph pointing to04 
 | Case | Input / context / setting | Expected result and checks |
 | --- | --- | --- |
 | EX-01 direct written showcase | Exact supplied prompt: `/explain Why does coffee cool faster at first? Include a small table comparing early and late cooling.` No source required; effective Depth comes from settings. | Actual written card. Main body explains the greater initial temperature difference under comparable cooling conditions; table compares early/late against common attributes. No invented fixed rate or unsupported exact time. Use example fills the composer only. Mandatory parsed/rendered early-versus-late table at all three Depths; reload must restore the same card ID and table. Prose-only success fails EX-01. Apply the factual rubric at each Depth. |
-| EX-02 decision-tree Depth fixture | Source fixture `en.md`; title “Why trees, and what a tree actually does”; Overview/Standard/Deep from REF-05. Original standalone user prompt is not recorded in the HTML. | Preserve accepted title across depths, distinct teaching objectives and caps. Deep table: split A groups 3/1 and1/3, weighted Gini 0.375; split B groups 2/2 and2/2, Gini 0.5 for the equal-size example. A is purer. These are fixture facts, not newly generated results. |
+| EX-02 decision-tree Depth fixture | Source fixture `en.md`; title “Why trees, and what a tree actually does”; Brief/Balanced/Detailed (Overview/Standard/Deep in REF-05) from REF-05. Original standalone user prompt is not recorded in the HTML. | Preserve accepted title across depths, distinct teaching objectives and caps. Deep table: split A groups 3/1 and1/3, weighted Gini 0.375; split B groups 2/2 and2/2, Gini 0.5 for the equal-size example. A is purer. These are fixture facts, not newly generated results. |
 | EX-03 approved SVG card | REF-03 decision-tree card, 25-year-old applicant earning $60,000, exact displayed rules/labels/path from HTML | E1 may use the existing `flow` renderer with a caption tracing Age under 30? → Yes → Income over $50k? → Yes → Approve; it must not claim a blue path is shown. E3 full-reference acceptance requires validated highlighted-path support for the two selected edges (EXP-12-C04), correct title/inset/caption and neutral unselected branches. Terms decision tree/leaf and three fixture questions exercise the E2 interactions. No model-generated arbitrary SVG. |
 | EX-04 illustrated card | REF-03 title “Why do leaves change color in fall?”, source `autumn-leaves.md`; original generation prompt/seed not recorded | Existing illustration appears after opening paragraph with caption. Explain chlorophyll fading, existing yellow/orange pigments and some trees producing red/purple pigments. Do not claim every tree produces the same colors. Fixture image is a visual reference, not an approved provider result. |
 | EX-05 saved rich-content compatibility | Exact REF-05 `fixture-deep-body` Mermaid and `fixture-deep-more` table, then swap body/section positions | Real Md table markup, safe saved Mermaid rendering/fallback, one reading flow and pinned header; old cards remain readable despite the new-author grammar. |

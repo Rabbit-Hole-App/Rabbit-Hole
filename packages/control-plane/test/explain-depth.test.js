@@ -14,6 +14,8 @@ import { BOARD, OWNER, explainStack } from './explain-fixture.js';
 import { withVisual } from './explanation-layout-fixture.js';
 
 const MIGRATION = readFileSync(new URL('../learn-migrations/0037-learn-user-settings.sql', import.meta.url), 'utf8');
+// 0044 widens the Depth CHECK so the new names pass; this database has 0037 only (no learn_roadmaps), so only its first half (learn_canvas_depth) is applied.
+const DEPTH_NAMES = readFileSync(new URL('../learn-migrations/0044-depth-names.sql', import.meta.url), 'utf8').split('DROP TABLE IF EXISTS learn_roadmaps_new;')[0];
 const SUMMARY = 'The card shows how a pendulum swings. It names the length and the period.';
 const GAP = { kind: 'capability_gap', gap: { needs: ['component'], reason: 'No pendulum component.' } };
 // A spec the trusted checks refuse (no such component): the author's answer when a test wants the repair stage.
@@ -50,10 +52,10 @@ async function through(t, depth, opts = {}) {
 }
 
 test('brief and author both see Deep: the job record, the brief call and the author call differ between Overview and Deep', async t => {
-  const overview = await through(t, 'overview'), deep = await through(t, 'deep'), standard = await through(t, 'standard'), none = await through(t);
-  assert.deepEqual([overview.stored.depth, deep.stored.depth, standard.stored.depth, none.stored.depth], ['overview', 'deep', 'standard', 'standard']);
+  const overview = await through(t, 'brief'), deep = await through(t, 'detailed'), standard = await through(t, 'balanced'), none = await through(t);
+  assert.deepEqual([overview.stored.depth, deep.stored.depth, standard.stored.depth, none.stored.depth], ['brief', 'detailed', 'balanced', 'balanced']);
   assert.ok(overview.brief && overview.author && deep.brief && deep.author, 'both model calls were made');
-  for (const [name, run] of [['overview', overview], ['deep', deep]]) {
+  for (const [name, run] of [['brief', overview], ['detailed', deep]]) {
     const note = depthInstruction(name, 'card');
     for (const call of [run.brief, run.author]) {
       assert.ok(call.system.includes(note.slice(0, 40)), `${name}: the system prompt carries the Depth sentence`);
@@ -72,17 +74,17 @@ test('brief and author both see Deep: the job record, the brief call and the aut
 });
 
 test('Deep survives durable restart: the object is rebuilt from storage between the brief and Generate, and the author still sees Deep', async t => {
-  const run = await through(t, 'deep', { restart: true });
-  assert.equal(run.stored.depth, 'deep');
-  assert.match(run.author.system, /Depth: Deep/);
-  assert.match(run.author.content, /\\"depth\\":\\"deep\\"/);
+  const run = await through(t, 'detailed', { restart: true });
+  assert.equal(run.stored.depth, 'detailed');
+  assert.match(run.author.system, /Depth: Detailed/);
+  assert.match(run.author.content, /\\"depth\\":\\"detailed\\"/);
   assert.equal(run.calls.filter(c => c.role === 'brief').length, 1, 'the restart made no second brief call');
 });
 
 test('repair keeps original Depth: the v2 repair round receives the Depth the job was made at, and adds no call of its own beyond the repair round', async t => {
-  const deep = await through(t, 'deep', { author: BAD_SPEC }), plain = await through(t, undefined, { author: BAD_SPEC });
+  const deep = await through(t, 'detailed', { author: BAD_SPEC }), plain = await through(t, undefined, { author: BAD_SPEC });
   assert.ok(deep.repair, 'the refused spec went to a repair round');
-  assert.match(deep.repair.system, /Depth: Deep/); assert.match(deep.repair.content, /\\"depth\\":\\"deep\\"/);
+  assert.match(deep.repair.system, /Depth: Detailed/); assert.match(deep.repair.content, /\\"depth\\":\\"detailed\\"/);
   assert.ok(plain.repair); assert.doesNotMatch(plain.repair.system + plain.repair.content, /Depth:|depth/, 'Standard repair is today\'s input');
   assert.deepEqual(deep.calls.map(c => c.role), plain.calls.map(c => c.role), 'the same calls in the same order as a Standard job');
 });
@@ -90,7 +92,7 @@ test('repair keeps original Depth: the v2 repair round receives the Depth the jo
 // A route over the real ExplainJobs object, for create requests.
 function routed(t) {
   const s = explainStack(t, { pipeline: explainPipeline });
-  s.sqlite.exec(MIGRATION);
+  s.sqlite.exec(MIGRATION); s.sqlite.exec(DEPTH_NAMES);
   const namespace = { idFromName: name => name, get: () => ({ fetch: (url, init) => s.actor.fetch(new Request(url, init)) }) };
   const env = { ...s.env, EXPLAIN_JOBS: namespace };
   const identity = async () => OWNER;
@@ -101,35 +103,35 @@ function routed(t) {
 test('v2 route: the selection at submit is validated and stored; omitted, the saved Depth for that exact canvas; no browser value is trusted blindly', async t => {
   const { s, env, post, depthOf } = routed(t);
   const actor = { org: OWNER.org, userId: OWNER.userId, app: BOARD.app, board: BOARD.board };
-  await setDepth(env, actor, { depth: 'deep', expectedRevision: 0, actionId: 'saved-deep-0001' });
-  const picked = await post({ requestId: 'req-00000011', cardId: 'card-0011', depth: 'overview' });
+  await setDepth(env, actor, { depth: 'detailed', expectedRevision: 0, actionId: 'saved-deep-0001' });
+  const picked = await post({ requestId: 'req-00000011', cardId: 'card-0011', depth: 'brief' });
   assert.equal(picked.status, 202);
-  assert.equal(depthOf(picked.body.job.id), 'overview', 'what the learner had selected when they submitted, not what is saved');
+  assert.equal(depthOf(picked.body.job.id), 'brief', 'what the learner had selected when they submitted, not what is saved');
   const saved = await post({ requestId: 'req-00000012', cardId: 'card-0012' });
-  assert.equal(depthOf(saved.body.job.id), 'deep', 'omitted: the saved Depth for this canvas');
+  assert.equal(depthOf(saved.body.job.id), 'detailed', 'omitted: the saved Depth for this canvas');
   const other = await post({ requestId: 'req-00000013', cardId: 'card-0013' }, { id: 'board-2', app: 'canvas-b', board: 'main' });
-  assert.equal(depthOf(other.body.job.id), 'standard', 'another canvas has its own');
+  assert.equal(depthOf(other.body.job.id), 'balanced', 'another canvas has its own');
   const jobs = s.state.data.size;
   for (const bad of ['shallow', 'DEEP', null, 5]) assert.equal((await post({ requestId: 'req-00000014', cardId: 'card-0014', depth: bad })).status, 400, String(bad));
   assert.equal(s.state.data.size, jobs, 'a refused Depth creates no job and calls no model');
   const unread = { ...env, LEARN_DB: { ...env.LEARN_DB, prepare: sql => (/learn_canvas_depth/.test(sql) ? { bind: () => ({ first: async () => { throw new Error('no such table'); } }) } : env.LEARN_DB.prepare(sql)) } };
   const sent = await post({ requestId: 'req-00000015', cardId: 'card-0015' }, BOARD, unread);
-  assert.equal(depthOf(sent.body.job.id), 'standard', 'a database that cannot be read is Standard');
+  assert.equal(depthOf(sent.body.job.id), 'balanced', 'a database that cannot be read is Standard');
 });
 
 test('changed-depth replay conflicts: the same request id with another Depth is 409, the same Depth replays the job, Standard and omitted are one', async t => {
   const { s, post } = routed(t);
   const request = { requestId: 'req-00000021', cardId: 'card-0021' };
-  const first = await post({ ...request, depth: 'deep' });
+  const first = await post({ ...request, depth: 'detailed' });
   assert.equal(first.status, 202);
-  const replay = await post({ ...request, depth: 'deep' });
+  const replay = await post({ ...request, depth: 'detailed' });
   assert.deepEqual([replay.status, replay.body.job.id], [200, first.body.job.id], 'the same request replays its job');
-  const changed = await post({ ...request, depth: 'overview' });
+  const changed = await post({ ...request, depth: 'brief' });
   assert.deepEqual([changed.status, changed.body.error], [409, 'This request id belongs to a different explanation.']);
   assert.equal((await post({ ...request })).status, 409, 'omitted resolves to the saved Standard, which is not Deep');
   assert.equal([...s.state.data.keys()].filter(k => k.startsWith('job:')).length, 1, 'no second job');
   const plain = { requestId: 'req-00000022', cardId: 'card-0022' };
-  const made = await post({ ...plain, depth: 'standard' });
+  const made = await post({ ...plain, depth: 'balanced' });
   const again = await post({ ...plain });
   assert.deepEqual([again.status, again.body.job.id], [200, made.body.job.id], 'Standard and no Depth are the same request, as before Depth existed');
 });
@@ -140,26 +142,26 @@ test('artifact: captured Deep reaches artifact system, and v2 disabled fallback 
   const env = { CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo', org: OWNER.org, user_id: OWNER.userId }) } };
   const post = (body, over = env, generate = (e, input) => generateArtifact(e, input, { callModel })) => artifactFetch(new Request('https://dev.test/api/learn/artifact', { method: 'POST', body: JSON.stringify({ app: 'demo', ...body }) }), over, generate);
   // The snapshot the browser took at submit arrives with the board and reaches the system prompt and the request JSON of the model call.
-  assert.equal((await post({ command: 'explain', args: 'how a pendulum swings', board: 'main', depth: 'deep' })).status, 200);
-  assert.equal((await post({ command: 'explain', args: 'how a pendulum swings', board: 'main', depth: 'overview' })).status, 200);
+  assert.equal((await post({ command: 'explain', args: 'how a pendulum swings', board: 'main', depth: 'detailed' })).status, 200);
+  assert.equal((await post({ command: 'explain', args: 'how a pendulum swings', board: 'main', depth: 'brief' })).status, 200);
   assert.equal((await post({ command: 'explain', args: 'how a pendulum swings', board: 'main' })).status, 200);
   const [deep, overview, plain] = sent;
-  assert.match(deep.system, /Depth: Deep/); assert.match(overview.system, /Depth: Overview/); assert.doesNotMatch(plain.system, /Depth:/);
-  assert.match(deep.content, /"depth":"deep"/); assert.match(overview.content, /"depth":"overview"/); assert.doesNotMatch(plain.content, /depth/);
+  assert.match(deep.system, /Depth: Detailed/); assert.match(overview.system, /Depth: Brief/); assert.doesNotMatch(plain.system, /Depth:/);
+  assert.match(deep.content, /"depth":"detailed"/); assert.match(overview.content, /"depth":"brief"/); assert.doesNotMatch(plain.content, /depth/);
   assert.notEqual(deep.system, overview.system); assert.notEqual(deep.content, overview.content);
   assert.match(deep.content, /how a pendulum swings/, 'the learner\'s arguments are preserved');
 });
 
 test('artifact route: invalid depth rejected before model, the saved Depth only for the exact canvas, no main fallback, unsupported deterministic command unchanged', async t => {
   const s = explainStack(t);
-  s.sqlite.exec(MIGRATION);
+  s.sqlite.exec(MIGRATION); s.sqlite.exec(DEPTH_NAMES);
   const env = { ...s.env, CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo', org: OWNER.org, user_id: OWNER.userId }) } };
   const seen = [];
   const generate = async (e, input) => { seen.push(input); return { result: 'clarification', question: 'Which part?' }; };
   const post = body => artifactFetch(new Request('https://dev.test/api/learn/artifact', { method: 'POST', body: JSON.stringify({ app: 'demo', ...body }) }), env, generate);
   const actor = board => ({ org: OWNER.org, userId: OWNER.userId, app: 'demo', board });
-  await setDepth(env, actor('main'), { depth: 'deep', expectedRevision: 0, actionId: 'saved-main-0001' });
-  await setDepth(env, actor('second'), { depth: 'overview', expectedRevision: 0, actionId: 'saved-second-001' });
+  await setDepth(env, actor('main'), { depth: 'detailed', expectedRevision: 0, actionId: 'saved-main-0001' });
+  await setDepth(env, actor('second'), { depth: 'brief', expectedRevision: 0, actionId: 'saved-second-001' });
   // An unsupported explicit value is a 400 before auth, the model or any read.
   for (const bad of ['shallow', 'DEEP', null, 3]) assert.equal((await post({ command: 'explain', args: 'a pendulum', depth: bad })).status, 400, String(bad));
   assert.deepEqual(seen, [], 'no generation for a refused Depth');
@@ -168,11 +170,11 @@ test('artifact route: invalid depth rejected before model, the saved Depth only 
   assert.equal((await post({ command: 'explain', args: 'a pendulum', board: 'main' })).status, 200);
   assert.equal((await post({ command: 'explain', args: 'a pendulum', board: 'unseen' })).status, 200);
   assert.equal((await post({ command: 'explain', args: 'a pendulum' })).status, 200);
-  assert.deepEqual(seen.map(input => input.depth), ['overview', 'deep', undefined, undefined]);
+  assert.deepEqual(seen.map(input => input.depth), ['brief', 'detailed', undefined, undefined]);
   // A snapshot beats what is saved, and commands that make no explanation, deterministic ones included, are unchanged.
   seen.length = 0;
-  assert.equal((await post({ command: 'explain', args: 'a pendulum', board: 'main', depth: 'standard' })).status, 200);
-  for (const command of ['quiz', 'flashcards', 'notebook']) assert.equal((await post({ command, args: 'a pendulum', board: 'main', depth: 'deep' })).status, 200, command);
+  assert.equal((await post({ command: 'explain', args: 'a pendulum', board: 'main', depth: 'balanced' })).status, 200);
+  for (const command of ['quiz', 'flashcards', 'notebook']) assert.equal((await post({ command, args: 'a pendulum', board: 'main', depth: 'detailed' })).status, 200, command);
   assert.deepEqual(seen.map(input => input.depth), [undefined, undefined, undefined, undefined]);
   assert.deepEqual(Object.keys(seen[1]).sort(), ['args', 'command', 'context', 'selection'], 'the generator input of a quiz is exactly what it was before Depth');
 });
@@ -181,10 +183,10 @@ test('artifact repair keeps original Depth: the one repair call carries the same
   const calls = [], bad = { title: 'Why softmax', body: '' }, good = { title: 'Why softmax', body: withVisual('Softmax turns scores into probabilities.') }; // EXP-13, owner 2026-11-08: a new card has a visual
   const replies = [['make_explanation', bad], ['make_explanation', good]];
   const callModel = async (env, body) => { calls.push({ system: body.system, content: body.messages[0].content, messages: body.messages.length }); const [name, input] = replies[calls.length - 1]; return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${calls.length}`, name, input }] }); };
-  const out = await generateArtifact({}, { command: 'explain', args: 'how softmax works', depth: 'deep' }, { callModel });
+  const out = await generateArtifact({}, { command: 'explain', args: 'how softmax works', depth: 'detailed' }, { callModel });
   assert.equal(out.result, 'artifact'); assert.equal(out.repaired, true);
   assert.equal(calls.length, 2, 'exactly one repair, no extra call');
   assert.equal(calls[1].messages > calls[0].messages, true, 'the second call is the repair');
-  for (const call of calls) { assert.match(call.system, /Depth: Deep/); assert.match(call.content, /"depth":"deep"/); }
+  for (const call of calls) { assert.match(call.system, /Depth: Detailed/); assert.match(call.content, /"depth":"detailed"/); }
   assert.equal(calls[0].system, calls[1].system); assert.equal(calls[0].content, calls[1].content);
 });

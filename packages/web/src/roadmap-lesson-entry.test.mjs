@@ -34,7 +34,7 @@ function setup({ invitation = true, existing = null } = {}) {
     throw Object.assign(new Error('not found'), { status: 404, data: { code: 'not_found' } });
   };
   let n = 0;
-  const controller = createRoadmapController({ api, boardId: BOARD, host: { readOnly: () => false, depth: () => 'standard', instruction: () => 'scraped', sourceRev: () => SOURCE.rev, hasBlock: () => false, sources: () => [SOURCE] }, schedule: () => 0, cancel() {}, random: () => `key${++n}aaaaaaaa` });
+  const controller = createRoadmapController({ api, boardId: BOARD, host: { readOnly: () => false, depth: () => 'balanced', instruction: () => 'scraped', sourceRev: () => SOURCE.rev, hasBlock: () => false, sources: () => [SOURCE] }, schedule: () => 0, cancel() {}, random: () => `key${++n}aaaaaaaa` });
   const creates = () => calls.filter(c => c.method === 'POST' && c.path === '/api/learn/roadmap');
   return { controller, calls, roadmaps, threads, creates };
 }
@@ -43,12 +43,12 @@ test('BE.01a: a click and a typed lesson request for the same source are one gua
   const s = setup();
   s.controller.start(); await settle();
   assert.equal(s.creates().length, 0, 'the invitation alone starts nothing');
-  const click = s.controller.explain({ depth: 'deep', instruction: 'teach me gradients' });
-  const typed = s.controller.lesson({ depth: 'deep', instruction: 'teach me gradients', source: SOURCE });
+  const click = s.controller.explain({ depth: 'detailed', instruction: 'teach me gradients' });
+  const typed = s.controller.lesson({ depth: 'detailed', instruction: 'teach me gradients', source: SOURCE });
   await Promise.all([click, typed]); await settle();
   assert.equal(s.creates().length, 1, 'one request: the typed request joined the button gesture');
   const create = s.creates()[0].body;
-  assert.deepEqual([create.invitationId, create.source, create.instruction, create.depth, typeof create.actionKey], [body('invitation-offered').invitation.id, { key: SOURCE.key, rev: SOURCE.rev, scope: { kind: 'whole' } }, 'teach me gradients', 'deep', 'string']);
+  assert.deepEqual([create.invitationId, create.source, create.instruction, create.depth, typeof create.actionKey], [body('invitation-offered').invitation.id, { key: SOURCE.key, rev: SOURCE.rev, scope: { kind: 'whole' } }, 'teach me gradients', 'detailed', 'string']);
   assert.equal(s.roadmaps.length, 1);
 });
 
@@ -56,17 +56,17 @@ test('BE.01a: replaying the request from both entry points, in either order, end
   for (const order of ['click-first', 'typed-first']) {
     const s = setup();
     s.controller.start(); await settle();
-    const click = () => s.controller.explain({ depth: 'standard', instruction: 'teach me gradients' });
-    const typed = () => s.controller.lesson({ depth: 'standard', instruction: 'teach me gradients', source: SOURCE });
+    const click = () => s.controller.explain({ depth: 'balanced', instruction: 'teach me gradients' });
+    const typed = () => s.controller.lesson({ depth: 'balanced', instruction: 'teach me gradients', source: SOURCE });
     await (order === 'click-first' ? click() : typed());
     await (order === 'click-first' ? typed() : click());
-    await s.controller.lesson({ depth: 'standard', instruction: 'teach me gradients', source: SOURCE }); // a third, once the draft exists
+    await s.controller.lesson({ depth: 'balanced', instruction: 'teach me gradients', source: SOURCE }); // a third, once the draft exists
     await settle();
     assert.equal(s.roadmaps.length, 1, order + ': one draft on the server');
     assert.ok(s.controller.getState().view?.roadmap, order + ': the existing draft is what the Chat shows');
     assert.equal(s.controller.getState().notice, null, order + ': the refused duplicate is not an error');
     const posts = s.creates().length;
-    await s.controller.lesson({ depth: 'standard', instruction: 'again', source: SOURCE });
+    await s.controller.lesson({ depth: 'balanced', instruction: 'again', source: SOURCE });
     assert.equal(s.creates().length, posts, order + ': an unfinished roadmap is never asked for a second draft');
   }
 });
@@ -77,7 +77,7 @@ test('BE.01a: with no invitation (dismissed or none) the typed request creates f
   await s.controller.lesson({ instruction: 'explain section two of this', source: SOURCE });
   const [create] = s.creates();
   assert.equal(create.body.invitationId, undefined, 'no invitation is named');
-  assert.deepEqual([create.body.source, create.body.instruction, create.body.depth, typeof create.body.actionKey], [{ key: SOURCE.key, rev: SOURCE.rev, scope: { kind: 'whole' } }, 'explain section two of this', 'standard', 'string']);
+  assert.deepEqual([create.body.source, create.body.instruction, create.body.depth, typeof create.body.actionKey], [{ key: SOURCE.key, rev: SOURCE.rev, scope: { kind: 'whole' } }, 'explain section two of this', 'balanced', 'string']);
   // The same typed request twice at once is one request.
   const t = setup({ invitation: false });
   t.controller.start(); await settle();
@@ -122,7 +122,7 @@ test('the Send path carries the lesson sources and runs the typed request throug
   assert.ok(ask.includes('const lessonSources = roadmap?.lessonSources?.() || null;'));
   assert.ok(ask.includes("lessonSources?.length ? { lesson: { sources: lessonSources } } : {}"), 'only an ordinary Learn Chat turn (no command, regeneration or Edit) offers the sources');
   assert.ok(ask.includes("d.toolRequest?.command === 'explain-on-canvas'"));
-  assert.ok(ask.includes("roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'standard', instruction, source:"));
+  assert.ok(ask.includes("roadmap?.controller?.lesson({ depth: chat?.settings?.depth || 'balanced', instruction, source:"));
   assert.ok(ask.includes("threadId: d.threadId"), 'the saved thread of the final event, known before the roadmap starts (a new chat has no chat.thread.id when the tool event arrives)');
   const hook = readFileSync(fileURLToPath(new URL('./use-roadmap.js', import.meta.url)), 'utf8');
   assert.ok(hook.includes('lessonSources: () => lessonSourcesOf(controller.getState(), hostRef.current?.sources?.() || [])'));
@@ -134,9 +134,9 @@ test('the Send path carries the lesson sources and runs the typed request throug
 test('lesson: a named scope reaches the create body (invitation path and source path); no scope means the whole source', async () => {
   const passage = { kind: 'passage', start: 10, end: 90 };
   const a = setup({ invitation: false }); a.controller.start(); await settle();
-  await a.controller.lesson({ depth: 'standard', instruction: 'teach the middle part', source: SOURCE, scope: passage });
+  await a.controller.lesson({ depth: 'balanced', instruction: 'teach the middle part', source: SOURCE, scope: passage });
   assert.deepEqual(a.creates()[0].body.source.scope, passage);
   const b = setup({ invitation: false }); b.controller.start(); await settle();
-  await b.controller.lesson({ depth: 'standard', instruction: 'teach it', source: SOURCE });
+  await b.controller.lesson({ depth: 'balanced', instruction: 'teach it', source: SOURCE });
   assert.deepEqual(b.creates()[0].body.source.scope, { kind: 'whole' });
 });

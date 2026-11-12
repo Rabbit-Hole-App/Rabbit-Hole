@@ -20,9 +20,9 @@ export const RESULT_DELIVERY = set(['not_delivered', 'delivered', 'removed']);
 export const BILLING_OUTCOME = set(['pending', 'settled', 'refunded', 'failed', 'zero_priced']);
 // Extension (not in 4.3, see README Gaps): an unknown provider outcome must be reconciled before any retry (5.1, 5.2). It is its own
 // dimension, never a sixth billing outcome, so the 4.3 list stays exactly as written.
-// Depth (R2 owns the setting; checklist 2.1): the same three values reach Chat, slash paths and roadmap inputs. Default standard.
-export const DEPTHS = set(['overview', 'standard', 'deep']);
-export const DEFAULT_DEPTH = 'standard';
+// Depth (R2 owns the setting; checklist 2.1): the same three values reach Chat, slash paths and roadmap inputs. Default balanced (renamed 2026-11-08 from overview, standard, deep; stored values are read through chat-depth.js depthOf).
+export const DEPTHS = set(['brief', 'balanced', 'detailed']);
+export const DEFAULT_DEPTH = 'balanced';
 export const RECONCILIATION = set(['none', 'required', 'complete']);
 
 // --- transition tables: state -> the states it may move to. A state absent from a table does not exist. --------------

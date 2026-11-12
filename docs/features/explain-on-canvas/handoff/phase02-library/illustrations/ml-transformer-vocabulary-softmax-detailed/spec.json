@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Linear projection to vocabulary logits",
+    "caption": "Project the 4 shown features (512 in the full model). $z=hW$ gives one score for each toy word.",
+    "bars": [
+      {
+        "label": "the",
+        "value": 0.501
+      },
+      {
+        "label": "cat",
+        "value": -0.108
+      },
+      {
+        "label": "sat",
+        "value": 0.78
+      },
+      {
+        "label": "on",
+        "value": 1.745
+      },
+      {
+        "label": "mat",
+        "value": 0.201
+      },
+      {
+        "label": "slept",
+        "value": -0.495
+      }
+    ]
+  }
+}

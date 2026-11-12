@@ -12,7 +12,11 @@ const GEMINI_HOST = 'generativelanguage.googleapis.com';
 const env = { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'a', GEMINI_API_KEY: 'g' };
 const usage = { prompt_tokens: 100, completion_tokens: 20, total_tokens: 150 };
 
-function recordFetch(t, { gemini = () => Response.json({ model: CHAT_GEMINI, choices: [{ finish_reason: 'stop', message: { content: 'ok from gemini' } }], usage }) } = {}) {
+// A stream:true request is answered as Gemini streams (two chunks, then the usage chunk); any other as one JSON answer.
+const streamed = chunks => new Response(chunks.map(c => `data: ${JSON.stringify(c)}\n\n`).join('') + 'data: [DONE]\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+const okAnswer = body => (body.stream ? streamed([{ model: CHAT_GEMINI, choices: [{ delta: { role: 'assistant', content: 'ok from gemini' } }] }, { choices: [{ delta: {}, finish_reason: 'stop' }] }, { choices: [], usage }])
+  : Response.json({ model: CHAT_GEMINI, choices: [{ finish_reason: 'stop', message: { content: 'ok from gemini' } }], usage }));
+function recordFetch(t, { gemini = okAnswer } = {}) {
   const calls = [], original = globalThis.fetch;
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async (url, options = {}) => {
@@ -38,16 +42,18 @@ test('chat on Auto, with no pick and with the old Opus pick, is one Gemini call 
   }
 });
 
-test('the tool-less Tutor path and the tools path both ride Gemini (plain stream request replayed as SSE, tools call non-streamed)', async t => {
+test('the tool-less Tutor path streams from Gemini and the tools path both ride Gemini (plain stream request streamed token by token, tools call non-streamed)', async t => {
   let calls = recordFetch(t);
   const plain = await askStream(env, 'context', [], 'q', async () => {}, {}, [], null, null, null, 'system', null).text();
   assert.match(plain, /ok from gemini/);
   assert.deepEqual(calls.map(c => c.host), [GEMINI_HOST]);
-  assert.equal('stream' in calls[0].body, false);
+  assert.equal(calls[0].body.stream, true);
+  assert.deepEqual(calls[0].body.stream_options, { include_usage: true });
   calls = recordFetch(t);
   const withTools = await askStream(env, 'context', [], 'q', async () => {}, {}, [], { tools: [{ name: 'run', description: 'd', input_schema: { type: 'object', properties: { app: { type: 'string' } }, required: ['app'] } }], onProposal: async () => ({}) }, null, null, 'system', null).text();
   assert.match(withTools, /ok from gemini/);
   assert.deepEqual(calls.map(c => c.host), [GEMINI_HOST]);
+  assert.equal('stream' in calls[0].body, false);
 });
 
 test('a Sonnet or Haiku pick still runs on Anthropic, and CHAT_MODEL_PROFILE=anthropic puts Auto back on Opus', async t => {
@@ -82,13 +88,13 @@ test('a call carrying a PDF (an attachment, or a paper the research tool read) i
   assert.deepEqual(calls.map(c => [c.host, c.body.model]), [['api.anthropic.com', 'claude-sonnet-5']]);
 });
 
-test('tools: the last research step offers none (tool_choice none stays none), Gemini gets the schema without additionalProperties, thought signatures ride back, and a system block list is joined', async t => {
+test('tools: the last research step offers none (tool_choice none stays none), Gemini gets the tool schema as written (real calls: all 14 chat tools are accepted with additionalProperties), thought signatures ride back, and a system block list is joined', async t => {
   const calls = recordFetch(t, { gemini: () => Response.json({ model: CHAT_GEMINI, choices: [{ finish_reason: 'tool_calls', message: { tool_calls: [{ id: 'c1', function: { name: 'search_arxiv', arguments: '{"query":"x"}' }, extra_content: { google: { thought_signature: 'sig' } } }] } }], usage }) });
   const response = await anthropic(env, { max_tokens: 100, system: [{ type: 'text', text: 'one' }, { type: 'text', text: 'two' }], tools: [SEARCH_ARXIV_TOOL], tool_choice: { type: 'none' }, messages: [{ role: 'user', content: 'find it' }] }, CHAT_GEMINI, null);
   const sent = calls[0].body;
   assert.equal(sent.tool_choice, 'none');
   assert.equal(sent.messages[0].content, 'one\ntwo');
-  assert.equal(JSON.stringify(sent.tools).includes('additionalProperties'), false);
+  assert.equal(sent.tools[0].function.parameters.additionalProperties, SEARCH_ARXIV_TOOL.input_schema.additionalProperties);
   assert.equal(sent.tools[0].function.parameters.required[0], 'query');
   const message = await response.json();
   assert.equal(message.stop_reason, 'tool_use');
@@ -107,3 +113,38 @@ test('settlement: Anthropic-shaped usage (output = the larger of completion and 
 });
 
 test('the endpoint is the explanation chain\'s own', () => assert.equal(CHAT_GEMINI_URL, CHAIN_ENDPOINTS.google.url));
+
+test('the learner sees the API reason on a Gemini 4xx/5xx (its error body is an array), the not-configured sentence without a key, and nothing is retried on another model', async t => {
+  for (const [status, body, shown] of [[400, '[{"error":{"code":400,"message":"bad schema"}}]', 'Learn answer unavailable (model HTTP 400: bad schema)'], [503, '{"error":{"message":"busy"}}', 'Learn answer unavailable (model HTTP 503: busy)'], [500, 'not json', 'Learn answer unavailable (model HTTP 500)']]) {
+    const calls = recordFetch(t, { gemini: () => new Response(body, { status }) });
+    const events = await chat(env, null);
+    assert.ok(events.includes(shown), events);
+    assert.deepEqual(calls.map(c => c.host), [GEMINI_HOST]);
+  }
+  const calls = recordFetch(t);
+  assert.ok((await chat({ ...env, GEMINI_API_KEY: undefined }, null)).includes('AI answers aren\u2019t configured on this preview.'));
+  assert.deepEqual(calls, []);
+});
+
+test('a tool loop on Gemini: the second call carries the assistant tool_use block with its thought signature and the tool_result as a tool message (real call: without the signature Gemini answers 400)', async t => {
+  const calls = recordFetch(t, { gemini: () => Response.json({ model: CHAT_GEMINI, choices: [{ finish_reason: 'tool_calls', message: { tool_calls: [{ id: 'c1', function: { name: 'search_arxiv', arguments: '{"query":"attention"}' }, extra_content: { google: { thought_signature: 'sig' } } }] } }], usage }) });
+  const first = await (await anthropic(env, { max_tokens: 100, tools: [SEARCH_ARXIV_TOOL], messages: [{ role: 'user', content: 'find it' }] }, CHAT_GEMINI, null)).json();
+  await anthropic(env, { max_tokens: 100, tools: [SEARCH_ARXIV_TOOL], messages: [{ role: 'user', content: 'find it' }, { role: 'assistant', content: first.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'c1', content: 'Result 1' }] }] }, CHAT_GEMINI, null);
+  const second = calls[1].body.messages;
+  assert.deepEqual(second.at(-2).tool_calls[0].extra_content, { google: { thought_signature: 'sig' } });
+  assert.deepEqual(second.at(-1), { role: 'tool', tool_call_id: 'c1', content: 'Result 1' });
+});
+
+test('an image attachment goes to Gemini as an image_url data part beside the text (real call: accepted, described), a PDF still goes to Sonnet 5', async t => {
+  const { attachmentBlocks } = await import('../src/ask.js');
+  const png = new File([Uint8Array.from([137, 80, 78, 71])], 'dot.png', { type: 'image/png' });
+  const { blocks } = await attachmentBlocks(png);
+  assert.equal(blocks[0].type, 'image');
+  const calls = recordFetch(t);
+  await anthropic(env, { max_tokens: 100, messages: [{ role: 'user', content: [...blocks, { type: 'text', text: 'What is in this picture?' }] }] }, CHAT_GEMINI, null);
+  assert.deepEqual(calls.map(c => c.host), [GEMINI_HOST]);
+  const user = calls[0].body.messages.at(-1);
+  assert.equal(user.content[0].type, 'image_url');
+  assert.match(user.content[0].image_url.url, /^data:image\/png;base64,/);
+  assert.deepEqual(user.content[1], { type: 'text', text: 'What is in this picture?' });
+});

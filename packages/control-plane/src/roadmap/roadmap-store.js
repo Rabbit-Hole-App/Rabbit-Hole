@@ -4,6 +4,7 @@
 // key with a different payload, or a stale revision, is a 409 carrying the current state. Server ids only: a client id is never proof of access.
 import { BLIND_RETRY_FORBIDDEN, DEPTHS, StateError, canAcceptProposal, canDeliver, canTransition, conflictReply, entitledRoadmapResult, resolveAction, validateAccess, isUnfinishedRoadmap } from './roadmap-contract.js';
 import { ROADMAP_LIMITS, ROADMAP_POLICY_VERSION, ceilingFor } from './roadmap-policy.js';
+import { depthOf } from '../chat-depth.js';
 import { admitStepAuthorization, newId, refundCardStatements, releaseStepAllocation, sha256, failureWillRetry } from './roadmap-money.js';
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
@@ -103,12 +104,13 @@ export async function recordedReplay(db, access, { operation, actionKey, roadmap
 // --- create ---------------------------------------------------------------------------------------------------------------------------
 // instruction is the learner's original words, stored verbatim as version 1 and never replaced by an inferred topic (v1.4 3.5).
 // allowEmpty: the Explain-on-canvas choice of an invitation carries no typed words; the planner then asks one focused question when the source covers several topics (v1.4 3.5).
-export async function createRoadmap(db, access, { actionKey, app, instruction, source, scope, scopeFingerprint, depth = 'standard', language = null, mode = 'tutor', allowEmpty = false, practiceMode = null, now = nowSeconds(), roadmapId = newId('rm_') }) {
+export async function createRoadmap(db, access, { actionKey, app, instruction, source, scope, scopeFingerprint, depth = 'balanced', language = null, mode = 'tutor', allowEmpty = false, practiceMode = null, now = nowSeconds(), roadmapId = newId('rm_') }) {
   requireAccess(access);
   // UI.03: Explanations + practice needs R9; refused here, never silently made an explanations-only roadmap.
   if (practiceMode != null && practiceMode !== 'explanations') throw new StateError('practice_unavailable', 'Explanations + practice is not available yet.', 422);
   if (typeof instruction !== 'string' || (!instruction.trim() && !allowEmpty) || instruction.length > ROADMAP_LIMITS.source.instructionChars) throw new StateError('invalid_request', 'instruction is required', 400);
   if (!source?.key || !source?.rev || !scopeFingerprint) throw new StateError('invalid_request', 'source is required', 400);
+  depth = depthOf(depth);
   if (!DEPTHS.includes(depth)) throw new StateError('invalid_request', 'depth', 400); // the learner's R2 Depth; the column CHECK would otherwise 500
   const ceiling = ceilingFor(depth);
   const view = { roadmapId };
@@ -176,7 +178,7 @@ export async function acceptPlan(db, access, { roadmapId, expectedRevision, plan
     const keptNow = (await db.prepare(`SELECT COUNT(*) AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND ${KEPT}`).bind(roadmapId, prior).first()).n;
     if (planVersion <= prior || row.instruction_version !== latestInstruction || (plan?.keptSteps ?? 0) !== keptNow) throw stale();
   } else if (row && planVersion === roadmap.plan_version && row.instruction_version !== (await db.prepare('SELECT MAX(version) AS v FROM learn_roadmap_instructions WHERE roadmap_id = ?').bind(roadmapId).first())?.v) throw stale();
-  const depth = DEPTHS.includes(plan?.settings?.depth) ? plan.settings.depth : roadmap.depth;
+  const depth = DEPTHS.includes(depthOf(plan?.settings?.depth)) ? depthOf(plan.settings.depth) : depthOf(roadmap.depth);
   return applyRoadmapAction(db, access, {
     operation: 'accept_plan', actionKey, roadmapId, expectedRevision, parts: [planVersion], now,
     guard: { sql: `(SELECT state FROM learn_roadmaps WHERE id = ?) IN (${reaccept ? "'active', 'paused'" : "'proposed'"}) AND (SELECT plan_version FROM learn_roadmaps WHERE id = ?) = ?`

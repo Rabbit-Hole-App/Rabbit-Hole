@@ -6,9 +6,15 @@
 // value. No model call is reachable from here.
 // Depth is canvas-scoped, so a message for another canvas changes only Auto-suggest; a message from another learner (a shared
 // browser) changes nothing.
-export const DEPTHS = [['overview', 'Overview', 'The short version: the central idea and what matters most'], ['standard', 'Standard', 'A balanced explanation'], ['deep', 'Deep', 'Thorough: reasoning, a worked example and edge cases']];
-export const DEFAULT_SETTINGS = Object.freeze({ depth: 'standard', autoSuggest: true });
-const valid = patch => Object.keys(patch).length === 1 && (patch.depth !== undefined ? DEPTHS.some(([id]) => id === patch.depth) : typeof patch.autoSuggest === 'boolean');
+// Brief / Balanced / Detailed (renamed 2026-11-08 from Overview / Standard / Deep): same length, a different reader. The hints say who each is written for.
+export const DEPTHS = [['brief', 'Brief', 'For someone new to the subject'], ['balanced', 'Balanced', 'For someone who knows the basics'], ['detailed', 'Detailed', 'For someone who wants the exact account']];
+export const DEFAULT_SETTINGS = Object.freeze({ depth: 'balanced', autoSuggest: true });
+// Read-side aliases for the old names (the server, another tab on an older build and a saved value may still say overview, standard or deep); writes use only the new names.
+// Same map as control-plane chat-depth.js DEPTH_ALIASES; remove both together after the stored-value rewrite.
+export const DEPTH_ALIASES = Object.freeze({ overview: 'brief', standard: 'balanced', deep: 'detailed' });
+export const depthOf = value => (typeof value === 'string' && Object.hasOwn(DEPTH_ALIASES, value) ? DEPTH_ALIASES[value] : value);
+const norm = settings => (settings && settings.depth !== undefined ? { ...settings, depth: depthOf(settings.depth) } : settings);
+const valid = patch => Object.keys(patch).length === 1 && (patch.depth !== undefined ? DEPTHS.some(([id]) => id === depthOf(patch.depth)) : typeof patch.autoSuggest === 'boolean');
 const newId = () => `set-${globalThis.crypto?.randomUUID?.().replaceAll('-', '') ?? Math.random().toString(36).slice(2).padEnd(12, '0')}`;
 
 // The deployed behavior Auto-suggest governs on this build: the Tutor's unasked suggestions, read through effectiveControls
@@ -19,8 +25,8 @@ export const SUGGESTION_CAPABILITIES = ['tutor_unrequested_material'];
 export const AUTO_SUGGEST_MODES = ['auto', 'tutor'];
 export const autoSuggestShown = (mode, capabilities = SUGGESTION_CAPABILITIES) => capabilities.length > 0 && AUTO_SUGGEST_MODES.includes(mode);
 
-// The request field Depth rides in on a Chat turn: nothing for Standard, so a request is exactly today's until the learner chooses.
-export const depthField = settings => (settings && settings.depth !== 'standard' ? { depth: settings.depth } : {});
+// The request field Depth rides in on a Chat turn: nothing for Balanced, so a request is exactly today's until the learner chooses.
+export const depthField = settings => (settings && depthOf(settings.depth) !== DEFAULT_SETTINGS.depth ? { depth: depthOf(settings.depth) } : {});
 
 // The controls proactive Tutor decisions read: the learner's Auto-suggest decides tutorEnabled, whatever the canvas record says
 // (no control for the per-canvas value remains, and it is never rewritten). The explicit pause is not touched, so switching
@@ -48,7 +54,7 @@ export function createSettingsSync({ scope, call, channel = null }) {
       const out = await call(url);
       if (!running || mine !== loads) return;
       learner = out.learner ?? learner;
-      if (!pending) { settings = { ...DEFAULT_SETTINGS, ...out.settings }; revision = out.depthRevision ?? 0; }
+      if (!pending) { settings = { ...DEFAULT_SETTINGS, ...norm(out.settings) }; revision = out.depthRevision ?? 0; }
       status = out.unsaved ? 'unsaved' : 'ready';
     } catch {
       if (!running || mine !== loads) return;
@@ -73,7 +79,7 @@ export function createSettingsSync({ scope, call, channel = null }) {
           learner = error.data.learner ?? learner;
           revision = error.data.depthRevision ?? revision;
           if (attempt === 0) continue;
-          settings = { ...settings, ...error.data.settings }; // sent twice and still behind: the newer choice stands
+          settings = { ...settings, ...norm(error.data.settings) }; // sent twice and still behind: the newer choice stands
           return error.data;
         }
         return null;
@@ -85,6 +91,7 @@ export function createSettingsSync({ scope, call, channel = null }) {
   // server would refuse.
   function set(patch) {
     if (!valid(patch)) return Promise.resolve(false);
+    patch = norm(patch);
     settings = { ...settings, ...patch };
     save = 'saving'; pending += 1; notify();
     const run = async () => {
@@ -95,7 +102,7 @@ export function createSettingsSync({ scope, call, channel = null }) {
       else {
         failed = null;
         // A newer change still queued stays on top of this answer; the last one to land is the server's value.
-        if (!pending) { settings = { ...DEFAULT_SETTINGS, ...out.settings }; save = 'saved'; }
+        if (!pending) { settings = { ...DEFAULT_SETTINGS, ...norm(out.settings) }; save = 'saved'; }
         channel?.postMessage({ app: scope.app, board: scope.board, learner, settings: out.settings, depthRevision: revision });
       }
       notify();
@@ -113,7 +120,7 @@ export function createSettingsSync({ scope, call, channel = null }) {
       if (!message || !message.settings || !learner || message.learner !== learner || pending) return;
       // Auto-suggest is the learner's on every canvas; Depth (and its revision) only on the canvas it was chosen for.
       const same = message.app === scope.app && message.board === scope.board;
-      const next = { ...settings, autoSuggest: message.settings.autoSuggest, ...(same ? { depth: message.settings.depth } : {}) };
+      const next = { ...settings, autoSuggest: message.settings.autoSuggest, ...(same ? { depth: depthOf(message.settings.depth) } : {}) };
       if (same && Number.isInteger(message.depthRevision)) revision = Math.max(revision, message.depthRevision);
       if (next.autoSuggest === settings.autoSuggest && next.depth === settings.depth) return;
       settings = next; notify();

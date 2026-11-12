@@ -36,7 +36,7 @@ export function world(t, { allowanceMicros = 10_000_000 } = {}) {
 
 // A roadmap with an accepted plan and one pending (checked) proposal. -> ids and the revisions a client would send.
 export async function offered({ LEARN_DB }, access, { n = 1 } = {}) {
-  const made = await createRoadmap(LEARN_DB, access, { actionKey: `create-${n}-0001`, app: 'learn', instruction: 'I already know X, teach me Y', source: { key: 'file:fs_a', rev: 'rev1' }, scope: { kind: 'whole' }, scopeFingerprint: 'fp1', depth: 'standard' });
+  const made = await createRoadmap(LEARN_DB, access, { actionKey: `create-${n}-0001`, app: 'learn', instruction: 'I already know X, teach me Y', source: { key: 'file:fs_a', rev: 'rev1' }, scope: { kind: 'whole' }, scopeFingerprint: 'fp1', depth: 'balanced' });
   const roadmapId = made.body.roadmapId;
   const plan = { outcome: 'Teach Y', assumptions: [], formats: ['explanation', 'table'], stoppingPoint: 'Y understood', steps: [
     { title: 'Step one', goal: 'g1', format: 'explanation', passage: { start: 0, end: 100 } }, { title: 'Step two', goal: 'g2', format: 'table', passage: { start: 100, end: 200 } }] };

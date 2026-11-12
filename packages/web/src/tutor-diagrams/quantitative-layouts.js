@@ -1,4 +1,6 @@
 import { createElement as h } from 'react';
+import { monotoneLinePath, showPlotMarker } from './plot-lines.js';
+import { plotTicks } from './plot-ticks.js';
 import { connector, label, lineHeight, textWidth, wrap, INK, PALETTE, SURFACE } from './primitives.js';
 
 const PAD = 12;
@@ -27,15 +29,12 @@ function ticks(min, max, position, clearance) {
   return zeroFits ? [min, 0, max] : [min, max];
 }
 
-function xTickLabels(values, position, axisY, labelWidth) {
+function xTickLabels(ticks, axisY) {
   const elements = [];
-  const rows = values.map(value => wrap(String(value), labelWidth, SMALL));
-  const height = Math.max(...rows.map(lines => lines.length)) * lineHeight(SMALL);
-  for (const [index, value] of values.entries()) {
-    const x = position(value);
-    const anchor = index === 0 ? 'start' : index === values.length - 1 ? 'end' : 'middle';
-    elements.push(connector([[x, axisY], [x, axisY + 5]], { arrow: false }));
-    elements.push(label(rows[index], x, axisY + 9 + height / 2, { anchor, size: SMALL }));
+  const height = Math.max(...ticks.map(tick => tick.lines.length)) * lineHeight(SMALL);
+  for (const { at, lines, anchor } of ticks) {
+    elements.push(connector([[at, axisY], [at, axisY + 5]], { arrow: false }));
+    elements.push(label(lines, at, axisY + 9 + height / 2, { anchor, size: SMALL }));
   }
   return { elements, height: 9 + height };
 }
@@ -72,7 +71,9 @@ function numberLine(diagram, width) {
   const marks = markerPositions(markers, position);
   const axisY = Math.max(PAD, ...marks.map(marker => marker.y + 22));
   const tickWidth = (right - left) / 3 - 3;
-  const axisTicks = xTickLabels(ticks(min, max, position, tickWidth + 6), position, axisY, tickWidth);
+  const values = ticks(min, max, position, tickWidth + 6);
+  const axisTicks = xTickLabels(values.map((value, i) => ({ at: position(value), lines: wrap(String(value), tickWidth, SMALL),
+    anchor: i === 0 ? 'start' : i === values.length - 1 ? 'end' : 'middle' })), axisY);
   const elements = marks.map(marker => connector([[marker.x, marker.y + 9], [marker.x, axisY]], { arrow: false, dashed: true }));
   elements.push(connector([[left, axisY], [right, axisY]], { arrow: false }), ...axisTicks.elements);
   for (const { x, y, badge, value } of marks) {
@@ -121,11 +122,13 @@ function plotMarker(x, y, style, title, value) {
   return h('circle', { cx: x, cy: y, r: radius, ...attributes }, annotation);
 }
 
-function seriesLine(points, style) {
-  const attributes = { points, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round', strokeDasharray: style.dash };
+function seriesLine(points, style, smooth = false) {
+  const tag = smooth ? 'path' : 'polyline';
+  const geometry = smooth ? { d: monotoneLinePath(points) } : { points: points.join(' ') };
+  const attributes = { ...geometry, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round', strokeDasharray: style.dash };
   return h('g', null,
-    h('polyline', { ...attributes, stroke: INK, strokeWidth: 3.6 }),
-    h('polyline', { ...attributes, stroke: PALETTE[style.role], strokeWidth: 1.7 }));
+    h(tag, { ...attributes, stroke: INK, strokeWidth: 3.6 }),
+    h(tag, { ...attributes, stroke: PALETTE[style.role], strokeWidth: 1.7 }));
 }
 
 const axisName = axis => axis.unit ? `${axis.label} (${axis.unit})` : axis.label;
@@ -140,16 +143,15 @@ function coordinatePlot(diagram, width) {
   const top = PAD + titleHeight + Math.max(12, labelHeight / 2 + 5);
   const bottom = top + Math.min(248, Math.max(150, Math.round(width * 0.44)));
   const x = scale(xAxis.min, xAxis.max, left, right), y = scale(yAxis.min, yAxis.max, bottom, top);
-  const xTickWidth = (right - left) / 3 - 3;
-  const xValues = ticks(xAxis.min, xAxis.max, x, xTickWidth + 6);
-  const yValues = ticks(yAxis.min, yAxis.max, y, labelHeight + 6);
-  const xLabels = xTickLabels(xValues, x, bottom, xTickWidth);
+  const xTicks = plotTicks(xAxis, x, { horizontal: true });
+  const yTicks = plotTicks(yAxis, y, { labelWidth: yTickWidth + 6 });
+  const xLabels = xTickLabels(xTicks, bottom);
   const elements = [label(yTitle, PAD, PAD + titleHeight / 2, { anchor: 'start', weight: 700 })];
-  for (const value of xValues) elements.push(connector([[x(value), top], [x(value), bottom]], { arrow: false, dashed: true }));
-  for (const value of yValues) {
-    elements.push(connector([[left, y(value)], [right, y(value)]], { arrow: false, dashed: true }));
-    elements.push(connector([[left - 4, y(value)], [left, y(value)]], { arrow: false }));
-    elements.push(label(wrap(String(value), yTickWidth, SMALL), left - 8, y(value), { anchor: 'end', size: SMALL }));
+  for (const { at } of xTicks) elements.push(connector([[at, top], [at, bottom]], { arrow: false, dashed: true }));
+  for (const { at, lines, anchor } of yTicks) {
+    elements.push(connector([[left, at], [right, at]], { arrow: false, dashed: true }));
+    elements.push(connector([[left - 4, at], [left, at]], { arrow: false }));
+    elements.push(label(lines, left - 8, at, { anchor, size: SMALL }));
   }
   elements.push(connector([[left, top], [left, bottom], [right, bottom]], { arrow: false }), ...xLabels.elements);
   const xTitle = wrap(axisName(xAxis), right - PAD);
@@ -160,15 +162,17 @@ function coordinatePlot(diagram, width) {
   const markers = [];
   for (const [index, entry] of series.entries()) {
     const style = SERIES[index];
-    if (entry.kind === 'line') elements.push(seriesLine(entry.points.map(point => `${x(point.x)},${y(point.y)}`).join(' '), style));
-    for (const point of entry.points) {
+    const positions = entry.points.map(point => [x(point.x), y(point.y)]);
+    if (entry.kind === 'line') elements.push(seriesLine(positions, style, entry.smooth !== false));
+    for (const [i, point] of entry.points.entries()) {
+      if (!showPlotMarker(entry, i)) continue;
       const coordinates = `${point.x},${point.y}`;
-      markers.push(plotMarker(x(point.x), y(point.y), style, `${entry.label}: (${point.x}, ${point.y})`, coordinates));
+      markers.push(plotMarker(...positions[i], style, `${entry.label}: (${point.x}, ${point.y})`, coordinates));
     }
     const lines = wrap(entry.label, width - PAD * 2 - 36);
     const height = Math.max(24, lines.length * lineHeight());
     const middle = legendY + height / 2;
-    if (entry.kind === 'line') elements.push(seriesLine(`${PAD},${middle} ${PAD + 25},${middle}`, style));
+    if (entry.kind === 'line') elements.push(seriesLine([[PAD, middle], [PAD + 25, middle]], style));
     elements.push(plotMarker(PAD + 12, middle, style));
     elements.push(label(lines, PAD + 36, middle, { anchor: 'start' }));
     legendY += height + 2;

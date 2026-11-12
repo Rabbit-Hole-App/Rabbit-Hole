@@ -1,0 +1,848 @@
+{
+ "name": "aiml",
+ "version": {
+  "prompts": "P1 2026-11-08 15:10 PT",
+  "labels": "L2 2026-11-08 16:20 PT (owner relabels: entropy, DNS, decision tree)"
+ },
+ "measures": "AI/ML subjects: kind choice where several kinds collide, no picture for digital/abstract subjects, a picture for the four picture-worthy ones.",
+ "source": "C:/s/spec/benchmarks/explain-visual-choice-2026-11-08/prompts-C.json",
+ "written": "2026-11-08 15:10 PT, before any C card was sent",
+ "relabels": [
+  "2026-11-08 ~16:20 PT owner relabel (applied before scoring 5e, 5d re-scored): decision tree: flow-with-decisions = right, tree = acceptable"
+ ],
+ "notation": "As prompts.json: P = picture, D:<kind> = diagram (D:a|b either, D:* any). best = right; acceptable = weaker; anything else wrong. picture: yes (a picture is required), no (digital/abstract: any picture is a miss in the no-picture direction), optional.",
+ "defaultRuns": 1,
+ "estUsdPerCard": 0.0115,
+ "pass": {},
+ "prompts": [
+  {
+   "id": "backprop",
+   "group": "ai-core",
+   "prompt": "how does backpropagation work?",
+   "best": [
+    [
+     "D:flow|relationship|cycle"
+    ],
+    [
+     "D:flow|relationship|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|layers|sequence"
+    ]
+   ],
+   "badKinds": [
+    "comparison",
+    "timeline",
+    "figure",
+    "matrix"
+   ],
+   "why": "Forward pass, loss, gradients flowing back through the layers, weight update: a flow (or the training loop as a cycle, the chain rule as relationship).",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "attention",
+   "group": "ai-core",
+   "prompt": "how does attention work in a transformer?",
+   "best": [
+    [
+     "D:relationship|flow|transformation|matrix"
+    ],
+    [
+     "D:relationship|flow|transformation|matrix",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle"
+   ],
+   "why": "Each token scores every other token (a weight matrix) and mixes their values: matrix, relationship or transformation.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "gpu-matmul",
+   "group": "ai-core",
+   "prompt": "how does a GPU run matrix multiplications?",
+   "best": [
+    [
+     "D:matrix|flow|tree|transformation"
+    ],
+    [
+     "D:matrix|flow|tree|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The answer is how the work splits into tiles across many cores: a diagram. The GPU is physical, so a picture is tolerated second, not needed.",
+   "needsPicture": false,
+   "noPicture": false
+  },
+  {
+   "id": "gradient-descent",
+   "group": "ai-core",
+   "prompt": "what is gradient descent?",
+   "best": [
+    [
+     "D:coordinate-plot|flow|cycle"
+    ],
+    [
+     "D:coordinate-plot|flow|cycle",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "tree",
+    "comparison"
+   ],
+   "why": "Steps down a loss curve (coordinate plot) or the repeat-until-converged loop (cycle/flow).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity"
+  },
+  {
+   "id": "tokenization",
+   "group": "ai-core",
+   "prompt": "how does tokenization work?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ],
+    [
+     "D:*",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "figure",
+    "cycle",
+    "layers"
+   ],
+   "why": "Text becomes a list of tokens: transformation, or the steps as a flow.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "cnn",
+   "group": "ai-core",
+   "prompt": "what is a convolutional neural network?",
+   "best": [
+    [
+     "D:flow|layers|transformation"
+    ],
+    [
+     "D:flow|layers|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Image -> convolution -> pooling -> classifier: a flow or a layer stack.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "rag",
+   "group": "ai-core",
+   "prompt": "how does RAG work?",
+   "best": [
+    [
+     "D:sequence|flow"
+    ],
+    [
+     "D:sequence|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|transformation"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Query -> retriever -> documents -> model -> answer, between named parts: sequence or flow.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "overfitting",
+   "group": "ai-core",
+   "prompt": "what is overfitting?",
+   "best": [
+    [
+     "D:coordinate-plot|comparison"
+    ],
+    [
+     "D:coordinate-plot|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|transformation|relationship"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Training error keeps falling while validation error rises: two curves, or a good-fit vs overfit comparison.",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity",
+   "minSeries": 2
+  },
+  {
+   "id": "beam-search",
+   "group": "ai-core",
+   "prompt": "how does beam search work?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "A tree of candidate continuations pruned to the k best at each step.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "vector-db",
+   "group": "ai-core",
+   "prompt": "what is a vector database?",
+   "best": [
+    [
+     "D:flow|transformation|relationship|sequence"
+    ],
+    [
+     "D:flow|transformation|relationship|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Items become vectors, a query vector finds its nearest neighbours: flow or transformation.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "rlhf",
+   "group": "ai-core",
+   "prompt": "how does RLHF work?",
+   "best": [
+    [
+     "D:flow|cycle|sequence"
+    ],
+    [
+     "D:flow|cycle|sequence",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "layers",
+    "figure"
+   ],
+   "why": "Model answers, humans rank, a reward model learns, the policy is tuned, repeat: flow, cycle or sequence.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "cpu-vs-gpu",
+   "group": "ai-core",
+   "prompt": "what is the difference between a CPU and a GPU?",
+   "best": [
+    [
+     "D:comparison"
+    ],
+    [
+     "D:comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:comparison",
+     "P"
+    ],
+    [
+     "D:matrix"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "figure"
+   ],
+   "why": "Two items across attributes: comparison. A picture of the chips is tolerated, not needed.",
+   "needsPicture": false,
+   "noPicture": false
+  },
+  {
+   "id": "dropout",
+   "group": "ai-core",
+   "prompt": "how does dropout work?",
+   "best": [
+    [
+     "D:transformation|comparison"
+    ],
+    [
+     "D:transformation|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:relationship|flow"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "The network before and after units are switched off: transformation or comparison.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "lr-schedule",
+   "group": "ai-core",
+   "prompt": "what is a learning rate schedule?",
+   "best": [
+    [
+     "D:coordinate-plot"
+    ],
+    [
+     "D:coordinate-plot",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:bar-chart|timeline|number-line|flow"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "A quantity over training steps: a curve (chart-hold case).",
+   "needsPicture": false,
+   "noPicture": true,
+   "category": "quantity"
+  },
+  {
+   "id": "diffusion",
+   "group": "ai-core",
+   "prompt": "how does a diffusion model generate an image?",
+   "best": [
+    [
+     "D:transformation|flow|sequence|timeline"
+    ],
+    [
+     "D:transformation|flow|sequence|timeline",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "tree",
+    "layers",
+    "figure",
+    "matrix"
+   ],
+   "why": "Noise is removed step by step: transformation or flow. A picture of noise becoming an image is tolerated second.",
+   "needsPicture": false,
+   "noPicture": false
+  },
+  {
+   "id": "batchnorm",
+   "group": "ai-core",
+   "prompt": "what is batch normalization?",
+   "best": [
+    [
+     "D:transformation|flow"
+    ],
+    [
+     "D:transformation|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:coordinate-plot|bar-chart|comparison"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Activations re-centred and re-scaled per batch: before/after transformation.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "kv-cache",
+   "group": "ai-core",
+   "prompt": "how does KV caching speed up inference?",
+   "best": [
+    [
+     "D:comparison|sequence|flow|transformation"
+    ],
+    [
+     "D:comparison|sequence|flow|transformation",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Recompute everything vs reuse stored keys and values: a comparison, or the decode steps as a sequence/flow.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "nn-look",
+   "group": "collision",
+   "prompt": "what does a neural network look like?",
+   "best": [
+    [
+     "D:relationship|layers|flow"
+    ],
+    [
+     "D:relationship|layers|flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*",
+     "P"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "comparison"
+   ],
+   "why": "Word collision with 'look like' (6b): the subject is abstract, nodes in layers joined by weights; a diagram. A picture is decoration (tolerated beside a diagram, wrong alone).",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "decision-tree",
+   "group": "ai-core",
+   "prompt": "how does a decision tree make a prediction?",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "layers",
+    "figure"
+   ],
+   "why": "Questions split the data down to a leaf: tree (or a decision flow).",
+   "flowNeedsDecision": true,
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "quantization",
+   "group": "ai-core",
+   "prompt": "what is quantization?",
+   "best": [
+    [
+     "D:transformation|number-line|comparison"
+    ],
+    [
+     "D:transformation|number-line|comparison",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "tree",
+    "figure"
+   ],
+   "why": "Precise numbers mapped to fewer levels: transformation or a number line.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "gpu-look",
+   "group": "picture-worthy",
+   "prompt": "what does a GPU look like?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object: a picture of the card and chip.",
+   "needsPicture": true,
+   "noPicture": false
+  },
+  {
+   "id": "rack-look",
+   "group": "picture-worthy",
+   "prompt": "what does a data-center rack look like?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:layers|tree"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "flow",
+    "matrix"
+   ],
+   "why": "A physical object and place: a picture. Its stacked units as layers are a fair second.",
+   "needsPicture": true,
+   "noPicture": false
+  },
+  {
+   "id": "bio-neuron",
+   "group": "picture-worthy",
+   "prompt": "what does a biological neuron look like?",
+   "best": [
+    [
+     "P"
+    ],
+    [
+     "P",
+     "D:flow|sequence|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P",
+     "D:*"
+    ],
+    [
+     "P",
+     "P"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "matrix",
+    "layers"
+   ],
+   "why": "Anatomy: a picture of dendrites, cell body and axon.",
+   "needsPicture": true,
+   "noPicture": false
+  },
+  {
+   "id": "robot-arm",
+   "group": "picture-worthy",
+   "prompt": "how does a robot arm pick up an object?",
+   "best": [
+    [
+     "P",
+     "D:flow|sequence"
+    ]
+   ],
+   "acceptable": [
+    [
+     "P"
+    ],
+    [
+     "D:flow|sequence"
+    ],
+    [
+     "P",
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "matrix",
+    "layers",
+    "comparison"
+   ],
+   "why": "A physical machine doing something: picture plus the sense-plan-grip steps.",
+   "needsPicture": true,
+   "noPicture": false
+  },
+  {
+   "id": "random-forest",
+   "group": "collision",
+   "prompt": "what is a random forest?",
+   "best": [
+    [
+     "D:tree"
+    ],
+    [
+     "D:tree",
+     "D:*"
+    ],
+    [
+     "D:flow|relationship"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure",
+    "layers"
+   ],
+   "why": "Word collision: many decision trees that vote; never a picture of a forest.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "ml-pipeline",
+   "group": "collision",
+   "prompt": "how does data flow through an ML pipeline?",
+   "best": [
+    [
+     "D:flow"
+    ],
+    [
+     "D:flow",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:sequence|transformation|layers"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'flow' but a flow really is right: ingest -> clean -> features -> train -> evaluate -> serve.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "nn-layers",
+   "group": "collision",
+   "prompt": "what are the layers of a neural network?",
+   "best": [
+    [
+     "D:layers|flow|relationship"
+    ],
+    [
+     "D:layers|flow|relationship",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:*"
+    ]
+   ],
+   "badKinds": [
+    "timeline",
+    "cycle",
+    "figure"
+   ],
+   "why": "Word collision with 'layers': input, hidden and output layers in order; layers, flow or relationship are all right.",
+   "needsPicture": false,
+   "noPicture": true
+  },
+  {
+   "id": "comp-graph",
+   "group": "collision",
+   "prompt": "what is a computational graph?",
+   "best": [
+    [
+     "D:relationship|flow|tree"
+    ],
+    [
+     "D:relationship|flow|tree",
+     "D:*"
+    ]
+   ],
+   "acceptable": [
+    [
+     "D:transformation|sequence"
+    ]
+   ],
+   "badKinds": [
+    "coordinate-plot",
+    "bar-chart",
+    "timeline",
+    "figure"
+   ],
+   "why": "Word collision with 'graph': operations as nodes joined by edges, never a chart.",
+   "needsPicture": false,
+   "noPicture": true
+  }
+ ]
+}

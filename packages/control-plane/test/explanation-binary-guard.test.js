@@ -30,5 +30,6 @@ test('a binary question turns an ordinary tree with at most two children per nod
 });
 
 test('the guidance names the binary layout', () => {
-  assert.match(EXPLANATION_GUIDANCE, /For binary trees use kind "tree" with layout "binary"/);
+  assert.match(EXPLANATION_GUIDANCE, /For a binary tree use kind "tree" with layout "binary"; give each child its side\./);
+  assert.doesNotMatch(EXPLANATION_GUIDANCE, /For an operation on a binary tree or BST/, 'the operation paragraph is dead text: the server guard decides the layout (owner 2026-11-08 clean-up)');
 });

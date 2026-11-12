@@ -78,7 +78,7 @@ export const references = [
   ref('log-transform-distribution', ['08'],
     ['Show how a log transform changes a skewed feature scale.'], ['log transform', 'log1p', 'skewed feature', 'transformed distribution'],
     'Use for a fixed transformed distribution. The label names the transformed coordinate; the renderer does not execute an expression.',
-    { kind: 'histogram', title: 'A fixed log transform', xLabel: 'log₂(1 + x)', binEdges: [0, 2, 4, 6, 8], measure: 'count',
+    { kind: 'histogram', title: 'A fixed log transform', xLabel: '$\\log_2(1+x)$', binEdges: [0, 2, 4, 6, 8], measure: 'count',
       series: [{ label: 'Transformed observations', values: [2, 2, 2, 2] }],
       caption: 'Raw values 0, 1, 3, 7, 15, 31, 63, 127 become 0 through 7.' }),
   ref('aligned-distribution-drift', ['20'],
@@ -104,5 +104,5 @@ export const references = [
     { kind: 'box-plot', title: 'Fences are not observed whiskers', x: { label: 'Reading', min: -2, max: 12 },
       boxes: [{ label: 'Measurements', whiskerLow: 0, q1: 2, median: 3, q3: 4, whiskerHigh: 6,
         fences: { lower: -1, upper: 7 }, outliers: [{ label: 'Unusual reading', value: 10 }] }],
-      caption: 'IQR = 4 − 2 = 2. The 1.5 × IQR fences are −1 and 7; observed whiskers end at 0 and 6.' }),
+      caption: '$\\mathrm{IQR}=4-2=2$. Fences extend 1.5 IQRs past the quartiles to −1 and 7. Observed whiskers end at 0 and 6.' }),
 ];

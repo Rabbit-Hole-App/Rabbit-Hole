@@ -45,7 +45,7 @@ export const STRINGS = Object.freeze({
   // Step status words in the ToC. NEW (not numbered in decision-records.md): approval needed with S11-S25.
   stepState: { planned: 'Planned', proposed: 'Proposed', generating: 'Being made', delivered: 'Delivered', incomplete: 'Incomplete', cancelled: 'Cancelled', skipped: 'Omitted', already_understood: 'Already understood' },
   cardRemoved: 'Card removed',
-  planPrefix: 'Plan', depth: 'Depth', depthName: { overview: 'Overview', standard: 'Standard', deep: 'Deep' },
+  planPrefix: 'Plan', depth: 'Depth', depthName: { brief: 'Brief', balanced: 'Balanced', detailed: 'Detailed' },
   // Tutor core MVP (checklist 4.1 vocabulary; roadmap 3.1-3.12). Exact labels from the approved action list; sentences per roadmap 3.2/3.3/3.5/3.7.
   startNewChat: 'Start new chat', stayHere: 'Stay here',
   recoveryDone: 'Resolved', routedNew: 'Started a new chat', routedStay: 'Stayed in this chat', draftAccepted: 'Roadmap accepted', draftReplaced: 'Replaced by a newer draft',

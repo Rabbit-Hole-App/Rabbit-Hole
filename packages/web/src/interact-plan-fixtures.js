@@ -32,7 +32,7 @@ export async function interactFixtures() {
   const common = { schemaVersion: 1, assumptions: ['Constant downward acceleration of 9.8 m/s^2, no air resistance, up is positive.'], limitations: ['An idealized vertical throw; real balls feel drag.'] };
 
   const overview = {
-    ...common, depth: 'overview',
+    ...common, depth: 'brief',
     title: 'Is a ball at the top of a throw weightless?',
     story: 'Maya tossed a tennis ball straight up and swung too late. At the top it seemed to hang there. Her friend held a second ball at the same height and let go: it started from rest and fell. At the top of her throw the ball also had no velocity, and nothing was holding it up. Gravity had been slowing it on the way up and was now speeding it up on the way down.',
     cardDescription: 'A tossed ball at its top and a ball just released from rest are at the same height with zero velocity. Gravity pulls both down, so after 0.10 s each has moved 0.049 m.',
@@ -59,7 +59,7 @@ export async function interactFixtures() {
   };
   const apex = bin('divide', lit(3), lit(G));
   const standard = {
-    ...common, depth: 'standard',
+    ...common, depth: 'balanced',
     title: 'Zero velocity at the top is not zero acceleration',
     story: 'Maya tossed the ball up, waited for it to hang at the top, and swung. It had already dropped below her racket. If it stopped, how was it still accelerating? Her friend held a ball at shoulder height and let go. It began at zero velocity, and gravity immediately gave it downward speed. Her own ball had passed through the same moment. Three instants around the top: 0.10 s before, moving up at about 1 m/s; at the top, velocity zero; 0.10 s after, moving down at about 1 m/s. In each tenth of a second the velocity changed by about 1 m/s downward. Zero was one of the values it passed through.',
     cardDescription: 'A ball tossed at 3.0 m/s passes through zero velocity at its top, yet its acceleration stays -9.8 m/s^2 the whole time. Scrub through the top and watch the velocity change sign while the acceleration does not.',
@@ -98,7 +98,7 @@ export async function interactFixtures() {
   };
   const deepEnd = bin('divide', bin('multiply', lit(2), inp('launchSpeed')), lit(G));
   const deep = {
-    ...common, depth: 'deep',
+    ...common, depth: 'detailed',
     title: 'Does a faster throw change the motion around its peak?',
     story: 'Maya wanted to know how much time her eyes had actually seen at the top. Taking up as positive and t = 0 at the highest point, with no air resistance, her ball had acceleration -g, about -9.8 m/s^2, with no special case for the instant it stopped rising. Velocity and height followed v = -g t and y = y_top - g t^2 / 2. A tenth of a second either side of the top the ball was only 4.9 centimetres below it. Then she asked what a faster throw would change: the flight lasts 2u/g and the peak height is u^2 / (2g), but the shape of the motion around the peak is the same.',
     cardDescription: 'Change the launch speed from 3.0 to 5.0 m/s and replay. The flight lasts 2u/g and the peak rises as u squared, yet within 0.20 s of its own peak every throw stays within 0.049 m of that peak.',
@@ -143,7 +143,7 @@ export async function interactFixtures() {
   };
 
   const untimedExperiment = {
-    ...common, depth: 'standard',
+    ...common, depth: 'balanced',
     title: 'How does peak height depend on launch speed?',
     story: 'Maya threw a ball at different speeds and watched where each one stopped rising. A ball thrown twice as fast went four times as high, because the height gained before gravity stops the ball grows with the square of the launch speed.',
     cardDescription: 'Move the launch speed and see where the ball stops rising. Doubling the speed quadruples the peak height.',
@@ -167,7 +167,7 @@ export async function interactFixtures() {
   };
 
   const staticAdjustable = {
-    ...common, depth: 'overview',
+    ...common, depth: 'brief',
     title: 'Three moments of one throw',
     story: 'Maya looked at one throw at three moments: just before the top, at the top and just after. At each moment she asked which way the ball was moving and which way gravity pulled.',
     cardDescription: 'Choose a moment of the throw to see the velocity and the gravity arrow. Velocity changes direction; gravity does not.',
@@ -201,7 +201,7 @@ export async function interactFixtures() {
   // A different subject (I3): the period of a simple pendulum, an untimed Experiment through the same job, runner and card as the toss-and-drop. T = 2 pi sqrt(L / g) for
   // small swings; the string length is the one adjustable input.
   const pendulum = {
-    ...common, depth: 'standard',
+    ...common, depth: 'balanced',
     title: 'Does a longer pendulum swing more slowly?',
     story: 'Maya hung her house key from a string and let it swing a little. She wondered whether a longer string would make each swing slower, and by how much. For small swings the time of one full swing, the period, is two pi times the square root of the string length divided by g. So a string four times as long takes twice as long, not four times as long. The weight of the key does not appear at all.',
     cardDescription: 'Change the string length and read how long one full swing takes. A string four times as long swings twice as slowly, because the period grows with the square root of the length.',

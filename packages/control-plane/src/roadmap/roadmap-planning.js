@@ -5,6 +5,7 @@
 // (version 1) is passed unchanged to every call; later answers and edits are appended versions, never replacements.
 import { StateError } from './roadmap-contract.js';
 import { DEPTHS } from './roadmap-contract.js';
+import { depthOf } from '../chat-depth.js';
 import { ceilingFor } from './roadmap-policy.js';
 import { applyRoadmapAction, eventStatement, readRoadmap, recordPlan, requireKey } from './roadmap-store.js';
 import { newId, sha256 } from './roadmap-money.js';
@@ -44,7 +45,7 @@ export async function planningHandler(env, event, { now = nowSeconds() } = {}, d
   // No new unsolicited work while the flag is off: wait, resume when it is restored (v1.4 4.1).
   if (env.ROADMAP_ENABLED !== 'true' && !deps.ignoreFlag) return { retry: true };
   const { instructionVersion, depth: asked } = parse(event.payload_json) || {};
-  const depth = DEPTHS.includes(asked) ? asked : roadmap.depth; // the Depth this draft is planned at (an accepted roadmap's own Depth changes only at reacceptance)
+  const depth = DEPTHS.includes(depthOf(asked)) ? depthOf(asked) : depthOf(roadmap.depth); // the Depth this draft is planned at (an accepted roadmap's own Depth changes only at reacceptance)
   const instructions = await instructionsOf(db, roadmap.id);
   if (!instructions.length || instructions[instructions.length - 1].version !== instructionVersion) return { done: true }; // a newer request supersedes this one
   const key = `rmplan_${roadmap.id}_${instructionVersion}`;
@@ -118,7 +119,7 @@ async function requestPlan(db, access, { roadmapId, expectedRevision, actionKey,
   const roadmap = await readRoadmap(db, access, roadmapId);
   if (!roadmap) throw new StateError('not_found', 'Not available', 404);
   const next = ((await db.prepare('SELECT MAX(version) AS v FROM learn_roadmap_instructions WHERE roadmap_id = ?').bind(roadmapId).first())?.v || 0) + 1;
-  const depth = settings.depth && DEPTHS.includes(settings.depth) ? settings.depth : roadmap.depth;
+  const depth = settings.depth && DEPTHS.includes(depthOf(settings.depth)) ? depthOf(settings.depth) : depthOf(roadmap.depth);
   return applyRoadmapAction(db, access, {
     operation, actionKey, roadmapId, expectedRevision, parts: [origin, await sha256(text), depth], now,
     guard: { sql: `(SELECT state FROM learn_roadmaps WHERE id = ?) IN (${from.map(() => '?').join(',')}) AND ? >= (SELECT delivered_count FROM learn_roadmaps WHERE id = ?)`, binds: [roadmapId, ...from, ceilingFor(depth), roadmapId] },
@@ -158,7 +159,7 @@ export async function revisePlan(db, access, { roadmapId, expectedRevision, acti
   if (scope != null) throw new StateError('invalid_request', 'scope revision is not supported yet', 400);
   const text = typeof instruction === 'string' ? instruction.trim() : '';
   if (text.length > 1000 || (instruction != null && typeof instruction !== 'string')) throw new StateError('invalid_request', 'instruction', 400);
-  if (settings.depth != null && !DEPTHS.includes(settings.depth)) throw new StateError('invalid_request', 'depth', 400);
+  if (settings.depth != null && !DEPTHS.includes(depthOf(settings.depth))) throw new StateError('invalid_request', 'depth', 400);
   if (!text && !settings.depth) throw new StateError('invalid_request', 'nothing to revise', 400);
   if (!REVISABLE.includes(roadmap.state)) throw Object.assign(new StateError('invalid_transition', 'This roadmap cannot be revised now.', 409), { reply: { code: 'invalid_transition', currentRevision: roadmap.revision, currentProposalVersion: null } });
   return requestPlan(db, access, { roadmapId, expectedRevision, actionKey, operation: 'revise_plan', text, origin: 'revise', settings, from: REVISABLE, now });

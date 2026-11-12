@@ -1,0 +1,102 @@
+{
+  "encoding": "cl100k_base",
+  "maxTokens": 200,
+  "entries": {
+    "flow": {
+      "tokens": 91,
+      "sha256": "587bddd22b0570e7f6b47dd517ddc4ba1539ebd9f872e02618eb25b7ca7e157b"
+    },
+    "comparison": {
+      "tokens": 47,
+      "sha256": "cfee64ec108ddeba26eb0e559b0d3580f1f6be0af998337cef742c3246ca76d6"
+    },
+    "timeline": {
+      "tokens": 44,
+      "sha256": "a6db2ae8a68d0b941ec0e421364b473f2b71474c8d5eb1d372834c55d76eeb3b"
+    },
+    "sequence": {
+      "tokens": 73,
+      "sha256": "723b427256ad1af29000f0b7d8e26b6ea24c3f636c915f79d1620e01ec5e2839"
+    },
+    "matrix": {
+      "tokens": 53,
+      "sha256": "4afe6f36491e2e5de68de04b7a68ffc4f9fe4c0a528654c2ad2dbe406d5cefac"
+    },
+    "layers": {
+      "tokens": 40,
+      "sha256": "e33b36860bdf69fb5d3ca66df0669213d365efe0337e04f92feca65ac023e983"
+    },
+    "cycle": {
+      "tokens": 36,
+      "sha256": "efe6bff43d5a6cfb38cbdb2f48580e2f63b2d886bc20c22ad1960d43b39d9181"
+    },
+    "figure": {
+      "tokens": 49,
+      "sha256": "c568a75597dc7c23277930688d3614548ee74bb24c8cd2e313f497cc099e715c"
+    },
+    "tree": {
+      "tokens": 57,
+      "sha256": "7bf120f5f88a8b2385491dc96285e7db580fcda2cfe61f60de170b2de39944a4"
+    },
+    "relationship": {
+      "tokens": 67,
+      "sha256": "6248f117f3e47050748e06ead8de2ab1346e25a451d89853ff9125789503a466"
+    },
+    "transformation": {
+      "tokens": 45,
+      "sha256": "5cabf63bb0c839981426af602413e5e5e90e2fef20b699e0421ddff2e824b5af"
+    },
+    "argument": {
+      "tokens": 68,
+      "sha256": "c103353a73d8d6ceaf6324692fda4bfb0d3fdd1f5c0bfc3c96a69d826013cc19"
+    },
+    "number-line": {
+      "tokens": 70,
+      "sha256": "51d4f063cc6656d40c9de2bae8782e2a14346624a57d43cc439c46829836c6ac"
+    },
+    "coordinate-plot": {
+      "tokens": 150,
+      "sha256": "1b1c1a8a807baba9193b66a222113c5a1175ded1176a1c7f7ae4d96b11ca3df4"
+    },
+    "bar-chart": {
+      "tokens": 41,
+      "sha256": "c51d7fc105662e72e662fc453d03e61e0ba1f0324afbee487b19a693359e4e33"
+    },
+    "t-account": {
+      "tokens": 51,
+      "sha256": "d5e6571d742432eb464360798e84c3a8da14a100da7440d7147960794003f21d"
+    },
+    "waterfall": {
+      "tokens": 48,
+      "sha256": "15375ddf3b990927b5510353b00f7370d3269fe27bfb60e9e0e47eb787ee46bc"
+    },
+    "heatmap": {
+      "tokens": 62,
+      "sha256": "fbc3e80b533e8af3e45e7160693432ba857d361116c04307c81e873973369e93"
+    },
+    "sample-set": {
+      "tokens": 68,
+      "sha256": "7b3bd470f544cfa765a89956efde48fdb4a8bcb203f5cbb1e49f0c2262cc7e60"
+    },
+    "histogram": {
+      "tokens": 59,
+      "sha256": "d55cfdcee83166d76b97e9cd39905914a33acc87cf23ec206b56cce1423805c4"
+    },
+    "box-plot": {
+      "tokens": 74,
+      "sha256": "8bcbaf7231cddabc0af297d1af991b6dd3a8e91431093f1c9f7aae276c25aef4"
+    },
+    "tensor": {
+      "tokens": 54,
+      "sha256": "d9dfd982bdae54a65128e7e7d196a643e665021bdd99e1abccf5c8ece58bbab8"
+    },
+    "token-links": {
+      "tokens": 54,
+      "sha256": "4ef62298372f145b309fede30275fd3947c00525c63efdc57a1307b6e4f2d6f2"
+    },
+    "block-stack": {
+      "tokens": 64,
+      "sha256": "98ec371b7e68ff5ac6e3b04346fb7c851d2381b630bca1892c349b4977320c12"
+    }
+  }
+}

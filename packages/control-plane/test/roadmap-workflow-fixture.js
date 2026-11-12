@@ -153,7 +153,7 @@ export async function workflow(t, { plans = [PLAN], script = [], classifier = as
 
 // --- flow helpers: every step goes through the production route ------------------------------------------------------------------------
 export const status = async (h, who = 'alice') => (await h.send(who, 'GET', `/api/learn/roadmap?boardId=${h.boards[who]}`)).body;
-export async function explain(h, { who = 'alice', scope = { kind: 'whole' }, instruction = INSTRUCTION, depth = 'standard', invitationId, extra = {}, key = 'create' } = {}) {
+export async function explain(h, { who = 'alice', scope = { kind: 'whole' }, instruction = INSTRUCTION, depth = 'balanced', invitationId, extra = {}, key = 'create' } = {}) {
   return h.send(who, 'POST', '/api/learn/roadmap', { boardId: h.boards[who], source: { key: `file:${USERS[who].fileId}`, rev: h.rev, scope }, instruction, depth, actionKey: KEY(key), ...(invitationId ? { invitationId } : {}), ...extra });
 }
 export async function acceptPlan(h, view, { who = 'alice', key = 'plan' } = {}) {

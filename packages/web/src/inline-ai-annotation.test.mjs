@@ -65,6 +65,7 @@ test('annotation: Dive and the owned Tutor outline do not read links at all', ()
 // listed here after its annotation handling is reviewed. Matches that are not a board's links say so.
 const READERS = {
   'web/src/inline-image-replacement.js': 'refuses all incident connectors including annotations before replacement; writes only validated new links',
+  'control-plane/src/explanation-references.js': 'prompt text and bundle steering name the token-links diagram kind ("For token-links, show..."), not board links',
   'control-plane/src/inline-image-replacement.js': 'refuses frozen incident connectors including annotations; no structural inference',
   'web/src/inline-source-readings.js': 'stamps source-page provenance on newly derived transaction links; does not interpret board structure',
   'web/src/inline-compute-result.js': 'stamps provenance on newly created transaction links only; never interprets board structure',
@@ -111,6 +112,10 @@ const READERS = {
   'web/src/tutor-diagrams/spec.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
   'web/src/tutor-diagrams/ml-composition-spec.js': 'Phase 02 transformation links (before-item to after-item), not board links',
   'control-plane/src/learn-primitives.js': 'TutorDiagram transformation links (before-item to after-item): the server correction drops a link that names a missing item, not board links',
+  'web/src/tutor-diagrams/content-contract.js': 'TutorDiagram transformation links (before-item to after-item) in the reference content linter, not board links',
+  'web/src/tutor-diagrams/illustration-tensor-reference.js': 'the QKV example’s transformation links',
+  'web/src/tutor-diagrams/tensor-layout.js': 'renderer-local transformation links',
+  'web/src/tutor-diagrams/token-links-spec.js': 'weighted links between tokens inside a diagram',
   'web/src/tutor-diagrams/teaching-layouts.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {

@@ -19,8 +19,8 @@ test('gap 1: a dropped Markdown card is registered, and sourceReady runs from a 
 });
 
 test('gap 2: the roadmap is created with the learner\'s selected Depth, not a constant', () => {
-  assert.match(page, /depth: \(\) => chat\?\.settings\?\.depth \|\| 'standard'/);
-  assert.doesNotMatch(page, /depth: \(\) => 'standard'/);
+  assert.match(page, /depth: \(\) => chat\?\.settings\?\.depth \|\| 'balanced'/);
+  assert.doesNotMatch(page, /depth: \(\) => 'balanced'/);
 });
 
 test('gap 3: a non-empty Chat or ToC draft and a streaming answer hold the invitation back', () => {

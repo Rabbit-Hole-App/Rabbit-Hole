@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "transformation",
+    "title": "One token, three attention projections",
+    "before": {
+      "label": "Input for sat",
+      "items": [
+        {
+          "tensor": {
+            "rows": 1,
+            "columns": 4,
+            "dimensions": "1 × 512",
+            "name": "Input $x$",
+            "values": [
+              1.109,
+              -0.516,
+              0.72,
+              1.4
+            ],
+            "role": "input"
+          }
+        }
+      ]
+    },
+    "after": {
+      "label": "Projected vectors",
+      "items": [
+        {
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 256",
+            "name": "Query $q$",
+            "values": [
+              1.829,
+              -0.516
+            ],
+            "role": "output"
+          }
+        },
+        {
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 256",
+            "name": "Key $k$",
+            "values": [
+              1.109,
+              1.4
+            ],
+            "role": "output"
+          }
+        },
+        {
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 256",
+            "name": "Value $v$",
+            "values": [
+              0.72,
+              1.4
+            ],
+            "role": "output"
+          }
+        }
+      ]
+    },
+    "operation": "Multiply by the learned weight matrices",
+    "links": [
+      {
+        "from": 0,
+        "to": 0
+      },
+      {
+        "from": 0,
+        "to": 1
+      },
+      {
+        "from": 0,
+        "to": 2
+      }
+    ],
+    "caption": "For sat in “the cat sat on the mat”, $q=xW_Q$, $k=xW_K$, and $v=xW_V$. Four input and two head entries are shown."
+  }
+}

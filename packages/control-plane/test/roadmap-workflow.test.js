@@ -125,7 +125,7 @@ test('BE.02 whole-context planning and selected teaching scope (CORE.02, UI.03)'
     assert.ok(draft.text.includes(FILE_NAME), 'the filename');
     const request = JSON.parse(draft.body.messages[0].content.split('\n\n<source')[0]);
     assert.equal(request.instruction.original, INSTRUCTION, 'the original learner instruction');
-    assert.deepEqual([request.language, request.depth], ['en', 'standard']);
+    assert.deepEqual([request.language, request.depth], ['en', 'balanced']);
     assert.deepEqual([request.scope.start, request.scope.end], [0, MD.length], 'whole teaching scope');
     // contracts.md absent: assumed planner field `mode` ('explanations' = Explanations only, roadmap 3.5).
     assert.equal(request.mode, 'explanations', 'the roadmap mode reaches the planner');
@@ -151,7 +151,7 @@ test('BE.02 whole-context planning and selected teaching scope (CORE.02, UI.03)'
 
   await t.test('BE.02 changed, missing and over-limit sources are refused honestly, with no planner call', async () => {
     const h = await workflow(t);
-    const changed = await h.send('alice', 'POST', '/api/learn/roadmap', { boardId: h.boards.alice, source: { key: `file:${USERS.alice.fileId}`, rev: 'not-the-revision', scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('c1') });
+    const changed = await h.send('alice', 'POST', '/api/learn/roadmap', { boardId: h.boards.alice, source: { key: `file:${USERS.alice.fileId}`, rev: 'not-the-revision', scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'balanced', actionKey: KEY('c1') });
     assert.deepEqual([changed.status, changed.body.code], [409, 'source_changed']);
     delete h.objects[`r2/${USERS.alice.fileId}`];
     const missing = await explain(h, { key: 'c2' });
@@ -169,10 +169,10 @@ test('BE.03 roadmap edits, revision guards and practice readiness (UI.03, R5)', 
     const h = await workflow(t, { plans: [PLAN, SHORT_PLAN] });
     await explain(h);
     const v1 = await status(h);
-    const revised = await h.route('alice', routes.revise(v1, { instruction: 'Focus on entropy, please.', settings: { depth: 'deep' } }, KEY('revise')));
+    const revised = await h.route('alice', routes.revise(v1, { instruction: 'Focus on entropy, please.', settings: { depth: 'detailed' } }, KEY('revise')));
     assert.equal(revised.status, 202, JSON.stringify(revised.body).slice(0, 200));
     const v2 = await status(h);
-    assert.deepEqual([v2.roadmap.depth, v2.roadmap.planVersion], ['deep', 2], 'updated canonical parameters and a new draft revision');
+    assert.deepEqual([v2.roadmap.depth, v2.roadmap.planVersion], ['detailed', 2], 'updated canonical parameters and a new draft revision');
     const history = h.rows('SELECT version, text, origin FROM learn_roadmap_instructions ORDER BY version');
     assert.deepEqual(history.map(r => [r.version, r.text]), [[1, INSTRUCTION], [2, 'Focus on entropy, please.']], 'instruction history kept, original first');
     const revise = planText(h).at(-1);
@@ -318,7 +318,7 @@ test('BE.06 actual author request and both output formats (CORE.03-07)', async t
     assert.ok(authorContext(call).includes(MD), 'whole pinned Markdown');
     assert.ok(call.text.includes(MARKER), 'including the distant marker');
     assert.ok(call.text.includes('CLAIM-GINI') && call.text.includes(PLAN.outcome), 'accepted step claims and outcome');
-    assert.match(call.text, /Depth: standard/i);
+    assert.match(call.text, /\*\*Balanced\*\* —/); // the Depth section's paragraph for this card's Depth
     assert.match(call.text, /language \\"en\\"/);
     assert.deepEqual([h.checkerCalls.length, JSON.parse(resultRow(h, resultId).check_json).grounding.validation], [0, 'not_run'], 'no citation review; grounding not_run, not passed');
     assert.ok(call.text.includes(INSTRUCTION), 'the original learner instruction reaches the writer');
@@ -413,12 +413,12 @@ test('BE.06a Tutor Explanation authoring, saved output and caps (CORE.09)', asyn
     const h = await workflow(t, { script: [explanation(STEPS[0].title, withVisual('Gini measures how mixed a node is.'))], hold: true });
     const view = await started(h);
     assert.equal((await acceptCard(h, view, 'accept1')).status, 202);
-    const changed = await h.route('alice', routes.revise(await status(h), { settings: { depth: 'deep' } }, KEY('depth')));
+    const changed = await h.route('alice', routes.revise(await status(h), { settings: { depth: 'detailed' } }, KEY('depth')));
     assert.equal(changed.status, 202, 'a Depth change on the active roadmap re-plans (be contract: always 202 and a new draft)');
     await h.run();
     assert.equal(h.authorCalls.length, 1);
-    assert.match(h.authorCalls[0].text, /Depth: standard/i, 'the frozen accepted Depth');
-    assert.doesNotMatch(h.authorCalls[0].text, /Depth: deep/i);
+    assert.match(h.authorCalls[0].text, /\*\*Balanced\*\* —/, 'the frozen accepted Depth');
+    assert.doesNotMatch(h.authorCalls[0].text, /\*\*Detailed\*\* —/);
   });
 });
 
@@ -766,7 +766,7 @@ test('BE.05a tool readiness and recovery at the card offer (CORE.03-05, UI.04, R
     const accepted = await acceptCard(h, view, 'ready');
     assert.equal(accepted.status, 202);
     const snap = stepAcceptedSnapshot(h);
-    assert.deepEqual([snap.format, snap.sourceRevision, snap.source.rev, snap.settings.depth, snap.depth], ['explanation', h.rev, h.rev, 'standard', 'standard']);
+    assert.deepEqual([snap.format, snap.sourceRevision, snap.source.rev, snap.settings.depth, snap.depth], ['explanation', h.rev, h.rev, 'balanced', 'balanced']);
     assert.equal(h.authorCalls.length, 1);
     assert.deepEqual(h.authorCalls[0].body.tools.map(x => x.name).filter(n => n.startsWith('make_')), ['make_explanation'], 'the writer was offered exactly the approved format');
   });

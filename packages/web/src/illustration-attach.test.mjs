@@ -47,7 +47,7 @@ import { EXPLANATION_CAPS } from '../../control-plane/src/chat-depth.js';
 import { ILLUSTRATION_CAPTION } from './illustration-target.js';
 test('an illustration caption is counted in the Depth budget; over it, the attach is refused with a plain message and no rewrite', () => {
   const room = depth => ({ type: 'explanation', title: 'T', depth, body: 'y'.repeat(EXPLANATION_CAPS[depth] - 2 - 1 - Array.from(ILLUSTRATION_CAPTION).length) }); // exactly at the cap once the caption is added
-  for (const depth of ['overview', 'standard', 'deep']) {
+  for (const depth of ['brief', 'balanced', 'detailed']) {
     const card = room(depth), caption = { caption: ILLUSTRATION_CAPTION };
     assert.equal(explanationChars({ ...card, illustration: caption }), EXPLANATION_CAPS[depth], depth);
     assert.equal(illustrationProblem(card, caption), null, `${depth}: exactly at the cap fits`);
@@ -55,7 +55,7 @@ test('an illustration caption is counted in the Depth budget; over it, the attac
     assert.ok(over.includes(`at its ${depth} limit (${EXPLANATION_CAPS[depth] + 1} of ${EXPLANATION_CAPS[depth]}`), `${depth}: one code point over`);
     assert.doesNotMatch(over, /\.\.\.|\u2026/);
   }
-  const card = { type: 'explanation', title: 'T', depth: 'overview', body: 'y'.repeat(100) };
+  const card = { type: 'explanation', title: 'T', depth: 'brief', body: 'y'.repeat(100) };
   assert.equal(illustrationProblem(card, { caption: 'c', callouts: [{ text: 'z'.repeat(600) }] }) != null, true, 'callout text counts too');
   assert.equal(illustrationProblem({ ...card, depth: undefined, body: 'y'.repeat(5000) }, { caption: ILLUSTRATION_CAPTION }), null, 'a card saved before the Depth was kept has no known budget and is not refused');
   assert.equal(explanationChars({ ...card, illustration: { fileRef: { v: 1 }, caption: '' } }), explanationChars(card), 'an illustration without caption text adds nothing');

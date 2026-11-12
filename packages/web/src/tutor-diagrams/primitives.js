@@ -1,5 +1,6 @@
 import { createElement as h } from 'react';
 import { mathLabel, SLOT } from './math.js';
+import { tokenizeMath } from '../math-tokens.js';
 
 export const PALETTE = Object.freeze({
   process: '#8DBFEF',
@@ -47,7 +48,7 @@ export function widestFormula(text, size = 14) {
 }
 
 function wordParts(word) {
-  return word.split(/(?<=[\p{L}\p{N}][-‐])(?=[\p{L}\p{N}])/u);
+  return word.split(/(?<=[\p{L}\p{N}][-‐])(?=[\p{L}\p{N}])|(?<=\p{L}:)(?=\p{L})/u);
 }
 
 // The words of a label, split at whitespace outside its formulas.
@@ -63,7 +64,10 @@ export function longestWordWidth(text, size = 14) {
 }
 
 export function wrap(text, width, size = 14) {
-  const { source, math } = mathLabel(text);
+  return wrapLabel(mathLabel(text), width, size);
+}
+
+function wrapLabel({ source, math }, width, size) {
   const fits = value => measure({ source: value, math }, size) <= width;
   const lines = [];
   let line = '';
@@ -95,11 +99,12 @@ export function wrap(text, width, size = 14) {
 }
 
 const JUSTIFY = { start: 'flex-start', middle: 'center', end: 'flex-end' };
+const XHTML = 'http://www.w3.org/1999/xhtml';
 
 // A line holding a formula is HTML in a foreignObject as wide as the line was measured, centred on the line like a tspan: the text keeps
 // the label's font, each formula is KaTeX's markup at the line's scale. data-tutor-tex keeps the formula as written for the card's text
 // alignment (explanation-interactions.js).
-function mathLine({ source, math }, x, y, { size, weight, anchor, fill, step }) {
+function mathLine({ source, math }, x, y, { size, weight, anchor, fill, step, xhtml }) {
   const width = Math.ceil(measure({ source, math }, size)) + 2;
   const left = anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
   const runs = source.split(SLOT).map((part, index) => {
@@ -108,23 +113,66 @@ function mathLine({ source, math }, x, y, { size, weight, anchor, fill, step }) 
     return set ? h('span', { 'data-tutor-tex': raw, style: { fontSize: size * mathScale(set, size), lineHeight: 'normal' }, dangerouslySetInnerHTML: set.inner }) : raw;
   });
   return h('foreignObject', { x: left, y: y - step / 2, width, height: step, overflow: 'visible' },
-    h('div', { style: {
+    h('div', { ...(xhtml ? { xmlns: XHTML } : {}), style: {
       display: 'flex', alignItems: 'center', justifyContent: JUSTIFY[anchor], height: '100%', whiteSpace: 'pre',
       color: fill, fontSize: size, fontWeight: weight, lineHeight: `${step}px`,
     } }, ...runs));
 }
 
-export function label(lines, x, y, { size = 14, weight = 400, anchor = 'middle', tone = 'ink' } = {}) {
+function svgLabel(values, x, y, { size, weight, anchor, fill }) {
+  const step = lineHeight(size);
+  const plain = values.flatMap((value, index) => value === null ? []
+    : [h('tspan', { x, y: y + (index - (values.length - 1) / 2) * step + size * 0.34 }, value)]);
+  return h('text', { x, y, fill, fontSize: size, fontWeight: weight, textAnchor: anchor }, ...plain);
+}
+
+export function label(lines, x, y, { size = 14, weight = 400, anchor = 'middle', tone = 'ink',
+  fill = tone === 'onFill' ? FILLED_INK : tone === 'muted' ? MUTED : INK, xhtml = false } = {}) {
   const values = Array.isArray(lines) ? lines : [lines];
   const step = lineHeight(size);
-  const fill = tone === 'onFill' ? FILLED_INK : tone === 'muted' ? MUTED : INK;
   const center = index => y + (index - (values.length - 1) / 2) * step;
   const typeset = values.map(value => mathLabel(value)).map(parsed => parsed.math.some(run => run.set) ? parsed : null);
-  const plain = values.flatMap((value, index) => typeset[index] ? [] : [h('tspan', { x, y: center(index) + size * 0.34 }, value)]);
-  const text = h('text', { x, y, fill, fontSize: size, fontWeight: weight, textAnchor: anchor }, ...plain);
-  if (!typeset.some(Boolean)) return text;
-  return h('g', null, plain.length ? text : null,
-    ...typeset.flatMap((parsed, index) => parsed ? [mathLine(parsed, x, center(index), { size, weight, anchor, fill, step })] : []));
+  if (!typeset.some(Boolean)) return svgLabel(values, x, y, { size, weight, anchor, fill });
+  const plain = values.map((value, index) => typeset[index] ? null : value);
+  return h('g', null, plain.some(value => value !== null) ? svgLabel(plain, x, y, { size, weight, anchor, fill }) : null,
+    ...typeset.flatMap((parsed, index) => parsed ? [mathLine(parsed, x, center(index), { size, weight, anchor, fill, step, xhtml })] : []));
+}
+
+// A formula is one unbreakable run. Reserve its width before wrapping the caption.
+export function fitCaption(scene, caption, gutter, size) {
+  if (!caption) return scene;
+  const width = Math.ceil(widestFormula(caption, size)) + gutter;
+  if (width <= scene.width) return scene;
+  return { ...scene, width, elements: [h('g', { transform: `translate(${(width - scene.width) / 2} 0)` }, ...scene.elements)] };
+}
+
+function nativeCaptionMath(expression) {
+  return expression.replace(/(?<!\\)\\log_(?:\{(\d+)\}|(\d))/gu, (_, group, digit) =>
+    ' log' + [...(group ?? digit)].map(value => '₀₁₂₃₄₅₆₇₈₉'[Number(value)]).join(''));
+}
+
+export function layoutCaption(text, width, size = 13) {
+  if (!text) return { height: 0 };
+  const parsed = mathLabel(text);
+  const lines = wrapLabel(parsed, width, size);
+  const hasMath = parsed.math.some(run => run.set);
+  let fallback = [];
+  if (hasMath) {
+    const { math } = tokenizeMath(text);
+    const source = parsed.source.replace(new RegExp(SLOT, 'gu'), (_, index) =>
+      parsed.math[index].set ? nativeCaptionMath(math[index].expression) : math[index].raw);
+    fallback = wrapLabel({ source, math: [] }, width, size);
+  }
+  return {
+    height: Math.max(lines.length, fallback.length) * lineHeight(size),
+    draw(x, y) {
+      const primary = label(lines, x, y, { size, tone: 'muted', xhtml: hasMath });
+      if (!hasMath) return primary;
+      // Standalone SVG viewers without XHTML can show the entire caption as native text.
+      return h('switch', null, h('g', { requiredExtensions: XHTML }, primary),
+        h('g', { 'data-explanation-skip': '' }, svgLabel(fallback, x, y, { size, weight: 400, anchor: 'middle', fill: MUTED })));
+    },
+  };
 }
 
 export function box(x, y, width, height, { role = 'plain', radius = 7, active = false } = {}) {

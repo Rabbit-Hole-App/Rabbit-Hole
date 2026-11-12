@@ -39,7 +39,7 @@ test('after a reload the accepted tree of the latest finished roadmap is read ba
     if (path.includes('/invitations')) return { invitation: null };
     return { roadmap: null, poll: { afterMs: 5000, etag: 'rv-none' } };
   };
-  const controller = createRoadmapController({ api, boardId: BOARD, host: { readOnly: () => false, depth: () => 'standard', instruction: () => '', sourceRev: () => 'r', hasBlock: () => false, sources: () => [] }, schedule: () => 0, cancel() {}, random: () => 'k' });
+  const controller = createRoadmapController({ api, boardId: BOARD, host: { readOnly: () => false, depth: () => 'balanced', instruction: () => '', sourceRev: () => 'r', hasBlock: () => false, sources: () => [] }, schedule: () => 0, cancel() {}, random: () => 'k' });
   controller.start(); await settle();
   const state = controller.getState();
   assert.equal(state.view, null, 'the live view stays empty: new invitations and a fresh lesson are unaffected');
@@ -51,7 +51,7 @@ test('after a reload the accepted tree of the latest finished roadmap is read ba
 
 test('with nothing finished the history read finds nothing and the ToC stays empty', async () => {
   const api = async path => (path.includes('history=1') ? { roadmaps: [] } : path.includes('/invitations') ? { invitation: null } : { roadmap: null });
-  const controller = createRoadmapController({ api, boardId: BOARD, host: { readOnly: () => false, depth: () => 'standard', instruction: () => '', sourceRev: () => 'r', hasBlock: () => false, sources: () => [] }, schedule: () => 0, cancel() {}, random: () => 'k' });
+  const controller = createRoadmapController({ api, boardId: BOARD, host: { readOnly: () => false, depth: () => 'balanced', instruction: () => '', sourceRev: () => 'r', hasBlock: () => false, sources: () => [] }, schedule: () => 0, cancel() {}, random: () => 'k' });
   controller.start(); await settle();
   assert.equal(tocOf(controller.getState()), null);
   controller.stop();

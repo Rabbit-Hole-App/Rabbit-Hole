@@ -9,6 +9,10 @@ import { layoutFigure } from './figure-layout.js';
 import { box, connector, dot, label, lineHeight, wrap } from './primitives.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
 import { teachingLayouts } from './teaching-layouts.js';
+import { usesTensorItems } from './illustration-kinds.js';
+import { layoutTensor, layoutTensorTransformation } from './tensor-layout.js';
+import { layoutTokenLinks } from './token-links-layout.js';
+import { layoutBlockStack } from './block-stack-layout.js';
 
 const PAD = 12;
 const TEXT = 14;
@@ -105,6 +109,18 @@ function sequence(diagram, width) {
   for (const message of messages) {
     const from = centers.get(message.from);
     const to = centers.get(message.to);
+    if (from === to) {
+      const direction = from === centers.get(actors.at(-1).id) ? -1 : 1;
+      const lines = wrap(message.label, Math.min(210, grid.cell + 2), SMALL);
+      const textHeight = lines.length * lineHeight(SMALL);
+      const loopX = from + 36 * direction;
+      const arrowY = y + textHeight + 5;
+      elements.push(label(lines, from + 7 * direction, y + textHeight / 2,
+        { size: SMALL, anchor: direction === 1 ? 'start' : 'end' }));
+      elements.push(connector([[from, arrowY], [loopX, arrowY], [loopX, arrowY + 20], [from, arrowY + 20]]));
+      y = arrowY + 36;
+      continue;
+    }
     const lines = wrap(message.label, Math.abs(to - from) - 14, SMALL);
     const textHeight = lines.length * lineHeight(SMALL);
     const arrowY = y + textHeight + 5;
@@ -202,9 +218,11 @@ function cycle(diagram, width) {
 const legacy = Object.freeze({
   flow: layoutFlow, comparison, timeline, sequence, matrix, layers, cycle, figure: layoutFigure,
   ...teachingLayouts, ...quantitativeLayouts, ...balanceLayouts,
+  transformation: (diagram, width) => usesTensorItems(diagram)
+    ? layoutTensorTransformation(diagram, width) : teachingLayouts.transformation(diagram, width),
 });
 
-const renderChild = (diagram, width) => layouts[diagram.kind](diagram, width);
+const renderChild = (diagram, width, options) => layouts[diagram.kind](diagram, width, options);
 export const layouts = Object.freeze({
   ...legacy,
   ...statisticalLayouts({ legacy, renderChild }),
@@ -212,4 +230,7 @@ export const layouts = Object.freeze({
   ...topologyLayouts({ legacy, renderChild }),
   ...dataLayouts({ legacy, renderChild }),
   ...compositionLayouts({ legacy, renderChild }),
+  tensor: layoutTensor,
+  'token-links': layoutTokenLinks,
+  'block-stack': (diagram, width) => layoutBlockStack(diagram, width, renderChild),
 });

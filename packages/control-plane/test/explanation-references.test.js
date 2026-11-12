@@ -31,7 +31,7 @@ test('a binary-tree operation puts real tree JSON references in the actual autho
       assert.deepEqual(parseTutorDiagram(example.spec), example.spec);
       assert.ok(prepared.body.system.includes(JSON.stringify(example.spec)));
     }
-    assert.match(prepared.body.system, /illustrative/i);
+    assert.match([prepared.body.system, ...prepared.body.tools.map(t => t.description)].join('\n'), /illustrative/i); // the number rule sits under "# Numbers and maths" in the tool description
     assert.match(prepared.body.system, /source facts/i);
   }
 });
@@ -82,7 +82,9 @@ test('required tree kind alone cannot select unrelated binary operations', () =>
       visualRequirements: deriveVisualRequirements(args) });
     assert.ok(prepared.diagramReferences.every(ref => ref.spec.diagram.layout !== 'binary'), args);
   }
-  assert.deepEqual(selectDiagramReferences({ prompt: 'Draw a tree diagram of an unfamiliar ontology.', requiredKinds: ['tree'] }), []);
+  const references = selectDiagramReferences({ prompt: 'Draw a tree diagram of an unfamiliar ontology.', requiredKinds: ['tree'] });
+  assert.deepEqual(references.map(ref => ref.id), ['shape-tree']);
+  assert.equal(references[0].spec.diagram.layout, undefined);
 });
 
 // Owner A1 (2026-11-08): a fast-chain author gets a fixed schema bundle chosen by its references and required kinds; the plan path keeps the whole schema.
@@ -91,17 +93,17 @@ test('schema bundles: core by default, extras only when steered, the same bytes 
   const author = (env, args) => { const v = deriveVisualRequirements(args); return prepareArtifactAuthorRequest(env, { command: 'explanation', args, ...(v.items?.length ? { visualRequirements: v } : {}) }).body.tools.find(t => t.name === 'make_explanation').input_schema; };
   const kinds = schema => { const spec = (schema.properties.visuals.items.oneOf ?? schema.properties.visuals.items.anyOf).find(v => v.properties.spec).properties.spec.properties.diagram; return (spec.oneOf ?? spec.anyOf).map(b => b.properties.kind.const); };
   const panels = schema => JSON.stringify(schema).includes('"panels"');
-  const core = author(FAST, 'How does attention work in a transformer?');
+  const core = author(FAST, 'Why does the sky look blue?'); // attention now selects ml-transformer-attention (a matrix reference), which steers the quantitative group
   assert.deepEqual(kinds(core).sort(), [...CORE_KINDS].sort());
   assert.equal(panels(core), false);
-  assert.equal(JSON.stringify(author(FAST, 'Why does the sky look blue?')), JSON.stringify(core), 'another unsteered question sends the same bytes');
+  assert.equal(JSON.stringify(author(FAST, 'How do parakeets sleep?')), JSON.stringify(core), 'another unsteered question sends the same bytes');
   const box = author(FAST, 'What does a box plot call an outlier?');
   assert.deepEqual(kinds(box).sort(), [...CORE_KINDS, ...NEW_KINDS].sort(), 'a required new kind adds the new-kind group, not the quantitative one');
-  const fit = author(FAST, 'What is the difference between underfitting and overfitting?');
-  assert.ok(panels(fit) && !JSON.stringify(fit).includes('"identity"'), 'a panel reference adds comparison panels only');
+  const fit = author(FAST, 'Show a comparison diagram of underfitting and overfitting');
+  assert.ok(panels(fit) && !JSON.stringify(fit).includes('"identity"'), 'a panel reference adds comparison panels only (the learner asked for the comparison: without that, or a comparison plan, the reference goes out as its one-plot single variant, owner 2026-11-08 overfitting card)');
   const bars = author(FAST, 'Show a bar chart of the votes');
   assert.ok(QUANT_KINDS.every(k => kinds(bars).includes(k)), 'a required quantitative kind adds the quantitative group');
-  assert.equal(kinds(author({ SMALL_ENV: 'test' }, 'How does attention work in a transformer?')).length, 21, 'the plan path keeps every kind');
+  assert.equal(kinds(author({ SMALL_ENV: 'test' }, 'How does attention work in a transformer?')).length, 24, 'the plan path keeps every kind');
 });
 
 // Owner N1, M2, M4 (2026-11-08): one number rule in the whole request on both routes; the references last in the fast-chain system message, before the
@@ -135,7 +137,7 @@ test('M2: the fast-chain system message is the system prompt, the tool guidance,
 });
 
 test('M4: a panel bundle allows at most two panels', () => {
-  const fit = prepareArtifactAuthorRequest({ SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'x' }, { command: 'explanation', args: 'What is the difference between underfitting and overfitting?' }).body.tools.find(t => t.name === 'make_explanation').input_schema;
+  const fit = prepareArtifactAuthorRequest({ SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'x' }, { command: 'explanation', args: 'Show a comparison diagram of underfitting and overfitting', visualRequirements: deriveVisualRequirements('Show a comparison diagram of underfitting and overfitting') }).body.tools.find(t => t.name === 'make_explanation').input_schema;
   const spec = (fit.properties.visuals.items.oneOf ?? fit.properties.visuals.items.anyOf).find(v => v.properties.spec).properties.spec.properties.diagram;
   assert.equal((spec.oneOf ?? spec.anyOf).find(b => b.properties.kind.const === 'comparison').properties.panels.maxItems, 2);
 });

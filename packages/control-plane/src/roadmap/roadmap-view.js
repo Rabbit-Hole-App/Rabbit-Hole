@@ -3,6 +3,7 @@
 // slots with their state dimensions; the body comes only from the entitled result routes. Built from D1 on every read, so a reload and a second
 // device see the same state.
 import { readRoadmap, readUnfinishedRoadmap } from './roadmap-store.js';
+import { depthOf } from '../chat-depth.js';
 import { tutorThreadOf } from './roadmap-lifecycle.js';
 import { withheldCause } from './roadmap-check.js';
 import { d1PublicRefs } from './roadmap-source-read.js';
@@ -94,21 +95,21 @@ export async function roadmapView(db, access, roadmap) {
   // A requested revision not yet planned: the shown draft is stale and its acceptance is refused (409 stale_draft).
   const revisionPending = !['completed', 'ended', 'failed'].includes(roadmap.state) && lastInstruction > ((draftRow ?? planRow)?.instruction_version ?? lastInstruction);
   const keptNow = (stepRows || []).filter(s => !['planned', 'proposed'].includes(s.state)).length;
-  const draft = draftPlan && planShape(roadmap.plan_version, draftPlan, (draftPlan.steps || []).map((s, i) => ({ position: i + 1, title: s.title, goal: s.goal, format: s.format, passage: s.passage })), { depth: draftPlan.settings?.depth ?? roadmap.depth });
+  const draft = draftPlan && planShape(roadmap.plan_version, draftPlan, (draftPlan.steps || []).map((s, i) => ({ position: i + 1, title: s.title, goal: s.goal, format: s.format, passage: s.passage })), { depth: depthOf(draftPlan.settings?.depth ?? roadmap.depth) });
   if (draft) Object.assign(draft, { instructionVersion: draftRow.instruction_version, acceptable: !!draft.steps.length && !revisionPending && !draftPlan.question && !draftPlan.limitation
     && (roadmap.state === 'proposed' || (['active', 'paused'].includes(roadmap.state) && (draftPlan.keptSteps ?? 0) === keptNow)) });
-  const acceptedPlan = roadmap.accepted_plan_version && plan ? planShape(active, plan, steps, { depth: plan.settings?.depth ?? roadmap.depth }) : null;
+  const acceptedPlan = roadmap.accepted_plan_version && plan ? planShape(active, plan, steps, { depth: depthOf(plan.settings?.depth ?? roadmap.depth) }) : null;
   const shown = draftPlan ?? plan;
   // A blocked card offer (roadmap-lifecycle.js recordOfferBlocked), shown only while its step still waits with no offer: the Chat recovery entry's one question or help.
   const held = scopeJson.offerRecovery, blockedStep = held && stepOf(held.stepId);
   const offerRecovery = held && !proposal && blockedStep && ['planned', 'cancelled', 'incomplete'].includes(blockedStep.state) && ['active', 'paused'].includes(roadmap.state)
     ? { stepId: held.stepId, reason: held.reason, ...(held.question ? { question: held.question } : {}), ...(held.help ? { help: held.help } : {}), ...(held.alternative ? { alternative: held.alternative } : {}) } : null;
   return {
-    roadmap: { id, boardId: roadmap.board_id, state: roadmap.state, revision: roadmap.revision, planVersion: roadmap.plan_version, acceptedPlanVersion: roadmap.accepted_plan_version ?? null, depth: roadmap.depth,
+    roadmap: { id, boardId: roadmap.board_id, state: roadmap.state, revision: roadmap.revision, planVersion: roadmap.plan_version, acceptedPlanVersion: roadmap.accepted_plan_version ?? null, depth: depthOf(roadmap.depth),
       practiceMode: roadmap.practice_mode, instruction: first?.text ?? '', language: roadmap.language, scope: { kind: scopeJson.kind || 'whole', chars: scopeJson.chars ?? null, source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, fingerprint: roadmap.scope_fingerprint },
       ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, threadId, invitationId, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
     question: shown?.question ?? null, limitation: shown?.limitation ?? null, offerRecovery,
-    plan: plan && planShape(active, plan, steps, { depth: plan.settings?.depth ?? roadmap.depth }),
+    plan: plan && planShape(active, plan, steps, { depth: depthOf(plan.settings?.depth ?? roadmap.depth) }),
     acceptedPlan, planDraft: draft ?? null, revisionPending, // planDraft, not `draft`: the R5 proposal-draft route already answers `draft`
     steps, proposal: proposal ?? null, results,
     nextStepReady: !!proposal?.acceptable && settled,
@@ -127,7 +128,7 @@ export async function roadmapHistory(db, access) {
   const out = [];
   for (const r of results || []) {
     const first = await db.prepare('SELECT text FROM learn_roadmap_instructions WHERE roadmap_id = ? ORDER BY version ASC LIMIT 1').bind(r.id).first();
-    out.push({ id: r.id, state: r.state, instruction: first?.text ?? '', deliveredCount: r.delivered_count, depth: r.depth, source: { name: json(r.scope_json)?.sourceName || '' }, endedAt: r.ended_at ? iso(r.ended_at) : null, updatedAt: iso(r.updated_at) });
+    out.push({ id: r.id, state: r.state, instruction: first?.text ?? '', deliveredCount: r.delivered_count, depth: depthOf(r.depth), source: { name: json(r.scope_json)?.sourceName || '' }, endedAt: r.ended_at ? iso(r.ended_at) : null, updatedAt: iso(r.updated_at) });
   }
   return { roadmaps: out };
 }

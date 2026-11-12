@@ -1148,7 +1148,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     const threadId = (await Promise.race([Promise.resolve(thread).catch(() => null), new Promise(done => setTimeout(done, 5000, null))])) || chat?.thread?.id || null;
     const payload = { prompt, requestClass: 'simple', source, ...(context ? { context: { text: context } } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}),
       ...(threadId ? { threadId } : {}), ...(refs?.length ? { context_refs: refs } : {}), ...(sourceRef ? { sourceRefId: sourceRef } : {}),
-      // R2: the Depth selected now (Standard, or none yet, adds nothing); the server validates it and keeps it on the job.
+      // R2: the Depth selected now (Balanced, or none yet, adds nothing); the server validates it and keeps it on the job.
       ...(chat?.settings?.depth ? { depth: chat.settings.depth } : {}) };
     let result;
     try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
@@ -1394,7 +1394,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       readOnly: () => !canEditCanvas, presenting: () => !!canvasStateRef.current.presenting,
       notice: message => toast(message), focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
       sources: () => (canvasApi.current?.blocks?.() || []).filter(block => block.type === 'file' && block.kind === 'markdown' && block.fileRef?.source?.id && block.fileRef.source.rev).map(block => ({ key: `file:${block.fileRef.source.id}`, rev: block.fileRef.source.rev, name: block.label || '' })),
-      sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, sourceName: key => sourceBlock(key)?.label || '', depth: () => chat?.settings?.depth || 'standard' } });
+      sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, sourceName: key => sourceBlock(key)?.label || '', depth: () => chat?.settings?.depth || 'balanced' } });
   // The Tutor's proposal as the canvas slot beside its Markdown card (roadmap-canvas.js -> AdaptiveCanvas SlotCard): one slot per step from proposal to delivered card,
   // accepted and cancelled through the same controller actions as Tab. The offer is shown exactly when the pill would be (state: pillOf's gate: Ask mode, the flag, the editor);
   // the canvas tells which offers it really draws (onDrawn), and the fixed overlay yields only to those.

@@ -294,7 +294,7 @@ test('the written command validates a Markdown table card against the Depth budg
   assert.deepEqual(offered(ok.seen[0]), ['make_explanation', 'ask_clarifying_question']);
   assert.equal(JSON.parse(ok.seen[0].messages[0].content).command, '/explanation');
   // Every Depth's hard limit holds exactly; one character over is refused with the validator's words and, after the repair, a validation error.
-  for (const depth of ['overview', 'standard', 'deep']) {
+  for (const depth of ['brief', 'balanced', 'detailed']) {
     const cap = EXPLANATION_BUDGET.hard;
     assert.equal(explanationProseChars(padTo(cap)), cap);
     const fits = await generateArtifact({}, { command: 'explanation', args: 'coffee', depth }, { callModel: scripted(['make_explanation', padTo(cap)]).callModel });
@@ -315,11 +315,11 @@ test('the artifact route gives the written command the learner\'s Depth and sele
   const env = { CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo' }) } };
   const seen = [];
   const generate = async (_, input) => { seen.push(input); return { result: 'artifact' }; };
-  const written = { app: 'demo', command: 'explanation', args: 'why coffee cools', context: 'Newton cooling notes', depth: 'deep', board: 'main' };
+  const written = { app: 'demo', command: 'explanation', args: 'why coffee cools', context: 'Newton cooling notes', depth: 'detailed', board: 'main' };
   assert.equal((await artifactFetch(post(written), env, generate)).status, 200);
-  assert.deepEqual([seen[0].command, seen[0].depth, seen[0].context], ['explanation', 'deep', 'Newton cooling notes']);
+  assert.deepEqual([seen[0].command, seen[0].depth, seen[0].context], ['explanation', 'detailed', 'Newton cooling notes']);
   // Standard sends no Depth key, as before; an attached image is the playable command's alone.
-  await artifactFetch(post({ ...written, depth: 'standard' }), env, generate);
+  await artifactFetch(post({ ...written, depth: 'balanced' }), env, generate);
   assert.equal('depth' in seen[1], false);
   const withImage = await artifactFetch(post({ ...written, image_context: { id: 'media:0123456789ab' }, image_role: 'layout_reference' }), env, generate, { images: async () => ({ blocks: [] }) });
   assert.equal(withImage.status, 400);

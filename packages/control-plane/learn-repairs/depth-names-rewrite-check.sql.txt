@@ -1,0 +1,6 @@
+-- READ-ONLY count of exactly the rows depth-names-rewrite.sql would change (same predicates): table, stored depth, the name it becomes, rows. No ids, no payloads.
+SELECT 'learn_canvas_depth' AS tbl, depth, CASE depth WHEN 'overview' THEN 'brief' WHEN 'standard' THEN 'balanced' WHEN 'deep' THEN 'detailed' END AS becomes, COUNT(*) AS n
+FROM learn_canvas_depth WHERE depth IN ('overview', 'standard', 'deep') GROUP BY depth
+UNION ALL
+SELECT 'learn_roadmaps', depth, CASE depth WHEN 'overview' THEN 'brief' WHEN 'standard' THEN 'balanced' WHEN 'deep' THEN 'detailed' END, COUNT(*)
+FROM learn_roadmaps WHERE depth IN ('overview', 'standard', 'deep') GROUP BY depth;

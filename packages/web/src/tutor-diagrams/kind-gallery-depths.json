@@ -1,0 +1,1045 @@
+[
+  {
+    "kind": "flow",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "flow",
+        "title": "Getting berries ready to eat",
+        "nodes": [
+          {"id": "sort", "label": "Pick through the berries", "role": "process"},
+          {"id": "rinse", "label": "Rinse the berries", "role": "process"},
+          {"id": "drain", "label": "Drain the berries", "role": "outcome"}
+        ],
+        "edges": [{"from": "sort", "to": "rinse"}, {"from": "rinse", "to": "drain"}]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "flow",
+        "title": "Wash berries",
+        "nodes": [
+          {"id": "sort", "label": "Sort the berries", "role": "process"},
+          {"id": "rinse", "label": "Rinse the berries", "role": "process"},
+          {"id": "drain", "label": "Drain the berries", "role": "outcome"}
+        ],
+        "edges": [{"from": "sort", "to": "rinse"}, {"from": "rinse", "to": "drain"}]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "flow",
+        "title": "Berry washing workflow",
+        "nodes": [
+          {"id": "sort", "label": "Sort the berries", "role": "process"},
+          {"id": "rinse", "label": "Rinse the sorted berries", "role": "process"},
+          {"id": "drain", "label": "Drain the rinsed berries", "role": "outcome"}
+        ],
+        "edges": [{"from": "sort", "to": "rinse"}, {"from": "rinse", "to": "drain"}],
+        "caption": "The directed path has $3-1=2$ transitions between its three stages."
+      }
+    }
+  },
+  {
+    "kind": "comparison",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "comparison",
+        "title": "Reading on paper or a screen",
+        "columns": [
+          {"heading": "Paperback", "items": ["Turn the printed pages"]},
+          {"heading": "Book on a screen", "items": ["Make the letters bigger or smaller"]}
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "comparison",
+        "title": "Paper and e-books",
+        "columns": [
+          {"heading": "Paperback", "items": ["Turn printed pages"]},
+          {"heading": "E-book", "items": ["Adjust the font size"]}
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "comparison",
+        "title": "Paperback and e-book controls",
+        "columns": [
+          {"heading": "Paperback", "items": ["Advance by turning a page"]},
+          {"heading": "E-book", "items": ["Scale the displayed type"]}
+        ],
+        "caption": "Font size increases when the ratio of new to old size is $s_{\\mathrm{new}}/s_{\\mathrm{old}}>1$."
+      }
+    }
+  },
+  {
+    "kind": "timeline",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "timeline",
+        "title": "Pick up a library book",
+        "events": [
+          {"time": "9 am", "label": "Ask the library to hold the atlas"},
+          {"time": "Noon", "label": "Pick up the atlas"}
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "timeline",
+        "title": "Library pickup",
+        "events": [
+          {"time": "9 am", "label": "Reserve the atlas"},
+          {"time": "Noon", "label": "Collect the atlas"}
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "timeline",
+        "title": "Atlas reservation and pickup",
+        "events": [
+          {"time": "9 am", "label": "Reserve the atlas"},
+          {"time": "Noon", "label": "Collect the atlas"}
+        ],
+        "caption": "From 9 am to noon, the elapsed time is $12-9=3$ hours."
+      }
+    }
+  },
+  {
+    "kind": "sequence",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "sequence",
+        "title": "Find out the weather in Oslo",
+        "actors": [{"id": "app", "label": "Weather app"}, {"id": "service", "label": "Weather service"}],
+        "messages": [
+          {"from": "app", "to": "service", "label": "Ask for the Oslo forecast"},
+          {"from": "service", "to": "app", "label": "Send back the Oslo forecast"}
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "sequence",
+        "title": "Get a weather forecast",
+        "actors": [{"id": "app", "label": "Weather app"}, {"id": "service", "label": "Forecast service"}],
+        "messages": [
+          {"from": "app", "to": "service", "label": "Request forecast for Oslo"},
+          {"from": "service", "to": "app", "label": "Return Oslo forecast"}
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "sequence",
+        "title": "Forecast request and response",
+        "actors": [{"id": "app", "label": "Weather client"}, {"id": "service", "label": "Forecast service"}],
+        "messages": [
+          {"from": "app", "to": "service", "label": "Request the Oslo forecast"},
+          {"from": "service", "to": "app", "label": "Respond with the Oslo forecast"}
+        ],
+        "caption": "This request and response form a round trip with $1+1=2$ messages."
+      }
+    }
+  },
+  {
+    "kind": "matrix",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "matrix",
+        "title": "How many bikes are at each station?",
+        "columns": ["Monday", "Tuesday"],
+        "rows": [
+          {"heading": "River Park", "cells": ["8", "5"]},
+          {"heading": "Town Hall", "cells": ["3", "7"]}
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "matrix",
+        "title": "Bikes at two stations",
+        "columns": ["Monday", "Tuesday"],
+        "rows": [
+          {"heading": "River Park", "cells": ["8", "5"]},
+          {"heading": "Town Hall", "cells": ["3", "7"]}
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "matrix",
+        "title": "Station-by-day bike counts",
+        "columns": ["Monday", "Tuesday"],
+        "rows": [
+          {"heading": "River Park", "cells": ["8", "5"]},
+          {"heading": "Town Hall", "cells": ["3", "7"]}
+        ],
+        "caption": "Column totals give $8+3=11$ bikes on Monday and $5+7=12$ on Tuesday."
+      }
+    }
+  },
+  {
+    "kind": "layers",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "layers",
+        "title": "Thin sheets in a plywood board",
+        "layers": [{"label": "Front sheet"}, {"label": "Middle sheets"}, {"label": "Back sheet"}]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "layers",
+        "title": "A plywood sheet",
+        "layers": [{"label": "Face veneer"}, {"label": "Core veneers"}, {"label": "Back veneer"}]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "layers",
+        "title": "Veneer layers of a plywood panel",
+        "layers": [{"label": "Face veneer"}, {"label": "Core veneers"}, {"label": "Back veneer"}],
+        "caption": "The veneer count is $n=n_{\\mathrm{core}}+2$. The face and back each add one sheet."
+      }
+    }
+  },
+  {
+    "kind": "cycle",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "cycle",
+        "title": "How water goes round",
+        "steps": [
+          "Rise into the air as a gas",
+          "Turn into tiny drops",
+          "Fall as rain",
+          "Flow back to the ocean"
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "cycle",
+        "title": "Water cycle",
+        "steps": ["Evaporate", "Condense", "Fall as rain", "Flow to the ocean"]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "cycle",
+        "title": "The water cycle and its phase changes",
+        "steps": [
+          "Evaporate into water vapor",
+          "Condense into droplets",
+          "Precipitate as rain",
+          "Return to the ocean as runoff"
+        ],
+        "caption": "Number the stages from zero. The next index is $(i+1)\\bmod 4$, so runoff leads back to evaporation."
+      }
+    }
+  },
+  {
+    "kind": "figure",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "figure",
+        "title": "Inside an animal cell",
+        "figure": "cell",
+        "callouts": [
+          {"anchor": "membrane", "label": "Thin outer covering"},
+          {"anchor": "nucleus", "label": "Holds the cell's main instructions"}
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "figure",
+        "title": "An animal cell",
+        "figure": "cell",
+        "callouts": [
+          {"anchor": "membrane", "label": "Cell membrane"},
+          {"anchor": "nucleus", "label": "Nucleus"}
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "figure",
+        "title": "Animal cell structures",
+        "figure": "cell",
+        "callouts": [
+          {"anchor": "membrane", "label": "Plasma membrane"},
+          {"anchor": "nucleus", "label": "Nucleus", "detail": "Contains most of the cell's DNA"}
+        ],
+        "caption": "The nucleus $N$ lies within the cell interior $C$, so $N\\subset C$."
+      }
+    }
+  },
+  {
+    "kind": "tree",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "tree",
+        "title": "Instruments with strings",
+        "nodes": [
+          {"id": "strings", "label": "Strings"},
+          {"id": "violin", "label": "Violin", "parent": "strings"},
+          {"id": "cello", "label": "Cello", "parent": "strings"}
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "tree",
+        "title": "String instruments",
+        "nodes": [
+          {"id": "strings", "label": "Strings"},
+          {"id": "violin", "label": "Violin", "parent": "strings"},
+          {"id": "cello", "label": "Cello", "parent": "strings"}
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "tree",
+        "title": "String instrument classification",
+        "nodes": [
+          {"id": "strings", "label": "String instruments"},
+          {"id": "violin", "label": "Violin", "parent": "strings"},
+          {"id": "cello", "label": "Cello", "parent": "strings"}
+        ],
+        "caption": "For the class $S$ of string instruments, $\\{\\text{violin},\\text{cello}\\}\\subseteq S$."
+      }
+    }
+  },
+  {
+    "kind": "relationship",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "relationship",
+        "title": "How bees bring pollen to apple flowers",
+        "layout": "graph",
+        "nodes": [{"id": "bee", "label": "Bee"}, {"id": "blossom", "label": "Apple flower"}],
+        "edges": [{"from": "bee", "to": "blossom", "label": "Carries pollen to"}]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "relationship",
+        "title": "Apple blossom pollination",
+        "layout": "graph",
+        "nodes": [{"id": "bee", "label": "Bee"}, {"id": "blossom", "label": "Apple blossom"}],
+        "edges": [{"from": "bee", "to": "blossom", "label": "Carries pollen to"}]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "relationship",
+        "title": "Bee-mediated pollination",
+        "layout": "graph",
+        "nodes": [{"id": "bee", "label": "Bee"}, {"id": "blossom", "label": "Apple blossom"}],
+        "edges": [{"from": "bee", "to": "blossom", "label": "Transfers pollen to"}],
+        "caption": "The directed edge set is $E=\\{(b,a)\\}$, from bee $b$ to apple blossom $a$."
+      }
+    }
+  },
+  {
+    "kind": "transformation",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "transformation",
+        "title": "How water becomes ice",
+        "before": {"label": "Before freezing", "items": ["Liquid water"]},
+        "after": {"label": "After freezing", "items": ["Ice"]},
+        "operation": "Take away heat"
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "transformation",
+        "title": "Water freezes",
+        "before": {"label": "Liquid", "items": ["Water"]},
+        "after": {"label": "Solid", "items": ["Ice"]},
+        "operation": "Remove heat"
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "transformation",
+        "title": "Freezing as a phase transition",
+        "before": {"label": "Liquid phase", "items": ["Water"]},
+        "after": {"label": "Solid phase", "items": ["Ice"]},
+        "operation": "Remove thermal energy",
+        "caption": "With heat into the water defined as positive, heat removal during freezing means $Q<0$."
+      }
+    }
+  },
+  {
+    "kind": "argument",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "argument",
+        "title": "Why fill the birdbath now?",
+        "claim": "Fill the birdbath today.",
+        "support": [{"label": "There is no water in it."}],
+        "objections": [{"label": "Rain is expected tonight."}],
+        "conclusion": "Fill it now so birds can drink today."
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "argument",
+        "title": "Refill a birdbath",
+        "claim": "Refill the birdbath today.",
+        "support": [{"label": "The basin is dry."}],
+        "objections": [{"label": "Rain is forecast tonight."}],
+        "conclusion": "Refill it now so birds have water today."
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "argument",
+        "title": "Reasoning about a birdbath refill",
+        "claim": "Refill the birdbath today.",
+        "support": [{"label": "The basin is dry."}],
+        "objections": [{"label": "Rain is forecast tonight."}],
+        "conclusion": "Refill now so birds have water before any rain tonight.",
+        "caption": "The rebuttal turns on timing. $t_{\\mathrm{refill}}<t_{\\mathrm{rain}}$ if tonight's forecast holds."
+      }
+    }
+  },
+  {
+    "kind": "number-line",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "number-line",
+        "title": "Numbers between one and three",
+        "min": -1,
+        "max": 4,
+        "markers": [{"value": 0, "label": "Zero"}],
+        "intervals": [
+          {"from": 1, "to": 3, "startClosed": false, "endClosed": true, "label": "More than one, up to three"}
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "number-line",
+        "title": "A half-open interval",
+        "min": -1,
+        "max": 4,
+        "markers": [{"value": 0, "label": "Origin"}],
+        "intervals": [{"from": 1, "to": 3, "startClosed": false, "endClosed": true, "label": "$(1,3]$"}]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "number-line",
+        "title": "Left-open, right-closed interval",
+        "min": -1,
+        "max": 4,
+        "markers": [{"value": 0, "label": "Origin"}],
+        "intervals": [{"from": 1, "to": 3, "startClosed": false, "endClosed": true, "label": "$(1,3]$"}],
+        "caption": "The interval contains exactly the real numbers with $1<x\\le 3$."
+      }
+    }
+  },
+  {
+    "kind": "coordinate-plot",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "coordinate-plot",
+        "title": "How much fits inside a square?",
+        "x": {"label": "Length of one side", "min": 0, "max": 8},
+        "y": {"label": "Space inside", "min": 0, "max": 64},
+        "series": [
+          {
+            "label": "Space inside the square",
+            "kind": "line",
+            "points": [
+              {"x": 0, "y": 0},
+              {"x": 1, "y": 1},
+              {"x": 2, "y": 4},
+              {"x": 3, "y": 9},
+              {"x": 4, "y": 16, "label": "Four on a side"},
+              {"x": 5, "y": 25},
+              {"x": 6, "y": 36},
+              {"x": 7, "y": 49},
+              {"x": 8, "y": 64}
+            ]
+          }
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "coordinate-plot",
+        "title": "Area of a square",
+        "x": {"label": "Side length", "min": 0, "max": 8},
+        "y": {"label": "Area", "min": 0, "max": 64},
+        "series": [
+          {
+            "label": "$A=s^2$",
+            "kind": "line",
+            "points": [
+              {"x": 0, "y": 0},
+              {"x": 1, "y": 1},
+              {"x": 2, "y": 4},
+              {"x": 3, "y": 9},
+              {"x": 4, "y": 16, "label": "$s=4$"},
+              {"x": 5, "y": 25},
+              {"x": 6, "y": 36},
+              {"x": 7, "y": 49},
+              {"x": 8, "y": 64}
+            ]
+          }
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "coordinate-plot",
+        "title": "Square area as a quadratic",
+        "x": {"label": "Side length $s$", "min": 0, "max": 8},
+        "y": {"label": "Area $A$", "min": 0, "max": 64},
+        "series": [
+          {
+            "label": "$A=s^2$",
+            "kind": "line",
+            "points": [
+              {"x": 0, "y": 0},
+              {"x": 1, "y": 1},
+              {"x": 2, "y": 4},
+              {"x": 3, "y": 9},
+              {"x": 4, "y": 16, "label": "$(4,16)$"},
+              {"x": 5, "y": 25},
+              {"x": 6, "y": 36},
+              {"x": 7, "y": 49},
+              {"x": 8, "y": 64}
+            ]
+          }
+        ],
+        "caption": "Doubling the side length quadruples the area, since $A(2s)=4A(s)$."
+      }
+    }
+  },
+  {
+    "kind": "bar-chart",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "bar-chart",
+        "title": "Books checked out of the library",
+        "unit": "books",
+        "bars": [{"label": "Monday", "value": 12}, {"label": "Tuesday", "value": 18}]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "bar-chart",
+        "title": "Library loans",
+        "unit": "books",
+        "bars": [{"label": "Monday", "value": 12}, {"label": "Tuesday", "value": 18}]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "bar-chart",
+        "title": "Daily library loan counts",
+        "unit": "books",
+        "bars": [{"label": "Monday", "value": 12}, {"label": "Tuesday", "value": 18}],
+        "caption": "Tuesday's count exceeded Monday's by $18-12=6$ books."
+      }
+    }
+  },
+  {
+    "kind": "t-account",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "t-account",
+        "title": "Cash coming in and going out",
+        "account": "Cash",
+        "unit": "USD",
+        "debits": [{"label": "Sold a book", "amount": 20}],
+        "credits": [{"label": "Paid for postage", "amount": 5}]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "t-account",
+        "title": "Cash entries",
+        "account": "Cash",
+        "unit": "USD",
+        "debits": [{"label": "Book sale", "amount": 20}],
+        "credits": [{"label": "Postage", "amount": 5}]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "t-account",
+        "title": "Cash debits and credits",
+        "account": "Cash",
+        "unit": "USD",
+        "debits": [{"label": "Book sale", "amount": 20}],
+        "credits": [{"label": "Postage", "amount": 5}],
+        "caption": "The shown postings give a net debit of $20-5=15$ USD."
+      }
+    }
+  },
+  {
+    "kind": "waterfall",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "waterfall",
+        "title": "Money at the market stall",
+        "opening": 20,
+        "unit": "USD",
+        "changes": [{"label": "Money from sales", "amount": 15}, {"label": "Fee for the stall", "amount": -5}]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "waterfall",
+        "title": "Market stall cash",
+        "opening": 20,
+        "unit": "USD",
+        "changes": [{"label": "Sales", "amount": 15}, {"label": "Stall fee", "amount": -5}]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "waterfall",
+        "title": "Market stall cash reconciliation",
+        "opening": 20,
+        "unit": "USD",
+        "changes": [{"label": "Sales", "amount": 15}, {"label": "Stall fee", "amount": -5}],
+        "caption": "The closing balance is $20+15-5=30$ USD."
+      }
+    }
+  },
+  {
+    "kind": "heatmap",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "heatmap",
+        "title": "How warm is the soil in Celsius?",
+        "columns": ["Morning", "Noon"],
+        "rows": [{"label": "Shade", "cells": [16, 19]}, {"label": "Sun", "cells": [18, 24]}],
+        "range": {"min": 16, "max": 24},
+        "caption": "The soil in the sun is warmest at noon."
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "heatmap",
+        "title": "Soil temperature in Celsius",
+        "columns": ["Morning", "Noon"],
+        "rows": [{"label": "Shade", "cells": [16, 19]}, {"label": "Sun", "cells": [18, 24]}],
+        "range": {"min": 16, "max": 24}
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "heatmap",
+        "title": "Soil temperature by exposure in Celsius",
+        "columns": ["Morning", "Noon"],
+        "rows": [{"label": "Shade", "cells": [16, 19]}, {"label": "Sun", "cells": [18, 24]}],
+        "range": {"min": 16, "max": 24},
+        "caption": "From morning to noon, soil warms by $24-18=6$ degrees in sun and $19-16=3$ degrees in shade."
+      }
+    }
+  },
+  {
+    "kind": "sample-set",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "sample-set",
+        "title": "Seeds in the packet",
+        "samples": [
+          {"id": "pea", "label": "Pea"},
+          {"id": "bean", "label": "Bean"},
+          {"id": "corn", "label": "Corn"}
+        ],
+        "groups": [{"id": "draw", "label": "Seeds picked", "members": ["bean", "corn"]}]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "sample-set",
+        "title": "Seed packet sample",
+        "samples": [
+          {"id": "pea", "label": "Pea"},
+          {"id": "bean", "label": "Bean"},
+          {"id": "corn", "label": "Corn"}
+        ],
+        "groups": [{"id": "draw", "label": "Seeds drawn", "members": ["bean", "corn"]}]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "sample-set",
+        "title": "Drawn subset of a seed packet",
+        "samples": [
+          {"id": "pea", "label": "Pea"},
+          {"id": "bean", "label": "Bean"},
+          {"id": "corn", "label": "Corn"}
+        ],
+        "groups": [{"id": "draw", "label": "Drawn subset", "members": ["bean", "corn"]}],
+        "caption": "The sampling fraction among the seeds shown is $2/3$."
+      }
+    }
+  },
+  {
+    "kind": "histogram",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "histogram",
+        "title": "How long are the leaves?",
+        "xLabel": "Length of a leaf",
+        "unit": "cm",
+        "binEdges": [0, 2, 4, 6],
+        "measure": "count",
+        "series": [{"label": "Leaves counted", "values": [2, 6, 3]}]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "histogram",
+        "title": "Leaf lengths",
+        "xLabel": "Length",
+        "unit": "cm",
+        "binEdges": [0, 2, 4, 6],
+        "measure": "count",
+        "series": [{"label": "Leaves", "values": [2, 6, 3]}]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "histogram",
+        "title": "Frequency of leaf lengths",
+        "xLabel": "Leaf length",
+        "unit": "cm",
+        "binEdges": [0, 2, 4, 6],
+        "measure": "count",
+        "series": [{"label": "Leaf count", "values": [2, 6, 3]}],
+        "caption": "The modal bin $[2,4)$ cm holds $\\frac{6}{11}$ of the leaves."
+      }
+    }
+  },
+  {
+    "kind": "box-plot",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "box-plot",
+        "title": "How long bus rides take",
+        "x": {"label": "Time", "min": 0, "max": 40, "unit": "min"},
+        "boxes": [
+          {"label": "Bus rides", "whiskerLow": 10, "q1": 15, "median": 20, "q3": 25, "whiskerHigh": 30}
+        ],
+        "caption": "The box spans the middle half of ride times, from fifteen to twenty-five minutes."
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "box-plot",
+        "title": "Commute times",
+        "x": {"label": "Time", "min": 0, "max": 40, "unit": "min"},
+        "boxes": [
+          {"label": "Bus rides", "whiskerLow": 10, "q1": 15, "median": 20, "q3": 25, "whiskerHigh": 30}
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "box-plot",
+        "title": "Bus commute time quartiles",
+        "x": {"label": "Commute time", "min": 0, "max": 40, "unit": "min"},
+        "boxes": [
+          {"label": "Bus rides", "whiskerLow": 10, "q1": 15, "median": 20, "q3": 25, "whiskerHigh": 30}
+        ],
+        "caption": "The interquartile range is $Q_3-Q_1=25-15=10$ minutes."
+      }
+    }
+  },
+  {
+    "kind": "tensor",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "tensor",
+        "title": "Readings in order",
+        "tensor": {
+          "rows": 1,
+          "columns": 3,
+          "dimensions": "One row",
+          "name": "Readings",
+          "values": [
+            2,
+            4,
+            6
+          ],
+          "role": "input"
+        }
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "tensor",
+        "title": "A row of readings",
+        "tensor": {
+          "rows": 1,
+          "columns": 3,
+          "dimensions": "1 × 3",
+          "name": "Readings",
+          "values": [
+            2,
+            4,
+            6
+          ],
+          "role": "input"
+        }
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "tensor",
+        "title": "A row vector $x$",
+        "tensor": {
+          "rows": 1,
+          "columns": 3,
+          "dimensions": "1 × 3",
+          "name": "$x$",
+          "values": [
+            2,
+            4,
+            6
+          ],
+          "role": "input"
+        }
+      }
+    }
+  },
+  {
+    "kind": "token-links",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "token-links",
+        "title": "Which word matters more",
+        "source": [
+          "red",
+          "kite"
+        ],
+        "target": [
+          "red",
+          "kite"
+        ],
+        "queries": [
+          {
+            "index": 1,
+            "weights": [
+              0.25,
+              0.75
+            ]
+          }
+        ],
+        "normalized": true
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "token-links",
+        "title": "Weights on words",
+        "source": [
+          "red",
+          "kite"
+        ],
+        "target": [
+          "red",
+          "kite"
+        ],
+        "queries": [
+          {
+            "index": 1,
+            "weights": [
+              0.25,
+              0.75
+            ]
+          }
+        ],
+        "normalized": true
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "token-links",
+        "title": "Word weights $w_1+w_2=1$",
+        "source": [
+          "red",
+          "kite"
+        ],
+        "target": [
+          "red",
+          "kite"
+        ],
+        "queries": [
+          {
+            "index": 1,
+            "weights": [
+              0.25,
+              0.75
+            ]
+          }
+        ],
+        "normalized": true
+      }
+    }
+  },
+  {
+    "kind": "block-stack",
+    "overview": {
+      "version": 1,
+      "diagram": {
+        "kind": "block-stack",
+        "title": "Packing a box",
+        "blocks": [
+          {
+            "id": "p",
+            "label": "Fill box",
+            "dims": "Four items",
+            "diagram": {
+              "kind": "flow",
+              "steps": [
+                "Find items",
+                "Fill box"
+              ]
+            }
+          },
+          {
+            "id": "s",
+            "label": "Check box"
+          }
+        ]
+      }
+    },
+    "standard": {
+      "version": 1,
+      "diagram": {
+        "kind": "block-stack",
+        "title": "Pack and inspect an order",
+        "blocks": [
+          {
+            "id": "p",
+            "label": "Pack order",
+            "dims": "4 items",
+            "diagram": {
+              "kind": "flow",
+              "steps": [
+                "Read order",
+                "Fill box"
+              ]
+            }
+          },
+          {
+            "id": "s",
+            "label": "Inspect order"
+          }
+        ]
+      }
+    },
+    "deep": {
+      "version": 1,
+      "diagram": {
+        "kind": "block-stack",
+        "title": "Order with $d=4$ items",
+        "blocks": [
+          {
+            "id": "p",
+            "label": "Pack order",
+            "dims": "d=4",
+            "diagram": {
+              "kind": "flow",
+              "steps": [
+                "Read order",
+                "Fill box"
+              ]
+            }
+          },
+          {
+            "id": "s",
+            "label": "Inspect order"
+          }
+        ]
+      }
+    }
+  }
+]

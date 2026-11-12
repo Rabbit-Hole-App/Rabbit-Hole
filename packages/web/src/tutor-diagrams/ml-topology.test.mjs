@@ -219,6 +219,34 @@ test('connected relationship graph draws every node once and reciprocal links on
   fits(s);
 });
 
+test('relationship graph brings outside routes closer while clearing node boxes and route labels', () => {
+  for (const width of [320, 408, 720]) {
+    const s = scene(parse(graph), width);
+    const gaps = { left: [], right: [] };
+    for (const edge of marked(s, 'data-tutor-edge')) {
+      const [fromId, toId] = edge.props['data-tutor-edge'].split(':');
+      const from = rectFor(s, fromId), to = rectFor(s, toId);
+      const parts = walk([edge]);
+      const [start, bend, , end] = points(parts.find(e => e.type === 'polyline').props.points);
+      const arrow = parts.find(e => e.props['data-tutor-arrowhead'] !== undefined);
+      assert.deepEqual(points(arrow.props.points)[0], end);
+      const badge = parts.find(e => e.type === 'circle').props;
+      const side = bend[0] < from.x ? 'left' : 'right';
+      const nodeEdge = rect => side === 'left' ? rect.x : rect.x + rect.width;
+      const gap = Math.abs(bend[0] - nodeEdge(from));
+      gaps[side].push(gap);
+      assert.ok(gap >= badge.r + 2, 'the route badge clears the node column');
+      for (const [port, node] of [[start, from], [end, to]]) {
+        const [x, y] = port;
+        assert.ok(side === 'left' ? x <= nodeEdge(node) - 1 : x >= nodeEdge(node) + 1, 'the wire clears the node outline');
+        assert.ok(y > node.y && y < node.y + node.height, 'the port stays on the node side');
+      }
+    }
+    assert.ok(Math.min(...gaps.left) < 24 && Math.min(...gaps.right) < 24, 'both nearest lanes are closer to the node column');
+    fits(s);
+  }
+});
+
 test('graph requires connected relationships even when every node participates in a separate component', () => {
   assert.throws(() => parse({ ...graph, nodes: [...graph.nodes, { id: 'd', label: 'Fourth' }],
     edges: [{ from: 'a', to: 'b', label: 'One' }, { from: 'c', to: 'd', label: 'Two' }] }), /connect/i);
@@ -229,7 +257,8 @@ test('fork and merge roles reuse flow routing and do not turn simultaneous branc
   assert.equal(tagged(s, 'polygon').filter(e => !Object.hasOwn(e.props, 'data-tutor-arrowhead')).length, 0);
   assert.equal(marked(s, 'data-tutor-edge').length, 5);
   assert.ok(rectFor(s, 'a').y > rectFor(s, 'f').y && rectFor(s, 'm').y > rectFor(s, 'a').y);
-  assert.ok(allText(s).includes('Parallel') && allText(s).includes('Merge'));
+  assert.deepEqual(marked(s, 'data-tutor-role').filter(node => ['fork', 'merge'].includes(node.props['data-tutor-role']))
+    .map(node => allText({ elements: [node] })), ['Preprocess', 'Features']);
   fits(s);
 });
 

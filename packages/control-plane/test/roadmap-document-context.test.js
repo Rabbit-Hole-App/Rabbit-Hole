@@ -23,7 +23,7 @@ const CARD_2 = answer('make_explanation', { title: 'Entropy', body: withVisual('
 const context = body => JSON.parse(typeof body.messages[0].content === 'string' ? body.messages[0].content : body.messages[0].content.at(-1).text).context;
 
 async function start(h) {
-  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
+  const created = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'balanced', actionKey: KEY('create') });
   assert.ok([200, 202].includes(created.status), JSON.stringify(created.body).slice(0, 300));
   if (created.body.roadmap.state !== 'proposed') console.log('STATE', created.body.roadmap.state, JSON.stringify(created.body.question || created.body.limitation || created.body).slice(0, 600));
   const id = created.body.roadmapId;
@@ -103,7 +103,7 @@ const claimed = n => { const p = planInput([['Gini', 0, AT.entropy], ['Entropy',
   return { ...p, outcome: `Outcome of plan ${n}.`, steps: p.steps.map(s => ({ ...s, claimsToCover: [`claim of plan ${n}`] })) }; };
 
 async function revisedAndAccepted(h) {
-  const made = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'standard', actionKey: KEY('create') });
+  const made = await h.json('POST', '/api/learn/roadmap', { boardId: BOARD, source: { key: `file:${ID_B}`, rev: h.rev, scope: { kind: 'whole' } }, instruction: INSTRUCTION, depth: 'balanced', actionKey: KEY('create') });
   const id = made.body.roadmapId;
   let view = made.body;
   for (const [n, text] of [[1, 'Spend longer on entropy.'], [2, 'Compare them at the end.']]) view = (await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY(`rev${n}`), instruction: text })).body;
@@ -122,7 +122,7 @@ test('CORE.03/05: one request carries the accepted plan version, the original in
   assert.equal(accepted.status, 202);
   // After acceptance: a later instruction the learner never accepted, and a live Depth change.
   h.w.sqlite.prepare("INSERT INTO learn_roadmap_instructions (roadmap_id, version, org, owner_user_id, board_id, text, origin, created_at) VALUES (?, 4, 'team', 'u-alice', ?, 'A LATER UNACCEPTED WISH', 'revise', 1)").run(id, BOARD);
-  h.w.sqlite.prepare("UPDATE learn_roadmaps SET depth = 'deep' WHERE id = ?").run(id);
+  h.w.sqlite.prepare("UPDATE learn_roadmaps SET depth = 'detailed' WHERE id = ?").run(id);
   await runDueRoadmapEvents(h.env, {});
   assert.equal(h.p.bodies.length, 1, 'exactly one authoring call');
   const body = h.p.bodies[0], ctx = context(body);
@@ -136,7 +136,7 @@ test('CORE.03/05: one request carries the accepted plan version, the original in
   assert.doesNotMatch(body.system, /Depth: deep/i, 'the Depth frozen at acceptance, not the live one');
   // The snapshot, the quote, the call row and the hold all name the same request.
   const snap = snapshotOf(h);
-  assert.deepEqual([snap.planVersion, snap.position, snap.instructionVersion, snap.depth, snap.format, snap.title], [3, 1, 3, 'standard', 'explanation', 'Gini']);
+  assert.deepEqual([snap.planVersion, snap.position, snap.instructionVersion, snap.depth, snap.format, snap.title], [3, 1, 3, 'balanced', 'explanation', 'Gini']);
   assert.deepEqual(snap.learnerInstruction.revisions.map(r => r.text), ['Spend longer on entropy.', 'Compare them at the end.']);
   const route = authorRoute(h.env, h.p.models[0]);
   assert.deepEqual([snap.provider, snap.model], [route.provider, route.model]);
@@ -205,7 +205,7 @@ test('BE.03: with a delivered card and an accepted in-flight card, an edit makes
   for (let i = 0; i < 5 && proposed.status === 409 && proposed.body.code === 'stale_revision'; i++) proposed = await h.json('POST', `/api/learn/roadmap/${id}/steps/propose`, { boardId: BOARD, revision: proposed.body.currentRevision, actionKey: KEY(`propose2${i}`) });
   const stepIds = proposed.body.steps.map(s => s.id);
   // Edit while step 2 is only offered: the draft keeps the one delivered step.
-  const edit1 = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: proposed.body.roadmap.revision, actionKey: KEY('edit1'), instruction: 'Explain why trees grow instead of the notes.', settings: { depth: 'overview' } });
+  const edit1 = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: proposed.body.roadmap.revision, actionKey: KEY('edit1'), instruction: 'Explain why trees grow instead of the notes.', settings: { depth: 'brief' } });
   assert.equal(edit1.status, 202);
   assert.deepEqual([edit1.body.planDraft.version, edit1.body.planDraft.acceptable, edit1.body.plan.version], [2, true, 1], 'a separate draft; the ToC stays on the accepted plan');
   assert.equal(edit1.body.proposal.version, proposed.body.proposal.version, 'the offered card of the accepted plan is untouched');
@@ -213,7 +213,7 @@ test('BE.03: with a delivered card and an accepted in-flight card, an edit makes
   const second = await h.json('POST', `/api/learn/roadmap/${id}/proposals/${proposed.body.proposal.id}/accept`, acceptBody(edit1.body, KEY('accept2')));
   assert.equal(second.status, 202);
   const snap2 = JSON.parse(rows(h.w.sqlite, "SELECT payload_json FROM learn_roadmap_outbox WHERE kind = 'step_accepted' ORDER BY created_at DESC, rowid DESC")[0].payload_json).snapshot;
-  assert.deepEqual([snap2.planVersion, snap2.depth], [1, 'standard'], 'the in-flight card keeps the accepted plan and Depth');
+  assert.deepEqual([snap2.planVersion, snap2.depth], [1, 'balanced'], 'the in-flight card keeps the accepted plan and Depth');
   assert.ok(!context(h.p.bodies[1]).includes('why trees grow'), 'the unaccepted edit never reaches the in-flight request');
   // The draft no longer matches what happened: its acceptance is refused, nothing changes.
   const race = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: second.body.roadmap.revision, actionKey: KEY('race'), planVersion: 2 });
@@ -221,13 +221,13 @@ test('BE.03: with a delivered card and an accepted in-flight card, an edit makes
   // A fresh revision keeps both steps that happened; accepting it moves them (same ids, results, charges) and offers the next new step.
   const charged = (await h.totals()).used;
   const latest = await h.status();
-  const edit2 = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: latest.roadmap.revision, actionKey: KEY('edit2'), instruction: 'Explain why trees grow instead of the notes.', settings: { depth: 'overview' } });
+  const edit2 = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: latest.roadmap.revision, actionKey: KEY('edit2'), instruction: 'Explain why trees grow instead of the notes.', settings: { depth: 'brief' } });
   assert.equal(edit2.body.planDraft.acceptable, true);
   const re = await h.json('POST', `/api/learn/roadmap/${id}/accept-plan`, { boardId: BOARD, revision: edit2.body.roadmap.revision, actionKey: KEY('reaccept'), planVersion: edit2.body.planDraft.version });
   assert.equal(re.status, 200, JSON.stringify(re.body).slice(0, 300));
   assert.deepEqual(re.body.steps.slice(0, 2).map(s => s.id), stepIds.slice(0, 2), 'delivered and in-flight steps keep their identity');
   assert.deepEqual(re.body.steps.map(s => s.title), ['Gini', 'Entropy', 'Why trees grow', 'Comparison']);
-  assert.deepEqual([re.body.roadmap.depth, re.body.roadmap.acceptedPlanVersion, re.body.planDraft], ['overview', edit2.body.planDraft.version, null]);
+  assert.deepEqual([re.body.roadmap.depth, re.body.roadmap.acceptedPlanVersion, re.body.planDraft], ['brief', edit2.body.planDraft.version, null]);
   assert.equal(re.body.proposal, null, 'no second active offer while the in-flight card is unfinished');
   assert.equal(re.body.results.length, 2, 'both results stay');
   const result2 = re.body.results.find(r => r.id !== first.body.results[0].id);

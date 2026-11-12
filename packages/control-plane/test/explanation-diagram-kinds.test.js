@@ -18,7 +18,7 @@ const KINDS = ['flow', 'comparison', 'timeline', 'sequence', 'matrix', 'layers',
 
 const access = { org: 'o', actorUserId: 'u1', actorEmail: 'a@x.test', boardId: 'b1', boardOwnerEmail: 'a@x.test', role: 'owner', payerUserId: 'u1' };
 const ref = { authorizationId: 'auth_00000001', resultId: 'res_00000001', resultVersion: 1 };
-const record = (over = {}) => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'T', stepGoal: 'Read it.', passageText: 'Some passage.', sourceRef: { v: 1, id: 'sref_abc' }, language: 'en', depth: 'standard', retry: 0, ...over });
+const record = (over = {}) => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'T', stepGoal: 'Read it.', passageText: 'Some passage.', sourceRef: { v: 1, id: 'sref_abc' }, language: 'en', depth: 'balanced', retry: 0, ...over });
 const scripted = (...replies) => { const seen = []; return { seen, callModel: async (env, body) => { seen.push(body); const [name, input] = replies[Math.min(seen.length, replies.length) - 1]; return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `c${seen.length}`, name, input }] }); } }; };
 const viaRoadmap = (depth, block) => { const m = scripted(['make_explanation', block]); return generateRoadmapCard({}, access, ref, { loadAccepted: async () => record({ depth }), withProviderCall: (env, fields) => ({ ...env, fields }), callModel: m.callModel }).then(out => ({ out, m })); };
 const viaDirect = (depth, block) => { const m = scripted(['make_explanation', block], ['make_explanation', block], ['make_explanation', block]); return generateArtifact({}, { command: 'explanation', args: 'x', depth }, { callModel: m.callModel }).then(out => ({ out, m })); };
@@ -45,9 +45,9 @@ test('a binary-tree question advertises and saves a top-down diagram with explic
   ] } };
   const body = 'A binary tree gives each node up to two children.\n\n[[visual:1]]\n\nB is the left child of A, and C is its right child.';
   const m = scripted(['make_explanation', { title: 'Binary trees', body, visuals: [{ k: 'diagram', spec }] }]);
-  const out = await generateArtifact({}, { command: 'explanation', args: 'How does a binary tree work?', depth: 'standard' }, { callModel: m.callModel });
+  const out = await generateArtifact({}, { command: 'explanation', args: 'How does a binary tree work?', depth: 'balanced' }, { callModel: m.callModel });
   const tool = m.seen[0].tools.find(item => item.name === 'make_explanation');
-  assert.match(tool.description, /binary trees use kind "tree" with layout "binary"/i);
+  assert.match(tool.description, /a binary tree use kind "tree" with layout "binary"/i);
   assert.equal(out.result, 'artifact');
   assert.equal(out.block.body, body.replace('[[visual:1]]', fence(spec)));
   assert.equal(m.seen.length, 1);
@@ -64,9 +64,9 @@ for (const [i, example] of ORDINARY.entries()) {
     assert.equal(diagramProblem(fence(example)), null);
     assert.ok(words(example).length > 0, 'a kind with no visible words could hide text');
     const body = { title: 'T', body: around(example) };
-    const direct = await viaDirect('deep', body);
+    const direct = await viaDirect('detailed', body);
     assert.deepEqual([direct.out.result, direct.out.block?.body, direct.out.diagramsDropped], ['artifact', delivered(body.body), undefined], 'direct');
-    const road = await viaRoadmap('deep', body);
+    const road = await viaRoadmap('detailed', body);
     assert.deepEqual([road.out.outcome, road.out.block?.body, road.out.diagramsDropped], ['ok', delivered(body.body), undefined], 'roadmap');
 
     // invalid variant: the schema is strict, so an unknown key refuses every kind
@@ -74,9 +74,9 @@ for (const [i, example] of ORDINARY.entries()) {
     assert.throws(() => parseTutorDiagram(JSON.stringify(bad)), undefined, 'parse refuses');
     assert.match(diagramProblem(fence(bad)) || '', /^explanation_bad_diagram:/);
     const badBlock = { title: 'T', body: around(example, `\n\n${fence(bad)}\n\nDone.`) };
-    const d = await viaDirect('deep', badBlock);
+    const d = await viaDirect('detailed', badBlock);
     assert.deepEqual([d.out.result, d.out.block?.body, d.out.diagramsDropped, d.m.seen.length], ['artifact', delivered(around(example, '\n\nDone.')), 1, 2], 'direct drop after one repair');
-    const r = await viaRoadmap('deep', badBlock);
+    const r = await viaRoadmap('detailed', badBlock);
     assert.deepEqual([r.out.outcome, r.out.block?.body, r.out.diagramsDropped, r.m.seen.length], ['ok', delivered(around(example, '\n\nDone.')), 1, 1], 'roadmap drop, one call');
   });
 }
@@ -100,7 +100,7 @@ for (const kind of ['figure', 'tree', 'argument', 'bar-chart', 'waterfall']) {
 
 test('unseen text cannot hide: an unparseable fence is refused, a parseable one adds no prose', () => {
   const hidden = '```rh-diagram\n' + 'x'.repeat(700) + '\n```';
-  assert.match(explanationProblem({ title: 'T', body: 'See x.\n\n' + hidden + '\n\nDone.' }, 'overview') || '', /explanation_bad_diagram:/);
+  assert.match(explanationProblem({ title: 'T', body: 'See x.\n\n' + hidden + '\n\nDone.' }, 'brief') || '', /explanation_bad_diagram:/);
   const ids = { ...EXAMPLES.find(e => e.diagram.kind === 'tree') };
   assert.equal(explanationProseChars({ title: 'T', body: fence(ids) }), 0, 'ids, roles, numbers and labels are not prose');
 });
@@ -109,7 +109,7 @@ test('the binary-tree examples are delivered verbatim for a BST question', async
   for (const example of EXAMPLES.filter(e => e.diagram.layout === 'binary')) {
     const block = { title: 'T', body: around(example) };
     const m = scripted(['make_explanation', block]);
-    const out = await generateArtifact({}, { command: 'explanation', args: 'Show me inserting 7 into a BST.', depth: 'deep' }, { callModel: m.callModel });
+    const out = await generateArtifact({}, { command: 'explanation', args: 'Show me inserting 7 into a BST.', depth: 'detailed' }, { callModel: m.callModel });
     assert.deepEqual([out.result, out.block?.body], ['artifact', block.body], example.diagram.title);
   }
 });
@@ -117,7 +117,7 @@ test('the binary-tree examples are delivered verbatim for a BST question', async
 test('single-call roadmap path: an authored rh-diagram fence (every example but the two binary trees) is delivered verbatim from ONE author call with no repair, and survives a board JSON round trip', async () => {
   for (const [i, example] of ORDINARY.entries()) {
     const block = { title: 'T', body: around(example) };
-    const { out, m } = await viaRoadmap('deep', block);
+    const { out, m } = await viaRoadmap('detailed', block);
     assert.equal(out.outcome, 'ok', `${i + 1}. ${example.diagram.kind}`);
     assert.equal(m.seen.length, 1, 'one author call, repairs 0');
     assert.equal(out.repaired, false);

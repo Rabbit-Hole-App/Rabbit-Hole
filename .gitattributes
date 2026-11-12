@@ -7,3 +7,5 @@ packages/web/test/fixtures/file-imports/** -text
 packages/control-plane/src/telemetry-events/index.js merge=union
 # The golden SGD artifact is a frozen identity hashed by its bytes (FX-AN-075): a Windows checkout must not turn it into CRLF.
 packages/web/src/animation3d/testdata/sgd-golden.json text eol=lf
+# The demo-lesson04 runner is run by Git Bash: a CRLF checkout breaks it.
+scripts/explain-bench/*.sh text eol=lf

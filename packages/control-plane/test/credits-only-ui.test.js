@@ -21,13 +21,16 @@ const INTERNAL = new Set(['pricing-registry.js', 'learn-usage-estimates.js', 'in
 // The owner telemetry dashboard is an operator surface for the owner only (the API answers 404 to everyone else; owner decisions
 // 2026-10-23): it shows provider cost in dollars. It is never shown to a person using the product.
 const OPERATOR_ONLY = new Set(['OwnerTelemetry.jsx']);
+// The diagram reference library (tutor-diagrams/*-references.js, reference-single-specs-*.js) writes TeX math that opens on a number ($0.70,0.02$, $13 - 10 = 3$), the same TeX-is-not-money
+// case as LearningBlocks.jsx. These files skip only the first pattern (a dollar sign on a number); the word dollar, a money formatter and an interpolated price stay scanned in them.
+const MATH_REFERENCES = /(-references|reference-single-specs-[ab])\.js$/;
 
 test('no user-facing source shows a dollar amount, a provider price or the word dollar', () => {
   const files = [...walk(web), ...walk(control)].filter(isSource).filter(file => !INTERNAL.has(basename(file)) && !OPERATOR_ONLY.has(basename(file)));
   const hits = [];
   for (const file of files) {
     strip(readFileSync(file, 'utf8')).split('\n').forEach((line, index) => {
-      if (MONEY.some(pattern => pattern.test(line))) hits.push(`${relative(join(here, '../..'), file)}:${index + 1}: ${line.trim().slice(0, 140)}`);
+      if ((MATH_REFERENCES.test(file) ? MONEY.slice(1) : MONEY).some(pattern => pattern.test(line))) hits.push(`${relative(join(here, '../..'), file)}:${index + 1}: ${line.trim().slice(0, 140)}`);
     });
   }
   assert.deepEqual(hits, []);

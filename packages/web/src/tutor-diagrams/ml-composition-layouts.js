@@ -1,5 +1,6 @@
 import { createElement as h } from 'react';
-import { label, lineHeight, wrap } from './primitives.js';
+import { fitCaption, label, layoutCaption, lineHeight, wrap } from './primitives.js';
+import { sharedPlotLabelSpace } from './ml-plot-layouts.js';
 import { teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
 
 const PAD = 12;
@@ -8,6 +9,10 @@ const MIN_CHILD_WIDTH = 320;
 const TEXT = 14;
 const SMALL = 13;
 
+export function panelsNaturalWidth(widths) {
+  return PAD * 2 + GAP * (widths.length - 1) + widths.length * Math.max(MIN_CHILD_WIDTH, ...widths);
+}
+
 function content(text, width, size = TEXT) {
   const lines = wrap(text, width - 20, size);
   return { lines, height: Math.max(34, lines.length * lineHeight(size) + 14) };
@@ -15,26 +20,29 @@ function content(text, width, size = TEXT) {
 
 function panelScenes(panels, width, renderChild, sharedAxes) {
   const requested = Math.max(MIN_CHILD_WIDTH, (width - PAD * 2 - GAP * (panels.length - 1)) / panels.length);
-  // Explicit scales select the teaching plot layout, whose fixed plot gutters
-  // align panels even when an unshared axis has different tick-label lengths.
+  // Shared plots use the teaching layout with matched gutters.
   const children = panels.map(panel => sharedAxes?.length ? {
     ...panel.diagram,
     x: { ...panel.diagram.x, scale: panel.diagram.x.scale ?? 'linear' },
     y: { ...panel.diagram.y, scale: panel.diagram.y.scale ?? 'linear' },
   } : panel.diagram);
-  let scenes = children.map(child => renderChild(child, requested));
+  const sharedLabelSpace = sharedAxes?.length ? sharedPlotLabelSpace(children) : undefined;
+  const sceneFor = (child, childWidth) => fitCaption(renderChild(child, childWidth, {
+    compact: child.kind === 'token-links', sharedLabelSpace,
+  }), child.caption, 2 * PAD, SMALL);
+  let scenes = children.map(child => sceneFor(child, requested));
   const stacked = PAD * 2 + GAP * (panels.length - 1) + scenes.reduce((sum, scene) => sum + scene.width, 0) > width;
-  if (stacked) scenes = children.map(child => renderChild(child, Math.max(MIN_CHILD_WIDTH, width - PAD * 2)));
+  if (stacked) scenes = children.map(child => sceneFor(child, Math.max(MIN_CHILD_WIDTH, width - PAD * 2)));
   if (sharedAxes?.length) {
     const widest = Math.max(...scenes.map(scene => scene.width));
-    if (scenes.some(scene => scene.width !== widest)) scenes = children.map(child => renderChild(child, widest));
+    if (scenes.some(scene => scene.width !== widest)) scenes = children.map(child => sceneFor(child, widest));
   }
   const prepared = scenes.map((scene, index) => {
     const panel = panels[index];
     const heading = content(panel.heading, scene.width);
     // A heading identical to the child's title already names that visual.
     const title = panel.diagram.title === panel.heading ? [] : wrap(panel.diagram.title, scene.width - 24, TEXT);
-    const caption = panel.diagram.caption ? wrap(panel.diagram.caption, scene.width - 24, SMALL) : [];
+    const caption = layoutCaption(panel.diagram.caption, scene.width - 2 * PAD, SMALL);
     return { ...panel, scene, heading, title, caption };
   });
   return { panels: prepared, stacked };
@@ -46,7 +54,7 @@ function drawPanels({ panels, stacked }, top, elements, roles) {
   const titleHeight = Math.max(...panels.map(panel => panel.title.length * lineHeight(TEXT))) + 12;
   const childTop = top + headerHeight + 8 + titleHeight;
   const bodyHeight = Math.max(...panels.map(panel => panel.scene.height));
-  const captionHeight = Math.max(...panels.map(panel => panel.caption.length * lineHeight(SMALL)));
+  const captionHeight = Math.max(...panels.map(panel => panel.caption.height));
   let x = PAD;
   const positions = [];
   panels.forEach((panel, index) => {
@@ -55,7 +63,7 @@ function drawPanels({ panels, stacked }, top, elements, roles) {
     elements.push(label(heading.lines, x + scene.width / 2, top + headerHeight / 2, { weight: 700 }));
     if (title.length) elements.push(label(title, x + scene.width / 2, top + headerHeight + 8 + titleHeight / 2, { size: TEXT, weight: 700 }));
     elements.push(h('g', { transform: `translate(${x} ${childTop})`, 'data-tutor-composition-child': index }, ...scene.elements));
-    if (caption.length) elements.push(label(caption, x + scene.width / 2, childTop + bodyHeight + 8 + captionHeight / 2, { size: SMALL, tone: 'muted' }));
+    if (caption.height) elements.push(caption.draw(x + scene.width / 2, childTop + bodyHeight + 8 + captionHeight / 2));
     positions.push({ x, top, width: scene.width, headerHeight, bottom: childTop + bodyHeight + (captionHeight ? captionHeight + 12 : 0) });
     x += scene.width + GAP;
   });
@@ -78,8 +86,8 @@ function drawStackedPanels(panels, top, elements, roles) {
     elements.push(label(heading.lines, PAD + width / 2, y + heading.height / 2, { weight: 700 }));
     if (title.length) elements.push(label(title, PAD + width / 2, y + heading.height + 8 + titleHeight / 2, { size: TEXT, weight: 700 }));
     elements.push(h('g', { transform: `translate(${PAD + (width - scene.width) / 2} ${childTop})`, 'data-tutor-composition-child': index }, ...scene.elements));
-    const captionHeight = caption.length * lineHeight(SMALL);
-    if (caption.length) elements.push(label(caption, PAD + width / 2, childTop + scene.height + 8 + captionHeight / 2, { size: SMALL, tone: 'muted' }));
+    const captionHeight = caption.height;
+    if (caption.height) elements.push(caption.draw(PAD + width / 2, childTop + scene.height + 8 + captionHeight / 2));
     const bottom = childTop + scene.height + (captionHeight ? captionHeight + 12 : 0);
     positions.push({ x: PAD, top: y, width, headerHeight: heading.height, bottom });
     y = bottom + 28;

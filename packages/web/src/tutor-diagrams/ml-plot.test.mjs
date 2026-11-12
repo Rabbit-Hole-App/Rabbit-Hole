@@ -3,9 +3,10 @@ import test from 'node:test';
 import { z } from 'zod';
 import { createElement as h } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createShapes, validate, describe, visibleText } from './ml-plot-spec.js';
+import { createShapes, validate, describe, visibleText, plotSeriesPoints } from './ml-plot-spec.js';
 import { createLayouts } from './ml-plot-layouts.js';
 import { references } from './ml-plot-references.js';
+import { lineHeight, textWidth } from './primitives.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
 
 const text = max => z.string().min(1).max(max);
@@ -29,8 +30,28 @@ function render(d, width = 420) {
 const marks = (svg, attr) => [...svg.matchAll(new RegExp(`<[^>]* ${attr}="([^"]*)"[^>]*>`, 'g'))].map(m => ({ tag: m[0], value: m[1] }));
 const number = (tag, attr) => Number(tag.match(new RegExp(` ${attr}="([^"]+)"`))?.[1]);
 const points = tag => tag.match(/ points="([^"]+)"/)[1].split(' ').map(pair => pair.split(',').map(Number));
+const smoothVertices = d => d.split('C').map((piece, i) => { const n = piece.replace(/^M/, '').trim().split(/[ ,]+/).map(Number); return i ? n.slice(-2) : n; });
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
 const errors = d => schema.safeParse(d).error?.issues.map(i => i.message).join('; ') || '';
+
+test('five line series use distinct strokes and right-edge labels keep clear of each other', () => {
+  const d = plot();
+  d.series = Array.from({ length: 5 }, (_, i) => ({
+    kind: 'line', label: `Growth ${i + 1}`, endLabel: true,
+    points: [{ x: 0, y: i }, { x: 5, y: 8 }, { x: 10, y: 10 }],
+  }));
+  const { svg, plotBounds } = render(d, 408);
+  const paths = marks(svg, 'data-tutor-plot-series');
+  const labels = marks(svg, 'data-tutor-plot-end-label');
+  assert.equal(paths.length, 5);
+  assert.equal(new Set(paths.map(({ tag }) => tag.match(/ stroke="([^"]+)"/)[1])).size, 5);
+  assert.equal(labels.length, 5);
+  assert.ok(labels.every(({ tag }) => number(tag, 'x') > plotBounds.right));
+  const positions = labels.map(({ tag }) => number(tag, 'y'));
+  assert.ok(positions.every((y, i) => i === 0 || y - positions[i - 1] >= 16));
+  d.series.push({ ...d.series[0], label: 'Sixth line' });
+  assert.notEqual(errors(d), '');
+});
 
 test('unchanged plots and bars delegate to the legacy layouts exactly', () => {
   for (const d of [plot(), { kind: 'bar-chart', title: 'Bars', bars: [{ label: 'A', value: -1 }, { label: 'B', value: 2 }] }]) {
@@ -72,6 +93,69 @@ test('annotations and labelled samples share the same exact linear mapping', () 
   assert.ok(describe(d).join(' ').includes('sample1'));
 });
 
+test('a dense extended line marks its first and last point and labelled points, and retains the full curve', () => {
+  const d = plot();
+  d.series = [{ label: 'Dense line', kind: 'line', points: Array.from({ length: 7 }, (_, i) => ({ x: i, y: i % 3,
+    ...(i === 2 ? { label: 'Peak' } : i === 3 ? { id: 'unlabelled' } : {}),
+  })) }, { label: 'Stems', kind: 'stem', points: Array.from({ length: 7 }, (_, i) => ({ x: i, y: i + 1 })) }];
+  const { svg, plotBounds } = render(d);
+  assert.deepEqual(marks(svg, 'data-tutor-coordinate-point').map(mark => mark.value),
+    ['0,0', '2,2', '6,0', '0,1', '1,2', '2,3', '3,4', '4,5', '5,6', '6,7']);
+  assert.equal(marks(svg, 'data-tutor-plot-stem').length, 7);
+  assert.match(svg, /Peak/);
+  assert.match(svg, /Dense line/);
+  assert.match(describe(d).join(' '), /unlabelled \(3, 0\)/);
+  const path = smoothVertices(marks(svg, 'data-tutor-plot-series')[0].tag.match(/ d="([^"]+)"/)[1]); // the smooth curve passes through every vertex
+  assert.equal(path.length, 7);
+  const { left, right, top, bottom } = plotBounds;
+  path.forEach(([x, y], i) => {
+    close(x, left + (right - left) * i / 10);
+    close(y, bottom - (bottom - top) * (i % 3) / 10);
+  });
+});
+
+// logX (release 118, Codex ae9bf069d): a log x axis is labelled at its powers of ten plus the exact endpoints, thinned only when crowded, so it carries 3 to 7 ticks (a domain inside two decades is completed with 1-2-5 sub-ticks, plot-ticks.js); linear axes keep 3 to 5.
+function checkAxisTicks(frame, xDomain, yDomain, logX = false) {
+  const labels = frame.elements.filter(({ type, props }) => type === 'text' && props.fontSize === 12).map(({ props }) => props);
+  const bottomRow = Math.max(...labels.map(p => p.y));
+  const x = labels.filter(p => p.y === bottomRow).sort((a, b) => a.x - b.x);
+  const y = labels.filter(p => p.y !== bottomRow).sort((a, b) => b.y - a.y);
+  const lines = p => [p.children].flat().map(span => span.props.children);
+  for (const [ticks, domain] of [[x, xDomain], [y, yDomain]]) {
+    const [few, many] = logX && ticks === x ? [3, 7] : [3, 5];
+    assert.ok(ticks.length >= few && ticks.length <= many, `expected ${few}–${many} ticks, found ${ticks.length}`);
+    const text = ticks.map(tick => lines(tick).join(''));
+    assert.equal(new Set(text).size, ticks.length, 'each tick has a distinct label');
+    assert.deepEqual([text[0], text.at(-1)].map(Number), domain, 'exact endpoints remain labelled');
+  }
+  const textBounds = (p, horizontal) => {
+    if (!horizontal) {
+      const halfHeight = lines(p).length * lineHeight(p.fontSize) / 2;
+      return [p.y - halfHeight, p.y + halfHeight];
+    }
+    const width = Math.max(...lines(p).map(line => textWidth(line, p.fontSize)));
+    const start = p.textAnchor === 'start' ? p.x : p.textAnchor === 'end' ? p.x - width : p.x - width / 2;
+    return [start, start + width];
+  };
+  for (const [ticks, horizontal] of [[x, true], [[...y].reverse(), false]]) {
+    const bounds = ticks.map(tick => textBounds(tick, horizontal));
+    assert.ok(bounds.every(([start, end], i) => start >= 0 && end <= (horizontal ? frame.width : frame.height) &&
+      (i === 0 || bounds[i - 1][1] + 4 <= start)), 'tick labels fit without overlap');
+  }
+}
+
+test('linear and logarithmic plot axes have three to five readable ticks at each width', () => {
+  for (const width of [320, 408, 720]) {
+    for (const [x, y] of [
+      [{ label: 'X', min: 0.0013, max: 0.0397 }, { label: 'Y', min: 3.1, max: 3.21 }],
+      [{ label: 'X', min: 0.001, max: 100, scale: 'log' }, { label: 'Y', min: -0.0137, max: 0.3283 }],
+    ]) {
+      const d = { ...plot(), x, y, series: [{ label: 'Samples', kind: 'scatter', points: [{ x: x.min, y: y.min }, { x: x.max, y: y.max }] }] };
+      checkAxisTicks(render(d, width), [x.min, x.max], [y.min, y.max], x.scale === 'log');
+    }
+  }
+});
+
 test('log axes put geometric means at visual midpoints and identify the scale', () => {
   const d = plot();
   d.x = { label: 'Strength', min: 1, max: 100, scale: 'log' };
@@ -88,10 +172,13 @@ test('very narrow positive log domains retain finite, distinct endpoints', () =>
   const d = plot();
   d.x = { label: 'X', min: 999999999.9999999, max: 1000000000, scale: 'log' };
   d.series[0].points = [{ x: d.x.min, y: 0 }, { x: d.x.max, y: 10 }];
-  const { svg } = render(d);
-  assert.doesNotMatch(svg, /NaN|Infinity/);
-  const [a, b] = marks(svg, 'data-tutor-coordinate-point');
-  assert.ok(number(a.tag, 'cx') < number(b.tag, 'cx'));
+  for (const width of [320, 408, 720]) {
+    const frame = render(d, width);
+    assert.doesNotMatch(frame.svg, /NaN|Infinity/);
+    const [a, b] = marks(frame.svg, 'data-tutor-coordinate-point');
+    assert.ok(number(a.tag, 'cx') < number(b.tag, 'cx'));
+    checkAxisTicks(frame, [d.x.min, d.x.max], [d.y.min, d.y.max], true);
+  }
 });
 
 test('log domains, stems, non-finite inputs and out-of-bounds annotations are rejected', () => {
@@ -123,11 +210,12 @@ test('semantic structural fields reject SVG, CSS, arbitrary positions and malfor
 
 test('step curves hold the previous value until the next x, with exact vertical jumps', () => {
   const d = plot(); d.series = [{ label: 'ECDF', kind: 'step', points: [{ x: 0, y: 2 }, { x: 4, y: 5 }, { x: 10, y: 9 }] }];
-  const { svg } = render(d);
-  const path = points(marks(svg, 'data-tutor-plot-series')[0].tag);
-  assert.equal(path.length, 5);
-  close(path[0][1], path[1][1]); close(path[1][0], path[2][0]);
-  close(path[2][1], path[3][1]); close(path[3][0], path[4][0]);
+  for (const width of [320, 408, 720]) {
+    const { svg } = render(d, width);
+    const path = points(marks(svg, 'data-tutor-plot-series')[0].tag);
+    const [a, b, c] = marks(svg, 'data-tutor-coordinate-point').map(({ tag }) => [number(tag, 'cx'), number(tag, 'cy')]);
+    assert.deepEqual(path, [a, [b[0], a[1]], b, [c[0], b[1]], c]);
+  }
   d.series[0].points[1].x = 0;
   assert.match(errors(d), /strictly increasing/);
 });
@@ -258,6 +346,52 @@ test('reference scenes validate, render at narrow/wide widths and cover the Phas
   }
   for (const term of ['residual', 'sigmoid', 'svm', 'knn', 'k-means', 'gmm', 'smote', 'regularization', 'roc', 'pr', 'uncertainty', 'time series', 'importance'])
     assert.ok(references.some(r => r.keywords.includes(term)), term);
+});
+
+test('the descent reference samples and smoothly closes 16 points per contour', () => {
+  const d = references.find(ref => ref.id === 'gradient-descent-contours').spec.diagram;
+  const { svg } = render(d, 408);
+  const paths = marks(svg, 'data-tutor-plot-series');
+  assert.equal(paths.length, 2);
+  for (const [i, series] of d.series.entries()) {
+    const radius = 2 - i;
+    assert.equal(series.closed, true);
+    const samples = plotSeriesPoints(series);
+    assert.equal(samples.length, 16);
+    samples.forEach(({ x, y }, index) => {
+      const angle = 22.5 * index * Math.PI / 180;
+      assert.ok(Math.abs(x / radius - Math.cos(angle)) <= 0.0005 + Number.EPSILON);
+      assert.ok(Math.abs(y / radius - Math.sin(angle)) <= 0.0005 + Number.EPSILON);
+    });
+    const path = paths[i].tag.match(/\bd="([^"]+)"/)[1];
+    assert.match(path, /^M[^L]+Z$/);
+    assert.equal(path.split('C').length - 1, 16);
+  }
+  assert.equal(marks(svg, 'data-tutor-plot-segment').filter(mark => mark.value === 'vector').length, 3);
+});
+
+test('the descent starts within the outer contour and follows a continuous decreasing-loss path to the origin', () => {
+  const { diagram } = references.find(ref => ref.id === 'gradient-descent-contours').spec;
+  const steps = diagram.annotations;
+  const loss = ({ x, y }) => x ** 2 + y ** 2;
+  assert.ok(loss(steps[0].from) < 4, 'Step 1 must start strictly inside the radius-2 contour');
+  for (const [i, { from, to }] of steps.entries()) {
+    if (i > 0) assert.deepEqual(from, steps[i - 1].to);
+    assert.ok(loss(to) < loss(from));
+  }
+  assert.deepEqual(steps.at(-1).to, { x: 0, y: 0 });
+});
+
+test('compact circle samples require a closed line and at least three samples', () => {
+  const d = plot();
+  d.x.min = d.y.min = -2;
+  d.series = [{ label: 'Contour', kind: 'line', closed: true, samples: { radius: 2, count: 16 } }];
+  assert.equal(errors(d), '');
+  d.series[0].closed = false;
+  assert.match(errors(d), /Circle samples require a closed line/);
+  d.series[0].closed = true;
+  d.series[0].samples.count = 2;
+  assert.notEqual(errors(d), '');
 });
 
 

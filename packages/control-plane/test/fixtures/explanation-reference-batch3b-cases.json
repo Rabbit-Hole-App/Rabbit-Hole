@@ -1,0 +1,26 @@
+[
+  {
+    "referenceId": "ml-zscore-distribution-tails",
+    "kind": "coordinate-plot",
+    "prompt": "Why do z scores in the tails get flagged as anomalies?",
+    "paraphrase": "What does a three sigma cutoff look like on a bell curve?"
+  },
+  {
+    "referenceId": "ml-local-outlier-factor",
+    "kind": "coordinate-plot",
+    "prompt": "How does local outlier factor compare a point with its neighbours?",
+    "paraphrase": "Why does LOF compare a point to its neighbours instead of using a single density cutoff?"
+  },
+  {
+    "referenceId": "ml-collective-anomaly-run",
+    "kind": "coordinate-plot",
+    "prompt": "How can several normal readings in a row be a collective anomaly?",
+    "paraphrase": "Why is a long run of ordinary readings suspicious even when each value is in range?"
+  },
+  {
+    "referenceId": "ml-ranked-anomaly-scores",
+    "kind": "bar-chart",
+    "prompt": "How do I rank anomaly scores and decide which cases to review?",
+    "paraphrase": "If I raise the anomaly score cutoff, which cases will still get flagged?"
+  }
+]

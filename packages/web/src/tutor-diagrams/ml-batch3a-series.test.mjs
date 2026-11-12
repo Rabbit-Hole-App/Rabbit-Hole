@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Children } from 'react';
+import { Children, createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { tokenizeMath } from '../math-tokens.js';
 import { references } from './ml-batch3a-series-references.js';
 import { references as plotReferences } from './ml-plot-references.js';
 import { parseTutorDiagram } from './spec.js';
@@ -43,22 +44,23 @@ test('the additive example reconstructs every observation on its own date', () =
     point.y + seasonal.points[i].y + residual.points[i].y
   )));
   assert.equal(observed.points[3].y, 3);
-  assert.match(caption, /On Day 4, 3\.5 − 1 \+ 0\.5 = 3/);
+  assert.match(caption, /On Day 4, \$3\.5-1\+0\.5=3\$/);
 });
 
 test('each rolling mean uses the three observed values strictly before the prediction day', () => {
   const { lessons, prompts, spec } = referenceFor(rollingId);
   assert.deepEqual(lessons, ['15']);
   assert.deepEqual(prompts, ['Which past values go into a three-day rolling average before a prediction?']);
-  const { rows } = spec.diagram;
+  const { rows, caption } = spec.diagram;
   const observations = [10, 13, 16, 19, 22, 25];
   assert.deepEqual(rows.map(row => row.heading), ['Day 4', 'Day 5', 'Day 6', 'Day 7']);
   assert.deepEqual(rows.map(row => Number(row.cells[1])), [13, 16, 19, 22]);
+  assert.ok(caption.includes(String.raw`$\frac{${observations.slice(0, 3).join('+')}}{3}=${rows[0].cells[1]}$`));
   for (const { heading, cells: [inputs, mean] } of rows) {
     const predictionDay = Number(heading.split(' ')[1]);
     const dates = [], values = [];
     for (const input of inputs.split(' ')) {
-      const pair = input.match(/^D(\d+)=(\d+)$/);
+      const pair = input.match(/^D(\d+):(\d+)$/);
       assert.ok(pair, `${input} must pair a dated input with its value`);
       const day = Number(pair[1]);
       const value = Number(pair[2]);
@@ -71,8 +73,8 @@ test('each rolling mean uses the three observed values strictly before the predi
   }
 });
 
-function renderSaved(id, width) {
-  const { spec } = referenceFor(id);
+function renderSaved(id, width, edit = spec => spec) {
+  const spec = edit(structuredClone(referenceFor(id).spec));
   assert.equal(spec.version, 1);
   const saved = JSON.stringify(spec);
   assert.deepEqual(parseTutorDiagram(saved), spec);
@@ -84,24 +86,32 @@ function renderSaved(id, width) {
   assert.equal(svg, renderToStaticMarkup(renderTutorDiagram(spec, width).element));
   assert.ok(Number.isFinite(result.height) && result.height > 0);
   const frame = children(result.element);
-  assert.equal(textLines(frame.at(-1)).join(' '), spec.diagram.caption);
+  assert.ok(result.element.props['aria-label'].includes(spec.diagram.caption));
+  const caption = renderToStaticMarkup(createElement('svg', null, frame.at(-1)));
+  const renderedMath = [...caption.matchAll(/data-tutor-tex="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(renderedMath, tokenizeMath(spec.diagram.caption).math.map(entry => entry.raw));
   const body = frame.find(element => element.type === 'g');
   return { width: result.width, elements: children(body) };
 }
 
 test('the saved additive comparison keeps the three Day 4 guides aligned at 320, 408 and 720 px', () => {
   for (const width of widths) {
-    const { elements, width: renderedWidth } = renderSaved(additiveId, width);
+    // A line series of more than six points draws markers only at its first and last point and at labelled points (owner 2026-11-08): the Day 4 point is labelled here so its marker is checked against the guide.
+    const labelDayFour = spec => { for (const panel of spec.diagram.panels) for (const series of panel.diagram.series ?? []) if (series.kind === 'line') series.points[3].label = 'Day 4'; return spec; };
+    const { elements, width: renderedWidth } = renderSaved(additiveId, width, labelDayFour);
     assert.ok(renderedWidth >= width);
     const panels = elements.filter(element => element.props['data-tutor-composition-child'] !== undefined);
     assert.equal(panels.length, 3);
-    const aligned = panels.map(panel => {
+    const aligned = panels.map((panel, i) => {
       const marks = children(panel);
       const area = marks.find(element => element.props['data-tutor-plot-area'] !== undefined);
       const guide = marks.find(element => element.props['data-tutor-plot-reference'] === 'x:4');
       assert.ok(area && guide, 'each panel renders its day axis and Day 4 guide');
-      assert.equal(marks.filter(element => element.props['data-tutor-coordinate-point']).length,
-        panel === panels[0] ? 16 : 8);
+      const points = marks.filter(element => element.props['data-tutor-coordinate-point']);
+      assert.equal(points.length, [6, 3, 8][i]); // first, last and the labelled Day 4 point of each line (2 series, 1 series), then the eight residual stems' markers
+      if (i < 2) assert.ok(points.some(element => element.props.cx === guide.props.x1), 'the Day 4 marker sits on the guide');
+      assert.equal(marks.filter(element => element.props['data-tutor-plot-stem']).length, i === 2 ? 8 : 0);
+
       const [, offset] = panel.props.transform.match(/^translate\(([^ ]+) /);
       return [Number(offset) + area.props.x, area.props.width, Number(offset) + guide.props.x1];
     });
@@ -118,7 +128,7 @@ test('the saved rolling matrix keeps each dated value and mean visible at 320, 4
       const key = element.props['data-tutor-matrix-row'] ?? element.props['data-tutor-matrix-cell'];
       if (!key) return [];
       const lines = textLines(elements[i + 1]);
-      if (key.endsWith(':0')) assert.ok(lines.every(line => /^(D\d+=\d+)( D\d+=\d+)*$/.test(line)));
+      if (key.endsWith(':0')) assert.ok(lines.every(line => /^(D\d+:\d+)( D\d+:\d+)*$/.test(line)));
       return [[key, lines.join(' ')]];
     }));
     assert.deepEqual(visible, Object.fromEntries(rows.flatMap(({ id, heading, cells }) => [

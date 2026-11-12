@@ -20,7 +20,7 @@ const scripted = (...replies) => { const seen = []; return { seen, callModel: as
 const direct = (block, options = {}, env = {}, args = 'Why does ice float?') => { const m = scripted(['make_explanation', block], ['make_explanation', block]); return generateArtifact(env, { command: 'explanation', args }, { callModel: m.callModel, ...options }).then(out => ({ out, m })); };
 const access = { org: 'o', actorUserId: 'u1', actorEmail: 'a@x.test', boardId: 'b1', boardOwnerEmail: 'a@x.test', role: 'owner', payerUserId: 'u1' };
 const ref = { authorizationId: 'auth_00000001', resultId: 'res_00000001', resultVersion: 1 };
-const record = (over = {}) => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Why ice floats', stepGoal: 'Explain density.', passageText: 'Ice is less dense than water.', language: 'en', depth: 'standard', retry: 0, ...over });
+const record = (over = {}) => ({ cardId: 'card_0000001', stepId: 'step_0000001', proposalId: 'prop_0000001', proposalVersion: 1, format: 'explanation', stepTitle: 'Why ice floats', stepGoal: 'Explain density.', passageText: 'Ice is less dense than water.', language: 'en', depth: 'balanced', retry: 0, ...over });
 
 const ICE = 'Ice floats because ice is less dense than water.';
 const PIC = illustrationFence({ id: 'ice', prompt: 'An ice cube floating in a glass of water, side view', alt: 'An ice cube floating in water', caption: 'Most of the ice sits under the water' });
@@ -66,8 +66,8 @@ test('only prose counts: a long table, the title, a diagram and an illustration 
   const build = n => card(`Ice ${'é'.repeat(n - 'Ice '.length - 1 - after.length)}\n\n| Phase | ${'x'.repeat(2000)} |\n| --- | --- |\n| Ice | 0.92 |\n\n${PIC}\n\n${after}`, 'T'.repeat(120));
   assert.equal(explanationProseChars(build(hard)), hard);
   assert.ok(explanationChars(build(hard)) > 2000, 'the old inclusive count would have been far over');
-  assert.equal(explanationProblem(build(hard), 'overview', 'ice'), null);
-  assert.match(explanationProblem(build(hard + 1), 'deep', 'ice') || '', /^explanation_over_budget: the card has 701 characters of prose/);
+  assert.equal(explanationProblem(build(hard), 'brief', 'ice'), null);
+  assert.match(explanationProblem(build(hard + 1), 'detailed', 'ice') || '', /^explanation_over_budget: the card has 701 characters of prose/);
   const { m } = await direct(build(hard));
   assert.match(m.seen[0].tools.find(t => t.name === 'make_explanation').description, new RegExp(`at most ${target} characters of prose`));
 });
@@ -99,9 +99,9 @@ test('the relevance failure goes through the one repair on the direct path', asy
 
 test('a broken illustration fence is named for the repair (explanation_bad_illustration)', () => {
   const bad = card(`${ICE}\n\n\`\`\`rh-illustration\n{"version":1,"id":"ice","prompt":"p","alt":"a"}\n\`\`\`\n\nSo it floats.`);
-  assert.match(explanationProblem(bad, 'standard', 'ice') || '', /explanation_bad_illustration: the rh-illustration "ice" needs a caption/);
+  assert.match(explanationProblem(bad, 'balanced', 'ice') || '', /explanation_bad_illustration: the rh-illustration "ice" needs a caption/);
   const twice = card(`${ICE}\n\n${PIC}\n\nIce again.\n\n${PIC}\n\nSo ice floats.`);
-  assert.match(explanationProblem(twice, 'standard', 'ice') || '', /two rh-illustration fences share an id/);
+  assert.match(explanationProblem(twice, 'balanced', 'ice') || '', /two rh-illustration fences share an id/);
 });
 
 // ---- saved cards ---------------------------------------------------------------------------------------------------------------------------------------------

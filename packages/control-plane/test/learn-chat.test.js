@@ -1218,23 +1218,23 @@ test('R2 Depth reaches the model input of a Chat turn: Overview and Deep differ,
   const ask = body => handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'How does backpropagation work?', ...body }), env, {}, owner, 'learn');
   const system = async body => { const before = env.answers.length; assert.equal((await ask(body)).status, 200); assert.equal(env.answers.length, before + 1); return env.answers.at(-1).system; };
   const plain = await system({ mode: 'auto' });
-  const overview = await system({ mode: 'auto', depth: 'overview' }), deep = await system({ mode: 'auto', depth: 'deep' });
-  assert.equal(await system({ mode: 'auto', depth: 'standard' }), plain, 'Standard adds nothing');
-  assert.match(overview, /Depth: Overview/); assert.match(deep, /Depth: Deep/);
-  assert.doesNotMatch(plain, /Depth:/); assert.doesNotMatch(overview, /Depth: Deep/); assert.doesNotMatch(deep, /Depth: Overview/);
+  const overview = await system({ mode: 'auto', depth: 'brief' }), deep = await system({ mode: 'auto', depth: 'detailed' });
+  assert.equal(await system({ mode: 'auto', depth: 'balanced' }), plain, 'Standard adds nothing');
+  assert.match(overview, /Depth: Brief/); assert.match(deep, /Depth: Detailed/);
+  assert.doesNotMatch(plain, /Depth:/); assert.doesNotMatch(overview, /Depth: Detailed/); assert.doesNotMatch(deep, /Depth: Brief/);
   assert.notEqual(overview, deep);
   assert.ok(overview.startsWith(plain.split('\n')[0]), 'the rest of the prompt is unchanged');
   // Ask stays an answer: Depth shapes it and never starts a plan, even beside a course request.
-  assert.match(await system({ mode: 'ask', depth: 'deep' }), /Depth: Deep/);
+  assert.match(await system({ mode: 'ask', depth: 'detailed' }), /Depth: Detailed/);
   // learner instruction survives: the words they typed reach the model unchanged beside the Depth.
   assert.ok(env.answers.every(answer => answer.question === 'How does backpropagation work?' || answer.question === 'Make me a course on backpropagation'), "the question is the learner’s own words");
-  const asked = await system({ mode: 'ask', depth: 'deep', message: 'Make me a course on backpropagation' });
+  const asked = await system({ mode: 'ask', depth: 'detailed', message: 'Make me a course on backpropagation' });
   assert.doesNotMatch(asked, /syllabus creation/);
   // The table of contents conversation (mode tutor) edits an outline, not an answer: no Depth line (R4 owns the roadmap's size).
-  const tutor = await system({ mode: 'tutor', depth: 'deep' });
+  const tutor = await system({ mode: 'tutor', depth: 'detailed' });
   assert.doesNotMatch(tutor, /Tutor mode: syllabus creation/); assert.doesNotMatch(tutor, /Depth:/);
   // A slash command's turn carries the same sentence (the chat body is what the server reads).
-  assert.match(await system({ mode: 'auto', depth: 'overview', command: 'quiz' }), /Depth: Overview/);
+  assert.match(await system({ mode: 'auto', depth: 'brief', command: 'quiz' }), /Depth: Brief/);
   const answers = env.answers.length;
   assert.equal((await ask({ mode: 'auto', depth: 'shallow' })).status, 400);
   assert.equal(env.answers.length, answers, 'no model call');

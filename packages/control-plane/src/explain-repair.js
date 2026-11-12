@@ -17,7 +17,7 @@ import { programRepairContent, programStateful } from './explain-program-stage.j
 import { EXPLAIN_LIMITS, EXPLAIN_ROLES } from './explain-policy.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { modelEvidence } from './explain-evidence.js';
-import { depthInstruction } from './chat-depth.js';
+import { depthInstruction, depthOf } from './chat-depth.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -74,7 +74,7 @@ export async function repairStage(job, ctx) {
   const named = new Set((failure.findings || []).map(f => f.target?.capture ?? f.target?.state).filter(Boolean));
   const images = (job.captures || []).filter(capture => named.has(capture.id) && typeof capture.data === 'string').slice(0, EXPLAIN_ROLES.repair.maxImages);
   const content = [{ type: 'text', text: JSON.stringify({ request: job.prompt, spec: job.spec, problems: failure.problems || [], findings: (failure.findings || []).map(({ category, severity, target, message }) => ({ category, severity, target, message })),
-    ...(depthInstruction(job.depth, 'card') ? { depth: job.depth } : {}), repairable: repairableHints(job.spec), allowed, roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round, ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}),
+    ...(depthInstruction(job.depth, 'card') ? { depth: depthOf(job.depth) } : {}), repairable: repairableHints(job.spec), allowed, roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round, ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}),
     // A spec correction needs the components' params, limits and anchors (a real round 2 without them named a non-anchor).
     ...(allowed.includes('spec') ? { catalogue: catalogue(), composition: COMPOSITION, limits: SPEC_LIMITS } : {}) }) },
   ...images.flatMap(capture => [{ type: 'text', text: `capture ${capture.id}` }, { type: 'image', source: { type: 'base64', media_type: capture.mediaType || 'image/png', data: capture.data } }])];

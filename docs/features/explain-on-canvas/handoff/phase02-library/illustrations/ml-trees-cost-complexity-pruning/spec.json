@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Cost-complexity pruning",
+    "x": {
+      "label": "Alpha",
+      "min": 0.0001,
+      "max": 1,
+      "scale": "log"
+    },
+    "y": {
+      "label": "Leaf share or held-out accuracy",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    },
+    "series": [
+      {
+        "label": "Leaves (% of 10)",
+        "kind": "step",
+        "points": [
+          {
+            "x": 0.0001,
+            "y": 100
+          },
+          {
+            "x": 0.001,
+            "y": 80
+          },
+          {
+            "x": 0.01,
+            "y": 60
+          },
+          {
+            "x": 0.1,
+            "y": 40
+          },
+          {
+            "x": 1,
+            "y": 20
+          }
+        ]
+      },
+      {
+        "label": "Held-out accuracy",
+        "kind": "step",
+        "points": [
+          {
+            "x": 0.0001,
+            "y": 90
+          },
+          {
+            "x": 0.001,
+            "y": 90
+          },
+          {
+            "x": 0.01,
+            "y": 90
+          },
+          {
+            "x": 0.1,
+            "y": 82
+          },
+          {
+            "x": 1,
+            "y": 68
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "axis": "x",
+        "value": 0.01,
+        "label": "Chosen alpha"
+      }
+    ],
+    "caption": "Illustrative. Choose the smallest tree that keeps the best held-out accuracy."
+  }
+}

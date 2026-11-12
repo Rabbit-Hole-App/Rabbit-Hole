@@ -4,6 +4,7 @@
 // (an engineering setting to freeze with fixtures and a bounded real-model run; NOT a spending approval). 5/10/15 steps and three cards per
 // step are provisional upper bounds, never quotas: the planner uses fewer when sufficient.
 import { DEPTHS } from './roadmap-contract.js';
+import { depthOf } from '../chat-depth.js';
 
 export const ROADMAP_POLICY_VERSION = 'roadmap-limits-1';
 
@@ -12,7 +13,7 @@ const deepFreeze = value => { if (value && typeof value === 'object') { Object.v
 export const ROADMAP_LIMITS = deepFreeze({
   version: ROADMAP_POLICY_VERSION,
   // Step ceilings by Depth (v1.3 2.2) and cards per step (D45). R4 plans one card per step where sufficient.
-  stepCeiling: { overview: 5, standard: 10, deep: 15 },
+  stepCeiling: { brief: 5, balanced: 10, detailed: 15 },
   cardsPerStep: { ceiling: 3, r4Default: 1 },
   // Input and output bounds.
   source: { chars: 40000, passageChars: 8000, instructionChars: 1000, requestBodyBytes: 20000, contextChars: 8000 },
@@ -72,7 +73,7 @@ export function basisOf(path) {
   return null;
 }
 
-export const ceilingFor = (depth, limits = ROADMAP_LIMITS) => (DEPTHS.includes(depth) ? limits.stepCeiling[depth] : limits.stepCeiling.standard);
+export const ceilingFor = (depth, limits = ROADMAP_LIMITS) => (DEPTHS.includes(depthOf(depth)) ? limits.stepCeiling[depthOf(depth)] : limits.stepCeiling.balanced);
 
 // --- deadline arithmetic (BASE.02: the overall checking deadline includes every admitted retry and the adjudication) ------------------
 // One safety screen = a JEV fetch, plus its one admitted retry on 429/529 (askJev), plus the retry sleep. The per-fetch timeout alone
@@ -96,7 +97,7 @@ export function validateLimits(L = ROADMAP_LIMITS) {
     if (path !== 'version' && !(Number.isInteger(value) && value >= 0)) problems.push(`${path} is not a non-negative integer`);
     if (!basisOf(path)) problems.push(`${path} has no existing/proposed basis`);
   }
-  if (!(L.stepCeiling.overview < L.stepCeiling.standard && L.stepCeiling.standard < L.stepCeiling.deep)) problems.push('step ceilings must grow with Depth');
+  if (!(L.stepCeiling.brief < L.stepCeiling.balanced && L.stepCeiling.balanced < L.stepCeiling.detailed)) problems.push('step ceilings must grow with Depth');
   if (L.cardsPerStep.r4Default > L.cardsPerStep.ceiling) problems.push('R4 default cards exceed the ceiling');
   if (L.source.passageChars > L.source.contextChars) problems.push('a step passage must fit the adapter context cap');
   if (L.source.passageChars > L.source.chars) problems.push('a passage cannot exceed the source bound');

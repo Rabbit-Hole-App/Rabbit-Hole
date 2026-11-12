@@ -6,13 +6,16 @@
 import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
 import { canonicalJson, parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { createSnapshotResolver } from '../../web/src/interact-composition.js';
+import { depthOf } from './chat-depth.js';
 import { deepOracle, fixtureDraft, overviewOracle, pendulumOracle, standardOracle } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
 import { InteractModelError, schemaProblems } from './interact-model-adapters.js';
 import { resolveInteractProfile } from './interact-models.js';
 
 export const FIXTURE_IDS = Object.freeze(['toss-drop-standard', 'pendulum-period']);
-const FIXTURE_DEPTHS = Object.freeze({ 'toss-drop-standard': ['overview', 'standard', 'deep'], 'pendulum-period': ['standard'] });
+// The canonical scene a Depth builds: the fixtures and scripts keep the scene names (overview, standard, deep); the Depth values are brief, balanced, detailed.
+const SCENE_OF = Object.freeze({ brief: 'overview', balanced: 'standard', detailed: 'deep' });
+const FIXTURE_DEPTHS = Object.freeze({ 'toss-drop-standard': ['brief', 'balanced', 'detailed'], 'pendulum-period': ['balanced'] });
 
 // script: { <role>: ({ input, images, system, schema, config, n }) => output }, keyed by the logical role. The adapter validates every reply
 // against the schema the role was asked for, exactly as a provider adapter does, and records each call (inputs included) in .log.
@@ -96,18 +99,19 @@ export function fixtureCaptureCard({ limits } = {}) {
 export function fixtureDesignRoles(fixtureId) {
   return {
     async design({ request }) {
-      if (!FIXTURE_DEPTHS[fixtureId]?.includes(request.depth)) throw new Error(`fixture ${fixtureId} has depths ${FIXTURE_DEPTHS[fixtureId]?.join(', ')} only`);
+      if (!FIXTURE_DEPTHS[fixtureId]?.includes(depthOf(request.depth))) throw new Error(`fixture ${fixtureId} has depths ${FIXTURE_DEPTHS[fixtureId]?.join(', ')} only`);
       const { plans } = await interactFixtures();
-      return { plan: fixtureId === 'pendulum-period' ? plans.pendulum : request.depth === 'overview' ? plans.overviewProgram : plans[request.depth], reviews: [{ source: 'fixture', verdict: 'pass', note: 'canonical plan; no design model was called' }], revisions: [], calls: [] };
+      return { plan: fixtureId === 'pendulum-period' ? plans.pendulum : depthOf(request.depth) === 'brief' ? plans.overviewProgram : plans[SCENE_OF[depthOf(request.depth)]], reviews: [{ source: 'fixture', verdict: 'pass', note: 'canonical plan; no design model was called' }], revisions: [], calls: [] };
     },
   };
 }
 
 // Everything a fixture run needs, by fixture id: the runner ctx fields that are not the profile.
-export async function fixtureRun(fixtureId, depth = 'standard') {
+export async function fixtureRun(fixtureId, depth = 'balanced') {
+  depth = depthOf(depth);
   if (!FIXTURE_IDS.includes(fixtureId)) throw new Error(`unknown fixture "${fixtureId}"; available: ${FIXTURE_IDS.join(', ')}`);
   const { capabilities } = await interactFixtures();
-  const adapter = scriptedAdapter(fixtureScript(fixtureId === 'pendulum-period' ? 'pendulum' : ['overview', 'deep'].includes(depth) ? depth : 'standard'));
-  return { capabilities, designRoles: fixtureDesignRoles(fixtureId), captureCard: fixtureCaptureCard(), oracle: (fixtureId === 'pendulum-period' ? pendulumOracle : { standard: standardOracle, deep: deepOracle, overview: overviewOracle }[depth])?.() ?? null, adapters: { anthropic: adapter }, adapter, fixture: true, env: {} };
+  const adapter = scriptedAdapter(fixtureScript(fixtureId === 'pendulum-period' ? 'pendulum' : ['brief', 'detailed'].includes(depth) ? SCENE_OF[depth] : 'standard'));
+  return { capabilities, designRoles: fixtureDesignRoles(fixtureId), captureCard: fixtureCaptureCard(), oracle: (fixtureId === 'pendulum-period' ? pendulumOracle : { balanced: standardOracle, detailed: deepOracle, brief: overviewOracle }[depth])?.() ?? null, adapters: { anthropic: adapter }, adapter, fixture: true, env: {} };
 }
 

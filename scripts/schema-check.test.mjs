@@ -36,11 +36,25 @@ test('internal objects are not schema: sqlite_*, _cf_* and wrangler\'s d1_migrat
   assert.deepEqual(Object.keys(schemaOf(rows)), ['table:t']);
 });
 
+// The deliberate table rebuilds (see the test below): each is named here, reviewed, and applied by its own launcher that checks row counts before and after.
+const REBUILDS = ['learn-migrations/0044-depth-names.sql', 'repository-schema.sql']; // repository-schema.sql mirrors the migrations; only the two tables 0044 rebuilds are allowed there
+
 test('learn migrations are DDL only, so a matching schema identifies the applied migrations', () => {
   for (const f of SOURCES.learn()) {
     // Statement by statement: ON DELETE CASCADE inside a CREATE is not a data change.
     const statements = readFileSync(join(CP, f), 'utf8').replace(/--.*$/gm, '').split(';').map(s => s.trim()).filter(Boolean);
-    for (const s of statements) assert.match(s, /^CREATE (TABLE|(UNIQUE )?INDEX) IF NOT EXISTS /i, `${f}: "${s.slice(0, 60)}" is not an additive CREATE; schema identity would not cover it`);
+    // Owner decision 2026-11-08 (release 117, option A): 0044 widens a CHECK, which SQLite can only do by rebuilding the table. It is the one deliberate non-additive migration: the rebuild
+    // statements are allowed ONLY in the files named in REBUILDS, ONLY in the copy-and-rename shape (create <t>_new, copy every row, drop <t>, rename <t>_new), and the shape is asserted below.
+    const rebuild = REBUILDS.some(r => f.endsWith(r));
+    for (const s of statements) {
+      if (rebuild && /^CREATE TABLE (learn_canvas_depth|learn_roadmaps)_new /i.test(s)) continue;
+      if (rebuild && /learn_canvas_depth|learn_roadmaps/.test(s) && /^(DROP TABLE IF EXISTS [a-z_]+_new|DROP TABLE [a-z_]+|ALTER TABLE [a-z_]+_new RENAME TO [a-z_]+|INSERT INTO [a-z_]+_new [^;]*SELECT [^;]* FROM [a-z_]+)$/i.test(s.replace(/\s+/g, ' '))) continue;
+      assert.match(s, /^CREATE (TABLE|(UNIQUE )?INDEX) IF NOT EXISTS /i, `${f}: "${s.slice(0, 60)}" is not an additive CREATE; schema identity would not cover it`);
+    }
+    if (rebuild) for (const [, table] of statements.join(';').matchAll(/ALTER TABLE ([a-z_]+)_new RENAME TO/gi).map(m => m)) {
+      assert.match(statements.join(';'), new RegExp('INSERT INTO ' + table + '_new [^;]*SELECT [^;]* FROM ' + table + '(;|$)', 'i'), `${f}: the rebuild of ${table} must copy every row from the old table`);
+      assert.match(statements.join(';'), new RegExp('CREATE TABLE ' + table + '_new', 'i'), `${f}: the rebuild of ${table} must create ${table}_new`);
+    }
   }
 });
 

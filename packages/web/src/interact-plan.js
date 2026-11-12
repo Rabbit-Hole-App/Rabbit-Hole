@@ -189,7 +189,7 @@ const cardDescription = z.string().min(1).max(PLAN_LIMITS.cardDescription).refin
 
 const planShape = z.object({
   schemaVersion: z.literal(SCENE_PLAN_VERSION, { error: () => `unknown ScenePlan version: expected ${SCENE_PLAN_VERSION}` }),
-  depth: z.enum(['overview', 'standard', 'deep']),
+  depth: z.enum(['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep']), // brief | balanced | detailed; the old names stay readable (a plan saved before the 2026-11-08 rename keeps its hash)
   title: text(PLAN_LIMITS.title), story: text(PLAN_LIMITS.story), cardDescription, learningGoal: text(),
   supportingVisuals: z.array(support).max(PLAN_LIMITS.supports), scene, mode,
   controls: z.array(control).max(PLAN_LIMITS.controls),
@@ -515,8 +515,8 @@ export function checkEnvelope(value, maxBytes) {
 // The only compatibility conversion: a legacy VisualBrief becomes authoring context for a new design. It is never a reviewed plan
 // (no story, controls, review or runtime), so parseScenePlan refuses it and the design stages still run.
 export function legacyBriefToDraft(rawBrief, depth) {
-  if (!['overview', 'standard', 'deep'].includes(depth)) return { ok: false, problems: [{ path: 'depth', code: 'invalid_value', message: 'depth is overview, standard or deep' }] };
+  if (!['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep'].includes(depth)) return { ok: false, problems: [{ path: 'depth', code: 'invalid_value', message: 'depth is brief, balanced or detailed' }] };
   let brief;
   try { brief = validateVisualBrief(rawBrief); } catch (error) { return { ok: false, problems: [{ path: 'brief', code: 'invalid_brief', message: error.message }] }; }
-  return { ok: true, reviewed: false, draft: { depth, legacyMeaning: brief.meaning, assumptions: brief.assumptions, evidenceIds: brief.evidence } };
+  return { ok: true, reviewed: false, draft: { depth: { overview: 'brief', standard: 'balanced', deep: 'detailed' }[depth] ?? depth, legacyMeaning: brief.meaning, assumptions: brief.assumptions, evidenceIds: brief.evidence } };
 }

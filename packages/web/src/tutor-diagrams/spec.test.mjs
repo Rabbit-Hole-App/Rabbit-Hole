@@ -109,9 +109,32 @@ test('requires a single-root connected DAG and allows branches that merge', () =
   })), /cycle|reach/i);
 });
 
-test('rejects sequence self messages, missing actors, duplicate actor IDs, and ragged matrices', () => {
+test('sequence self-messages can appear first, in the middle, or last', () => {
   const sequence = structuredClone(other.find(d => d.kind === 'sequence'));
-  assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages: [{ from: 'c', to: 'c', label: 'Loop' }] })), /itself/i);
+  const [request] = sequence.messages;
+  const sign = { from: 'c', to: 'c', label: 'Sign request' };
+  const verify = { from: 's', to: 's', label: 'Verify request' };
+  const reply = { from: 's', to: 'c', label: 'Send reply' };
+  for (const messages of [[sign, request], [request, verify, reply], [request, verify], [sign, request, verify]]) {
+    const valid = versioned({ ...sequence, messages });
+    assert.deepEqual(parseTutorDiagram(valid), valid);
+  }
+});
+
+test('a sequence requires an ordinary message and rejects consecutive self-messages', () => {
+  const sequence = structuredClone(other.find(d => d.kind === 'sequence'));
+  const [request] = sequence.messages;
+  const sign = { from: 'c', to: 'c', label: 'Sign request' };
+  const verify = { from: 's', to: 's', label: 'Verify request' };
+  const audit = { from: 's', to: 's', label: 'Record verification' };
+  for (const messages of [[request, verify, audit], [sign, verify, request]]) {
+    assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages })), /consecutive self-messages/i);
+  }
+  assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages: [sign] })), /message between different actors/i);
+});
+
+test('rejects missing sequence actors, duplicate actor IDs, and ragged matrices', () => {
+  const sequence = structuredClone(other.find(d => d.kind === 'sequence'));
   assert.throws(() => parseTutorDiagram(versioned({ ...sequence, messages: [{ from: 'c', to: 'other', label: 'Unknown' }] })), /unknown/i);
   assert.throws(() => parseTutorDiagram(versioned({ ...sequence, actors: [sequence.actors[0], sequence.actors[0]] })), /unique/i);
   const matrix = structuredClone(other.find(d => d.kind === 'matrix'));
@@ -212,5 +235,5 @@ test('a flow node title parses, within its limit, and is not in the author schem
   assert.equal(parseTutorDiagram(flow('Go all the way')).diagram.nodes[0].title, 'Go all the way');
   assert.throws(() => parseTutorDiagram(flow('x'.repeat(241))));
   const shapes = tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf;
-  assert.deepEqual(Object.keys(shapes.find(s => s.properties.kind.const === 'flow').properties.nodes.items.properties), ['id', 'label', 'role']);
+  assert.deepEqual(Object.keys(shapes.find(s => s.properties.kind.const === 'flow').properties.nodes.items.properties), ['id', 'label', 'tensor', 'role']);
 });

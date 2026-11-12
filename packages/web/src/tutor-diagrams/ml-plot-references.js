@@ -15,6 +15,8 @@ const circle = (x, y, radius, label) => ({ kind: 'circle', center: { x, y }, rad
 const ref = (id, lessons, prompt, keywords, useWhen, diagram) => ({ id, lessons, prompts: [prompt], keywords, useWhen,
   spec: { version: 1, diagram } });
 
+const lossContour = (label, radius) => ({ label, kind: 'line', closed: true, samples: { radius, count: 16 } });
+
 export const references = [
   ref('nearest-centroid-boundary', ['01'], 'How does a nearest-centroid classifier draw its boundary?', ['centroid', 'classification', 'boundary'],
     'Show labelled clusters, their centers and a perpendicular equal-distance boundary.',
@@ -32,13 +34,13 @@ export const references = [
     ])),
   ref('regression-mean-baseline', ['02', '19'], 'What does predicting the mean give as a regression baseline?', ['mean baseline', 'regression', 'baseline'],
     'Show the constant mean prediction against a small set of targets.',
-    plot('A constant mean baseline', axis('Sample', 1, 5), axis('Target', 0, 6), [series('Targets', [[1, 1], [2, 4], [3, 2], [4, 5], [5, 3]], 'scatter')], [line('y', 3, 'Mean prediction = 3')])),
+    plot('A constant mean baseline', axis('Sample', 1, 5), axis('Target', 0, 6), [series('Targets', [[1, 1], [2, 4], [3, 2], [4, 5], [5, 3]], 'scatter')], [line('y', 3, 'Mean prediction of 3')])),
   ref('gradient-descent-contours', ['02'], 'How does gradient descent move through a loss contour map?', ['gradient descent', 'contour', 'optimization'],
-    'Use explicit contour polylines and a sequence of decreasing-loss steps.',
+    'Use closed loss contours and mark the sequence of decreasing-loss steps.',
     plot('A descent path on a quadratic loss', axis('Weight 1', -3, 3), axis('Weight 2', -3, 3), [
-      series('Outer loss contour', [[-2, 0], [-1.4, 1.4], [0, 2], [1.4, 1.4], [2, 0], [1.4, -1.4], [0, -2], [-1.4, -1.4], [-2, 0]]),
-      series('Inner loss contour', [[-1, 0], [0, 1], [1, 0], [0, -1], [-1, 0]]),
-    ], [vector([2.5, 2], [1.4, 1.1], 'Step 1'), vector([1.4, 1.1], [0.6, 0.5], 'Step 2'), vector([0.6, 0.5], [0, 0], 'Step 3')])),
+      lossContour('Outer loss contour', 2),
+      lossContour('Inner loss contour', 1),
+    ], [vector([-1.5, 1.1], [-0.9, 0.7], 'Step 1'), vector([-0.9, 0.7], [-0.4, 0.3], 'Step 2'), vector([-0.4, 0.3], [0, 0], 'Step 3')])),
   ref('polynomial-regression-curve', ['02'], 'How can a linear model in polynomial features fit a curve?', ['polynomial', 'regression', 'nonlinear'],
     'Compare a fixed quadratic curve with observed targets.',
     plot('A quadratic feature gives a curved fit', axis('Input x', -2, 2), axis('Target', 0, 5), [
@@ -87,27 +89,27 @@ export const references = [
       series('Negative class', [[-2.5, -1], [-1, 1], [-2, 2]], 'scatter'),
       series('Positive class', [[1, -1], [2, 1], [0.5, 2]], 'scatter'),
     ], [line('x', 0, 'Decision boundary'), line('x', -1, 'Negative margin'), line('x', 1, 'Positive margin'), point(-1, 1, 'Support vector'), point(1, -1, 'Support vector'),
-      { kind: 'segment', from: { x: 0.5, y: 2 }, to: { x: 1, y: 2 }, label: 'Margin violation = 0.5' }])),
+      { kind: 'segment', from: { x: 0.5, y: 2 }, to: { x: 1, y: 2 }, label: 'Margin violation of 0.5' }])),
   ref('svm-hinge-loss', ['05'], 'How does hinge loss depend on the signed margin?', ['svm', 'hinge', 'loss'],
     'The piecewise line is max(0, 1 - signed margin).',
     plot('Hinge loss stops after a sufficient margin', axis('Signed margin', -1, 3), axis('Hinge loss', 0, 2), [series('Hinge loss', [[-1, 2], [0, 1], [1, 0], [3, 0]])], [line('x', 1, 'Unit margin')])),
   ref('rbf-kernel-similarity', ['05'], 'How does an RBF kernel turn distance into similarity?', ['kernel', 'rbf', 'similarity'],
     'Compare exp(-gamma d²) at two fixed gamma values.',
     plot('RBF similarity falls with distance', axis('Distance', 0, 3), axis('Similarity', 0, 1), [
-      series('Gamma = 0.5', [[0, 1], [0.5, 0.882], [1, 0.607], [1.5, 0.325], [2, 0.135], [2.5, 0.044], [3, 0.011]]),
-      series('Gamma = 2', [[0, 1], [0.5, 0.607], [1, 0.135], [1.5, 0.011], [2, 0.0003], [2.5, 0], [3, 0]]),
+      series('Gamma 0.5', [[0, 1], [0.5, 0.882], [1, 0.607], [1.5, 0.325], [2, 0.135], [2.5, 0.044], [3, 0.011]]),
+      series('Gamma 2', [[0, 1], [0.5, 0.607], [1, 0.135], [1.5, 0.011], [2, 0.0003], [2.5, 0], [3, 0]]),
     ])),
   ref('svr-epsilon-tube', ['05'], 'Which residuals does epsilon-insensitive SVR ignore?', ['svm', 'svr', 'epsilon', 'uncertainty'],
     'Use explicit low/high bounds as an epsilon tube, not a confidence interval.',
     plot('SVR tolerates residuals inside the epsilon tube', axis('Input', 0, 4), axis('Target', 0, 6), [
-      { label: 'Prediction ± epsilon', kind: 'line', points: [{ x: 0, y: 1, low: 0.5, high: 1.5 }, { x: 4, y: 5, low: 4.5, high: 5.5 }] },
+      { label: 'Prediction tube $\\hat{y}\\pm\\epsilon$', kind: 'line', points: [{ x: 0, y: 1, low: 0.5, high: 1.5 }, { x: 4, y: 5, low: 4.5, high: 5.5 }] },
       series('Observed', [[1, 2.2], [2, 4], [3, 3.7]], 'scatter'),
-    ], [{ kind: 'segment', from: { x: 2, y: 3.5 }, to: { x: 2, y: 4 }, label: 'Penalized excess = 0.5' }])),
+    ], [{ kind: 'segment', from: { x: 2, y: 3.5 }, to: { x: 2, y: 4 }, label: 'Penalized excess of 0.5' }])),
   ref('knn-neighbourhood', ['06'], 'How does KNN choose the neighbours of a query point?', ['knn', 'neighbors', 'distance'],
     'Circle a fixed Euclidean neighbourhood around a query without moving samples.',
     plot('Nearby labels vote on a query', axis('Feature 1', 0, 10), axis('Feature 2', 0, 10), [
       series('Class A', [[4, 5], [5, 6], [2, 2]], 'scatter'), series('Class B', [[6, 5], [8, 8], [8, 3]], 'scatter'),
-    ], [circle(5, 5, 1.5, 'Radius includes three neighbours'), point(5, 5, 'Query'), vector([5, 5], [4, 5], 'Distance = 1')])),
+    ], [circle(5, 5, 1.5, 'Radius includes three neighbours'), point(5, 5, 'Query'), vector([5, 5], [4, 5], 'Distance of 1')])),
   ref('knn-l1-l2-distance', ['06'], 'Why do Manhattan and Euclidean neighbourhoods have different shapes?', ['knn', 'l1', 'l2', 'distance'],
     'Use a common center and radius to compare the two metric balls.',
     plot('Unit balls depend on the metric', axis('Feature 1', -2, 2), axis('Feature 2', -2, 2), [series('Query', [[0, 0]], 'scatter')], [
@@ -127,7 +129,7 @@ export const references = [
     bar('Relative nearest and farthest distances', 'grouped', ['2 dimensions', '10 dimensions', '100 dimensions'], [{ label: 'Nearest / farthest', values: [0.2, 0.6, 0.9] }, { label: 'Farthest / farthest', values: [1, 1, 1] }])) ,
   ref('kmeans-centroid-update', ['07'], 'How does K-means move a centroid after assigning points?', ['k-means', 'centroid', 'clustering'],
     'Show a centroid moving to the arithmetic mean of its assigned samples.',
-    plot('A K-means centroid moves to the assigned mean', axis('Feature 1', 0, 8), axis('Feature 2', 0, 6), [series('Assigned cluster', [[2, 2], [3, 4], [4, 3]], 'scatter')], [point(1, 1, 'Old centroid'), point(3, 3, 'New mean = (3, 3)'), vector([1, 1], [3, 3], 'Centroid update')])),
+    plot('A K-means centroid moves to the assigned mean', axis('Feature 1', 0, 8), axis('Feature 2', 0, 6), [series('Assigned cluster', [[2, 2], [3, 4], [4, 3]], 'scatter')], [point(1, 1, 'Old centroid'), point(3, 3, 'New mean at 3 on both axes'), vector([1, 1], [3, 3], 'Centroid update')])),
   ref('clustering-elbow-silhouette', ['07'], 'What does a silhouette score tell us when choosing the number of clusters?', ['clustering', 'silhouette', 'k-means'],
     'Show a representative silhouette curve and its maximum on the cluster-count axis.',
     plot('Silhouette compares candidate cluster counts', axis('Number of clusters', 2, 6), axis('Silhouette score', 0, 1), [series('Silhouette', [[2, 0.48], [3, 0.71], [4, 0.56], [5, 0.42], [6, 0.35]])], [point(3, 0.71, 'Best separation in this example')])),
@@ -138,7 +140,7 @@ export const references = [
     'Use epsilon circles and fixed samples; the caption states the counting convention.',
     { ...plot('DBSCAN core neighbourhood and noise', axis('Feature 1', 0, 10), axis('Feature 2', 0, 8), [
       series('Nearby samples', [[3, 3], [3, 4], [4, 3], [4, 4]], 'scatter'), series('Isolated sample', [[8, 6]], 'scatter'),
-    ], [circle(3, 3, 1.5, 'Core: four samples including itself'), circle(8, 6, 1.5, 'Noise: one sample including itself')]), caption: 'Epsilon = 1.5; min_samples = 4 counts the query point itself.' }),
+    ], [circle(3, 3, 1.5, 'Core: four samples including itself'), circle(8, 6, 1.5, 'Noise: one sample including itself')]), caption: 'Epsilon is 1.5. The min_samples count of 4 includes the query point itself.' }),
   ref('gmm-elliptical-components', ['07', '14'], 'How can Gaussian mixture components overlap?', ['gmm', 'gaussian mixture', 'clustering', 'density'],
     'Use axis-aligned ellipses as equal-density contours of two components.',
     plot('Gaussian components can overlap softly', axis('Feature 1', 0, 10), axis('Feature 2', 0, 8), [series('Samples', [[2, 3], [3, 4], [4, 3], [5, 4], [6, 4], [7, 5]], 'scatter')], [
@@ -155,7 +157,7 @@ export const references = [
     ], [point(0.1, 0.6, 'One decision threshold')])),
   ref('precision-recall-thresholds', ['09', '17'], 'Why is a precision-recall curve useful for imbalanced classification?', ['pr', 'precision recall', 'threshold', 'imbalance'],
     'Show the precision/recall tradeoff against a prevalence baseline.',
-    plot('Precision and recall change together', axis('Recall', 0, 1), axis('Precision', 0, 1), [series('Classifier', [[0.1, 0.95], [0.3, 0.85], [0.5, 0.68], [0.7, 0.48], [1, 0.2]])], [line('y', 0.2, 'Positive prevalence = 20%')])),
+    plot('Precision and recall change together', axis('Recall', 0, 1), axis('Precision', 0, 1), [series('Classifier', [[0.1, 0.95], [0.3, 0.85], [0.5, 0.68], [0.7, 0.48], [1, 0.2]])], [line('y', 0.2, 'Positive prevalence of 20%')])),
   ref('learning-curves', ['09', '10'], 'How can learning curves show whether more data may help?', ['learning curves', 'evaluation', 'bias variance'],
     'Compare train/validation error at the same training-set sizes.',
     plot('Learning curves compare error as data increases', axis('Training samples', 10, 100), axis('Error rate', 0, 0.5), [
@@ -205,7 +207,7 @@ export const references = [
     plot('Class-conditional densities at an observation', axis('Observed feature', -3, 5), axis('Density', 0, 0.5), [
       series('Class A: mean 0', [[-3, 0.004], [-2, 0.054], [-1, 0.242], [0, 0.399], [1, 0.242], [2, 0.054], [3, 0.004], [4, 0.0001], [5, 0]]),
       series('Class B: mean 2', [[-3, 0], [-2, 0.0001], [-1, 0.004], [0, 0.054], [1, 0.242], [2, 0.399], [3, 0.242], [4, 0.054], [5, 0.004]]),
-    ], [line('x', 2, 'Observed feature = 2')])),
+    ], [line('x', 2, 'Observed feature value of 2')])),
   ref('bayes-additive-log-scores', ['14'], 'Why do Naive Bayes log scores add instead of multiplying?', ['bayes', 'log scores', 'likelihood'],
     'Stack signed log-prior and log-likelihood contributions for two classes.',
     bar('Log probabilities add to a class score', 'stacked', ['Class A', 'Class B'], [{ label: 'Log prior', values: [-0.69, -0.69] }, { label: 'Feature 1 log likelihood', values: [-0.2, -1.6] }, { label: 'Feature 2 log likelihood', values: [-1, -0.3] }])) ,
@@ -229,7 +231,7 @@ export const references = [
     ], [line('x', 4, 'Forecast origin')])),
   ref('zscore-anomaly-band', ['16'], 'How does a z-score threshold flag unusual observations?', ['anomaly', 'z-score', 'threshold'],
     'Display standardized observations against an explicit symmetric threshold band.',
-    plot('A z-score threshold marks unusual observations', axis('Observation', 1, 7), axis('Z-score', -4, 4), [series('Standardized value', [[1, -0.8], [2, 0.3], [3, 1.1], [4, 3.5], [5, -0.4], [6, -3.2], [7, 0.7]], 'scatter')], [{ kind: 'band', axis: 'y', from: -3, to: 3, label: 'Inside the ±3 threshold' }])),
+    plot('A z-score threshold marks unusual observations', axis('Observation', 1, 7), axis('Z-score', -4, 4), [series('Standardized value', [[1, -0.8], [2, 0.3], [3, 1.1], [4, 3.5], [5, -0.4], [6, -3.2], [7, 0.7]], 'scatter')], [{ kind: 'band', axis: 'y', from: -3, to: 3, label: 'From −3 to 3' }])),
   ref('contextual-time-anomaly', ['16'], 'How can a value be anomalous only in its time context?', ['anomaly', 'contextual anomaly', 'time series'],
     'Compare a normal seasonal expectation with an observed out-of-context spike.',
     plot('An observation can violate its local context', axis('Time', 1, 8), axis('Value', 0, 10), [series('Expected seasonal pattern', [[1, 2], [2, 8], [3, 2], [4, 8], [5, 2], [6, 8], [7, 2], [8, 8]]), series('Observed', [[1, 2], [2, 8], [3, 2], [4, 8], [5, 8], [6, 8], [7, 2], [8, 8]], 'scatter')], [point(5, 8, 'Value 8 is unusual at this phase')])),
@@ -255,7 +257,7 @@ export const references = [
     plot('KS distance is a maximum CDF gap', axis('Feature value', 0, 6), axis('Cumulative probability', 0, 1), [
       series('Reference ECDF', [[0, 0], [1, 0.25], [2, 0.5], [3, 0.75], [4, 1], [6, 1]], 'step'),
       series('Current ECDF', [[0, 0], [2, 0.25], [3, 0.5], [4, 0.75], [5, 1], [6, 1]], 'step'),
-    ], [{ kind: 'segment', from: { x: 2.5, y: 0.25 }, to: { x: 2.5, y: 0.5 }, label: 'Maximum vertical gap = 0.25' }])),
+    ], [{ kind: 'segment', from: { x: 2.5, y: 0.25 }, to: { x: 2.5, y: 0.5 }, label: 'Maximum vertical gap of 0.25' }])),
   ref('persistent-drift-alerts', ['20'], 'Why should a drift alert require several windows above a threshold?', ['drift', 'persistent alert', 'monitoring'],
     'Keep each window score at its measured value and mark the sustained threshold crossing.',
     plot('Persistent threshold crossings trigger a drift alert', axis('Monitoring window', 1, 8), axis('Drift score', 0, 1), [series('Window score', [[1, 0.1], [2, 0.15], [3, 0.55], [4, 0.2], [5, 0.6], [6, 0.65], [7, 0.7], [8, 0.62]])], [line('y', 0.5, 'Alert threshold'), { kind: 'band', axis: 'x', from: 5, to: 7, label: 'Three consecutive crossing windows' }, point(7, 0.7, 'Persistent alert becomes eligible')])),

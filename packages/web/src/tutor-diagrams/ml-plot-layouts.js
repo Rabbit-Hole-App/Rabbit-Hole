@@ -1,12 +1,15 @@
-import { createElement as h } from 'react';
-import { label, lineHeight, widestFormula, wrap } from './primitives.js';
-import { TEACHING as T, TEACHING_SERIES as COLORS, teachingConnector } from './teaching-theme.js';
-import { annotationDescription, axisName, isExtendedPlot } from './ml-plot-spec.js';
+import { cloneElement, createElement as h } from 'react';
+import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
+import { plotTicks } from './plot-ticks.js';
+import { TEACHING as T, TEACHING_SERIES, teachingConnector } from './teaching-theme.js';
+import { annotationDescription, axisName, isExtendedPlot, plotSeriesPoints } from './ml-plot-spec.js';
 
 const PAD = 12;
 const SMALL = 12;
-const SOFT = [T.blueSoft, T.warmSoft, T.greenSoft];
-const DASH = [undefined, '7 4', '2 4'];
+const COLORS = [...TEACHING_SERIES, T.ink, T.muted];
+const SOFT = [T.blueSoft, T.warmSoft, T.greenSoft, T.inset, T.inset];
+const DASH = [undefined, '7 4', '2 4', '12 5', '6 3 1 3'];
 const pointString = values => values.map(p => p.join(',')).join(' ');
 const format = value => String(value);
 const amount = (value, unit) => `${value}${unit ? ` ${unit}` : ''}`;
@@ -20,23 +23,17 @@ function scale(axis, start, end) {
   const min = project(axis.min), max = project(axis.max);
   return value => start + (end - start) * (project(value) - min) / (max - min);
 }
-function ticks(axis) {
-  if (axis.scale === 'log') {
-    const middle = Number(Math.exp((Math.log(axis.min) + Math.log(axis.max)) / 2).toPrecision(10));
-    return middle > axis.min && middle < axis.max ? [axis.min, middle, axis.max] : [axis.min, axis.max];
-  }
-  return axis.min < 0 && axis.max > 0 ? [axis.min, 0, axis.max] : [axis.min, axis.max];
-}
 function symbol(x, y, index, attributes = {}, title) {
-  const props = { fill: COLORS[index % 3], stroke: T.surface, strokeWidth: 1.1, ...attributes };
+  const props = { fill: COLORS[index], stroke: T.surface, strokeWidth: 1.1, ...attributes };
   const child = title ? h('title', null, title) : null;
   if (index % 3 === 1) return h('rect', { x: x - 4, y: y - 4, width: 8, height: 8, ...props }, child);
   if (index % 3 === 2) return h('polygon', { points: pointString([[x, y - 5], [x + 5, y], [x, y + 5], [x - 5, y]]), ...props }, child);
   return h('circle', { cx: x, cy: y, r: 4.5, ...props }, child);
 }
-function curve(points, colorIndex, attributes = {}) {
-  return h('polyline', { points: pointString(points), fill: 'none', stroke: COLORS[colorIndex % 3], strokeWidth: 2,
-    strokeDasharray: DASH[colorIndex % 3], strokeLinejoin: 'round', strokeLinecap: 'round', ...attributes });
+function curve(points, colorIndex, attributes = {}, path) {
+  const geometry = path ? { d: path } : { points: pointString(points) };
+  return h(path ? 'path' : 'polyline', { ...geometry, fill: 'none', stroke: COLORS[colorIndex], strokeWidth: 2,
+    strokeDasharray: DASH[colorIndex], strokeLinejoin: 'round', strokeLinecap: 'round', ...attributes });
 }
 function stepPoints(points) {
   return points.flatMap((p, i) => i ? [[p[0], points[i - 1][1]], p] : [p]);
@@ -47,11 +44,39 @@ function bodyWidth(d, requested) {
   return Math.max(requested, 420, ...text.filter(Boolean).map(t => widestFormula(t) + 150));
 }
 
-function coordinatePlot(d, requested) {
-  const width = bodyWidth(d, requested);
-  // Fixed gutters make equally sized child plots share the same coordinate frame
-  // even when their tick values have different lengths. Native text is never scaled.
-  const bounds = { left: 104, right: width - 24, top: 66, bottom: 306 };
+function plotEndLabels(series) {
+  const endSeries = series.flatMap((entry, i) => entry.endLabel ? [{ entry, color: COLORS[i] }] : []);
+  const endLabelWidth = Math.ceil(Math.max(0, ...endSeries.map(({ entry }) =>
+    Math.max(Math.min(128, textWidth(entry.label, SMALL)), widestFormula(entry.label, SMALL)))));
+  const labels = endSeries.map(({ entry, color }) => {
+    const lines = wrap(entry.label, endLabelWidth, SMALL);
+    return { name: entry.label, value: (entry.points ?? plotSeriesPoints(entry)).at(-1).y, color, lines, height: lines.length * lineHeight(SMALL) };
+  }).sort((a, b) => b.value - a.value);
+  return {
+    labels,
+    gutter: endLabelWidth ? endLabelWidth + 12 : 0,
+    height: labels.reduce((sum, item) => sum + item.height + 4, 0),
+  };
+}
+
+export function sharedPlotLabelSpace(diagrams) {
+  const measurements = diagrams.map(diagram => plotEndLabels(diagram.series));
+  return {
+    gutter: Math.max(...measurements.map(({ gutter }) => gutter)),
+    height: Math.max(...measurements.map(({ height }) => height)),
+  };
+}
+
+function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
+  const d = diagram.series.some(series => series.samples) ? { ...diagram,
+    series: diagram.series.map(series => series.samples ? { ...series, points: plotSeriesPoints(series) } : series),
+  } : diagram;
+  const endLabels = plotEndLabels(d.series);
+  const endGutter = Math.max(endLabels.gutter, sharedLabelSpace?.gutter ?? 0);
+  let remainingLabels = endLabels.height;
+  const width = Math.max(bodyWidth(d, requested), 324 + endGutter);
+  const bottomEdge = 66 + Math.max(240, endLabels.height, sharedLabelSpace?.height ?? 0);
+  const bounds = { left: 104, right: width - 24 - endGutter, top: 66, bottom: bottomEdge };
   const { left, right, top, bottom } = bounds;
   const x = scale(d.x, left, right), y = scale(d.y, bottom, top);
   const xy = p => [x(p.x), y(p.y)];
@@ -60,18 +85,16 @@ function coordinatePlot(d, requested) {
   const geometry = [], foreground = [], notes = [];
   const yTitle = wrap(axisName(d.y), width - 2 * PAD);
   elements.push(label(yTitle, PAD, PAD + yTitle.length * lineHeight() / 2, { anchor: 'start', weight: 700 }));
-  for (const value of ticks(d.x)) {
-    elements.push(teachingConnector([[x(value), top], [x(value), bottom]], { dashed: true }));
+  const xTicks = plotTicks(d.x, x, { horizontal: true });
+  for (const { at } of xTicks) {
+    elements.push(teachingConnector([[at, top], [at, bottom]], { dashed: true }));
   }
-  for (const value of ticks(d.y)) {
-    elements.push(teachingConnector([[left, y(value)], [right, y(value)]], { dashed: true }));
-    elements.push(label(wrap(format(value), left - PAD - 8, SMALL), left - 8, y(value), { anchor: 'end', size: SMALL }));
+  for (const { at, lines, anchor } of plotTicks(d.y, y, { labelWidth: left - PAD - 8 })) {
+    elements.push(teachingConnector([[left, at], [right, at]], { dashed: true }));
+    elements.push(label(lines, left - 8, at, { anchor, size: SMALL }));
   }
-  const xValues = ticks(d.x);
-  const xTickRows = xValues.map(value => wrap(format(value), (right - left) / 3 - 8, SMALL));
-  const tickHeight = Math.max(...xTickRows.map(rows => rows.length)) * lineHeight(SMALL);
-  xValues.forEach((value, i) => elements.push(label(xTickRows[i], x(value), bottom + 8 + tickHeight / 2,
-    { size: SMALL, anchor: i === 0 ? 'start' : i === xValues.length - 1 ? 'end' : 'middle' })));
+  const tickHeight = Math.max(...xTicks.map(tick => tick.lines.length)) * lineHeight(SMALL);
+  for (const { at, lines, anchor } of xTicks) elements.push(label(lines, at, bottom + 8 + tickHeight / 2, { anchor, size: SMALL }));
   const xTitle = wrap(axisName(d.x), right - left);
   let legendY = bottom + tickHeight + 18;
   elements.push(label(xTitle, right, legendY + xTitle.length * lineHeight() / 2, { anchor: 'end', weight: 700 }));
@@ -151,15 +174,23 @@ function coordinatePlot(d, requested) {
   const marks = [];
   for (const [i, series] of d.series.entries()) {
     const hasUncertainty = series.points[0].low !== undefined;
+    let band;
     if (hasUncertainty && ['line', 'step'].includes(series.kind)) {
+      const high = series.points.map(p => [x(p.x), y(p.high)]);
+      const low = series.points.map(p => [x(p.x), y(p.low)]);
+      if (series.kind === 'line') band = high.map((point, j) => [point[1], low[j][1]]);
       const project = values => series.kind === 'step' ? stepPoints(values) : values;
-      const high = project(series.points.map(p => [x(p.x), y(p.high)]));
-      const low = project(series.points.map(p => [x(p.x), y(p.low)]));
-      geometry.push(h('polygon', { points: pointString([...high, ...low.reverse()]), fill: SOFT[i], stroke: COLORS[i], strokeWidth: 0.8,
+      geometry.push(h('polygon', { points: pointString([...project(high), ...project(low).reverse()]), fill: SOFT[i], stroke: COLORS[i], strokeWidth: 0.8,
         'data-tutor-plot-uncertainty': series.label }));
     }
     const values = series.points.map(xy);
-    if (series.kind === 'line' || series.kind === 'step') geometry.push(curve(series.kind === 'step' ? stepPoints(values) : values, i, { 'data-tutor-plot-series': series.label }));
+    if (series.kind === 'line' || series.kind === 'step') {
+      const smooth = series.smooth !== false;
+      let path;
+      if (series.closed) path = closedLinePath(values, smooth);
+      else if (series.kind === 'line' && smooth) path = monotoneLinePath(values, band);
+      geometry.push(curve(series.kind === 'step' ? stepPoints(values) : values, i, { 'data-tutor-plot-series': series.label }, path));
+    }
     series.points.forEach((p, j) => {
       const [cx, cy] = values[j];
       if (series.kind === 'stem') geometry.push(h('line', { x1: cx, x2: cx, y1: y(0), y2: cy, stroke: COLORS[i], strokeWidth: 1.8, 'data-tutor-plot-stem': `${p.x},${p.y}` }));
@@ -168,7 +199,7 @@ function coordinatePlot(d, requested) {
         geometry.push(h('path', { d: `M ${cx} ${lo} V ${hi} M ${cx - 4} ${lo} H ${cx + 4} M ${cx - 4} ${hi} H ${cx + 4}`,
           fill: 'none', stroke: COLORS[i], strokeWidth: 1.5, 'data-tutor-plot-errorbar': `${p.low},${p.high}` }));
       }
-      marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`));
+      if (showPlotMarker(series, j)) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`));
       if (p.label) note([cx, cy], `${p.label}: (${p.x}, ${p.y})`);
     });
     const lines = wrap(`${series.label}${hasUncertainty ? ' · low/high interval' : ''}`, width - 2 * PAD - 36);
@@ -183,6 +214,16 @@ function coordinatePlot(d, requested) {
     const height = lines.length * lineHeight();
     elements.push(label(lines, PAD, legendY + height / 2, { anchor: 'start' }));
     legendY += height + 6;
+  }
+  let nextLabelTop = top;
+  for (const { name, value, color, lines, height } of endLabels.labels) {
+    const anchor = y(value);
+    const rowTop = Math.max(nextLabelTop, Math.min(bottom - remainingLabels, anchor - height / 2));
+    const center = rowTop + height / 2;
+    foreground.push(h('line', { x1: right + 4, y1: anchor, x2: right + 9, y2: center, stroke: color, strokeWidth: 1.2 }),
+      cloneElement(label(lines, right + 12, center, { size: SMALL, anchor: 'start', fill: color }), { 'data-tutor-plot-end-label': name }));
+    nextLabelTop = rowTop + height + 4;
+    remainingLabels -= height + 4;
   }
   return { width, height: legendY + PAD, plotBounds: bounds, elements: [...elements, ...geometry, ...marks, ...foreground] };
 }
@@ -245,7 +286,7 @@ function barChart(d, requested) {
 
 export function createLayouts({ legacy }) {
   return {
-    'coordinate-plot': (d, width) => isExtendedPlot(d) ? coordinatePlot(d, width) : legacy['coordinate-plot'](d, width),
+    'coordinate-plot': (d, width, options) => isExtendedPlot(d) ? coordinatePlot(d, width, options) : legacy['coordinate-plot'](d, width),
     'bar-chart': (d, width) => d.variant ? barChart(d, width) : legacy['bar-chart'](d, width),
   };
 }
