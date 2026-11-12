@@ -9,7 +9,7 @@ const encoding = getEncoding('cl100k_base');
 // Local estimates only: reserve Anthropic's maximum native visual-token budget
 // for each image, regardless of compression. Provider usage is authoritative.
 const imageEstimate = 4784;
-const unsupported = new Set(['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf',
+const unsupported = new Set(['pattern', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf',
   'minLength', 'maxLength', 'maxItems', 'uniqueItems']);
 
 function anthropicSchema(schema) {
@@ -141,8 +141,8 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
       try { recordSpend(state, entry); }
       finally { await persist(); }
       if (transportFailed) throw new Error('Provider transport failed; reconcile unknown usage before retrying');
+      if (!response.ok || payload?.error || payload?.status === 'failed') throw new Error(`Provider request failed: HTTP ${response.status}${/^[a-z_]{1,40}$/.test(payload?.error?.type ?? '') ? ` ${payload.error.type}` : ''}`); // status and error type only: provider message text stays out (it may echo request content)
       if (!usage) throw new Error('Provider returned unknown usage; reconcile it before retrying');
-      if (!response.ok || payload?.error || payload?.status === 'failed') throw new Error('Provider request failed');
       try {
         let value;
         try { value = JSON.parse(outputText(payload, provider)); }
