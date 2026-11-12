@@ -76,7 +76,6 @@ import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.j
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { besideSpot } from './beside-placement.js';
-import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
@@ -2391,11 +2390,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0 }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
-        const source = beside ? boundsRef.current[beside] : null, spot = !given && source ? besideSpot(source, size, boardObstacles([beside]), { dy: besideDy }) : null, at = given || spot;
+        const source = beside ? boundsRef.current[beside] : null, spot = !given && source ? besideSpot(source, size, boardObstacles([beside])) : null, at = given || spot;
         if (spot) size = { ...size, h: Math.round(source.h) };
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
@@ -3718,10 +3717,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     const held = document.activeElement;
     if (fromKey && held && held !== document.body && !held.matches?.('[data-block-id]') && (typingIn(held) || held.closest?.('[data-chat-composer],[data-toc-composer],[role="dialog"],[role="menu"],input,textarea,select,[contenteditable="true"],[data-player]'))) return null;
-    // Owner 2026-11-09: highlighted words inside a card are the request's subject (a text range of that card), marked while the window is open (inline-highlight.js).
-    const picked = pickedHighlight(shell.current, board.blocks, viewRef.current.z);
-    const target = picked ? freezeTarget(board, [picked.id], picked.range ? { range: picked.range } : {}) : freezeTarget(board, selectedRef.current);
-    if (target) return picked ? { target, highlight: picked.highlight } : { target };
+    const target = freezeTarget(board, selectedRef.current);
+    if (target) return { target };
     // Nothing selected (a populated canvas is not a blank one): the same editor, to add. From the keyboard only while the
     // canvas has the focus - never from a field, a dialog or a menu (checked above) or another part of the page.
     if (selectedRef.current.length || readOnly || (fromKey && held && held !== document.body && !shell.current?.contains(held))) return null;
@@ -3840,9 +3837,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     renderNativeShape: shape => <ShapeView shape={{...shape,id:`inline-preview:${shape.id}`}} tool="preview" zoom={view.z} selected={false} />,
     layout: () => Object.fromEntries(contentBoxes().filter(box => box.id).map(({ id, ...box }) => [id, box])),
     boxOf: id => boxesOf([id])[0] || null,
-    // Ctrl+K over highlighted words: the camera glides (the canvas's own short move, none under reduced motion) so the words and the window are centred in the visible area; the returned function brings the camera back.
-    frameWords: (words, win) => { const free = visibleArea(), wide = surface.current.clientWidth, area = free.right >= wide - 40 ? { ...free, left: Math.min(free.left, wide - free.right) } : free; // only small controls on the left: the middle is the surface's middle
-      const target = cameraForWords(words, win, viewRef.current, area); if (!target) return () => {}; const was = { ...viewRef.current }; glideTo(target, true); return Object.assign(() => glideTo(was, true), { from: was, to: target }); },
     // Every kind of thing on the board (A7): measured boxes, connectors along their drawn paths, group frames, areas and
     // comment pins, in world units.
     obstacles: exclude => boardObstacles(exclude).map(({ id: _id, ...box }) => box),
@@ -6168,24 +6162,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       chatWorkspace.panels?.openChat?.();
       const text = [card.title, card.body, ...(card.more || []).map(section => section.text)].filter(Boolean).join('\n\n').slice(0, 8000);
       // The card is the turn's subject, captured now. parentLink asks the written /explain to join its child card to this one (learn-slash.js insertBlock parent).
-      const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}), ...(destination === 'card' || destination === 'follow-up' || destination === 'explore' ? { beside: true } : {}) }; // 'follow-up' (the bottom field) and 'explore' (a term's new card, owner 2026-11-09) run the same /explain with no parentLink, so no connector joins the new card (owner 2026-11-08)
+      const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}), ...(destination === 'card' || destination === 'explore' ? { beside: true } : {}) }; // 'explore' (a term's new /explain card) runs the same /explain with no parentLink, so no connector joins it (owner 2026-11-09)
       // Admission is what the Chat or the command dispatcher reports (ask.jsx: the stream opened; LearnSlash: the command ran without an error notice), never the
       // promise's value, which for a Chat reply only settles when the whole answer is in.
       let admitted = false;
       const told = () => { admitted = true; onAdmitted?.(); };
-      const taken = destination === 'card' || destination === 'follow-up' || destination === 'explore' ? await chatWorkspace.ask({ line: `/explain ${question}`, about: { selection }, onAdmitted: told }) : await chatWorkspace.ask({ prompt: question, about: { selection }, onAdmitted: told });
+      const taken = destination === 'card' || destination === 'explore' ? await chatWorkspace.ask({ line: `/explain ${question}`, about: { selection }, onAdmitted: told }) : await chatWorkspace.ask({ prompt: question, about: { selection }, onAdmitted: told });
       return taken !== false && admitted;
     },
   };
   const canAsk = !!chatWorkspace?.ask && !visiting, canNote = !readOnly && !localCopy;
-  const canQuick = !!inlineAi && !readOnly && !localCopy && !visiting;
-  const openInlineRef = useRef(null); openInlineRef.current = () => openInline(performance.now());
   const explanationHost = useMemo(() => ({
     ...(canAsk ? { ask: (request, options) => hostRef.current.ask(request, options) } : {}),
     ...(canNote ? { note: request => hostRef.current.note(request) } : {}),
-    // The selection toolbar's Ctrl+K button: the same opener as the key (openInline reads the highlighted words from the page's selection).
-    ...(canQuick ? { quickAsk: () => openInlineRef.current() } : {}),
-  }), [canAsk, canNote, canQuick]);
+  }), [canAsk, canNote]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
   // An Explanation card has Minimize in the toolbar where other cards have Focus (its Focus is in its context menu); a minimized one has neither.
   const soleFocus = soleObject && !minimizable(soleObject) ? adapterFor(soleObject, { view, readOnly }) : null;
@@ -6295,7 +6285,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <button type="submit" disabled={!isWebUrl(webpageAsk.trim())} className="h-7 rounded-md bg-accent px-2 text-xs text-white disabled:opacity-40">Add webpage</button>
           </div>
         </form>}
-        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset} highlight={inline.highlight || null}
+        {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
         {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (

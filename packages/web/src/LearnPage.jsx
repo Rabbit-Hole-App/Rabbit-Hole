@@ -5,7 +5,7 @@ import { createBackgroundRemovalController, createRegionalImageEditController } 
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
 import { SKELETON_DROPPED_EVENT, EXPLAIN_BRIEF_EVENT, EXPLAIN_JOB_EVENT, explainClient, explainDisabled, skeletonJobOf, CHAT_DELETED_EVENT, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
-import { heldPassageTarget } from './source-refs.js';
+import { HIGHLIGHT_EXPLAIN_COMMAND, heldPassageTarget } from './source-refs.js';
 import { withCardSink, withSlotSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -1223,8 +1223,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // so its long-lived callbacks see this render's canvas.
   startExplainRef.current = startExplain;
   // R3: Explain on a selected Markdown passage (FileDocMarkdown.jsx). The ref id was minted by the server for this learner.
-  // The bulb never generates: it opens Ctrl+K on this canvas with the passage as the words (the learner can change them) and NO command pill (owner 2026-11-09): the router picks the
-  // slash command (InlineAiEditor). The minted ref stays in passageRef for the one /explain or /interactive handoff that follows (learnSlash.run, heldPassageTarget).
+  // The bulb never generates: it opens Ctrl+K on this canvas with the /interactive pill (HIGHLIGHT_EXPLAIN_COMMAND) and the passage as the words (the learner can change
+  // either), and keeps the minted ref in passageRef for the one handoff that follows (learnSlash.run).
   useEffect(() => {
     const onPassage = event => {
       const { sourceRef, text, cardId, rect } = event.detail || {};
@@ -1232,7 +1232,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       passageRef.current = { sourceRef, text, at: Date.now() };
       // Where this passage is on the canvas now, in world units: its Explain skeleton is placed beside it (AdaptiveCanvas placeExplain).
       passageSites.current.set(sourceRef, { cardId, world: rect ? canvasApi.current?.worldRect?.(rect) ?? null : null });
-      if (!canvasApi.current?.inlineAi?.('explain', { prompt: text })) toast('Open a canvas you can edit to explain this passage.');
+      if (!canvasApi.current?.inlineAi?.('explain', { command: HIGHLIGHT_EXPLAIN_COMMAND, prompt: text })) toast('Open a canvas you can edit to explain this passage.');
     };
     window.addEventListener(EXPLAIN_PASSAGE_EVENT, onPassage);
     return () => window.removeEventListener(EXPLAIN_PASSAGE_EVENT, onPassage);

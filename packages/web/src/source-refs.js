@@ -122,9 +122,12 @@ export function stepExcerpt(post, app, id) {
 }
 export const forgetExcerpts = () => excerpts.clear();
 
-// The Ctrl+K line that follows Explain on a highlighted passage (FileDocMarkdown's bulb opens Ctrl+K with the passage as the words and no command;
-// the router picks the command, owner 2026-11-09): the minted ref and the passage ride that one /explain or /interactive line, once, and only within five minutes. `held` is a ref
+// The Ctrl+K line that follows Explain on a highlighted passage (FileDocMarkdown's bulb opens Ctrl+K with /explain and the passage):
+// the minted ref and the passage ride that one /explain or /interactive line, once, and only within five minutes. `held` is a ref
 // ({ current: { sourceRef, text, at } }); any other line, or a stale hold, leaves the target as Ctrl+K sent it.
+// The pill the bulb opens: 'explain' is the /interactive job route (the plan card with Generate, Edit and Cancel, and the skeleton beside the passage);
+// 'explanation' would be the written /explain. One constant, so switching back is a one-word edit.
+export const HIGHLIGHT_EXPLAIN_COMMAND = 'explain';
 export function heldPassageTarget(target, line, held, now = Date.now()) {
   const pass = held?.current;
   if (!pass || !/^\/(explain|interactive)\b/i.test(String(line ?? '').trim())) return target;

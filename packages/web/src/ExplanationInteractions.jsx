@@ -1,16 +1,15 @@
 // E2: the interaction layer of the delivered Explanation card (docs/features/explain.md section 4, "Approved interaction contract - E2"; approved card
 // 07). It lives INSIDE LearningBlocks.jsx::ExplanationBody and adds only what the spec names: orange term pills with a definition and Explore (a new /explain card about the term), the
-// three suggested questions, the bottom + with the Ask a follow-up field, and the selection toolbar (Ctrl+K, Highlight, Create note). Everything here
+// three suggested questions, the bottom + with the Ask a follow-up field, and the selection toolbar (Ask in chat, Highlight, Create note). Everything here
 // is gated on `block.interactions` (written only while the server switch EXPLANATION_INTERACTIONS is on): a card without the envelope renders exactly as
 // before, with no wrapper, no spacer row and no listener. Actions go through the canvas host (explanation-host.js) and the Chat workspace; a surface
 // without them omits the controls it cannot run. Pure mapping, anchors and state: explanation-interactions.js.
-import { createElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, GitBranch, Highlighter, MessageSquare, Plus, StickyNote, Trash2 } from 'lucide-react';
+import { createElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowUp, GitBranch, Highlighter, MessageSquare, MessageSquarePlus, Plus, StickyNote, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
 import { MdInline } from './Md.jsx';
 import { ToolButton } from './selection-toolbar.jsx';
-import { chordBinding, chordLabel, isMac } from './shortcut-owner.js';
-import { ariaKey } from './shortcuts.js';
+import { selectionRef } from './selection-ref.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { ExplanationHost } from './explanation-host.js';
 import { alignField, anchorsFromRange, exploreQuestion, termSentence, contentRevision, contentRevisionInput, decorate, fieldText, fieldsOf, highlightsFor, quoteOf, suggestionsFor, termsFor, undecorate, withConsumed, withHighlight, withoutHighlight } from './explanation-interactions.js';
@@ -139,9 +138,7 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     (now.onChangeQuiet || now.onChange)?.(withConsumed(now.block, captured.revision, { id: captured.actionId, question: captured.question, destination: captured.destination }));
   };
   const askSuggestion = (question, destination) => send({ text: question.text, qid: question.id, destination, afterAdmit: consume });
-  // Owner 2026-11-08: a follow-up typed under the card makes a new written /explain card (the same route as a suggested question's "Ask in a new card" but with no
-  // arrow to this card): the Chat shows the question and its progress, the camera frames the new card (insertBlock fit), and the Depth is the Chat composer's.
-  const askFollowUp = text => send({ text, destination: 'follow-up' });
+  const askFollowUp = text => send({ text, destination: 'here' });
   // Explore (owner 2026-11-09): a new written /explain card about the term, asked in the context of this card; same route as the bottom follow-up (no connector, camera frames the card, the Chat composer's Depth).
   const explore = term => send({ text: exploreQuestion({ term: term.label, title: latest.current.block.title, sentence: termSentence(latest.current.block, term) }), destination: 'explore' });
 
@@ -173,8 +170,13 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
     return () => { document.removeEventListener('keydown', escape, true); document.removeEventListener('pointerdown', away, true); };
   }, [bar]);
   const done = () => { window.getSelection?.()?.removeAllRanges(); setBar(null); };
-  // The Ctrl+K button: the selection stays as the page holds it (the button never takes the focus), the opener reads it like the key does; the toolbar goes with the window.
-  const quickAsk = () => { if (bar && host?.quickAsk?.()) setBar(null); };
+  const askInChat = () => {
+    if (!bar || !chat) return;
+    const quote = bar.quote, name = String(latest.current.block.title || 'Explanation').slice(0, 120);
+    // Prepares the composer for the learner (a context pill carrying the exact quote); nothing is sent.
+    chat.addToChat(selectionRef({ ids: [latest.current.block.id], kind: 'card', name, content: quote, quote, text: () => quote }));
+    done();
+  };
   const highlight = () => {
     const now = latest.current;
     if (!bar?.segments.length || !now.revision || !canEdit) return;
@@ -188,7 +190,7 @@ export function useExplanationLayer(block, { onChange, onChangeQuiet, readOnly =
   };
 
   if (!enabled) return null;
-  return { block, revision, host, chat, canEdit, flowRef, rootRef, fields, flowProps, openTerm, closeTerm, noteEl, barEl, bar, pending, askSuggestion, askFollowUp, explore, holdTerm, leaveTerm, quickAsk, highlight, createNote, menu, menuEl, removeHighlight,
+  return { block, revision, host, chat, canEdit, flowRef, rootRef, fields, flowProps, openTerm, closeTerm, noteEl, barEl, bar, pending, askSuggestion, askFollowUp, explore, holdTerm, leaveTerm, askInChat, highlight, createNote, menu, menuEl, removeHighlight,
     terms: termsFor(block, revision), suggestions: suggestionsFor(block, revision), highlights: highlightsFor(block, revision) };
 }
 
@@ -319,11 +321,9 @@ export function FollowUp({ layer }) {
   );
 }
 
-// The selection toolbar (selection-toolbar.jsx): Ctrl+K, Highlight, Create note, in that order (owner 2026-11-09: Ctrl+K replaces Ask in chat). The first button shows the key hint and opens Ctrl+K over
-// the highlighted words exactly as the key does (host.quickAsk). A control that cannot run here stays, greyed, with its name.
+// The selection toolbar (selection-toolbar.jsx): Ask in chat, Highlight, Create note, in that order. A control that cannot run here stays, greyed, with its name.
 export function SelectionBar({ layer }) {
-  const { bar, barEl, host, canEdit } = layer;
-  const mac = useMemo(isMac, []), hint = chordLabel('quick-edit', mac);
+  const { bar, barEl, chat, host, canEdit } = layer;
   useLayoutEffect(() => {
     if (!bar) return;
     place(barEl.current, bar.rect, layer.flowRef.current?.closest('[data-block-id]') || layer.flowRef.current?.parentElement, 'above');
@@ -332,8 +332,7 @@ export function SelectionBar({ layer }) {
   return (
     <div ref={barEl} data-explanation-selection-toolbar data-explanation-ui role="toolbar" aria-label="Selected text" style={{ left: 0, top: 0 }}
       onPointerDown={event => event.stopPropagation()} className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop">
-      <Button aria-label={hint} title={hint} aria-keyshortcuts={ariaKey(chordBinding('quick-edit'), mac)} data-quick-ask disabled={!host?.quickAsk} onMouseDown={event => event.preventDefault()} onClick={layer.quickAsk}
-        className="min-w-8 justify-center px-2 text-ink-2 hover:text-ink"><kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{hint}</kbd></Button>
+      <ToolButton label="Ask in chat" icon={MessageSquarePlus} disabled={!chat} onClick={layer.askInChat} />
       <ToolButton label="Highlight" icon={Highlighter} disabled={!canEdit || !bar.segments.length} onClick={layer.highlight} />
       <ToolButton label="Create note" icon={StickyNote} disabled={!canEdit || !host?.note} onClick={layer.createNote} />
     </div>

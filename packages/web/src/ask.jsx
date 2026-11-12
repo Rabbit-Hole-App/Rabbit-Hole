@@ -496,7 +496,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const saver = turnSaver({ app: chat.canvas, threadId: chatThread.id || newThreadId(), turnId, mode: askMode(chatThread.mode, tocView), title: chatThread.id ? null : title,
       onAsked: () => { if (!lateEvent(sentKey, chatThread.liveKey())) chatThread.adopt(saver.threadId, title); } });
     chatThread.adopt(saver.threadId, title, { remember: false });
-    setMsgs(m => [...m, { role: 'user', content, command: lineCommand(content), messageId: `local-q-${turnId}`, status: 'done', outputsKey: turnId, outputs: [], ...(handoff?.target?.card?.highlighted ? { highlight: handoff.target.card.highlighted } : {}) }]);
+    setMsgs(m => [...m, { role: 'user', content, command: lineCommand(content), messageId: `local-q-${turnId}`, status: 'done', outputsKey: turnId, outputs: [] }]);
     const saved = savedId(turnId, saver.user(content, { command: lineCommand(content) }));
     saved.catch(error => console.info('[chat] command not saved:', error.message));
     // thread and refs (EXP-T20 slice 3): an /explain job posts a reviewed brief in the thread this line is saved in, and gets this

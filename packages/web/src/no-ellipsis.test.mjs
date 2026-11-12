@@ -16,7 +16,6 @@ const ALLOW = [
   ['chat-context.js', 'range.quote.slice(0, 24)', 'truncates a quoted user range'],
   ['inline-ai-context.js', 'const shorten', 'truncates text sent to the model'],
   ['inline-ai-session.js', 'op.text.slice(0, each)', 'truncates edit text sent to the model'],
-  ['inline-highlight.js', 'return cut ? `${shown}…` : shown;', 'the Ctrl+K chip shortens the highlighted user words, ellipsis inside the chip (owner 2026-11-09)'],
   ['InlineAiEditor.jsx', 'const short =', 'truncates a user selection label'],
   ['LearningBlocks.jsx', "starter: 'def encode(s)", 'Python Ellipsis in a code starter'],
   ['nanogpt/card-gates.mjs', 'object.label.slice(0, 40)', 'authoring gate message, not UI'],

@@ -63,10 +63,6 @@ export function httpTransport({ app, pending = null, board = 'main', fetchRaw })
       if (!response.ok) return { error: body?.error || "Couldn't check this request. Try again.", code: body?.code || 'unavailable', retryable: response.status === 503 ? body?.retryable !== false : false };
       try { return checkDecision(body); } catch (error) { return { error: error.message, code: 'malformed', retryable: true }; }
     },
-    // The router's own question (POST /api/learn/inline/route): which capability a plain prompt asks for. null on any failure: the request then stays where it is.
-    async route({ requestId, prompt, selection }, { signal } = {}) {
-      try { const response = await json('/api/learn/inline/route', { request_id: requestId, prompt, selection }, signal); return response.ok ? await response.json().catch(() => null) : null; } catch { return null; }
-    },
     // Generation for a decided request: the exact request /decide saw, and its proceed.
     async generate({ requestId, request, token, revise = null }, { signal, onEvent }) {
       return readGeneration(await json('/api/learn/inline/generate', { request_id: requestId, request, token, board, ...(revise ? { revise } : {}) }, signal), onEvent);

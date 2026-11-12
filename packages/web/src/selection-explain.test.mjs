@@ -99,37 +99,15 @@ test('a skeleton is a card whose reviewed plan still waits for Generate', () => 
 
 const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
 
-test('the bulb opens Ctrl+K with the passage as the words and NO command pill; the router picks the command; it never starts the job itself', () => {
+test('the bulb opens Ctrl+K with the /interactive pill (id explain, the plan-card job route) and the passage; it never starts the job itself', () => {
   const page = read('./LearnPage.jsx');
   const listener = page.slice(page.indexOf('const onPassage'), page.indexOf('window.addEventListener(EXPLAIN_PASSAGE_EVENT'));
-  assert.ok(listener.includes("inlineAi?.('explain', { prompt: text })"), 'words only: no command, so no pill');
-  assert.doesNotMatch(listener, /command/);
-  assert.doesNotMatch(page, /HIGHLIGHT_EXPLAIN_COMMAND/);
-  assert.doesNotMatch(read('./source-refs.js'), /HIGHLIGHT_EXPLAIN_COMMAND/);
+  assert.ok(listener.includes("inlineAi?.('explain', { command: HIGHLIGHT_EXPLAIN_COMMAND, prompt: text })"));
+  assert.match(read('./source-refs.js'), /HIGHLIGHT_EXPLAIN_COMMAND = 'explain';/, "the job route's id; 'explanation' is the written /explain, left untouched");
   assert.doesNotMatch(listener, /startExplain/);
-  const editor = read('./InlineAiEditor.jsx');
-  assert.ok(editor.includes('useState(preset?.command ?? null)'), 'a preset with no command leaves the pill off');
-  assert.ok(editor.includes("useState(preset?.prompt ?? '')"));
-  // The router also asks about the bulb's passage (a preset with no command), and Chat gets no selection target for it, exactly as the old preset gave.
-  assert.ok(editor.includes("if ((highlight || (preset && !preset.command)) && !out.handoff"), 'the bulb passage is routed like highlighted words');
-  assert.ok(editor.includes("selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500)"));
-  assert.ok(editor.includes('config.handoff(line, { selection: highlight ? highlightSelection() : null })'));
+  assert.match(read('./InlineAiEditor.jsx'), /useState\(preset\?\.command \?\? null\)/);
+  assert.match(read('./InlineAiEditor.jsx'), /useState\(preset\?\.prompt \?\? ''\)/);
 });
-
-test('a command the router picks for the bulb passage still carries the minted ref and the passage (heldPassageTarget), once', async () => {
-  const { typedOf } = await import('./agent/slash.js');
-  const held = () => ({ current: { sourceRef: 'sref_1', text: 'the quote', at: 1000 } });
-  // InlineAiEditor builds the router's line as `/${typedOf(name)} ${asked}` and hands it over with selection null (no highlight).
-  for (const name of ['explain', 'explanation']) {
-    const a = held();
-    assert.deepEqual(heldPassageTarget(null, `/${typedOf(name)} why is this true`, a, 2000), { id: null, text: 'the quote', sourceRef: 'sref_1' }, name);
-    assert.equal(a.current, null, 'used once');
-  }
-  const other = held();
-  assert.equal(heldPassageTarget(null, `/${typedOf('image')} the quote`, other, 2000), null, 'another routed command leaves the hold for the next explain');
-  assert.ok(other.current);
-});
-
 
 test('a Markdown selection offers Highlight, Explain and Add to chat, in that order, and Add to chat only attaches', () => {
   const source = read('./FileDocMarkdown.jsx');

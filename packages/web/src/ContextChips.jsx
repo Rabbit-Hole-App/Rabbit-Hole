@@ -20,7 +20,7 @@ export const RefIcon = ({ kind, size = 14, className = 'shrink-0 text-ink-3' }) 
   return <Icon size={size} strokeWidth={1.75} aria-hidden className={className} />;
 };
 
-export const CHIP = 'inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-md border border-line bg-white text-xs text-ink';
+const CHIP = 'inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-md border border-line bg-white text-xs text-ink';
 const CHIP_ICON_BUTTON = 'flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-ink-3 hover:bg-hover hover:text-ink';
 
 // readPaper: the uploaded paper id this turn reads (paper_context), or null; every other uploaded-PDF page chip is marked

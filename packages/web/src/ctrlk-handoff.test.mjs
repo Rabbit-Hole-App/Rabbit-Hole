@@ -27,7 +27,7 @@ test('Ctrl+K closes only when Chat took the command; a refused one stays in Ctrl
   assert.match(picker, /if \(out === false && !handoff\) \{ setInput\(raw\);/, 'a refused handed-off line is not put in the Chat composer');
   assert.match(ask, /return slashRef\.current\.handoff\(line, /);
   assert.match(page, /return \(await live\.ask\(\{ line, about \}\)\) === true;/);
-  assert.match(editor, /if \(await config\.handoff\(out\.handoff\.line, \{ selection, concept: title \}\)\) \{ handedOff\.current = true; onClose\(\); return; \}\n\s+setHandoffError\(HANDOFF_REFUSED\);/, 'refused: Ctrl+K stays open with the busy message');
+  assert.match(editor, /if \(await config\.handoff\(out\.handoff\.line, \{ selection, concept: title \}\)\) \{ onClose\(\); return; \}\n\s+setHandoffError\(HANDOFF_REFUSED\);/, 'refused: Ctrl+K stays open with the busy message');
 });
 
 test('a handed-off turn (keepDraft) neither uses nor clears the Chat draft, @-chips, attachment, code range, image, armed card or Edit target', () => {

@@ -1,16 +1,7 @@
 // The chat transcript (moved out of ask.jsx's AskPanel): one ChatMessage per message, and the cards a message can be.
-import { CHIP } from './ContextChips.jsx';
-import { firstWords } from './inline-highlight.js';
-import { markClear, useMark } from './inline-highlight-mark.js';
-// The highlighted words a Ctrl+K command was about (owner 2026-11-09): the first words, the full text as the tooltip; while the card's mark is still on, its x un-highlights.
-function HighlightChip({ text }) {
-  const mark = useMark(), live = mark?.text === text;
-  return <span data-chat-highlight-chip title={text} className={`${CHIP} mb-1.5 w-fit pl-2 ${live ? '' : 'pr-2'}`}><span className="min-w-0 truncate">{firstWords(text)}</span>
-    {live && <button type="button" data-chat-highlight-clear aria-label="Remove the highlight" title="Remove the highlight" onClick={markClear} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-ink-3 hover:bg-hover hover:text-ink"><X size={12} aria-hidden /></button>}</span>;
-}
 import { Component, useEffect, useMemo, useRef, useState } from 'react';
 import { SKELETON_DROPPED_EVENT, explainClient } from './explain-client.js';
-import { ArrowDown, Copy, CornerDownRight, Loader2, Network, X } from 'lucide-react';
+import { ArrowDown, Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
 import CommandPill from './CommandPill.jsx';
 import { sentCommand } from './command-token.js';
 import { typedOf } from './agent/slash.js';
@@ -415,7 +406,6 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
         <div data-user-turn className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
           {m.canvasImage && <img src={m.canvasImage} alt="Canvas with the question’s target marked" className="mb-2 max-h-32 w-44 rounded border border-line bg-white object-contain" />}
           {m.passage && <blockquote className="mb-2 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs text-ink-2">{m.passage}</blockquote>}
-          {m.highlight && <HighlightChip text={m.highlight} />}
           <SentText m={m} />
         </div>
         {/* A card this command is making (m.making: its canvas slot's label, ask.jsx recordCommand onSlot): the Chat's waiting row while
