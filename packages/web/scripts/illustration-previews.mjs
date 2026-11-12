@@ -2,9 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
-import {
-  batch1FollowupReferences, estimationEvaluationReferences, illustrationReferences, transformerWalkthroughReferences,
-} from '../src/tutor-diagrams/reference-library.js';
+import { batch1FollowupReferences, illustrationReferences, transformerWalkthroughReferences } from '../src/tutor-diagrams/reference-library.js';
 import { lessonDecisionTreesReferences } from '../src/tutor-diagrams/lesson-decision-trees-references.js';
 import kindGalleryDepths from '../src/tutor-diagrams/kind-gallery-depths.json' with { type: 'json' };
 import { ILLUSTRATION_KINDS } from '../src/tutor-diagrams/illustration-kinds.js';
@@ -18,7 +16,7 @@ import { convergingFlow, sequenceBoundarySelfMessages, sequenceSelfMessage } fro
 const depthNames = { overview: 'brief', standard: 'balanced', deep: 'detailed' };
 
 export function* illustrationSpecs() {
-  const references = [...illustrationReferences, ...transformerWalkthroughReferences, ...batch1FollowupReferences, ...lessonDecisionTreesReferences, ...estimationEvaluationReferences];
+  const references = [...illustrationReferences, ...transformerWalkthroughReferences, ...batch1FollowupReferences, ...lessonDecisionTreesReferences];
   for (const ref of new Set(references)) {
     yield { id: ref.id, spec: ref.spec, ...(ref.detailSpec ? { detail: true } : {}) };
     if (ref.detailSpec) yield { id: `${ref.id}-detail`, spec: ref.detailSpec };

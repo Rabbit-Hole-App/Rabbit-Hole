@@ -87,9 +87,7 @@ Detailed Gemma names the four pre/post RMSNorm stages, the sliding-window and GQ
 
 ## Coordinate-plot line curves
 
-Open line series use monotone cubic SVG paths through the given samples. Two samples draw a straight segment. Repeated or reversing x values keep straight segments in the authored order. The curve stays within local sample extrema and the existing uncertainty band. Open lines with more than six points show the first, last, and labelled samples as markers.
-
-A line with `closed: true` uses sample order to interpolate both coordinates. The tangent at each sample uses its previous and next neighbors, including across the closing segment. Labelled samples and samples with IDs keep their markers. Set `smooth: false` for straight segments in either open or closed lines.
+Basic and Phase 02 line series use monotone cubic SVG paths through the given samples. Two samples draw a straight segment. Repeated or reversing x values keep straight segments in the authored order. Set `smooth: false` for intentional piecewise-linear data. The curve stays within local sample extrema and the existing uncertainty band. Lines with more than six points show the first, last, and labelled samples as markers.
 
 All 111 line captures across 37 specs changed, including the three positional encoding exports. The other 706 of 817 fingerprints matched, including all 99 plot captures with only step, scatter or stem series. SVG dimensions matched at every width. [Positional encoding SVG](illustrations/ml-transformer-token-embeddings-detailed-detail/natural.svg)
 

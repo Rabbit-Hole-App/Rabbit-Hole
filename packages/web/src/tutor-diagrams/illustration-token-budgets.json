@@ -367,34 +367,6 @@
           }
         ]
       }
-    },
-    "ml-mle-bernoulli-likelihood": {
-      "brief": {
-        "tokens": 180,
-        "sha256": "406090a1df4e3ede70128cc6742e03d2f8fa628ba8ae34fa807797931e14e517"
-      },
-      "balanced": {
-        "tokens": 205,
-        "sha256": "5c33b7664a4248f2f66be01ea79ae4739fccefdf31c2e3c97420d7104c7f5f7e"
-      },
-      "detailed": {
-        "tokens": 215,
-        "sha256": "3f8edc5b4ebeeb25d534c9d75078a19e830650cb5bd5913f96780110da45a537"
-      }
-    },
-    "ml-kfold-validation": {
-      "brief": {
-        "tokens": 228,
-        "sha256": "ab3a232f9c0f4d1bc0b51ea550029bdd0f35e15c5e75308a4d98356811e9543d"
-      },
-      "balanced": {
-        "tokens": 259,
-        "sha256": "f9f1446d7c21169a68492817b7a01401aedc7025662e7be79cef4eb08053acaa"
-      },
-      "detailed": {
-        "tokens": 299,
-        "sha256": "d92f013b4c95f4cd2354e768725663fd1d8ee8135f7e97a6aebb4d960b35032e"
-      }
     }
   }
 }

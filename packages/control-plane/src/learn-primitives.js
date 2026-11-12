@@ -687,54 +687,6 @@ function correctedTimeline(raw) {
 // one per row (the heading as a lowercase slug, row-N when it has none, made distinct); rows with fewer cells than columns, every row short by the same count, are padded
 // with an em dash; a row with more cells than columns loses its trailing cells; rows that disagree with each other are left for the one repair. Kept only when the
 // whole diagram then parses. -> { spec, kinds } or null.
-// Owner 2026-11-09 (figure-chapters 02, demo card 03, the 118 3x): a matrix or heatmap whose columns are objects instead of strings, or a matrix whose rows carry ids without the teaching layout,
-// fails validation for a reason the server can read. Only the fields the parser names are touched, and the result applies only if the whole diagram then validates (else the repair gets the original).
-//  a) every column is an object holding an `items` or `cells` array, all of one length: the author wrote the table column by column. It is transposed: each column object becomes a row (its heading,
-//     label, text or title -> the row heading; its items -> the row's cells); the former rows' headings become the column headings when there are as many as items, else "Item 1" to "Item n".
-//     A heatmap needs numeric cells (numbers or numeric strings), and its range is derived as the minimum and maximum of them. Former rows that carry cells of their own: not transposed.
-//  b) column objects with no array: each becomes its text (heading, then label, text, title).
-//  c) a plain matrix (no teaching layout, no emphasis, no states) with ids on its rows loses the ids, which nothing refers to.
-// -> { raw, counts } | { left: reason } (a column object was seen and could not be coerced: logged, left to the repair) | null (nothing of this kind).
-const columnText = column => [column?.heading, column?.label, column?.text, column?.title].find(value => typeof value === 'string' && value.trim());
-const isObject = value => value && typeof value === 'object' && !Array.isArray(value);
-const numericCell = value => (typeof value === 'number' && Number.isFinite(value) ? value : typeof value === 'string' && value.trim() && Number.isFinite(Number(value)) ? Number(value) : value === null ? null : undefined);
-function coercedMatrixShape(raw) {
-  const source = raw?.diagram;
-  if (!['matrix', 'heatmap'].includes(source?.kind) || tryParse(raw)) return null;
-  const d = structuredClone(source), counts = { columns: 0, rowIdsDropped: 0, transposed: 0, range: null };
-  const objects = Array.isArray(d.columns) ? d.columns.filter(isObject) : [];
-  if (objects.length) {
-    const listOf = column => (Array.isArray(column.items) ? column.items : Array.isArray(column.cells) ? column.cells : null);
-    if (objects.length === d.columns.length && d.columns.every(column => listOf(column))) {
-      const lengths = new Set(d.columns.map(column => listOf(column).length)), n = [...lengths][0];
-      if (lengths.size !== 1) return { left: 'column lists of different lengths' };
-      if (d.columns.some(column => !columnText(column))) return { left: 'a column object with no heading, label, text or title' };
-      const former = Array.isArray(d.rows) ? d.rows : null;
-      if (former && !former.every(row => isObject(row) && !row.cells && columnText({ heading: row.heading ?? row.label }))) return { left: 'rows with cells of their own beside the column lists' };
-      const names = former && former.length === n ? former.map(row => String(row.heading ?? row.label).trim()) : Array.from({ length: n }, (_, i) => `Item ${i + 1}`);
-      const lists = d.columns.map(column => listOf(column));
-      if (d.kind === 'heatmap') {
-        const cells = lists.map(list => list.map(numericCell));
-        if (cells.flat().some(value => value === undefined)) return { left: 'heatmap cells are not numeric' };
-        const numbers = cells.flat().filter(value => value !== null);
-        if (!numbers.length) return { left: 'heatmap has no numeric cell' };
-        if (isObject(d.range)) { /* the author's own range stays */ } else d.range = { min: Math.min(...numbers), max: Math.max(...numbers) };
-        counts.range = [d.range.min, d.range.max];
-        d.rows = d.columns.map((column, i) => ({ label: columnText(column).trim(), cells: cells[i] }));
-      } else {
-        if (lists.flat().some(value => !['string', 'number'].includes(typeof value))) return { left: 'matrix cells are not text' };
-        d.rows = d.columns.map((column, i) => ({ heading: columnText(column).trim(), cells: lists[i].map(String) }));
-      }
-      d.columns = names; counts.transposed = d.rows.length;
-    } else if (d.columns.some(column => isObject(column) && listOf(column))) return { left: 'column lists mixed with other columns' };
-    else {
-      d.columns = d.columns.map(column => { if (!isObject(column)) return column; const text = columnText(column); if (text) counts.columns++; return text ? text.trim() : column; });
-      if (d.columns.some(isObject)) return { left: 'a column object with no heading, label, text or title' };
-    }
-  }
-  if (d.kind === 'matrix' && Array.isArray(d.rows) && d.rows.every(isObject) && d.layout !== 'teaching' && d.emphasis === undefined && d.states === undefined) d.rows.forEach(row => { if (row.id !== undefined) { delete row.id; counts.rowIdsDropped++; } });
-  return counts.columns || counts.rowIdsDropped || counts.transposed ? { raw: { ...raw, diagram: d }, counts } : objects.length ? { left: 'nothing to coerce' } : null;
-}
 function correctedMatrix(raw) {
   if (tryParse(raw)) return null;
   const d = structuredClone(raw?.diagram);
@@ -800,16 +752,7 @@ export function correctDiagrams(md) {
     if (open) {
       if (/^\s*```/.test(line)) {
         let raw = null; try { raw = JSON.parse(open.lines.join('\n')); } catch { /* not JSON: the repair's */ }
-        const shaped = raw && coercedMatrixShape(raw), coerced = shaped?.raw ? shaped : null, base = coerced ? coerced.raw : raw;
-        let fixed = base && (correctedFlow(base) || correctedTimeline(base) || correctedMatrix(base) || correctedSequence(base) || correctedFields(base));
-        let left = shaped?.left ?? null;
-        if (coerced) {
-          const spec = fixed ? fixed.spec : tryParse(base); // the coercion counts only when the whole diagram then validates
-          fixed = spec ? { spec, kinds: ['matrix_coerced', ...(fixed?.kinds ?? [])] } : null;
-          if (fixed) console.log(JSON.stringify({ event: 'explanation_matrix_coerced', action: coerced.counts.transposed ? 'transposed' : 'coerced', diagram: raw.diagram.kind, columnsCoerced: coerced.counts.columns, rowsFromColumns: coerced.counts.transposed, rangeDerived: coerced.counts.range, rowIdsAdded: (fixed.spec.diagram.rows ?? []).filter(row => row.id).length - (base.diagram.rows ?? []).filter(row => row?.id).length, rowIdsDropped: coerced.counts.rowIdsDropped }));
-          else left = 'the diagram does not validate after the coercion: ' + (() => { try { parseTutorDiagram(base); return 'unknown'; } catch (e) { return (e.issues ?? []).slice(0, 3).map(i => (i.path ?? []).join('.')).join(', '); } })();
-        }
-        if (left && !fixed) console.log(JSON.stringify({ event: 'explanation_matrix_coerced', action: 'left', diagram: raw.diagram.kind, reason: left }));
+        const fixed = raw && (correctedFlow(raw) || correctedTimeline(raw) || correctedMatrix(raw) || correctedSequence(raw) || correctedFields(raw));
         if (fixed) for (const kind of fixed.kinds) corrections[kind] = (corrections[kind] || 0) + 1;
         out.push(open.raw, ...(fixed ? [JSON.stringify(fixed.spec)] : open.lines), line); open = null;
       } else open.lines.push(line);

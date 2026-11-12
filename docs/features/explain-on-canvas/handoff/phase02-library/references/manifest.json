@@ -512,7 +512,7 @@
       "prompts": [
         "How does gradient descent move through a loss contour map?"
       ],
-      "useWhen": "Use closed loss contours and mark the sequence of decreasing-loss steps.",
+      "useWhen": "Use explicit contour polylines and a sequence of decreasing-loss steps.",
       "kind": "coordinate-plot",
       "width": 420,
       "height": 600

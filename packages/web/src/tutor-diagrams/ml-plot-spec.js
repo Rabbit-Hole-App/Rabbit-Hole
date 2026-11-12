@@ -26,14 +26,13 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
     ]),
     y: sampleValues, divisor, showValues: z.boolean().optional(),
   });
-  const circleSamples = z.strictObject({ radius: numeric.positive(), count: z.number().int().min(3).max(25) });
   return [
     z.strictObject({ ...titled, kind: z.literal('coordinate-plot'), x: axis, y: axis,
       series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(),
-        endLabel: z.boolean().optional(), closed: z.boolean().optional(),
+        endLabel: z.boolean().optional(),
         points: z.array(z.strictObject({ x: numeric, y: numeric, id: id.optional(), label: text(60).optional(),
           low: numeric.optional(), high: numeric.optional() })).min(1).max(24).optional(),
-        samples: z.union([samples, circleSamples]).optional(),
+        samples: samples.optional(),
       })).min(1).max(5),
       annotations: z.array(annotation).max(16).optional(),
     }),
@@ -51,17 +50,6 @@ const explicitSampleX = x => Array.isArray(x) ? x : x.values;
 
 export function plotSeriesPoints(series) {
   if (!series.samples) return series.points ?? [];
-  if ('radius' in series.samples) {
-    const { radius, count } = series.samples;
-    // Round the unit-circle coordinates to keep the SVG and accessible coordinates stable.
-    return Array.from({ length: count }, (_, i) => {
-      const angle = i * 2 * Math.PI / count;
-      return {
-        x: (Math.round(Math.cos(angle) * 1000) / 1000) * radius,
-        y: (Math.round(Math.sin(angle) * 1000) / 1000) * radius,
-      };
-    });
-  }
   const { x, y, divisor = 1, showValues } = series.samples;
   const values = explicitSampleX(x);
   return y.map((sample, index) => {
@@ -74,7 +62,7 @@ export function plotSeriesPoints(series) {
 
 export const isExtendedPlot = d => d.kind === 'coordinate-plot' &&
   (d.series.length > 3 || d.x.scale !== undefined || d.y.scale !== undefined || d.x.integerTicks || d.y.integerTicks || d.annotations !== undefined || d.series.some(s =>
-    s.samples || s.endLabel || s.closed || !['line', 'scatter'].includes(s.kind) ||
+    s.samples || s.endLabel || !['line', 'scatter'].includes(s.kind) ||
     s.points.some(p => p.label !== undefined || p.id !== undefined || p.low !== undefined || p.high !== undefined)));
 
 function inAxis(value, axis) {
@@ -94,26 +82,19 @@ function checkPlot(d, issue) {
   };
   d.series.forEach((s, i) => {
     const path = ['series', i];
-    const { samples } = s;
-    if (Boolean(s.points) === Boolean(samples)) return issue(path, 'Provide either points or compact samples');
-    const coordinatePath = [...path, samples ? 'samples' : 'points'];
-    if (samples && 'radius' in samples && !s.closed) return issue(coordinatePath, 'Circle samples require a closed line');
-    const values = samples && 'x' in samples && explicitSampleX(samples.x);
-    if (values && values.length !== samples.y.length) {
-      return issue(coordinatePath, 'Compact samples need one x coordinate per y value');
+    if (Boolean(s.points) === Boolean(s.samples)) return issue(path, 'Provide either points or compact samples');
+    const values = s.samples && explicitSampleX(s.samples.x);
+    if (values && values.length !== s.samples.y.length) {
+      return issue([...path, 'samples'], 'Compact samples need one x coordinate per y value');
     }
     const points = plotSeriesPoints(s);
+    const coordinatePath = [...path, s.samples ? 'samples' : 'points'];
     if (['line', 'step'].includes(s.kind) && points.length < 2) issue(coordinatePath, 'A line or step needs at least two points');
     if (s.kind === 'stem' && !inAxis(0, d.y)) issue(path, 'Stem series require a linear y domain containing zero');
     if (s.endLabel && (s.kind !== 'line' || points.at(-1)?.x !== d.x.max)) {
       issue([...path, 'endLabel'], 'A right-edge label requires a line ending at the x-axis maximum');
     }
     const uncertainty = points.some(p => p.low !== undefined || p.high !== undefined);
-    if (s.closed) {
-      if (s.kind !== 'line') issue([...path, 'closed'], 'Only line series can be closed');
-      if (new Set(points.map(p => `${p.x},${p.y}`)).size < 3) issue(coordinatePath, 'A closed line needs at least three distinct vertices');
-      if (s.endLabel || uncertainty) issue([...path, 'closed'], 'A closed line cannot use an end label or an uncertainty band');
-    }
     const ids = new Set();
     points.forEach((p, j) => {
       const pointPath = [...coordinatePath, j];
@@ -203,7 +184,7 @@ export function annotationDescription(a) {
 export function describe(d) {
   if (isExtendedPlot(d)) return [
     ...[d.x, d.y].map(a => `${axisName(a)}: ${a.min} to ${a.max}`),
-    ...d.series.map(s => `${s.label} (${s.closed ? 'closed line' : s.kind}): ${plotSeriesPoints(s).map(p => `${p.id ? `${p.id} ` : ''}${p.label ? `${p.label} ` : ''}${xy(p)}${p.low !== undefined ? ` [${p.low}, ${p.high}]` : ''}`).join('; ')}`),
+    ...d.series.map(s => `${s.label} (${s.kind}): ${plotSeriesPoints(s).map(p => `${p.id ? `${p.id} ` : ''}${p.label ? `${p.label} ` : ''}${xy(p)}${p.low !== undefined ? ` [${p.low}, ${p.high}]` : ''}`).join('; ')}`),
     ...(d.annotations ?? []).map(annotationDescription),
   ];
   if (d.kind === 'bar-chart' && d.variant) return [
