@@ -1,0 +1,35 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_convolutional-neural-networks/padding-and-strides.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:12:30.824Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/conv-reuse.svg",
+      "file": "01-conv-reuse.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/conv-reuse.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/conv-pad.svg",
+      "file": "02-conv-pad.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/conv-pad.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/conv-stride.svg",
+      "file": "03-conv-stride.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/conv-stride.svg"
+    }
+  ]
+}

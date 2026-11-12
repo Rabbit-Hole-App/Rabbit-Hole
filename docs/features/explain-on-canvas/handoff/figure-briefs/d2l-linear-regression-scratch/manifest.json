@@ -1,0 +1,44 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_linear-regression/linear-regression-scratch.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:38:53.291Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/output_linear-regression-scratch_b94b4e_111_0.svg",
+      "file": "01-output-linear-regression-scratch-b94b4e-111-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_linear-regression-scratch_b94b4e_111_0.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_linear-regression-scratch_b94b4e_114_0.svg",
+      "file": "02-output-linear-regression-scratch-b94b4e-114-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_linear-regression-scratch_b94b4e_114_0.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_linear-regression-scratch_b94b4e_117_0.svg",
+      "file": "03-output-linear-regression-scratch-b94b4e-117-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_linear-regression-scratch_b94b4e_117_0.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_linear-regression-scratch_b94b4e_120_0.svg",
+      "file": "04-output-linear-regression-scratch-b94b4e-120-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_linear-regression-scratch_b94b4e_120_0.svg"
+    }
+  ]
+}

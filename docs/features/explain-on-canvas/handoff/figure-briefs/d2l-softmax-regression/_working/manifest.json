@@ -1,0 +1,46 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_linear-classification/softmax-regression.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:33:51.267Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/softmaxreg.svg",
+      "context": {
+        "alt": "../_images/softmaxreg.svg",
+        "caption": "Fig. 4.1.1 Softmax regression is a single-layer neural network.",
+        "heading": "4.1.1.1. Linear Model",
+        "before": "The corresponding neural network diagram is shown in Fig. 4.1.1. Just as in linear regression, we use a single-layer neural network. And since the calculation of each output, \\(o_1, o_2\\), and \\(o_3\\), depends on every input, \\(x_1\\), \\(x_2\\), \\(x_3\\), and \\(x_4\\), the output layer can also be described as a fully connected layer.",
+        "after": "For a more concise notation we use vectors and matrices: \\(\\mathbf{o} = \\mathbf{W} \\mathbf{x} + \\mathbf{b}\\) is much better suited for mathematics and code. Note that we have gathered all of our weights into a \\(3 \\times 4\\) matrix and all biases \\(\\mathbf{b} \\in \\mathbb{R}^3\\) in a vector.",
+        "svgText": [
+          "Output layer",
+          "OY",
+          "IS",
+          "S,",
+          "FF",
+          "SZ",
+          "Q",
+          "Input layer",
+          "Cx)",
+          "ZY",
+          "V4",
+          "Cs)",
+          "L",
+          "Ay",
+          "Cs)",
+          "SSS",
+          "\\",
+          "Cs)"
+        ],
+        "svgTextMethod": "ocr"
+      },
+      "file": "01-softmaxreg.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/softmaxreg.svg"
+    }
+  ],
+  "title": "4.1. Softmax Regression SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

@@ -1,0 +1,35 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_linear-classification/environment-and-distribution-shift.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:09:16.171Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/cat-dog-train.png",
+      "file": "01-cat-dog-train.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/cat-dog-train.png"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/cat-dog-test.png",
+      "file": "02-cat-dog-test.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/cat-dog-test.png"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/popvssoda.png",
+      "file": "03-popvssoda.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/popvssoda.png"
+    }
+  ]
+}

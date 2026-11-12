@@ -1,0 +1,89 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_attention-mechanisms-and-transformers/attention-scoring-functions.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T10:13:43.976Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/attention-output.svg",
+      "file": "01-attention-output.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/attention-output.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_108_0.svg",
+      "file": "02-output-attention-scoring-functions-722781-108-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_108_0.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_111_0.svg",
+      "file": "03-output-attention-scoring-functions-722781-111-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_111_0.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_114_0.svg",
+      "file": "04-output-attention-scoring-functions-722781-114-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_114_0.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_117_0.svg",
+      "file": "05-output-attention-scoring-functions-722781-117-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_117_0.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_153_0.svg",
+      "file": "06-output-attention-scoring-functions-722781-153-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_153_0.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_156_0.svg",
+      "file": "07-output-attention-scoring-functions-722781-156-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_156_0.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_159_0.svg",
+      "file": "08-output-attention-scoring-functions-722781-159-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_159_0.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_162_0.svg",
+      "file": "09-output-attention-scoring-functions-722781-162-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_attention-scoring-functions_722781_162_0.svg"
+    }
+  ]
+}

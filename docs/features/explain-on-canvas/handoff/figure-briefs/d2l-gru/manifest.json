@@ -1,0 +1,107 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_recurrent-modern/gru.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:39:30.294Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/gru-1.svg",
+      "file": "01-gru-1.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/gru-1.svg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/gru-2.svg",
+      "file": "02-gru-2.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/gru-2.svg"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://d2l.ai/_images/gru-3.svg",
+      "file": "03-gru-3.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/gru-3.svg"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://d2l.ai/_images/output_gru_b77a34_48_0.svg",
+      "file": "04-output-gru-b77a34-48-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gru_b77a34_48_0.svg"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://d2l.ai/_images/output_gru_b77a34_51_0.svg",
+      "file": "05-output-gru-b77a34-51-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gru_b77a34_51_0.svg"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://d2l.ai/_images/output_gru_b77a34_54_0.svg",
+      "file": "06-output-gru-b77a34-54-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gru_b77a34_54_0.svg"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://d2l.ai/_images/output_gru_b77a34_57_0.svg",
+      "file": "07-output-gru-b77a34-57-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gru_b77a34_57_0.svg"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://d2l.ai/_images/output_gru_b77a34_78_0.svg",
+      "file": "08-output-gru-b77a34-78-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gru_b77a34_78_0.svg"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://d2l.ai/_images/output_gru_b77a34_81_0.svg",
+      "file": "09-output-gru-b77a34-81-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gru_b77a34_81_0.svg"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://d2l.ai/_images/output_gru_b77a34_84_0.svg",
+      "file": "10-output-gru-b77a34-84-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gru_b77a34_84_0.svg"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://d2l.ai/_images/output_gru_b77a34_87_0.svg",
+      "file": "11-output-gru-b77a34-87-0.svg",
+      "status": "downloaded",
+      "sourceFormat": "svg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/output_gru_b77a34_87_0.svg"
+    }
+  ]
+}

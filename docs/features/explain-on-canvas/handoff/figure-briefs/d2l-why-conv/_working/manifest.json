@@ -1,0 +1,43 @@
+{
+  "sourceUrl": "https://d2l.ai/chapter_convolutional-neural-networks/why-conv.html",
+  "group": "d2l",
+  "retrievedAt": "2026-11-09T17:36:43.329Z",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://d2l.ai/_images/waldo-football.jpg",
+      "context": {
+        "alt": "../_images/waldo-football.jpg",
+        "caption": "Fig. 7.1.1 Can you find Waldo (image courtesy of William Murphy (Infomatique))?",
+        "heading": "7.1.1. Invariance",
+        "before": "Imagine that we want to detect an object in an image. It seems reasonable that whatever method we use to recognize objects should not be overly concerned with the precise location of the object in the image. Ideally, our system should exploit this knowledge. Pigs usually do not fly and planes usually do not swim. Nonetheless, we should still recognize a pig were one to appear at the top of the image. We can draw some inspiration here from the children’s game “Where’s Waldo” (which itself has inspired many real-life imitations, such as that depicted in Fig. 7.1.1). The game consists of a number of chaotic scenes bursting with activities. Waldo shows up somewhere in each, typically lurking in some unlikely location. The reader’s goal is to locate him. Despite his characteristic outfit, this can be surprisingly difficult, due to the large number of distractions. However, what Waldo looks like does not depend upon where Waldo is located. We could sweep the image with a Waldo detector that could assign a score to each patch, indicating the likelihood that the patch contains Waldo. In fact, many object detection and segmentation algorithms are based on this approach (Long et al., 2015). CNNs systematize this idea of spatial invariance, exploiting it to learn useful representations with fewer parameters.",
+        "after": "We can now make these intuitions more concrete by enumerating a few desiderata to guide our design of a neural network architecture suitable for computer vision:",
+        "svgText": []
+      },
+      "file": "01-waldo-football.jpg",
+      "status": "downloaded",
+      "sourceFormat": "jpg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/waldo-football.jpg"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://d2l.ai/_images/waldo-mask.jpg",
+      "context": {
+        "alt": "../_images/waldo-mask.jpg",
+        "caption": "Fig. 7.1.2 Detect Waldo (image courtesy of William Murphy (Infomatique)).",
+        "heading": "7.1.4. Channels",
+        "before": "Returning to our Waldo detector, let’s see what this looks like. The convolutional layer picks windows of a given size and weighs intensities according to the filter \\(\\mathsf{V}\\), as demonstrated in Fig. 7.1.2. We might aim to learn a model so that wherever the “waldoness” is highest, we should find a peak in the hidden layer representations.",
+        "after": "There is just one problem with this approach. So far, we blissfully ignored that images consist of three channels: red, green, and blue. In sum, images are not two-dimensional objects but rather third-order tensors, characterized by a height, width, and channel, e.g., with shape \\(1024 \\times 1024 \\times 3\\) pixels. While the first two of these axes concern spatial relationships, the third can be regarded as assigning a multidimensional representation to each pixel location. We thus index \\(\\mathsf{X}\\) as \\([\\mathsf{X}]_{i, j, k}\\). The convolutional filter has to adapt accordingly. Instead of \\([\\mathbf{V}]_{a,b}\\), we now have \\([\\mathsf{V}]_{a,b,c}\\).",
+        "svgText": []
+      },
+      "file": "02-waldo-mask.jpg",
+      "status": "downloaded",
+      "sourceFormat": "jpg",
+      "firstFrame": false,
+      "resolvedUrl": "https://d2l.ai/_images/waldo-mask.jpg"
+    }
+  ],
+  "title": "7.1. From Fully Connected Layers to Convolutions SageMaker Studio Lab Open the notebook in SageMaker Studio Lab",
+  "status": "retrieved"
+}

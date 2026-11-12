@@ -1,0 +1,332 @@
+{
+  "sourceUrl": "https://jalammar.github.io/illustrated-transformer/",
+  "group": "alammar",
+  "retrievedAt": "2026-11-09T10:04:31.426Z",
+  "status": "retrieved",
+  "figures": [
+    {
+      "order": 1,
+      "figureUrl": "https://jalammar.github.io/images/t/the_transformer_3.png",
+      "file": "01-the-transformer-3.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/the_transformer_3.png"
+    },
+    {
+      "order": 2,
+      "figureUrl": "https://jalammar.github.io/images/t/The_transformer_encoders_decoders.png",
+      "file": "02-the-transformer-encoders-decoders.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/The_transformer_encoders_decoders.png"
+    },
+    {
+      "order": 3,
+      "figureUrl": "https://jalammar.github.io/images/t/The_transformer_encoder_decoder_stack.png",
+      "file": "03-the-transformer-encoder-decoder-stack.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/The_transformer_encoder_decoder_stack.png"
+    },
+    {
+      "order": 4,
+      "figureUrl": "https://jalammar.github.io/images/t/Transformer_encoder.png",
+      "file": "04-transformer-encoder.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/Transformer_encoder.png"
+    },
+    {
+      "order": 5,
+      "figureUrl": "https://jalammar.github.io/images/t/Transformer_decoder.png",
+      "file": "05-transformer-decoder.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/Transformer_decoder.png"
+    },
+    {
+      "order": 6,
+      "figureUrl": "https://jalammar.github.io/images/t/embeddings.png",
+      "file": "06-embeddings.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/embeddings.png"
+    },
+    {
+      "order": 7,
+      "figureUrl": "https://jalammar.github.io/images/t/encoder_with_tensors.png",
+      "file": "07-encoder-with-tensors.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/encoder_with_tensors.png"
+    },
+    {
+      "order": 8,
+      "figureUrl": "https://jalammar.github.io/images/t/encoder_with_tensors_2.png",
+      "file": "08-encoder-with-tensors-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/encoder_with_tensors_2.png"
+    },
+    {
+      "order": 9,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_self-attention_visualization.png",
+      "file": "09-transformer-self-attention-visualization.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_self-attention_visualization.png"
+    },
+    {
+      "order": 10,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_self_attention_vectors.png",
+      "file": "10-transformer-self-attention-vectors.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_self_attention_vectors.png"
+    },
+    {
+      "order": 11,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_self_attention_score.png",
+      "file": "11-transformer-self-attention-score.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_self_attention_score.png"
+    },
+    {
+      "order": 12,
+      "figureUrl": "https://jalammar.github.io/images/t/self-attention_softmax.png",
+      "file": "12-self-attention-softmax.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/self-attention_softmax.png"
+    },
+    {
+      "order": 13,
+      "figureUrl": "https://jalammar.github.io/images/t/self-attention-output.png",
+      "file": "13-self-attention-output.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/self-attention-output.png"
+    },
+    {
+      "order": 14,
+      "figureUrl": "https://jalammar.github.io/images/t/self-attention-matrix-calculation.png",
+      "file": "14-self-attention-matrix-calculation.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/self-attention-matrix-calculation.png"
+    },
+    {
+      "order": 15,
+      "figureUrl": "https://jalammar.github.io/images/t/self-attention-matrix-calculation-2.png",
+      "file": "15-self-attention-matrix-calculation-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/self-attention-matrix-calculation-2.png"
+    },
+    {
+      "order": 16,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_attention_heads_qkv.png",
+      "file": "16-transformer-attention-heads-qkv.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_attention_heads_qkv.png"
+    },
+    {
+      "order": 17,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_attention_heads_z.png",
+      "file": "17-transformer-attention-heads-z.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_attention_heads_z.png"
+    },
+    {
+      "order": 18,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_attention_heads_weight_matrix_o.png",
+      "file": "18-transformer-attention-heads-weight-matrix-o.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_attention_heads_weight_matrix_o.png"
+    },
+    {
+      "order": 19,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_multi-headed_self-attention-recap.png",
+      "file": "19-transformer-multi-headed-self-attention-recap.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_multi-headed_self-attention-recap.png"
+    },
+    {
+      "order": 20,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_self-attention_visualization_2.png",
+      "file": "20-transformer-self-attention-visualization-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_self-attention_visualization_2.png"
+    },
+    {
+      "order": 21,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_self-attention_visualization_3.png",
+      "file": "21-transformer-self-attention-visualization-3.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_self-attention_visualization_3.png"
+    },
+    {
+      "order": 22,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_positional_encoding_vectors.png",
+      "file": "22-transformer-positional-encoding-vectors.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_positional_encoding_vectors.png"
+    },
+    {
+      "order": 23,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_positional_encoding_example.png",
+      "file": "23-transformer-positional-encoding-example.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_positional_encoding_example.png"
+    },
+    {
+      "order": 24,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_positional_encoding_large_example.png",
+      "file": "24-transformer-positional-encoding-large-example.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_positional_encoding_large_example.png"
+    },
+    {
+      "order": 25,
+      "figureUrl": "https://jalammar.github.io/images/t/attention-is-all-you-need-positional-encoding.png",
+      "file": "25-attention-is-all-you-need-positional-encoding.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/attention-is-all-you-need-positional-encoding.png"
+    },
+    {
+      "order": 26,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_resideual_layer_norm.png",
+      "file": "26-transformer-resideual-layer-norm.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_resideual_layer_norm.png"
+    },
+    {
+      "order": 27,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_resideual_layer_norm_2.png",
+      "file": "27-transformer-resideual-layer-norm-2.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_resideual_layer_norm_2.png"
+    },
+    {
+      "order": 28,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_resideual_layer_norm_3.png",
+      "file": "28-transformer-resideual-layer-norm-3.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_resideual_layer_norm_3.png"
+    },
+    {
+      "order": 29,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_decoding_1.gif",
+      "file": "29-transformer-decoding-1.png",
+      "status": "downloaded",
+      "sourceFormat": "gif",
+      "firstFrame": true,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_decoding_1.gif"
+    },
+    {
+      "order": 30,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_decoding_2.gif",
+      "file": "30-transformer-decoding-2.png",
+      "status": "downloaded",
+      "sourceFormat": "gif",
+      "firstFrame": true,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_decoding_2.gif"
+    },
+    {
+      "order": 31,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_decoder_output_softmax.png",
+      "file": "31-transformer-decoder-output-softmax.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_decoder_output_softmax.png"
+    },
+    {
+      "order": 32,
+      "figureUrl": "https://jalammar.github.io/images/t/vocabulary.png",
+      "file": "32-vocabulary.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/vocabulary.png"
+    },
+    {
+      "order": 33,
+      "figureUrl": "https://jalammar.github.io/images/t/one-hot-vocabulary-example.png",
+      "file": "33-one-hot-vocabulary-example.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/one-hot-vocabulary-example.png"
+    },
+    {
+      "order": 34,
+      "figureUrl": "https://jalammar.github.io/images/t/transformer_logits_output_and_label.png",
+      "file": "34-transformer-logits-output-and-label.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/transformer_logits_output_and_label.png"
+    },
+    {
+      "order": 35,
+      "figureUrl": "https://jalammar.github.io/images/t/output_target_probability_distributions.png",
+      "file": "35-output-target-probability-distributions.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/output_target_probability_distributions.png"
+    },
+    {
+      "order": 36,
+      "figureUrl": "https://jalammar.github.io/images/t/output_trained_model_probability_distributions.png",
+      "file": "36-output-trained-model-probability-distributions.png",
+      "status": "downloaded",
+      "sourceFormat": "png",
+      "firstFrame": false,
+      "resolvedUrl": "https://jalammar.github.io/images/t/output_trained_model_probability_distributions.png"
+    }
+  ]
+}
