@@ -82,7 +82,7 @@ test('reviewer sends PNG and JPEG vision blocks through Messages with configured
   assert.equal(request.init.headers['x-api-key'], 'test-anthropic-key');
   assert.equal(request.init.headers['anthropic-version'], '2026-10-21');
   assert.equal(request.body.model, 'claude-fable-5-1');
-  assert.equal(request.body.max_tokens, 8000);
+  assert.equal(request.body.max_tokens, 20000);
   assert.equal(request.body.max_output_tokens, undefined);
   assert.equal(request.body.system, system);
   assert.equal(request.body.output_config.effort, 'high');
@@ -102,8 +102,8 @@ test('judge uses the smaller configured model and each agent keeps its output ce
   });
   for (const agent of ['prompt-writer', 'coverage-judge', 'author', 'verifier', 'auditor']) await client.call(agent, {}, options);
   assert.deepEqual(requests.map(body => [body.model, body.max_tokens ?? body.max_output_tokens]), [
-    ['claude-fable-5-1', 8000], ['claude-sonnet-5-5', 200], ['gpt-6.1-sol', 40000],
-    ['claude-fable-5-1', 8000], ['claude-fable-5-1', 8000],
+    ['claude-fable-5-1', 20000], ['claude-sonnet-5-5', 200], ['gpt-6.1-sol', 40000],
+    ['claude-fable-5-1', 20000], ['claude-fable-5-1', 20000],
   ]);
 });
 
