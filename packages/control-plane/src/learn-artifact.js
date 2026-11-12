@@ -1,5 +1,5 @@
 import { planExplanation, planShape, cardVisuals, visualKinds, visualsStatement, plannerEnabled } from './explanation-planner.js';
-import { selectDiagramReferences, selectWithSteer, preferSingleVariants, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
+import { selectWithSteer, selectForAuthor, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -133,12 +133,11 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const requiredKinds = asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind);
   // Owner 2026-11-08: with a plan, the gallery example comes from the planner's chosen kind (below); the learner-word shape fallback (explanation-references.js) is used
   // only when the planner was asked and gave no plan (it timed out or failed; owner 2026-11-08), never when it is off or a plan exists. A two-panel reference goes out as its single-diagram variant unless the planned kind is the comparison.
-  const topicalReferences = ready.includes('explanation') ? preferSingleVariants(selectDiagramReferences({
+  const topicalReferences = ready.includes('explanation') ? selectForAuthor({
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
-    requiredKinds, shapeFallback: !!input.planned && !input.plan, depth: input.depth,
-    plannedKinds: visualKinds(resolved), // the resolved kinds, filtered to before any keyword scoring
-  }), { plannedKind: input.plan?.kind, requiredKinds }) : [];
+    asked, planned: input.planned, depth: input.depth, plan: input.plan,
+  }).references : [];
   // Planner prototype: the gallery example of the card's kind, at the card's depth, goes first, before any topical reference.
   const shape = input.plan && visualKinds(resolved)[0] ? planShape({ kind: visualKinds(resolved)[0] }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
@@ -156,12 +155,12 @@ const askedItems = input => (input.visualRequirements?.items ?? []).filter(i => 
 // reference that qualifies by its direct score (explanation-references.js topicalReferenceKind) sets the plan's diagram kind (kindSource 'reference', plannerKind kept); the picture visuals,
 // and the plan's `fixed`, are untouched. Applied once where the plan is made and again, idempotently, where the author request is built, so the statement, the shape example, the
 // reference and every later check (missing visual, repair, fallback) read the same kind. A picture-only plan, two diagrams, or an earlier override: unchanged.
-export function planWithReferenceKind(input) {
+export function planWithReferenceKind(input, { excludeReferencePrefixes = [] } = {}) {
   const plan = input?.plan;
   if (plan?.planner !== 'jev' || plan.kindSource || !input.args || askedItems(input).some(i => i.kind === 'diagram' && i.diagramKind)) return input;
   const diagrams = (plan.visuals ?? []).filter(v => v?.type === 'diagram');
   if (diagrams.length !== 1) return input;
-  const hit = selectWithSteer({ prompt: input.args, requiredKinds: [], plannedKinds: [], shapeFallback: false, depth: input.depth }).steer;
+  const hit = selectWithSteer({ prompt: input.args, requiredKinds: [], plannedKinds: [], shapeFallback: false, depth: input.depth, excludeReferencePrefixes }).steer;
   if (!hit || [hit.kind, hit.referenceKind].includes(plan.kind)) return input; // a planned comparison with a two-panel comparison reference agrees: the comparison is the point
   console.log(JSON.stringify({ event: 'explanation_plan_kind_from_reference', plannerKind: plan.kind ?? null, reference: hit.id, referenceKind: hit.kind, steerSource: hit.source, score: hit.score }));
   return { ...input, plan: { ...plan, plannerKind: plan.kind ?? null, kind: hit.kind, kindSource: 'reference', visuals: plan.visuals.map(v => (v === diagrams[0] ? { type: 'diagram', kind: hit.kind } : v)) } };
