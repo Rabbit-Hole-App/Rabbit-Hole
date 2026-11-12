@@ -13,7 +13,7 @@ const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const exists = async path => { try { await access(path); return true; } catch (error) { if (error.code === 'ENOENT') return false; throw error; } };
 
 function previewIdentity(id, referenceIds) {
-  const referenceId = referenceIds.find(base => id === base || new RegExp(`^${escapeRegExp(base)}-(?:(?:brief|balanced|detailed)(?:-detail)?|detail)$`).test(id));
+  const referenceId = referenceIds.find(base => id === base) ?? referenceIds.find(base => new RegExp(`^${escapeRegExp(base)}-(?:(?:brief|balanced|detailed)(?:-detail)?|detail)$`).test(id));
   const base = referenceId ?? id.replace(/-(?:brief|balanced|detailed)(?:-detail)?$|-detail$/, '');
   const suffix = id.slice(base.length);
   return { referenceId: base, depth: suffix.startsWith('-brief') ? 'brief' : suffix.startsWith('-detailed') ? 'detailed' : 'balanced', detail: suffix.endsWith('-detail') };
