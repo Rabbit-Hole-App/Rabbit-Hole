@@ -1,0 +1,86 @@
+{
+ "topic": "decision-trees",
+ "note": "Reviewer audit of demo pack v2 (1f0f9806; 13 bare Balanced cards on the 118 merge stack 98e3d9726), 2026-11-09, as recorded in docs/features/explain/review/demo-lesson04/REVIEW.md on explain/demo-lesson04. Corrected 2026-11-12 after auditor calibration: cards 03 and 11 ship -> regenerate (the auditor applied SOP \u00a78 correctly where the reviewer had been lenient). Tally now ship 8 / regenerate 4 / hold 1.",
+ "cards": [
+  {
+   "id": "01",
+   "referenceId": "ml-trees-decision-regions",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "02",
+   "referenceId": "ml-trees-gini-vs-entropy",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "03",
+   "referenceId": "ml-trees-gini-split",
+   "verdict": "regenerate",
+   "reason": "Model wrote the matrix with column objects (Q0 schema slip); the server repaired it into a comparison grid, so model kind (comparison) != expected (matrix). SOP \u00a78: a schema slip repaired into another kind is regenerate. Corrected 2026-11-12 from the reviewer's 11-09 'ship' (numbers were right, kind was not) after the auditor flagged it; verified on visual-1.json.",
+   "correction": "2026-11-12: ship -> regenerate; caught by the auditor in calibration"
+  },
+  {
+   "id": "04",
+   "referenceId": "ml-trees-threshold-search",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "05",
+   "referenceId": "ml-trees-grown-tree",
+   "verdict": "regenerate",
+   "reason": "Author drew ml-tree-split-path (sent alongside) as an outline instead of ml-trees-grown-tree: wrong sibling reference of the same kind."
+  },
+  {
+   "id": "06",
+   "referenceId": "ml-trees-depth-overfit",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "07",
+   "referenceId": "ml-trees-cost-complexity-pruning",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "08",
+   "referenceId": "ml-trees-regression-step-fit",
+   "verdict": "hold",
+   "reason": "Card is the reference copied; the reference labels 16 leaves as depth 5 (that is depth 4). Known factual error in the reference (fixed by 553a3680)."
+  },
+  {
+   "id": "09",
+   "referenceId": "ml-trees-bootstrap-roots",
+   "verdict": "regenerate",
+   "reason": "Label-rebuilt card with a 6-draw sample; body says 6 rows and names C, E, G, H as omitted while the diagram shows them drawn. Boundary note 2026-11-12: a prose-visual mismatch is recorded under the body, not held; hold is only for a number or fact wrong against the reference or data (standing decision). The auditor's 'hold' here is the stricter reading; the human verdict stands and the rule goes into the auditor prompt."
+  },
+  {
+   "id": "10",
+   "referenceId": "ml-trees-bootstrap-coverage",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "11",
+   "referenceId": "ml-trees-majority-vote",
+   "verdict": "regenerate",
+   "reason": "Card is a six-node generic flow (bootstrap samples -> predict with tree 1/2/3 -> majority vote -> final class) with none of the reference's worked content (rows A-J, the split tests, the 0/1/1 votes, 'Predict class 1'); the reference was sent second behind shape-flow with no steer. Worked example not carried through = regenerate. Corrected 2026-11-12 from the reviewer's 11-09 'ship' after the auditor flagged it; verified on visual-1.json.",
+   "correction": "2026-11-12: ship -> regenerate; caught by the auditor in calibration"
+  },
+  {
+   "id": "12",
+   "referenceId": "ml-trees-forest-size-accuracy",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  },
+  {
+   "id": "13",
+   "referenceId": "ml-trees-feature-importance",
+   "verdict": "ship",
+   "reason": "Reference figure reproduced; numbers right; prose consistent."
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "topic": "decision-trees",
+ "note": "Stage 02 judge answers for --fixture mode (ml-trees-* masked). On 2026-11-09 the coverage check found no existing worked reference teaching any of the 13 points with the lesson's data: all NEW.",
+ "answers": {
+  "01": false,
+  "02": false,
+  "03": false,
+  "04": false,
+  "05": false,
+  "06": false,
+  "07": false,
+  "08": false,
+  "09": false,
+  "10": false,
+  "11": false,
+  "12": false,
+  "13": false
+ }
+}

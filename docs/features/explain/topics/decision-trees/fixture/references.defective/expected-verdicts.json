@@ -1,0 +1,38 @@
+{
+ "topic": "decision-trees",
+ "note": "id@sha -> expected verifier verdict. 'ship' rows are negative controls: the 06721c8b defects seen on 2026-11-09 (role-word labels on card 11, raw LaTeX on card 02) were card-level, not in the reference source.",
+ "verdicts": {
+  "ml-trees-threshold-search@c3e40994": {
+   "verdict": "fix",
+   "reason": "Axis 'Weighted Gini in 48ths'; scaled integers instead of decimal Gini."
+  },
+  "ml-trees-depth-overfit@c3e40994": {
+   "verdict": "fix",
+   "reason": "3-point curve from a toy too small to show overfitting; non-integer depth ticks."
+  },
+  "ml-trees-feature-importance@c3e40994": {
+   "verdict": "fix",
+   "reason": "No high-cardinality noise feature; MDI bias not shown."
+  },
+  "ml-trees-majority-vote@c3e40994": {
+   "verdict": "fix",
+   "reason": "Vote not traced to the actual trees' predictions."
+  },
+  "ml-trees-regression-step-fit@5de6a499": {
+   "verdict": "fix",
+   "reason": "16 leaves labelled depth 5; 2^4 = 16 is depth 4."
+  },
+  "ml-trees-forest-size-accuracy@06721c8b": {
+   "verdict": "fix",
+   "reason": "Log-axis ticks at 3.7606 / 14.1421 / 53.183; must be powers of ten or 1-2-5."
+  },
+  "ml-trees-majority-vote@06721c8b": {
+   "verdict": "ship",
+   "reason": "Negative control: role words appeared on the card, not in the reference."
+  },
+  "ml-trees-gini-vs-entropy@06721c8b": {
+   "verdict": "ship",
+   "reason": "Negative control: caption maths is inside $...$; the raw LaTeX was a card-rendering issue."
+  }
+ }
+}

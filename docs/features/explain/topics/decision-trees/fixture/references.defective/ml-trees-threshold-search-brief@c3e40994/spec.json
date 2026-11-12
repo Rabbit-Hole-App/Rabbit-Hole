@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Pick the lowest score",
+    "x": {
+      "label": "Threshold on x",
+      "min": 0,
+      "max": 8
+    },
+    "y": {
+      "label": "Weighted Gini in 48ths",
+      "min": 0,
+      "max": 24
+    },
+    "series": [
+      {
+        "label": "Candidate midpoints",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 2,
+            "y": 18
+          },
+          {
+            "x": 4,
+            "y": 9
+          },
+          {
+            "x": 6,
+            "y": 10
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "x": 4,
+        "y": 9,
+        "label": "Lowest Gini"
+      }
+    ],
+    "caption": "Worked example. A smaller weighted Gini is better. The best cut is x at most 4."
+  }
+}

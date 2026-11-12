@@ -1,0 +1,8 @@
+{
+  "name": "rabbit-hole-topic-pipeline",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": { "acorn": "^8.15.0", "ajv": "^8.17.1", "js-tiktoken": "^1.0.21", "sharp": "^0.34.5" }
+}
