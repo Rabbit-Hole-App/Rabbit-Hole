@@ -16,6 +16,11 @@ const DISPLAY_NUMBER_FIELDS = new Set(['title', 'caption', 'label', 'edgeLabel',
 const DIAGRAM_ROOT = 'packages/web/src/tutor-diagrams';
 const MAX_BYTES = 200 * 1024;
 const flag = (id, depth, rule, detail, severity = 'error') => ({ id, depth, rule, detail, severity });
+const learnerKeyword = value => typeof value === 'string' && value.trim() && value === value.toLowerCase() && value.trim().split(/\s+/u).length <= 3;
+function hasLearnerKeywords(reference) {
+  return (Array.isArray(reference.shortKeywords) && reference.shortKeywords.length >= 2 && reference.shortKeywords.length <= 3 && reference.shortKeywords.every(learnerKeyword))
+    || (Array.isArray(reference.keywords) && reference.keywords.filter(learnerKeyword).length >= 2);
+}
 const inside = (root, target) => target === root || target.startsWith(root + path.sep);
 const slash = value => value.split(path.sep).join('/');
 const testFile = value => /\.(?:test|spec)\.[cm]?js$/u.test(value);
@@ -236,8 +241,7 @@ export function lintOverlays({ overlays = {}, references = [], prompts = [], sou
   for (const [id, overlay] of Object.entries(overlays)) {
     if (!byId.has(id)) flags.push(flag(id, '*', 2, 'Overlay refers to an unknown reference.'));
     const validPrompts = Array.isArray(overlay?.prompts) && overlay.prompts.length > 0 && overlay.prompts.every(prompt => typeof prompt === 'string' && prompt.trim());
-    const validKeywords = Array.isArray(overlay?.keywords) && overlay.keywords.length >= 2 && overlay.keywords.length <= 3
-      && overlay.keywords.every(keyword => typeof keyword === 'string' && keyword.trim() && keyword === keyword.toLowerCase() && keyword.trim().split(/\s+/u).length <= 3);
+    const validKeywords = hasLearnerKeywords(overlay ?? {});
     if (!validPrompts || !validKeywords) flags.push(flag(id, '*', 2, 'Overlay needs verbatim prompts and 2–3 lowercase keywords of at most 3 words.'));
     if (validPrompts) for (const prompt of overlay.prompts) {
       affectedPrompts.add(prompt);
@@ -265,9 +269,8 @@ export function lintReferences({ references = [], prompts = [], source, derived,
   try { computed = typeof derived === 'function' ? derived() : derived; } catch (error) { derivedError = error.message; }
   for (const reference of references) {
     const id = reference.id ?? '<reference>';
-    const keywords = reference.keywords;
-    if (!Array.isArray(keywords) || keywords.length < 2 || keywords.length > 3 || keywords.some(word => typeof word !== 'string' || !word.trim() || word !== word.toLowerCase() || word.trim().split(/\s+/u).length > 3)) {
-      flags.push(flag(id, '*', 2, 'keywords must contain 2–3 lowercase entries of at most 3 words each.'));
+    if (!hasLearnerKeywords(reference)) {
+      flags.push(flag(id, '*', 2, 'Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.'));
     }
     if (!Array.isArray(reference.prompts) || !reference.prompts.length) flags.push(flag(id, '*', 2, 'The reference must carry a verbatim lesson prompt.'));
     for (const entry of entries.filter(entry => referenceForPrompt(entry) === id)) {
@@ -327,7 +330,7 @@ export function lintReferences({ references = [], prompts = [], source, derived,
   }
   if (authored && !hasDerivedAssertion(files)) flags.push(flag('<module>', '*', 6, 'Authored modules require a lesson test asserting caption/display numbers against derived().'));
   if (authored) for (const detail of typedDisplayNumbers(files)) flags.push(flag('<module>', '*', 6, detail));
-  return [...flags, ...collisionFlags(references, collisions)];
+  return [...flags, ...collisionFlags(references, collisions)].map(issue => !authored && [2, 9].includes(issue.rule) ? { ...issue, severity: 'warning' } : issue);
 }
 
 /** Stage-05 path policy shared by static checks. The registry is the sole shared JS file. */

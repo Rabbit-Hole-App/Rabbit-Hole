@@ -26,7 +26,7 @@ async function verifyBatch(ctx, roots, prompts, tag) {
     }
     const expected = batch.map(row => row.id);
     const result = await callAgent(ctx, 'verifier', { topic: ctx.topic, figures: batch.map(({ id, spec }) => ({ id, spec })), numbers, prompts }, {
-      schema: verifySchema, images, validate: value => validateIds(value, 'figures', expected, ctx.topic),
+      schema: verifySchema, images, mode: tag === 'human' ? 'human' : 'agent', validate: value => validateIds(value, 'figures', expected, ctx.topic),
     });
     validateIds(result, 'figures', expected, ctx.topic);
     verdicts.push(...result.figures);

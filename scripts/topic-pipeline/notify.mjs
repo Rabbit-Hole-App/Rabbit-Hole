@@ -4,7 +4,7 @@ import { redact } from './config.mjs';
 
 export async function notify(ctx, stop, notes, { fetchImpl = globalThis.fetch } = {}) {
   const name = stop === 'STOP-4' ? 'READY.md' : 'STOPPED.md';
-  const text = redact(`# ${stop === 'STOP-4' ? 'READY' : 'STOPPED'}\n\nLesson ${ctx.topic}\n\n${stop}\n\n${notes}\n`, ctx.config);
+  const text = redact(`# ${stop === 'STOP-4' ? 'READY' : 'STOPPED'}\n\nTopic ${ctx.topic}\n\n${stop}\n\n${notes}\n`, ctx.config);
   const path = join(ctx.topicDir, name);
   await writeFile(path, text);
   if (ctx.config?.notify?.webhookUrl && !ctx.fixture && !ctx.dryRun) {

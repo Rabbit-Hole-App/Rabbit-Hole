@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Training and held-out error by depth",
+    "x": {
+      "label": "Max depth",
+      "min": 0,
+      "max": 2,
+      "integerTicks": true
+    },
+    "y": {
+      "label": "Error rate",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    },
+    "series": [
+      {
+        "label": "Training",
+        "kind": "line",
+        "smooth": false,
+        "points": [
+          {
+            "x": 0,
+            "y": 37.5,
+            "label": "3 of 8"
+          },
+          {
+            "x": 1,
+            "y": 12.5,
+            "label": "1 of 8"
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "label": "0 of 8"
+          }
+        ]
+      },
+      {
+        "label": "Held out",
+        "kind": "line",
+        "smooth": false,
+        "points": [
+          {
+            "x": 0,
+            "y": 50,
+            "label": "1 of 2"
+          },
+          {
+            "x": 1,
+            "y": 0,
+            "label": "0 of 2"
+          },
+          {
+            "x": 2,
+            "y": 50,
+            "label": "1 of 2"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "label": "Lowest held-out error",
+        "x": 1,
+        "y": 0
+      }
+    ],
+    "caption": "Worked example. Point labels count errors out of 8 training rows or 2 held-out rows."
+  }
+}

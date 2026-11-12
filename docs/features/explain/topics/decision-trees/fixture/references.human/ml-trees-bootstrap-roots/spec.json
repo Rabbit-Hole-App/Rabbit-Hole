@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "sample-set",
+    "title": "Bootstrap draws and fitted roots",
+    "samples": [
+      {
+        "id": "A",
+        "class": "0"
+      },
+      {
+        "id": "B",
+        "class": "0"
+      },
+      {
+        "id": "C",
+        "class": "0"
+      },
+      {
+        "id": "D",
+        "class": "0"
+      },
+      {
+        "id": "E",
+        "class": "0"
+      },
+      {
+        "id": "F",
+        "class": "1"
+      },
+      {
+        "id": "G",
+        "class": "1"
+      },
+      {
+        "id": "H",
+        "class": "1"
+      }
+    ],
+    "groups": [
+      {
+        "id": "t1",
+        "label": "Tree 1 · x at most 4",
+        "members": [
+          "A",
+          "A",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H"
+        ],
+        "replacement": true
+      },
+      {
+        "id": "t2",
+        "label": "Tree 2 · y at most 4",
+        "members": [
+          "B",
+          "B",
+          "C",
+          "D",
+          "F",
+          "F",
+          "F",
+          "G"
+        ],
+        "replacement": true
+      },
+      {
+        "id": "t3",
+        "label": "Tree 3 · x at most 5",
+        "members": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "D",
+          "G",
+          "H",
+          "H"
+        ],
+        "replacement": true
+      }
+    ],
+    "caption": "Worked example. Each draw has 8 rows. Roots use these draws and the node feature draws."
+  }
+}

@@ -2,6 +2,8 @@
 
 Apply docs/features/explain/topics/SPEC.md §4 stage 04 and docs/features/explain/topics/SOP.md §5 plus §4 invariants.
 
+For task prompt-mapping, compare the generated questions with the supplied human questions by teaching point. Match each generated question to at most one human question, and use each human question at most once for a true match. Shared terminology alone is insufficient. Return the supplied mapping schema with promptId, humanPromptId and sameTeachingPoint. Preserve the supplied ids as strings. For a generated question with no matching teaching point, return sameTeachingPoint false. Use the figures checklist below for reference-verification tasks.
+
 Inspect all supplied figure previews alongside their specs, numeric inventory, source data and prompt content. Recompute every stated value and count. A binary tree with sixteen leaves has depth four under the supplied root-at-zero convention. Check the actual convention and data rather than trusting a caption. Recompute impurity units, scores, bootstrap coverage, row counts and other quantities from their inputs.
 
 Check that axes name learner quantities, log scales have appropriate data spans, labels contain no role prefixes, maths delimiters render correctly, and every figure shows the requested teaching point. Read the image as well as the JSON. A numerically correct source can still have a defective preview.

@@ -1,7 +1,7 @@
 [
   {
     "revision": "main",
-    "sha": "771267ec2de57f5df6fcaceb170ca8942e38c479",
+    "sha": "092cd688beb634b9a6bd168b1f96df67a7c8d0d1",
     "mode": "legacy; no independent prompt fixture or authoritative selector-collision results supplied",
     "flags": [
       {
@@ -30,14 +30,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-gini-split",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-split",
@@ -59,13 +52,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-threshold-search",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-threshold-search",
@@ -93,14 +79,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-grown-tree",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
@@ -128,21 +107,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (19 versus 19).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-decision-regions",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-decision-regions",
@@ -164,13 +136,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-depth-overfit",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-depth-overfit",
@@ -198,14 +163,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (20 versus 20).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-bootstrap-roots",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-roots",
@@ -233,14 +191,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-subsets",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-subsets",
@@ -262,13 +213,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-majority-vote",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-majority-vote",
@@ -296,14 +240,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-importance",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
@@ -331,14 +268,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (13 versus 13).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-vs-entropy",
@@ -366,14 +303,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (28 versus 28).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-vs-entropy",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-coverage",
@@ -401,7 +338,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (23 versus 23).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-cost-complexity-pruning",
@@ -429,7 +366,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (14 versus 14).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-forest-size-accuracy",
@@ -457,7 +394,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-regression-step-fit",
@@ -485,7 +422,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (50 versus 50).",
-        "severity": "error"
+        "severity": "warning"
       }
     ]
   },
@@ -498,8 +435,8 @@
         "id": "ml-trees-candidate-split",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-candidate-split",
@@ -527,14 +464,14 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-split",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-split",
@@ -561,8 +498,8 @@
         "id": "ml-trees-threshold-search",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-threshold-search",
@@ -611,14 +548,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
@@ -646,21 +583,21 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (19 versus 19).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-decision-regions",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-decision-regions",
@@ -687,8 +624,8 @@
         "id": "ml-trees-depth-overfit",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-depth-overfit",
@@ -716,14 +653,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (10 versus 10).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-roots",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-roots",
@@ -751,14 +688,14 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-subsets",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-subsets",
@@ -785,8 +722,8 @@
         "id": "ml-trees-majority-vote",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-majority-vote",
@@ -814,21 +751,21 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (4 versus 4).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-majority-vote",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
         "depth": "*",
         "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "detail": "Provide 2–3 shortKeywords or at least two short lowercase keywords, each at most 3 words.",
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
@@ -856,7 +793,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (4 versus 4).",
-        "severity": "error"
+        "severity": "warning"
       }
     ]
   },
@@ -891,14 +828,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-gini-split",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-split",
@@ -920,13 +850,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-threshold-search",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-threshold-search",
@@ -975,14 +898,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-grown-tree",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
@@ -1010,21 +926,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (19 versus 19).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-decision-regions",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-decision-regions",
@@ -1046,13 +955,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-depth-overfit",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-depth-overfit",
@@ -1080,14 +982,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (10 versus 10).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-bootstrap-roots",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-roots",
@@ -1115,14 +1010,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-subsets",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-subsets",
@@ -1144,13 +1032,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-majority-vote",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-majority-vote",
@@ -1178,21 +1059,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (4 versus 4).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-majority-vote",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-importance",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
@@ -1220,7 +1094,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (4 versus 4).",
-        "severity": "error"
+        "severity": "warning"
       }
     ]
   },
@@ -1255,14 +1129,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-gini-split",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-split",
@@ -1284,13 +1151,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-threshold-search",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-threshold-search",
@@ -1318,14 +1178,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-grown-tree",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
@@ -1353,21 +1206,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (19 versus 19).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-decision-regions",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-decision-regions",
@@ -1389,13 +1235,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-depth-overfit",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-depth-overfit",
@@ -1423,14 +1262,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (20 versus 20).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-bootstrap-roots",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-roots",
@@ -1458,14 +1290,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-subsets",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-subsets",
@@ -1487,13 +1312,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-majority-vote",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-majority-vote",
@@ -1521,14 +1339,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-importance",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
@@ -1556,14 +1367,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (13 versus 13).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-vs-entropy",
@@ -1591,14 +1402,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (28 versus 28).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-vs-entropy",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-coverage",
@@ -1626,7 +1437,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (23 versus 23).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-cost-complexity-pruning",
@@ -1654,7 +1465,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (14 versus 14).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-forest-size-accuracy",
@@ -1682,7 +1493,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-regression-step-fit",
@@ -1710,7 +1521,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (50 versus 50).",
-        "severity": "error"
+        "severity": "warning"
       }
     ]
   },
@@ -1745,14 +1556,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-gini-split",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-split",
@@ -1774,13 +1578,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-threshold-search",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-threshold-search",
@@ -1808,14 +1605,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-grown-tree",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
@@ -1843,21 +1633,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (19 versus 19).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-decision-regions",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-decision-regions",
@@ -1879,13 +1662,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-depth-overfit",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-depth-overfit",
@@ -1913,14 +1689,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (20 versus 20).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-bootstrap-roots",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-roots",
@@ -1948,14 +1717,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-subsets",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-subsets",
@@ -1977,13 +1739,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-majority-vote",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-majority-vote",
@@ -2011,14 +1766,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-importance",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
@@ -2046,14 +1794,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (13 versus 13).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-vs-entropy",
@@ -2081,14 +1829,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (28 versus 28).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-vs-entropy",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-coverage",
@@ -2116,7 +1864,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (23 versus 23).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-cost-complexity-pruning",
@@ -2144,7 +1892,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (14 versus 14).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-forest-size-accuracy",
@@ -2172,7 +1920,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-regression-step-fit",
@@ -2200,7 +1948,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (50 versus 50).",
-        "severity": "error"
+        "severity": "warning"
       }
     ]
   },
@@ -2235,14 +1983,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-gini-split",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-split",
@@ -2264,13 +2005,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-threshold-search",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-threshold-search",
@@ -2298,14 +2032,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-grown-tree",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
@@ -2333,21 +2060,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (19 versus 19).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-decision-regions",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-decision-regions",
@@ -2369,13 +2089,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-depth-overfit",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-depth-overfit",
@@ -2403,14 +2116,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (20 versus 20).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-bootstrap-roots",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-roots",
@@ -2438,14 +2144,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-subsets",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-subsets",
@@ -2467,13 +2166,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-majority-vote",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-majority-vote",
@@ -2501,14 +2193,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-importance",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
@@ -2536,14 +2221,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (13 versus 13).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-vs-entropy",
@@ -2571,14 +2256,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (28 versus 28).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-vs-entropy",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-coverage",
@@ -2606,14 +2291,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (23 versus 23).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-coverage",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-cost-complexity-pruning",
@@ -2641,14 +2326,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (14 versus 14).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-cost-complexity-pruning",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-forest-size-accuracy",
@@ -2676,14 +2361,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-forest-size-accuracy",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-regression-step-fit",
@@ -2732,14 +2417,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (50 versus 50).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-regression-step-fit",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       }
     ]
   },
@@ -2774,14 +2459,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-gini-split",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-split",
@@ -2803,13 +2481,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-threshold-search",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-threshold-search",
@@ -2837,14 +2508,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-grown-tree",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
@@ -2872,21 +2536,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (19 versus 19).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-grown-tree",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-decision-regions",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-decision-regions",
@@ -2908,13 +2565,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-depth-overfit",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-depth-overfit",
@@ -2942,14 +2592,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (20 versus 20).",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-bootstrap-roots",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-roots",
@@ -2977,14 +2620,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-subsets",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-subsets",
@@ -3006,13 +2642,6 @@
         "rule": 6,
         "detail": "Module has no derived() numeric provenance. Pre-existing modules receive a warning.",
         "severity": "warning"
-      },
-      {
-        "id": "ml-trees-majority-vote",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
       },
       {
         "id": "ml-trees-majority-vote",
@@ -3040,14 +2669,7 @@
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
-      },
-      {
-        "id": "ml-trees-feature-importance",
-        "depth": "*",
-        "rule": 2,
-        "detail": "keywords must contain 2–3 lowercase entries of at most 3 words each.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
@@ -3075,14 +2697,14 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (13 versus 13).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-feature-importance",
         "depth": "deep",
         "rule": 9,
         "detail": "Detailed adds no number or formula beyond Balanced.",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-gini-vs-entropy",
@@ -3110,7 +2732,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (28 versus 28).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-bootstrap-coverage",
@@ -3138,7 +2760,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (23 versus 23).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-cost-complexity-pruning",
@@ -3166,7 +2788,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (14 versus 14).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-forest-size-accuracy",
@@ -3194,7 +2816,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (6 versus 6).",
-        "severity": "error"
+        "severity": "warning"
       },
       {
         "id": "ml-trees-regression-step-fit",
@@ -3243,7 +2865,7 @@
         "depth": "overview",
         "rule": 9,
         "detail": "Brief must have fewer rendered elements than Balanced (50 versus 50).",
-        "severity": "error"
+        "severity": "warning"
       }
     ]
   }

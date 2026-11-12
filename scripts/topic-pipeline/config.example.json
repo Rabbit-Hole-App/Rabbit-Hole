@@ -30,7 +30,7 @@
   "repo": {
     "root": "",
     "toolingRoot": "",
-    "toolingRef": "38e02e612",
+    "toolingRef": "main",
     "releaseBranch": "release/explain-<N>",
     "worktreeRoot": "",
     "topicBranchPrefix": "topic/"
