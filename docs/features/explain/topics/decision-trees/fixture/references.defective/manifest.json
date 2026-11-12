@@ -36,6 +36,41 @@
       "id": "ml-trees-feature-importance@c3e40994",
       "referenceId": "ml-trees-feature-importance",
       "ref": "c3e40994"
+    },
+    {
+      "id": "ml-trees-candidate-split@c3e40994",
+      "referenceId": "ml-trees-candidate-split",
+      "ref": "c3e40994"
+    },
+    {
+      "id": "ml-trees-gini-split@c3e40994",
+      "referenceId": "ml-trees-gini-split",
+      "ref": "c3e40994"
+    },
+    {
+      "id": "ml-trees-grown-tree@c3e40994",
+      "referenceId": "ml-trees-grown-tree",
+      "ref": "c3e40994"
+    },
+    {
+      "id": "ml-trees-decision-regions@c3e40994",
+      "referenceId": "ml-trees-decision-regions",
+      "ref": "c3e40994"
+    },
+    {
+      "id": "ml-trees-bootstrap-roots@c3e40994",
+      "referenceId": "ml-trees-bootstrap-roots",
+      "ref": "c3e40994"
+    },
+    {
+      "id": "ml-trees-feature-subsets@c3e40994",
+      "referenceId": "ml-trees-feature-subsets",
+      "ref": "c3e40994"
+    },
+    {
+      "id": "ml-trees-majority-vote@c3e40994",
+      "referenceId": "ml-trees-majority-vote",
+      "ref": "c3e40994"
     }
   ],
   "previews": [
@@ -376,6 +411,426 @@
           "path": "references.defective/ml-trees-feature-importance-detailed@c3e40994/408.svg",
           "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-feature-importance-detailed/408.svg",
           "sha256": "2f29e1d6d860963eb1535af6a5a1b797784e57e1a5b6a8dc6511dd5447588e0a"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-candidate-split@c3e40994",
+      "referenceId": "ml-trees-candidate-split",
+      "depth": "balanced",
+      "detail": false,
+      "caseId": "ml-trees-candidate-split@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-candidate-split@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-candidate-split/spec.json",
+          "sha256": "c7abdfb7da0e0c7847f8c6472f90f7f79606025ed8874cff28b93c51f894b9a6"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-candidate-split@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-candidate-split/408.svg",
+          "sha256": "0c623ae6361987d87bb4d68ccfeec8d7d9b8fc8cdad084b201653883a87b9bff"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-candidate-split-brief@c3e40994",
+      "referenceId": "ml-trees-candidate-split",
+      "depth": "brief",
+      "detail": false,
+      "caseId": "ml-trees-candidate-split@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-candidate-split-brief@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-candidate-split-brief/spec.json",
+          "sha256": "33e8f39fa00f4f0435cb88f75b1154ecfda01548338ce9d8e07604b5d16338ed"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-candidate-split-brief@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-candidate-split-brief/408.svg",
+          "sha256": "1bb5bf6731efef859198209d5bfd22a172215d75adfed070d410fe9d8ed83627"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-candidate-split-detailed@c3e40994",
+      "referenceId": "ml-trees-candidate-split",
+      "depth": "detailed",
+      "detail": false,
+      "caseId": "ml-trees-candidate-split@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-candidate-split-detailed@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-candidate-split-detailed/spec.json",
+          "sha256": "c913d9d25420779eb11d5d0331764b47973086ce3d8aeebcbb93f2f45b1f78a1"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-candidate-split-detailed@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-candidate-split-detailed/408.svg",
+          "sha256": "b9f9e6d112ddaafac1eb78f4518ff0d88bdec58c68d39a197d1b0a5b7a2058c2"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-gini-split@c3e40994",
+      "referenceId": "ml-trees-gini-split",
+      "depth": "balanced",
+      "detail": false,
+      "caseId": "ml-trees-gini-split@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-gini-split@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-gini-split/spec.json",
+          "sha256": "4b0a4c6dd229f71db512ffd3b0fc566b0a5a64af97a5eecc95922faad4c4abb8"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-gini-split@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-gini-split/408.svg",
+          "sha256": "dc44e5ea815fc1ce1a102b7212fc77115b969c81d39d41279682cdcd039ec562"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-gini-split-brief@c3e40994",
+      "referenceId": "ml-trees-gini-split",
+      "depth": "brief",
+      "detail": false,
+      "caseId": "ml-trees-gini-split@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-gini-split-brief@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-gini-split-brief/spec.json",
+          "sha256": "2d9b85e243929c559022258364d9d39afaa01c557ce8680d73b278a31e6906cc"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-gini-split-brief@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-gini-split-brief/408.svg",
+          "sha256": "8618fe5d8c1fe85c87f9e17805b7110f410d5c2e9ca3a0b1e9cfacda2319e8e6"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-gini-split-detailed@c3e40994",
+      "referenceId": "ml-trees-gini-split",
+      "depth": "detailed",
+      "detail": false,
+      "caseId": "ml-trees-gini-split@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-gini-split-detailed@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-gini-split-detailed/spec.json",
+          "sha256": "191a14a4d9bc5faaba7469160492334a84ffaab11a768d5e655fdc8031d76c10"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-gini-split-detailed@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-gini-split-detailed/408.svg",
+          "sha256": "800c876014c655e48f87e56652e8a8bd1c3d293fd61889fd4986ae55fb798975"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-grown-tree@c3e40994",
+      "referenceId": "ml-trees-grown-tree",
+      "depth": "balanced",
+      "detail": false,
+      "caseId": "ml-trees-grown-tree@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-grown-tree@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-grown-tree/spec.json",
+          "sha256": "b748a51d5632c5f735fff4c8378a70546cbbccf50858bb759ac80378fbf3fa7b"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-grown-tree@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-grown-tree/408.svg",
+          "sha256": "b2a3c3d2bf06583ceca53e95d2957b0539335045b774ddcd36fdd1add3459f23"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-grown-tree-brief@c3e40994",
+      "referenceId": "ml-trees-grown-tree",
+      "depth": "brief",
+      "detail": false,
+      "caseId": "ml-trees-grown-tree@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-grown-tree-brief@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-grown-tree-brief/spec.json",
+          "sha256": "c69b466c5a3dbe1b8f15a5d2ffb53f7d7589994453852342014dbf25bc86c441"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-grown-tree-brief@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-grown-tree-brief/408.svg",
+          "sha256": "1233453409316c2c6cbf0a83bc2ad755a3d84826402617af1a38876fb1078ce8"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-grown-tree-detailed@c3e40994",
+      "referenceId": "ml-trees-grown-tree",
+      "depth": "detailed",
+      "detail": false,
+      "caseId": "ml-trees-grown-tree@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-grown-tree-detailed@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-grown-tree-detailed/spec.json",
+          "sha256": "b0942ccadcf7a73132aed5d4fe85e5c6814b693ba84cf0dcc97acc2b975ef6d6"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-grown-tree-detailed@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-grown-tree-detailed/408.svg",
+          "sha256": "fd194959cd2131b71e0ae3ca322e1a94c1c99cd828b51ad687a20d4911672fa4"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-decision-regions@c3e40994",
+      "referenceId": "ml-trees-decision-regions",
+      "depth": "balanced",
+      "detail": false,
+      "caseId": "ml-trees-decision-regions@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-decision-regions@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-decision-regions/spec.json",
+          "sha256": "dc4d9e63d6b7d31a2342dbec54afe41eb6d0f482042dfb2b18ac0bd18f66ef7b"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-decision-regions@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-decision-regions/408.svg",
+          "sha256": "10423f2cf7d5a3d505e3b5d463cb959068799c93d6040e704a6070aaf2ccec15"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-decision-regions-brief@c3e40994",
+      "referenceId": "ml-trees-decision-regions",
+      "depth": "brief",
+      "detail": false,
+      "caseId": "ml-trees-decision-regions@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-decision-regions-brief@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-decision-regions-brief/spec.json",
+          "sha256": "565acc6415ed4ba62f71a92b710a5b191265e49e9618254be87fbd4165e0f384"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-decision-regions-brief@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-decision-regions-brief/408.svg",
+          "sha256": "0d3d6a4f0b6f85a3f551ee1b9b4faf5a9ee8fb6cb3a15a8368ddba453e879621"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-decision-regions-detailed@c3e40994",
+      "referenceId": "ml-trees-decision-regions",
+      "depth": "detailed",
+      "detail": false,
+      "caseId": "ml-trees-decision-regions@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-decision-regions-detailed@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-decision-regions-detailed/spec.json",
+          "sha256": "d6cc3c773d3db688aa8d6895316a0e75109c254c0a29d1d96451e374a4cf487d"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-decision-regions-detailed@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-decision-regions-detailed/408.svg",
+          "sha256": "8c456c42ed0de6ada296987d9b55405364d63b6c16db0cc96c639c8999d7d46c"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-bootstrap-roots@c3e40994",
+      "referenceId": "ml-trees-bootstrap-roots",
+      "depth": "balanced",
+      "detail": false,
+      "caseId": "ml-trees-bootstrap-roots@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-bootstrap-roots@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-bootstrap-roots/spec.json",
+          "sha256": "ee274d74df7f4d0db327816339b8e89e878f86afa3acdaa34e01836efe4501b2"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-bootstrap-roots@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-bootstrap-roots/408.svg",
+          "sha256": "e2ea6de2894dee5d65185d6cb25c67117ea9fde05e4bb1d6a3b75304114710ec"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-bootstrap-roots-brief@c3e40994",
+      "referenceId": "ml-trees-bootstrap-roots",
+      "depth": "brief",
+      "detail": false,
+      "caseId": "ml-trees-bootstrap-roots@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-bootstrap-roots-brief@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-bootstrap-roots-brief/spec.json",
+          "sha256": "32fbfa3055ac12262ed98a6ab29cead3a0712d6c4d45b9e2310074a062623dd4"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-bootstrap-roots-brief@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-bootstrap-roots-brief/408.svg",
+          "sha256": "c7a0edf3ac7a39600ade4e71f5c9aa334eefdeb5cbadc943350313787f7a5758"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-bootstrap-roots-detailed@c3e40994",
+      "referenceId": "ml-trees-bootstrap-roots",
+      "depth": "detailed",
+      "detail": false,
+      "caseId": "ml-trees-bootstrap-roots@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-bootstrap-roots-detailed@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-bootstrap-roots-detailed/spec.json",
+          "sha256": "1524afe34a5a1936c37dd9e7b747c81f899bc00f62aed1d29de2b200e2bffa74"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-bootstrap-roots-detailed@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-bootstrap-roots-detailed/408.svg",
+          "sha256": "71b410faa877949d06f21c3512c80cf1b79a1a177e21992cd3e76a01a15325be"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-feature-subsets@c3e40994",
+      "referenceId": "ml-trees-feature-subsets",
+      "depth": "balanced",
+      "detail": false,
+      "caseId": "ml-trees-feature-subsets@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-feature-subsets@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-feature-subsets/spec.json",
+          "sha256": "fda82aae541bfe2199fc7fb9fd83bc7aa7feda90c13b4b9d35254f9cdfa3cd1a"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-feature-subsets@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-feature-subsets/408.svg",
+          "sha256": "b55fa7817f15c60a4b04e39ddb9dbdd161dd2b65f0041bbe50050a0074b03efb"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-feature-subsets-brief@c3e40994",
+      "referenceId": "ml-trees-feature-subsets",
+      "depth": "brief",
+      "detail": false,
+      "caseId": "ml-trees-feature-subsets@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-feature-subsets-brief@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-feature-subsets-brief/spec.json",
+          "sha256": "2b547bd180b1330b7d12595ea4adde950908a22f966d676a4d986ee48fce6279"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-feature-subsets-brief@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-feature-subsets-brief/408.svg",
+          "sha256": "b708a7667bbf82dc722711665069b1f31c20988641b2c4f57c0a290a76d43d39"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-feature-subsets-detailed@c3e40994",
+      "referenceId": "ml-trees-feature-subsets",
+      "depth": "detailed",
+      "detail": false,
+      "caseId": "ml-trees-feature-subsets@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-feature-subsets-detailed@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-feature-subsets-detailed/spec.json",
+          "sha256": "ffe9e21d83e198fd7c99ba8194efb2d802e5bbce03eaa298523bb095868e4035"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-feature-subsets-detailed@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-feature-subsets-detailed/408.svg",
+          "sha256": "08819568edbc6484451bb424a392250be882222c73f7ee472ba635e6e604655f"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-majority-vote@c3e40994",
+      "referenceId": "ml-trees-majority-vote",
+      "depth": "balanced",
+      "detail": false,
+      "caseId": "ml-trees-majority-vote@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-majority-vote@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-majority-vote/spec.json",
+          "sha256": "855cd8c6ccd919d8f7c9db88644ff8706aa7da282f72cd86d7a2ea25758d713f"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-majority-vote@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-majority-vote/408.svg",
+          "sha256": "9fd4685c97f9c391f5d0ad4c14870419a02861ba4bc3c833d4fe66f20ee6c9a5"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-majority-vote-brief@c3e40994",
+      "referenceId": "ml-trees-majority-vote",
+      "depth": "brief",
+      "detail": false,
+      "caseId": "ml-trees-majority-vote@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-majority-vote-brief@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-majority-vote-brief/spec.json",
+          "sha256": "bef289a5ca6285b6f7885987fdfc1c6289942cb70e8ce52e2999e5c1b4b044c6"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-majority-vote-brief@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-majority-vote-brief/408.svg",
+          "sha256": "39e52e413d082f0ffdd2c2c5a535f226152881153c9a49cc69be663fe5f80963"
+        }
+      }
+    },
+    {
+      "id": "ml-trees-majority-vote-detailed@c3e40994",
+      "referenceId": "ml-trees-majority-vote",
+      "depth": "detailed",
+      "detail": false,
+      "caseId": "ml-trees-majority-vote@c3e40994",
+      "sha": "c3e4099471a2c89dfccd9fbb4e38436b1c5a192a",
+      "files": {
+        "spec": {
+          "path": "references.defective/ml-trees-majority-vote-detailed@c3e40994/spec.json",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-majority-vote-detailed/spec.json",
+          "sha256": "cf3ba53a9f99fccfb95fd8218296a7bfa83c64c9f00211fa14bed7f5c52ead88"
+        },
+        "preview": {
+          "path": "references.defective/ml-trees-majority-vote-detailed@c3e40994/408.svg",
+          "sourcePath": "docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-trees-majority-vote-detailed/408.svg",
+          "sha256": "245f6cca0ca439eef2046437982d1630fa7232afddde780b899a5036f9f6714c"
         }
       }
     }

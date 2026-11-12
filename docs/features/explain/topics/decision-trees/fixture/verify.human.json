@@ -1,0 +1,116 @@
+{
+ "topic": "decision-trees",
+ "note": "Reviewer's per-figure verdicts on the Codex pilot c3e40994 (2026-11-09 11:00; the four fixes landed as 8ab8c20d), at Balanced depth, plus the depth-5 mislabel on 5de6a499 that the reviewer missed and the judge caught.",
+ "figures": [
+  {
+   "id": "ml-trees-candidate-split",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "ship",
+   "reasons": [
+    "Midpoint candidates drawn from the 8 rows; arithmetic exact."
+   ]
+  },
+  {
+   "id": "ml-trees-gini-split",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "ship",
+   "reasons": [
+    "Counts and Gini values exact; weighted Gini and gain correct."
+   ]
+  },
+  {
+   "id": "ml-trees-threshold-search",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "fix",
+   "reasons": [
+    "Y axis reads 'Weighted Gini in 48ths' with scaled integer values; must show decimal Gini in learner units."
+   ]
+  },
+  {
+   "id": "ml-trees-grown-tree",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "ship",
+   "reasons": [
+    "Tree matches the data module; class counts at leaves correct."
+   ]
+  },
+  {
+   "id": "ml-trees-decision-regions",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "ship",
+   "reasons": [
+    "Regions match the fitted tree's thresholds; all 8 points on the right side."
+   ]
+  },
+  {
+   "id": "ml-trees-depth-overfit",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "fix",
+   "reasons": [
+    "Toy set gives a 3-point 'curve' that cannot show overfitting; depth axis has non-integer ticks. Use illustrative N1-labelled values at Brief/Balanced and an integer depth axis."
+   ]
+  },
+  {
+   "id": "ml-trees-bootstrap-roots",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "ship",
+   "reasons": [
+    "Draws and repeats consistent with the sample-set; roots match the data."
+   ]
+  },
+  {
+   "id": "ml-trees-feature-subsets",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "ship",
+   "reasons": [
+    "Subsets per tree consistent with the forest in the data module."
+   ]
+  },
+  {
+   "id": "ml-trees-majority-vote",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "fix",
+   "reasons": [
+    "Vote is not traced to the actual trees' predictions on the held-out row; the figure must show each tree's vote and the tally from the data module."
+   ]
+  },
+  {
+   "id": "ml-trees-feature-importance",
+   "sha": "c3e40994",
+   "depth": "balanced",
+   "pilot": true,
+   "verdict": "fix",
+   "reasons": [
+    "MDI bias is not shown: no high-cardinality noise feature, so MDI and permutation agree and the prompt's point is missing."
+   ]
+  },
+  {
+   "id": "ml-trees-regression-step-fit",
+   "sha": "5de6a499",
+   "depth": "balanced",
+   "pilot": false,
+   "verdict": "fix",
+   "reasons": [
+    "Caption/labels say '4 leaves versus 16' at depth 5; 16 leaves is depth 4 (2^4). Relabelled in 553a3680."
+   ]
+  }
+ ]
+}
