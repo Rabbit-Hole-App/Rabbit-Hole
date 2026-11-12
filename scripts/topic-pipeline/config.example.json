@@ -1,0 +1,84 @@
+{
+  "anthropic": {
+    "apiKey": "",
+    "endpoint": "https://api.anthropic.com/v1/messages",
+    "reviewerModel": "claude-fable-5-1",
+    "judgeModel": "claude-sonnet-5-5",
+    "effort": "high"
+  },
+  "openai": {
+    "apiKey": "",
+    "endpoint": "https://api.openai.com/v1/responses",
+    "authorModel": "gpt-6.1-sol",
+    "reasoningEffort": "max",
+    "api": "responses"
+  },
+  "planner": {
+    "apiKey": "",
+    "endpoint": "https://api.typesafe.ai/v1/systemone",
+    "fixtureFile": ""
+  },
+  "stack": {
+    "baseUrl": "http://127.0.0.1:8888",
+    "varsFile": "",
+    "appLog": "",
+    "persistDir": "",
+    "startCmd": "",
+    "stopCmd": ""
+  },
+  "repo": {
+    "root": "",
+    "toolingRoot": "",
+    "toolingRef": "38e02e612",
+    "releaseBranch": "release/explain-<N>",
+    "worktreeRoot": "",
+    "topicBranchPrefix": "topic/"
+  },
+  "paths": {
+    "fixtureRoot": "",
+    "curriculumRoot": "",
+    "slugIndex": "",
+    "topicsRoot": ""
+  },
+  "sources": {
+    "revision": "e7db050e64bde3be17a9381476f748da26d85692",
+    "lessonPath": "phases/02-ml-fundamentals/<slug>/docs/en.md"
+  },
+  "bench": {
+    "outRoot": "",
+    "judgeCapUsd": 1,
+    "capUsd": 2
+  },
+  "preview": {
+    "deployCmd": "",
+    "urlFile": ""
+  },
+  "notify": {
+    "webhookUrl": "",
+    "channel": ""
+  },
+  "limits": {
+    "authorRounds": 3,
+    "verifyRounds": 2,
+    "regenerateOnce": true,
+    "perLessonUsd": 15
+  },
+  "prices": {
+    "claude-fable-5-1": {
+      "inputPerMillionUsd": null,
+      "outputPerMillionUsd": null
+    },
+    "claude-sonnet-5-5": {
+      "inputPerMillionUsd": null,
+      "outputPerMillionUsd": null
+    },
+    "gpt-6.1-sol": {
+      "inputPerMillionUsd": null,
+      "outputPerMillionUsd": null
+    },
+    "jev-latest": {
+      "inputPerMillionUsd": null,
+      "outputPerMillionUsd": 0
+    }
+  }
+}
