@@ -2,7 +2,7 @@ import { planExplanation } from '../../packages/control-plane/src/explanation-pl
 import { readJson } from './state.mjs';
 import { callPrice, estimateTopic, recordSpend } from './budget.mjs';
 
-export function createPlanner(config, { fixturePlans, fetchImpl = globalThis.fetch, state, onUsage } = {}) {
+export function createPlanner(config, { fixturePlans, fetchImpl = globalThis.fetch, state, onUsage, stage = '02' } = {}) {
   const recordings = fixturePlans ? Promise.resolve(fixturePlans) : config.planner?.fixtureFile ? readJson(config.planner.fixtureFile) : null;
   const budget = state ?? { calls: [], spendUsd: 0 };
   return async (prompt, depth) => {
@@ -24,11 +24,11 @@ export function createPlanner(config, { fixturePlans, fetchImpl = globalThis.fet
       },
     });
     if (!plan || !Number.isFinite(plan.inputTokens)) {
-      recordSpend(budget, { agent: 'planner', model: 'jev-latest', inputTokens: 0, outputTokens: 0, usd: 0, usageKnown: false, ms: Date.now() - started });
+      recordSpend(budget, { agent: 'planner', stage, model: 'jev-latest', inputTokens: 0, outputTokens: 0, usd: 0, usageKnown: false, ms: Date.now() - started });
       await onUsage?.();
       throw new Error('The planner returned no accountable plan. Reconcile unknown usage before retrying.');
     }
-    const entry = { agent: 'planner', model: 'jev-latest', inputTokens: plan.inputTokens, outputTokens: 0,
+    const entry = { agent: 'planner', stage, model: 'jev-latest', inputTokens: plan.inputTokens, outputTokens: 0,
       usd: callPrice(config, 'jev-latest', plan.inputTokens, 0), usageKnown: true, ms: Date.now() - started };
     recordSpend(budget, entry);
     await onUsage?.(entry);

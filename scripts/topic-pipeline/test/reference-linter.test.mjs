@@ -52,10 +52,19 @@ test('rule 2: verbatim prompts and short lowercase keywords pass; omissions and 
   assert.equal(ofRule(run(), 2).length, 0);
   assert.equal(ofRule(run(reference(), { prompts: [{ id: 1, referenceId: 'ml-fixture', prompt: 'Show the fixture?' }] }), 2).length, 1);
   assert.equal(ofRule(run(reference(), { prompts: ['another prompt?'] }), 2).length, 1);
-  for (const keywords of [['only one'], ['one', 'two', 'three', 'four'], ['Upper Case', 'valid'], ['a phrase with four words', 'valid']]) {
+  for (const keywords of [['only one'], ['Upper Case', 'valid'], ['a phrase with four words', 'valid']]) {
     const ref = reference(); ref.keywords = keywords;
     assert.equal(ofRule(run(ref), 2).length, 1, JSON.stringify(keywords));
   }
+  for (const keywords of [['one', 'two', 'three', 'four'], ['fixture tree', 'class counts', 'a longer paraphrase phrase that stays']]) {
+    const ref = reference(); ref.keywords = keywords;
+    assert.equal(ofRule(run(ref), 2).length, 0);
+  }
+  const withShort = reference(); withShort.keywords = ['a long paraphrase phrase that stays']; withShort.shortKeywords = ['fixture tree', 'class counts'];
+  assert.equal(ofRule(run(withShort), 2).length, 0);
+  const invalid = reference(); invalid.keywords = ['only one'];
+  assert.equal(ofRule(run(invalid), 2)[0].severity, 'warning');
+  assert.equal(ofRule(run(invalid, { authored: true }), 2)[0].severity, 'error');
 });
 
 test('rule 3: semantic role fields pass; all seven role-word label prefixes fail', () => {
@@ -137,6 +146,8 @@ test('rule 9: smaller Brief and additional Detailed arithmetic pass; equal Brief
   assert.equal(ofRule(run(), 9).length, 0);
   const ref = reference(); ref.depths.overview.spec = structuredClone(ref.spec); ref.depths.deep.spec = structuredClone(ref.spec);
   assert.deepEqual(ofRule(run(ref), 9).map(issue => issue.depth), ['overview', 'deep']);
+  assert.ok(ofRule(run(ref), 9).every(issue => issue.severity === 'warning'));
+  assert.ok(ofRule(run(ref, { authored: true }), 9).every(issue => issue.severity === 'error'));
   ref.depths.overview.spec = tree([{ id: 'a', label: 'Choose a class' }]);
   ref.depths.deep.spec.diagram.caption = 'Worked example. $p=1/2$.';
   assert.equal(ofRule(run(ref), 9).length, 0);

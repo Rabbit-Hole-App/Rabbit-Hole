@@ -16,7 +16,7 @@ async function auditPack(ctx, root, tag) {
     const comparison = join(ctx.topicDir, 'audit-input', tag, `${entry.name}.png`);
     const images = await cardComparison(directory, comparison);
     const result = await callAgent(ctx, 'auditor', { topic: ctx.topic, cards: [{ id: entry.name, bodyAndPipeline: text }] }, {
-      schema: auditSchema, images, validate: value => validateIds(value, 'cards', [entry.name], ctx.topic),
+      schema: auditSchema, images, mode: tag === 'human' ? 'human' : 'agent', validate: value => validateIds(value, 'cards', [entry.name], ctx.topic),
     });
     validateIds(result, 'cards', [entry.name], ctx.topic);
     cards.push(...result.cards);

@@ -80,10 +80,16 @@ export async function main(argv = process.argv.slice(2)) {
     preflight: !(values.from === '02' && values.to === '02' && config.planner?.fixtureFile),
     onStage: (id, output) => console.log(JSON.stringify({ stage: id, status: output.status, stop: output.stop, notes: redact(output.notes, config) })),
   });
+  if (values.fixture && values['dry-run'] && (values.to ?? '07') >= '07') {
+    const { fixtureReport } = await import('./checks/fixture-report.mjs');
+    const report = await fixtureReport({ topic, ...getTopicPaths(config, topic), config }, { mapPrompts: result.status === 'ok' });
+    console.log(JSON.stringify({ fixtureScore: report.status, passed: report.passed }));
+    if (!report.passed) process.exitCode = 1;
+  }
   if (result.status === 'fail') process.exitCode = 1;
   return result;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch(() => { console.error('Lesson pipeline failed. Check config.local.json and the saved stage report.'); process.exitCode = 1; });
+  main().catch(() => { console.error('Topic pipeline failed. Check config.local.json and the saved stage report.'); process.exitCode = 1; });
 }

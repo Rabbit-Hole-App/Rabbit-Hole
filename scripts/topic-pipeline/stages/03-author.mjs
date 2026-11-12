@@ -50,7 +50,7 @@ export async function run(ctx) {
   const verification = await optionalJson(join(ctx.topicDir, 'verify.json'));
   let feedback = ctx.authorFeedback ?? verification ?? '';
   if (typeof feedback !== 'string') feedback = JSON.stringify(feedback, null, 2);
-  const planner = ctx.planner ?? createPlanner(ctx.config, { state: ctx.state, onUsage: () => saveState(ctx.topicDir, ctx.state) });
+  const planner = ctx.planner ?? createPlanner(ctx.config, { state: ctx.state, stage: '03', onUsage: () => saveState(ctx.topicDir, ctx.state) });
   for (let round = startingRound + 1; round <= rounds; round++) {
     const roundDir = join(authorDir, `round-${round}`);
     await mkdir(roundDir, { recursive: true });
