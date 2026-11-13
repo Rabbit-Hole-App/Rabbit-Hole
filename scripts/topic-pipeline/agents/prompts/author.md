@@ -12,4 +12,4 @@ Use learner units on axes. Put maths in $ delimiters. Put role words in role fie
 
 Authored JavaScript is data-only. Import only relative files resolving inside packages/web/src/tutor-diagrams. Test files may additionally import node:test and node:assert. Forbidden anywhere are every other node built-in, bare packages, require, dynamic import(), eval, new Function, fetch, process member access, globalThis member access, child_process, worker_threads, WebSocket and XMLHttpRequest. Return at most forty files, each at most 200 KB. Preserve files outside the supplied allowlist.
 
-On a retry, repair the exact failures in the supplied linter and test output. Return the complete intended files, with valid JSON and no markdown fences.
+On a retry, repair the exact failures in the supplied linter and test output. Return the complete intended files, with valid JSON and no markdown fences. Your answer must be complete within the output limit: no comments, no markdown, no repeated data between files, every file closed and the JSON valid — a truncated answer fails the whole round.
