@@ -97,7 +97,14 @@ const indexInput = z.object({
 }).strict().refine(input => input.default < input.items.length, { message: 'default must be the position of an item', path: ['default'] })
   .refine(input => new Set(input.items.map(item => item.id)).size === input.items.length, { message: 'item ids must be unique', path: ['items'] });
 const inputSchema = z.union([numberInput, selectInput, booleanInput, indexInput]);
-const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2) }).strict();
+// kind (additive): absent or 'number' is a number readout as before; 'state' names a mode the frame reports as one of its labels (Moving up, Still for an instant, Moving down), never a number.
+const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2),
+  kind: z.enum(['number', 'state']).optional(), labels: z.array(plain(40)).min(2).max(6).optional() }).strict()
+  .superRefine((readout, context) => {
+    if (readout.kind === 'state' && !readout.labels) context.addIssue({ code: 'custom', message: 'a state readout lists its labels', path: ['labels'] });
+    if (readout.kind !== 'state' && readout.labels) context.addIssue({ code: 'custom', message: 'only a state readout has labels', path: ['labels'] });
+    if (readout.labels && new Set(readout.labels).size !== readout.labels.length) context.addIssue({ code: 'custom', message: 'state labels must be unique', path: ['labels'] });
+  });
 
 // interact.md INT-01 mode.timeline, as far as a program card needs it now: shown time = elapsed + displayOffset, a trusted playback rate in simulated
 // seconds per wall second, and named exact-seek markers. Optional and additive: a saved card without it plays and saves exactly as before.
@@ -307,7 +314,7 @@ export function figureProblem(object, frame) {
 export const Frame = z.object({
   width: z.number().positive().max(4096).default(960), height: z.number().positive().max(4096).default(540),
   objects: z.array(frameObject).max(CONTRACT_LIMITS.objects),
-  readouts: z.array(z.object({ id: name, value: finite(1e12) }).strict()).max(CONTRACT_LIMITS.readouts).default([]),
+  readouts: z.array(z.object({ id: name, value: finite(1e12).or(plain(40)) }).strict()).max(CONTRACT_LIMITS.readouts).default([]), // a string is a state readout's label (manifest readout kind 'state')
 }).strict().superRefine((frame, context) => {
   const seen = new Set();
   let points = 0, images = 0, rasterPixels = 0, heatCells = 0;
@@ -489,6 +496,12 @@ export function parseGuestResult(raw, manifest = null, sdkVersion = null) {
   if (objects.some(object => object.kind === 'raster') && !manifest?.capabilities?.includes(RASTER_CAPABILITY)) return invalid('frame: raster pixels require raster_visuals');
   if (objects.some(object => FIGURE_KINDS.includes(object.kind)) && (sdkVersion !== FIGURES_SDK_VERSION || !manifest?.capabilities?.includes(FIGURES_CAPABILITY))) {
     return invalid(`frame: axis, plot and diagram objects require the ${FIGURES_CAPABILITY} capability and ${FIGURES_SDK_VERSION}`);
+  }
+  for (const readout of result.value.frame.readouts) {
+    const definition = manifest?.readouts?.find(item => item.id === readout.id);
+    if (!definition) continue; // an undeclared readout is normalizeFrame's refusal
+    const state = definition.kind === 'state';
+    if (state ? !definition.labels.includes(readout.value) : typeof readout.value !== 'number') return invalid(`readouts: "${readout.id}" ${state ? `reports one of ${definition.labels.join(', ')}` : 'reports a number'}`);
   }
   const viewport = manifest?.viewport;
   if (!viewport) return result;

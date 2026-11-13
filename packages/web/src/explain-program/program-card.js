@@ -100,17 +100,28 @@ export function setProgramInput(block, manifest, name, value) {
 }
 // The same change under a composition (new /interact cards): a timed scene's onInputChange policy is reset_pause, so a changed input also returns time to zero
 // (the caller pauses; frames in flight for the old inputs are dropped by the new inputRevision). recompute_still and a legacy card keep their time.
-export const resetsOnInput = composition => composition?.main?.onInputChange === 'reset_pause';
+// A number control's own onChange (interact-plan.js) overrides the scene's policy for that input: Deep's mass recomputes the still, the launch speed resets and pauses.
+export const resetsOnInput = (composition, name = null) => {
+  const own = name ? composition?.main?.controls?.find(control => control.binding?.kind === 'input' && control.binding.id === name)?.onChange : undefined;
+  return (own ?? composition?.main?.onInputChange) === 'reset_pause';
+};
+// Autopause: the first marker marked pause that playback reaches going from `from` (exclusive, so Play from a pause carries on) to `to` (inclusive), for these inputs; null when it runs on.
+export function autopauseMarker(composition, inputs, from, to) {
+  const hits = (timelineOf(composition, inputs)?.markers ?? []).filter(marker => marker.pause && marker.time > from + 1e-9 && marker.time <= to + 1e-9);
+  return hits.reduce((first, marker) => (first && first.time <= marker.time ? first : marker), null);
+}
+// The moment a seek control (the At top button) jumps to: its marker's time for these inputs; null when the timeline has no such marker.
+export const seekTime = (composition, inputs, markerId) => timelineOf(composition, inputs)?.markers.find(marker => marker.id === markerId)?.time ?? null;
 export function setProgramInputUnder(block, manifest, name, value, composition = null) {
   const next = setProgramInput(block, manifest, name, value);
-  return next !== block && resetsOnInput(composition) ? { ...next, time: 0 } : next;
+  return next !== block && resetsOnInput(composition, name) ? { ...next, time: 0 } : next;
 }
 // What ProgramScene does for a changed input (INT-04-C08): null when nothing changed, else the block to save, the moment the card goes to and that it is
 // paused. A timed composition (reset_pause) returns to time zero, so the endpoint, markers and supporting comparison are read for the new inputs from the
 // start; the caller also bumps the card's epoch (a jump in time), and the new inputRevision keys out frames still in flight for the old inputs.
 export function inputChange(block, manifest, name, value, composition = null, time = 0) {
   const next = setProgramInputUnder(block, manifest, name, value, composition);
-  return next === block ? null : { block: next, time: resetsOnInput(composition) ? 0 : time, playing: false };
+  return next === block ? null : { block: next, time: resetsOnInput(composition, name) ? 0 : time, playing: false };
 }
 // The one transport button (Play, Pause, Replay): where it seeks first (null: stays) and whether it then toggles playing. At the endpoint of the CURRENT
 // inputs it is Replay: back to zero and play, the inputs untouched. Reduced motion shows the end instead of travelling to it.

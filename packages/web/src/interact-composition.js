@@ -34,6 +34,7 @@ export function nativeDeclaration(control, renderer) {
   const done = (where, declaration) => ({ ok: true, native: { in: where, declaration } });
   const id = control.binding?.id;
   if (control.type === 'reset') return done('card.reset', null);
+  if (control.type === 'seek') return renderer === 'program' ? done('timeline', { part: 'seek', markerId: id }) : refuse();
   if (TRANSPORT[control.type]) return done('timeline', control.type === 'playback' ? { part: 'playback', labels: control.labels } : { part: 'scrubber', unit: control.unit, step: control.step });
   if (renderer === 'program') {
     if (control.type === 'number') return done('manifest.inputs', { type: 'number', id, label: control.label, ...(control.unit ? { unit: control.unit } : {}), default: control.default, min: control.min, max: control.max, step: control.step });
@@ -104,7 +105,7 @@ export function resolveTimeline(composition, inputs = {}) {
   const { values, domains } = numericState(composition, inputs);
   const at = expr => evalScalar(expr, values, domains);
   const end = at(timeline.end), displayOffset = at(timeline.displayOffset);
-  const markers = timeline.markers.map(m => ({ id: m.id, label: m.label, time: at(m.time) }));
+  const markers = timeline.markers.map(m => ({ id: m.id, label: m.label, time: at(m.time), ...(m.pause ? { pause: true } : {}) }));
   return { start: 0, end, displayOffset, displayStart: displayOffset, displayEnd: end + displayOffset, markers, step: timeline.step, label: timeline.label, playbackRate: timeline.playbackRate, onInputChange: composition.main.onInputChange };
 }
 
@@ -354,21 +355,21 @@ const runtime = z.object({ renderer: z.enum(['spec', 'program']), schemaVersion:
 const artifactRef = z.object({ kind: z.enum(['spec', 'program']), hash: hex }).strict();
 const scalar = z.union([z.number().finite(), z.string().max(1200), z.boolean()]);
 const control = z.object({
-  id: stable, type: z.enum(['playback', 'scrubber', 'number', 'select', 'boolean', 'index', 'multi_select', 'action', 'target', 'reset']), label: planText(60),
-  nativeControlId: z.string().regex(/^[a-z][a-z0-9_.]{0,63}$/), binding: z.object({ kind: z.enum(['input', 'timeline', 'action', 'target', 'reset']), id: stable.optional() }).strict(),
+  id: stable, type: z.enum(['playback', 'scrubber', 'number', 'select', 'boolean', 'index', 'multi_select', 'action', 'target', 'seek', 'reset']), label: planText(60),
+  nativeControlId: z.string().regex(/^[a-z][a-z0-9_.]{0,63}$/), binding: z.object({ kind: z.enum(['input', 'timeline', 'action', 'target', 'marker', 'reset']), id: stable.optional() }).strict(),
   row: z.enum(['transport', 'controls']), native: z.object({ in: z.enum(['manifest.inputs', 'manifest.actions', 'manifest.targets', 'presentation.experiments', 'timeline', 'card.reset']), declaration: z.unknown() }).strict(),
   affects: z.array(z.object({ scope: stable, kind: z.enum(['entity', 'quantity', 'readout']), id: stable }).strict()).max(16),
   unit: z.string().max(16).optional(), default: z.union([scalar, z.array(z.number().int())]).optional(), min: z.number().finite().optional(), max: z.number().finite().optional(), step: z.number().positive().finite().optional(),
   options: z.array(z.object({ value: z.string().max(32), label: planText(60) }).strict()).max(CONTRACT_LIMITS.options).optional(),
   items: z.array(z.object({ id: stable, label: planText(60) }).strict()).max(PLAN_LIMITS.items).optional(), presentation: z.string().max(32).optional(), dataRef: stable.optional(),
-  labels: z.object({ paused: z.string(), playing: z.string(), ended: z.string() }).strict().optional(), interaction: z.enum(['select', 'drag']).optional(),
+  labels: z.object({ paused: z.string(), playing: z.string(), ended: z.string() }).strict().optional(), interaction: z.enum(['select', 'drag']).optional(), onChange: z.enum(['recompute_still', 'reset_pause']).optional(),
 }).strict();
 const timelineRecord = z.object({
-  label: planText(60), unit: z.literal('s'), end: expr, displayOffset: expr, markers: z.array(z.object({ id: stable, label: planText(60), time: expr }).strict()).max(PLAN_LIMITS.markers),
+  label: planText(60), unit: z.literal('s'), end: expr, displayOffset: expr, markers: z.array(z.object({ id: stable, label: planText(60), time: expr, pause: z.boolean().optional() }).strict()).max(PLAN_LIMITS.markers),
   playbackRate: z.number().positive().finite().max(PLAN_LIMITS.playbackRate), initialTime: z.literal(0), initialPlayback: z.literal('paused'), step: z.number().positive().finite(),
 }).strict();
 export const CardCompositionSchema = z.object({
-  version: z.literal(COMPOSITION_VERSION), planHash: hex, depth: z.enum(['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep']), title: planText(PLAN_LIMITS.title), cardDescription: planText(PLAN_LIMITS.cardDescription),
+  version: z.literal(COMPOSITION_VERSION), planHash: hex, depth: z.enum(['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep']), title: planText(PLAN_LIMITS.title), cardDescription: planText(PLAN_LIMITS.cardDescription), instructions: planText(PLAN_LIMITS.instructions).optional(),
   order: z.array(z.enum(CARD_ORDER)).max(CARD_ORDER.length),
   supporting: z.array(z.object({ id: stable, title: planText(PLAN_LIMITS.title), artifact: artifactRef, runtime, readoutIds: z.array(stable).max(16),
     parameterBindings: z.array(z.object({ fromInputId: stable, toInputId: stable }).strict()).max(8), readOnly: z.literal(true), snapshotTime: z.literal(SNAPSHOT_TIME) }).strict()).max(PLAN_LIMITS.supports),
@@ -400,7 +401,7 @@ export async function compileCardComposition(plan, artifacts) {
     return { ...visible, row: c.type === 'playback' || c.type === 'scrubber' ? 'transport' : 'controls', native: { in: d.in, declaration: d.declaration } };
   });
   const body = {
-    version: COMPOSITION_VERSION, planHash: await planHash(plan), depth: plan.depth, title: plan.title, cardDescription: plan.cardDescription,
+    version: COMPOSITION_VERSION, planHash: await planHash(plan), depth: plan.depth, title: plan.title, cardDescription: plan.cardDescription, ...(plan.instructions ? { instructions: plan.instructions } : {}),
     order: CARD_ORDER.filter(row => row === 'title' || row === 'description' || row === 'main' || (row === 'supporting' && plan.supportingVisuals.length) || (row === 'transport' && tl) || (row === 'controls' && controls.some(c => c.row === 'controls'))),
     supporting: plan.supportingVisuals.map(s => ({ id: s.id, title: s.title, artifact: hashes[s.id], runtime: s.runtime, readoutIds: s.readoutIds, parameterBindings: s.parameterBindings, readOnly: true, snapshotTime: SNAPSHOT_TIME })),
     main: { artifact: hashes.main, runtime: plan.scene.runtime, mode: plan.mode.kind, readoutIds: plan.scene.readoutIds,
