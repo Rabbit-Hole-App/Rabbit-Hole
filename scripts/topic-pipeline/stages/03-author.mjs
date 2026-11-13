@@ -8,6 +8,7 @@ import { authorInputs, authorTopic, authorWorktree, commitAuthorRound, git, isol
   prepareAuthorRuntime, testAuthored, writeAuthored } from '../author.mjs';
 import { lintAuthoredFiles } from '../checks/reference-linter.mjs';
 import { createContactSheet } from '../checks/contact-sheet.mjs';
+import { lintPreviewWrap } from '../checks/preview-wrap.mjs';
 import { createPlanner } from '../planner.mjs';
 import { readJson, saveState, writeJson } from '../state.mjs';
 
@@ -136,6 +137,10 @@ ${await prompt('author-batch')}`;
         await mkdir(destination, { recursive: true });
         for (const name of ['408.svg', 'natural.svg', '960.svg', 'spec.json']) await cp(join(rendered, entry.name, name), join(destination, name));
       }
+      // Rule 12 (owner, 2026-11-12): no label broken inside a word at any preview width.
+      const wrapFlags = await lintPreviewWrap({ previewDir: manifest.previewDir, ids: inspection.ownIds });
+      await writeJson(join(roundDir, 'preview-wrap.json'), wrapFlags);
+      if (wrapFlags.length) throw new Error(JSON.stringify(wrapFlags, null, 2));
       await isolated(target, 'snapshots', payload, roundDir);
       const replay = await isolated(target, 'replay', { ...payload, expected: inspection.expected }, roundDir);
       // The failure names collisions and rows that missed their reference; the passing rows would only bloat the next author input past its ceiling.
