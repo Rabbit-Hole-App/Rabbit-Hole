@@ -143,6 +143,11 @@ export async function run(ctx) {
       manifest.files = [...accepted.values()];
       manifest.lastFailure = feedback;
       await saveManifest();
+      if (ctx.state.calls?.some(entry => entry.usageKnown === false)) {
+        manifest.status = 'fail';
+        await saveManifest();
+        return { status: 'fail', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds} stopped: provider usage is unknown. Reconcile it before rerunning; no further round was started.` };
+      }
     }
   }
   manifest.status = 'fail';

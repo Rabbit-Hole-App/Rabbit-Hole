@@ -43,6 +43,31 @@ async function setup(t, fetchImpl, configure = () => {}, initial = {}) {
     saved: async () => JSON.parse(await readFile(join(topicDir, 'state.json'), 'utf8')) };
 }
 
+test('author runs in background mode and polls the stored response until it completes', async t => {
+  const requests = [];
+  const { client, state } = await setup(t, async (url, init) => {
+    requests.push({ url, method: init.method, body: init.body && JSON.parse(init.body) });
+    if (requests.length === 1) return response({ id: 'resp_1', object: 'response', status: 'queued' });
+    if (requests.length === 2) return response({ id: 'resp_1', object: 'response', status: 'in_progress' });
+    return response({ id: 'resp_1', ...openaiBody() });
+  }, config => { config.openai.pollMs = 1; });
+  assert.deepEqual(await client.call('author', { lesson: 'text' }, options), { ok: true });
+  assert.equal(requests[0].body.background, true);
+  assert.equal(requests[0].body.store, true);
+  assert.deepEqual(requests.slice(1).map(request => [request.method, request.url]), [
+    ['GET', 'https://openai.invalid/responses/resp_1'], ['GET', 'https://openai.invalid/responses/resp_1']]);
+  assert.equal(state.calls.length, 1);
+  assert.equal(state.calls[0].usd, 0.0014);
+});
+
+test('a background poll that times out records unknown usage with the response id', async t => {
+  const { client, state } = await setup(t, async () => response({ id: 'resp_2', object: 'response', status: 'in_progress' }),
+    config => { config.openai.pollMs = 1; config.openai.pollTimeoutMs = 5; });
+  await assert.rejects(client.call('author', { lesson: 'text' }, options), /transport failed/);
+  assert.equal(state.calls[0].usageKnown, false);
+  assert.equal(state.calls[0].responseId, 'resp_2');
+});
+
 test('author serializes Responses structured JSON and charges reasoning within output once', async t => {
   let request;
   const { client, state, saved } = await setup(t, async (url, init) => {
