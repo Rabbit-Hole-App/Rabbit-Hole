@@ -352,8 +352,10 @@ test('the description fit fails closed unless INTERACT_DESCRIPTION_FIT=estimate,
   assert.deepEqual(ok.job.design.fit.widths.map(w => w.lines >= 2 && w.lines <= 4), [true, true, true]);
   const view = (await ok.s.send('get', {}, ok.id)).body;
   assert.equal(view.scenePlan.fit.styleVersion, 'card-description-v1:estimate');
-  const long = await run({ INTERACT_DESCRIPTION_FIT: 'estimate' }, PLAN.standard);
-  assert.notEqual(long.job.stage, 'awaiting_approval', 'the canonical copy renders in 6 lines at 320 px by the estimate: the rule stands, the copy must change');
+  const tooMuch = clone(PLAN.standard);
+  tooMuch.cardDescription = `${PLAN.standard.cardDescription} ${PLAN.standard.cardDescription}`.slice(0, 480);
+  const long = await run({ INTERACT_DESCRIPTION_FIT: 'estimate' }, tooMuch);
+  assert.notEqual(long.job.stage, 'awaiting_approval', 'a 480 character description renders in 5 or more lines at the compact width by the estimate: the rule stands, the copy must change');
 });
 
 // ---- hardening of the build roles (interact-harden.test.js has the unit-level proofs) ----------------------------------------------------------------
