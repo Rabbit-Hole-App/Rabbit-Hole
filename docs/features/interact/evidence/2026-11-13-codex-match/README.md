@@ -51,3 +51,17 @@ back; `interact-toss-programs.test.js` pins the finding so a change shows there.
 - `packages/control-plane/test/interact-toss-programs.test.js`: each program seals with the plan's tuple, passes every deterministic check and the layout rules at every capture case, matches the oracle
   (18 / 46 / 36 rows compared), shows +0.98 / 0.00 / -0.98 m/s, F = 9.8 N and 29.4 N, and has no layout hit anywhere on a grid of inputs and times.
 - Not covered: pixels of the real card, the real render service and any real model; these frames are drawn by the same Frame from a static page, not by the app.
+
+## Clone redeploy and the three night canvases
+
+The clone `rabbit-hole-web-dev-interact` was redeployed from branch `interact/capture-budget` (Version ID 642dc294-6f8b-46d1-8887-2bf801e3954f), with the same settings as the night runs. No model run was made on it for this look.
+
+Each of the three saved night canvases of account owner-interact-night was opened once (`night-canvases/`, script `2026-11-12-clone-runs/scripts/verify-canvases.mjs`). All three fail to load: the card shows "This explanation could not run. Your saved version is kept." with a Restart explanation button, and no frame is drawn.
+
+| canvas | night run | result |
+| --- | --- | --- |
+| canvas-b4380b53 | r12 Brief | does not render |
+| canvas-432fcfac | r13 Balanced | does not render |
+| canvas-9b61fb48 | r16 Detailed | does not render |
+
+Likely cause, not confirmed here: these programs were sealed with the earlier sdk-8 fingerprint, and the scene-look change gave sdk-8 a new one (706a0837...). Not fixed in this brief, by the owner's instruction.
