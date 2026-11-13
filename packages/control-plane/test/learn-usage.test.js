@@ -585,6 +585,15 @@ test('legacy image generation is unavailable by default: no provider call, no se
   assert.equal((await (await call('true', '/api/learn/graph-config?app=canvas-0a1b2c3d')).response.json()).imageGeneration, true);
 });
 
+// Owner 2026-11-13: the hook planner runs on Gemini, so its provider call goes to Google in the OpenAI shape. This turns the planner fixture's output
+// (an Anthropic-shaped reply) into that shape, and checks the host.
+const asGemini = async (url, options, fixtureModel) => {
+  assert.equal(new URL(url).host, 'generativelanguage.googleapis.com');
+  const sent = JSON.parse(options.body);
+  const made = await (await fixtureModel(null, { tools: [{ name: sent.tools[0].function.name }], messages: [sent.messages.find(message => message.role === 'user')] })).json();
+  return Response.json({ model: 'gemini-3.5-flash-lite', choices: [{ message: { tool_calls: made.content.map(block => ({ id: 't1', type: 'function', function: { name: block.name, arguments: JSON.stringify(block.input) } })) } }], usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 } });
+};
+
 // Owner R3 decision (2026-10-16, rel-a.md A2 item 4), superseding the Phase 1 platform-funded anonymous call: a signed-out
 // visitor gets no generation and no action; a signed-in viewer pays.
 test('shared canvas Next Steps: a signed-out visitor is asked to sign in and records nothing, a signed-in viewer pays, never the canvas owner', async t => {
@@ -592,14 +601,14 @@ test('shared canvas Next Steps: a signed-out visitor is asked to sign in and rec
   const { fixtureModel } = await import('../src/learn-next-steps-fixtures.js');
   t.mock.method(console, 'log', () => {});
   const original = globalThis.fetch;
-  globalThis.fetch = async (url, options) => { assert.equal(new URL(url).host, 'api.anthropic.com'); return fixtureModel(null, JSON.parse(options.body)); };
+  globalThis.fetch = async (url, options) => asGemini(url, options, fixtureModel);
   t.after(() => { globalThis.fetch = original; });
   const store = new Map(), had = 'caches' in globalThis, caches = globalThis.caches;
   globalThis.caches = { default: { match: async () => undefined, put: async (key, response) => { store.set(key, response); } } };
   t.after(() => { if (had) globalThis.caches = caches; else delete globalThis.caches; });
   for (const [as, expected] of [[null, null], ['ben', ['u-ben-9a2b', 'user', 'signed_in', 'would_charge']]]) {
     // The per-request context rides in on the fixture's env (a spread copies the Symbol); it is reset to a fresh request after the owner shares.
-    const vars = withUsage({ SMALL_ENV: 'dev', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50' }, { feature: 'shared_next_steps' });
+    const vars = withUsage({ SMALL_ENV: 'dev', GEMINI_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50' }, { feature: 'shared_next_steps' });
     const f = setup(t, { vars });
     const { token } = await f.shareProject();
     Object.assign(usageContext(vars), { identity: undefined, action: null, final: null });
@@ -629,12 +638,12 @@ test('shared canvas Next Steps: viewing or reloading never generates or charges;
   t.mock.method(console, 'log', () => {});
   const original = globalThis.fetch;
   let provider = 0;
-  globalThis.fetch = async (url, options) => { assert.equal(new URL(url).host, 'api.anthropic.com'); provider += 1; return fixtureModel(null, JSON.parse(options.body)); };
+  globalThis.fetch = async (url, options) => { provider += 1; return asGemini(url, options, fixtureModel); };
   t.after(() => { globalThis.fetch = original; });
   const store = new Map(), had = 'caches' in globalThis, caches = globalThis.caches;
   globalThis.caches = { default: { match: async key => store.get(key)?.clone(), put: async (key, response) => { store.set(key, response); } } };
   t.after(() => { if (had) globalThis.caches = caches; else delete globalThis.caches; });
-  const vars = withUsage({ SMALL_ENV: 'dev', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50' }, { feature: 'shared_next_steps' });
+  const vars = withUsage({ SMALL_ENV: 'dev', GEMINI_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50' }, { feature: 'shared_next_steps' });
   const f = setup(t, { vars });
   const { token } = await f.shareProject();
   // Each call is a fresh request context, as the dev-worker boundary makes one per request.
