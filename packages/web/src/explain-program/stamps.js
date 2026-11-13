@@ -33,6 +33,16 @@ export const VISUAL_PROGRAM_STAMPS = Object.freeze({
 });
 export const STATEFUL_VISUAL_PROGRAM_STAMPS = Object.freeze({ ...VISUAL_PROGRAM_STAMPS, schemaVersion: 2 });
 
+// Physical props (sdk.vector, sdk.gate, sdk.groundMark) are an opt-in extension of the visual SDK: no new frame kind, no new renderer, the saved sdk-2 bytes unchanged.
+export const PROPS_CAPABILITY = 'physical_props';
+export const PROPS_SDK_VERSION = 'sdk-7';
+export const PROPS_PROGRAM_STAMPS = Object.freeze({
+  ...VISUAL_PROGRAM_STAMPS,
+  sdkVersion: PROPS_SDK_VERSION,
+  fingerprints: Object.freeze({ ...VISUAL_PROGRAM_STAMPS.fingerprints, sdk: '2e30c246d05178f4de868d89018aae4b7a599a8e19e7e357f2cde9e4eabf9027' }),
+});
+export const STATEFUL_PROPS_PROGRAM_STAMPS = Object.freeze({ ...PROPS_PROGRAM_STAMPS, schemaVersion: 2 });
+
 export const MEDIUM_CAPABILITY = 'medium_visuals';
 export const MEDIUM_SDK_VERSION = 'sdk-4';
 const MEDIUM_RENDERER_VERSION = 'renderer-3';
@@ -85,4 +95,5 @@ export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([
   tuple(1, CYCLIC_PROGRAM_STAMPS), tuple(2, STATEFUL_CYCLIC_PROGRAM_STAMPS),
   tuple(1, RASTER_PROGRAM_STAMPS), tuple(2, STATEFUL_RASTER_PROGRAM_STAMPS),
   tuple(1, HEAT_GRID_PROGRAM_STAMPS), tuple(2, STATEFUL_HEAT_GRID_PROGRAM_STAMPS),
+  tuple(1, PROPS_PROGRAM_STAMPS), tuple(2, STATEFUL_PROPS_PROGRAM_STAMPS),
 ]);

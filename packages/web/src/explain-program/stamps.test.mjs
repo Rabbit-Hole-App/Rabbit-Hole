@@ -62,6 +62,17 @@ test('the host runs an artifact sealed with PROGRAM_STAMPS and refuses one with 
   for (const changed of changes) assert.equal(await outcome(await sealWith(changed)), 'version_unavailable', JSON.stringify(changed));
 });
 
+test('the physical-props SDK (sdk-7) is a new tuple beside sdk-2: its own fingerprint, sdk-2 bytes unchanged, both schemas supported', async () => {
+  const { programSdkSource } = await import('./sdk.js');
+  assert.equal(stamps.PROPS_SDK_VERSION, 'sdk-7');
+  assert.equal(createHash('sha256').update(programSdkSource('sdk-7')).digest('hex'), stamps.PROPS_PROGRAM_STAMPS.fingerprints.sdk, 'update PROPS fingerprint in stamps.js when sdk-geometry.js PROPS_SOURCE changes');
+  assert.equal(createHash('sha256').update(programSdkSource('sdk-2')).digest('hex'), stamps.VISUAL_PROGRAM_STAMPS.fingerprints.sdk, 'the saved sdk-2 source is untouched');
+  assert.notEqual(stamps.PROPS_PROGRAM_STAMPS.fingerprints.sdk, stamps.VISUAL_PROGRAM_STAMPS.fingerprints.sdk);
+  assert.ok(programSdkSource('sdk-7').startsWith(programSdkSource('sdk-2')), 'sdk-7 appends to sdk-2');
+  assert.deepEqual(stamps.SUPPORTED_PROGRAM_TUPLES.filter(t => t.sdkVersion === 'sdk-7').map(t => t.schemaVersion), [1, 2]);
+  assert.equal(stamps.STATEFUL_PROPS_PROGRAM_STAMPS.schemaVersion, 2);
+});
+
 test('a sealed program uses the SDK named in its verified stamps', async () => {
   const { programSdkSource } = await import('./sdk.js');
   assert.equal(createHash('sha256').update(programSdkSource('sdk-2')).digest('hex'), stamps.VISUAL_PROGRAM_STAMPS.fingerprints.sdk);

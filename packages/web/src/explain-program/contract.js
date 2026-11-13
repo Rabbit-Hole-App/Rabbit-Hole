@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { RASTER_LIMITS, rasterProblem } from '../raster-pixels.js';
 import { ROLES } from '../scene-vocab.js';
 import { IMAGE_FIXTURE_IDS } from './sdk-image.js';
-import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION, RASTER_CAPABILITY, RASTER_SDK_VERSION } from './stamps.js';
+import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION, PROPS_CAPABILITY, PROPS_SDK_VERSION, RASTER_CAPABILITY, RASTER_SDK_VERSION } from './stamps.js';
 
 // The frozen artifact and frame contract of the generic /explain sandbox (plan section 5.2, Task 2).
 // Subject-independent on purpose: nothing here names a topic. Every object is strict, every value bounded; the host
@@ -37,7 +37,7 @@ export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capabi
 // Capabilities a manifest may require. An unknown one is unsupported_capability, never silently ignored.
 export const HEAT_GRID_CAPABILITY = 'heat_grid';
 export const requiresHeatGrid = manifest => Array.isArray(manifest?.capabilities) && manifest.capabilities.includes(HEAT_GRID_CAPABILITY);
-export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, RASTER_CAPABILITY, HEAT_GRID_CAPABILITY]);
+export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, RASTER_CAPABILITY, HEAT_GRID_CAPABILITY, PROPS_CAPABILITY]);
 // Frame object kinds: the closed set the trusted renderer draws. Equations are text objects with math runs (hardened path).
 export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image', 'raster', 'heat_grid']);
 
@@ -352,6 +352,9 @@ export const parseArtifact = raw => {
   }
   if (manifest.value.capabilities.includes(CYCLIC_CAPABILITY) && ![CYCLIC_SDK_VERSION, RASTER_SDK_VERSION].includes(raw.sdkVersion)) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'cyclic networks require their SDK version' };
+  }
+  if (manifest.value.capabilities.includes(PROPS_CAPABILITY) && raw.sdkVersion !== PROPS_SDK_VERSION) {
+    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'physical props require their SDK version' };
   }
   if (manifest.value.capabilities.includes(RASTER_CAPABILITY) && raw.sdkVersion !== RASTER_SDK_VERSION) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'raster visuals require their SDK version' };
