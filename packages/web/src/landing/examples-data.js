@@ -1,5 +1,5 @@
 // The Examples page's canvases. Add an entry per canvas: `href` is the canvas's public share link (a viewer can open it and
-// Fork it), `image` a screenshot of the canvas in public/landing/ (any size; it is shown top-left, cropped to the card).
+// Fork it), `image` a screenshot of the canvas in public/landing/ (a screenshot of the whole canvas, any size; it is shown whole, never cropped).
 // ponytail: the three entries below are SAMPLES that reuse landing screenshots; replace them with the real example canvases.
 export const examples = [
   { slug: 'explain-sample', category: 'Explain', title: 'A visual explanation', description: 'Ask one question and get a step-by-step visual explanation you can follow, rearrange and ask more about.',
