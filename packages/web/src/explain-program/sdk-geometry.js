@@ -130,7 +130,7 @@ export const GEOMETRY_SOURCE = String.raw`
 })();
 `;
 
-// Physical props (sdk-7, capability physical_props): drawing rules a program should not have to rediscover. Unlike the geometry helpers above these
+// Physical props (sdk-7, capability props): drawing rules a program should not have to rediscover. Unlike the geometry helpers above these
 // work in FRAME coordinates (pixels, y down) like sdk.arrow, and each returns an ARRAY of frame objects to spread into `objects`.
 //   sdk.vector(id, from, vec, opts) - vec is {dx, dy} (frame units) or {value, direction} with direction 'up'|'down'|'left'|'right'|{x, y} (a negative value
 //     reverses it); the length is |vec| x opts.scale (default 1). From opts.minLength (default 12 px) up it is an `arrow`; BELOW it is a plain `line` of its true

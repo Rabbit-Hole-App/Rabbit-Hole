@@ -34,7 +34,7 @@ export const VISUAL_PROGRAM_STAMPS = Object.freeze({
 export const STATEFUL_VISUAL_PROGRAM_STAMPS = Object.freeze({ ...VISUAL_PROGRAM_STAMPS, schemaVersion: 2 });
 
 // Physical props (sdk.vector, sdk.gate, sdk.groundMark) are an opt-in extension of the visual SDK: no new frame kind, no new renderer, the saved sdk-2 bytes unchanged.
-export const PROPS_CAPABILITY = 'physical_props';
+export const PROPS_CAPABILITY = 'props';
 export const PROPS_SDK_VERSION = 'sdk-7';
 export const PROPS_PROGRAM_STAMPS = Object.freeze({
   ...VISUAL_PROGRAM_STAMPS,
