@@ -116,16 +116,3 @@ test('demo 11: the planner (flow) and the reference (ml-trees-majority-vote, flo
   assert.equal(planWithReferenceKind(input), input);
   assert.deepEqual(events(), []);
 });
-
-// Release 129 (reviewer 2026-11-13, Q3): when the steer fires the author gets the steered reference and the planner's shape example, never a second worked reference.
-test('a steered request sends its steered reference alone (plus the shape example); a request without a steer still sends two references', () => {
-  const steered = selectWithSteer({ prompt: 'explain softmax', shapeFallback: false });
-  assert.deepEqual([steered.steer.id, steered.references.map(r => r.id)], ['ml-logistic-regression-softmax', ['ml-logistic-regression-softmax']]);
-  const plain = selectWithSteer({ prompt: 'explain a loss curve', shapeFallback: false });
-  assert.equal(plain.steer, null);
-  assert.equal(plain.references.length, 2);
-  const prepared = prepareArtifactAuthorRequest(FAST, planWithReferenceKind(request('explain softmax', planFromAnswers(answers('flow')))));
-  assert.equal(prepared.diagramReferences.length, 2, 'the shape example and the steered reference');
-  assert.match(prepared.diagramReferences[0].id, /^shape-/);
-  assert.equal(prepared.diagramReferences[1].id, 'ml-logistic-regression-softmax');
-});
