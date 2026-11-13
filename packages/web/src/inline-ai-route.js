@@ -9,7 +9,7 @@
 // 4. Low confidence, several outputs at once, nothing that fits, a timeout or a malformed answer each have a defined
 //    outcome: the direct note (the approved fallback, never an expensive generator, and said so) or one focused question.
 // No keyword matching: "video" in a request decides nothing here; only JEV reads the request.
-import { SLASH, idOfTyped, typedOf, unavailableCommand } from './agent/slash.js';
+import { SLASH, idOfTyped, typedOf, unavailableCommand, SLASH_FLAGS } from './agent/slash.js';
 import { settingsOf } from './generation-confirmation-schema.js';
 
 export const ROUTE_PROTOCOL_VERSION = 'inline-route-r2';
@@ -178,23 +178,34 @@ const CHAT_META = {
   none: 'None of these fits: an action neither a chat reply nor these tools can do, such as sending an email or booking something.',
 };
 // The chat choice options: 'answer', every declared capability the router may choose (not an explicit-only one), several, none.
-export const CHAT_ROUTES = Object.freeze({ answer: CHAT_ANSWER, ...Object.fromEntries(Object.entries(CHAT_CAPABILITIES).filter(([, entry]) => !entry.explicit && !entry.guarded)) });
+// Only commands whose flag is ON are options (agent/slash.js SLASH_FLAGS, owner 2026-11-13): an off command can never be chosen, so its message stays a chat answer.
+export const CHAT_ROUTES = Object.freeze({ answer: CHAT_ANSWER, ...Object.fromEntries(Object.entries(CHAT_CAPABILITIES).filter(([id, entry]) => !entry.explicit && !entry.guarded && SLASH_FLAGS[id])) });
 // The routes with the guarded capabilities this server enables added (EXP-T15): the server decides, never the browser.
-export const chatRoutesWith = (offered = []) => Object.freeze({ ...CHAT_ROUTES, ...Object.fromEntries(offered.filter(id => CHAT_CAPABILITIES[id]?.guarded).map(id => [id, CHAT_CAPABILITIES[id]])) });
+export const chatRoutesWith = (offered = []) => Object.freeze({ ...Object.fromEntries(Object.entries(CHAT_ROUTES).filter(([id]) => id === 'answer' || SLASH_FLAGS[id])), ...Object.fromEntries(offered.filter(id => CHAT_CAPABILITIES[id]?.guarded && SLASH_FLAGS[id]).map(id => [id, CHAT_CAPABILITIES[id]])) });
 // One capability's whole declaration: the registry entry's label, kind, action and needs with the chat fields.
 export const chatCapability = id => {
   const entry = SLASH.find(command => command.name === id), chat = CHAT_CAPABILITIES[id];
   return chat && entry ? { id, label: entry.label || (typeof entry.desc === 'string' ? entry.desc : id), kind: entry.kind, action: entry.action || null, needs: entry.needs || null, ...chat, settings: settingsOf(id) } : null;
 };
+// The last few turns, as the router may read them (owner 2026-11-13): only to understand a follow-up such as "now make that a quiz". The server never trusts the
+// browser's shape: at most 3 turns, each user line and reply cut to 200 characters, the command only if it is a command token.
+export const ROUTE_HISTORY_TURNS = 3, ROUTE_HISTORY_CHARS = 200;
+export function normalizeHistory(history) {
+  if (!Array.isArray(history)) return [];
+  const cut = value => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, ROUTE_HISTORY_CHARS);
+  return history.slice(-ROUTE_HISTORY_TURNS).map(turn => ({ user: cut(turn?.user), reply: cut(turn?.reply), command: /^[a-z][a-z0-9-]{0,40}$/.test(String(turn?.command ?? '')) ? turn.command : null })).filter(turn => turn.user);
+}
 // The JEV request: one Choice question over the chat routes. State is compact text: never the canvas package or an image.
-export function chatRouteRequest({ text, selection = null, sourceRefs = null }, model, routes = CHAT_ROUTES) {
+export function chatRouteRequest({ text, selection = null, sourceRefs = null, history = null }, model, routes = CHAT_ROUTES) {
   const criteria = { ...Object.fromEntries(Object.entries(routes).map(([id, route]) => [id, route.intent])), ...CHAT_META };
   const selected = selection && typeof selection === 'object' ? `${selection.kind || 'card'} "${String(selection.title || '').slice(0, 100)}" ${String(selection.text || '').slice(0, 400)}`.trim() : '';
+  const earlier = normalizeHistory(history);
   const attached = Array.isArray(sourceRefs) ? sourceRefs.slice(0, 8).map(ref => `${ref?.kind}${ref?.name ? ` "${String(ref.name).slice(0, 80)}"` : ''}`).join('; ') : '';
   return {
     model,
-    state: { request: String(text).slice(0, PROMPT_MAX), selected: selected ? `yes: ${selected}` : 'no', ...(attached ? { attached } : {}) },
-    questions: { route: { type: 'choice', instructions: `Which does the learner's chat message ask for? ${GUARD} Answer is the default for questions. Negations count: "explain it, but don't make a video" does not ask for a video; "why is this video wrong" and "can Motion make audio?" ask about something, not for it; "find a video" searches, it does not make one.`, criteria } },
+    state: { request: String(text).slice(0, PROMPT_MAX), selected: selected ? `yes: ${selected}` : 'no', ...(attached ? { attached } : {}),
+      ...(earlier.length ? { earlier: earlier.map(turn => `learner: ${turn.user}${turn.reply ? ` | reply: ${turn.reply}` : ''}${turn.command ? ` | ran: /${turn.command}` : ''}`).join('\n') } : {}) },
+    questions: { route: { type: 'choice', instructions: `Which does the learner's chat message ask for? ${GUARD} Answer is the default for questions. Negations count: "explain it, but don't make a video" does not ask for a video; "why is this video wrong" and "can Motion make audio?" ask about something, not for it; "find a video" searches, it does not make one. earlier, when present, is only context for a follow-up (for example "now make that a quiz"): choose by the request itself.`, criteria } },
   };
 }
 export const readChatRoute = (body, routes = CHAT_ROUTES) => readRoute(body, routes, CHAT_META);

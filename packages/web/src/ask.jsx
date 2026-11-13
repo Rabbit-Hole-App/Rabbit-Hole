@@ -41,7 +41,7 @@ import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
 import { chatTitle, lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
-import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeOutcome } from './generation-proposal-chat.js';
+import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeHistory, routeOutcome } from './generation-proposal-chat.js';
 import { isSmallTalk } from './inline-ai-route.js';
 import { markEnd, markStart } from './client-timing.js';
 import SurfaceBoundary from './SurfaceBoundary.jsx';
@@ -843,7 +843,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       clarified.current = null;
       if (routable && !commandName && answerChosen) payload.answer_only = true;
       if (routable && !answerChosen && ((!prompted && !commandName) || reviewRequired(commandName))) {
-        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }), { plain: !commandName && !routeAs && !prompted });
+        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null, history: routeHistory(msgs) }), { plain: !commandName && !routeAs && !prompted });
         if (late()) return;
         // Plain words the router read as an image request take the same plan route as the typed command.
         if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }

@@ -254,7 +254,7 @@ test('the harness ties its mirrored client seams to the real code, so they canno
   const ask = readFileSync(new URL('../../web/src/ask.jsx', import.meta.url), 'utf8');
   assert.ok(ask.includes("const routable = chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && !edit && payload.mode !== 'tutor';"), 'an Editing pill, a regeneration and a contents turn never route');
   assert.ok(ask.includes("if (edit?.command === 'roadmap') {") && ask.includes('roadmap.controller.revise({ instruction: raw.trim() })'), 'Edit roadmap revises with the typed words');
-  assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null }'), 'a named command routes with its capability');
+  assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null, history: routeHistory(msgs) }'), 'a named command routes with its capability, and the router reads the last turns');
   // SEND-20: a send canceled or moved to another thread while the route is out returns before anything is sent.
   const at = ask.indexOf('const outcome = routeOutcome(await routeChat('), after = ask.indexOf('if (late()) return;', at);
   assert.ok(at > 0 && after > at && after - at < 700, 'late() follows the route result');

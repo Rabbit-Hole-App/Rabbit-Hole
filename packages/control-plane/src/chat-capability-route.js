@@ -85,7 +85,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   const routes = offeredRoutes(env);
   let out, read;
   try {
-    out = await ask(env, chatRouteRequest({ text, selection: fields.selection, sourceRefs: fields.source_refs }, JEV_TRANSPORTS[transport].model, routes), { transport, timeoutMs });
+    out = await ask(env, chatRouteRequest({ text, selection: fields.selection, sourceRefs: fields.source_refs, history: fields.history }, JEV_TRANSPORTS[transport].model, routes), { transport, timeoutMs });
     read = readChatRoute(out.body, routes);
   } catch (error) {
     const code = error instanceof JevError ? (error.code === 'timeout' ? 'timeout' : 'unavailable') : 'malformed';
@@ -97,11 +97,9 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   log({ request_id: requestId, outcome: 'routed', choice: read.choice, confidence: read.confidence, probability: read.probability, ms: meta.ms, cost: meta.cost, input_tokens: meta.input_tokens });
   const ranked = read.ranked.filter(id => id !== 'answer');
   if (read.choice === 'several') return { ...base, ...scored, route: 'clarify', via: 'jev', clarification: { question: 'This asks for more than one thing. Which first?', options: [...ranked.slice(0, 2), 'answer'] } };
-  if (read.choice === 'none') return { ...base, ...scored, route: 'unsupported', via: 'jev', message: 'That isn\'t something chat can do here.' };
-  if (read.choice === 'answer') return answer('jev', scored);
-  if (read.probability < thresholds.probability || read.confidence < thresholds.confidence) {
-    return { ...base, ...scored, route: 'clarify', via: 'jev', clarification: { question: `Did you want ${(chatCapability(read.choice)?.label || read.choice).toLowerCase()}, or an answer in chat?`, options: [read.choice, 'answer'] } };
-  }
+  // No slash command found (owner 2026-11-13): a normal chat answer. That is JEV's own answer or none, and a command it is not sure of (below the thresholds).
+  if (read.choice === 'none' || read.choice === 'answer') return answer('jev', scored);
+  if (read.probability < thresholds.probability || read.confidence < thresholds.confidence) return answer('jev-low', scored);
   return pick(read.choice, 'jev', text.trim(), scored);
 }
 
@@ -134,6 +132,6 @@ export async function chatRouteFetch(req, env, { authorize = authorizedBoardApp,
   if (allowed instanceof Response) return allowed;
   const refused = subscriptionOwnerRefusal(env, allowed);
   if (refused) return refused;
-  const fields = { app: body.app, text: body.text, mode: body.mode, selection: body.selection, source_refs: body.source_refs, motion: body.motion };
+  const fields = { app: body.app, text: body.text, mode: body.mode, selection: body.selection, source_refs: body.source_refs, motion: body.motion, history: body.history };
   return json(await decideChat(env, { email: allowed.email, app: body.app, requestId: body.request_id, fields, capability: body.capability ?? null, enabled: body.enabled ?? null }, deps));
 }

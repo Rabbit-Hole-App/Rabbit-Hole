@@ -131,14 +131,15 @@ test('plain words: one JEV call and nothing else; Motion gets a proposal route, 
   // the untouchable LEARN_DB / DB / LEARN_VIDEOS throw on any use: reaching here means no reservation or write
 });
 
-test('JEV outcomes: answer, low confidence and several ask one question, none and unavailable features are refused', async t => {
+// Owner 2026-11-13: when no slash command is found the message is a normal chat answer: JEV's own answer or none, and a command it is not sure of.
+test('JEV outcomes: answer, none and a command it is not sure of are a chat answer; several ask one question; unavailable features are refused', async t => {
   noFetch(t);
   assert.deepEqual((await decideWith(counted(jev('answer', 0.97)), 'Can Motion generate audio?')).route, 'answer');
   const low = await decideWith(counted(jev('motion', 0.45, 0.3)), 'make something about photosynthesis');
-  assert.deepEqual([low.route, low.clarification.options, low.token], ['clarify', ['motion', 'answer'], null]);
+  assert.deepEqual([low.route, low.via, low.token], ['answer', 'jev-low', null]);
   const several = await decideWith(counted(jev('several', 0.8, 0.8, { several: 0.8, diagram: 0.1, motion: 0.09, answer: 0.01 })), 'a diagram and a video of this');
   assert.deepEqual([several.route, several.clarification.options], ['clarify', ['diagram', 'motion', 'answer']]);
-  assert.equal((await decideWith(counted(jev('none', 0.9)), 'email this to my teacher')).route, 'unsupported');
+  assert.deepEqual(await decideWith(counted(jev('none', 0.9)), 'email this to my teacher').then(out => [out.route, out.via]), ['answer', 'jev']);
   const paused = await decideWith(counted(jev('motion', 0.95)), 'make this into a video', { env: { ...ENV, MOTION_GENERATION_PAUSED: '1' } });
   assert.deepEqual([paused.route, paused.token], ['unsupported', null]);
   assert.match(paused.message, /temporarily unavailable/);
@@ -167,7 +168,7 @@ test('a whole-message greeting makes zero JEV calls, even with JEV unconfigured;
   const motion = await decideWith(counted(jev('answer', 0.9)), '/motion explain photosynthesis');
   assert.deepEqual([motion.route, motion.flow, typeof motion.token], ['capability:motion', 'proposal', 'string']);
   const unsure = await decideWith(counted(jev('motion', 0.45, 0.3)), 'make something about photosynthesis');
-  assert.deepEqual([unsure.route, unsure.token], ['clarify', null]);
+  assert.deepEqual([unsure.route, unsure.token], ['answer', null]);
 });
 
 test('a router timeout, failure, malformed answer or missing key answers normally: never a paid capability', async t => {
@@ -270,11 +271,11 @@ test('plain words reach /explain only where the server enables /explain v2; off,
   assert.match(onAsk.calls[0][1].questions.route.criteria.explain, /new visual explanation card/);
   assert.deepEqual([routed.route, routed.via, routed.flow, routed.args], ['capability:explain', 'jev', 'direct', 'make a visual explanation of how a heap works']);
   assert.ok(routed.token, 'a signed route bound to this turn');
-  // Ordinary questions, negations and capability questions stay answers; uncertainty asks; a timeout answers.
+  // Ordinary questions, negations and capability questions stay answers; uncertainty is an answer too (owner 2026-11-13); a timeout answers.
   assert.equal((await decideWith(counted(jev('answer', 0.9)), 'why is a heap not sorted?', { env: on })).route, 'answer');
   assert.equal((await decideWith(counted(jev('answer', 0.9)), 'explain heaps, but don\'t make a card', { env: on })).route, 'answer');
   const unsure = await decideWith(counted(jev('explain', 0.4, 0.2)), 'heap picture?', { env: on });
-  assert.deepEqual([unsure.route, unsure.clarification.options], ['clarify', ['explain', 'answer']]);
+  assert.deepEqual([unsure.route, unsure.via], ['answer', 'jev-low']);
   const slow = await decideWith(counted(new JevError('timeout', 'timeout')), 'draw an explainer of heaps', { env: on });
   assert.deepEqual([slow.route, slow.via, slow.code], ['answer', 'fallback', 'timeout']);
   // Plain "explain this" never reaches the router: it is an answer.
