@@ -106,10 +106,16 @@ test('no layout rule fires anywhere on a grid of inputs and times', async () => 
   }
 });
 
-// Why no program draws a vector label: frame-overlap.js counts a lane's own box under every text over it (text-box), so a v or a label inside a lane fails the layout rules. The rule is not loosened;
-// this pins the finding (docs/features/interact/evidence/2026-11-13-codex-match/README.md) so a change to either side shows here.
-test('a vector label inside a lane is a text-box overlap with the lane: the programs leave the label out and the callout carries the reading', async () => {
-  const r = await check('tossStandard', d => { d.main.program.source = d.main.program.source.replace("{ scale: 12, minLength: 3 }", "{ scale: 12, minLength: 3, label: 'v', side: 'left' }"); });
-  const hits = r.det.problems.filter(p => p.code === 'overlap');
-  assert.ok(hits.some(p => /"vec\.v\.tossL" overlaps "lane\.toss" \(text-box/.test(p.message)), JSON.stringify(hits.map(p => p.message)));
+// A lane is a container: the v and a letters beside the arrows and "Launch height" under the ground line sit inside their lane and no layout rule fires (frame-overlap.js skips the lane's own box).
+test('every program draws its v and a letters and "Launch height" inside the lane, and the layout rules pass', async () => {
+  for (const [name, letters] of [['tossOverview', ['vec.vL', 'vec.aL']], ['tossStandard', ['vec.v.tossL', 'vec.a.tossL', 'vec.v.dropL', 'vec.a.dropL']], ['tossDeep', ['vec.vL', 'vec.aL']]]) {
+    const b = await build(name);
+    const [capture] = await headlessCaptureCard({})({ composition: b.composition, artifacts: b.artifacts, cases: [{ id: 'mid', inputs: { launchSpeed: 4, gravity: 9.8, mass: 1 }, time: 0.6, events: [] }] });
+    const objects = capture.trace.objects, lanes = objects.filter(o => o.kind === 'box' && objects.some(t => t.id === `${o.id}.title`));
+    assert.deepEqual(frameOverlaps({ objects, ...capture.trace.frame }, 100), [], name);
+    const inLane = id => { const t = objects.find(o => o.id === id); return t && lanes.some(l => t.x >= l.x && t.x <= l.x + l.w && t.y >= l.y && t.y <= l.y + l.h); };
+    const launch = objects.filter(o => o.id.startsWith('label.launch')).map(o => o.id);
+    assert.ok(launch.length, `${name}: Launch height is drawn`);
+    for (const id of [...letters, ...launch]) assert.ok(inLane(id), `${name}: ${id} is inside a lane`);
+  }
 });

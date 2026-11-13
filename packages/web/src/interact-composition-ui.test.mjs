@@ -240,18 +240,16 @@ test('every composed card draws Reset as the same icon button at the end of its 
   assert.match(B.renderToStaticMarkup(B.createElement(B.SceneControls, { declarations: choice, inputs: { k: 'a' }, data: {}, onInput: () => {}, onReset: () => {} })), /data-scene-reset="true"[^>]*aria-label="Reset experiment"/);
 });
 
-test('the program card draws the same Reset through the one ResetButton: on a composed card ONLY as the icon at the top-right of its scene box (always, greyed while unchanged), on another card at the end of its controls row while changed; no Interact label on a composed card (owner scope cut 2026-11-13 codex match)', async () => {
+test('the program card draws the same Reset through the one ResetButton: on a composed card ONLY as the icon at the right of its heading row above the scene (always, greyed while unchanged), on another card at the end of its controls row while changed; no Interact label on a composed card (owner scope cut 2026-11-13 codex match)', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
-  assert.equal((src.match(/<ResetButton /g) || []).length, 2, 'two draws of the one component: the corner and the legacy row');
-  assert.match(src, /\{composed && <ResetButton corner onReset=\{reset\} disabled=\{!changed\} \/>\}/, 'the corner Reset of the scene box');
+  assert.equal((src.match(/<ResetButton /g) || []).length, 2, 'two draws of the one component: the heading row and the legacy row');
+  assert.match(src, /<div data-interact-heading [^>]*>\s*<h2 [^>]*text-\[17px\] font-\[650\][^>]*>\{composition\.title\}<\/h2>\s*<ResetButton onReset=\{reset\} disabled=\{!changed\} \/>\s*<\/div>/, 'the heading row: the plan title at the left, Reset at the right');
+  assert.ok(src.indexOf('<div data-interact-heading') < src.indexOf('<div data-program-viewport'), 'the heading row is above the scene');
+  assert.doesNotMatch(src, /corner|absolute top-3|Wrap/, 'the overlay path is gone');
   assert.match(src, /\{!composed && changed && <ResetButton onReset=\{reset\} \/>\}/, 'a composed card has no Reset in its controls row');
   assert.match(src, /composed \? rows\.length > 0 \|\| seeks\.length > 0 \|\| actions\.length > 0 \|\| targets\.length > 0 :/, 'a composed card with only Reset draws no controls block');
   assert.match(src, /\{!composed && <p className="mb-1\.5[^"]*">Interact<\/p>\}/, 'the Interact label stays on the legacy card only');
-  const corner = B.renderToStaticMarkup(B.createElement(B.ResetButton, { onReset: () => {}, corner: true }));
-  assert.match(corner, /^<button type="button" data-scene-reset="true" aria-label="Reset experiment" title="Reset experiment" class="absolute top-3 right-3 /);
-  assert.match(corner, /h-\[34px\] w-\[34px\]/, 'a 34 px button');
-  assert.match(corner, /width="17" height="17"/, 'a 17 px icon');
   assert.doesNotMatch(src, />Reset experiment<\/button>/, 'no text button any more');
 });
 

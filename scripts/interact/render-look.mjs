@@ -4,7 +4,7 @@
 // (scene, transport, controls) is screenshotted at the default state, after "At top" (and, for Standard, 0.10 s after the top).
 // Ours: the scripted sdk-8 program of the same plan (packages/web/src/interact-toss-programs.js) runs in the pinned engine at the same states, its frame is normalised (normalizeFrame)
 // and drawn by the real Frame of AnimatedScene.jsx in interact mode (esbuild bundle + react-dom/server), in a static page with the Codex page's own Inter and the theme variables of
-// packages/web/src/index.css, at the width of the Codex `.experiment`, same device scale. Only the scene frame is drawn: the card chrome, transport and controls are not part of it.
+// packages/web/src/index.css, at the width of the Codex `.experiment`, same device scale. The scene frame is drawn under the card heading row (the plan title and the real ResetButton, with stand-in CSS: the static page has no Tailwind): the card chrome, transport and controls are not part of it.
 import { createRequire } from 'node:module';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -39,7 +39,7 @@ function frameBundle() {
   const dir = mkdtempSync(join(tmpdir(), 'render-look-')), outfile = join(dir, 'frame.cjs');
   try {
     buildSync({
-      stdin: { contents: "export { Frame } from '../AnimatedScene.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: join(root, 'packages/web/src/explain-program') },
+      stdin: { contents: "export { Frame } from '../AnimatedScene.jsx'; export { ResetButton } from '../SceneControls.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: join(root, 'packages/web/src/explain-program') },
       bundle: true, outfile, platform: 'node', format: 'cjs', jsx: 'automatic', loader: { '.css': 'empty' }, logLevel: 'silent',
     });
     return createRequire(import.meta.url)(outfile);
@@ -58,7 +58,8 @@ async function ourMarkup(plan, time) {
   if (!parsed.ok) throw new Error(`${plan} at ${time} s: ${parsed.issue}`);
   const view = normalizeFrame(parsed.value.frame, manifest);
   if (!view.ok) throw new Error(`${plan} at ${time} s: ${view.issue}`);
-  return drawn.renderToStaticMarkup(drawn.createElement(drawn.Frame, { interact: true, scene: view.scene, state: view.state, selecting: false, marked: null, picked: null, pop: { duration: 0 }, fixedView: true, onPick: NOOP, onRegion: NOOP }));
+  const heading = `<div class="head"><h2>${manifest.title}</h2>${drawn.renderToStaticMarkup(drawn.createElement(drawn.ResetButton, { onReset: NOOP }))}</div>`;
+  return heading + drawn.renderToStaticMarkup(drawn.createElement(drawn.Frame, { interact: true, scene: view.scene, state: view.state, selecting: false, marked: null, picked: null, pop: { duration: 0 }, fixedView: true, onPick: NOOP, onRegion: NOOP }));
 }
 
 // The page ours is drawn in: the Inter face of the Codex page, and the --viz / --color tokens of index.css (the theme variables the card sets; the Frame sets its own ink, line and surface).
@@ -67,7 +68,7 @@ const FONT = reference.match(/@font-face\{font-family:Inter;[^}]*\}/)?.[0];
 if (!FONT) throw new Error('the Inter @font-face was not found in the Codex page');
 const css = readFileSync(join(root, 'packages/web/src/index.css'), 'utf8');
 const TOKENS = [...css.slice(0, css.indexOf('\n.dark {')).matchAll(/(--(?:viz|color|font)-[\w-]+):\s*([^;]+);/g)].map(match => `${match[1]}:${match[2]};`).join('');
-const page = (markup, width) => `<!doctype html><meta charset="utf-8"><style>${FONT}:root{${TOKENS}}body{margin:0;font-family:Inter,"Liberation Sans",Arial,sans-serif}#shot{width:${width}px}#shot svg{display:block;width:100%;height:auto}</style><div id="shot">${markup}</div>`;
+const page = (markup, width) => `<!doctype html><meta charset="utf-8"><style>${FONT}:root{${TOKENS}}body{margin:0;font-family:Inter,"Liberation Sans",Arial,sans-serif}#shot{width:${width}px}.head{display:flex;align-items:center;gap:14px;padding:6px 0}.head h2{margin:0;font-size:17px;line-height:1.4;font-weight:650;color:#1f2a24}.head button{margin-left:auto;display:flex;width:32px;height:32px;align-items:center;justify-content:center;border:0;border-radius:8px;background:transparent;color:#5b6372}#shot svg{display:block;width:100%;height:auto}</style><div id="shot">${markup}</div>`;
 
 mkdirSync(out, { recursive: true });
 const browser = await launch();

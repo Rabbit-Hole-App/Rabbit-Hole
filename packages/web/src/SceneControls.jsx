@@ -14,14 +14,12 @@ import { describeInputForLearner } from './scene-inputs.js';
 
 // Reset (owner 2026-11-12): one icon, the app's RotateCcw (LearningBlocks.jsx), named "Reset experiment" for a screen reader and on hover, right-aligned in the controls row. The row it sits in
 // flexes, so ml-auto puts it at the end. A disabled one (nothing differs from the starting values) keeps its place, greyed. Shared by the spec scenes and the program card.
-// corner (a composed program card, ProgramScene.jsx; owner scope cut 2026-11-13 codex match): the same button as the one icon at the top-right of the scene box, nowhere else (its parent is relative).
-export function ResetButton({ onReset, disabled = false, corner = false }) {
+// A composed program card (ProgramScene.jsx) draws this same button at the right of its experiment heading row (owner 2026-11-13 codex match); every other card at the end of its controls row.
+export function ResetButton({ onReset, disabled = false }) {
   return (
     <button type="button" data-scene-reset aria-label="Reset experiment" title="Reset experiment" disabled={disabled} onClick={disabled ? undefined : onReset}
-      className={corner
-        ? 'absolute top-3 right-3 z-[2] flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-line bg-white text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-ink-2'
-        : 'ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-2'}>
-      <RotateCcw size={corner ? 17 : 14} />
+      className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-2">
+      <RotateCcw size={14} />
     </button>
   );
 }

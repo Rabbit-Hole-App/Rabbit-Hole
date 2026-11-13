@@ -7,6 +7,7 @@ import { estimateTextBox } from '../scene-layout.js';
 import { textStyle } from '../scene-style.js';
 import { textWidthPx } from '../interact-description-fit.js';
 import { BODY_MIN } from './contract.js';
+import { lanesOf } from './frame-look.js';
 
 // Characters a run is worth at the body size: a math run's TeX length scaled by the equation rule above.
 const runLength = run => (run.kind === 'math' ? Math.ceil(run.tex.length * (textStyle('equation').fontSize * 0.5) / (textStyle('body').fontSize * 0.6)) : run.text.length);
@@ -48,13 +49,15 @@ const shared = (p, q) => ({ width: Math.min(p.xMax, q.xMax) - Math.max(p.xMin, q
 // -> [{ a, b, kind, width, height }]: text over text, text over a circle, box or arrowhead, and an arrowhead over a circle, whenever the boxes intersect at all, in object
 // order, at most `limit`. A shape's OWN label (a box's or circle's `text`) is not a separate object and so never a pair. Pure geometry, no subject and no wording.
 export function frameOverlaps(frame, limit = 8) {
-  const objects = frame.objects || [], texts = textBoxes(frame), out = [];
+  const objects = frame.objects || [], texts = textBoxes(frame), out = [], laneIds = new Set(lanesOf(objects).map(lane => lane.id));
+  // A lane is a container (text may sit inside it) and a callout line box (`<id>.l0` to `.l3`) is the card of the text named `<id>` or `<id>.*`: neither is an obstacle for that text.
   const push = (a, b, kind, p, q) => { const { width, height } = shared(p, q); if (width > 0 && height > 0 && out.length < limit) out.push({ a, b, kind, width: Math.round(width * 10) / 10, height: Math.round(height * 10) / 10 }); };
   for (let i = 0; i < texts.length; i += 1) for (let j = i + 1; j < texts.length; j += 1) push(texts[i].id, texts[j].id, 'text-text', texts[i].box, texts[j].box);
   for (const text of texts) {
     for (const o of objects) {
       const shape = shapeBox(o), head = headBox(o);
-      if (shape) push(text.id, o.id, `text-${o.kind}`, text.box, shape);
+      const container = o.kind === 'box' && (laneIds.has(o.id) || (/\.l[0-3]$/.test(o.id) && (text.id === o.id.slice(0, -3) || text.id.startsWith(`${o.id.slice(0, -3)}.`))));
+      if (shape && !container) push(text.id, o.id, `text-${o.kind}`, text.box, shape);
       if (head) push(text.id, o.id, 'text-arrowhead', text.box, head);
     }
   }
