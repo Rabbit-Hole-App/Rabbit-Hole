@@ -198,6 +198,14 @@ test('a candidate that fails a deterministic check is never sent to the reviewer
   assert.equal((await checkRound(await candidate('standard'), minor)).status, 'failed', 'a blocker overrides a claimed pass');
 });
 
+test('a review that rejects a capture with only minor findings, or none, still hands the repairer a finding to act on (a live run died as no_progress)', async () => {
+  const rejecting = findings => ctxWith(fixtureScript('standard', { build_review: ({ input }) => ({ captures: (String(input).match(/Captures to review: (.*)/)[1].split(', ')).map((id, i) => ({ id, semantic: 'pass', visual: i === 2 ? 'fail' : 'pass', findings: i === 2 ? findings : [] })) }) }));
+  const minorOnly = await checkRound(await candidate('standard'), rejecting([{ verdict: 'visual', category: 'spec', severity: 'minor', object: 'label', message: 'The label touches the arrow.', repairable: true }]));
+  assert.equal(minorOnly.status, 'failed'); assert.equal(minorOnly.failure.findings.length, 1); assert.match(minorOnly.failure.findings[0].message, /touches the arrow/);
+  const none = await checkRound(await candidate('standard'), rejecting([]));
+  assert.equal(none.status, 'failed'); assert.equal(none.failure.findings[0].target.capture, 'cp-top'); assert.match(none.failure.findings[0].message, /visual: fail without naming a finding/);
+});
+
 test('capture outages and incomplete capture are never ready: an outage recaptures later, a program error is repairable, a missing service stops', async () => {
   const j = await candidate('standard');
   let out = await checkRound(j, ctxWith(fixtureScript('standard'), { captureCard: async () => { throw new RenderError('render_unavailable', 'browser down'); } }));

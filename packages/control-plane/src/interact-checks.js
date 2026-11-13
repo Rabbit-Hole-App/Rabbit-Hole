@@ -354,7 +354,10 @@ ${compositionLayoutText(plan, composition)}` : ''), compiledHash: composition.en
     if (kind.kind === 'incomplete') return { status: 'incomplete', reason: error.message, kind, captures: summary, coverage, calls };
     throw Object.assign(error, { calls });
   }
-  const findings = review.captures.flatMap(c => c.findings).filter(f => f.severity !== 'minor');
+  const all = review.captures.flatMap(c => c.findings);
+  let findings = all.filter(f => f.severity !== 'minor');
+  // A rejection must leave the repairer something to act on: a live run was refused (accepted false) with only minor findings or none, so the repair returned "none" (no_progress).
+  if (!review.accepted && !findings.length) findings = all.length ? all : review.captures.filter(c => c.semantic !== 'pass' || c.visual !== 'pass').map(c => ({ category: 'spec', severity: 'major', target: { capture: c.captureId }, message: `The review marked this capture ${c.semantic !== 'pass' ? 'semantic' : 'visual'}: fail without naming a finding; check its layout and numbers and fix what is wrong.` }));
   if (!review.accepted) return { status: 'failed', failure: { stage: 'review', problems: [], findings: findings.map(({ category, severity, target, message }) => ({ category, severity, target, message: clip(message) })) }, review: { accepted: false, captures: review.captures }, captures: summary, pngs, check: det.coverage, coverage, calls };
   return { status: 'ready', review: { accepted: true, captures: review.captures }, captures: summary, pngs, check: det.coverage, coverage, calls };
 }
