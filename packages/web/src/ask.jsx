@@ -183,14 +183,14 @@ export function MaterialIcon({ type }) {
 // A selected page of a context document rides as that document's ref at its page (pdf-to-canvas.md): first, once, within the limit.
 const withPage = (refs, page) => (page && !refs.some(ref => sameRef(ref, page)) ? [page, ...refs].slice(0, MAX_REFS) : refs);
 const sectionNote = section => (section.skips ? 'Next section - skips this section' : 'Next section');
-// HOOK_ROW: one suggestion pill's height (owner 2026-11-13: three small pills in a row above the chat strip), so the skeleton and the three hooks are the same size.
-const HOOK_ROW = 'h-7 rounded-full border border-line';
+// HOOK_ROW: one suggestion's minimum height (owner 2026-11-13: three small cards in a row above the chat strip; the text wraps to three lines, never cut to one), so the skeleton and the hooks are the same size.
+const HOOK_ROW = 'min-h-9 rounded-xl border border-line';
 // The card's header (owner brief 2 item 6): Refresh asks the same pipeline for a new set (a ready set only, one at a time);
 // Minimize folds the card to a chip. Neither sends a message, navigates, adds a card or starts a Rabbit Hole.
 function NextStepsHeader({ steps, spinning = false, onMinimize = null }) {
   const refreshing = steps.refresh_state === 'loading';
   return (
-    <div className="order-last flex items-center gap-0.5">
+    <div className="order-last flex shrink-0 items-center gap-0.5 self-center">
       <h2 className="sr-only">Curious where this goes?{spinning && <Loader2 size={12} aria-hidden="true" className="shrink-0 animate-spin text-ink-3 motion-reduce:animate-none" />}</h2>
       {typeof steps.refresh === 'function' && (
         <button type="button" data-next-steps-refresh aria-label="Refresh suggestions" title="Refresh suggestions: a new set for this canvas" disabled={steps.status !== 'ready' || refreshing} aria-busy={refreshing || undefined}
@@ -234,10 +234,10 @@ export function NextStepsCard({ steps, onPick, minimized: held = null, onMinimiz
   // never the previous hooks (contract §1.2). Unavailable, whatever its reason, draws nothing.
   if (steps.status === 'loading' || steps.status === 'stale') {
     return (
-      <section data-next-steps={steps.status} data-next-steps-skeleton aria-label="Curious where this goes?" aria-busy="true" style={height.current ? { minHeight: height.current } : undefined} className="flex w-full flex-wrap items-center justify-center gap-1.5">
+      <section data-next-steps={steps.status} data-next-steps-skeleton aria-label="Curious where this goes?" aria-busy="true" style={height.current ? { minHeight: height.current } : undefined} className="flex w-full flex-wrap items-stretch gap-1.5">
         <NextStepsHeader steps={steps} spinning onMinimize={controlled ? null : () => setMinimized(true)} />
         <span className="sr-only">Loading suggestions</span>
-        {[0, 1, 2].map(row => <div key={row} aria-hidden="true" data-next-step-placeholder className={`${HOOK_ROW} w-40 bg-hover motion-safe:animate-pulse max-md:w-28`} />)}
+        {[0, 1, 2].map(row => <div key={row} aria-hidden="true" data-next-step-placeholder className={`${HOOK_ROW} min-w-[11rem] flex-1 bg-hover motion-safe:animate-pulse`} />)}
       </section>
     );
   }
@@ -250,11 +250,11 @@ export function NextStepsCard({ steps, onPick, minimized: held = null, onMinimiz
     try { await onPick(r.selected_next_step, hook); } finally { setWorking(null); }
   };
   return (
-    <section ref={frame} data-next-steps={steps.status} data-next-steps-refresh-state={steps.refresh_state || undefined} aria-label="Curious where this goes?" className="flex w-full flex-wrap items-center justify-center gap-1.5">
+    <section ref={frame} data-next-steps={steps.status} data-next-steps-refresh-state={steps.refresh_state || undefined} aria-label="Curious where this goes?" className="flex w-full flex-wrap items-stretch gap-1.5">
       <NextStepsHeader steps={steps} onMinimize={controlled ? null : () => setMinimized(true)} />
       {steps.refresh_state === 'loading' && <span role="status" className="sr-only">Refreshing suggestions</span>}
       {steps.refresh_state === 'error' && (
-        <p role="alert" data-next-steps-refresh-error className="order-last flex items-center gap-2 text-xs text-ink-2">
+        <p role="alert" data-next-steps-refresh-error className="order-last flex w-full items-center gap-2 text-xs text-ink-2">
           {steps.refresh_reason === 'limited' ? 'Refresh limit reached for now; these suggestions stay.' : 'Could not refresh; these suggestions stay.'}
           {steps.refresh_reason !== 'limited' && <button type="button" onClick={() => steps.refresh()} className="font-medium text-ink underline-offset-2 hover:underline">Try again</button>}
         </p>
@@ -262,9 +262,9 @@ export function NextStepsCard({ steps, onPick, minimized: held = null, onMinimiz
       {steps.options.map(hook => (
         <button key={hook.id} type="button" data-next-step={hook.id} data-next-section={hook.section?.id} aria-label={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : undefined} disabled={!!working} aria-busy={working === hook.id || undefined} onClick={() => pick(hook)}
           title={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : hook.hook}
-          className="flex h-7 max-w-[17rem] min-w-0 cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white px-2.5 text-left text-xs text-ink shadow-sm hover:bg-hover disabled:cursor-default disabled:opacity-55 disabled:hover:bg-white max-md:max-w-[min(17rem,100%)]">
+          className="flex min-h-9 min-w-[11rem] flex-[1_1_0%] cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-left text-xs leading-snug text-ink shadow-sm hover:bg-hover disabled:cursor-default disabled:opacity-55 disabled:hover:bg-white">
           {working === hook.id ? <Loader2 size={12} className="shrink-0 animate-spin text-ink-3" /> : <CornerDownRight size={12} className="shrink-0 text-ink-3" />}
-          <span className="min-w-0 truncate">{hook.hook}{hook.section && <span data-next-section-note className="sr-only">{sectionNote(hook.section)}</span>}</span>
+          <span className="min-w-0 line-clamp-3">{hook.hook}{hook.section && <span data-next-section-note className="sr-only">{sectionNote(hook.section)}</span>}</span>
         </button>
       ))}
     </section>

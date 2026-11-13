@@ -35,7 +35,7 @@ test('the hook card: exactly the 3 hooks of a ready set, verbatim and in order, 
   const html = card(set('ready'));
   assert.match(html, /^<section data-next-steps="ready" aria-label="Curious where this goes\?"/);
   assert.match(html, /<h2[^>]*>Curious where this goes\?<\/h2>/);
-  const shown = [...html.matchAll(/<button [^>]*data-next-step="([^"]+)"[^>]*>[\s\S]*?<span class="min-w-0 truncate">([^<]*)<\/span><\/button>/g)].map(m => [m[1], m[2]]);
+  const shown = [...html.matchAll(/<button [^>]*data-next-step="([^"]+)"[^>]*>[\s\S]*?<span class="min-w-0 line-clamp-3">([^<]*)<\/span><\/button>/g)].map(m => [m[1], m[2]]);
   assert.deepEqual(shown, [['ns_0a0b0c0d.1', 'Why does bread rise &lt;faster&gt; in a warm room?'], ['ns_0a0b0c0d.2', HOOKS[1]], ['ns_0a0b0c0d.3', HOOKS[2]]]);
   assert.doesNotMatch(html, /secret goal|nb_x|learning_goal|basis/, 'nothing inside selected_next_step is drawn');
   assert.doesNotMatch(html, /disabled=""/, 'a ready set is clickable');
@@ -55,12 +55,12 @@ test('the hook card: loading and stale draw a skeleton with a spinner, never the
     // Owner brief 2 item 6: the header's Minimize is there in every state; no hook button is.
     assert.deepEqual([...html.matchAll(/<button[^>]*?(data-next-steps-[a-z]+)/g)].map(m => m[1]), ['data-next-steps-minimize'], `${status}: only the header's Minimize`);
   }
-  // No layout jump: a placeholder and a hook pill are both one small pill high (owner 2026-11-13: three small pills above the chat strip).
-  assert.match(ask, /const HOOK_ROW = 'h-7 rounded-full border border-line';/);
+  // No layout jump: a placeholder and a hook card share one minimum height (owner 2026-11-13: three small cards above the chat strip, the text wrapped to three lines, never cut to one).
+  assert.match(ask, /const HOOK_ROW = 'min-h-9 rounded-xl border border-line';/);
   // The skeleton keeps the last set's height, so a stale card does not change size while the next set loads.
   assert.match(ask, /useEffect\(\(\) => \{ if \(steps\?\.status === 'ready' && frame\.current\) height\.current = frame\.current\.offsetHeight; \}\);/);
   assert.match(ask, /aria-busy="true" style=\{height\.current \? \{ minHeight: height\.current \} : undefined\}/);
-  assert.match(ask, /className="flex h-7 max-w-\[17rem\] min-w-0 cursor-pointer items-center gap-1\.5 rounded-full border border-line bg-white px-2\.5/);
+  assert.match(ask, /className="flex min-h-9 min-w-\[11rem\] flex-\[1_1_0%\] cursor-pointer items-center gap-1\.5 rounded-xl border border-line bg-white px-2\.5 py-1\.5/);
   assert.equal(card({ ...set('unavailable'), options: [] }), '', 'unavailable');
   assert.equal(card(set('ready', HOOKS.slice(0, 2))), '', 'never fewer than 3');
   assert.equal(card(null), '', 'not mounted: nothing');
@@ -70,7 +70,7 @@ test('the hook card click: select() first, then the step once, never the hook as
   // One flight: a refused select() (stale, unknown, busy) hands nothing on; a second click while one runs is ignored.
   assert.match(ask, /const pick = async hook => \{\n\s+if \(working\) return;\n\s+const r = steps\.select\(hook\.id\);\n\s+if \(!r\.ok\) return;\n\s+setWorking\(hook\.id\);\n\s+try \{ await onPick\(r\.selected_next_step, hook\); \} finally \{ setWorking\(null\); \}/);
   // A rendered hook is only ever the Hook's own text, plus (r29) the next-section hook's fixed note.
-  assert.match(ask, /<span className="min-w-0 truncate">\{hook\.hook\}\{hook\.section && <span data-next-section-note className="sr-only">\{sectionNote\(hook\.section\)\}<\/span>\}<\/span>/);
+  assert.match(ask, /<span className="min-w-0 line-clamp-3">\{hook\.hook\}\{hook\.section && <span data-next-section-note className="sr-only">\{sectionNote\(hook\.section\)\}<\/span>\}<\/span>/);
 });
 
 test('ask.jsx sendStep: Voice on is say with the step, else the hook sentence goes through send as an ordinary Chat turn; no askStep, no selection payload', () => {
