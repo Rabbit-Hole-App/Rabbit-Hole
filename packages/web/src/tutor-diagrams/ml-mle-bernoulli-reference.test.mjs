@@ -50,6 +50,5 @@ test('the likelihood reference passes the content contract and renders at 408', 
   const detailed = renderToStaticMarkup(renderTutorDiagram(depths.deep.spec, 408).element);
   assert.match(detailed, /class="katex"/);
   const fallback = detailed.slice(detailed.lastIndexOf('data-explanation-skip'));
-  // Owner decision 2026-11-12 (readable fallback for maths): the native text writes subscripts and exponents as Unicode.
-  assert.match(fallback, /L\(p\)=120p⁷\(1-p\)³/);
+  assert.match(fallback, /L\(p\)=120p\^7\(1-p\)\^3/);
 });

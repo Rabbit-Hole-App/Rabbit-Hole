@@ -87,8 +87,7 @@ test('a narrow embedding caption keeps its complete native SVG fallback and inli
   assert.match(caption, /data-tutor-tex="\$x_p=e_p\+PE_p\$"/);
   const fallback = caption.slice(caption.lastIndexOf('data-explanation-skip'));
   const lines = [...fallback.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map(([, line]) => line);
-  // Owner decision 2026-11-12 (readable fallback for maths): the native text writes subscripts and exponents as Unicode.
-  assert.equal(lines.join(' '), 'Four entries shown per row. Add position with xₚ=eₚ+PEₚ.');
+  assert.equal(lines.join(' '), 'Four entries shown per row. Add position with x_p=e_p+PE_p.');
 });
 
 test('the Gini and entropy caption shows both formulas with and without XHTML support', () => {

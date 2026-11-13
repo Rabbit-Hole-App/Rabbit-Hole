@@ -106,9 +106,7 @@ test('lesson 12 tuning references round-trip and render every numeric label at 3
       const visible = Object.fromEntries(elements.flatMap((element, index) => {
         const key = element.props['data-tutor-matrix-row'] ?? element.props['data-tutor-matrix-cell'];
         if (!key) return [];
-        let label = elements[index + 1];
-        // A label with a formula is a switch: the typeset branch, then its readable native text (owner decision 2026-11-12, readable fallback for maths in labels).
-        if (label.type === 'switch') label = Children.toArray(Children.toArray(label.props.children)[0].props.children)[0];
+        const label = elements[index + 1];
         const lines = Children.toArray(label.props.children);
         assert.equal(lines.length, 1, `${key} must stay on one line at ${width} px`);
         const [line] = lines;

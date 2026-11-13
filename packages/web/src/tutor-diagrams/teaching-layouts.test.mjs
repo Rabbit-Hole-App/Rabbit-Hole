@@ -199,7 +199,7 @@ test('argument connects the claim, both reasoning lanes and the conclusion', () 
 });
 
 test('the remaining layouts wrap long labels and fit the original 320-pixel width', () => {
-  const long = Array(4).fill('UnbrokenIdentifier').join(' ');
+  const long = 'UnbrokenIdentifier'.repeat(4);
   const inputs = [
     { ...relationship, nodes: relationship.nodes.map(node => ({ ...node, label: long })), edges: relationship.edges.map(edge => ({ ...edge, label: long })) },
     { ...transformation, before: { label: long, items: [long, long, long] }, after: { label: long, items: [long, long] }, operation: long },

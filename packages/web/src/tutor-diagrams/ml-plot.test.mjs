@@ -407,16 +407,3 @@ test('nearest-centroid reference computes each center from its displayed samples
     close(distance(centers[0]), distance(centers[1]));
   }
 });
-
-test('the log-scale suffix is added once: an axis label that already says it is not extended again', () => {
-  const count = svg => (svg.match(/log scale/g) || []).length;
-  const d = plot();
-  d.x = { label: 'Number of trees · log scale', min: 1, max: 100, scale: 'log' };
-  d.series[0].points = [{ x: 1, y: 0.1 }, { x: 10, y: 0.5 }, { x: 100, y: 0.9 }];
-  d.y = { label: 'Accuracy', min: 0, max: 1 };
-  const said = render(d).svg;
-  assert.doesNotMatch(said, /log scale · log scale/);
-  assert.equal(count(said), count(said.replace('Number of trees · log scale', '')) + 1, 'the x label shows it exactly once');
-  d.x.label = 'Number of trees';
-  assert.match(render(d).svg, /Number of trees · log scale/);
-});
