@@ -1,4 +1,4 @@
-import { Fragment, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { Pause, Play } from 'lucide-react';
 import { api } from '../api.js';
@@ -361,10 +361,6 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
   const legible = box ?? legibleFrame(view.scene, composition ? INTERACT_LOOK : null);
   const readoutRows = composed ? (view.readouts || []).filter(r => composition.main.readoutIds.includes(r.id)) : [];
-  // A composed card draws Reset as the one icon at the top-right of its scene box (owner scope cut 2026-11-13 codex match), so the viewport sits in a relative wrapper that Reset positions against;
-  // in Focus the wrapper takes the viewport's centring so the corner stays the drawing's. Every other card is unchanged.
-  const Wrap = composed ? 'div' : Fragment;
-  const wrapProps = composed ? { className: 'relative flex min-h-0 flex-1 flex-col', style: focusBox ? { flex: 'none', alignSelf: 'safe center' } : undefined } : {};
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
@@ -374,14 +370,19 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           {manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
           {manifest.instructions && <p data-card-instructions className="shrink-0 text-sm leading-snug text-ink-2">{manifest.instructions}</p>}
         </>}
-      <Wrap {...wrapProps}>
-      {composed && <ResetButton corner onReset={reset} disabled={!changed} />}
+      {/* A composed card's experiment heading (Codex .experiment-heading): the plan's title at the left, Reset as the one icon at the right, one row above the scene. The plan has no scene title or
+          subtitle field, so the heading is the plan's title with no subtitle. ponytail: a scene subtitle (Codex "Upward is positive") waits for a plan field. */}
+      {composed && (
+        <div data-interact-heading className="flex shrink-0 items-center gap-3.5">
+          <h2 className="min-w-0 text-[17px] font-[650] leading-snug text-ink">{composition.title}</h2>
+          <ResetButton onReset={reset} disabled={!changed} />
+        </div>
+      )}
       <div data-program-viewport {...(composed ? { 'data-interact-scene': '' } : {})} className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
         style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
         <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" {...(dragIds.length ? pointerDrag : {})}
           style={{ ...(focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }), ...(dragIds.length ? { touchAction: 'none' } : {}) }}>{picture}</div>
       </div>
-      </Wrap>
       <p className="sr-only">{manifest.summary}</p>
       <div ref={controls} className="flex shrink-0 flex-col gap-2">
       {/* The card draws the plan's readouts (the program reports them; it does not draw them as text): one entry per declared readout, label, value and unit, tabular numbers. */}
@@ -437,7 +438,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
                 ))}
               </div>
             )}
-            {/* Reset: the icon at the end of the row (SceneControls.jsx ResetButton), shown while something differs. A composed /interact card draws it at the top-right of its scene box instead (above), always, greyed while nothing differs. */}
+            {/* Reset: the icon at the end of the row (SceneControls.jsx ResetButton), shown while something differs. A composed /interact card draws it at the right of its heading row instead (above), always, greyed while nothing differs. */}
             {!composed && changed && <ResetButton onReset={reset} />}
           </div>
         </div>
