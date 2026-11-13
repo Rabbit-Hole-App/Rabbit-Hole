@@ -24,14 +24,14 @@ export function scrub(text, ctx) {
 export function childEnv() {
   return Object.fromEntries(['PATH', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'LANG'].filter(k => process.env[k]).map(k => [k, process.env[k]]));
 }
-export async function command(ctx, stage, label, executable, args, { cwd, allowFailure = false } = {}) {
+export async function command(ctx, stage, label, executable, args, { cwd, allowFailure = false, verbatim = false } = {}) {
   const log = join(ctx.topicDir, `${stage}-${label}.log`);
   await mkdir(ctx.topicDir, { recursive: true });
   let result;
   try {
     result = await (ctx.execFile ?? execute)(executable, args, {
       cwd: cwd ?? ctx.config.repo.root, env: childEnv(), encoding: 'utf8', timeout: 600000, maxBuffer: 16 * 1024 * 1024,
-      windowsHide: true,
+      windowsHide: true, ...(verbatim ? { windowsVerbatimArguments: true } : {}),
     });
   } catch (error) {
     result = { stdout: error.stdout ?? '', stderr: error.stderr ?? '', code: error.code ?? 1 };
@@ -45,7 +45,8 @@ export async function command(ctx, stage, label, executable, args, { cwd, allowF
 export async function configuredCommand(ctx, stage, label, text, cwd) {
   if (typeof text !== 'string' || !text.trim()) return null;
   const windows = process.platform === 'win32';
-  return command(ctx, stage, label, windows ? 'cmd.exe' : '/bin/sh', windows ? ['/d', '/s', '/c', text] : ['-c', text], { cwd });
+  // cmd /s /c "<text>" with the text passed verbatim: Node's own quoting turned a command that starts with a quoted path into \"...\", which cmd cannot run (stack start and stop failed).
+  return command(ctx, stage, label, windows ? 'cmd.exe' : '/bin/sh', windows ? ['/d', '/s', '/c', `"${text}"`] : ['-c', text], { cwd, verbatim: windows });
 }
 export async function integration(ctx) {
   const value = await readJson(join(ctx.topicDir, 'integration.json'));
