@@ -187,7 +187,7 @@ const sectionNote = section => (section.skips ? 'Next section - skips this secti
 const HOOK_ROW = 'h-7 rounded-full border border-line';
 // The card's header (owner brief 2 item 6): Refresh asks the same pipeline for a new set (a ready set only, one at a time);
 // Minimize folds the card to a chip. Neither sends a message, navigates, adds a card or starts a Rabbit Hole.
-function NextStepsHeader({ steps, spinning = false, onMinimize }) {
+function NextStepsHeader({ steps, spinning = false, onMinimize = null }) {
   const refreshing = steps.refresh_state === 'loading';
   return (
     <div className="order-last flex items-center gap-0.5">
@@ -198,18 +198,22 @@ function NextStepsHeader({ steps, spinning = false, onMinimize }) {
           <RefreshCw size={13} className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
         </button>
       )}
-      <button type="button" data-next-steps-minimize aria-label="Minimize suggestions" title="Minimize suggestions" aria-expanded="true" onClick={onMinimize}
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-hover hover:text-ink"><Minus size={13} /></button>
+      {onMinimize && <button type="button" data-next-steps-minimize aria-label="Minimize suggestions" title="Minimize suggestions" aria-expanded="true" onClick={onMinimize}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-hover hover:text-ink"><Minus size={13} /></button>}
     </div>
   );
 }
 
-export function NextStepsCard({ steps, onPick }) {
+export function NextStepsCard({ steps, onPick, minimized: held = null, onMinimizedChange = null }) {
   const [working, setWorking] = useState(null);
   // Minimized: a round icon that frees the card's room; Restore shows the same suggestions again, never asking for new ones. The
   // choice is this device's (ui-prefs.js curiousMin, owner 2026-11-13), so it holds when the card leaves with the opened Chat panel and returns.
-  const [minimized, setMinimizedNow] = useState(() => uiPrefs().curiousMin);
-  const setMinimized = on => { setMinimizedNow(on); try { saveUiPref('curiousMin', on); } catch { /* storage refused: the choice holds until a reload */ } };
+  // Controlled (the canvas page, owner 2026-11-13): the choice lives with the chat composer's own toggle next to the / control, so the card has no Minimize of
+  // its own and draws nothing while folded. Uncontrolled (a shared canvas): its own Minimize and icon.
+  const [own, setOwn] = useState(() => uiPrefs().curiousMin);
+  const controlled = onMinimizedChange !== null;
+  const minimized = controlled ? held : own;
+  const setMinimized = on => { if (controlled) return onMinimizedChange(on); setOwn(on); try { saveUiPref('curiousMin', on); } catch { /* storage refused: the choice holds until a reload */ } };
   // The last set's height: the skeleton that replaces it keeps it, so the card does not change size while the next set loads.
   const frame = useRef(null), height = useRef(0);
   useEffect(() => { if (steps?.status === 'ready' && frame.current) height.current = frame.current.offsetHeight; });
@@ -218,10 +222,11 @@ export function NextStepsCard({ steps, onPick }) {
   // No saved set (owner 2026-11-13, replacing the 2026-10-21 empty state with its Suggest button): nothing is drawn. useNextSteps asks for a set
   // by itself as soon as the card is shown, and the loading card below takes over.
   if (steps.status === 'unavailable' && steps.reason === 'curious_empty') return null;
+  if (minimized && controlled) return null;
   if (minimized && visible) return (
-    <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="flex w-full justify-center">
+    <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="flex w-full justify-end">
       <button type="button" data-next-steps-restore aria-label="Restore suggestions" title="Curious where this goes? Show the suggestions" aria-expanded="false" onClick={() => setMinimized(false)}
-        className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover hover:text-ink"><CircleHelp size={16} strokeWidth={1.7} /></button>
+        className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover hover:text-ink"><CircleHelp size={15} strokeWidth={1.7} /></button>
     </section>
   );
   // A set on its way for this basis, loading or stale (owner, 2026-10-08: "if the questions are still being loaded just show
@@ -230,7 +235,7 @@ export function NextStepsCard({ steps, onPick }) {
   if (steps.status === 'loading' || steps.status === 'stale') {
     return (
       <section data-next-steps={steps.status} data-next-steps-skeleton aria-label="Curious where this goes?" aria-busy="true" style={height.current ? { minHeight: height.current } : undefined} className="flex w-full flex-wrap items-center justify-center gap-1.5">
-        <NextStepsHeader steps={steps} spinning onMinimize={() => setMinimized(true)} />
+        <NextStepsHeader steps={steps} spinning onMinimize={controlled ? null : () => setMinimized(true)} />
         <span className="sr-only">Loading suggestions</span>
         {[0, 1, 2].map(row => <div key={row} aria-hidden="true" data-next-step-placeholder className={`${HOOK_ROW} w-40 bg-hover motion-safe:animate-pulse max-md:w-28`} />)}
       </section>
@@ -246,7 +251,7 @@ export function NextStepsCard({ steps, onPick }) {
   };
   return (
     <section ref={frame} data-next-steps={steps.status} data-next-steps-refresh-state={steps.refresh_state || undefined} aria-label="Curious where this goes?" className="flex w-full flex-wrap items-center justify-center gap-1.5">
-      <NextStepsHeader steps={steps} onMinimize={() => setMinimized(true)} />
+      <NextStepsHeader steps={steps} onMinimize={controlled ? null : () => setMinimized(true)} />
       {steps.refresh_state === 'loading' && <span role="status" className="sr-only">Refreshing suggestions</span>}
       {steps.refresh_state === 'error' && (
         <p role="alert" data-next-steps-refresh-error className="order-last flex items-center gap-2 text-xs text-ink-2">
@@ -266,7 +271,7 @@ export function NextStepsCard({ steps, onPick }) {
   );
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, stripHost = null, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false, roadmap = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, stripHost = null, curiousToggle = null, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false, roadmap = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -312,6 +317,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // into a card. Asking about a selected card still answers as a linked card.
   const sheetMode = sheet && composerOnly;
   const stripMode = !!(stripHost && chat && !tocView);
+  // Curious's own toggle (owner 2026-11-13): in the canvas strip's toolbar, next to the / control; LearnPage owns the state (curiousToggle: { min, set }).
+  const curiousButton = stripMode && curiousToggle ? (
+    <button type="button" data-curious-toggle aria-label={curiousToggle.min ? 'Show suggestions' : 'Hide suggestions'} aria-pressed={!curiousToggle.min} title={curiousToggle.min ? 'Show the suggestions' : 'Hide the suggestions'} onMouseDown={event => event.preventDefault()} onClick={() => curiousToggle.set(!curiousToggle.min)}
+      className={cn(COMPOSER_TOOL, !curiousToggle.min && 'bg-active text-ink')}><CircleHelp size={16} strokeWidth={1.7} /></button>) : null;
   const regionHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
   const inlineSlot = useRef(null);
   useLayoutEffect(() => { const where = stripMode ? stripHost : inlineSlot.current; if (where && regionHost.parentNode !== where) where.appendChild(regionHost); });
@@ -1027,7 +1036,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
             selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, uploading: !!canvasTarget.uploading, onClear: onClearCanvasTarget } : null} extra={boardPending}
             code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null;
   const composerRegion = (
-      <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
+      <div ref={composerBox} className={cn('relative shrink-0', stripMode ? 'w-full' : 'mt-2', !compact && !stripMode && 'sticky bottom-0 bg-white pt-1 pb-2')}>
         {/* @-mention suggestions above the input */}
         {!tocView && atHits.length > 0 && (
           <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
@@ -1186,6 +1195,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
               Graph open from the panel header's one control (owner brief 2026-10-16 item 6), not from here. */}
           {chat && <ModeSelector disabled={voiceOn} />}
           {(dock || chat) && chatControl}
+          {curiousButton}
           {SHOW_VOICE_TOGGLE && (dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
           </>}
           voice={voiceOn ? <VoiceField voice={voice} /> : null}

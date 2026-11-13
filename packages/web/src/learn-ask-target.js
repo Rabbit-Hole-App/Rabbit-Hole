@@ -37,6 +37,7 @@ export const TOC_VIEW = {
     'data-repository-context': "the repository's Asking about box",
     'data-context-path': "the repository's Asking about box",
     'data-context-excerpt': "the repository's Asking about box",
+    'data-curious-toggle': "the canvas strip's Curious toggle (the strip is never the contents view)",
     'data-upload-context': 'the + menu',
     'data-mention-canvas': 'the + menu',
     'data-context-button': 'Context documents (never on the Learn Chat either)',

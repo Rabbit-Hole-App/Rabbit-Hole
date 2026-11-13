@@ -6742,11 +6742,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
             small Show button instead). The hooks card's minimized state is its own. */}
         {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
-          <button type="button" data-composer-hide aria-label="Minimize chat composer" title="Minimize chat composer - your draft stays" onClick={hideComposer}
-            className="absolute -top-2.5 -left-2.5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-white text-ink-2 shadow-pop hover:bg-hover hover:text-ink"><Minus size={12} strokeWidth={2} /></button>
           {/* Curious (owner 2026-11-13): the three suggestions are small pills in a row right above the strip, so they leave with it. */}
           {hooks && <div data-hooks-slot ref={hooksSlot} className={`mb-1.5 empty:hidden ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
+          <div className="relative">
+          <button type="button" data-composer-hide aria-label="Minimize chat composer" title="Minimize chat composer - your draft stays" onClick={hideComposer}
+            className="absolute -top-3 left-7 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-white text-ink-2 shadow-pop hover:bg-hover hover:text-ink"><Minus size={12} strokeWidth={2} /></button>
           {composer}
+          </div>
         </div>}
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}

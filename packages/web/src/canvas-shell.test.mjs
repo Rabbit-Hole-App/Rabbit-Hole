@@ -50,7 +50,8 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(canvas, /saveUiPref\('chatStrip', value\)/);
   assert.doesNotMatch(canvas, /ComposerHide\.Provider/);
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
-  assert.match(strip, /<button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{hideComposer\}\n[^\n]*absolute -top-2\.5 -left-2\.5[^\n]*h-6 w-6[^\n]*rounded-full[^\n]*\n\s+\{\/\*[^\n]*\*\/\}\n\s+\{hooks && <div data-hooks-slot[^\n]*\n\s+\{composer\}/, 'a small circle on the frame\'s top-left corner, then the three Curious pills, then the composer (owner 2026-11-13)');
+  assert.match(strip, /\{\/\*[^\n]*\*\/\}\n\s+\{hooks && <div data-hooks-slot[^\n]*\n\s+<div className="relative">\n\s+<button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{hideComposer\}\n[^\n]*absolute -top-3 left-7[^\n]*h-6 w-6[^\n]*rounded-full[^\n]*\n\s+\{composer\}/, 'the three Curious pills, then the composer with a small circle hanging on its own top border (owner 2026-11-13)');
+  assert.match(read('ask.jsx'), /className=\{cn\('relative shrink-0', stripMode \? 'w-full' : 'mt-2', !compact && !stripMode && 'sticky bottom-0 bg-white pt-1 pb-2'\)\}/, 'in the strip nothing behind the pill is opaque: no sticky white band clipping the canvas');
   assert.match(strip, /\{composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer"/);
   assert.match(strip, /bg-black[^\n]*<img src="\/static\/rabbit-hole-white-on-black-128\.png"/, 'white mark on black, under /static, the one public path the workers serve for it');
   assert.ok(strip.indexOf('data-hooks-slot') < strip.indexOf('data-composer-show'), 'beside the Curious card, at the lower right');
