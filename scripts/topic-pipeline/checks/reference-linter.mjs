@@ -196,6 +196,9 @@ function referenceForPrompt(entry) {
   return entry.referenceId ?? entry.expectedReferenceId ?? entry.expectedReference ?? entry.reference;
 }
 
+// Rule 8 (reviewer 2026-11-12): two selectable worked references of one kind for a prompt is a warning; production's Lesson 04 has it today and it is fixed by Q3, not by the author.
+const asCollisionWarning = issue => issue.rule === 8 ? { ...issue, severity: 'warning' } : issue;
+
 function collisionFlags(references, supplied = []) {
   const flags = [], seen = new Set();
   const report = (ids, depth, kind, prompt) => {
@@ -267,7 +270,7 @@ export function lintOverlays({ overlays = {}, references = [], prompts = [], sou
   const selectionViews = references.map(ref => ({ ...ref,
     prompts: [...new Set([...(ref.prompts ?? []), ...(Array.isArray(overlays[ref.id]?.prompts) ? overlays[ref.id].prompts : [])])].filter(prompt => affectedPrompts.has(prompt)),
   }));
-  return [...flags, ...collisionFlags(selectionViews, collisions)];
+  return [...flags, ...collisionFlags(selectionViews, collisions)].map(asCollisionWarning);
 }
 
 /** Pure checks. source is text or [{path,content}]; derived is derived() or its JSON result.
@@ -341,7 +344,7 @@ export function lintReferences({ references = [], prompts = [], source, derived,
   }
   if (authored && !hasDerivedAssertion(files)) flags.push(flag('<module>', '*', 6, 'Authored modules require a lesson test asserting caption/display numbers against derived().'));
   if (authored) for (const detail of typedDisplayNumbers(files)) flags.push(flag('<module>', '*', 6, detail));
-  return [...flags, ...collisionFlags(references, collisions)].map(issue => !authored && [2, 9].includes(issue.rule) ? { ...issue, severity: 'warning' } : issue);
+  return [...flags, ...collisionFlags(references, collisions)].map(issue => !authored && [2, 9].includes(issue.rule) ? { ...issue, severity: 'warning' } : asCollisionWarning(issue));
 }
 
 /** Stage-05 path policy shared by static checks. The registry is the sole shared JS file. */

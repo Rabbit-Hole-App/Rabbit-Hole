@@ -291,3 +291,15 @@ test('rule 2: overlays receive prompt/keyword checks and preserve verbatim cover
   assert.deepEqual(lintOverlays({ overlays, references: [base], prompts, source, repoRoot: registry.root, topic: 'fixture' }), []);
   assert.ok(ofRule(lintOverlays({ overlays, references: [base], source: [{ ...source[0], content: source[0].content + '\n// fetch' }], repoRoot: registry.root, topic: 'fixture' }), 11).length);
 });
+
+test('rule 8 collisions are warnings, authored or not', () => {
+  const ref = reference();
+  const first = { id: ref.id, spec: ref.spec };
+  const collisions = [{ prompt: 'query', depth: 'deep', collision: true }];
+  for (const authored of [false, true]) {
+    const flags = ofRule(lintReferences({ references: [ref], derived: () => [7], authored, collisions }), 8);
+    assert.equal(flags.length, 1);
+    assert.equal(flags[0].severity, 'warning');
+  }
+  assert.ok(first);
+});

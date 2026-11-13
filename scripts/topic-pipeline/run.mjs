@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { pathToFileURL, fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { loadConfig, getTopicPaths, redact } from './config.mjs';
 import { loadState, saveState, archiveFrom, withTopicLock } from './state.mjs';
 import { notify } from './notify.mjs';
@@ -63,13 +63,13 @@ export async function main(argv = process.argv.slice(2)) {
     config: { type: 'string', default: join(dirname(fileURLToPath(import.meta.url)), 'config.local.json') },
     from: { type: 'string' }, to: { type: 'string' },
     'approve-prompts': { type: 'boolean' }, go: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, fixture: { type: 'boolean' },
-    'author-model': { type: 'string' }, 'author-effort': { type: 'string' }, 'reviewer-model': { type: 'string' }, 'reviewer-effort': { type: 'string' }, 'judge-model': { type: 'string' },
+    'author-answer': { type: 'string' }, 'author-model': { type: 'string' }, 'author-effort': { type: 'string' }, 'reviewer-model': { type: 'string' }, 'reviewer-effort': { type: 'string' }, 'judge-model': { type: 'string' },
   } });
   const topic = positionals[0];
   if (positionals.length !== 1 || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(topic)) throw new Error('Usage: node scripts/topic-pipeline/run.mjs <topic> [--from 01] [--to 08] [--fixture]');
   const config = await loadConfig(values.config);
   config.overrides = Object.fromEntries(Object.entries(values).filter(([key]) => /model|effort/.test(key)));
-  config.run = { fixture: !!values.fixture, dryRun: !!values['dry-run'] };
+  config.run = { fixture: !!values.fixture, dryRun: !!values['dry-run'], authorAnswer: values['author-answer'] ? resolve(values['author-answer']) : undefined };
   const stages = {};
   for (const name of stageNames) {
     stages[name.slice(0, 2)] = async ctx => (await import(`./stages/${name}.mjs`)).run(ctx);

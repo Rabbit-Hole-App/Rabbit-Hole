@@ -148,7 +148,8 @@ async function replay() {
     const firstHit = identity(selection.references[0]);
     if (firstHit !== row.firstHit) changedPriorPicks.push({ ...row, after: firstHit });
   }
-  return { passed: rows.every(row => row.firstPick) && !collisions.length && !changedPriorPicks.length,
+  // Collisions are warnings (reviewer 2026-11-12): they are listed in the result and the stage notes but do not fail the replay.
+  return { passed: rows.every(row => row.firstPick) && !changedPriorPicks.length,
     rows, collisions, changedPriorPicks, priorCases: input.baseline.cases.length, parity: input.baseline.parity };
 }
 
