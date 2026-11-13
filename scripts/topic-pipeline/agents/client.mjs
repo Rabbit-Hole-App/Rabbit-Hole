@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import Ajv from 'ajv';
 import { getEncoding } from 'js-tiktoken';
 import { agentSettings, callPrice, ceilings, estimateTopic, recordSpend } from '../budget.mjs';
@@ -147,7 +149,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
       const entry = { agent, model, attempt, inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0,
         reasoningTokens: usage?.reasoningTokens ?? 0, usageKnown: Boolean(usage),
         usd: usage ? callPrice(config, model, usage.inputTokens, usage.outputTokens) : 0, ms: Date.now() - started,
-        ...(responseId && !usage ? { responseId } : {}) }; // the id lets unknown usage be reconciled from the stored response
+        ...(responseId ? { responseId } : {}) }; // the id lets unknown usage be reconciled from the stored response
       // recordSpend mutates before throwing on an overrun. Always save that charge.
       try { recordSpend(state, entry); }
       finally { await persist(); }
@@ -164,6 +166,8 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
         return value;
       } catch (error) {
         feedback = redact(error.message, config).slice(0, 4000);
+        // Keep the rejected answer (redacted) so a failed round can be diagnosed; best effort, never fails the call.
+        try { await mkdir(join(topicDir, 'rejected'), { recursive: true }); await writeFile(join(topicDir, 'rejected', `${agent}-${Date.now()}-attempt${attempt}.txt`), redact(outputText(payload, provider), config)); } catch { /* diagnostics only */ }
       }
     }
     throw new Error(`Agent output failed schema validation after two attempts (last stop_reason ${stopReason}): ${feedback}`);
