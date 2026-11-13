@@ -37,3 +37,9 @@ test('dependencies are linked into a fresh integration worktree as junctions, on
   assert.deepEqual(await linkDependencies(deps, tree), [], 'a second call links nothing');
   assert.deepEqual(await linkDependencies(undefined, tree), []);
 });
+
+test('the property count is read from the gate scripts GATE PASS lines (the larger of the two)', async () => {
+  const { propertyCountFromGateLines } = await import('../stages/05-integrate.mjs');
+  assert.equal(propertyCountFromGateLines('top5 x\nGATE PASS: max 347 <= 362\nover 362: 0\nGATE PASS: max 358 <= 362\n'), 358);
+  assert.equal(propertyCountFromGateLines('no lines here'), undefined);
+});

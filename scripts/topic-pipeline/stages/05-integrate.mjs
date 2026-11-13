@@ -40,6 +40,11 @@ export function allowed(path, ctx, author) {
   return (ctx.metadata?.sources ?? []).some(source => source.kind === 'brief' && source.path === path && path.startsWith('docs/features/explain-on-canvas/handoff/figure-briefs/briefs/') && path.endsWith('.md'));
 }
 
+export function propertyCountFromGateLines(text) {
+  const found = [...String(text).matchAll(/GATE PASS: max (\d+) <= \d+/gu)].map(match => Number(match[1]));
+  return found.length ? Math.max(...found) : undefined;
+}
+
 export async function run(ctx) {
   const record = { branch: ctx.fixture && ctx.dryRun ? `release/dryrun-${ctx.topic}` : ctx.config.repo.releaseBranch,
     worktree: '', commits: [], status: 'pending', checks: [] };
@@ -114,6 +119,8 @@ export async function run(ctx) {
     artefacts.push(counted.log);
     let count;
     try { count = JSON.parse(counted.stdout.trim()).propertyCount; } catch { count = /^\s*\d+\s*$/.test(counted.stdout) ? Number(counted.stdout) : undefined; }
+    // The gate scripts (int8-props, int8-mixed) print one `GATE PASS: max N <= 362` line each: the count is the larger N (reviewer 2026-11-13).
+    if (count === undefined) count = propertyCountFromGateLines(counted.stdout);
     if (!Number.isInteger(count) || count > 362 || count < 0) throw new Error('A1 property count must be reported as propertyCount JSON or an integer, and stay at most 362.');
     record.propertyCount = count;
     // integration.smoke: false = the deterministic checks only (reviewer 2026-11-13: a topic release whose replay moves no prior pick is gated by suites, property count and replay).
