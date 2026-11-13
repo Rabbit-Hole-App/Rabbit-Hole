@@ -182,6 +182,22 @@ return sdk;`)();
   assert.equal(old.panel, undefined);
 });
 
+// ---- sdk.vector under sdk-8 (interact scene look): the label sits beside the shaft's midpoint, 10 px clear, never at the tip --------------------------------------------------------------
+test('sdk.vector under sdk-8 puts its label beside the middle of the arrow, 10 px clear of the shaft, on the right of its direction (left with side), and passes the layout clearance rule', () => {
+  const [arrow, label] = sdk.vector('v', { x: 100, y: 200 }, { dx: 0, dy: -60 }, { label: 'v', role: 'input' });
+  assert.deepEqual([arrow.kind, arrow.from.y, arrow.to.y, arrow.role], ['arrow', 200, 140, 'input']);
+  assert.deepEqual([label.kind, label.id, label.align, label.role], ['text', 'vL', 'middle', 'input']);
+  assert.ok(label.x > 110 && label.x < 125 && label.y === 170, `right of the middle of the shaft (${label.x}, ${label.y})`);
+  const [, left] = sdk.vector('v', { x: 100, y: 200 }, { dx: 0, dy: -60 }, { label: 'v', side: 'left' });
+  assert.ok(left.x < 90, 'side: left puts it on the other side');
+  const [, down] = sdk.vector('g', { x: 100, y: 100 }, { dx: 0, dy: 40 }, { label: 'a' });
+  assert.ok(down.x < 90, 'a down arrow takes its right-hand side, the left of the picture');
+  assert.equal(sdk.vector('w', { x: 0, y: 0 }, { dx: 40, dy: 0 }).length, 1, 'no label, no text');
+  assert.throws(() => sdk.vector('v', { x: 0, y: 0 }, { dx: 40, dy: 0 }, { label: 'v', side: 'up' }), /sdk\.vector: side is left or right/);
+  assert.deepEqual(layoutProblems({ objects: sdk.vector('v', { x: 100, y: 200 }, { dx: 0, dy: -60 }, { label: 'v = 4' }), width: 640, height: 420 }), []);
+  assert.deepEqual(layoutProblems({ objects: sdk.vector('h', { x: 100, y: 200 }, { dx: 80, dy: 0 }, { label: 'Gravity' }), width: 640, height: 420 }), []);
+});
+
 // ---- bodies (interact scene look): the renderer colours a body by order, so an sdk-8 frame cannot give one the olive (observed) role ----------------------------------------------------
 test('an sdk-8 frame is refused when a body (a circle of 12 px or more) has role observed, naming the circle; a small mark, other roles and older SDKs are untouched', () => {
   const manifest = { ...MANIFEST, capabilities: ['time_playback', 'figures'] };

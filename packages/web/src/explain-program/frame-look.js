@@ -50,12 +50,30 @@ export function clampText(object, lane) {
 export const BODY_SLOTS = Object.freeze(['identity-1', 'identity-2', 'identity-3']);
 export const isBody = object => kindOf(object) === 'circle' && object.w >= BODY_MIN;
 
+// A vector's kind, from the words of its label first and then of its id: v (velocity), a (acceleration) or F (force). It decides the colour and the dash, nothing else. Words are split at case
+// changes and non-letters ("vec.v", "tossedVelocity", "Gravity pulls down"); the first word that names a kind wins, and a single letter v, a or F (any case) counts.
+const KIND_WORDS = Object.freeze({
+  v: ['v', 'vel', 'velocity', 'speed', 'motion', 'moving'],
+  a: ['a', 'acc', 'accel', 'acceleration', 'gravity'],
+  F: ['f', 'force', 'weight', 'thrust'],
+});
+const wordsOf = text => String(text ?? '').split(/[^A-Za-z]+|(?<=[a-z])(?=[A-Z])/).filter(Boolean).map(word => word.toLowerCase());
+export function vectorKind(label, id) {
+  for (const source of [label, id]) {
+    for (const word of wordsOf(source)) for (const [kind, names] of Object.entries(KIND_WORDS)) if (names.includes(word)) return kind;
+  }
+  return null;
+}
+
 // -> { objects, lanes }: the objects the renderer draws, in the same order. An object that is part of a recognised look carries `look: { part, ... }` (drawn by LookShape) or an `identitySlot` (a body); a
 // child that left its lane is moved back inside it. Nothing else changes, and a frame with nothing to read comes back as it was.
+//   vector    an arrow (sdk.vector) whose label text "<id>L", or whose id, names a kind (vectorKind): drawn blue solid for v, orange dashed for a, green for F; its label takes the same colour.
 export function frameLook(objects) {
   const lanes = lanesOf(objects), byId = new Map(lanes.map(lane => [lane.id, lane]));
   const titles = new Map(lanes.flatMap(lane => [[`${lane.id}.title`, 'lane-title'], [`${lane.id}.state`, 'lane-state']]));
   const source = lanes[0]?.axis?.id;
+  const labels = new Map(objects.filter(object => kindOf(object) === 'text').map(object => [object.id, textOf(object)]));
+  const vectors = new Map(objects.filter(object => kindOf(object) === 'arrow').map(object => [object.id, vectorKind(labels.get(`${object.id}L`), object.id)]).filter(([, kind]) => kind));
   let bodies = 0;
   const out = objects.map(object => {
     const lane = byId.get(object.id);
@@ -63,9 +81,12 @@ export function frameLook(objects) {
     if (titles.has(object.id)) return { ...object, look: { part: titles.get(object.id) } };
     if (object.id === source) return { ...object, look: { part: 'hidden' } };
     if (isBody(object)) return { ...object, identitySlot: BODY_SLOTS[Math.min(bodies++, BODY_SLOTS.length - 1)] };
+    if (vectors.has(object.id)) return { ...object, look: { part: 'vector', kind: vectors.get(object.id) } };
     if (kindOf(object) === 'text') {
-      const home = laneAt(lanes, object.x, object.y);
-      if (home) { const at = clampText(object, home); if (at.x !== object.x || at.y !== object.y) return { ...object, ...at }; }
+      const home = laneAt(lanes, object.x, object.y), at = home ? clampText(object, home) : null;
+      const moved = at && (at.x !== object.x || at.y !== object.y) ? { ...object, ...at } : object;
+      const owner = object.id.endsWith('L') ? vectors.get(object.id.slice(0, -1)) : null;
+      return owner ? { ...moved, look: { part: 'vector-label', kind: owner } } : moved;
     }
     return object;
   });

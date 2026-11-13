@@ -82,3 +82,17 @@ test('bodies are coloured by order, whatever role the author gave: the first pro
   assert.equal(fill('dot'), PALETTE.coral, 'a mark is not a body');
   assert.match(group(markup, 'toss-ball'), /stroke:#32211c/);
 });
+
+test('a vector is the written connector by kind: v blue solid with a head, a orange dashed, F green; the label takes the colour; an arrow of no kind keeps the plain look', () => {
+  const objects = [...sdk.vector('vec.v', { x: 100, y: 200 }, { dx: 0, dy: -60 }, { label: 'v' }), ...sdk.vector('vec.a', { x: 200, y: 200 }, { dx: 0, dy: 40 }, { label: 'a' }), ...sdk.vector('vec.F', { x: 300, y: 200 }, { dx: 0, dy: 40 }, { label: 'F = 2 N' }), sdk.arrow('plain', 400, 200, 400, 150)];
+  const markup = draw(objects);
+  assert.match(group(markup, 'vec.v'), new RegExp('<polyline[^>]*stroke="' + TEACHING.blue + '"[^>]*stroke-width="2.2"'));
+  assert.match(group(markup, 'vec.v'), /data-tutor-arrowhead/);
+  assert.doesNotMatch(group(markup, 'vec.v'), /stroke-dasharray/);
+  assert.match(group(markup, 'vec.a'), new RegExp('stroke="' + TEACHING.warm + '"'));
+  assert.match(group(markup, 'vec.a'), /stroke-dasharray="4 4"/);
+  assert.match(group(markup, 'vec.F'), new RegExp('stroke="' + TEACHING.green + '"'));
+  assert.match(group(markup, 'vec.vL'), new RegExp('fill="' + TEACHING.blue + '"'));
+  assert.match(group(markup, 'vec.FL'), new RegExp('fill="' + TEACHING.green + '"'));
+  assert.doesNotMatch(group(markup, 'plain'), new RegExp(TEACHING.blue), 'no kind, no look');
+});

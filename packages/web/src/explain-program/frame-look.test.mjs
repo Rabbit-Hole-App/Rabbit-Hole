@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { clampText, frameLook, lanesOf } from './frame-look.js';
+import { clampText, frameLook, lanesOf, vectorKind } from './frame-look.js';
+
+test('a vector kind is read from the label first, then the id: v, a or F by their letters or words; anything else has none', () => {
+  assert.deepEqual(['Motion', 'v = +4.0 m/s', 'Gravity pulls down', 'a', 'Force', 'F'].map(label => vectorKind(label, 'x')), ['v', 'v', 'a', 'a', 'F', 'F']);
+  assert.deepEqual([undefined, undefined, undefined, undefined].map((label, index) => vectorKind(label, ['vec.v', 'vec.a', 'vec.F', 'tossedVelocity'][index])), ['v', 'a', 'F', 'v']);
+  assert.equal(vectorKind(undefined, 'ground'), null);
+  assert.equal(vectorKind('Gravity', 'vec.v'), 'a', 'the label wins over the id');
+});
 
 // frame-look.js is pure: it reads the conventions the sdk-8 helpers produce (sdk.panel's "<id>.title" and "<id>.state" beside a box) and hands the renderer the lanes and the objects to draw.
 const lane = (id, x) => [{ kind: 'box', id, x, y: 50, w: 200, h: 300 }, { kind: 'text', id: `${id}.title`, x, y: 36, text: 'T' }, { kind: 'text', id: `${id}.state`, x: x + 60, y: 36, text: 'S' }];

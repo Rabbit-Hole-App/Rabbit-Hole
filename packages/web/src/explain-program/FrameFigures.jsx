@@ -1,4 +1,4 @@
-import { cloneElement } from 'react';
+import { Children, cloneElement } from 'react';
 import { FIGURE_BAND } from './contract.js';
 import { LANE_AXIS_X, LANE_INSET } from './frame-look.js';
 import { renderTutorDiagram } from '../tutor-diagrams/TutorDiagram.js';
@@ -124,9 +124,20 @@ function LaneShape({ lane }) {
   return <g data-frame-lane-card={lane.id}>{parts}</g>;
 }
 
-// The entry AnimatedScene.jsx calls for an object frame-look.js recognised: a lane, its heading line (title 15 px / 600, state 12 px muted), or nothing for an object another part draws.
+// A vector is the written connector, tinted by its kind: v blue solid, a orange dashed, F green. Its label (13 px) takes the same colour.
+const VECTOR = Object.freeze({ v: { color: T.blue, width: 2.2 }, a: { color: T.warm, width: 2, dashed: true }, F: { color: T.green, width: 2 } });
+function VectorShape({ object }) {
+  const { color, width, dashed } = VECTOR[object.look.kind], from = object.from ?? object, to = object.to ?? object;
+  const element = connector([[from.x, from.y], [to.x, to.y]], { arrow: object.type === 'arrow', dashed });
+  const tint = child => cloneElement(child, child.type === 'polygon' ? { fill: color } : { stroke: color, strokeWidth: width });
+  return element.type === 'g' ? cloneElement(element, {}, ...Children.toArray(element.props.children).map(tint)) : tint(element);
+}
+
+// The entry AnimatedScene.jsx calls for an object frame-look.js recognised: a lane, its heading line (title 15 px / 600, state 12 px muted), a vector or its label, or nothing for an object another part draws.
 export function LookShape({ object }) {
   const { part } = object.look;
+  if (part === 'vector') return <VectorShape object={object} />;
+  if (part === 'vector-label') return <text x={object.x} y={object.y} fill={VECTOR[object.look.kind].color} fontSize="13" textAnchor={object.align === 'middle' ? 'middle' : 'start'}>{object.label}</text>;
   if (part === 'lane') return <LaneShape lane={object.look.lane} />;
   if (part === 'lane-title') return <text x={object.x} y={object.y} fill={T.ink} fontSize="15" fontWeight="600">{object.label}</text>;
   if (part === 'lane-state') return <text x={object.x} y={object.y} fill={T.muted} fontSize="12">{object.label}</text>;
