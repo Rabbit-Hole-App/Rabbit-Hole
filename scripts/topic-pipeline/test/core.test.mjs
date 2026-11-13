@@ -113,3 +113,17 @@ test('a repeated author file path keeps its last entry and is reported', async (
   assert.deepEqual(value.files, [{ path: 'b.md', content: 'b' }, { path: 'a.md', content: 'new' }]);
   assert.deepEqual(dedupeAuthorFiles(value), []);
 });
+
+test('a configured Windows command that starts with a quoted path runs through cmd unchanged', { skip: process.platform !== 'win32' }, async () => {
+  const { configuredCommand } = await import('../stages/operator.mjs');
+  const { mkdtemp, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = await mkdtemp(join(tmpdir(), 'cmd-'));
+  try {
+    const ctx = { topicDir: dir, config: { repo: { root: dir } } };
+    const quoted = await configuredCommand(ctx, '99', 'quoted-start', `"${process.execPath}" -e "console.log('started')"`, dir);
+    assert.equal(quoted.code, 0);
+    assert.equal(quoted.stdout.trim(), 'started');
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
