@@ -125,3 +125,8 @@ Commits `8fa6341eb`, `2badf6cce`, `029b09de0`, `58c71e470`, `8dc272de5` add the 
 - No browser has looked at any figure yet; the markup is pinned by hash only. Acceptance is the next rebuild.
 - The model profile hash changes whenever a role or a role's settings change (the bench judge role, its low effort setting, the fast build profiles), so a job in flight across a deploy fails with `profile_changed` and must be restarted. Harmless on the clone; for production, deploy between jobs or carry the old hash forward.
 
+### Deploy effects
+
+- In-flight jobs: a job started before a deploy that changes the model profile fails with `profile_changed` and must be restarted (see above).
+- Bundle size: the web Worker bundle, and so the production bundle, now carries the 503 KB QuickJS `.wasm` module (`dev-worker.js` imports it for `INTERACT_RUN=headless`). It is well under the Worker size limit and unused until the setting is flipped, but the next production release shows a bundle-size diff.
+

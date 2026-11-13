@@ -805,3 +805,29 @@ test('INTERACT_REVIEW gate (the default) is unchanged: the rendered review gates
   assert.deepEqual([stopped.stage, bad.s.calls.build.length], ['failed', 0]);
   assert.match(stopped.failure.message, /INTERACT_REVIEW must be gate or shadow/);
 });
+
+// ---- fast build profile on the real job: the OpenAI-compatible adapter wired behind the spend admission, per-step call ceilings, the fallback --------------------------
+test('INTERACT_BUILD_PROFILE=google-low on a real job: a schema-invalid Gemini answer and its correction fall through to Fireworks, which has its own call ceiling; the card is built, the row says a fallback fired', async t => {
+  const s = interactStack(t, { depth: 'standard' });
+  Object.assign(s.env, { INTERACT_BUILD_PROFILE: 'google-low', GEMINI_API_KEY: 'test-g', FIREWORKS_API_KEY: 'test-f' });
+  const sent = [], anthropicFetch = globalThis.fetch, good = fixtureDraft('standard');
+  globalThis.fetch = async (url, options = {}) => {
+    const u = String(url);
+    if (!/generativelanguage|fireworks/.test(u)) return anthropicFetch(url, options);
+    const body = JSON.parse(options.body); sent.push({ host: new URL(u).host, auth: options.headers.Authorization, seed: body.seed, temperature: body.temperature });
+    const content = /generativelanguage/.test(u) ? JSON.stringify({ kind: 5 }) : JSON.stringify({ kind: 'scene', ...good }); // a reply the schema refuses, then a good one
+    return Response.json({ model: /generativelanguage/.test(u) ? 'gemini-3.5-flash-lite-20260901' : 'accounts/fireworks/models/gpt-oss-120b', choices: [{ message: { content }, finish_reason: 'stop' }], usage: { prompt_tokens: 3000, completion_tokens: 1500, total_tokens: 4500 } });
+  };
+  t.after(() => { globalThis.fetch = anthropicFetch; });
+  const { body } = await s.create({ depth: 'standard' }), id = body.job.id;
+  assert.equal((await s.design(id)).job.stage, 'awaiting_approval');
+  const { job } = await s.generate(id);
+  assert.equal(job.stage, 'ready', JSON.stringify([job.stopReason, job.failure]));
+  assert.deepEqual(sent.map(x => x.host), ['generativelanguage.googleapis.com', 'generativelanguage.googleapis.com', 'api.fireworks.ai'], 'Gemini, its one correction, then the Fireworks step');
+  assert.deepEqual([sent[0].seed, sent[0].temperature, sent[2].seed, sent[2].temperature], [undefined, undefined, 7, 0], 'Gemini gets neither seed nor temperature, Fireworks 0 and 7');
+  assert.deepEqual([job.build.counts.build_author, job.build.counts['build_author#1']], [2, 1], 'each step has its own ceiling');
+  const authors = job.calls.filter(c => c.role === 'build_author');
+  assert.deepEqual(authors.map(c => c.step), [0, 0, 1]);
+  assert.deepEqual(authors.map(c => c.fallback), [false, false, true]);
+  assert.equal(job.calls.filter(c => c.role === 'build_review').every(c => c.fallback === false), true, 'the review stays on Opus');
+});

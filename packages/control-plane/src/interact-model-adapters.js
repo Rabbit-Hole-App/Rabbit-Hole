@@ -245,6 +245,15 @@ export function createOpenAICompatibleAdapter({ env = {}, fetch: send, clock = c
   };
 }
 
+// The spend ledger settles from Anthropic-shaped usage ({ input_tokens, output_tokens } and the served model). A candidate provider's OpenAI-shaped reply goes through it unchanged for the adapter, with
+// those two counts added beside prompt_tokens and completion_tokens (output = the larger of completion_tokens and total - prompt, as /explain's chain does: reasoning tokens are billed).
+export function withSpendUsage(json) {
+  const u = json?.usage;
+  if (!u || typeof u !== 'object') return json;
+  const output = Number.isSafeInteger(u.completion_tokens) ? Math.max(u.completion_tokens, Number.isSafeInteger(u.total_tokens) && Number.isSafeInteger(u.prompt_tokens) ? u.total_tokens - u.prompt_tokens : 0) : undefined;
+  return { ...json, usage: { ...u, input_tokens: u.prompt_tokens, output_tokens: output } };
+}
+
 // The adapters a job wires into ctx.adapters: the admitted Anthropic transport and, only when a fetch is supplied, the candidate adapter.
 export const interactAdapters = ({ env, callModel, fetch: send, clock }) => ({
   anthropic: createAnthropicAdapter({ env, callModel, clock }),

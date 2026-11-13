@@ -220,14 +220,15 @@ export async function callInteractRole(ctx, role, args = {}, { step: from = 0 } 
   const wanted = off ? chain.slice(0, 1) : chain.slice(from), usable = ctx.fixture ? wanted : wanted.filter(({ config }) => credentialPresent(ctx, config));
   const attempts = [];
   for (const [i, { config, index }] of (usable.length ? usable : wanted.slice(0, 1)).entries()) {
-    try { return { ...await callStep(ctx, role, args, config), step: index, fallbackFired: index > 0, attempts: [...attempts, { provider: config.provider, model: config.model, outcome: 'answered' }] }; }
+    try { return { ...await callStep(ctx, role, args, config, index), step: index, fallbackFired: index > 0, attempts: [...attempts, { provider: config.provider, model: config.model, outcome: 'answered' }] }; }
     catch (error) {
       attempts.push({ provider: config.provider, model: config.model, outcome: error.code });
       if (i === usable.length - 1 || !providerFailure(error)) throw Object.assign(error, { step: index, attempts });
     }
   }
 }
-async function callStep(ctx, role, args, config) {
+// step: the index of this step in the role's chain (0 = the role's own). Each step has its own call ceiling (the job's admit hook counts it per step), so a fallback step is a whole call + correction.
+async function callStep(ctx, role, args, config, step = 0) {
   const spec = interactRoleSpec(role), clock = ctx.clock ?? Date.now;
   const { system, schema, input, images = [], name, description } = args;
   interactPreflight(config, { images: images.length, schema });
@@ -242,8 +243,8 @@ async function callStep(ctx, role, args, config) {
   let settled = false;
   const settle = async fields => { if (settled) return; settled = true; const line = { event: 'interact_model', requested, ...fields, error: fields.error?.code ?? null };
     try { ctx.log?.(line); } catch { /* a log line is never worth a failed call */ }
-    await ctx.settle?.({ role, requested, ...fields }); };
-  try { await ctx.admit?.({ role, config, boundMicros, images: images.length, phase: spec.phase }); }
+    await ctx.settle?.({ role, step, requested, ...fields }); };
+  try { await ctx.admit?.({ role, step, config, boundMicros, images: images.length, phase: spec.phase }); }
   catch (error) { await settle({ status: 'refused', sent: false, costMicros: 0, error }); throw Object.assign(error, { sent: false }); }
 
   const controller = new AbortController(), startedAt = clock();

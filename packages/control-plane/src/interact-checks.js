@@ -411,7 +411,11 @@ export async function repairRound(job, ctx) {
   const failure = job.failure ?? { problems: [], findings: [] };
   const named = new Set((failure.findings || []).map(f => f.target?.capture).filter(Boolean));
   const roleCaps = ctx.profile?.roles?.build_repair, imageLimit = roleCaps?.maxImages ?? 2;
-  const images = (job.captures || []).filter(c => named.has(c.caseId) && (c.png || c.data)).slice(0, imageLimit).map(c => toImage(c.data ?? c.png));
+  // Pixels go to the repair only when there are some and the role reads images: INTERACT_RUN=headless has none (the traces and frames in the failure text are what it sends), and a text-only
+  // fast role (maxImages 0) drops them with one logged line instead of refusing the call.
+  const pixelCaptures = ctx.env?.INTERACT_RUN === 'headless' ? [] : (job.captures || []).filter(c => named.has(c.caseId) && (c.png || c.data));
+  if (pixelCaptures.length && imageLimit === 0) console.log(JSON.stringify({ event: 'repair_images_dropped', job: job.id, role: 'build_repair', dropped: pixelCaptures.length, reason: 'the role is text-only' }));
+  const images = pixelCaptures.slice(0, imageLimit).map(c => toImage(c.data ?? c.png));
   const rank = f => (f.severity === 'blocker' ? 0 : f.severity === 'major' ? 1 : 2);
   const input = {
     ...buildInput(job, plan, hash), failure: { stage: failure.stage, problems: (failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(p => clip(p)),

@@ -250,6 +250,23 @@ test('one wrong candidate is refused, one bounded repair fixes it, and the repai
   assert.equal(again.status, 'ready');
 });
 
+test('repair images: attached for a role that reads them, dropped with one logged line for a text-only role, never attached in headless mode', async () => {
+  const wrong = await candidate('standard', withSource('velocity = U - G * t;', 'velocity = -(U - G * t);'));
+  const fixed = fixtureDraft('standard'), script = () => fixtureScript('standard', { build_repair: () => ({ operation: 'artifacts', main: fixed.main, supporting: fixed.supporting }) });
+  const job = { ...wrong, round: 0, failure: { stage: 'review', problems: [], findings: [{ category: 'layout', severity: 'major', target: { capture: 'c1' }, message: 'overlap' }] }, captures: [{ caseId: 'c1', png: new Uint8Array([1, 2, 3]) }] };
+  const imagesSent = async (ctx) => { await repairRound(job, ctx); return ctx.adapter.log.find(l => l.role === 'build_repair').images; };
+  assert.equal(await imagesSent(ctxWith(script())), 1, 'browser mode, Opus: the named capture goes along');
+  const logs = [], realLog = console.log; console.log = line => logs.push(String(line));
+  try {
+    const textOnly = ctxWith(script()); textOnly.profile = { ...textOnly.profile, roles: { ...textOnly.profile.roles, build_repair: { ...textOnly.profile.roles.build_repair, maxImages: 0 } } };
+    assert.equal(await imagesSent(textOnly), 0, 'a text-only role gets none and is not refused');
+    assert.deepEqual(logs.filter(l => l.includes('repair_images_dropped')).map(l => JSON.parse(l).dropped), [1]);
+    logs.length = 0;
+    assert.equal(await imagesSent(ctxWith(script(), { env: { INTERACT_RUN: 'headless' } })), 0, 'headless: no pixels are attached');
+    assert.equal(logs.filter(l => l.includes('repair_images_dropped')).length, 0, 'headless has nothing to drop');
+  } finally { console.log = realLog; }
+});
+
 test('the repair tool has no field that could change the plan, and a repair that changes renderer, drops a panel or removes the timeline is refused', async () => {
   assert.deepEqual(Object.keys(interactRepairTool().input_schema.properties), ['operation', 'main', 'supporting', 'reason']);
   const wrong = await candidate('standard', withSource('velocity = U - G * t;', 'velocity = -(U - G * t);'));

@@ -30,6 +30,7 @@ import { EXPLAIN_REFS, boundEvidence, learnerSources, mergeRefs, resolveEditRefs
 import { anthropic } from './ask.js';
 import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
 import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
+import { withSpendUsage } from './interact-model-adapters.js';
 import { refusalBody } from './learn-spend-ledger.js';
 import { withUsage, withSystemUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, finishAction, toMicros } from './learn-usage.js';
 import { allowanceFor } from './learn-entitlement.js';
@@ -682,6 +683,18 @@ export class ExplainJobs {
     return (env, body, model) => spendTransport(this.usageEnv(job, interactPhase(role) === 'preparation' ? job.prepKey : job.actionKey), body, model, null,
       admitted => anthropic(admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'explain', provider: 'anthropic', kind: interactCallKind(role) });
   }
+  // The fetch the OpenAI-compatible adapter sends with: the request the adapter built is bounded and reserved by spendTransport (the price registry prices the served model), the answer is settled from its
+  // usage, and a timed-out call keeps its reservation. SUBSCRIPTION_ONLY runs only the subscription model, so these providers are not called.
+  interactFetch(job, config) {
+    return (url, init) => {
+      if (this.env.SUBSCRIPTION_ONLY === 'true') return Promise.resolve(Response.json({ error: { message: 'Subscription mode runs only the subscription model, so this model was not called.' }, code: 'subscription_only' }, { status: 403 }));
+      return spendTransport(this.usageEnv(job, interactPhase(config.role) === 'preparation' ? job.prepKey : job.actionKey), JSON.parse(init.body), config.model, null, async () => {
+        const response = await fetch(url, init);
+        if (!response.ok) return response;
+        return Response.json(withSpendUsage(await response.json().catch(() => null)));
+      }, { userId: job.owner.userId || job.owner.email, category: 'explain', provider: config.provider, kind: interactCallKind(config.role) });
+    };
+  }
   // Closes a phase's usage action once the job ends (usage_actions.status), so its record is terminal.
   async finishUsage(job, status) {
     const db = this.env.LEARN_DB, user = job.owner.userId || job.owner.email;
@@ -784,22 +797,26 @@ export class ExplainJobs {
     if (await interactProfileHash(profile) !== job.flow.profile.hash) throw Object.assign(fail('The model settings changed since this request started. Start a new request.', 409, 'profile_changed'), { stopReason: 'profile_changed' });
     reviewMode(this.env); // a misspelled INTERACT_REVIEW stops the build before anything is spent
     return { env: this.env, profile,
-      adapters: { anthropic: { name: 'anthropic', call: args => interactAdapters({ env: this.env, callModel: this.interactTransport(job, args.config.role) }).anthropic.call(args) } },
+      adapters: { anthropic: { name: 'anthropic', call: args => interactAdapters({ env: this.env, callModel: this.interactTransport(job, args.config.role) }).anthropic.call(args) },
+        // The candidate providers of a fast build profile (google, fireworks): the Worker's fetch behind the same spend admission as the Anthropic calls, keyed by the step's provider.
+        'openai-compatible': { name: 'openai-compatible', call: args => interactAdapters({ env: this.env, fetch: this.interactFetch(job, args.config) })['openai-compatible'].call(args) } },
       // ponytail: the render service cannot compose the card, so every capture is per-panel (completeCard:false) and the reviewer is told so; see interact-checks.js.
       completeCardUnavailable: true, captureCard: this.deps.captureCard ?? captureCardFor(this.env, { jobId: job.id, ...(this.deps.render || {}) }),
       admit: info => this.admitBuildCall(job, info), settle: info => this.settleBuildCall(job, info) };
   }
-  async admitBuildCall(job, { role, boundMicros, images }) {
+  // step: the index of the model step in the role's chain (interact-models.js callInteractRole). Every step has its own ceiling (INTERACT_LIMITS.calls[role], the call and its correction), counted
+  // under the role for step 0 and `role#step` after it, so a schema-invalid primary followed by a fallback is not blocked by the primary's ceiling. The call record keeps its step.
+  async admitBuildCall(job, { role, boundMicros, images, step = 0 }) {
     const key = await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
-      const used = current.build.counts[role] ?? 0;
+      const countKey = step ? `${role}#${step}` : role, used = current.build.counts[countKey] ?? 0;
       if (used + 1 > INTERACT_LIMITS.calls[role]) throw Object.assign(fail(`This scene build reached its ${role.replace('build_', '')} limit.`, 429), { stopReason: 'budget' });
       if (Date.now() >= current.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${current.stage}.`, 409), { stopReason: 'deadline' });
-      current.build.counts[role] = used + 1; current.reservedMicros += boundMicros ?? 0;
+      current.build.counts[countKey] = used + 1; current.reservedMicros += boundMicros ?? 0;
       const callKey = `${current.id}-${role}-${current.calls.length + 1}`;
       current.inFlight = { key: callKey, role, at: Date.now() };
-      current.calls.push({ key: callKey, role, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros: boundMicros ?? 0, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
+      current.calls.push({ key: callKey, role, step, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros: boundMicros ?? 0, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
       await this.save(current);
       return callKey;
     });
@@ -813,11 +830,11 @@ export class ExplainJobs {
     await this.locked(async () => {
       const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
       const refused = s.status === 'refused';
-      if (refused) { current.build.counts[s.role]--; current.reservedMicros -= call.boundMicros; }
+      if (refused) { current.build.counts[call.step ? `${s.role}#${call.step}` : s.role]--; current.reservedMicros -= call.boundMicros; }
       const usage = s.usage?.raw ?? null;
       Object.assign(call, { requested: s.requested?.model ?? null, served: s.served?.model ?? null, status: refused ? 'refused' : s.status === 'unknown' ? 'unknown' : s.status === 'settled' ? 'settled' : 'failed',
         costMicros: refused ? 0 : s.costMicros ?? null, inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: s.error?.code || null,
-        fallback: s.fallbackFired === true }); // TODO(integrator): callInteractRole's settle() (interact-models.js, Agent B) passes the adapter's fallbackFired through
+        fallback: (call.step ?? 0) > 0 }); // a call answered by a later step of its role's chain is the fallback; the ledger row's fallbackFired is true when any call was
       if (current.inFlight?.key === key) current.inFlight = null;
       countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images: call.images,
         model: { requested: call.requested, served: call.served }, costMicros: call.costMicros, fallback: call.fallback, repairRound: current.round });

@@ -180,3 +180,11 @@ test('cleanBuildReply leaves a valid reply exactly as it is and never touches pr
   const withEscapes = structuredClone(valid); withEscapes.main.program.source = `${withEscapes.main.program.source}\nconst s = 'a\\nB';`;
   assert.equal(cleanBuildReply(withEscapes, schema).main.program.source, withEscapes.main.program.source);
 });
+
+test('withSpendUsage adds the Anthropic-shaped counts the spend ledger settles from, output counting reasoning tokens, and leaves an answer without usage alone', async () => {
+  const { withSpendUsage } = await import('../src/interact-model-adapters.js');
+  const json = { model: 'x', usage: { prompt_tokens: 100, completion_tokens: 40, total_tokens: 400 } };
+  assert.deepEqual(withSpendUsage(json).usage, { prompt_tokens: 100, completion_tokens: 40, total_tokens: 400, input_tokens: 100, output_tokens: 300 });
+  assert.deepEqual(withSpendUsage({ model: 'x' }), { model: 'x' });
+  assert.equal(withSpendUsage(null), null);
+});
