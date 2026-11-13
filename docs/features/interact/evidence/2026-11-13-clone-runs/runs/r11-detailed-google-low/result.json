@@ -1,0 +1,13 @@
+{
+  "url": "https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev/apps/canvas-78b686d7",
+  "app": "canvas-78b686d7",
+  "boardId": "1ad7467c-911e-42e3-9da0-72cf217e52be",
+  "jobId": "ej_90a771e7864a435d874605d19bc17b59",
+  "depth": "detailed",
+  "profile": "google-low",
+  "stage": "ready",
+  "stopReason": "accepted",
+  "failure": null,
+  "ms": 32963,
+  "detailStatus": 200
+}
