@@ -38,6 +38,7 @@ import SHELL from './dist-dev/index.html';
 import LANDING from './dist-dev/design/rabbit-hole-hero.html';
 import BLOG from './dist-dev/design/rabbit-hole-blog.html';
 import FEATURES from './dist-dev/design/rabbit-hole-features.html';
+import EXAMPLES from './dist-dev/design/rabbit-hole-examples.html';
 import PRICING from './dist-dev/design/rabbit-hole-pricing.html';
 import MANIFESTO from './dist-dev/design/rabbit-hole-manifesto.html';
 import AUTH from './dist-dev/design/rabbit-hole-auth.html';
@@ -153,7 +154,7 @@ const routes = {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'same-origin' },
       });
     }
-    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/pricing': PRICING, '/manifesto': MANIFESTO}[path.replace(/\/$/, '') || '/'];
+    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/examples': EXAMPLES, '/pricing': PRICING, '/manifesto': MANIFESTO}[path.replace(/\/$/, '') || '/'];
     if (typeof publicPage === 'string') return new Response(publicPage, {
       headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
     });
