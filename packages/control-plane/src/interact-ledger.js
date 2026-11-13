@@ -3,10 +3,11 @@
 // never 0. The server puts the row on GET .../jobs/<id>?detail=1 as diagnostics.ledger, and scripts/interact/ledger.mjs appends it to the ledger file.
 import { interactOracle } from './interact-oracle.js';
 import { timingSummary } from './explain-policy.js';
+const round1 = n => Math.round(n * 10) / 10;
 
 // timing: 'v2' is a job whose stage columns are the contiguous wall-clock slices ledgerRow explains (they add up to msTotal); 'v1' is every older row, kept as it was recorded.
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs', 'repairCauses',
-  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing']);
+  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait']);
 
 // What triggered each failed round, in order, `;`-joined, one token per distinct problem of a round: `overlap:text-frame` (a layout rule), `numeric_mismatch` (an oracle code),
 // `program_error:sdk.panel` or `program_error:frame.objects.*.series.*.points` (the guest program's own error), `schema:manifest.readouts.*.labels` (the path a validation problem names),
@@ -54,17 +55,23 @@ export function ledgerRow(job) {
   const authored = calls.filter(c => c.role === 'build_author' && c.startedAt != null && c.endedAt != null), providerMs = authored.length ? authored.reduce((n, c) => n + c.endedAt - c.startedAt, 0) : null;
   const run = rendering === null ? null : Math.max(0, rendering - (check ?? 0) - (accept ?? 0));
   const compose = authoring !== null && providerMs !== null ? Math.max(0, authoring - (job.timing.steerMs ?? 0) - providerMs) + (accept ?? 0) : accept;
+  // A template build (interact-template.js) has no provider round trip and its columns are the true body durations, timed with the monotonic clock in each stage (build.ms: gen, validate, run, check, compose);
+  // msHopWait is what is left of msTotal: the wait for the next alarm between the stages, the job's own writes and the platform's. The model-build columns above keep their wall-clock slices.
+  const template = job.build?.kind === 'template', bms = job.build?.ms ?? {};
+  const stages = template ? { msAuthor: null, msValidate: bms.validate ?? null, msRun: bms.run ?? null, msCheck: bms.check ?? null, msCompose: bms.gen != null ? round1(bms.gen + (accept ?? 0)) : null } : null;
+  const hopWait = template && t.generateToResultMs != null ? Math.max(0, round1(t.generateToResultMs - (job.timing.steerMs ?? 0) - ['msValidate', 'msRun', 'msCheck', 'msCompose'].reduce((n, k) => n + (stages[k] ?? 0), 0))) : null;
   return {
     jobId: job.id, planHash: job.planHash ?? null, depth: job.plan?.depth ?? null, result: job.stage === 'ready' ? 'ready' : ['failed', 'cancelled'].includes(job.stage) ? 'failed' : 'running', stopReason: job.stopReason ?? null,
     oracleId: job.plan ? interactOracle(job.plan)?.id ?? null : null, oracleChecked: job.build?.check?.oracle?.checked ?? null, oracleFailed: count('numeric_mismatch', 'quantity_missing'),
     bindingProblems: count('binding_no_effect', 'control_no_effect') + problems.filter((p, i) => !codes[i] && /\bbinding\b/i.test(p)).length, overlapProblems: count('overlap'),
-    repairs: t.repairs, repairCauses: repairCauses(job.findings), profile: job.flow?.profile?.id ?? null, fixture: job.designFixture ?? null, authorModel: author?.served ?? author?.requested ?? null, fallbackFired: calls.some(c => c.fallback === true),
+    repairs: t.repairs, repairCauses: repairCauses(job.findings), profile: job.flow?.profile?.id ?? null, fixture: job.designFixture ?? null, authorModel: template ? 'template' : author?.served ?? author?.requested ?? null, fallbackFired: calls.some(c => c.fallback === true),
     judgeVerdict: judge?.verdict ?? null, judgeMajor: judge ? (judge.findings ?? []).filter(f => f.severity === 'major').length : null,
     judgeCostUsd: judgeMicros === undefined ? null : typeof judgeMicros === 'number' ? judgeMicros / 1e6 : null,
     costUsd: priced.length && priced.every(m => typeof m === 'number') ? priced.reduce((n, m) => n + m, 0) / 1e6 : null,
     msSteer: job.timing.steerMs ?? null, // interact-job.js buildStage writes the measured JEV steer time (interact-steer.js) to job.timing.steerMs
-    msAuthor: providerMs ?? authoring, msValidate: stageMs('validating'), msRun: run, msCheck: check, msCompose: compose, msReview: stageMs('reviewing'), msRepair: stageMs('repairing'),
+    ...(stages ?? { msAuthor: providerMs ?? authoring, msValidate: stageMs('validating'), msRun: run, msCheck: check, msCompose: compose }), msReview: stageMs('reviewing'), msRepair: stageMs('repairing'),
     msTotal: t.generateToResultMs, msJudge: judge?.ms ?? null, timing: job.timing.v === 2 ? 'v2' : 'v1',
+    buildKind: template ? 'template' : calls.some(c => c.role === 'build_author') ? 'model' : null, msHopWait: hopWait,
   };
 }
 
