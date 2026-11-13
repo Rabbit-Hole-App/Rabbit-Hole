@@ -1,5 +1,6 @@
 import { cloneElement } from 'react';
 import { FIGURE_BAND } from './contract.js';
+import { LANE_AXIS_X, LANE_INSET } from './frame-look.js';
 import { renderTutorDiagram } from '../tutor-diagrams/TutorDiagram.js';
 import { plotTicks } from '../tutor-diagrams/plot-ticks.js';
 import { connector, label, lineHeight, textWidth } from '../tutor-diagrams/primitives.js';
@@ -98,5 +99,36 @@ export function FigureShape({ object }) {
   if (object.type === 'axis') return <AxisFigure spec={object.axisSpec} id={object.semanticId} />;
   if (object.type === 'plot') return <PlotFigure spec={object.plotSpec} box={box} id={object.semanticId} />;
   if (object.type === 'figure') return <DiagramFigure spec={object.diagramSpec} box={box} id={object.semanticId} />;
+  return null;
+}
+
+// ---- the look of a generated card's scene (frame-look.js): lanes, drawn the way the Codex reference cards draw them -------------------------------------------------------------------------------
+const LANE_RADIUS = 10, LANE_TICK = 11, LANE_TITLE = 12;
+const laneFill = index => (index === 0 ? T.blueSoft : index === 1 ? T.warmSoft : T.surface);
+const tickText = (values, value) => (values.every(Number.isInteger) ? String(value) : value.toFixed(1));
+
+// A lane: its tinted card, and the frame's y axis drawn inside its left edge with a dashed grid across (the axis title at the top left). The values and the scale are the author's (sdk.axis); the pixels are
+// the renderer's, so every lane reads the same scale.
+function LaneShape({ lane }) {
+  const { x, y, w, h, axis, index } = lane, parts = [<rect key="card" x={x} y={y} width={w} height={h} rx={LANE_RADIUS} fill={laneFill(index)} stroke={T.line} strokeWidth="1" data-frame-lane={lane.id} />];
+  if (axis) {
+    const { y0, length, min, max } = axis, py = linear({ min, max }, y0, y0 - length), ax = x + LANE_AXIS_X, right = x + w - 8;
+    const values = (axis.ticks ?? plotTicks({ min, max }, py, { labelWidth: LANE_AXIS_X }).map(tick => Number(tick.lines[0]))).filter(value => py(value) >= y + 6 && py(value) <= y + h - 6);
+    values.forEach((value, i) => {
+      parts.push(cloneElement(teachingConnector([[ax, py(value)], [right, py(value)]], { dashed: value !== min }), { key: `g${i}` }));
+      parts.push(cloneElement(label(tickText(values, value), ax - 8, py(value), { anchor: 'end', size: LANE_TICK, fill: T.muted }), { key: `t${i}` }));
+    });
+    parts.push(cloneElement(teachingConnector([[ax, py(min)], [ax, py(max)]]), { key: 'axis' }));
+    parts.push(cloneElement(label(titleOf(axis.label, axis.unit), x + LANE_INSET + 4, Math.max(y + 16, py(max) - 14), { anchor: 'start', size: LANE_TITLE, fill: T.muted }), { key: 'title' }));
+  }
+  return <g data-frame-lane-card={lane.id}>{parts}</g>;
+}
+
+// The entry AnimatedScene.jsx calls for an object frame-look.js recognised: a lane, its heading line (title 15 px / 600, state 12 px muted), or nothing for an object another part draws.
+export function LookShape({ object }) {
+  const { part } = object.look;
+  if (part === 'lane') return <LaneShape lane={object.look.lane} />;
+  if (part === 'lane-title') return <text x={object.x} y={object.y} fill={T.ink} fontSize="15" fontWeight="600">{object.label}</text>;
+  if (part === 'lane-state') return <text x={object.x} y={object.y} fill={T.muted} fontSize="12">{object.label}</text>;
   return null;
 }
