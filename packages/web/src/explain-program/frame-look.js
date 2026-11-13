@@ -7,7 +7,8 @@
 //             Every lane draws the frame's first y axis (sdk.axis, orientation 'y') inside its left edge, with a dashed grid; that axis object itself is then not drawn a second time.
 //   body      a circle of 12 px or more (sdk.circle). Bodies are coloured by order, whatever role they carry: the first process blue, the second decision gold, any later one the third identity slot.
 //             An sdk-8 frame cannot give a body role "observed" (olive): contract.js parseGuestResult refuses it.
-//   text      a text whose anchor lies inside a lane is kept inside the lane (its drawn position moves, never its meaning).
+//   text      a text whose anchor lies inside a lane is kept inside the lane, and any text is kept inside the frame when its size is given (its drawn position moves, never its meaning, and a text that
+//             was moved is not a layout problem: frame-overlap.js layoutProblems does not flag a text for leaving the frame).
 import { textWidthPx } from '../interact-description-fit.js';
 import { BODY_MIN } from './contract.js';
 
@@ -42,6 +43,13 @@ export function clampText(object, lane) {
   const width = textWidthPx(textOf(object), TEXT_SIZE), middle = object.align === 'middle';
   const left = lane.x + LANE_INSET + (middle ? width / 2 : 0), right = lane.x + lane.w - LANE_INSET - (middle ? width / 2 : width);
   return { x: clamp(object.x, left, right), y: clamp(object.y, lane.y + TEXT_SIZE, lane.y + lane.h - LANE_INSET) };
+}
+
+// A text kept inside the frame ({ width, height }): its ink box (start, middle or end anchored, the body size, centred on y) moves in until it fits; a text wider than the frame is aligned to its left edge.
+export function clampToFrame(object, at, frame) {
+  const width = textWidthPx(textOf(object), TEXT_SIZE), half = TEXT_SIZE * 0.35, anchor = object.align === 'middle' ? 'middle' : object.align === 'end' ? 'end' : 'start';
+  const [left, right] = anchor === 'middle' ? [width / 2, frame.width - width / 2] : anchor === 'end' ? [width, frame.width] : [0, frame.width - width];
+  return { x: clamp(at.x, left, right), y: clamp(at.y, half, frame.height - half) };
 }
 
 // A body is a circle of at least this diameter (a smaller one is a mark, a dot or a hole); bodies take the scene's identity hues in the order they appear: the first process blue, the second decision gold,
@@ -91,7 +99,7 @@ export function vectorKind(label, id) {
 // child that left its lane is moved back inside it. Nothing else changes, and a frame with nothing to read comes back as it was.
 //   plot      a series of one scatter point is the current point (process-blue dot, dashed blue guides to the axes); a text "<plot id>.note" is the plot's note, drawn orange (13 px / 600).
 //   vector    an arrow (sdk.vector) whose label text "<id>L", or whose id, names a kind (vectorKind): drawn blue solid for v, orange dashed for a, green for F; its label takes the same colour.
-export function frameLook(objects) {
+export function frameLook(objects, frame = null) {
   const lanes = lanesOf(objects), byId = new Map(lanes.map(lane => [lane.id, lane]));
   const titles = new Map(lanes.flatMap(lane => [[`${lane.id}.title`, 'lane-title'], [`${lane.id}.state`, 'lane-state']]));
   const source = lanes[0]?.axis?.id;
@@ -109,8 +117,9 @@ export function frameLook(objects) {
     if (isBody(object)) return { ...object, identitySlot: NAMED_BODIES[object.id] ?? BODY_SLOTS[Math.min(bodies++, BODY_SLOTS.length - 1)] };
     if (vectors.has(object.id)) return { ...object, look: { part: 'vector', kind: vectors.get(object.id) } };
     if (kindOf(object) === 'text') {
-      const home = laneAt(lanes, object.x, object.y), at = home ? clampText(object, home) : null;
-      const moved = at && (at.x !== object.x || at.y !== object.y) ? { ...object, ...at } : object;
+      const home = laneAt(lanes, object.x, object.y), inLane = home ? clampText(object, home) : { x: object.x, y: object.y };
+      const at = frame?.width > 0 && frame?.height > 0 ? clampToFrame(object, inLane, frame) : inLane;
+      const moved = at.x !== object.x || at.y !== object.y ? { ...object, ...at } : object;
       const owner = object.id.endsWith('L') ? vectors.get(object.id.slice(0, -1)) : null;
       if (object.id.endsWith('.note') && plots.has(object.id.slice(0, -5))) return { ...moved, look: { part: 'plot-note' } };
       return owner ? { ...moved, look: { part: 'vector-label', kind: owner } } : moved;

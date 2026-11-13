@@ -73,7 +73,8 @@ test('a figure title over a label, and a title that leaves the frame, are proble
   const longTitle = { kind: 'axis', id: 'h', x: 100, y: 300, length: 200, orientation: 'y', min: 0, max: 4, label: 'a very long vertical axis title of forty chars', unit: 'm' };
   assert.deepEqual(problems({ objects: [longTitle] }), [], 'no frame size, no frame rule');
   assert.deepEqual(layoutProblems({ objects: [longTitle], width: 320, height: 400 }).map(o => [o.a, o.b, o.kind]), [['h.title', 'frame', 'text-frame']]);
-  assert.deepEqual(layoutProblems({ objects: [text('t', 300, 50, 'runs off the right edge')], width: 320, height: 400 }).map(o => [o.a, o.b, o.kind]), [['t', 'frame', 'text-frame']]);
+  // A frame text that leaves the frame is moved back in by the renderer (frame-look.js clampToFrame), never flagged: only a figure's own title or tick label, which the renderer cannot move, is.
+  assert.deepEqual(layoutProblems({ objects: [text('t', 300, 50, 'runs off the right edge')], width: 320, height: 400 }), []);
   assert.deepEqual(problems({ objects: [text('t', 10, 20, 'inside')], width: 320, height: 400 }), []);
 });
 

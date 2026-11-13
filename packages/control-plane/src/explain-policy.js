@@ -177,7 +177,7 @@ export const EXPLAIN_TARGETS = Object.freeze({
 // for Edit, an Apply-ready candidate). Stages: one entry per entered stage with its counters.
 export const newTiming = (requestClass, now = Date.now(), cache = null) => {
   if (!REQUEST_CLASSES.includes(requestClass)) throw new ExplainPolicyError('request_class', `Unknown request class ${requestClass}.`);
-  return { requestClass, cache, marks: { submitted: now }, stages: [] };
+  return { requestClass, cache, marks: { submitted: now }, stages: [], v: 2 }; // v: 2 = the ledger's timing v2 (interact-ledger.js)
 };
 export function markTiming(timing, mark, now = Date.now()) {
   if (!['firstFeedback', 'proposalReady', 'generate', 'result'].includes(mark)) throw new ExplainPolicyError('timing_mark', `Unknown mark ${mark}.`);

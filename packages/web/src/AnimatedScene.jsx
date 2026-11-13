@@ -485,7 +485,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
   // the frame centre, so focusing an object does not also shove it off-screen.
   // A composed card's scene is read for its lanes, bodies and callouts (explain-program/frame-look.js), so the same drawing comes out whoever wrote the program.
   const sceneObjects = state.objects.filter(object => object.visible);
-  const visibleObjects = interact ? frameLook(sceneObjects).objects : sceneObjects;
+  const visibleObjects = interact ? frameLook(sceneObjects, { width: scene.width, height: scene.height }).objects : sceneObjects;
   // A row label drawing leftward from a grid near the default left edge can
   // need more room than x=0 leaves it (see requiredLeftMargin). Widening the
   // canvas only by what is actually needed leaves every scene without the

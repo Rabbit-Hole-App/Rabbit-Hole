@@ -51,7 +51,7 @@ export const FIGURES_PROGRAM_STAMPS = Object.freeze({
   ...PROPS_PROGRAM_STAMPS,
   sdkVersion: FIGURES_SDK_VERSION,
   rendererVersion: FIGURES_RENDERER_VERSION,
-  fingerprints: Object.freeze({ ...PROPS_PROGRAM_STAMPS.fingerprints, sdk: '706a0837323cb3aa83844f067c3b2d7a35c86a4dd0bba40421d291bd02967337', renderer: FIGURES_RENDERER_VERSION }),
+  fingerprints: Object.freeze({ ...PROPS_PROGRAM_STAMPS.fingerprints, sdk: 'aa583d63cc8f2ade69aae7ab885ce2de3b43591a6d3cc0951b04c09badf8c052', renderer: FIGURES_RENDERER_VERSION }),
 });
 export const STATEFUL_FIGURES_PROGRAM_STAMPS = Object.freeze({ ...FIGURES_PROGRAM_STAMPS, schemaVersion: 2 });
 

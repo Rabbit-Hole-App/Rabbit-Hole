@@ -22,6 +22,7 @@ import { INTERACT_LIMITS, InteractModelError, callInteractRole } from './interac
 import { INTERACT_REPAIR_SYSTEM, INTERACT_REPAIR_TOOL_NAME, interactRepairTool } from './agents/explain-repair.js';
 import { approvedPlanOf, buildInput, callRecord, callWithCorrection, correctable, refusalProblems, schemaOptions, validateBuildOutput } from './interact-build.js';
 import { REPAIR_FORWARD } from './explain-program-stage.js';
+import { conventionProblems } from './interact-convention.js';
 
 // correctionRounds: shared across validation, render and review failures (INT-05-C08). renderRetries: recapture attempts after a render
 // outage, which spend no model call and no correction round (INT-05-C10). maxCases: the rendered reviewer's images per round (the profile's
@@ -43,6 +44,9 @@ export const CHECK_LIMITS = Object.freeze({ correctionRounds: INTERACT_LIMITS.co
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const clip = (text, n = REPAIR_FORWARD.text) => String(text ?? '').slice(0, n);
+// The finest clock there is (performance.now: sub-millisecond; Date.now is whole milliseconds), for timing a CPU step in the body; the stage columns of the ledger are wall-clock slices, see interact-ledger.js.
+export const clockMs = () => globalThis.performance?.now?.() ?? Date.now();
+export const round1 = n => Math.round(n * 10) / 10;
 const round6 = n => (typeof n === 'number' && Number.isFinite(n) ? Number(n.toFixed(6)) : n);
 
 // ---- planning --------------------------------------------------------------------------------------------------------------------
@@ -191,6 +195,8 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     }
     coverage.cases.push(c.id);
   }
+  // Convention (interact-convention.js): a frame id the plan names, drawn without the SDK helper the renderer's look reads. One precise line per id, at no case in particular.
+  for (const p of conventionProblems(plan, captures.flatMap(c => c.trace?.objects ?? []))) bad('convention', p.id, p.message);
 
   // Numbers from the trusted oracle, against the runtime's own quantities (never the builder's prose).
   for (const e of oracle?.expect ?? []) {
@@ -348,7 +354,7 @@ export async function captureAndCheck(job, ctx) {
   if (typeof ctx.captureCard !== 'function') return { status: 'render_unavailable', reason: 'no capture service is wired; a card that was not captured cannot be accepted', coverage };
 
   let captures;
-  const ranAt = Date.now();
+  const ranAt = clockMs();
   try { captures = await ctx.captureCard({ jobId: job.id, composition, artifacts, cases: [...cases, ...probes] }); }
   catch (error) {
     const kind = classifyFailure(error);
@@ -357,9 +363,9 @@ export async function captureAndCheck(job, ctx) {
     throw error;
   }
   if (cancelled(ctx)) return { status: 'cancelled' };
-  const checkAt = Date.now();
+  const checkAt = clockMs();
   const det = checkSceneAgainstPlan({ plan, composition, artifacts, captures, cases, probes, oracle: job.oracle ?? null, allowPartialCard: ctx.completeCardUnavailable === true });
-  const ms = { run: checkAt - ranAt, check: Date.now() - checkAt }; // the ledger's msRun and msCheck
+  const ms = { run: round1(checkAt - ranAt), check: round1(clockMs() - checkAt) }; // the ledger's msCheck (and the capture time kept beside it)
   const summary = captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 ?? null, compositionHash: c.compositionHash, synthetic: c.synthetic === true }));
   const pngs = captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 ?? null, bytes: c.png })); // the caller stores pixels by hash; the state keeps hashes only
   if (det.problems.length) return { status: 'failed', failure: { stage: 'check', problems: det.problems.map(p => `[${p.code}] ${p.message}`), findings: [], details: det.problems }, captures: summary, pngs, check: det.coverage, coverage, ms };

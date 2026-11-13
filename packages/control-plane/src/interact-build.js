@@ -19,6 +19,7 @@ import { modelEvidence } from './explain-evidence.js';
 import { InteractModelError, callInteractRole } from './interact-models.js';
 import { stripUnknown } from './learn-primitives.js';
 import { literalBreaksDeep } from './literal-breaks.js';
+import { frameIdsOf } from './interact-convention.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const bytes = value => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value)).length;
@@ -94,12 +95,12 @@ function steeredProgram(program, steer) {
 }
 // What the builder reads: the whole approved plan and the trusted derivations of it (the exact native declarations, the exact timeline).
 export function buildInput(job, plan, hash, steer = null) {
-  const { declarations } = controlDeclarations(plan);
+  const { declarations } = controlDeclarations(plan), frameIds = frameIdsOf(plan);
   return {
     approvedPlan: plan, planHash: hash, depth: plan.depth,
     panels: [{ id: 'main', role: 'main', runtime: plan.scene.runtime, readoutIds: plan.scene.readoutIds },
       ...plan.supportingVisuals.map(s => ({ id: s.id, role: 'support', runtime: s.runtime, readoutIds: s.readoutIds, parameterBindings: s.parameterBindings }))],
-    controlBindings: declarations, timeline: timelineBrief(plan),
+    controlBindings: declarations, timeline: timelineBrief(plan), ...(frameIds.length ? { frameIds } : {}), // frameIds: the frame object ids the plan names, each to be used verbatim (interact-convention.js)
     program: steeredProgram(programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful: isStateful(plan) }), steer),
     ...(steer?.sceneKind ? { steer: { sceneKind: steer.sceneKind, objectBudget: steer.objectBudget } } : {}),
     ...(usesSpec(plan) ? { spec: { catalogue: catalogue(), composition: authorComposition(), limits: SPEC_LIMITS } } : {}),
@@ -177,10 +178,12 @@ export async function validateBuildOutput(job, reply, ctx = {}) {
 export const callRecord = (role, done) => ({ role, requested: done.requested, served: done.served, usage: done.usage, costMicros: done.costMicros ?? null, priceKnown: done.priceKnown ?? false, timing: done.timing, stopReason: done.stopReason,
   fallbackFired: done.fallbackFired ?? false }); // true when a later step of the role's chain answered (a failure of the first step in a benchmark)
 
-// What a fast model's reply is cleaned of before it is checked (capabilities.sanitize, never Opus): keys the schema does not declare (Gemini wrote `layers`) and double-escaped line breaks
-// in the manifest's prose (the program source is code and is never touched). Server-side, never a repair call.
+// What a fast model's reply is cleaned of before it is checked (capabilities.sanitize, never Opus): keys the schema does not declare (Gemini wrote `layers`), double-escaped line breaks
+// in the manifest's prose (the program source is code and is never touched) and a repeated state label in a readout (the first occurrence stays: google-low wrote "state labels must be unique" failures
+// twice). Server-side, never a repair call.
 export function cleanBuildReply(reply, schema) {
-  const out = stripUnknown(reply, schema, null, []), fix = a => (plain(a?.program?.manifest) ? { ...a, program: { ...a.program, manifest: literalBreaksDeep(a.program.manifest) } } : a);
+  const uniqueLabels = manifest => (Array.isArray(manifest.readouts) ? { ...manifest, readouts: manifest.readouts.map(r => (plain(r) && Array.isArray(r.labels) ? { ...r, labels: [...new Set(r.labels)] } : r)) } : manifest);
+  const out = stripUnknown(reply, schema, null, []), fix = a => (plain(a?.program?.manifest) ? { ...a, program: { ...a.program, manifest: uniqueLabels(literalBreaksDeep(a.program.manifest)) } } : a);
   if (!plain(out)) return out;
   return { ...out, ...(plain(out.main) ? { main: fix(out.main) } : {}), ...(Array.isArray(out.supporting) ? { supporting: out.supporting.map(entry => (plain(entry) ? { ...entry, artifact: fix(entry.artifact) } : entry)) } : {}) };
 }

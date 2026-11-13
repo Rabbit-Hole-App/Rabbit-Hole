@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { clampText, frameLook, lanesOf, vectorKind } from './frame-look.js';
+import { clampText, clampToFrame, frameLook, lanesOf, vectorKind } from './frame-look.js';
 
 test('a vector kind is read from the label first, then the id: v, a or F by their letters or words; anything else has none', () => {
   assert.deepEqual(['Motion', 'v = +4.0 m/s', 'Gravity pulls down', 'a', 'Force', 'F'].map(label => vectorKind(label, 'x')), ['v', 'v', 'a', 'a', 'F', 'F']);
@@ -45,4 +45,19 @@ test('a text anchored in a lane is clamped to it (start at its left edge, middle
   const middle = clampText({ x: 239, y: 100, text: 'centre', align: 'middle' }, { x: 40, y: 50, w: 200, h: 300 });
   assert.ok(middle.x < 239 - 10, `middle x ${middle.x}`);
   assert.equal(clampText({ x: 100, y: 5, text: 'a' }, { x: 40, y: 50, w: 200, h: 300 }).y, 64, 'a text above the lane drops to its first line');
+});
+
+test('a text that leaves the frame is moved back inside it (any anchor), a text already inside does not move, and without a frame size nothing moves (the r11 accArrowL: 28 px below a 420 px frame)', () => {
+  const frame = { width: 640, height: 420 };
+  const text = (id, x, y, over = {}) => ({ kind: 'text', id, x, y, text: 'Gravity pulls down', ...over });
+  const { objects } = frameLook([text('below', 300, 448), text('right', 600, 100), text('left', -30, 100, { align: 'middle' }), text('end', 20, 100, { align: 'end' }), text('inside', 100, 100)], frame);
+  const by = Object.fromEntries(objects.map(o => [o.id, o]));
+  assert.ok(by.below.y <= 420 - 4 && by.below.x === 300, 'moved up, not sideways');
+  assert.ok(by.right.x < 600 && by.right.y === 100, 'moved left, not vertically');
+  assert.ok(by.left.x > 0, 'a middle-anchored text moves in by its half width');
+  assert.ok(by.end.x >= 100, 'an end-anchored text is at least its own width from the left edge');
+  assert.deepEqual([by.inside.x, by.inside.y], [100, 100]);
+  const loose = frameLook([text('below', 300, 448)]).objects[0];
+  assert.deepEqual([loose.x, loose.y], [300, 448], 'no frame size, no clamp');
+  assert.deepEqual(clampToFrame(text('t', 700, 500), { x: 700, y: 500 }, frame).y, 420 - 4.9);
 });

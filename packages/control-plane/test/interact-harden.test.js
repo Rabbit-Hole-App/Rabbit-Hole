@@ -228,10 +228,11 @@ test('both build prompts state the sentence ranges and the byte limits next to t
 });
 
 test('semantic figures: the build and repair prompts name sdk.axis, sdk.plot and sdk.diagram, the helpers are catalogued under their own tuple and documented for authoring only', async () => {
-  for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) {
-    assert.match(system, /figures capability \(sdk-8\), draw every axis and plot with sdk\.axis and sdk\.plot, never with hand-drawn lines, and a static structure \(parts, a flow, a comparison\) with sdk\.diagram/);
-    assert.match(system, /props capability \(sdk-7\)/, 'the earlier props sentence stays');
-  }
+  // The build prompt states the sdk-8 conventions (owner 2026-11-13: lanes, bodies, vectors, callouts, plots and axes by id and helper, sdk.axis and sdk.diagram among them); the repair prompt keeps its sentence.
+  assert.match(INTERACT_BUILD_SYSTEM, /figures capability \(sdk-8\), the renderer draws the card's look from ids and helpers/);
+  assert.match(INTERACT_BUILD_SYSTEM, /Axes: `sdk\.axis` inside each lane, never hand-drawn lines; a static structure \(parts, a flow, a comparison\) is one `sdk\.diagram`/);
+  assert.match(INTERACT_REPAIR_SYSTEM, /figures capability \(sdk-8\), draw every axis and plot with sdk\.axis and sdk\.plot, never with hand-drawn lines, and a static structure \(parts, a flow, a comparison\) with sdk\.diagram/);
+  for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.match(system, /props capability \(sdk-7\)/, 'the earlier props sentence stays');
   const choices = runtimeChoices(await designCapabilities({ EXPLAIN_PROGRAM_ENABLED: 'true' }, {}));
   const figures = choices.filter(choice => choice.runtime.requiredCapabilities.includes('figures'));
   assert.deepEqual(figures.map(choice => [choice.runtime.schemaVersion, choice.runtime.sdkVersion, choice.runtime.programTuple.rendererVersion]), [[1, 'sdk-8', 'renderer-5']]);

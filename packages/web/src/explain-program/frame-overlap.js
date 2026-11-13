@@ -143,7 +143,7 @@ const round1 = n => Math.round(n * 10) / 10;
 //   text-line / text-arrow : a label closer than LABEL_CLEARANCE to a line or an arrow shaft (a mark under MARK_LENGTH: touching it); `gap` is the measured distance, width and height are 0
 //   text-body              : a label over a body (a circle of 12 px or more): `width` is how far into the body's radius the label reaches, height 0
 //   text-text              : a figure's title or tick label over a text object or another figure's text
-//   text-frame             : a label or figure title that leaves the frame, `b` is 'frame', width and height the overflow in px; only when the frame's width and height are given
+//   text-frame             : a figure title or tick label that leaves the frame (a frame text is clamped into it by the renderer, frame-look.js clampToFrame, and is not flagged), `b` is 'frame', width and height the overflow in px; only when the frame's width and height are given
 // Each carries `hint`, one line saying what to change. Pure geometry on the frame, no subject and no wording.
 // TODO(integrator): interact-checks.js builds the [overlap] message from a, b, kind, width, height only; append ` - ${o.hint}` so the repairer reads the fix hint, and pass the frame size
 // (layoutProblems({ objects, ...traceFrame(frame) }) needs the trace to carry width and height: interact-fixtures.js and web/render/program-render.jsx) so text-frame can fire.
@@ -175,7 +175,7 @@ export function layoutProblems(frame, limit = 8) {
     }
   }
   if (frame.width > 0 && frame.height > 0) {
-    for (const label of all) {
+    for (const label of figures) {
       const { xMin, xMax, yMin, yMax } = label.box, width = Math.max(-xMin, xMax - frame.width, 0), height = Math.max(-yMin, yMax - frame.height, 0);
       if (width > 0 || height > 0) push({ a: label.id, b: 'frame', kind: 'text-frame', width: round1(width), height: round1(height), hint: `keep "${label.id}" inside the ${frame.width} x ${frame.height} frame: shorten its text or move "${label.owner}"` });
     }
