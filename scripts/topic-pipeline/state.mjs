@@ -6,10 +6,19 @@ export async function readJson(path) {
   return JSON.parse(await readFile(path, 'utf8'));
 }
 
+// On Windows a rename onto a file that a reader holds open (a watcher polling state.json) fails with EPERM for a moment; it cost the linear-regression run a whole author round (reviewer 2026-11-13).
+// The rename is tried again a few times with a short wait before the error is allowed to stand.
+export async function renameRetrying(from, to, move = rename, tries = 8) {
+  for (let attempt = 1; ; attempt++) {
+    try { return await move(from, to); }
+    catch (error) { if (!['EPERM', 'EBUSY', 'EACCES'].includes(error.code) || attempt >= tries) throw error; await new Promise(done => setTimeout(done, 25 * attempt)); }
+  }
+}
+
 export async function writeJson(path, value) {
   const temporary = `${path}.${randomUUID()}.tmp`;
   await writeFile(temporary, JSON.stringify(value, null, 2) + '\n', { mode: 0o600 });
-  await rename(temporary, path);
+  await renameRetrying(temporary, path);
 }
 
 export async function loadState(topicDir, topic) {

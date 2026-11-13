@@ -153,3 +153,16 @@ test('a resumed author attempt takes its feedback from the newest round that fai
   assert.equal(await lastContentFailure(join(dir, 'missing')), null);
   await rm(dir, { recursive: true, force: true });
 });
+
+test('a rename that fails with EPERM while a reader holds the file is retried, any other error is not', async () => {
+  const { renameRetrying } = await import('../state.mjs');
+  let calls = 0;
+  await renameRetrying('a', 'b', async () => { if (++calls < 3) throw Object.assign(new Error('locked'), { code: 'EPERM' }); });
+  assert.equal(calls, 3);
+  let other = 0;
+  await assert.rejects(renameRetrying('a', 'b', async () => { other++; throw Object.assign(new Error('missing'), { code: 'ENOENT' }); }), /missing/u);
+  assert.equal(other, 1);
+  let always = 0;
+  await assert.rejects(renameRetrying('a', 'b', async () => { always++; throw Object.assign(new Error('locked'), { code: 'EPERM' }); }, 3), /locked/u);
+  assert.equal(always, 3);
+});
