@@ -140,7 +140,7 @@ test('sdk.callout stacks one box per line (at most four), equally wide, each wit
   assert.equal(sdk.callout(0, 0, ['a'])[0].id, 'callout.l0');
   assert.equal('role' in sdk.callout(0, 0, ['a'])[0], false, 'no role unless given');
   assert.throws(() => sdk.callout(0, 0, []), /sdk\.callout: lines is one to four strings/);
-  assert.throws(() => sdk.callout(0, 0, ['a', 'b', 'c', 'd', 'e']), /one to four/);
+  assert.equal(sdk.callout(0, 0, ['a', 'b', 'c', 'd', 'e']).length, 4, 'a fifth line is cut, the helper does not refuse (it fits, owner 2026-11-13)');
   assert.throws(() => sdk.callout(0, 0, ['x'.repeat(41)]), /sdk\.callout: text is 1 to 40 characters/);
   assert.throws(() => sdk.callout(0, 0, ['a'], { role: 'rainbow' }), /sdk\.callout: invalid role/);
 });
@@ -152,7 +152,6 @@ test('sdk.panel returns exactly three frame objects: the lane box tinted by role
   assert.ok(out[1].y < 60 && out[2].y === out[1].y, 'the heading line is above the lane, one line');
   assert.ok(out[2].x > out[1].x, 'the state follows the title');
   assert.equal(sdk.panel({ x: 0, y: 30, w: 300, h: 100, title: 'Drop', state: 'Held' })[0].role, 'neutral');
-  assert.throws(() => sdk.panel({ x: 0, y: 30, w: 100, h: 100, title: 'Toss', state: 'Still for an instant' }), /too narrow/);
   assert.throws(() => sdk.panel({ x: 0, y: 30, w: 300, h: 100, title: 'Toss' }), /sdk\.panel: state is required/);
   assert.throws(() => sdk.panel(), /sdk\.panel: options are required/);
 });
@@ -209,4 +208,61 @@ test('an sdk-8 frame is refused when a body (a circle of 12 px or more) has role
   assert.equal(parse([sdk.circle('ball', 100, 100, 24, { role: 'input' })]).ok, true);
   assert.equal(parse([sdk.circle('ball', 100, 100, 24)]).ok, true);
   assert.equal(parse([sdk.circle('ball', 100, 100, 24, { role: 'observed' })], 'sdk-7').ok, true, 'older cards keep their rules');
+});
+
+// ---- the helpers fit, they never refuse (owner 2026-11-13, the google-low night's failures: sdk.panel "lane too narrow", readout "needs more room for its label", plot "<=24 items") ----
+test('sdk.panel fits a title and a state in a narrow lane: the title keeps its width, the state is shortened with an ellipsis, and under 60 px of room it goes on a second line', () => {
+  const wide = sdk.panel({ id: 'toss', x: 40, y: 60, w: 300, h: 200, title: 'Toss', state: 'Still for an instant' });
+  assert.equal(wide[2].text, 'Still for an instant', 'room enough: the state is whole, beside the title');
+  const tight = sdk.panel({ id: 'toss', x: 40, y: 60, w: 150, h: 200, title: 'Toss', state: 'Still for an instant' });   // the night's lane: 150 - 56 - 24 = 70 px of room, 'Still for an instant' needs 216
+  assert.deepEqual(tight.map(object => object.id), ['toss', 'toss.title', 'toss.state'], 'still the three objects of a lane');
+  assert.equal(tight[1].text, 'Toss');
+  assert.ok(tight[2].text.endsWith('…') && tight[2].text.length < 'Still for an instant'.length, tight[2].text);
+  assert.equal(tight[2].y, tight[1].y, 'the heading is still one line');
+  const narrow = sdk.panel({ id: 'toss', x: 40, y: 60, w: 100, h: 200, title: 'Toss', state: 'Still for an instant' });   // 100 - 56 - 24 = 20 px: under 60, so the state moves under the title
+  assert.equal(narrow[1].x, narrow[2].x, 'the state starts where the title starts');
+  assert.ok(narrow[2].y > narrow[1].y && narrow[2].y < 60, 'a second line under the title, still above the lane');
+  assert.ok(narrow[2].text.endsWith('…'), 'shortened to the lane width: 100 px');
+  assert.doesNotThrow(() => sdk.panel({ x: 0, y: 30, w: 20, h: 100, title: 'A long title here', state: 'Held' }));
+});
+
+test('sdk.readout fits its label to the box and keeps the value whole; only a box too small for the value too is drawn as it is', () => {
+  const whole = sdk.readout('g', { x: 0, y: 0, w: 300, h: 30, label: 'Gravitational force', value: 9.8, unit: 'N', decimals: 1 });
+  assert.equal(whole[0].text, 'Gravitational force: 9.8 N');
+  const fitted = sdk.readout('g', { x: 0, y: 0, w: 150, h: 30, label: 'Gravitational force', value: 9.8, unit: 'N', decimals: 1 })[0];   // the night's "readout needs more room for its label"
+  assert.ok(fitted.text.endsWith('…: 9.8 N') && fitted.text.length < whole[0].text.length, fitted.text);
+  assert.deepEqual([fitted.kind, fitted.id, fitted.w, fitted.role], ['box', 'g', 150, 'output']);
+  const tiny = sdk.readout('g', { x: 0, y: 0, w: 40, h: 30, label: 'Gravitational force', value: 9.8, unit: 'N' })[0];
+  assert.ok(tiny.text.endsWith(': 9.80 N'), 'the value is whole even when nothing else fits');
+  assert.throws(() => sdk.readout('g', { x: 0, y: 0, w: 150, h: 30, label: 'x', value: Infinity }), /finite value/, 'a bad value is still refused: that is not a fit');
+});
+
+test('sdk.plot keeps at most 3 series of 24 points, sampled evenly with the first and last point kept; axis ticks are capped at 12', () => {
+  const points = Array.from({ length: 61 }, (_, i) => ({ x: i / 10, y: i * i }));   // the night's r11 plot: more than 24 points
+  const plot = sdk.plot('p', { x: 40, y: 20, w: 400, h: 260, axes: { x: { label: 'Time', min: 0, max: 6 }, y: { label: 'Height', min: 0, max: 4000 } }, series: [{ label: 'a', kind: 'line', points }, { label: 'b', kind: 'line', points }, { label: 'c', kind: 'line', points }, { label: 'd', kind: 'line', points }] });
+  assert.equal(plot.series.length, 3);
+  const kept = plot.series[0].points;
+  assert.equal(kept.length, 24);
+  assert.deepEqual([kept[0], kept.at(-1)], [points[0], points.at(-1)]);
+  assert.ok(kept.every((point, i) => i === 0 || point.x > kept[i - 1].x), 'in order, no repeats');
+  const short = sdk.plot('p', { x: 40, y: 20, w: 400, h: 260, axes: { x: { label: 'T', min: 0, max: 1 }, y: { label: 'H', min: 0, max: 1 } }, series: [{ label: 'a', kind: 'line', points: points.slice(0, 5) }] });
+  assert.deepEqual(short.series[0].points, points.slice(0, 5), 'a series within the cap comes back as it was');
+  const axis = sdk.axis('t', { x: 80, y: 300, length: 400, orientation: 'x', min: 0, max: 30, label: 'Time', ticks: Array.from({ length: 31 }, (_, i) => i) });
+  assert.equal(axis.ticks.length, 12);
+  assert.deepEqual([axis.ticks[0], axis.ticks.at(-1)], [0, 30]);
+});
+
+test('a guest frame built from a narrow lane, a long-labelled readout and a 61-point plot is a valid frame that draws, with no layout overlap', async () => {
+  const source = `export function evaluate() {
+    const pts = []; for (let i = 0; i <= 60; i += 1) pts.push({ x: i / 10, y: i });
+    const objects = [...sdk.panel({ id: 'lane.toss', x: 30, y: 60, w: 150, h: 300, title: 'Toss', state: 'Still for an instant' }),
+      ...sdk.readout('r', { x: 200, y: 60, w: 130, h: 30, label: 'Gravitational force', value: 9.8, unit: 'N' }),
+      sdk.plot('plot.vt', { x: 360, y: 40, w: 260, h: 220, axes: { x: { label: 'Time', min: 0, max: 6 }, y: { label: 'Velocity', min: 0, max: 60 } }, series: [{ label: 'v', kind: 'line', points: pts }] })];
+    return { frame: { width: 640, height: 420, objects, readouts: [] }, quantities: {} };
+  }`;
+  const artifact = await buildProgramArtifact({ manifest: { ...MANIFEST, capabilities: ['time_playback', 'figures'] }, source });
+  const out = runProgram({ source: artifact.source, sdkVersion: artifact.sdkVersion, operation: 'evaluate', request: { requestId: 'p', inputs: {}, time: 0, seed: 1, state: null } });
+  assert.equal(out.ok, true, out.detail);
+  assert.equal(parseGuestResult(out.value, artifact.manifest, artifact.sdkVersion).ok, true);
+  assert.equal(normalizeFrame(out.value.frame, artifact.manifest).ok, true);
 });

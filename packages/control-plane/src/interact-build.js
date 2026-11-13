@@ -177,10 +177,12 @@ export async function validateBuildOutput(job, reply, ctx = {}) {
 export const callRecord = (role, done) => ({ role, requested: done.requested, served: done.served, usage: done.usage, costMicros: done.costMicros ?? null, priceKnown: done.priceKnown ?? false, timing: done.timing, stopReason: done.stopReason,
   fallbackFired: done.fallbackFired ?? false }); // true when a later step of the role's chain answered (a failure of the first step in a benchmark)
 
-// What a fast model's reply is cleaned of before it is checked (capabilities.sanitize, never Opus): keys the schema does not declare (Gemini wrote `layers`) and double-escaped line breaks
-// in the manifest's prose (the program source is code and is never touched). Server-side, never a repair call.
+// What a fast model's reply is cleaned of before it is checked (capabilities.sanitize, never Opus): keys the schema does not declare (Gemini wrote `layers`), double-escaped line breaks
+// in the manifest's prose (the program source is code and is never touched) and a repeated state label in a readout (the first occurrence stays: google-low wrote "state labels must be unique" failures
+// twice). Server-side, never a repair call.
 export function cleanBuildReply(reply, schema) {
-  const out = stripUnknown(reply, schema, null, []), fix = a => (plain(a?.program?.manifest) ? { ...a, program: { ...a.program, manifest: literalBreaksDeep(a.program.manifest) } } : a);
+  const uniqueLabels = manifest => (Array.isArray(manifest.readouts) ? { ...manifest, readouts: manifest.readouts.map(r => (plain(r) && Array.isArray(r.labels) ? { ...r, labels: [...new Set(r.labels)] } : r)) } : manifest);
+  const out = stripUnknown(reply, schema, null, []), fix = a => (plain(a?.program?.manifest) ? { ...a, program: { ...a.program, manifest: uniqueLabels(literalBreaksDeep(a.program.manifest)) } } : a);
   if (!plain(out)) return out;
   return { ...out, ...(plain(out.main) ? { main: fix(out.main) } : {}), ...(Array.isArray(out.supporting) ? { supporting: out.supporting.map(entry => (plain(entry) ? { ...entry, artifact: fix(entry.artifact) } : entry)) } : {}) };
 }

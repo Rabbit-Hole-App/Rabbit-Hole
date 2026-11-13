@@ -188,3 +188,12 @@ test('withSpendUsage adds the Anthropic-shaped counts the spend ledger settles f
   assert.deepEqual(withSpendUsage({ model: 'x' }), { model: 'x' });
   assert.equal(withSpendUsage(null), null);
 });
+
+test('cleanBuildReply keeps the first of a repeated state label in a readout (the night\'s "state labels must be unique" reply) and leaves a unique list as it was', () => {
+  const plan = plans.standard, schema = buildSchema(plan), reply = scene();
+  reply.main.program.manifest.readouts = [{ id: 'motion', label: 'Motion', unit: '', kind: 'state', labels: ['Moving up', 'Still for an instant', 'Moving up', 'Moving down', 'Still for an instant'] }, { id: 'v', label: 'Velocity', unit: 'm/s' }];
+  const cleaned = cleanBuildReply(structuredClone(reply), schema).main.program.manifest.readouts;
+  assert.deepEqual(cleaned[0].labels, ['Moving up', 'Still for an instant', 'Moving down']);
+  assert.deepEqual(cleaned[1], reply.main.program.manifest.readouts[1], 'a number readout is untouched');
+  assert.match(JSON.stringify(schema), /each once \(the list is unique\)/, 'the schema says unique too');
+});
