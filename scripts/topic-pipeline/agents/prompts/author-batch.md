@@ -4,7 +4,7 @@ This call is one part of a batched authoring pass. Every rule above applies unch
 
 ## part: foundation
 
-Return `{files}` with exactly two files: `topic-<artifactTopic>-data.js` and `topic-<artifactTopic>-data.test.mjs`. The data module exports `toyData` (the supplied toy data), `metadata` (`{topic, artifactTopic, title, lessons, sources, briefLink}`, copied from the supplied topic metadata) and `derived()`, which returns every computed value any visual may display (counts, impurities, gains, draws, probabilities, means, leaf counts, depths). The test recomputes each derived value independently. Write no references.
+Return `{files}` with exactly two files: `topic-<artifactTopic>-data.js` and `topic-<artifactTopic>-data.test.mjs`. The data module exports `toyData` (the supplied toy data), `metadata` (`{topic, artifactTopic, title, lessons, sources, briefLink}`, copied from the supplied topic metadata) and `derived()`, which returns every computed value any visual may display (counts, impurities, gains, draws, probabilities, means, leaf counts, depths). The test starts with `import test from 'node:test'` and `import assert from 'node:assert'` (not `node:assert/strict`; no other built-in is allowed) and recomputes each derived value independently. Write no references.
 
 ## part: batch
 
