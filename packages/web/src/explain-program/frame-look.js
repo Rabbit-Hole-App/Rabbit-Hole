@@ -48,7 +48,8 @@ export function clampText(object, lane) {
 // any later one the third slot (interact-style.js IDENTITIES). The author does not pick a body's colour.
 
 export const BODY_SLOTS = Object.freeze(['identity-1', 'identity-2', 'identity-3']);
-export const isBody = object => kindOf(object) === 'circle' && object.w >= BODY_MIN;
+const NAMED_BODIES = Object.freeze({ 'ball.toss': 'identity-1', 'ball.drop': 'identity-2' });
+export const isBody =object => kindOf(object) === 'circle' && object.w >= BODY_MIN;
 
 // A callout is the boxes "<id>.l0" .. "<id>.l3" of sdk.callout (stacked, equally wide, each with its own text). They are drawn as ONE white card whose lines take their colours by order (the first blue
 // ink and bold, the second orange, the third green, the fourth muted), and the card is kept inside the lane it sits in. -> Map(box id -> look): the lowest line carries the whole card, the others none.
@@ -104,7 +105,8 @@ export function frameLook(objects) {
     if (lane) return { ...object, look: { part: 'lane', lane } };
     if (titles.has(object.id)) return { ...object, look: { part: titles.get(object.id) } };
     if (object.id === source) return { ...object, look: { part: 'hidden' } };
-    if (isBody(object)) return { ...object, identitySlot: BODY_SLOTS[Math.min(bodies++, BODY_SLOTS.length - 1)] };
+    // The named bodies keep their hue whatever the object order (ball.toss primary, ball.drop second); any other body takes the next slot in order.
+    if (isBody(object)) return { ...object, identitySlot: NAMED_BODIES[object.id] ?? BODY_SLOTS[Math.min(bodies++, BODY_SLOTS.length - 1)] };
     if (vectors.has(object.id)) return { ...object, look: { part: 'vector', kind: vectors.get(object.id) } };
     if (kindOf(object) === 'text') {
       const home = laneAt(lanes, object.x, object.y), at = home ? clampText(object, home) : null;
