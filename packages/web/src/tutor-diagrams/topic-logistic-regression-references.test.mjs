@@ -299,8 +299,8 @@ test('logistic-regression pipeline substitutes the input before sigmoid and thre
   for (const field of ['x', 'z', 'p', 'prediction']) b2CloseTest(example[field], e.pipeline[field]);
   const standard = b2DiagramTest('ml-logistic-regression-model-pipeline', 'standard');
   const deep = b2DiagramTest('ml-logistic-regression-model-pipeline', 'deep');
-  assert.strictEqual(standard.nodes.find(node => node.id === 'q').label, `$p≥${e.half}$?`);
-  assert.strictEqual(deep.nodes.find(node => node.id === 'x').label, `$x=${e.pipeline.x}$ hours`);
+  assert.strictEqual(standard.nodes.find(node => node.id === 'q').label, `Is $p≥${e.half}$?`);
+  assert.strictEqual(deep.nodes.find(node => node.id === 'x').label, `Take $x=${e.pipeline.x}$ hours`);
   assert.strictEqual(deep.caption, `Illustrative values; $z=${e.pipeline.w}×${e.pipeline.x}${e.pipeline.b}=${e.pipeline.z}$; $p≈${b2RoundTest(e.pipeline.p)}$; predict $${e.pipeline.prediction}$.`);
   const branches = standard.edges.filter(edge => edge.from === 'q');
   assert.deepStrictEqual(branches.map(edge => edge.label), ['Yes', 'No']);

@@ -8,17 +8,17 @@
       {
         "id": "a",
         "role": "process",
-        "label": "Input $x$ to linear score"
+        "label": "Compute a linear score from $x$"
       },
       {
         "id": "b",
         "role": "process",
-        "label": "Sigmoid probability"
+        "label": "Convert the score to a probability"
       },
       {
         "id": "c",
         "role": "outcome",
-        "label": "Threshold gives a class"
+        "label": "Apply a threshold to pick a class"
       }
     ],
     "edges": [

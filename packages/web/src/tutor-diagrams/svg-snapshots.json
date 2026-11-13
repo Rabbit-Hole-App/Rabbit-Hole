@@ -1567,19 +1567,19 @@
       "height": 511
     },
     "ml-logistic-regression-model-pipeline/320": {
-      "sha256": "82fbfafdb4a2656287eadaba7fbc7a6b35787bc2958a33b51d56d713527d0a23",
+      "sha256": "2d30784f159179abfa0c06663391c261c58c0fff86874a3e3e4eb37bc5d50231",
       "width": 320,
-      "height": 531
+      "height": 555
     },
     "ml-logistic-regression-model-pipeline/408": {
-      "sha256": "acc484b732b34c3c4d14cd04be9f01b567526dd8c57972d54811fc5884b4fa34",
+      "sha256": "e5c210bfd9c1f365c347c1c6dfdfe5dbcf44a3dc23a8a91311e694076d2c37c7",
       "width": 408,
-      "height": 509
+      "height": 533
     },
     "ml-logistic-regression-model-pipeline/720": {
-      "sha256": "9969a9a42d72a731ab53f7f7c43576643f28014d31abd9a7d0335d40f37a55e9",
+      "sha256": "1e3422c73780958b899a979ef2b6862d1859e8d8d6c1f191a71b56b756bb9004",
       "width": 720,
-      "height": 492
+      "height": 516
     },
     "ml-logistic-regression-outlier-leverage/320": {
       "sha256": "dc29b8af339a0d4acbfa10667669e7eef8aa5726ad17b47fce2be124e42df94d",

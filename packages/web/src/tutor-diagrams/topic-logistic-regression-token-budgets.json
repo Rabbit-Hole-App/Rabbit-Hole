@@ -85,20 +85,20 @@
     "ml-logistic-regression-model-pipeline": {
       "overview": [
         {
-          "tokens": 104,
-          "sha256": "9d9891dbb25be42eb832849b6b311e0194f6ea1c0df20c2ab4527a09055b4660"
+          "tokens": 111,
+          "sha256": "d4c9eed4468e6d614b5f919ce2d9bbcf98d8309dee3379cf1e31f1e7a47afca7"
         }
       ],
       "standard": [
         {
-          "tokens": 194,
-          "sha256": "d3ef67226a5bba9c25d94641d043a48352733d24a246d1a9695913eae5b2e410"
+          "tokens": 198,
+          "sha256": "7ca7d7d371448d31fcc68a16aaf5c0501904daf499639f88c779a1d40d1e761f"
         }
       ],
       "deep": [
         {
-          "tokens": 214,
-          "sha256": "78f8a292d9e383004220cddb425583060468839360619c8f91b9e968b2efda8c"
+          "tokens": 218,
+          "sha256": "dde36a4fa3f36ee8ea40a8ae3c3148fd73384dd379a6c8ed76467770b454f740"
         }
       ]
     },

@@ -84,9 +84,9 @@ function b2Pipeline(depth) {
     kind: 'flow', title: 'From input to predicted class',
     caption: 'Illustrative values; thresholding turns probability into a class.',
     nodes: [
-      { id: 'a', role: 'process', label: 'Input $x$ to linear score' },
-      { id: 'b', role: 'process', label: 'Sigmoid probability' },
-      { id: 'c', role: 'outcome', label: 'Threshold gives a class' },
+      { id: 'a', role: 'process', label: 'Compute a linear score from $x$' },
+      { id: 'b', role: 'process', label: 'Convert the score to a probability' },
+      { id: 'c', role: 'outcome', label: 'Apply a threshold to pick a class' },
     ],
     edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }],
   };
@@ -98,10 +98,10 @@ function b2Pipeline(depth) {
       ? `Illustrative values; $z=${b2D.pipeline.w}×${example.x}${b2D.pipeline.b}=${example.z}$; $p≈${example.p}$; predict $${example.prediction}$.`
       : 'Illustrative values; keep the probability separate from the class.',
     nodes: [
-      { id: 'x', role: 'process', label: deep ? `$x=${example.x}$ hours` : 'Input $x$' },
-      { id: 'z', role: 'process', label: '$z=wx+b$' },
-      { id: 'p', role: 'process', label: '$p=1/(1+e^{-z})$' },
-      { id: 'q', role: 'decision', label: `$p≥${b2D.pipeline.threshold}$?` },
+      { id: 'x', role: 'process', label: deep ? `Take $x=${example.x}$ hours` : 'Take input $x$' },
+      { id: 'z', role: 'process', label: 'Compute $z=wx+b$' },
+      { id: 'p', role: 'process', label: 'Compute $p=1/(1+e^{-z})$' },
+      { id: 'q', role: 'decision', label: `Is $p≥${b2D.pipeline.threshold}$?` },
       { id: 'yes', role: 'outcome', label: `Predict $${b2C.one}$` },
       { id: 'no', role: 'outcome', label: `Predict $${b2C.zero}$` },
     ],

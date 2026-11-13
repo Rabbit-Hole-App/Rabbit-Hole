@@ -8,22 +8,22 @@
       {
         "id": "x",
         "role": "process",
-        "label": "Input $x$"
+        "label": "Take input $x$"
       },
       {
         "id": "z",
         "role": "process",
-        "label": "$z=wx+b$"
+        "label": "Compute $z=wx+b$"
       },
       {
         "id": "p",
         "role": "process",
-        "label": "$p=1/(1+e^{-z})$"
+        "label": "Compute $p=1/(1+e^{-z})$"
       },
       {
         "id": "q",
         "role": "decision",
-        "label": "$p≥0.5$?"
+        "label": "Is $p≥0.5$?"
       },
       {
         "id": "yes",
