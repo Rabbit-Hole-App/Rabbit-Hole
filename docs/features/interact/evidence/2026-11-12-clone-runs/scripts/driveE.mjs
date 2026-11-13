@@ -1,0 +1,34 @@
+// Owner-authorised (2026-11-12) Playwright, dev clone only. Explore + screenshot the Experiment card: rest, mid-play, Top marker, launch speed 5.0 at its top, arrows off, after reload.
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+const [OUT, app, cardId] = process.argv.slice(2);
+const BASE = 'https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev', DEV_CP = 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
+const EMAIL = 'owner-interact-preview@example.com', UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };
+const env = readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8');
+const secret = (env.match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1] || '').trim().replace(/^['"]|['"]$/g, '');
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { ...UA, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL, secret }) })).json()).session;
+const { chromium } = createRequire('C:/s/explain-layout-web/package.json')('playwright');
+let browser; try { browser = await chromium.launch({ channel: 'chrome', headless: true }); } catch { browser = await chromium.launch({ headless: true }); }
+const context = await browser.newContext({ viewport: { width: 1440, height: 1700 } });
+await context.addCookies([{ name: 'small_session', value: session, domain: new URL(BASE).hostname, path: '/', httpOnly: true, secure: true, sameSite: 'Lax' }]);
+const page = await context.newPage();
+page.on('pageerror', e => console.log('pageerror', String(e).slice(0, 200)));
+const open = async () => { await page.goto(`${BASE}/apps/${app}`); const card = page.locator(`[data-block-id="${cardId}"]`); await card.waitFor({ timeout: 90000 }); await page.waitForTimeout(5000); return card; };
+let card = await open();
+const shot = async tag => { await card.screenshot({ path: `${OUT}/${tag}-card.png` }).catch(e => console.log('shot', tag, String(e).slice(0, 100))); };
+const state = async tag => { const s = await card.evaluate(el => ({ ranges: [...el.querySelectorAll('input[type=range]')].map(r => `${r.getAttribute('aria-label') || '?'}=${r.value} [${r.min}..${r.max}]`), play: el.querySelector('[data-animation-play]')?.innerText, texts: [...el.querySelectorAll('svg text')].map(t => t.textContent).filter(Boolean).slice(0, 40).join(' | ') })); console.log(tag, JSON.stringify(s).slice(0, 900)); };
+const info = await card.evaluate(el => ({ buttons: [...el.querySelectorAll('button')].map(b => (b.getAttribute('aria-label') || b.innerText || '').slice(0, 24)).filter(Boolean), groups: [...el.querySelectorAll('[role=radiogroup],[role=group]')].map(g => g.getAttribute('aria-label') + ':' + [...g.querySelectorAll('button')].map(b => b.innerText).join('/')), labels: [...el.querySelectorAll('label')].map(l => l.innerText.slice(0, 30)) }));
+console.log('controls', JSON.stringify(info));
+await shot('e1-at-rest'); await state('rest');
+await card.locator('[data-animation-play]').evaluate(el => el.click()); await page.waitForTimeout(2500); await shot('e2-mid-play'); await state('mid-play');
+await page.waitForTimeout(5000);
+const scrub = card.locator('input[type=range]').first();
+const setRange = async (loc, v) => loc.evaluate((el, x) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, x); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }, String(v));
+await setRange(scrub, 3 / 9.8); await page.waitForTimeout(1200); await shot('e3-top-marker-3.0'); await state('top at 3.0');
+const speed = card.locator('input[type=range]').nth(1);
+await setRange(speed, 5); await page.waitForTimeout(1500); await state('after speed 5.0 (reset/pause)');
+await setRange(card.locator('input[type=range]').first(), 5 / 9.8); await page.waitForTimeout(1200); await shot('e4-speed-5.0-at-its-top'); await state('top at 5.0');
+await card.getByRole('button', { name: /^Off$/ }).first().evaluate(el => el.click()); await page.waitForTimeout(1200); await shot('e5-arrows-off'); await state('arrows off');
+card = await open(); await shot('e6-after-reload'); await state('after reload');
+await card.locator('[data-animation-play]').evaluate(el => el.click()); await page.waitForTimeout(2000); await shot('e7-after-reload-playing'); await state('after reload playing');
+await browser.close();
