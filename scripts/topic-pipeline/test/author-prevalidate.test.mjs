@@ -97,3 +97,11 @@ test('renderer-constraints.md carries the content contract: the rule ids, the un
   assert.match(content, /\bcompute\b/u);
   assert.match(content, /"Compute prediction" passes; "Prediction" and "Model output" fail/u);
 });
+
+// The author runtime runs from a copy inside the topic worktree (author.mjs): every file it imports must be in that copy, or stage 03 fails before the first call.
+test('every relative import of author-runtime.mjs is copied into the topic worktree by author.mjs', async () => {
+  const runtime = await readFile(join(here, '../author-runtime.mjs'), 'utf8'), author = await readFile(join(here, '../author.mjs'), 'utf8');
+  const imports = [...runtime.matchAll(/from '\.\/([A-Za-z0-9./-]+\.mjs)'/gu)].map(match => match[1]);
+  assert.ok(imports.length >= 2);
+  for (const file of imports) assert.ok(author.includes(`'${file.split('/').pop()}'`), `${file} is imported by author-runtime.mjs but not copied by author.mjs`);
+});

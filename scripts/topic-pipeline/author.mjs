@@ -68,7 +68,7 @@ export async function prepareAuthorRuntime(ctx, target) {
   await mkdir(target.runtimeDir, { recursive: true });
   await mkdir(join(target.runtimeDir, 'checks'), { recursive: true });
   for (const file of ['author-runtime.mjs', 'coverage.mjs']) await cp(join(sourceDir, file), join(target.runtimeDir, file));
-  for (const file of ['reference-linter.mjs', 'paraphrase-replay.mjs']) await cp(join(sourceDir, 'checks', file), join(target.runtimeDir, 'checks', file));
+  for (const file of ['reference-linter.mjs', 'paraphrase-replay.mjs', 'content-contract.mjs']) await cp(join(sourceDir, 'checks', file), join(target.runtimeDir, 'checks', file));
   // Same relative imports as the shipped exporter; the only extension accepts a
   // supplied references array and preserves its default catalogue behavior.
   await cp(join(sourceRoot, 'packages/web/scripts/illustration-previews.mjs'), join(target.worktree, 'packages/web/scripts/.topic-pipeline-illustration-previews.mjs'));
