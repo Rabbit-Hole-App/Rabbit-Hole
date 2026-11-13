@@ -17,7 +17,7 @@ planner roles are history).
 
 - While the right-side panel is closed, the canvas shows a wide pill-shaped chat strip at the bottom. It is the Chat's own composer, not a copy:
   the Chat's `AskPanel` moves its composer region into the canvas's strip host (`ask.jsx` `stripHost`, `regionHost`; `LearnPage` passes the host),
-  so the strip has the Chat's tools (+, Auto-suggest, Depth, `/`, mic), draft, chips and send loop. Send opens the panel. A small round Minimize
+  so the strip has the Chat's tools (+, Depth, `/`), draft, chips and send loop. Send leaves the panel closed: a small fixed-height window above the strip holds the conversation (the same conversation region, moved without remounting; `ask.jsx` `windowHost`, `LearnPage` `chatWindow`) and can be minimized or maximized; a new send restores a minimized one. Chat answers still run on Gemini 3.5 Flash Lite. A small round Minimize
   sits on the strip's top-left corner; minimized, it is the Rabbit Hole mark on black at the lower right (`public/static/rabbit-hole-white-on-black-*.png`,
   under `/static/` because the workers serve only listed public paths). The choice is kept on this device (`ui-prefs.js` `chatStrip`); so is the right
   panel's open or closed state (`rightPanel`), so a refresh keeps it. This reverses the 2026-10-13 removal of the canvas dock for the closed-panel

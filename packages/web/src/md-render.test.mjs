@@ -130,7 +130,7 @@ test('Jump to latest: shown whenever scrolled away from the bottom, never at the
   const ask = read('ask.jsx');
   assert.doesNotMatch(ask, /boxRef\.current\.scrollTop = boxRef\.current\.scrollHeight/);
   assert.match(ask, /const follow = useFollowLatest\(boxRef, \[msgs\]\);/);
-  assert.match(ask, /<\/div>\n {6}\{!\(contentPanel \|\| hideConversation \|\| composerOnly\) && <JumpToLatest follow=\{follow\} \/>\}\n[^<]*<div ref=\{inlineSlot\}/, 'between the list and the composer (its slot), only where the list shows');
+  assert.match(ask, /<\/div>\n {6}\{!\(contentPanel \|\| hideConversation \|\| composerOnly\) && <JumpToLatest follow=\{follow\} \/>\}\n {4}<\/>\n {2}\);/, 'right after the list, inside the conversation region, only where the list shows');
 });
 
 test('a Learn chat answer is a document (sized headings)', () => {

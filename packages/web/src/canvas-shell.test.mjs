@@ -66,7 +66,17 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(ask, /\{createPortal\(composerRegion, regionHost\)\}/);
   assert.match(ask, /dock=\{dock \|\| stripMode\}/);
   assert.match(ask, /stacked=\{!!chat && !stripMode\} pill=\{stripMode\}/, 'a pill with the same tools, not the stacked box');
-  assert.match(ask, /if \(stripMode\) chat\.panels\.openChat\(\);/, 'Send opens the panel');
+  // Owner 2026-11-13: Send from the strip no longer opens the panel; a small fixed-height window above the strip holds the conversation.
+  assert.doesNotMatch(ask, /if \(stripMode\) chat\.panels\.openChat\(\);/, 'Send leaves the panel closed');
+  assert.match(ask, /if \(stripMode\) \{ setWindowSeen\(true\); setWinState\(state => \(state === 'min' \? 'normal' : state\)\); \}/, 'Send opens the window (and restores a minimized one)');
+  assert.match(ask, /const windowMode = stripMode && !!windowHost && windowSeen;/);
+  assert.match(ask, /where\.appendChild\(convHost\)/);
+  assert.match(ask, /\{createPortal\(conversationRegion, convHost\)\}/, 'the conversation moves into the window without remounting');
+  assert.match(ask, /winState === 'normal' && 'h-80 max-h-\[55vh\]'/, 'fixed height');
+  assert.match(ask, /data-chat-window-minimize aria-label=\{winState === 'min' \? 'Restore chat' : 'Minimize chat'\}/);
+  assert.match(ask, /data-chat-window-maximize aria-label=\{winState === 'max' \? 'Restore chat size' : 'Maximize chat'\}/);
+  assert.match(page, /chatWindow=\{panelOpen \? null : <div ref=\{setWindowHost\} data-canvas-chat-window className="empty:hidden" \/>\}/);
+  assert.match(canvas, /\{chatWindow\}\n\s+\{\/\*[^\n]*\n\s+\{hooks && <div data-hooks-slot/, 'above the suggestions and the composer');
   assert.match(composer, /rounded-full py-2 pr-2\.5 pl-3/, 'round on both sides');
   assert.doesNotMatch(read('ChatComposer.jsx'), /data-canvas-strip-composer/, 'never a second composer element');
 });

@@ -24,7 +24,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, CircleHelp, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, ChevronUp, CircleHelp, Maximize2, Minimize2, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
@@ -40,7 +40,7 @@ import { toolOf, typedOf } from './agent/slash.js';
 import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
-import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
+import { chatTitle, lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { approvesJob, currentProposal, editRefusal, editSpent, routeChat, routeOutcome } from './generation-proposal-chat.js';
 import { isSmallTalk } from './inline-ai-route.js';
 import { markEnd, markStart } from './client-timing.js';
@@ -271,7 +271,7 @@ export function NextStepsCard({ steps, onPick, minimized: held = null, onMinimiz
   );
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, stripHost = null, curiousToggle = null, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false, roadmap = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, stripHost = null, windowHost = null, curiousToggle = null, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false, roadmap = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -321,6 +321,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const curiousButton = stripMode && curiousToggle ? (
     <button type="button" data-curious-toggle aria-label={curiousToggle.min ? 'Show suggestions' : 'Hide suggestions'} aria-pressed={!curiousToggle.min} title={curiousToggle.min ? 'Show the suggestions' : 'Hide the suggestions'} onMouseDown={event => event.preventDefault()} onClick={() => curiousToggle.set(!curiousToggle.min)}
       className={cn(COMPOSER_TOOL, !curiousToggle.min && 'bg-active text-ink')}><CircleHelp size={16} strokeWidth={1.7} /></button>) : null;
+  // The window above the strip (owner 2026-11-13): sending from the strip leaves the right panel closed and opens this small fixed-height window, which holds
+  // the conversation (moved here without remounting) and can be minimized or maximized; a send reopens a minimized one.
+  const [windowSeen, setWindowSeen] = useState(false), [winState, setWinState] = useState('normal');
+  const windowMode = stripMode && !!windowHost && windowSeen;
+  const convHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
+  const convSlot = useRef(null), windowBody = useRef(null);
+  useLayoutEffect(() => { const where = windowMode ? windowBody.current : convSlot.current; if (where && convHost.parentNode !== where) where.appendChild(convHost); });
   const regionHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
   const inlineSlot = useRef(null);
   useLayoutEffect(() => { const where = stripMode ? stripHost : inlineSlot.current; if (where && regionHost.parentNode !== where) where.appendChild(regionHost); });
@@ -573,7 +580,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null, onAdmitted = null } = {}) => {
-    if (stripMode) chat.panels.openChat(); // sent from the canvas strip: the Chat shows the conversation
+    if (stripMode) { setWindowSeen(true); setWinState(state => (state === 'min' ? 'normal' : state)); } // sent from the canvas strip: the window above it shows the conversation; the panel stays closed
     // The area picture is still uploading: Send is held (ChatComposer hold), and a line that reaches here another way waits too, so the question never goes without its image.
     if (uploadHeld(canvasTarget) && !keepDraft && !about) return;
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
@@ -1035,6 +1042,72 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const chipsNode = chat ? <ContextChips hideDocs={tocView} readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
             selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, uploading: !!canvasTarget.uploading, onClear: onClearCanvasTarget } : null} extra={boardPending}
             code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null;
+  const conversationRegion = (
+    <>
+      <div ref={boxRef} data-chat-sheet={sheetMode || undefined} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || hideConversation || (composerOnly && !sheetMode)) && 'hidden',
+        sheetMode && 'absolute right-0 bottom-full left-0 z-30 mb-2 max-h-[45vh] rounded-xl border border-line bg-white px-3 pb-3 shadow-pop',
+        sheetMode && !(sheetOpen && (sheetHistory || msgs.some(m => !m.card))) && 'hidden')}>
+        {sheetMode && (
+          <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-white px-3 pt-2 pb-1">
+            <span className="mr-auto text-xs text-ink-2">Rabbit Hole</span>
+            <button type="button" data-chat-clear aria-label="Clear the conversation" title="Clear" disabled={busy} onClick={newChat} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50"><Eraser size={13} /></button>
+            <button type="button" aria-label="Collapse chat" title="Collapse" onClick={() => setSheetOpen(false)} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
+              <Minus size={14} />
+            </button>
+          </div>
+        )}
+        {sheetMode && sheetHistory && (threads.length ? threads.map(t => (
+          <button key={t.id} type="button" onClick={async () => { await loadThread(t.id); setSheetHistory(false); }} className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover">
+            <span className="min-w-0 flex-1 truncate">{t.title}</span>
+            {t.created_at && <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>}
+          </button>
+        )) : <p className="py-2 text-sm text-ink-3">No past chats.</p>)}
+        {/* The Learn Chat opens empty: these starters are the apps agent's, not a canvas's, and Explore next (Lane B) follows answers. */}
+        {!sheetMode && !chat && msgs.length === 0 && !choices && (
+          <div className="flex flex-col items-start gap-1.5 py-3">
+            {(repository
+              ? ['What are the main concepts in this repository?', 'How does the code fit together?', 'Where should I start reading?']
+              : scope.run
+              ? ['What happened in this run?', 'Why did it fail?', 'What changed since the last successful run?']
+              : scope.app
+                ? ['When did this last run, and how did it go?', 'What does the code actually do?', 'Who has access to this app?']
+                : ['What apps do we have and what do they do?', 'Any failed runs recently?', 'What did Watch find this week?']
+            ).map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => send(q)}
+                className="cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-left text-[13px] text-ink-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-line-strong hover:text-ink"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} />}
+        {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
+        {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
+        {choices && (
+          <div className="py-2">
+            <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>
+            <div className="flex flex-col gap-1">
+              {choices.candidates.map((c) => (
+                <button
+                  key={c.app}
+                  onClick={() => send(choices.message, { app: c.app })}
+                  className="cursor-pointer rounded-sm border border-line px-3 py-1.5 text-left text-sm hover:bg-hover"
+                >
+                  <span className="font-medium">{c.app}</span>
+                  {c.hint && <span className="block truncate text-xs text-ink-2">{c.hint}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      {!(contentPanel || hideConversation || composerOnly) && <JumpToLatest follow={follow} />}
+    </>
+  );
   const composerRegion = (
       <div ref={composerBox} className={cn('relative shrink-0', stripMode ? 'w-full' : 'mt-2', !compact && !stripMode && 'sticky bottom-0 bg-white pt-1 pb-2')}>
         {/* @-mention suggestions above the input */}
@@ -1299,73 +1372,25 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       )}
       {(view === 'chat' || contentPanel) && (<>
       {contentPanel && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SourceSelectionContext.Provider value={{value:codeSelection,set:setCodeSelection}}>{contentPanel}</SourceSelectionContext.Provider></div>}
-      <div ref={boxRef} data-chat-sheet={sheetMode || undefined} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || hideConversation || (composerOnly && !sheetMode)) && 'hidden',
-        sheetMode && 'absolute right-0 bottom-full left-0 z-30 mb-2 max-h-[45vh] rounded-xl border border-line bg-white px-3 pb-3 shadow-pop',
-        sheetMode && !(sheetOpen && (sheetHistory || msgs.some(m => !m.card))) && 'hidden')}>
-        {sheetMode && (
-          <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-white px-3 pt-2 pb-1">
-            <span className="mr-auto text-xs text-ink-2">Rabbit Hole</span>
-            <button type="button" data-chat-clear aria-label="Clear the conversation" title="Clear" disabled={busy} onClick={newChat} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50"><Eraser size={13} /></button>
-            <button type="button" aria-label="Collapse chat" title="Collapse" onClick={() => setSheetOpen(false)} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
-              <Minus size={14} />
-            </button>
-          </div>
-        )}
-        {sheetMode && sheetHistory && (threads.length ? threads.map(t => (
-          <button key={t.id} type="button" onClick={async () => { await loadThread(t.id); setSheetHistory(false); }} className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover">
-            <span className="min-w-0 flex-1 truncate">{t.title}</span>
-            {t.created_at && <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>}
-          </button>
-        )) : <p className="py-2 text-sm text-ink-3">No past chats.</p>)}
-        {/* The Learn Chat opens empty: these starters are the apps agent's, not a canvas's, and Explore next (Lane B) follows answers. */}
-        {!sheetMode && !chat && msgs.length === 0 && !choices && (
-          <div className="flex flex-col items-start gap-1.5 py-3">
-            {(repository
-              ? ['What are the main concepts in this repository?', 'How does the code fit together?', 'Where should I start reading?']
-              : scope.run
-              ? ['What happened in this run?', 'Why did it fail?', 'What changed since the last successful run?']
-              : scope.app
-                ? ['When did this last run, and how did it go?', 'What does the code actually do?', 'Who has access to this app?']
-                : ['What apps do we have and what do they do?', 'Any failed runs recently?', 'What did Watch find this week?']
-            ).map((q) => (
-              <button
-                key={q}
-                type="button"
-                onClick={() => send(q)}
-                className="cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-left text-[13px] text-ink-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-line-strong hover:text-ink"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        )}
-        {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} />}
-        {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
-        {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
-        {choices && (
-          <div className="py-2">
-            <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>
-            <div className="flex flex-col gap-1">
-              {choices.candidates.map((c) => (
-                <button
-                  key={c.app}
-                  onClick={() => send(choices.message, { app: c.app })}
-                  className="cursor-pointer rounded-sm border border-line px-3 py-1.5 text-left text-sm hover:bg-hover"
-                >
-                  <span className="font-medium">{c.app}</span>
-                  {c.hint && <span className="block truncate text-xs text-ink-2">{c.hint}</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-      {!(contentPanel || hideConversation || composerOnly) && <JumpToLatest follow={follow} />}
+      {/* The conversation lives in convHost, moved without remounting between this slot and the window above the canvas strip (owner 2026-11-13). */}
+      <div ref={convSlot} className="contents" />
+      {createPortal(conversationRegion, convHost)}
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
       {/* The composer lives in regionHost (a div React portals it into) so it can move, without remounting, between this slot and the
           canvas strip (stripHost, owner 2026-11-13: the bottom strip is the Chat's own composer, same tools, while the panel is closed). */}
       <div ref={inlineSlot} className="contents" />
       {createPortal(composerRegion, regionHost)}
+      {windowMode && createPortal(
+        <section data-chat-window data-chat-window-state={winState} aria-label="Chat" className={cn('mb-1.5 flex flex-col overflow-hidden rounded-xl border border-line-strong bg-white shadow-pop', winState === 'normal' && 'h-80 max-h-[55vh]', winState === 'max' && 'h-[min(75vh,760px)]')}>
+          <header className="flex h-9 shrink-0 items-center gap-0.5 pr-1.5 pl-3">
+            <h2 data-chat-window-title className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{chatTitle(chat.thread)}</h2>
+            <button type="button" data-chat-window-minimize aria-label={winState === 'min' ? 'Restore chat' : 'Minimize chat'} title={winState === 'min' ? 'Restore the chat' : 'Minimize the chat'} onClick={() => setWinState(winState === 'min' ? 'normal' : 'min')}
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink">{winState === 'min' ? <ChevronUp size={15} /> : <Minus size={15} />}</button>
+            <button type="button" data-chat-window-maximize aria-label={winState === 'max' ? 'Restore chat size' : 'Maximize chat'} title={winState === 'max' ? 'Restore the chat size' : 'Maximize the chat'} onClick={() => setWinState(winState === 'max' ? 'normal' : 'max')}
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink">{winState === 'max' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</button>
+          </header>
+          <div ref={windowBody} className={cn('flex min-h-0 flex-1 flex-col px-3 pb-2', winState === 'min' && 'hidden')} />
+        </section>, windowHost)}
       </>)}
     </div>
   );
