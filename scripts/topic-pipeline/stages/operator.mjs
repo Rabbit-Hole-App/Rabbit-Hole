@@ -116,13 +116,13 @@ export async function runBench(ctx, stage, label, benchPath, set, tree, only = [
   const generationUsd = cards.filter(c => c.costSource === 'ledger' && Number.isFinite(c.costUsd)).reduce((s, c) => s + c.costUsd, 0);
   const judgeUsd = Number.isFinite(report?.judge?.spent) ? report.judge.spent : 0;
   const usageKnown = !!report && cards.every(c => c.costSource === 'ledger' && Number.isFinite(c.costUsd))
-    && (!judge || !!report.judge && Number.isFinite(report.judge.spent) && report.judge.failed === 0)
+    && (!judge || !!report.judge && Number.isFinite(report.judge.spent)) // a judge answer that was not valid JSON is a missing verdict, not an unknown charge: its spend is reported in judge.spent
     && !/STOP stack unreachable/.test(result.stdout);
   const usageId = report?.meta?.runId ?? `unknown-${stage}-${label}-${Date.now()}`;
   if (!ctx.state.calls.some(c => c.agent === 'bench' && c.run === usageId)) {
     try {
       if (!usageKnown) ctx.state.usageKnown = false;
-      recordSpend(ctx.state, { agent: 'bench', run: usageId, model: 'stack-and-factual-judge', usd: generationUsd + judgeUsd, generationUsd, judgeUsd, usageKnown, inputTokens: 0, outputTokens: 0, ms: 0 });
+      recordSpend(ctx.state, { agent: 'bench', run: usageId, model: 'stack-and-factual-judge', usd: generationUsd + judgeUsd, generationUsd, judgeUsd, ...(report?.judge?.failed ? { judgeFailed: report.judge.failed } : {}), usageKnown, inputTokens: 0, outputTokens: 0, ms: 0 });
     } finally { await saveState(ctx.topicDir, ctx.state); }
   }
   if (!usageKnown) throw new Error('Bench charge usage is unknown or estimated; saved usage requires reconciliation before any later paid calls.');
