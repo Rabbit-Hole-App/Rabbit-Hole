@@ -397,7 +397,8 @@ export function lintAuthoredFiles({ files = [], repoRoot = process.cwd(), topic,
       ['globalThis.', /\bglobalThis\s*(?:\?\.)?\s*[.\[]/u], ['child_process', /\bchild_process\b/u], ['worker_threads', /\bworker_threads\b/u],
       ['WebSocket', /\bWebSocket\b/u], ['XMLHttpRequest', /\bXMLHttpRequest\b/u],
     ];
-    for (const [name, pattern] of forbidden) if (pattern.test(content)) report(id, `Forbidden text/API: ${name}.`);
+    // Rule 11 (reviewer 2026-11-12): the forbidden-text scan covers .js, .mjs and .json only; .md files get the path and size checks above.
+    if (/.(?:[cm]?js|json)$/u.test(id)) for (const [name, pattern] of forbidden) if (pattern.test(content)) report(id, `Forbidden text/API: ${name}.`);
     if (!/\.[cm]?js$/u.test(id)) continue;
     let ast;
     try { ast = astFor(content); } catch (error) { report(id, `Cannot statically parse module: ${error.message}`); continue; }
