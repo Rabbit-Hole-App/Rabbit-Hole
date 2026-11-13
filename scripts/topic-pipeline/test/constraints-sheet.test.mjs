@@ -25,6 +25,7 @@ test('the constraints sheet carries every linter rule and the lengths, and is cu
   assert.match(sheet, /Rule 5, axis names:.*Residual \(y units\)/u, 'the rule that cost rounds carries its fail example');
   assert.match(sheet, /Exemptions: inside \$…\$ the exponents, the subscripts and the integers 0, 1 and 2 are formula constants/u);
   assert.match(sheet, /## Lengths/u);
+  assert.match(sheet, /A comparison reference with exactly two panels \(or two columns\) must also supply a single-diagram variant \(reference-single-specs\); the pipeline author writes it alongside the reference/u);
   assert.match(sheet, /coordinate-plot: .*x\.unit at most 12 characters/u);
   const current = (await readFile(OUTPUT, 'utf8')).replace(/\r\n/gu, '\n');
   assert.equal(current, sheet, 'renderer-constraints.md is stale; run node scripts/topic-pipeline/build-renderer-constraints.mjs');

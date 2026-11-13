@@ -114,19 +114,23 @@ export async function run(ctx) {
     try { count = JSON.parse(counted.stdout.trim()).propertyCount; } catch { count = /^\s*\d+\s*$/.test(counted.stdout) ? Number(counted.stdout) : undefined; }
     if (!Number.isInteger(count) || count > 362 || count < 0) throw new Error('A1 property count must be reported as propertyCount JSON or an integer, and stay at most 362.');
     record.propertyCount = count;
-    const bench = await toolPath(ctx.config, 'bench');
-    const smoke = await exists(join(ctx.config.repo.toolingRoot, 'scripts/explain-bench/sets/smoke.json'));
-    const generated = smoke ? null : await topicSet(ctx, bench);
-    if (generated) artefacts.push(generated.copy);
-    record.smoke = { set: smoke ? 'smoke' : generated.set.name, note: smoke ? '' : 'smoke set missing' };
-    const result = await withStack(ctx, '05', record.worktree, () => runBench(ctx, '05', 'smoke', bench, smoke ? 'smoke' : generated.set.name, record.worktree, [], false));
-    artefacts.push(result.log);
-    if (result.code !== 0) throw new Error('Tier-1 smoke did not pass; inspect the captured bench report.');
-    record.smoke.run = result.run;
+    // integration.smoke: false = the deterministic checks only (reviewer 2026-11-13: a topic release whose replay moves no prior pick is gated by suites, property count and replay).
+    if (ctx.config.integration?.smoke === false) record.smoke = { skipped: 'integration.smoke is false: deterministic checks only' };
+    else {
+      const bench = await toolPath(ctx.config, 'bench');
+      const smoke = await exists(join(ctx.config.repo.toolingRoot, 'scripts/explain-bench/sets/smoke.json'));
+      const generated = smoke ? null : await topicSet(ctx, bench);
+      if (generated) artefacts.push(generated.copy);
+      record.smoke = { set: smoke ? 'smoke' : generated.set.name, note: smoke ? '' : 'smoke set missing' };
+      const result = await withStack(ctx, '05', record.worktree, () => runBench(ctx, '05', 'smoke', bench, smoke ? 'smoke' : generated.set.name, record.worktree, [], false));
+      artefacts.push(result.log);
+      if (result.code !== 0) throw new Error('Tier-1 smoke did not pass; inspect the captured bench report.');
+      record.smoke.run = result.run;
+    }
     record.head = (await command(ctx, '05', 'integration-head', 'git', ['rev-parse', 'HEAD'], { cwd: record.worktree })).stdout.trim();
     record.status = 'ok';
     artefacts.push(await manifest(ctx, 'integration.json', record));
-    return { status: 'ok', artefacts, notes: `Topic data integrated in a separate release worktree; configured suites passed; A1 properties ${count}/362; tier-1 bench passed.${smoke ? '' : ' smoke set missing; used the topic demo set.'}` };
+    return { status: 'ok', artefacts, notes: `Topic data integrated in a separate release worktree; configured suites passed; A1 properties ${count}/362; ${record.smoke.skipped ? 'tier-1 smoke skipped (deterministic checks only).' : 'tier-1 bench passed.'}${smoke ? '' : ' smoke set missing; used the topic demo set.'}` };
   } catch (error) {
     record.status = 'fail';
     record.error = scrub(error.message, ctx);

@@ -47,6 +47,10 @@ The JSON schema excerpt shows maxLength values that are TWICE these limits: it m
 - Rule 11, authored files only: Authored files are only the topic's own: topic-<name>-*.js, .mjs or .json under tutor-diagrams, the topic walkthrough, its docs folder, its figure briefs, its illustrations and the registry. At most 200 KB per file and 40 files; relative imports stay inside that set or trusted existing tutor-diagrams modules; no forbidden text in code. Pass: topic-linear-regression-references.js. Fail: an edit to a library file such as spec.js or to scripts/.
 - Rule 12, no word broken in a preview: At the preview widths (408, natural and 960) a label line never ends inside a word: lines wrap only at spaces. Pass: Average the squared gaps wraps after a space. Fail: a long unbroken word in a narrow node, such as a 20-letter name: shorten the label or use a wider element.
 
+## Library rules (release suites)
+
+- A comparison reference with exactly two panels (or two columns) must also supply a single-diagram variant (reference-single-specs); the pipeline author writes it alongside the reference. reference-single-variants.test.mjs fails a two-panel reference that has none.
+
 ## band
 
 - A band requires an increasing interval
