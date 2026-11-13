@@ -241,7 +241,7 @@ function mainBindingProblems(plan, artifact, bad) {
     for (const r of plan.scene.readoutIds) {
       const got = (m.readouts || []).find(x => x.id === r);
       if (!got) bad(['scene', 'readoutIds', r], 'readout_missing', `the approved readout "${r}" is not declared in manifest.readouts`);
-      else if (!String(got.label ?? '').trim() || got.unit == null) bad(['scene', 'readoutIds', r], 'readout_unlabelled', `the readout "${r}" needs a label and a unit (use '' for a pure number)`);
+      else if (!String(got.label ?? '').trim() || (got.unit == null && got.kind !== 'state')) bad(['scene', 'readoutIds', r], 'readout_unlabelled', `the readout "${r}" needs a label and a unit (use '' for a pure number)`);
     }
     for (const id of plan.mode.adjustableIds) if (!(m.inputs || []).some(x => x.id === id)) bad(['mode', 'adjustableIds', id], 'input_missing', `the approved adjustable input "${id}" is not declared in manifest.inputs`);
     return;
@@ -305,7 +305,7 @@ function supportProblems(plan, panel, bad) {
     for (const r of support.readoutIds) {
       const got = (m.readouts || []).find(x => x.id === r);
       if (!got) bad(at('readoutIds'), 'readout_missing', `the approved readout "${r}" of "${id}" is not declared in manifest.readouts`);
-      else if (!String(got.label ?? '').trim() || got.unit == null) bad(at('readoutIds'), 'readout_unlabelled', `the readout "${r}" of "${id}" needs a label and a unit (use '' for a pure number)`);
+      else if (!String(got.label ?? '').trim() || (got.unit == null && got.kind !== 'state')) bad(at('readoutIds'), 'readout_unlabelled', `the readout "${r}" of "${id}" needs a label and a unit (use '' for a pure number)`);
     }
   } else {
     const p = artifact.spec.presentation || {};

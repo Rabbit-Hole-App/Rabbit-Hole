@@ -160,7 +160,7 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     if (cap.completeCard !== true && !(allowPartialCard && cap.completeCard === false)) bad('capture_not_complete', where, `the capture for "${c.label}" is not the complete card`, c.id);
     if (cap.compositionHash !== composition.envelopeHash) { bad('stale_capture', where, `the capture for "${c.label}" is of a different composition than the one being checked`, c.id); continue; }
     const t = cap.trace;
-    if (!t || t.error) { bad('program_error', where, `the program failed at "${c.label}"${t?.error?.code ? ` (${t.error.code})` : ''}`, c.id); continue; }
+    if (!t || t.error) { bad('program_error', where, `the program failed at "${c.label}"${t?.error?.code ? ` (${t.error.code})` : ''}${t?.error?.diagnostic ? `: ${String(t.error.diagnostic).slice(0, 300)}` : ''}`, c.id); continue; }
     if (cap.bundleHash && cap.bundleHash !== composition.main.artifact.hash) bad('stale_capture', where, `the main program that ran at "${c.label}" is not the sealed one`, c.id);
     if (!plain(t.quantities)) { bad('trace_missing', where, `no runtime trace for "${c.label}"`, c.id); continue; }
     for (const [name, v] of Object.entries(t.quantities)) if (typeof v !== 'number' || !Number.isFinite(v)) bad('quantity_not_finite', where, `quantity "${name}" is not a finite number at "${c.label}"`, c.id);
