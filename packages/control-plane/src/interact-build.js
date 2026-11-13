@@ -17,6 +17,8 @@ import { SPEC_LIMITS, authorComposition, capabilityGap, validateStage } from './
 import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, buildProgramArtifact, checkProgramDraft } from './explain-program.js';
 import { modelEvidence } from './explain-evidence.js';
 import { InteractModelError, callInteractRole } from './interact-models.js';
+import { stripUnknown } from './learn-primitives.js';
+import { literalBreaksDeep } from './literal-breaks.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const bytes = value => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value)).length;
@@ -37,19 +39,23 @@ export const correctable = error => error instanceof InteractModelError && error
 const withRange = problem => String(problem).replace(/manifest\.(summary|description|instructions): longer than (\d+)/, (_, field, n) => `manifest.${field}: longer than ${n} characters; it must be ${MANIFEST_SENTENCES[field]}, at most ${n} characters`);
 export const refusalProblems = error => (error.problems?.length ? error.problems : [error.message]).slice(0, 12).map(problem => withRange(problem).slice(0, 400));
 const withCorrection = (input, instruction, problems) => (typeof input === 'string' ? `${input}\n\n${instruction}\n${problems.map(problem => `- ${problem}`).join('\n')}` : { ...input, correction: { instruction, problems } });
+// A role with fallbacks (interact-models.js callInteractRole) corrects on the step that answered; a correction still refused moves the SAME request to the next step (item 4).
 export async function callWithCorrection(ctx, role, args, { instruction, check, onDone } = {}) {
-  const ask = async extra => { const done = await callInteractRole(ctx, role, extra ?? args); onDone?.(done); return done; };
-  let first;
+  const ask = async (extra, step) => { const done = await callInteractRole(ctx, role, extra ?? args, step ? { step } : undefined); onDone?.(done); return done; };
+  let first, at = 0;
   try {
     const done = await ask(), problems = check?.(done.output) ?? [];
     if (!problems.length) return done;
-    first = { done, problems };
+    first = { done, problems }; at = done.step ?? 0;
   } catch (error) {
     if (!correctable(error)) throw error;
-    first = { error, problems: refusalProblems(error) };
+    first = { error, problems: refusalProblems(error) }; at = error.step ?? 0;
   }
-  try { return await ask({ ...args, input: withCorrection(args.input, instruction, first.problems.slice(0, 12)) }); }
+  try { return await ask({ ...args, input: withCorrection(args.input, instruction, first.problems.slice(0, 12)) }, at); }
   catch (second) {
+    if (correctable(second) && ctx.profile?.roles?.[role]?.fallbacks?.[at]) {
+      try { return await ask(args, at + 1); } catch (third) { if (third?.code !== 'call_ceiling' && third?.stopReason !== 'budget') throw third; throw second; }
+    }
     // No call left (the runner's call_ceiling, the job's budget stop): the first refusal stands. Anything else (the job moved on, the deadline, the allowance, a failed call) is its own error.
     if (second?.code !== 'call_ceiling' && second?.stopReason !== 'budget') throw second;
     if (first.error) throw first.error;
@@ -154,7 +160,16 @@ export async function validateBuildOutput(job, reply, ctx = {}) {
 }
 
 // A call's persistable record: identity, usage and timing, never the output (the artifacts are stored by hash).
-export const callRecord = (role, done) => ({ role, requested: done.requested, served: done.served, usage: done.usage, costMicros: done.costMicros ?? null, priceKnown: done.priceKnown ?? false, timing: done.timing, stopReason: done.stopReason });
+export const callRecord = (role, done) => ({ role, requested: done.requested, served: done.served, usage: done.usage, costMicros: done.costMicros ?? null, priceKnown: done.priceKnown ?? false, timing: done.timing, stopReason: done.stopReason,
+  fallbackFired: done.fallbackFired ?? false }); // true when a later step of the role's chain answered (a failure of the first step in a benchmark)
+
+// What a fast model's reply is cleaned of before it is checked (capabilities.sanitize, never Opus): keys the schema does not declare (Gemini wrote `layers`) and double-escaped line breaks
+// in the manifest's prose (the program source is code and is never touched). Server-side, never a repair call.
+export function cleanBuildReply(reply, schema) {
+  const out = stripUnknown(reply, schema, null, []), fix = a => (plain(a?.program?.manifest) ? { ...a, program: { ...a.program, manifest: literalBreaksDeep(a.program.manifest) } } : a);
+  if (!plain(out)) return out;
+  return { ...out, ...(plain(out.main) ? { main: fix(out.main) } : {}), ...(Array.isArray(out.supporting) ? { supporting: out.supporting.map(entry => (plain(entry) ? { ...entry, artifact: fix(entry.artifact) } : entry)) } : {}) };
+}
 
 // buildScene(job, ctx) -> { artifacts, composition, planHash, draft, call } | { gap, call } | { problems, details, category, repairable, draft, call }
 //   draft: the model's own reply ({main, supporting}); the repair step starts from it, valid or not.
@@ -165,7 +180,8 @@ export const callRecord = (role, done) => ({ role, requested: done.requested, se
 export async function buildScene(job, ctx) {
   const { plan, hash } = await approvedPlanOf(job);
   const before = canonicalJson(plan);
-  const done = await callWithCorrection(ctx, 'build_author', { system: INTERACT_BUILD_SYSTEM, schema: buildSchema(plan), input: buildInput(job, plan, hash), name: INTERACT_BUILD_TOOL_NAME, description: 'Build the approved scene plan.' }, { instruction: AUTHOR_CORRECTION });
+  const schema = buildSchema(plan);
+  const done = await callWithCorrection(ctx, 'build_author', { system: INTERACT_BUILD_SYSTEM, schema, sanitize: reply => cleanBuildReply(reply, schema), input: buildInput(job, plan, hash), name: INTERACT_BUILD_TOOL_NAME, description: 'Build the approved scene plan.' }, { instruction: AUTHOR_CORRECTION });
   const call = callRecord('build_author', done), reply = done.output;
   if (reply.kind === 'capability_gap') {
     if (!Array.isArray(reply.gap?.needs) || !reply.gap.needs.length) throw new InteractBuildError('invalid_turn', 'The builder reported a gap without saying what is needed.', { call });
