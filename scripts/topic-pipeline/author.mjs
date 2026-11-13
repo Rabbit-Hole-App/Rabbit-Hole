@@ -95,17 +95,17 @@ export async function prepareAuthorRuntime(ctx, target) {
   for (const name of ['acorn', 'js-tiktoken', 'zod', 'react', 'react-dom', 'katex']) await copyPackage(name, paths);
 }
 
-export async function isolated(target, command, payload, roundDir) {
-  const input = join(target.runtimeDir, `${command}-input.json`), output = join(target.runtimeDir, `${command}-output.json`);
+export async function isolated(target, command, payload, roundDir, tag = '') { // tag keeps the files of parallel runs of one command apart
+  const input = join(target.runtimeDir, `${command}${tag}-input.json`), output = join(target.runtimeDir, `${command}${tag}-output.json`);
   await writeJson(input, payload);
   const args = ['--permission', `--allow-fs-read=${target.worktree}`, `--allow-fs-write=${target.worktree}`,
     join(target.runtimeDir, 'author-runtime.mjs'), command, input, output];
-  const log = join(roundDir, `${command}.log`);
+  const log = join(roundDir, `${command}${tag}.log`);
   try {
     const { stdout, stderr } = await execute(process.execPath, args, { cwd: target.worktree, env: {}, encoding: 'utf8', timeout: TIMEOUT, maxBuffer: 16 * 1024 * 1024 });
     await writeFile(log, stdout + stderr);
     const result = await readJson(output);
-    await writeJson(join(roundDir, `${command}.json`), result);
+    await writeJson(join(roundDir, `${command}${tag}.json`), result);
     return result;
   } catch (error) {
     const detail = `${error.stdout ?? ''}${error.stderr ?? ''}${error.message}\n`;
@@ -185,6 +185,7 @@ export async function authorInputs(ctx, target, prompts, coverage, baseline) {
   }
   return { topic: ctx.topic, artifactTopic: target.artifactTopic, metadata, briefs, idPrefix: target.artifactTopic === 'decision-trees-dryrun' ? 'ml-dry-trees-' : `ml-${ctx.topic}-`,
     prompts, coverage, sop: sop.slice(sop.indexOf('## 4.'), sop.indexOf('## 5.')), exemplar, kindSchema: schema,
+    rendererConstraints: await readFile(new URL('./agents/inputs/renderer-constraints.md', import.meta.url), 'utf8'),
     toyDataTemplate: { rows: prompts.toyData.rows, features: prompts.toyData.features, label: prompts.toyData.label, usedBy: prompts.toyData.usedBy },
     reuseReferences: coverage.prompts.filter(row => row.decision === 'REUSE').map(row => {
       const variant = baseline.authorVariants?.find(reference => reference.id === row.firstHit);
