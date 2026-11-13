@@ -6,6 +6,10 @@ const REPO = 'C:/Users/cyudhist/Desktop/workspace/feature-interactive';
 const WEB = `${REPO}/packages/web`;
 const NAME = 'rabbit-hole-web-dev-interact';
 const step = process.argv[2];
+// The clone's vars (owner 2026-11-13: the three Depth cards on the pin family). Override any with KEY=VALUE after the step, e.g. `deploy INTERACT_RUN=browser INTERACT_BUILD_PROFILE=google-low`.
+const VARS = { INTERACT_SCENE_PLAN_ENABLED: 'true', USAGE_PLATFORM_DAY_USD: '20', INTERACT_DESCRIPTION_FIT: 'estimate', INTERACT_DESIGN_FIXTURE: 'toss', INTERACT_RUN: 'headless', INTERACT_REVIEW: 'shadow', INTERACT_BUILD_PROFILE: 'opus-baseline', EXPLAIN_DIAGNOSTICS: 'true' };
+for (const arg of process.argv.slice(3)) { const m = /^([A-Z0-9_]+)=(.*)$/.exec(arg); if (m) VARS[m[1]] = m[2]; }
+const varArgs = Object.entries(VARS).flatMap(([k, v]) => ['--var', `${k}:${v}`]);
 
 const env0 = {};
 for (const line of readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/)) {
@@ -13,7 +17,7 @@ for (const line of readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deplo
   if (m) env0[m[1]] = m[2].replace(/^["']|["']$/g, '');
 }
 const need = k => { if (!env0[k]) { console.error(`missing key ${k}`); process.exit(2); } return env0[k]; };
-const secrets = [need('CLOUDFLARE_API_TOKEN'), need('CLOUDFLARE_ACCOUNT_ID'), need('TLDRAW_LICENSE_KEY'), need('ANTHROPIC_API_KEY'), env0.ANTHROPIC_WORKSPACE_ID].filter(Boolean);
+const secrets = [need('CLOUDFLARE_API_TOKEN'), need('CLOUDFLARE_ACCOUNT_ID'), need('TLDRAW_LICENSE_KEY'), need('ANTHROPIC_API_KEY'), env0.ANTHROPIC_WORKSPACE_ID, env0.GEMINI_API_KEY, env0.FIREWORKS_API_KEY].filter(Boolean);
 const redact = s => secrets.reduce((a, v) => a.split(v).join('***'), String(s ?? ''));
 const base = { ...process.env, CLOUDFLARE_API_TOKEN: env0.CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID: env0.CLOUDFLARE_ACCOUNT_ID };
 
@@ -29,16 +33,16 @@ if (step === 'build') {
   process.exit(run('npm', ['run', 'build', '--', '--outDir', process.argv[3] || 'dist-dev'], { env }));
 } else if (step === 'deploy') {
   process.exit(run('npx', ['wrangler', 'deploy', '--config', 'wrangler.dev.jsonc', '--name', NAME,
-    '--var', 'INTERACT_SCENE_PLAN_ENABLED:true', '--var', 'USAGE_PLATFORM_DAY_USD:20', '--var', 'INTERACT_DESCRIPTION_FIT:estimate', '--var', 'INTERACT_DESIGN_FIXTURE:toss-drop-standard-controls']));
+    ...varArgs]));
 } else if (step === 'secrets') {
   let code = 0;
-  for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID']) {
+  for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', 'GEMINI_API_KEY', 'FIREWORKS_API_KEY']) {
     if (!env0[k]) { console.log(`skip ${k} (absent)`); continue; }
     code ||= run('npx', ['wrangler', 'secret', 'put', k, '--config', 'wrangler.dev.jsonc', '--name', NAME], { input: env0[k] });
   }
   process.exit(code);
 } else if (step === 'dryrun') {
-  process.exit(run('npx', ['wrangler', 'deploy', '--dry-run', '--config', 'wrangler.dev.jsonc', '--name', NAME, '--var', 'INTERACT_SCENE_PLAN_ENABLED:true', '--var', 'USAGE_PLATFORM_DAY_USD:20', '--var', 'INTERACT_DESCRIPTION_FIT:estimate', '--var', 'INTERACT_DESIGN_FIXTURE:toss-drop-standard-controls']));
+  process.exit(run('npx', ['wrangler', 'deploy', '--dry-run', '--config', 'wrangler.dev.jsonc', '--name', NAME, ...varArgs]));
 } else if (step === 'info') {
   process.exit(run('npx', ['wrangler', 'deployments', 'list', '--config', 'wrangler.dev.jsonc', '--name', NAME]));
 } else { console.error('step: build|deploy|secrets|info'); process.exit(2); }
