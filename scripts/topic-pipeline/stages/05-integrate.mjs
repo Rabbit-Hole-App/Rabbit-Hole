@@ -1,4 +1,5 @@
-import { join, resolve } from 'node:path';
+import { mkdir, readdir, symlink } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { readJson } from '../state.mjs';
 import { toolPath } from '../tooling.mjs';
 import { artefactTopic, command, configuredCommand, exists, manifest, runBench, scrub, topicSet, withStack } from './operator.mjs';
@@ -7,6 +8,21 @@ const ownReferences = (ctx, author) => (author.references ?? []).filter(r => r.a
 
 // A reference's preview folders: the base id and every depth and detail variant the preview export writes (stage 03 copies the same set).
 const VARIANTS = ['', '-brief', '-balanced', '-detailed', '-detail', '-brief-detail', '-balanced-detail', '-detailed-detail'];
+
+// A fresh integration worktree has no installed dependencies, so the suites failed on 'Cannot find package'. When config.repo.depsRoot names a tree with
+// installed dependencies at the same lockfile, its node_modules folders (root and packages/*) are linked in as junctions (never copied, never written to).
+export async function linkDependencies(depsRoot, worktree) {
+  if (!depsRoot) return [];
+  const linked = [], candidates = ['node_modules'];
+  for (const entry of await readdir(join(depsRoot, 'packages'), { withFileTypes: true }).catch(() => [])) if (entry.isDirectory()) candidates.push(`packages/${entry.name}/node_modules`);
+  for (const rel of candidates) {
+    const from = join(depsRoot, rel), to = join(worktree, rel);
+    if (!await exists(from) || await exists(to) || !await exists(dirname(to)).catch(() => false)) continue;
+    await symlink(resolve(from), to, 'junction');
+    linked.push(rel);
+  }
+  return linked;
+}
 
 export function allowed(path, ctx, author) {
   const topic = artefactTopic(ctx), stem = `topic-${topic}`;
@@ -73,6 +89,7 @@ export async function run(ctx) {
           ? ['worktree', 'add', '-b', record.branch, record.worktree, ctx.config.repo.releaseBranch]
           : ['worktree', 'add', record.worktree, record.branch]);
     }
+    await linkDependencies(ctx.config.repo.depsRoot, record.worktree);
     const checkedOut = await command(ctx, '05', 'worktree-branch', 'git', ['branch', '--show-current'], { cwd: record.worktree });
     if (checkedOut.stdout.trim() !== record.branch) throw new Error('Integration worktree belongs to another branch.');
     const dirty = await command(ctx, '05', 'worktree-status', 'git', ['status', '--porcelain'], { cwd: record.worktree });
