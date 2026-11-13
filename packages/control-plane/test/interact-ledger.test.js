@@ -17,9 +17,9 @@ const detail = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));
 test('run 15: the row holds the factual columns first, then the stage milliseconds, all read off the record', () => {
   const row = ledgerRow(jobFromDetail(detail()));
   assert.deepEqual(Object.keys(row), [...LEDGER_COLUMNS]);
-  assert.deepEqual(Object.fromEntries(Object.entries(row).slice(0, 18)), {
+  assert.deepEqual(Object.fromEntries(Object.entries(row).slice(0, 19)), {
     jobId: 'ej_a7e7bb226e614a02b5a426e30218f615', planHash: '8f564bdfc1479ad31db521eea57fa45642a45fc606ba5a0acfa4e2a0c9225117', depth: 'balanced', result: 'ready', stopReason: 'accepted',
-    oracleId: null, oracleChecked: null, oracleFailed: 0, bindingProblems: 0, overlapProblems: 0, repairs: 1, profile: null, fixture: null, authorModel: 'claude-opus-5-5', fallbackFired: false, judgeVerdict: null, judgeMajor: null,
+    oracleId: null, oracleChecked: null, oracleFailed: 0, bindingProblems: 0, overlapProblems: 0, repairs: 1, profile: null, fixture: null, authorModel: 'claude-opus-5-5', fallbackFired: false, judgeVerdict: null, judgeMajor: null, judgeCostUsd: null,
     costUsd: 0.620628 });
   // Stage times: authoring 65.9 s, validating 25 + 20 ms, rendering 18.4 + 11.7 s, reviewing 37.8 + 38.4 s, repairing 49.2 s, generate to ready 221.4 s.
   assert.deepEqual([row.msSteer, row.msAuthor, row.msValidate, row.msRun, row.msCheck, row.msReview, row.msRepair, row.msTotal], [null, 65910, 45, 30098, null, 76187, 49185, 221425]);
@@ -58,7 +58,12 @@ test('a fallback, a judge verdict and its major findings reach the row; a job st
   job.calls[0] = { ...job.calls[0], fallback: true };
   job.bench = { judge: { model: 'claude-sonnet-5-5', verdict: 'fail', findings: [{ severity: 'major' }, { severity: 'minor' }, { severity: 'major' }], ms: 4000, costMicros: 20000 } };
   const row = ledgerRow(job);
-  assert.deepEqual([row.fallbackFired, row.judgeVerdict, row.judgeMajor, row.costUsd], [true, 'fail', 2, 0.640628]);
+  assert.deepEqual([row.fallbackFired, row.judgeVerdict, row.judgeMajor, row.judgeCostUsd, row.costUsd], [true, 'fail', 2, 0.02, 0.620628], 'the platform-paid judge is its own column, outside the learner-paid total');
+  assert.deepEqual(Object.keys(row).slice(Object.keys(row).indexOf('judgeMajor'), Object.keys(row).indexOf('judgeMajor') + 3), ['judgeMajor', 'judgeCostUsd', 'costUsd']);
+  // A failed judge call keeps its cost; an unpriced one, an interrupted one and no judge at all are null.
+  assert.equal(ledgerRow({ ...job, bench: { error: { code: 'error', costMicros: 15000 } } }).judgeCostUsd, 0.015);
+  assert.equal(ledgerRow({ ...job, bench: { error: { code: 'interrupted', costMicros: null } } }).judgeCostUsd, null);
+  assert.equal(ledgerRow({ ...job, bench: undefined }).judgeCostUsd, null);
   assert.equal(ledgerRow({ ...job, stage: 'rendering' }).result, 'running');
   assert.equal(ledgerRow({ ...job, stage: 'failed', stopReason: 'rounds' }).result, 'failed');
 });

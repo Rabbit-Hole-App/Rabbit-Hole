@@ -75,9 +75,10 @@ const ADAPTERS = ['anthropic', 'openai-compatible'];
 const opusRole = role => ({
   role, task: INTERACT_ROLES[role].task, provider: 'anthropic', model: INTERACT_ROLES[role].model ?? 'claude-opus-5-5', adapter: 'anthropic', credentialRef: 'ANTHROPIC_API_KEY',
   maxOutputTokens: INTERACT_ROLES[role].maxOutputTokens, maxInputBytes: INTERACT_ROLES[role].maxInputBytes, maxImages: INTERACT_ROLES[role].maxImages,
-  timeoutMs: 300000, settings: {}, pricingKey: { provider: 'anthropic', model: INTERACT_ROLES[role].model ?? 'claude-opus-5-5', tier: 'standard' },
+  // The bench judge runs at low effort like /explain's judge (scripts/explain-bench/judge.mjs: output_config effort low); the Anthropic adapter passes settings.effort through. No other role sets it.
+  timeoutMs: 300000, settings: role === 'bench_judge' ? { effort: 'low' } : {}, pricingKey: { provider: 'anthropic', model: INTERACT_ROLES[role].model ?? 'claude-opus-5-5', tier: 'standard' },
   // imageTokens: the per-image reservation of requestSpendBound for Opus (learn-spend.js), so reservation and admission agree.
-  capabilities: { vision: true, structuredOutput: 'tool_call', oneOf: 'native', cache: true, settings: [], imageTokens: 4784 },
+  capabilities: { vision: true, structuredOutput: 'tool_call', oneOf: 'native', cache: true, settings: role === 'bench_judge' ? ['effort'] : [], imageTokens: 4784 },
   // servedMatch 'snapshot': claude-opus-5-5-YYYYMMDD is the same model. servedModelAliases: other approved served ids, exact.
   servedModelAliases: [], servedMatch: 'snapshot',
 });

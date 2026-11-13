@@ -33,6 +33,11 @@ import { whiteboardRoute } from '../control-plane/src/whiteboard-routes.js';
 export { ImageJobs } from '../control-plane/src/image-jobs.js';
 import { imageJobsRoute } from '../control-plane/src/image-jobs.js';
 import { explainRoute } from '../control-plane/src/explain-job.js';
+// INTERACT_RUN=headless runs the sealed programs in QuickJS inside this Worker. A Worker cannot fetch the engine's .wasm by URL, so it is imported here (wrangler compiles a .wasm
+// import to a WebAssembly.Module with its default rules) and handed to the headless runner once. Nothing runs until the setting is flipped; app-worker.js re-exports this worker.
+import quickjsWasm from './node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm';
+import { provideEngineWasm } from '../control-plane/src/interact-checks.js';
+provideEngineWasm(quickjsWasm);
 import { fileJobsRoute } from '../control-plane/src/file-jobs.js';
 import SHELL from './dist-dev/index.html';
 import LANDING from './dist-dev/design/rabbit-hole-hero.html';

@@ -5,7 +5,7 @@ import { interactOracle } from './interact-oracle.js';
 import { timingSummary } from './explain-policy.js';
 
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs',
-  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msReview', 'msRepair', 'msTotal']);
+  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msReview', 'msRepair', 'msTotal']);
 
 // job: { id, plan, planHash, stage, stopReason, calls, timing (the raw record), findings, build?, bench?, flow? (flow.profile.id), designFixture? (the INTERACT_DESIGN_FIXTURE id the design was pinned to, else null) }
 // oracleId is null whenever no oracle matches the plan's controls (interact-oracle.js: standardTossDropOracle needs a plan with no input, the deep oracle needs depth detailed). Run 15's plan has controls and is
@@ -17,8 +17,10 @@ export function ledgerRow(job) {
   const count = (...names) => codes.filter(c => names.includes(c)).length;
   const stageMs = name => { const s = t.stages.filter(x => x.stage === name); return s.length && s.every(x => x.ms != null) ? s.reduce((n, x) => n + x.ms, 0) : null; };
   const judge = job.bench?.judge ?? null;
-  // Unknown cost stays unknown: any settled or failed call without a price makes the total null (a refused call cost nothing).
-  const priced = [...calls.filter(c => c.status !== 'refused').map(c => c.costMicros), ...(judge ? [judge.costMicros] : [])];
+  // Unknown cost stays unknown: any settled or failed call without a price makes the total null (a refused call cost nothing). costUsd is the learner-paid total (the build and design calls);
+  // the bench judge is platform-paid and has its own column, judgeCostUsd, whether its call settled or failed (a failed call keeps the cost it was admitted with, job.bench.error.costMicros).
+  const priced = calls.filter(c => c.status !== 'refused').map(c => c.costMicros);
+  const judgeMicros = judge ? judge.costMicros : job.bench?.error ? job.bench.error.costMicros ?? null : undefined;
   const author = calls.find(c => c.role === 'build_author');
   const run = job.build?.ms?.run ?? stageMs('rendering'); // the stage's own time when the capture and the checks were not timed apart (older records)
   return {
@@ -27,6 +29,7 @@ export function ledgerRow(job) {
     bindingProblems: count('binding_no_effect', 'control_no_effect') + problems.filter((p, i) => !codes[i] && /\bbinding\b/i.test(p)).length, overlapProblems: count('overlap'),
     repairs: t.repairs, profile: job.flow?.profile?.id ?? null, fixture: job.designFixture ?? null, authorModel: author?.served ?? author?.requested ?? null, fallbackFired: calls.some(c => c.fallback === true),
     judgeVerdict: judge?.verdict ?? null, judgeMajor: judge ? (judge.findings ?? []).filter(f => f.severity === 'major').length : null,
+    judgeCostUsd: judgeMicros === undefined ? null : typeof judgeMicros === 'number' ? judgeMicros / 1e6 : null,
     costUsd: priced.length && priced.every(m => typeof m === 'number') ? priced.reduce((n, m) => n + m, 0) / 1e6 : null,
     msSteer: job.timing.steerMs ?? null, // TODO(integrator): interact-steer.js (item 5, Agent B) writes the measured JEV steer time to job.timing.steerMs
     msAuthor: stageMs('authoring'), msValidate: stageMs('validating'), msRun: run, msCheck: job.build?.ms?.check ?? null, msReview: stageMs('reviewing'), msRepair: stageMs('repairing'),

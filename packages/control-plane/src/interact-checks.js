@@ -449,8 +449,9 @@ const viewOf = a => (a?.kind === 'program' ? { kind: 'program', manifest: a.prog
 // time and inputs through the card's own request builder, each supporting panel's read-only snapshot through the player's snapshot resolver. The trace is what the checks read
 // (quantities, readouts, drawn texts, the objects the overlap check measures, a hash of the frame). There are NO pixels: synthetic: true, no png, no key, sha256 null, and
 // completeCard false (nothing composed the card), so a review that needs pixels cannot run on these captures. env is not read yet (captureCardFor takes it for the render bindings).
-// A Worker cannot fetch the engine's .wasm by URL: its entry imports it ('@jitl/quickjs-wasmfile-release-sync/wasm', a compiled WebAssembly.Module under wrangler) and hands it over
-// here once. Node (the tests, the scripts) loads the engine itself and needs nothing. TODO(integrator): call provideEngineWasm(wasm) from dev-worker.js and app-worker.js.
+// A Worker cannot fetch the engine's .wasm by URL: dev-worker.js (which app-worker.js re-exports) imports it by relative path
+// (./node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm, a compiled WebAssembly.Module under wrangler's default rules; the package-export form '/wasm' does not
+// bundle) and hands it over here once with provideEngineWasm. Node (the tests, the scripts) loads the engine itself and needs nothing.
 let engine = null, engineWasm;
 export const provideEngineWasm = wasmModule => { engineWasm = wasmModule; };
 export function headlessCaptureCard(_env, { limits } = {}) {

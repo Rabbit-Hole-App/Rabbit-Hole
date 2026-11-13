@@ -63,6 +63,19 @@ test('a reply that does not match the judge schema is refused (nothing is repair
   assert.deepEqual(BENCH_JUDGE_SCHEMA.properties.findings.items.properties.severity.enum, ['blocker', 'major', 'minor']);
 });
 
+test('bench_judge runs at low effort (settings.effort, passed through the Anthropic adapter) and no other role sets a setting', async () => {
+  for (const id of Object.keys(INTERACT_REGISTRY.profiles)) {
+    const roles = resolveInteractProfile(id).roles;
+    assert.deepEqual([roles.bench_judge.settings, roles.bench_judge.capabilities.settings], [{ effort: 'low' }, ['effort']], id);
+    assert.deepEqual(INTERACT_ROLE_IDS.filter(r => r !== 'bench_judge' && roles[r].provider === 'anthropic' && Object.keys(roles[r].settings).length), [], id);
+  }
+  const { createAnthropicAdapter } = await import('../src/interact-model-adapters.js');
+  let body;
+  const adapter = createAnthropicAdapter({ env: {}, callModel: async (_env, b) => { body = b; return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'r', input: { ok: true } }], usage: { input_tokens: 1, output_tokens: 1 }, stop_reason: 'tool_use', model: 'claude-sonnet-5-5' }), { status: 200 }); } });
+  await adapter.call({ config: resolveInteractProfile('opus-baseline').roles.bench_judge, system: 's', schema: { type: 'object', properties: {} }, input: 'x', name: 'r' });
+  assert.deepEqual(body.output_config, { effort: 'low' });
+});
+
 test('bench_judge: Sonnet 5.5 in every registered profile (never Opus), text only, one call, evaluation, its own phase', () => {
   assert.deepEqual([INTERACT_ROLES.bench_judge.phase, INTERACT_ROLES.bench_judge.kind, INTERACT_ROLES.bench_judge.calls, INTERACT_ROLES.bench_judge.maxImages], ['bench', 'evaluation', 1, 0]);
   for (const id of Object.keys(INTERACT_REGISTRY.profiles)) {

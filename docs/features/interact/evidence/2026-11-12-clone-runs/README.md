@@ -123,4 +123,5 @@ Commits `8fa6341eb`, `2badf6cce`, `029b09de0`, `58c71e470`, `8dc272de5` add the 
 - A y-axis title (up to 40 characters) is drawn from the left of its band along the line above the axis, so a long title can run past the right edge of the frame; the contract cannot check text width.
 - A diagram that does not fit the room below its `y` is scaled down with its aspect kept, so its text can fall under the 13 and 14 px floors.
 - No browser has looked at any figure yet; the markup is pinned by hash only. Acceptance is the next rebuild.
+- The model profile hash changes whenever a role or a role's settings change (the bench judge role, its low effort setting, the fast build profiles), so a job in flight across a deploy fails with `profile_changed` and must be restarted. Harmless on the clone; for production, deploy between jobs or carry the old hash forward.
 
