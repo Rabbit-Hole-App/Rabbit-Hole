@@ -524,7 +524,7 @@ export const BLOCK_TYPES = {
       // A temporary default, never saved as w/h: once the result attaches (explainResultBlock keeps only a learner's own
       // resize) the card takes its scene's or frame's size below.
       if (block.explainJob && !block.scene && !block.program) return EXPLAIN_PENDING_SIZE;
-      if (block.program) return programFrame ? programCardSize(programFrame, { chrome: { w: FRAME_CHROME.w, h: FRAME_CHROME.h - TRANSPORT }, minWidth: 560 }) : null;
+      if (block.program) return programFrame ? programCardSize(programFrame, { chrome: { w: FRAME_CHROME.w, h: FRAME_CHROME.h - TRANSPORT }, minWidth: compositionOf(block) ? EXPLAIN_PENDING_SIZE.width : 560 }) : null; // a composed /interactive card starts as wide as the written card (440); the frame still sets the width above that
       const report = block.scene ? sceneLegibility(block.scene) : null;
       if (!report) return null;
       // The INTERACT zone below the frame and transport is not reserved here:

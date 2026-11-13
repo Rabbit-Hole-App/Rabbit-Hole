@@ -9,6 +9,7 @@ import { legibleFrame } from './explain-program/frame.js';
 import { INTERACT_LOOK } from './interact-style.js';
 import { createProgramHost, programStamps } from './explain-program/host.js';
 import { fixturesAdmitted, programErrorMessage } from './explain-program/program-card.js';
+import { MdInline } from './Md.jsx';
 import { DESCRIPTION_STYLE } from './interact-description-fit.js';
 import { supportInputs, snapshotKey } from './interact-card-layout.js';
 import { TEACHING } from './tutor-diagrams/teaching-theme.js';
@@ -85,7 +86,7 @@ function SupportPanel({ panel, block, mainInputs }) {
 export function InteractIntro({ composition, block, mainInputs, instructions }) {
   return (
     <div data-interact-intro className="flex shrink-0 flex-col gap-2">
-      <p data-card-description className={DESCRIPTION_STYLE.className} style={{ maxWidth: DESCRIPTION_STYLE.focusMeasurePx }}>{composition.cardDescription}</p>
+      <p data-card-description className={DESCRIPTION_STYLE.className} style={{ maxWidth: DESCRIPTION_STYLE.focusMeasurePx }}><MdInline text={composition.cardDescription} mathOnly /></p>
       {instructions && <p data-card-instructions className={DESCRIPTION_STYLE.className} style={{ maxWidth: DESCRIPTION_STYLE.focusMeasurePx }}>{instructions}</p>}
       {composition.supports.map(panel => <SupportPanel key={panel.id} panel={panel} block={block} mainInputs={mainInputs} />)}
     </div>

@@ -244,3 +244,12 @@ test('step 7 chrome, pinned: a composed card is drawn inside ExplanationBody (th
   assert.match(read('./interact-description-fit.js'), /className: 'shrink-0 text-sm leading-snug text-ink-2'/);
   assert.match(read('./explain-program/ProgramScene.jsx'), /data-input-readout=\{input\.id\} className="text-xs tabular-nums text-ink-2"/);
 });
+
+test('item 8, pinned: a composed card\'s minimum width is the written card\'s (EXPLAIN_PENDING_SIZE.width); a legacy program card keeps 560; the legible frame still sets the width above that', () => {
+  const body = read('./LearningBlocks.jsx');
+  assert.match(body, /minWidth: compositionOf\(block\) \? EXPLAIN_PENDING_SIZE\.width : 560/);
+  assert.match(body, /export const EXPLAIN_PENDING_SIZE = \{ width: 440,/);
+  // a 640 wide frame is drawn at 640 (INTERACT floors, see above), so a 440 minimum never narrows it: width = max(minWidth, frame + chrome)
+  const frame = normalizeFrame({ width: 640, height: 420, objects: [{ kind: 'text', id: 't', x: 20, y: 40, text: 'hello', role: 'neutral' }] });
+  assert.equal(legibleFrame(frame.scene, INTERACT_LOOK).w, 640);
+});

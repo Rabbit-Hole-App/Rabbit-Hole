@@ -1,10 +1,11 @@
 // INT-06-C17 (docs/features/interact.md): the early card-description measurement. Pure estimate counter and an injected counter only: no browser.
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { DescriptionFitSchema, contentHash, descriptionFitProblems } from './interact-plan.js';
 import { interactFixtures } from './interact-plan-fixtures.js';
 import {
-  DESCRIPTION_STYLE, DESCRIPTION_WIDTHS, STYLE_VERSION, columnWidth, descriptionFit, domLineCounter, estimateLines, isMeasured, measureInteractDescription,
+  DESCRIPTION_STYLE, DESCRIPTION_WIDTHS, STYLE_VERSION, columnWidth, descriptionFit, domLineCounter, estimateLines, isMeasured, measureInteractDescription, renderedDescription,
 } from './interact-description-fit.js';
 
 const FITS = 'A ball at the top of its throw has zero velocity but still accelerates downward at 9.8 m/s^2. Scrub through the top to watch it.';
@@ -83,4 +84,13 @@ test('the DOM counter reads the card\'s own class in a hidden probe at the colum
   assert.equal(seen.style.width, '406px');
   assert.equal(seen.textContent, FITS);
   assert.equal(body.length, 0, 'the probe is removed');
+});
+
+test('the description may carry inline math: the card draws it through MdInline (the written cards math), and the fit estimate counts the rendered text, not the TeX', async () => {
+  assert.equal(renderedDescription('At the top $v = 0$ here, $a = -g$ always.'), 'At the top v = 0 here, a = -g always.');
+  assert.equal(renderedDescription('costs $5 and $6 each'), 'costs $5 and $6 each'.replace('$5 and $', '5 and '), 'a dollar pair is read as math by design; copy without math needs no dollar signs');
+  const withMath = { cardDescription: 'A ball thrown up has $v = 0$ at the top, yet $a = -9.8 \mathrm{m/s}^2$ there. It never changes with the launch speed.' };
+  const asRendered = { cardDescription: renderedDescription(withMath.cardDescription) };
+  assert.deepEqual((await descriptionFit(withMath)).widths, (await descriptionFit(asRendered)).widths, 'counted as rendered');
+  assert.match(readFileSync(new URL('./InteractSupportPanels.jsx', import.meta.url), 'utf8'), /<MdInline text=\{composition\.cardDescription\} mathOnly \/>/);
 });

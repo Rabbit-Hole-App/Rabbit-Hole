@@ -62,9 +62,13 @@ export function domLineCounter(document, style = DESCRIPTION_STYLE) {
 // The injected interface. counter(text, columnPx) -> lines (sync or async). Default: the pure estimate.
 // plan: any object with cardDescription. -> DescriptionFitSchema receipt (the lines are reported as counted, even when out of range;
 // descriptionFitProblems says which widths fail).
+// The description may carry the written card's inline math ($...$, rendered by the card's own MdInline). The estimate counts what is DRAWN: the delimiters go and each TeX command
+// is about one glyph; the hash still covers the copy as written. A measured counter (the card's own element) sees the rendered text itself.
+export const renderedDescription = text => String(text).replace(/\$([^$\n]+)\$/g, (_, tex) => tex.replace(/\\[A-Za-z]+/g, 'x').replace(/[{}^_\\]/g, ''));
+
 export async function measureInteractDescription(plan, { counter = null, widths = DESCRIPTION_WIDTHS } = {}) {
   const text = plan.cardDescription;
-  const count = counter ?? ((copy, column) => estimateLines(copy, column));
+  const count = counter ?? ((copy, column) => estimateLines(renderedDescription(copy), column));
   const measured = counter !== null;
   const rows = [];
   for (const cardWidth of widths) rows.push({ cardWidth, lines: Number(await count(text, columnWidth(cardWidth))) });
