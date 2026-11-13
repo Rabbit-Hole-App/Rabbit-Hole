@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { assembleReferences, assembleTests, createBatchedAuthor, paths, planBatches, routeFailure, validateBatch, validateFoundation, wireRegistry } from '../author-batch.mjs';
+import { assembleReferences, assembleTests, createBatchedAuthor, holdUnnamed, paths, planBatches, routeFailure, validateBatch, validateFoundation, wireRegistry } from '../author-batch.mjs';
 import { estimateTopic } from '../budget.mjs';
 
 const A = 'demo-topic', D = 'packages/web/src/tutor-diagrams', P = paths(A, D);
@@ -14,8 +14,11 @@ const dataModule = [
   { path: P.dataTest, content: "import test from 'node:test';\ntest('ok', () => {});\n" },
 ];
 // A part: one reference per assigned prompt, a test body and its replay rows.
-const part = (assigned, last = false) => ({
-  references: `return { references: [${assigned.map(row => `reference({ id: 'ml-${row.id}', keywords: ['k'], useWhen: 'u', overview: { spec: spec({ kind: 'flow' }) }, standard: { spec: spec({ kind: 'flow' }) }, deep: { spec: spec({ kind: 'flow' }) } })`).join(', ')}], derived: () => ({ ${assigned.map(row => `${row.id}: data.derived().total`).join(', ')} }) };`,
+const expression = (row, suffix = '') => `reference({ id: 'ml-${row.id}', keywords: ['k'], useWhen: 'u', overview: { spec: spec({ kind: 'flow' }) }, standard: { spec: spec({ kind: 'flow' }) }, deep: { spec: spec({ kind: 'flow' }) } })${suffix}`;
+const part = (assigned, last = false, suffix = '') => ({
+  prelude: '',
+  references: assigned.map(row => ({ id: `ml-${row.id}`, expression: expression(row, suffix) })),
+  derived: `() => ({ ${assigned.map(row => `${row.id}: data.derived().total`).join(', ')} })`,
   tests: `test('refs ${assigned[0].id}', () => assert.equal(references.length > 0, true));`,
   replay: assigned.map(row => ({ id: row.id, prompt: row.prompt, referenceId: `ml-${row.id}`, paraphrases: ['a', 'b', 'c', 'd', 'e'] })),
   walkthrough: last ? '# Walkthrough' : '',
@@ -106,7 +109,7 @@ test('a failure is repaired by calling only the owning batch, with the verbatim 
   await author('{"id":"ml-p6","rule":6,"detail":"Display numbers absent from derived(): 7"}', 2);
   assert.deepEqual(calls.map(call => [call.kind, call.batch]), [['batch', 2]]);
   assert.match(calls[0].feedback, /Display numbers absent/u);
-  assert.ok(calls[0].previous.references.includes('ml-p5'), 'the batch sees its own previous answer');
+  assert.ok(calls[0].previous.references.some(reference => reference.id === 'ml-p5'), 'the batch sees its own previous answer');
   calls.length = 0;
   await author('Error in topic-demo-topic-data.js:3', 3);
   assert.deepEqual(calls.map(call => call.kind), ['foundation', 'batch', 'batch', 'batch']);
@@ -163,4 +166,26 @@ test('feedback sent to a re-called batch is capped', async () => {
   assert.equal(capFeedback('short'), 'short');
   const capped = capFeedback('x'.repeat(FEEDBACK_LIMIT + 500));
   assert.ok(capped.length < FEEDBACK_LIMIT + 100 && /500 more characters/u.test(capped));
+});
+
+test('references the feedback does not name come back byte-identical from the previous answer', () => {
+  const assigned = rows.slice(0, 4), previous = part(assigned), returned = part(assigned, false, ' /* rewritten */');
+  const held = holdUnnamed(returned, previous, '{"id":"ml-p2","rule":6}');
+  assert.deepEqual(held.references.map(reference => reference.expression), [previous.references[0].expression, returned.references[1].expression, previous.references[2].expression, previous.references[3].expression]);
+  assert.deepEqual(held.replay.map(row => row.referenceId), ['ml-p1', 'ml-p2', 'ml-p3', 'ml-p4']);
+  assert.equal(held.derived, returned.derived, 'the shared derived function stays the author\'s');
+  assert.equal(holdUnnamed(returned, previous, 'Agent output failed schema validation'), returned, 'nothing is held when the feedback names no reference');
+  assert.equal(holdUnnamed(returned, null, 'ml-p2'), returned, 'nothing is held on the first call');
+  const dropped = holdUnnamed({ ...returned, references: [returned.references[1]], replay: [returned.replay[1]] }, previous, 'ml-p2');
+  assert.deepEqual(dropped.references.map(reference => reference.id).sort(), ['ml-p1', 'ml-p2', 'ml-p3', 'ml-p4'], 'an unnamed reference the author dropped is restored');
+});
+
+test('a re-called batch keeps its unnamed references through the whole round loop', async () => {
+  const call = async (kind, payload, assigned, last) => kind === 'foundation' ? { files: dataModule } : part(assigned, last, payload.round > 1 ? ' /* round ' + payload.round + ' */' : '');
+  const author = createBatchedAuthor({ call, base: {}, rows, size: 4, artifactTopic: A, diagrams: D, registry, exemplar: [] });
+  await author('', 1);
+  const response = await author('{"id":"ml-p6"}', 2);
+  const content = response.files.find(file => file.path === P.references).content;
+  assert.match(content, /id: 'ml-p6'[^\n]*round 2/u);
+  for (const id of ['ml-p5', 'ml-p7', 'ml-p8']) assert.doesNotMatch(content.split('\n').find(line => line.includes(`id: '${id}'`)), /round 2/u);
 });

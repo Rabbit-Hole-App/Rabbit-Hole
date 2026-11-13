@@ -16,9 +16,9 @@ const A = 'demo', D = 'packages/web/src/tutor-diagrams', P = paths(A, D);
 const dataModule = [{ path: P.data, content: "export const toyData = { rows: [1] };\nexport const metadata = { topic: 'demo', artifactTopic: 'demo', lessons: ['04'], sources: [] };\nexport function derived() { return { total: 1 }; }\n" }];
 const flow = nodes => `{ kind: 'flow', title: 'Route', caption: 'Follow the route.', nodes: ${JSON.stringify(nodes)}, edges: [{ from: 'a', to: 'b' }] }`;
 const part = (standardNodes, deepCaption = 'Worked example. $p=1/2$.') => ({
-  references: `const good = ${flow([{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Stop', role: 'outcome' }])};
-const standard = ${flow(standardNodes)};
-return { references: [reference({ id: 'ml-demo-flow', keywords: ['route', 'flow path'], useWhen: 'a route', overview: { spec: spec(good) }, standard: { spec: spec(standard) }, deep: { spec: spec({ ...standard, caption: '${deepCaption}' }) } })] };`,
+  prelude: `const good = ${flow([{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Stop', role: 'outcome' }])};`,
+  references: [{ id: 'ml-demo-flow', expression: `(() => { const standard = ${flow(standardNodes)}; return reference({ id: 'ml-demo-flow', keywords: ['route', 'flow path'], useWhen: 'a route', overview: { spec: spec(good) }, standard: { spec: spec(standard) }, deep: { spec: spec({ ...standard, caption: '${deepCaption}' }) } }); })()` }],
+  derived: '',
   tests: "test('derived', () => { assert.ok(derived().total === 1); });",
   replay: [{ id: '1', prompt: 'How does it route?', referenceId: 'ml-demo-flow', paraphrases: ['a', 'b', 'c', 'd', 'e'] }],
   walkthrough: '',
