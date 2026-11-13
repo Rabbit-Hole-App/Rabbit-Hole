@@ -51,3 +51,20 @@ test('wrap keeps words whole and takes a font step before a word overflows', () 
   assert.equal(label(words, 0, 0, { size: 14 }).props.fontSize, words.fontSize);
   assert.equal(wrap('Predicted positive', 400, 14).fontSize, undefined, 'a label that fits is untouched');
 });
+
+test('plainMath reads the commands of the shipped references: arrows, partials, Greek, nested fractions, roots, and no stray words', () => {
+  const cases = [
+    [String.raw`w \gets w - \eta \nabla_w L`, 'w ← w - η ∇_w L'],
+    [String.raw`\frac{\partial L}{\partial \hat{y}}`, '(∂ L)/(∂ ŷ)'],
+    [String.raw`\partial L/\partial h`, '∂ L/∂ h'],
+    [String.raw`X_t=0.6X_{t-1}+\varepsilon_t`, 'Xₜ=0.6Xₜ₋₁+εₜ'],
+    [String.raw`\sigma(z)=\frac{1}{1+e^{-z}}`, 'σ(z)=1/(1+e^(-z))'],
+    [String.raw`\left(\frac{a}{b}\right)^2`, '(a/b)²'],
+    [String.raw`\sqrt{2\pi}`, '√(2π)'],
+    [String.raw`-p\log_2 p-(1-p)\log_2(1-p)`, '-p log₂ p-(1-p) log₂(1-p)'],
+    [String.raw`\Delta y_t=y_t-y_{t-1}`, 'Δ yₜ=yₜ-yₜ₋₁'],
+  ];
+  for (const [expression, expected] of cases) assert.equal(plainMath(expression), expected, expression);
+  // A command name nobody mapped stays a word without a stray leading space, so no backslash or brace is ever left.
+  assert.equal(plainMath(String.raw`a\madeup b`), 'amadeup b');
+});

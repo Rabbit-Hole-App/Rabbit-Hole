@@ -169,7 +169,14 @@ export function fitCaption(scene, caption, gutter, size) {
 
 const SUB = { 0: '₀', 1: '₁', 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉', '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎', a: 'ₐ', e: 'ₑ', i: 'ᵢ', j: 'ⱼ', k: 'ₖ', n: 'ₙ', o: 'ₒ', p: 'ₚ', r: 'ᵣ', s: 'ₛ', t: 'ₜ', x: 'ₓ' };
 const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', n: 'ⁿ', i: 'ⁱ' };
-const SYMBOLS = { le: '≤', leq: '≤', ge: '≥', geq: '≥', ne: '≠', neq: '≠', times: '×', cdot: '·', approx: '≈', pm: '±', in: '∈', sum: 'Σ', infty: '∞', to: '→', rightarrow: '→', alpha: 'α', beta: 'β', theta: 'θ', sigma: 'σ', mu: 'μ', lambda: 'λ', pi: 'π', hat: '', bar: '' };
+const SYMBOLS = { le: '≤', leq: '≤', ge: '≥', geq: '≥', ne: '≠', neq: '≠', approx: '≈', equiv: '≡', sim: '∼', propto: '∝', ll: '≪', gg: '≫', pm: '±', mp: '∓',
+  times: '×', div: '÷', cdot: '·', circ: '∘', cdots: '⋯', ldots: '…', quad: ' ', qquad: ' ', in: '∈', notin: '∉', subset: '⊂', subseteq: '⊆', cup: '∪', cap: '∩', emptyset: '∅',
+  forall: '∀', exists: '∃', neg: '¬', land: '∧', lor: '∨', mid: '|', perp: '⊥', top: '⊤', angle: '∠', langle: '⟨', rangle: '⟩', lbrace: '{', rbrace: '}', left: '', right: '',
+  sum: 'Σ', prod: '∏', int: '∫', infty: '∞', partial: '∂', nabla: '∇', to: '→', rightarrow: '→', leftarrow: '←', gets: '←', leftrightarrow: '↔', Rightarrow: '⇒', Leftarrow: '⇐', Leftrightarrow: '⇔', mapsto: '↦',
+  alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', varepsilon: 'ε', zeta: 'ζ', eta: 'η', theta: 'θ', vartheta: 'ϑ', kappa: 'κ', lambda: 'λ', mu: 'μ', nu: 'ν', xi: 'ξ', pi: 'π', rho: 'ρ', sigma: 'σ', tau: 'τ', phi: 'φ', varphi: 'φ', chi: 'χ', psi: 'ψ', omega: 'ω',
+  Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Xi: 'Ξ', Pi: 'Π', Sigma: 'Σ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω', ell: 'ℓ', hat: '', bar: '' };
+// Operator names stay as words, set apart from what precedes them like the typeset form: p\log_2 p reads "p log₂ p".
+const OPERATORS = new Set(['log', 'ln', 'lg', 'exp', 'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'sinh', 'cosh', 'tanh', 'max', 'min', 'argmax', 'argmin', 'sup', 'inf', 'lim', 'det', 'gcd', 'Pr']);
 // Unicode forms only when every character has one and no two letters touch: n+1 and 2 become ⁿ⁺¹ forms, but a word stays _parent (small letters in a row do not read).
 const script = (text, table) => text && !/\p{L}{2}/u.test(text) && [...text].every(char => table[char]) ? [...text].map(char => table[char]).join('') : null;
 
@@ -180,11 +187,12 @@ export function plainMath(expression) {
   const group = '(?:\\{([^{}]*)\\}|([A-Za-z0-9]))';
   text = text.replace(/\\(?:mathrm|text|mathbf|operatorname)\{([^{}]*)\}/gu, '$1');
   text = text.replace(/\\bar\s*\{?([A-Za-z])\}?/gu, '$1\u0305').replace(/\\hat\s*\{?([A-Za-z])\}?/gu, '$1\u0302');
-  text = text.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/gu, '($1)/($2)');
   text = text.replace(new RegExp('_' + group, 'gu'), (_, braced, single) => { const value = braced ?? single; return script(value, SUB) ?? '_' + value; });
-  text = text.replace(new RegExp('\\^' + group, 'gu'), (_, braced, single) => { const value = braced ?? single; return script(value, SUP) ?? '^' + value; });
-  // A command name with no symbol (log, ln, sin) stays as its name and, like the typeset form, is set apart from what precedes it: p\log_2 p reads "p log₂ p".
-  text = text.replace(/\\([A-Za-z]+)/gu, (_, name, at, whole) => SYMBOLS[name] ?? (at > 0 && !/[\s([]/u.test(whole[at - 1]) ? ' ' + name : name));
+  text = text.replace(new RegExp('\\^' + group, 'gu'), (_, braced, single) => { const value = braced ?? single; return script(value, SUP) ?? (value.length > 1 ? `^(${value})` : '^' + value); });
+  const part = value => /^[\p{L}\p{N}.\u0300-\u036f]+$/u.test(value) ? value : `(${value})`;
+  for (let pass = 0; pass < 3; pass++) text = text.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/gu, (_, top, bottom) => `${part(top.trim())}/${part(bottom.trim())}`);
+  text = text.replace(/\\sqrt\s*\{([^{}]*)\}/gu, '√($1)');
+  text = text.replace(/\\([A-Za-z]+)/gu, (_, name, at, whole) => SYMBOLS[name] ?? (OPERATORS.has(name) && at > 0 && !/[\s([]/u.test(whole[at - 1]) ? ' ' + name : name));
   return text.replace(/[{}]/gu, '').replace(/\\,|\\;|\\!/gu, ' ').replace(/\s+/gu, ' ').trim();
 }
 
