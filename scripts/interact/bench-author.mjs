@@ -20,6 +20,8 @@ import { AUTHOR_CORRECTION, approvedPlanOf, buildInput, buildSchema, cleanBuildR
 import { captureAndCheck, headlessCaptureCard } from '../../packages/control-plane/src/interact-checks.js';
 import { BENCH_MODELS, INTERACT_REGISTRY, InteractModelError, benchRole, callInteractRole, interactAdapters, resolveInteractProfile } from '../../packages/control-plane/src/interact-models.js';
 import { interactOracle } from '../../packages/control-plane/src/interact-oracle.js';
+import { CHAIN_ENDPOINTS } from '../../packages/control-plane/src/explanation-fast-chain.js';
+import { priceUsage } from '../../packages/control-plane/src/pricing-registry.js';
 import { problemCause } from '../../packages/control-plane/src/interact-ledger.js';
 import { scriptedAdapter } from '../../packages/control-plane/src/interact-fixtures.js';
 import { tossDraft } from '../../packages/web/src/interact-toss-programs.js';
@@ -63,6 +65,15 @@ export function benchContext({ model, env, scripted = null, seed = null }) {
   return { ...(scripted ? { fixture: true } : {}), env: { ...env, INTERACT_SCENE_PLAN_ENABLED: 'true', INTERACT_FALLBACK: 'off' }, profile, adapters, admit: () => {}, settle: () => {}, completeCardUnavailable: true, captureCard: headlessCaptureCard({}) };
 }
 
+// The role call's own price (interactCostMicros) is null when the provider reports cached prompt tokens: the registry has no cache_read row for Gemini or Fireworks (their cached tokens are charged at the input rate,
+// pricing-registry.js says so), so the bench folds cache_read into input, the registry's own stated over-estimate, instead of leaving the cost unknown.
+const costOf = (config, usage, micros) => {
+  if (micros != null) return micros / 1e6;
+  const q = usage?.quantities, p = config.pricingKey;
+  if (!q) return null;
+  const folded = priceUsage({ provider: p.provider, model: p.model, tier: p.tier, quantities: { ...q, input: (q.input ?? 0) + (q.cache_read ?? 0), cache_read: 0 } });
+  return folded ? folded.micros / 1e6 : null;
+};
 const withCorrection = (input, problems) => ({ ...input, correction: { instruction: AUTHOR_CORRECTION, problems } });
 const causesOf = problems => problems.length ? [...new Set(problems.map(problemCause))].join('; ') : '';
 const clip = (s, n = 400) => String(s).replace(/\s+/g, ' ').slice(0, n);
@@ -84,14 +95,15 @@ export async function benchAttempt({ planName, model, ctx, rounds = 0, validator
     try { done = await callInteractRole(ctx, 'build_author', args); }
     catch (error) {
       const text = `${error.code ?? 'error'}: ${error.message}`, microsOf = error.costMicros;
-      Object.assign(row, { msAuthor: round1(now() - t0), msValidate: 0, msRun: 0, msCheck: 0, costUsd: microsOf != null ? microsOf / 1e6 : null, outTokens: error.usage?.quantities?.output ?? null, error: clip(error.message, 300), errorCode: error.code ?? null });
+      Object.assign(row, { msAuthor: round1(now() - t0), msValidate: 0, msRun: 0, msCheck: 0, costUsd: costOf(ctx.profile.roles.build_author, error.usage, microsOf), outTokens: error.usage?.quantities?.output ?? null, error: clip(error.message, 300), errorCode: error.code ?? null });
       fail(text, error.problems?.length ? error.problems : [text]);
       row.msTotal = round1(row.msAuthor);
       row.replyPath = save?.({ round, error: { code: error.code, message: error.message, problems: error.problems ?? null, usage: error.usage?.raw ?? null } }) ?? null;
       rows.push(row); problems = row.problems; if (error.code && !['schema_mismatch', 'invalid_output', 'truncated'].includes(error.code)) break; continue;
     }
     row.msAuthor = round1(now() - t0);
-    row.costUsd = done.costMicros != null ? done.costMicros / 1e6 : null; row.outTokens = done.usage?.quantities?.output ?? null; row.served = done.served?.model ?? null;
+    row.overDeadline = CHAIN_ENDPOINTS[row.provider]?.deadlineMs != null && row.msAuthor > CHAIN_ENDPOINTS[row.provider].deadlineMs; // slower than the profile's per-provider deadline (the clone would have timed out)
+    row.costUsd = costOf(ctx.profile.roles.build_author, done.usage, done.costMicros); row.outTokens = done.usage?.quantities?.output ?? null; row.served = done.served?.model ?? null;
     row.replyPath = save?.({ round, reply: done.output, usage: done.usage?.raw ?? null }) ?? null;
     const reply = done.output;
     if (reply?.kind === 'capability_gap') { Object.assign(row, { msValidate: 0, msRun: 0, msCheck: 0 }); fail(`capability_gap: ${JSON.stringify(reply.gap?.needs ?? []).slice(0, 120)}`, [`capability_gap: ${JSON.stringify(reply.gap ?? {}).slice(0, 300)}`]); }
@@ -153,5 +165,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const rows = await runBench({ models, planNames, n: Number(a.n), rounds: Number(a.rounds), validator: a.validator, concurrency: Number(a.concurrency), capUsd: Number(a['cap-usd']), env, seed: a.seed ? Number(a.seed) : null, scripted, write: !a['no-write'], say: line => console.log(line) });
   const spent = rows.reduce((s, r) => s + (r.costUsd ?? 0), 0);
   console.log(`RESULT ${rows.filter(r => r.result === 'pass').length}/${rows.length} pass, $${spent.toFixed(4)} spent`);
-  process.exit(spent > Number(a['cap-usd']) ? 3 : 0);
+  process.exitCode = spent > Number(a['cap-usd']) ? 3 : 0; // not process.exit: a Windows libuv assertion fires when the process is cut with sockets still closing
 }
