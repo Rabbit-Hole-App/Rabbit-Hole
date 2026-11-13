@@ -58,7 +58,9 @@ export async function run(ctx) {
         const ids = ownReferences(ctx, author);
         for (const key of new Set([...Object.keys(before.entries), ...Object.keys(after.entries)])) {
           if (JSON.stringify(before.entries[key]) === JSON.stringify(after.entries[key])) continue;
-          if (!ids.some(id => [id, `${id}-brief`, `${id}-detailed`].includes(key.split('/')[0]))) throw new Error('Topic snapshots changed a prior reference.');
+          // Own entries: the references of this author round with every depth and detail variant, and any earlier round's references under the topic's id prefix.
+          const name = key.split('/')[0], prefix = ctx.fixture && ctx.dryRun ? 'ml-dry-trees-' : `ml-${ctx.topic}-`;
+          if (!ids.some(id => VARIANTS.some(suffix => name === `${id}${suffix}`)) && !name.startsWith(prefix)) throw new Error('Topic snapshots changed a prior reference.');
         }
       }
     }
