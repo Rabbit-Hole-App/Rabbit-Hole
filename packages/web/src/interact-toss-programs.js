@@ -6,8 +6,7 @@ import { FIGURES_PROGRAM_STAMPS } from './explain-program/stamps.js';
 // logic: the pipeline never reads this file to decide what is right; the tests run each program through the real headless checks (interact-checks.js) against the oracles of interact-oracle.js.
 // The look is the renderer's (frame-look.js, FrameFigures.jsx); a program only follows its conventions: ball.toss / ball.drop bodies, lane.toss / lane.drop sdk.panel lanes, the frame's first y
 // sdk.axis, vec.* vectors, callout.* callouts, plot.vt with its .note. Geometry follows the Codex SVGs at a 1000 px viewport (a 892 px scene; two 432 px columns in a 892 px frame; 105 px per metre).
-// No vector label sits inside a lane: frame-overlap.js counts the lane's own box as a box under every text object over it (text-box), so a v or a label over a lane cannot pass; the callout carries
-// the readings instead. The program never draws text inside a lane.
+// The v and a letters sit beside their arrows and "Launch height" under the ground line, all inside the lane: frame-overlap.js does not count a lane's own box as an obstacle for text.
 
 const PLAN_TEXT = { assumptions: ['Constant downward acceleration, no air resistance, up is positive.'] };
 const input = (id, label, unit, def, min, max) => ({ type: 'number', id, label, unit, default: def, min, max, step: 0.1 });
@@ -35,15 +34,17 @@ export function evaluate({ inputs, time }) {
   const word = atTop ? 'Still for an instant' : m.v > 0 ? 'Moving up' : 'Moving down';
   const where = m.launch ? 'At launch' : atTop ? 'At the top' : m.ended ? 'Back at launch height' : m.v > 0 ? 'Rising' : 'Falling';
   const objects = [
-    ...sdk.panel({ id: 'lane.toss', x: 18, y: 34, w: 856, h: 300, title: 'One toss', state: where }),
+    ...sdk.panel({ id: 'lane.toss', x: 18, y: 34, w: 856, h: 330, title: 'One toss', state: where }),
     sdk.line('guide.launch', 36, FLOOR, 856, FLOOR, { opacity: 0.5 }),
-    sdk.text('label.launch', 36, FLOOR + 36, 'Launch height'),
+    sdk.text('label.launch', 36, FLOOR + 26, 'Launch height'),
     sdk.line('guide.toss', X, FLOOR, X, y, { opacity: 0.35 }),
   ];
   if (!m.launch) objects.push(sdk.circle('ghost.toss', X, FLOOR, 2 * R, { opacity: 0.35 }));
   objects.push(sdk.circle('ball.toss', X, y, 2 * R));
-  if (!atTop) objects.push(...sdk.vector('vec.v', { x: X - 31, y: y }, { value: Math.abs(m.v), direction: m.v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3 }));
-  objects.push(...sdk.vector('vec.a', { x: X + 31, y: y }, { value: g, direction: 'down' }, { scale: 48 / g }));
+  // A letter keeps 14 px off the ground line (the 8 px label clearance plus half its height): it moves along its arrow, beside it, never onto the line.
+  const clear = parts => { const letter = parts.find(o => o.kind === 'text'); if (letter && Math.abs(letter.y - FLOOR) < 14) letter.y = FLOOR + (letter.y < FLOOR ? -14 : 14); return parts; };
+  if (!atTop) objects.push(...clear(sdk.vector('vec.v', { x: X - 31, y: y }, { value: Math.abs(m.v), direction: m.v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3, label: 'v', side: m.v > 0 ? 'left' : 'right' })));
+  objects.push(...clear(sdk.vector('vec.a', { x: X + 31, y: y }, { value: g, direction: 'down' }, { scale: 48 / g, label: 'a', side: 'left' })));
   objects.push(...sdk.callout(X + 61, sdk.clamp(y - 24, 40, 272), [word, 'Gravity pulls down'], { id: 'callout.toss' }));
   return {
     frame: sdk.frame(objects, { width: 892, height: 388, readouts: [{ id: 'motionState', value: word }, { id: 'gravityState', value: 'Gravity pulls down' }] }),
@@ -58,8 +59,8 @@ export function evaluate({ inputs, time }) {
   const FLOOR = 299, S = 105, R = 15, released = m.tau >= -EPS, peakY = FLOOR - m.peak * S;
   const drop = { h: released ? m.h : m.peak, v: released ? -g * Math.max(0, m.tau) : 0, a: released ? -g : 0 };
   const lane = (tag, title, x0, where, body) => {
-    const x = x0 + 142, y = FLOOR - body.h * S, out = [...sdk.panel({ id: 'lane.' + tag, x: x0, y: 34, w: 407, h: 276, title: title, state: where }),
-      sdk.text('label.launch.' + tag, x0 + 296, FLOOR + 27, 'Launch height'), sdk.line('guide.' + tag, x, peakY, x, FLOOR, { opacity: 0.35 })];
+    const x = x0 + 142, y = FLOOR - body.h * S, out = [...sdk.panel({ id: 'lane.' + tag, x: x0, y: 34, w: 407, h: 300, title: title, state: where }),
+      sdk.text('label.launch.' + tag, x0 + 196, FLOOR + 27, 'Launch height'), sdk.line('guide.' + tag, x, peakY, x, FLOOR, { opacity: 0.35 })];
     return { x, y, out };
   };
   const tossWhere = m.launch ? 'At launch' : atTop ? 'At the top' : m.ended ? 'At launch height' : m.v > 0 ? 'Rising' : 'Falling';
@@ -68,8 +69,8 @@ export function evaluate({ inputs, time }) {
   const ghosts = released && m.tau > EPS;
   const arrows = (tag, x, y, v, a) => {
     const out = Math.abs(v) * 12 < 1 ? [sdk.circle('vec.v.' + tag + '.zero', x - 26, y, 6, { role: 'input' })]
-      : sdk.vector('vec.v.' + tag, { x: x - 26, y: y }, { value: Math.abs(v), direction: v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3 });
-    if (a !== 0) out.push(...sdk.vector('vec.a.' + tag, { x: x + 25, y: y }, { value: Math.abs(a), direction: 'down' }, { scale: 3.4 }));
+      : sdk.vector('vec.v.' + tag, { x: x - 26, y: y }, { value: Math.abs(v), direction: v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3, label: 'v', side: v > 0 ? 'left' : 'right' });
+    if (a !== 0) out.push(...sdk.vector('vec.a.' + tag, { x: x + 25, y: y }, { value: Math.abs(a), direction: 'down' }, { scale: 3.4, label: 'a', side: 'left' }));
     out.push(...sdk.callout(x + 52, sdk.clamp(y - 29, 40, 248), ['v = ' + sg(v, 2) + ' m/s', 'a = ' + (a === 0 ? '0.0' : '−' + g.toFixed(1)) + ' m/s²'], { id: 'callout.' + tag }));
     return out;
   };
@@ -93,14 +94,14 @@ export function evaluate({ inputs, time }) {
   const line = [{ x: 0, y: u }, { x: m.end, y: -u }];
   const objects = [
     sdk.axis('axis.h', { x: 60, y: FLOOR, length: 2.2 * S, orientation: 'y', min: 0, max: 2.2, ticks: [0, 0.5, 1, 1.5, 2], label: 'Height', unit: 'm' }),
-    ...sdk.panel({ id: 'lane.toss', x: 26, y: 34, w: 407, h: 276, title: 'The motion', state: where }),
-    sdk.text('label.launch', 322, FLOOR + 27, 'Launch height'),
+    ...sdk.panel({ id: 'lane.toss', x: 26, y: 34, w: 407, h: 300, title: 'The motion', state: where }),
+    sdk.text('label.launch', X + 54, FLOOR + 27, 'Launch height'),
     sdk.line('guide.toss', X, topY, X, FLOOR, { opacity: 0.35 }),
   ];
   if (!m.launch) objects.push(sdk.circle('ghost.toss', X, FLOOR, 2 * R, { opacity: 0.35 }));
   objects.push(sdk.circle('ball.toss', X, y, 2 * R));
-  if (Math.abs(m.v) * 12 >= 1) objects.push(...sdk.vector('vec.v', { x: X - 22, y: y }, { value: Math.abs(m.v), direction: m.v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3 }));
-  objects.push(...sdk.vector('vec.a', { x: X + 23, y: y }, { value: g, direction: 'down' }, { scale: 3.4 }));
+  if (Math.abs(m.v) * 12 >= 1) objects.push(...sdk.vector('vec.v', { x: X - 22, y: y }, { value: Math.abs(m.v), direction: m.v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3, label: 'v', side: m.v > 0 ? 'left' : 'right' }));
+  objects.push(...sdk.vector('vec.a', { x: X + 23, y: y }, { value: g, direction: 'down' }, { scale: 3.4, label: 'a', side: 'left' }));
   objects.push(...sdk.callout(X + 49, sdk.clamp(y - 37, 40, 220), ['v = ' + sg(m.v, 2) + ' m/s', 'a = −' + g.toFixed(1) + ' m/s²', 'Fg = ' + force.toFixed(1) + ' N ↓'], { id: 'callout.toss' }));
   objects.push(sdk.text('plot.vt.head', 459, 20, 'Velocity over time'), sdk.text('plot.vt.eq', 459 + 190, 20, 'v = ' + u.toFixed(1) + ' − ' + g.toFixed(1) + 't'));
   objects.push(sdk.plot('plot.vt', { x: 459, y: 30, w: 407, h: 294, axes: { x: { label: 'Time since launch', unit: 's', min: 0, max: 1.8 }, y: { label: 'Velocity', unit: 'm/s', min: -5.5, max: 5.5 } },
