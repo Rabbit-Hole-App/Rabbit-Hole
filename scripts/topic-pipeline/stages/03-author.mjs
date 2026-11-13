@@ -2,7 +2,7 @@ import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { callAgent } from '../agents/call.mjs';
 import { agentSettings } from '../budget.mjs';
-import { createAuthorSchema, validateAuthorFiles } from '../schemas.mjs';
+import { createAuthorSchema, dedupeAuthorFiles, validateAuthorFiles } from '../schemas.mjs';
 import { authorInputs, authorTopic, authorWorktree, commitAuthorRound, git, isolated,
   prepareAuthorRuntime, testAuthored, writeAuthored } from '../author.mjs';
 import { lintAuthoredFiles } from '../checks/reference-linter.mjs';
@@ -58,10 +58,13 @@ export async function run(ctx) {
     await mkdir(roundDir, { recursive: true });
     manifest.roundsUsed = round;
     await saveManifest();
+    const warnings = [];
+    const saveWarnings = () => warnings.length ? writeFile(join(roundDir, 'warnings.txt'), `${warnings.join('\n')}\n`) : null;
     try {
       const response = await callAgent(ctx, 'author', { ...inputs, previousFiles: [...accepted.values()], feedback: String(feedback), round }, {
         schema: createAuthorSchema(ctx.topic, { dryRun: ctx.fixture && ctx.dryRun }),
-        validate: value => validateAuthorFiles(value, { topic: ctx.topic, dryRun: ctx.fixture && ctx.dryRun, repoRoot: target.worktree }) });
+        validate: value => { for (const path of dedupeAuthorFiles(value)) { const line = `Warning: the author returned ${path} more than once; kept the last entry.`; console.error(line); warnings.push(line); } return validateAuthorFiles(value, { topic: ctx.topic, dryRun: ctx.fixture && ctx.dryRun, repoRoot: target.worktree }); } });
+      await saveWarnings();
       // Validate the full author response as text before any file write/import.
       const flags = lintAuthoredFiles({ files: response.files, repoRoot: target.worktree, topic: target.artifactTopic });
       await writeJson(join(roundDir, 'static-lint.json'), flags);
@@ -141,6 +144,7 @@ export async function run(ctx) {
       return { status: 'ok', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds} (effort ${effort}): linter green, ${inspection.expected.length} prompt references first at all depths, ${(paraphrases.firstPickRate * 100).toFixed(1)}% paraphrase first picks, commit ${commit}.` };
     } catch (error) {
       feedback = error.message;
+      await saveWarnings();
       await writeFile(join(roundDir, 'feedback.txt'), feedback + '\n');
       manifest.files = [...accepted.values()];
       manifest.lastFailure = feedback;

@@ -105,3 +105,11 @@ test('coverage passes planner kinds and masks shipped Lesson04 before scoring', 
   assert.equal(result.status, 'ok');
   assert.equal(JSON.parse(await readFile(join(topicDir, 'coverage.json'))).prompts[0].decision, 'NEW');
 });
+
+test('a repeated author file path keeps its last entry and is reported', async () => {
+  const { dedupeAuthorFiles } = await import('../schemas.mjs');
+  const value = { files: [{ path: 'a.md', content: 'old' }, { path: 'b.md', content: 'b' }, { path: 'a.md', content: 'new' }] };
+  assert.deepEqual(dedupeAuthorFiles(value), ['a.md']);
+  assert.deepEqual(value.files, [{ path: 'b.md', content: 'b' }, { path: 'a.md', content: 'new' }]);
+  assert.deepEqual(dedupeAuthorFiles(value), []);
+});

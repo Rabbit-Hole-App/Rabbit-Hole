@@ -95,6 +95,13 @@ export function createAuthorSchema(topic, { dryRun = false } = {}) {
   } };
 }
 
+// A path that appears more than once keeps its last entry; returns the repeated paths so the caller can log a warning (reviewer 2026-11-12).
+export function dedupeAuthorFiles(value) {
+  const repeated = [...new Set(value.files.map(file => file.path).filter((path, index, all) => all.indexOf(path) !== index))];
+  if (repeated.length) value.files = value.files.filter((file, index) => value.files.findLastIndex(other => other.path === file.path) === index);
+  return repeated;
+}
+
 export function validateAuthorFiles(value, { topic, repoRoot, dryRun = false }) {
   const check = ajv.compile(createAuthorSchema(topic, { dryRun }));
   if (!check(value)) throw new Error(`Invalid authored-file schema ${ajv.errorsText(check.errors)}`);
