@@ -10,6 +10,8 @@ import { MAX_REFS, sameRef } from './chat-context.js';
 import { turnPaper } from './pdf-source.js';
 import { chatHistory, refIds } from './chat-canvas-context.js';
 import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
+// ponytail: the voice icon is hidden in every chat composer (owner 2026-11-13: the right-side Chat and the canvas strip are one composer); set true to bring it back.
+const SHOW_VOICE_TOGGLE = false;
 import ContextDocs from './ContextDocs.jsx';
 import AddContextDialog from './AddContextDialog.jsx';
 import { CONTEXT_ACCEPT, useContextDocs } from './context-docs.js';
@@ -1097,7 +1099,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {!tocView && <CadReview ops={workspace?.canvasOps} />}
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={(prompt, handoff) => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true, ...(handoff ? { about: handoff.about, keepDraft: true } : {}) })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
-        {stripMode && chipsNode && <div className="mb-1.5">{chipsNode}</div>}
+        {stripMode && chipsNode && <div className="mb-1.5 has-[ul:empty]:hidden">{chipsNode}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
           onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : placeholder} busy={busy}
@@ -1189,7 +1191,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
               Graph open from the panel header's one control (owner brief 2026-10-16 item 6), not from here. */}
           {chat && <ModeSelector disabled={voiceOn} />}
           {(dock || chat) && chatControl}
-          {(dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
+          {SHOW_VOICE_TOGGLE && (dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
           </>}
           voice={voiceOn ? <VoiceField voice={voice} /> : null}
           trailing={dock || chat ? null : chatControl}

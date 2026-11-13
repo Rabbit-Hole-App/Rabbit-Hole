@@ -109,8 +109,6 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   useEffect(() => { setEditHeld(held => { if (held && held.scope !== editScope) { giveBack(held, false); return null; } return held; }); }, [editScope]); // eslint-disable-line react-hooks/exhaustive-deps
   const editTarget = editHeld?.scope === editScope ? editHeld.target : null;
   const editing = useMemo(() => ({ target: editTarget, set: target => setEditHeld({ scope: editScope, target }), clear: () => { giveBack(editHeld, editHeld?.scope === editScope); setEditHeld(null); } }), [editTarget, editScope, editHeld, giveBack]);
-  // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
-  const [canvasCoverage, setCanvasCoverage] = useState(null);
   // R4: how many answers are streaming now (AskPanel reports +1 / -1), so a roadmap invitation waits for the answer to end.
   const [answers, setAnswers] = useState(0);
   const reportAnswering = useCallback(delta => setAnswers(count => Math.max(0, count + delta)), []);
@@ -128,7 +126,7 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
     window.addEventListener(EXPLAIN_BRIEF_EVENT, reveal);
     return () => window.removeEventListener(EXPLAIN_BRIEF_EVENT, reveal);
   }, [panels, thread]);
-  const value = useMemo(() => ({ answering, reportAnswering, canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching, settings, goals, editing }), [answering, reportAnswering, canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching, settings, goals, editing]);
+  const value = useMemo(() => ({ answering, reportAnswering, canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, toc, tocThreadId: tocThread.id, coaching, settings, goals, editing }), [answering, reportAnswering, canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, toc, tocThread.id, coaching, settings, goals, editing]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }
 

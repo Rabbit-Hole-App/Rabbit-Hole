@@ -15,6 +15,9 @@ import { autoSuggestShown } from './learn-settings.js';
 // ponytail: the Auto / Ask / Tutor menu is hidden (owner 2026-11-13); set true to bring it back. The mode itself and the
 // Auto-suggest switch and depth menu beside it are unchanged.
 const SHOW_MODE_MENU = false;
+// ponytail: the Auto-suggest switch is hidden too (owner 2026-11-13); set true to bring it back. With it hidden a learner cannot turn Curious off from the
+// composer; View > Curious still hides the card.
+const SHOW_AUTO_SUGGEST = false;
 export const MODES = [
   ['auto', 'Auto', 'Answers your questions, using your materials and canvas'],
   ['ask', 'Ask', 'Answers only: questions, explanations and your materials'],
@@ -72,7 +75,7 @@ export default function ModeSelector({ disabled = false }) {
         </div>
       )}
     </div>}
-    {autoSuggestShown(mode) && chat.settings && <AutoSuggestSwitch settings={chat.settings} />}
+    {SHOW_AUTO_SUGGEST && autoSuggestShown(mode) && chat.settings && <AutoSuggestSwitch settings={chat.settings} />}
     {chat.settings && <DepthMenu settings={chat.settings} disabled={disabled} />}
   </>);
 }

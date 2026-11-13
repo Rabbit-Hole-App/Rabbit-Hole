@@ -1082,11 +1082,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const passageSites = useRef(new Map()), passageRef = useRef(null), startExplainRef = useRef(null), explainLatest = useRef((prompt, options) => startExplainRef.current?.(prompt, options) ?? null).current;
   // Whole-canvas context (chat-canvas-context.js): the canvas_context every chat turn on this canvas carries, built from the live
   // canvas when it is sent - Ask and Tutor modes (canvasOps, ask.jsx) and Auto's Tutor (useTutor) alike. The title is a weak hint
-  // (titleNow, set below); the summary is the "This canvas" chip's line. Refs and stable setters only, so any render's copy works.
+  // (titleNow, set below); the chip that showed its summary was removed (owner 2026-11-13). Refs and stable setters only, so any render's copy works.
   const titleNow = useRef(null);
   const canvasContext = options => {
     const built = canvasContextNow({ api: canvasApi.current, title: titleNow.current, ...options });
-    if (built) chat.setCanvasCoverage?.(built.coverage.summary);
     return built;
   };
   // The server is the source of truth for every owned board (docs/features/canvas-persistence.md): each is saved there,

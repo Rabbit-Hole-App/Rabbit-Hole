@@ -82,12 +82,11 @@ test('wiring: the canvas API reads live; the page builds through the helper; Ask
   assert.match(ask, /\.\.\.\(sentRefs\.length \? \{ refs: sentRefs \} : \{\}\)/);
 });
 
-test('the This canvas chip: its text stays; title and data-canvas-coverage are the package summary, rebuilt from the draft on hover or focus', () => {
-  const chip = read('./ContextChips.jsx'), page = read('./LearnPage.jsx');
-  assert.match(chip, /const preview = \(\) => chat\.canvasOps\?\.canvasContext\?\.\(\{ request: chat\.composer\.text, attachments: refIds\(chat\.context\.attached\) \}\);/);
-  assert.match(chip, /<li data-canvas-context title=\{chat\.canvasCoverage \|\| '[^']+'\} data-canvas-coverage=\{chat\.canvasCoverage \|\| undefined\}\s+tabIndex=\{0\} onPointerEnter=\{preview\} onFocus=\{preview\}/);
-  assert.match(chip, /\/> This canvas\s+<\/li>/);
-  assert.doesNotMatch(chip.match(/<li data-canvas-context[^>]*>/)[0], /\bread\b/, 'never "read": sending is not reading');
-  // Every built package's summary reaches the chip, a sent turn's included (through canvasOps).
-  assert.match(page, /if \(built\) chat\.setCanvasCoverage\?\.\(built\.coverage\.summary\);/);
+// Owner 2026-11-13: the "This canvas" pill is removed everywhere (the server still reads the canvas scope with every turn).
+test('no This canvas pill: the chips row has no data-canvas-context item and the coverage state that fed it is gone', () => {
+  const chip = read('./ContextChips.jsx'), page = read('./LearnPage.jsx'), workspace = read('./chat-workspace.jsx');
+  assert.doesNotMatch(chip, /data-canvas-context|> This canvas|const preview =/);
+  assert.doesNotMatch(page, /setCanvasCoverage/);
+  assert.doesNotMatch(workspace, /canvasCoverage/);
+  assert.match(chip, /<div data-context-chips className="has-\[ul:empty\]:hidden">/, 'an empty row leaves no gap');
 });
