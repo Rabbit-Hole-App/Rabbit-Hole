@@ -8,6 +8,7 @@ import { experimentControls } from './interact-composition-adapter.js';
 // declared readout, drawn by the card, not by the program), the external timeline when timed, the experiment controls when declared. Nothing else exists: there is no kind for a caption, Notes or a takeaway.
 export const SECTION_ORDER = Object.freeze(['title', 'description', 'support', 'scene', 'readouts', 'timeline', 'controls']);
 export const MAX_SUPPORTS = 2;
+export const RESET_ID = 'reset'; // the id of the Reset a plan did not declare
 const rank = kind => SECTION_ORDER.indexOf(kind);
 
 // -> the sections of this card, top to bottom. An absent row is absent, with its space.
@@ -15,8 +16,11 @@ export function cardLayout(composition) {
   const sections = [{ kind: 'title' }, { kind: 'description' }, ...composition.supports.map(panel => ({ kind: 'support', id: panel.id })), { kind: 'scene' }];
   if (composition.main?.readoutIds?.length) sections.push({ kind: 'readouts', ids: composition.main.readoutIds });
   if (composition.timeline) sections.push({ kind: 'timeline' });
-  const controls = experimentControls(composition);
-  if (controls.length) sections.push({ kind: 'controls', ids: controls.map(control => control.id) });
+  // The controls row always ends with Reset (owner 2026-11-12: one place, one icon on every composed card): the plan's own reset control moves to the end, and a plan without one gets
+  // the card's own (RESET_ID, drawn by the player; there is no plan control behind it).
+  const controls = experimentControls(composition), own = controls.find(control => control.type === 'reset');
+  const reset = own?.id ?? RESET_ID;
+  sections.push({ kind: 'controls', ids: [...controls.filter(control => control !== own).map(control => control.id), reset], reset });
   return sections;
 }
 
@@ -30,7 +34,10 @@ export function layoutProblems(sections) {
   if (kinds[1] !== 'description') bad('description_second', 'the description follows the title');
   for (const once of ['title', 'description', 'scene']) if (kinds.filter(kind => kind === once).length !== 1) bad('exactly_one', `a card has exactly one ${once}`);
   if (kinds.filter(kind => kind === 'support').length > MAX_SUPPORTS) bad('support_limit', `at most ${MAX_SUPPORTS} supporting panels`);
-  for (const once of ['readouts', 'timeline', 'controls']) if (kinds.filter(kind => kind === once).length > 1) bad('exactly_one', `a card has at most one ${once} row`);
+  for (const once of ['readouts', 'timeline']) if (kinds.filter(kind => kind === once).length > 1) bad('exactly_one', `a card has at most one ${once} row`);
+  if (kinds.filter(kind => kind === 'controls').length !== 1) bad('exactly_one', 'a card has exactly one controls row, and it ends with Reset');
+  const controls = sections.find(section => section.kind === 'controls');
+  if (controls && (!controls.ids?.length || controls.ids.at(-1) !== controls.reset)) bad('reset_last', 'the controls row ends with Reset');
   if (kinds.some((kind, i) => i > 0 && rank(kind) < rank(kinds[i - 1]))) bad('order', 'sections are out of order: title, description, supporting visuals, scene, readouts, timeline, controls');
   const scene = kinds.indexOf('scene'), under = kinds[scene + 1] === 'readouts' ? scene + 2 : scene + 1; // the readouts row is data, not prose: it may sit between the scene and its timeline
   if (kinds.includes('readouts') && kinds[scene + 1] !== 'readouts') bad('readouts_adjacent', 'the readouts row sits directly under the scene');

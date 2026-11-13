@@ -5,7 +5,7 @@ import { api } from '../api.js';
 import { explainClient, sharedProgramClient } from '../explain-client.js';
 import { CardSourceScope } from '../use-card-source.js';
 import { Frame } from '../AnimatedScene.jsx';
-import { InputWidget } from '../SceneControls.jsx';
+import { InputWidget, ResetButton } from '../SceneControls.jsx';
 import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
 import { INTERACT_LOOK } from '../interact-style.js';
 import { createProgramHost, programStamps } from './host.js';
@@ -386,7 +386,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2">{timeLabel(manifest, shownTime, composition, inputs)}</span>
         </div>
       )}
-      {(rows.length > 0 || actions.length > 0 || targets.length > 0) && (
+      {(rows.length > 0 || actions.length > 0 || targets.length > 0 || composed) && (
         <div data-scene-controls className="rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
           <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -413,9 +413,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
                 ))}
               </div>
             )}
-            {changed && (
-              <button type="button" data-scene-reset onClick={reset} className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">Reset experiment</button>
-            )}
+            {/* Reset: the icon at the end of the row (SceneControls.jsx ResetButton). A composed /interact card always has it, greyed while nothing differs from the start. */}
+            {(changed || composed) && <ResetButton onReset={reset} disabled={!changed} />}
           </div>
         </div>
       )}

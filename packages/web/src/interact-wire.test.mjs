@@ -71,7 +71,7 @@ test('the saved composition on the block parses in the card adapter, survives th
   assert.equal(value.title, plan.title);
   assert.equal(value.cardDescription, plan.cardDescription);
   assert.equal(value.envelopeHash, composition.envelopeHash);
-  assert.deepEqual(cardLayout(value).map(s => s.kind), ['title', 'description', 'support', 'scene', 'readouts', 'timeline'], 'Three moments above the animation, its readouts row and its timeline directly under it, nothing after it');
+  assert.deepEqual(cardLayout(value).map(s => s.kind), ['title', 'description', 'support', 'scene', 'readouts', 'timeline', 'controls'], 'Three moments above the animation, its readouts row and its timeline directly under it, then only the Reset row');
   assert.deepEqual(layoutProblems(cardLayout(value)), []);
   assert.equal(value.supports[0].title, 'Three moments around the top');
   assert.deepEqual(value.supports[0].artifact.program, { bundleHash: composition.supporting[0].artifact.hash }, 'the panel is asked for from the result route by this hash');

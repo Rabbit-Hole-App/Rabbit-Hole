@@ -22,7 +22,7 @@ import { programDuration } from './explain-program/program-card.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'interact-ui-')), outfile = join(dir, 'ui.cjs');
 await esbuild.build({
-  stdin: { contents: "export { InteractIntro } from './InteractSupportPanels.jsx'; export { default as Content } from './InteractCardContent.jsx'; export { default as SceneControls, ShowPurposes } from './SceneControls.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { InteractIntro } from './InteractSupportPanels.jsx'; export { default as Content } from './InteractCardContent.jsx'; export { default as SceneControls, ShowPurposes, ResetButton } from './SceneControls.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'assets', setup(build) {
     build.onResolve({ filter: /\?(url|raw|worker)$/ }, args => ({ path: args.path, namespace: 'asset' }));
@@ -40,14 +40,22 @@ const withReadouts = (name, list) => list.flatMap(kind => (kind === 'scene' && p
 
 // ---- card section order ------------------------------------------------------------------------------------------------------
 
-test('the card order is Title, description, supporting visuals, scene, timeline when timed, controls when declared', () => {
+// Every composed card ends with the controls row and its Reset (owner 2026-11-12): a plan without a reset control gets the card's own.
+const RESET = { kind: 'controls', ids: ['reset'], reset: 'reset' };
+
+test('the card order is Title, description, supporting visuals, scene, readouts, timeline when timed, then the controls row, which always ends with Reset', () => {
   assert.deepEqual([...SECTION_ORDER], ['title', 'description', 'support', 'scene', 'readouts', 'timeline', 'controls']);
-  assert.deepEqual(kinds(comp('overview')), withReadouts('overview', ['title', 'description', 'scene']), 'Static with no controls: no timeline row, no controls row, no space for them');
-  assert.deepEqual(kinds(comp('standard')), withReadouts('standard', ['title', 'description', 'support', 'scene', 'timeline']), 'Standard: Three moments above the animation, the animation touching its timeline, no controls row');
+  assert.deepEqual(kinds(comp('overview')), withReadouts('overview', ['title', 'description', 'scene', 'controls']), 'Static with no controls: no timeline row; the controls row holds the card\'s Reset alone');
+  assert.deepEqual(cardLayout(comp('overview')).at(-1), RESET, 'a plan without a reset control still gets one');
+  assert.deepEqual(kinds(comp('standard')), withReadouts('standard', ['title', 'description', 'support', 'scene', 'timeline', 'controls']), 'Standard: Three moments above the animation, the animation touching its timeline, then the Reset row');
   assert.deepEqual(kinds(comp('deep')), withReadouts('deep', ['title', 'description', 'support', 'scene', 'timeline', 'controls']));
   assert.deepEqual(kinds(comp('untimedExperiment')), withReadouts('untimedExperiment', ['title', 'description', 'scene', 'controls']), 'an untimed Experiment: the controls directly below the scene');
   assert.deepEqual(kinds(comp('staticAdjustable')), withReadouts('staticAdjustable', ['title', 'description', 'scene', 'controls']), 'Static with a still-recomputing control keeps its row');
-  for (const name of Object.keys(plans)) assert.deepEqual(layoutProblems(cardLayout(comp(name))), [], name);
+  for (const name of Object.keys(plans)) {
+    assert.deepEqual(layoutProblems(cardLayout(comp(name))), [], name);
+    const controls = cardLayout(comp(name)).at(-1);
+    assert.equal(controls.kind, 'controls', name); assert.equal(controls.ids.at(-1), controls.reset, `${name}: the row ends with Reset`);
+  }
 });
 
 test('Standard puts the fixed Three moments panel above the live animation, which sits immediately above its timeline', () => {
@@ -57,7 +65,7 @@ test('Standard puts the fixed Three moments panel above the live animation, whic
   assert.ok(support < scene);
   assert.equal(layout[scene + 1].kind, 'readouts', 'the plan has readouts: their row sits directly under the scene');
   assert.equal(layout[scene + 2].kind, 'timeline', 'and the timeline directly under that');
-  assert.equal(layout.length, scene + 3, 'nothing after the timeline');
+  assert.deepEqual(layout.slice(scene + 3), [RESET], 'nothing after the timeline but the Reset row');
   assert.equal(comp('standard').supports[0].title, 'Three moments around the top');
 });
 
@@ -83,8 +91,8 @@ test('no explanatory text can follow a scene or its controls: any other section 
   assert.ok(layoutProblems([...ok.slice(0, 2), { kind: 'support', id: 'a' }, { kind: 'support', id: 'b' }, { kind: 'support', id: 'c' }, ...ok.slice(3)]).some(p => p.code === 'support_limit'));
   assert.equal(MAX_SUPPORTS, 2);
   // controls straight after the scene when untimed, after the timeline when timed, never after anything else
-  assert.ok(layoutProblems([{ kind: 'title' }, { kind: 'description' }, { kind: 'scene' }, { kind: 'controls' }]).length === 0);
-  assert.ok(layoutProblems([{ kind: 'title' }, { kind: 'description' }, { kind: 'scene' }, { kind: 'controls' }, { kind: 'timeline' }]).length > 0);
+  assert.ok(layoutProblems([{ kind: 'title' }, { kind: 'description' }, { kind: 'scene' }, RESET]).length === 0);
+  assert.ok(layoutProblems([{ kind: 'title' }, { kind: 'description' }, { kind: 'scene' }, RESET, { kind: 'timeline' }]).length > 0);
 });
 
 test('the composition has nowhere to keep text for under the scene: only the description is introductory copy', () => {
@@ -210,6 +218,36 @@ test('the experiments\' purpose sentences are suppressed on an /interact card an
   assert.match(composed, /Case:/, 'labels and native controls stay');
 });
 
+// ---- Reset: one place, one icon (owner 2026-11-12) -------------------------------------------------------------------------------
+
+test('every composed card draws Reset as the same icon button at the end of its controls row, named Reset experiment, greyed when nothing differs; no text label', () => {
+  const html = (inputs, onReset) => B.renderToStaticMarkup(B.createElement(B.ShowPurposes.Provider, { value: false }, B.createElement(B.SceneControls, { declarations: inputs, inputs: { k: 'a' }, data: {}, onInput: () => {}, onReset })));
+  const choice = [{ name: 'k', type: 'choice', label: 'Case', options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }] }];
+  const button = B.renderToStaticMarkup(B.createElement(B.ResetButton, { onReset: () => {} }));
+  assert.match(button, /^<button type="button" data-scene-reset="true" aria-label="Reset experiment" title="Reset experiment"/);
+  assert.match(button, /<svg[^>]*lucide-rotate-ccw/, 'the app\'s refresh icon (RotateCcw, as in LearningBlocks.jsx)');
+  assert.ok(!/>Reset experiment<|\.\.\.|…/.test(button), 'an icon, no visible text, no ellipsis');
+  assert.match(button, /ml-auto/, 'right-aligned');
+  for (const [name, declarations, changed] of [['with controls, changed', choice, true], ['with controls, unchanged', choice, false], ['no controls, unchanged', [], false]]) {
+    const out = html(declarations, changed ? () => {} : null);
+    assert.equal((out.match(/data-scene-reset/g) || []).length, 1, `${name}: exactly one Reset`);
+    assert.equal(out.includes(' disabled=""'), !changed, `${name}: ${changed ? 'enabled' : 'greyed, still in its place'}`);
+    assert.equal(out.lastIndexOf('data-scene-reset') > out.lastIndexOf('data-input-control') || !out.includes('data-input-control'), true, `${name}: after every control`);
+  }
+  // Any other card: Reset only while a value differs, and the same icon.
+  const legacy = B.renderToStaticMarkup(B.createElement(B.SceneControls, { declarations: choice, inputs: { k: 'a' }, data: {}, onInput: () => {}, onReset: null }));
+  assert.ok(!legacy.includes('data-scene-reset'));
+  assert.match(B.renderToStaticMarkup(B.createElement(B.SceneControls, { declarations: choice, inputs: { k: 'a' }, data: {}, onInput: () => {}, onReset: () => {} })), /data-scene-reset="true"[^>]*aria-label="Reset experiment"/);
+});
+
+test('the program card draws the same Reset: always on a composed card (greyed while unchanged), only while changed on another, through the one ResetButton', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
+  assert.match(src, /\(changed \|\| composed\) && <ResetButton onReset=\{reset\} disabled=\{!changed\} \/>/);
+  assert.match(src, /rows\.length > 0 \|\| actions\.length > 0 \|\| targets\.length > 0 \|\| composed/, 'the controls block exists on every composed card');
+  assert.doesNotMatch(src, />Reset experiment<\/button>/, 'no text button any more');
+});
+
 // ---- time and focus ----------------------------------------------------------------------------------------------------------
 
 test('the end-of-timeline helper reads the composition the card holds: its endpoint, never longer than the admitted manifest.duration', () => {
@@ -236,10 +274,12 @@ test('Focus counts the description and supporting panels live: the drawing gets 
 test('the readouts row: one section after the scene when the plan has readouts, absent otherwise; a readouts row may not be moved away from the scene', async () => {
   const { layoutProblems } = await import('./interact-card-layout.js');
   assert.ok(kinds(comp('standard')).includes('readouts')); assert.equal(plans.standard.scene.readoutIds.length > 0, true);
-  const ok = ['title', 'description', 'scene', 'readouts', 'timeline', 'controls'].map(kind => ({ kind }));
+  const ok = ['title', 'description', 'scene', 'readouts', 'timeline', 'controls'].map(kind => (kind === 'controls' ? RESET : { kind }));
   assert.deepEqual(layoutProblems(ok), []);
-  assert.ok(layoutProblems(['title', 'description', 'scene', 'timeline', 'readouts'].map(kind => ({ kind }))).some(p => p.code === 'order' || p.code === 'readouts_adjacent'), 'readouts after the timeline is refused');
-  assert.ok(layoutProblems(['title', 'description', 'scene', 'controls', 'readouts'].map(kind => ({ kind }))).length > 0);
+  assert.ok(layoutProblems(['title', 'description', 'scene', 'timeline', 'readouts', 'controls'].map(kind => (kind === 'controls' ? RESET : { kind }))).some(p => p.code === 'order' || p.code === 'readouts_adjacent'), 'readouts after the timeline is refused');
+  assert.ok(layoutProblems(['title', 'description', 'scene', 'controls', 'readouts'].map(kind => (kind === 'controls' ? RESET : { kind }))).length > 0);
+  assert.deepEqual(layoutProblems([{ kind: 'title' }, { kind: 'description' }, { kind: 'scene' }]).map(p => p.code), ['exactly_one'], 'a card without its controls row is refused');
+  assert.deepEqual(layoutProblems([{ kind: 'title' }, { kind: 'description' }, { kind: 'scene' }, { kind: 'controls', ids: ['reset', 'speed'], reset: 'reset' }]).map(p => p.code), ['reset_last'], 'Reset must be last');
 });
 
 test('the card draws the readouts row itself: label, value and unit as tabular numbers at 14 px, filtered to the plan readouts, only for a composed card', async () => {
