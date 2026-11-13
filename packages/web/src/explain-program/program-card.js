@@ -111,6 +111,9 @@ export function autopauseMarker(composition, inputs, from, to) {
   const hits = (timelineOf(composition, inputs)?.markers ?? []).filter(marker => marker.pause && marker.time > from + 1e-9 && marker.time <= to + 1e-9);
   return hits.reduce((first, marker) => (first && first.time <= marker.time ? first : marker), null);
 }
+// The playback clock's next moment: never earlier than the last one. A frame's own timestamp can be a few milliseconds BEFORE the moment Play was pressed (the origin is taken from
+// performance.now() when the effect runs), and a clock that steps back puts the pause marker it started on ahead of it again, so Play from a pause stopped at once on the same marker.
+export const advanceClock = (previous, now, origin, rate) => Math.max(previous, (now - origin) / 1000 * rate);
 // The moment a seek control (the At top button) jumps to: its marker's time for these inputs; null when the timeline has no such marker.
 export const seekTime = (composition, inputs, markerId) => timelineOf(composition, inputs)?.markers.find(marker => marker.id === markerId)?.time ?? null;
 export function setProgramInputUnder(block, manifest, name, value, composition = null) {

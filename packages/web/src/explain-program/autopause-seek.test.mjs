@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ProgramManifest } from './contract.js';
-import { autopauseMarker, inputChange, resetsOnInput, seekTime } from './program-card.js';
+import { advanceClock, autopauseMarker, inputChange, resetsOnInput, seekTime } from './program-card.js';
 import { CardCompositionSchema, nativeDeclaration } from '../interact-composition.js';
 import { cardLayout, layoutProblems } from '../interact-card-layout.js';
 import { normalizeComposition } from '../interact-composition-adapter.js';
@@ -78,3 +78,13 @@ test('the controls row keeps the seek button before Reset, and the card layout i
   assert.deepEqual(controls.ids.slice(-2), ['atTop', 'reset']);
   assert.deepEqual(layoutProblems(sections), []);
 });
+
+test('Play from a pause carries on even when the first frame timestamp is earlier than the press: the clock never steps back onto the marker it started on', () => {
+  const inputs = { launchSpeed: 3 }, t = topAt(3), rate = 0.2, origin = 1000 - t * 1000 / rate; // Play pressed at performance.now() 1000, paused at the marker
+  const early = advanceClock(t, 996, origin, rate); // a rAF timestamp 4 ms before the press: (996 - origin) / 1000 * rate is below t
+  assert.ok((996 - origin) / 1000 * rate < t, 'the raw clock would be behind the marker');
+  assert.equal(early, t, 'the clock holds at the marker');
+  assert.equal(autopauseMarker(composition, inputs, early, advanceClock(early, 1016, origin, rate)), null, 'the next frame does not stop on the marker again');
+  assert.ok(advanceClock(t, 1500, origin, rate) > t, 'and it moves on');
+});
+

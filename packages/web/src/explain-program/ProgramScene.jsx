@@ -17,7 +17,7 @@ import { InteractIntro } from '../InteractSupportPanels.jsx';
 import { focusFixed, focusRoom } from '../interact-card-layout.js';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
-  autopauseMarker, inputChange, pressPlay, seekTime, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration, programInputWidget,
+  autopauseMarker, advanceClock, inputChange, pressPlay, seekTime, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration, programInputWidget,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -178,7 +178,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     const rate = playbackRate(manifest, composition, inputs), origin = performance.now() - time * 1000 / rate;
     let previous = time;
     const tick = now => {
-      const next = (now - origin) / 1000 * rate;
+      const next = advanceClock(previous, now, origin, rate);
       // A marker the plan marked pause stops playback exactly on it (the next Play carries on from it).
       const stop = composed ? autopauseMarker(composition, inputs, previous, Math.min(next, duration)) : null;
       if (stop) { setTime(stop.time); setPlaying(false); return; }
