@@ -88,13 +88,19 @@ async function inspect() {
     assert(Object.keys(overlay).every(key => ['prompts', 'keywords'].includes(key)), `Overlay ${id} may only change prompts and keywords.`);
   }
   const { parseTutorDiagram } = await load('packages/web/src/tutor-diagrams/spec.js');
+  const specErrors = [];
   for (const reference of own) for (const key of ['overview', 'standard', 'deep']) {
     const value = reference.depths?.[key] ?? reference;
     assert(Boolean(reference.depths?.[key]), `${reference.id} requires an explicit ${key} depth.`);
-    parseTutorDiagram(value.spec);
-    if (value.detailSpec) parseTutorDiagram(value.detailSpec);
+    // Every invalid spec becomes a flag, so one round's feedback names all of them, not only the first.
+    for (const [field, spec] of [['spec', value.spec], ['detailSpec', value.detailSpec]]) {
+      if (field === 'detailSpec' && !spec) continue;
+      try { parseTutorDiagram(spec); }
+      catch (error) { specErrors.push({ id: reference.id, depth: key, rule: 'spec', severity: 'error', detail: `${field}: ${String(error.message).slice(0, 1500)}` }); }
+    }
     if (value.detailSpec && countSpecTokens(value.detailSpec) > 300) assertions.push({ id: reference.id, depth: key, rule: 1, severity: 'error', detail: 'detailSpec exceeds 300 cl100k tokens.' });
   }
+  if (specErrors.length) return { flags: [...flags, ...specErrors, ...assertions] }; // the linter renders specs; it runs once they all parse
   if (own.length) flags.push(...lintReferences({ references: own, prompts: expected.filter(row => own.some(ref => ref.id === row.referenceId)),
     source: input.files, derived: module.derived, authored: true }));
   flags.push(...assertions);
