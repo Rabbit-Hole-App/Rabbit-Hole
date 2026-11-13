@@ -751,6 +751,16 @@
         "tokens": 129,
         "sha256": "9cab5a5abe822092cc43547035f358936c7e498c5b1b60f1f45bcd7d04310630"
       }
+    },
+    "ml-linear-regression-normal-equation": {
+      "panel": {
+        "tokens": 115,
+        "sha256": "67372d8e3fd84e58002eb270544356ada93e9a6f99fd00729ffaae6235fae4da"
+      },
+      "single": {
+        "tokens": 175,
+        "sha256": "d07a2f1cbeca6a8a2a9cdf51d4fe430d23337efbd228673558c819952e2c0f57"
+      }
     }
   }
 }
