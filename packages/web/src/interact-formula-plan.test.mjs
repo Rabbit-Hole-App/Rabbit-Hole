@@ -5,7 +5,10 @@ import { interactFixtures } from './interact-plan-fixtures.js';
 
 // Plan-level validation of formulas, template and slots (interact-formula.js), on copies of the Standard reference plan: its fixture data is not edited here.
 const { referencePlans } = await interactFixtures();
-const base = referencePlans.tossStandard;
+// The fixture now carries its formulas, drops and template (brief 7 section 2); these tests start from the same plan with that data taken off, so each case adds only what it names.
+const base = structuredClone(referencePlans.tossStandard);
+for (const q of base.scene.quantities) { delete q.formula; delete q.switchAt; delete q.formulaAfter; }
+delete base.scene.template; delete base.scene.slots;
 const withQ = (id, patch) => { const plan = structuredClone(base); Object.assign(plan.scene.quantities.find(q => q.id === id), patch); return plan; };
 const messages = plan => planProblems(plan).map(p => `${p.code}@${p.path.join('.')}: ${p.message}`);
 const slots = { toss: { height: 'tossedHeight', velocity: 'tossedVelocity', acceleration: 'tossedAcceleration' }, drop: { height: 'dropHeight', velocity: 'dropVelocity', acceleration: 'dropAcceleration' } };
