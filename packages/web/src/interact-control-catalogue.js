@@ -9,7 +9,7 @@ import { contentHash, PLAN_LIMITS } from './interact-plan.js';
 //   spec    = AnimatedScene + SceneControls (declarative input types index, bool, choice, indices)
 //   program = ProgramScene (manifest number/select inputs; schema 2 declared actions and targets)
 export const RENDERERS = Object.freeze(['spec', 'program']);
-export const CONTROL_TYPES = Object.freeze(['playback', 'scrubber', 'number', 'select', 'boolean', 'index', 'multi_select', 'action', 'target', 'reset']);
+export const CONTROL_TYPES = Object.freeze(['playback', 'scrubber', 'number', 'select', 'boolean', 'index', 'multi_select', 'action', 'target', 'seek', 'reset']);
 // The declarative input types a component can declare (scene-inputs.js INPUT_TYPES, less vec2, which a plan has no control for).
 const COMPONENT_TYPES = Object.freeze(['choice', 'bool', 'index', 'indices']);
 
@@ -32,7 +32,7 @@ export const INDEX_ITEMS = 12; // CONTRACT_LIMITS-sized: a program index input h
 // The one build-prompt sentence for the new input types, shown only when inputsV2 is enabled.
 export const INPUT_TYPES_PROMPT_SENTENCE = 'manifest.inputs types: number {min, max, step, default}, select {options, default}, boolean {default: true|false; reads inputs.<id> as a boolean} and index {items: 2 to 12 {id, label}, default: the position of an item, presentation: picker|slider; reads inputs.<id> as an integer 0 to items - 1}; a manifest with a boolean or index input lists "inputs_v2" in capabilities.';
 
-export function getInteractControlCatalogue({ renderers, stateful = false, componentControls = [], inputsV2 = false } = {}) {
+export function getInteractControlCatalogue({ renderers, stateful = false, componentControls = [], inputsV2 = false, seek = false } = {}) {
   if (!Array.isArray(renderers) || !renderers.length) throw new Error('getInteractControlCatalogue needs the enabled renderers');
   for (const r of renderers) if (!RENDERERS.includes(r)) throw new Error(`unknown renderer "${r}"`);
   const components = componentLimits(componentControls);
@@ -69,6 +69,8 @@ export function getInteractControlCatalogue({ renderers, stateful = false, compo
       add('program', 'program.action', 'action', 'action', 'button', 'A button that applies one declared state transition.', { limits: { maxControls: CONTRACT_LIMITS.actions }, requires: ['stateful'] });
       add('program', 'program.target', 'target', 'target', 'select_buttons', 'Select, or with drag, move a declared object; keyboard buttons stay available.', { limits: { maxControls: CONTRACT_LIMITS.targets, drag: true }, requires: ['stateful'] });
     }
+    // seek: a button that jumps the shared timeline to a named marker (the At top button). Absent unless enabled, so the default catalogue and its hash are unchanged.
+    if (seek) add('program', 'program.seek', 'seek', 'seek', 'button', 'Jump the shared timeline to one named marker with a button (ProgramScene transport; the marker is declared in the timeline).', { limits: { maxControls: 2 }, requires: ['time_playback'] });
     add('program', 'program.reset', 'reset', 'reset', 'button', 'Restore default inputs and the initial state (Reset experiment).', { limits: { maxControls: 1 } });
   }
   return Object.freeze(entries.map(entry => Object.freeze(descriptor.parse(entry))));
@@ -76,7 +78,7 @@ export function getInteractControlCatalogue({ renderers, stateful = false, compo
 
 // What validatePlanBindings() and the role inputs consume: the catalogue, its server-computed hash (a plan binds to it), the
 // stateful switch and the evidence ids the job supplied.
-export async function interactCapabilities({ renderers, stateful = false, componentControls = [], evidenceIds = [], inputsV2 = false } = {}) {
-  const catalogue = getInteractControlCatalogue({ renderers, stateful, componentControls, inputsV2 });
+export async function interactCapabilities({ renderers, stateful = false, componentControls = [], evidenceIds = [], inputsV2 = false, seek = false } = {}) {
+  const catalogue = getInteractControlCatalogue({ renderers, stateful, componentControls, inputsV2, seek });
   return { catalogue, catalogueHash: await contentHash(catalogue), stateful: !!stateful, evidenceIds: [...evidenceIds] };
 }
