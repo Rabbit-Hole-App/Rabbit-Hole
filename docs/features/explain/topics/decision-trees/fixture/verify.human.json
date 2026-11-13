@@ -1,6 +1,6 @@
 {
  "topic": "decision-trees",
- "note": "Reviewer's per-figure verdicts on the Codex pilot c3e40994 (2026-11-09 11:00; the four fixes landed as 8ab8c20d), at Balanced depth, plus the depth-5 mislabel on 5de6a499 that the reviewer missed and the judge caught.",
+ "note": "Reviewer's per-figure verdicts on the Codex pilot c3e40994 (2026-11-09 11:00; the four fixes landed as 8ab8c20d), at Balanced depth, plus the depth-5 mislabel on 5de6a499 that the reviewer missed and the judge caught. Corrected 2026-11-12 after verifier calibration: gini-split, grown-tree, decision-regions ship -> fix (teaching point incomplete or colour mapping wrong \u2014 the verifier applied the prompt text where the 11-09 review checked arithmetic). Pilot tally now ship 3 / fix 7.",
  "figures": [
   {
    "id": "ml-trees-candidate-split",
@@ -17,10 +17,11 @@
    "sha": "c3e40994",
    "depth": "balanced",
    "pilot": true,
-   "verdict": "ship",
+   "verdict": "fix",
    "reasons": [
-    "Counts and Gini values exact; weighted Gini and gain correct."
-   ]
+    "Prompt 03 asks for 'the information gain'; the figure shows the two child Ginis (0, 0.375) and the weighted Gini (0.1875), all correct, but neither the parent Gini (0.46875) nor the gain (0.28125). Teaching point incomplete. Corrected 2026-11-12 from the reviewer's 11-09 'ship' after the verifier flagged it."
+   ],
+   "correction": "2026-11-12: ship -> fix; caught by the verifier in calibration"
   },
   {
    "id": "ml-trees-threshold-search",
@@ -37,20 +38,22 @@
    "sha": "c3e40994",
    "depth": "balanced",
    "pilot": true,
-   "verdict": "ship",
+   "verdict": "fix",
    "reasons": [
-    "Tree matches the data module; class counts at leaves correct."
-   ]
+    "Prompt 05 asks to 'trace a new point from the root to a prediction'; the tree has split tests and class counts but no new point and no highlighted path. Corrected 2026-11-12 from 'ship' after the verifier flagged it."
+   ],
+   "correction": "2026-11-12: ship -> fix; caught by the verifier in calibration"
   },
   {
    "id": "ml-trees-decision-regions",
    "sha": "c3e40994",
    "depth": "balanced",
    "pilot": true,
-   "verdict": "ship",
+   "verdict": "fix",
    "reasons": [
-    "Regions match the fitted tree's thresholds; all 8 points on the right side."
-   ]
+    "Regions are coloured per rectangle rather than per predicted class: the two 'Predict 0' regions differ in colour and one uses the class-1 colour, which misreads the prediction. Corrected 2026-11-12 from 'ship' after the verifier flagged it (the reviewer checked thresholds and points, not the colour mapping)."
+   ],
+   "correction": "2026-11-12: ship -> fix; caught by the verifier in calibration"
   },
   {
    "id": "ml-trees-depth-overfit",
@@ -69,7 +72,7 @@
    "pilot": true,
    "verdict": "ship",
    "reasons": [
-    "Draws and repeats consistent with the sample-set; roots match the data."
+    "Draws with repeats visible and the root each draw produces; the prompt asks 'which rows repeat', not for omitted rows to be marked (the reviewer's 2026-11-12 content spec over-asked; corrected in prompts.human.json). Human verdict stands: ship."
    ]
   },
   {
