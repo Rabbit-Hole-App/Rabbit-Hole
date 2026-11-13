@@ -16,7 +16,7 @@ const A = 'demo', D = 'packages/web/src/tutor-diagrams', P = paths(A, D);
 const dataModule = [{ path: P.data, content: "export const toyData = { rows: [1] };\nexport const metadata = { topic: 'demo', artifactTopic: 'demo', lessons: ['04'], sources: [] };\nexport function derived() { return { total: 1 }; }\n" }];
 const flow = nodes => `{ kind: 'flow', title: 'Route', caption: 'Follow the route.', nodes: ${JSON.stringify(nodes)}, edges: [{ from: 'a', to: 'b' }] }`;
 const part = (standardNodes, deepCaption = 'Worked example. $p=1/2$.') => ({
-  prelude: `const good = ${flow([{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Stop', role: 'outcome' }])};`,
+  prelude: `const good = ${flow([{ id: 'a', label: 'Read input', role: 'process' }, { id: 'b', label: 'Write output', role: 'outcome' }])};`,
   references: [{ id: 'ml-demo-flow', expression: `(() => { const standard = ${flow(standardNodes)}; return reference({ id: 'ml-demo-flow', keywords: ['route', 'flow path'], useWhen: 'a route', overview: { spec: spec(good) }, standard: { spec: spec(standard) }, deep: { spec: spec({ ...standard, caption: '${deepCaption}' }) } }); })()` }],
   derived: '',
   tests: "test('derived', () => { assert.ok(derived().total === 1); });",
@@ -44,12 +44,12 @@ test('the batch payload carries the data module, references, tests and replay ro
 });
 
 test('a valid batch has no flags', async t => {
-  const flags = await check(t, part([{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Stop', role: 'outcome' }]));
+  const flags = await check(t, part([{ id: 'a', label: 'Read input', role: 'process' }, { id: 'b', label: 'Write output', role: 'outcome' }]));
   assert.deepEqual(flags, []);
 });
 
 test('every invalid spec and a wrong kind come back together, before any round is spent', async t => {
-  const flags = await check(t, part([{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Stop', role: 'outcome' }, { id: 'c', label: 'Lost', role: 'process' }]),
+  const flags = await check(t, part([{ id: 'a', label: 'Read input', role: 'process' }, { id: 'b', label: 'Write output', role: 'outcome' }, { id: 'c', label: 'Lost', role: 'process' }]),
     [{ id: 1, prompt: 'How does it route?', kind: 'tree' }]);
   assert.ok(flags.some(flag => flag.rule === 'spec' && /exactly one root|unreachable/u.test(flag.detail)), JSON.stringify(flags));
   assert.ok(flags.some(flag => flag.rule === 2 && /requires tree; ml-demo-flow has flow/u.test(flag.detail)), JSON.stringify(flags));
@@ -57,7 +57,7 @@ test('every invalid spec and a wrong kind come back together, before any round i
 });
 
 test('a typed caption number outside a formula constant is flagged by the file-free linter rules', async t => {
-  const flags = await check(t, part([{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Stop', role: 'outcome' }], 'Worked example. $p=0.37$.'));
+  const flags = await check(t, part([{ id: 'a', label: 'Read input', role: 'process' }, { id: 'b', label: 'Write output', role: 'outcome' }], 'Worked example. $p=0.37$.'));
   assert.ok(flags.some(flag => flag.rule === 6), JSON.stringify(flags));
 });
 
@@ -70,7 +70,30 @@ test('renderer-constraints.md is current and lists the refinement messages by ki
 });
 
 test('a batch that asserts through data.derived() still satisfies the derived-assertion rule', async t => {
-  const value = part([{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Stop', role: 'outcome' }]);
+  const value = part([{ id: 'a', label: 'Read input', role: 'process' }, { id: 'b', label: 'Write output', role: 'outcome' }]);
   value.tests = "test('numbers', () => { const d = data.derived(); assert.ok(d.total === 1); });";
   assert.deepEqual(await check(t, value), []);
+});
+
+// Item 5 (reviewer 2026-11-13): the release suite's content contract runs before the round is spent, with the rule id in the flag.
+test('a flow label that is not an action and two nodes with one label are flagged with their contract rule before stage 05', async t => {
+  const flags = await check(t, part([{ id: 'a', label: 'Model output', role: 'process' }, { id: 'b', label: 'Model output', role: 'outcome' }]));
+  const contract = flags.filter(flag => String(flag.rule).startsWith('content-contract:'));
+  assert.ok(contract.some(flag => flag.rule === 'content-contract:flow-label-verb-first' && /nodes\.0\.label/u.test(flag.detail) && /Model output/u.test(flag.detail)), JSON.stringify(flags));
+  assert.ok(contract.some(flag => flag.rule === 'content-contract:duplicate-node-label' && /repeats nodes\[0\]/u.test(flag.detail)), JSON.stringify(flags));
+  assert.ok(contract.every(flag => flag.severity === 'error'));
+});
+
+test('a placeholder edge label is a contract error, and a label that follows the contract is not', async t => {
+  const good = await check(t, part([{ id: 'a', label: 'Compute score', role: 'process' }, { id: 'b', label: 'Check threshold', role: 'outcome' }]));
+  assert.deepEqual(good.filter(flag => String(flag.rule).startsWith('content-contract:')), []);
+});
+
+test('renderer-constraints.md carries the content contract: the rule ids, the unique-label rule and the verb list the release suite uses', async () => {
+  const content = await buildConstraints();
+  assert.match(content, /^## Content contract/mu);
+  for (const rule of ['flow-label-verb-first', 'duplicate-node-label', 'placeholder-edge-label', 'math-delimiters', 'block-component-name']) assert.ok(content.includes(`- ${rule}:`), rule);
+  assert.match(content, /Node labels must be unique within one node list/u);
+  assert.match(content, /\bcompute\b/u);
+  assert.match(content, /"Compute prediction" passes; "Prediction" and "Model output" fail/u);
 });
