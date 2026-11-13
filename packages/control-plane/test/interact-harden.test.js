@@ -240,7 +240,7 @@ test('semantic figures: the build and repair prompts name sdk.axis, sdk.plot and
   assert.equal(props.runtime.sdkVersion, 'sdk-7', 'a props plan still names the saved sdk-7');
   assert.ok(!props.availableHelpers.includes('axis'), 'sdk-7 has no figure helpers');
   const docs = programContext({}, ['time_playback', 'figures'], {});
-  assert.deepEqual(Object.keys(docs.sdk.figures ?? {}).sort(), ['axis', 'diagram', 'plot', 'usage']);
+  assert.deepEqual(Object.keys(docs.sdk.figures ?? {}).sort(), ['axis', 'callout', 'diagram', 'panel', 'plot', 'stateReadouts', 'usage']);
   assert.match(docs.sdk.figures.usage, /ONE frame object/);
   assert.equal(programContext({}, ['time_playback', 'figures'], { repair: true }).sdk.figures, undefined, 'the repair request keeps its small size budget');
   assert.equal(programContext({}, ['time_playback'], {}).sdk.figures, undefined);

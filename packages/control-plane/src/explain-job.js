@@ -40,7 +40,7 @@ import { blockedBody, referencesKey, resolveReferences } from './generation-revi
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
 import { INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
-import { designPinOf, pinnedDesignCall } from './interact-design-pin.js';
+import { designPinOf, pinnedDesignCall, pinnedFixtureId } from './interact-design-pin.js';
 import { DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, approvalHashOf, designCapabilities, designPipeline, designPromptContracts, freshDesign, isBlocking, modeToPresentation, runtimeProblems } from './interact-design.js';
 import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } from '../../web/src/interact-plan.js';
 import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
@@ -375,7 +375,7 @@ export class ExplainJobs {
       // A program's artifact rides on this authorized answer only (never in the identity the card saves): the host-hashed artifact and the
       // server's execution decision, which the card obeys.
       if (block?.program) view.result = { ...view.result, program: (await this.state.storage.get(`result:${job.resultId}`)).artifact, execution: programExecution(this.env) };
-      return json({ job: view, ...(block ? { block } : {}), ...(scenePlan ? { scenePlan } : {}), ...(detail ? { diagnostics: explainDiagnostics(job, designPinOf(this.env)), ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
+      return json({ job: view, ...(block ? { block } : {}), ...(scenePlan ? { scenePlan } : {}), ...(detail ? { diagnostics: explainDiagnostics(job, pinnedFixtureId(designPinOf(this.env), job.depth)), // the ledger's fixture column names the resolved plan (toss-standard), not the family ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
     }
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
