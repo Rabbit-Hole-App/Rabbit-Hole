@@ -39,7 +39,7 @@ export const PROPS_SDK_VERSION = 'sdk-7';
 export const PROPS_PROGRAM_STAMPS = Object.freeze({
   ...VISUAL_PROGRAM_STAMPS,
   sdkVersion: PROPS_SDK_VERSION,
-  fingerprints: Object.freeze({ ...VISUAL_PROGRAM_STAMPS.fingerprints, sdk: '2e30c246d05178f4de868d89018aae4b7a599a8e19e7e357f2cde9e4eabf9027' }),
+  fingerprints: Object.freeze({ ...VISUAL_PROGRAM_STAMPS.fingerprints, sdk: '6206b4735e853dc4d6d25707fdaf084ada83a98754b414b72309915abe71e58c' }),
 });
 export const STATEFUL_PROPS_PROGRAM_STAMPS = Object.freeze({ ...PROPS_PROGRAM_STAMPS, schemaVersion: 2 });
 

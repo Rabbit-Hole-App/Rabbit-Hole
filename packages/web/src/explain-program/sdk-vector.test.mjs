@@ -43,3 +43,28 @@ test('sdk.vector places its label just past the tip along the arrow direction, 8
   assert.equal(sdk.vector('f', { x: 0, y: 0 }, { value: 3, direction: 'up' }, { scale: 10, role: 'warning' })[0].role, 'warning');
   assert.throws(() => sdk.vector('f', { x: 0, y: 0 }, { value: 1, direction: 'sideways' }), /direction/);
 });
+
+const bounds = objects => objects.flatMap(o => (o.kind === 'line' ? [o.from, o.to] : [])).reduce((b, p) => ({ x0: Math.min(b.x0, p.x), x1: Math.max(b.x1, p.x), y0: Math.min(b.y0, p.y), y1: Math.max(b.y1, p.y) }), { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity });
+
+test('sdk.gate: two strokes (flat closed, swung down open) and a label below, at most 3 objects, strokes inside [x - w/2, x + w/2] x [y, y + w/2], label never on them', () => {
+  for (const open of [false, true]) {
+    const objects = sdk.gate('g', 100, 200, { open, w: 40, label: 'gate' });
+    assert.deepEqual(kinds(objects), ['line', 'line', 'text']); assert.ok(objects.length <= 3);
+    const b = bounds(objects), label = objects[2];
+    assert.ok(b.x0 >= 80 - 1e-9 && b.x1 <= 120 + 1e-9 && b.y0 >= 200 - 1e-9 && b.y1 <= 220 + 1e-9, `strokes stay in the gate box (open ${open})`);
+    assert.ok(label.y - 10 > b.y1, 'the label top (centre minus half a line) is below every stroke'); assert.equal(label.x, 100);
+  }
+  const closed = sdk.gate('g', 100, 200, { open: false, w: 40 }), opened = sdk.gate('g', 100, 200, { open: true, w: 40 });
+  assert.deepEqual(kinds(closed), ['line', 'line'], 'no label, no text object');
+  assert.equal(closed[0].to.y, 200); assert.ok(opened[0].to.y > 210, 'open: the strokes swing down');
+  assert.ok(Math.abs(closed[1].from.x - 101) < 1e-9 && Math.abs(closed[0].to.x - 99) < 1e-9, 'closed: a 2 px gap in the middle');
+  assert.equal(sdk.gate('g', 0, 0, {})[0].from.x, -18, 'default width 36');
+});
+
+test('sdk.groundMark: one horizontal mark centred on x, its label below it; at most 2 objects', () => {
+  const objects = sdk.groundMark('floor', 50, 300, 80, 'launch mark');
+  assert.deepEqual(kinds(objects), ['line', 'text']);
+  assert.deepEqual([objects[0].from, objects[0].to], [{ x: 10, y: 300 }, { x: 90, y: 300 }]);
+  assert.deepEqual([objects[1].x, objects[1].y, objects[1].align], [50, 314, 'middle']);
+  assert.deepEqual(kinds(sdk.groundMark('floor', 50, 300, 80)), ['line']);
+});

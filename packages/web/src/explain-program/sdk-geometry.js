@@ -138,7 +138,7 @@ export const GEOMETRY_SOURCE = String.raw`
 //     along the vector's own direction, 8 px clear of the tip, never at a fixed offset from the tail. opts.role colours the arrow and the label.
 //   sdk.gate(id, x, y, opts) - a release gate centred on x: two short strokes pivoting about their outer ends, flat when closed and swung down when
 //     open (opts.open, opts.w = 36 px wide), with its optional label BELOW the swing. At most 3 objects, inside [x - w/2, x + w/2] x [y, y + w/2 + 24].
-//   sdk.groundMark(id, x, y, w, label) - a horizontal mark centred on x with its optional label below it. At most 2 objects.
+//   sdk.groundMark(id, x, y, w, label) - a horizontal mark centred on x with its optional label centred 14 px below it. At most 2 objects.
 export const PROPS_SOURCE = String.raw`
 (function () {
   var CHAR = 9, HALF_LINE = 10, CLEAR = 8;
@@ -175,6 +175,25 @@ export const PROPS_SOURCE = String.raw`
       var textOpts = withRole(opts); textOpts.align = 'middle';
       out.push(sdk.text(id + 'L', tip.x + dir.x * reach, tip.y + dir.y * reach, text, textOpts));
     }
+    return out;
+  };
+  sdk.gate = function (id, x, y, opts) {
+    opts = opts || {};
+    var w = opts.w == null ? 36 : opts.w, reach = w / 2 - 1, swing = 70 * Math.PI / 180, role = withRole(opts), out = [];
+    var left, right;
+    if (opts.open) {
+      var dx = reach * Math.cos(swing), dy = reach * Math.sin(swing);
+      left = [x - w / 2, y, x - w / 2 + dx, y + dy]; right = [x + w / 2, y, x + w / 2 - dx, y + dy];
+    } else {
+      left = [x - w / 2, y, x - 1, y]; right = [x + 1, y, x + w / 2, y];
+    }
+    out.push(sdk.line(id + 'A', left[0], left[1], left[2], left[3], role), sdk.line(id + 'B', right[0], right[1], right[2], right[3], role));
+    if (opts.label != null) { var textOpts = withRole(opts); textOpts.align = 'middle'; out.push(sdk.text(id + 'L', x, y + w / 2 + 14, String(opts.label), textOpts)); }
+    return out;
+  };
+  sdk.groundMark = function (id, x, y, w, label) {
+    var out = [sdk.line(id, x - w / 2, y, x + w / 2, y)];
+    if (label != null) out.push(sdk.text(id + 'L', x, y + 14, String(label), { align: 'middle' }));
     return out;
   };
 })();
