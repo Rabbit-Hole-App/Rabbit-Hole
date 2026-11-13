@@ -23,12 +23,15 @@ export const helperSource = artifactTopic => [
   `const reference = ({ id, keywords, useWhen, overview, standard, deep }) => { const row = replay.prompts.find(item => item.referenceId === id); return { id, topic: metadata.topic, artifactTopic: metadata.artifactTopic, lessons: metadata.lessons, sources: metadata.sources, origin: 'lesson', lesson: metadata.lessons[0], promptOrigins: [{ id: row.id, prompt: row.prompt, origin: 'lesson', lesson: metadata.lessons[0] }], prompts: [row.prompt, ...row.paraphrases], paraphrases: row.paraphrases, keywords, shortKeywords: keywords, useWhen, ...standard, depths: { overview, standard, deep } }; };`,
 ];
 
+// A batch's references arrive as {prelude, references: [{id, expression}], derived}: the function body is rebuilt from them, so a reference is a unit the harness can keep.
+export const partBody = part => `${part.prelude}\nreturn { references: [${part.references.map(reference => reference.expression).join(',' + '\n')}], derived: ${part.derived?.trim() || '() => ({})'} };`;
+
 export function assembleReferences(artifactTopic, parts) {
   const lines = [...helperSource(artifactTopic), 'export const topicMetadata = metadata;', 'const parts = ['], ranges = [];
   parts.forEach((part, index) => {
     lines.push('(() => {');
     const start = lines.length + 1;
-    lines.push(...part.references.split('\n'));
+    lines.push(...partBody(part).split('\n'));
     ranges.push({ index, start, end: lines.length });
     lines.push('})(),');
   });
@@ -68,8 +71,10 @@ export function prevalidatePayload({ artifactTopic, diagrams, value, dataModule,
 }
 
 export const batchSchema = {
-  type: 'object', additionalProperties: false, required: ['references', 'tests', 'replay', 'walkthrough'], properties: {
-    references: { type: 'string', maxLength: 90000 }, tests: { type: 'string', maxLength: 90000 }, walkthrough: { type: 'string', maxLength: 60000 },
+  type: 'object', additionalProperties: false, required: ['prelude', 'references', 'derived', 'tests', 'replay', 'walkthrough'], properties: {
+    prelude: { type: 'string', maxLength: 60000 }, derived: { type: 'string', maxLength: 30000 },
+    references: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'object', additionalProperties: false, required: ['id', 'expression'], properties: { id: { type: 'string' }, expression: { type: 'string', maxLength: 30000 } } } },
+    tests: { type: 'string', maxLength: 90000 }, walkthrough: { type: 'string', maxLength: 60000 },
     replay: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'object', additionalProperties: false, required: ['id', 'prompt', 'referenceId', 'paraphrases'],
       properties: { id: { type: 'string' }, prompt: { type: 'string' }, referenceId: { type: 'string' }, paraphrases: { type: 'array', minItems: 5, maxItems: 5, items: { type: 'string' } } } } },
   },
@@ -89,8 +94,23 @@ export function validateBatch(value, rows, last) {
   const want = rows.map(row => String(row.id)).sort().join(',');
   if (value.replay.map(row => String(row.id)).sort().join(',') !== want) throw new Error(`Replay cases must cover exactly the assigned prompt ids: ${want}.`);
   for (const row of rows) if (value.replay.find(item => String(item.id) === String(row.id))?.prompt !== row.prompt) throw new Error(`Replay case ${row.id} must carry its assigned prompt verbatim.`);
+  const ids = value.references.map(reference => reference.id).sort().join(','), replayIds = value.replay.map(row => row.referenceId).sort().join(',');
+  if (ids !== replayIds) throw new Error(`Every replay referenceId needs exactly one entry in references, and no other: references ${ids}; replay ${replayIds}.`);
   if (last && !value.walkthrough.trim()) throw new Error('The last batch must return the topic walkthrough.');
   return value;
+}
+
+// Oscillation fix (reviewer 2026-11-12): when a batch is called again, a reference whose id the feedback does not name is taken from the previous answer
+// byte-identical (its expression and its replay row), whatever the author returned for it. If the feedback names none of the batch's references, nothing is held.
+export function holdUnnamed(output, previous, feedback) {
+  if (!previous) return output;
+  const text = String(feedback ?? ''), named = previous.references.filter(reference => text.includes(reference.id));
+  if (!named.length) return output;
+  const held = new Set(previous.references.filter(reference => !named.includes(reference)).map(reference => reference.id));
+  const old = new Map(previous.references.map(reference => [reference.id, reference])), oldReplay = new Map(previous.replay.map(row => [row.referenceId, row]));
+  const references = [...output.references.map(reference => held.has(reference.id) ? old.get(reference.id) : reference), ...[...held].filter(id => !output.references.some(reference => reference.id === id)).map(id => old.get(id))];
+  const replay = [...output.replay.map(row => held.has(row.referenceId) ? oldReplay.get(row.referenceId) : row), ...[...held].filter(id => !output.replay.some(row => row.referenceId === id)).map(id => oldReplay.get(id))];
+  return { ...output, references, replay };
 }
 
 // Which parts own a failure? Foundation, a set of batches, or (nothing recognisable) every batch.
@@ -132,8 +152,9 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
     const results = await Promise.allSettled([...redo].map(async index => {
       const part = state.parts[index];
       part.ok = false;
-      part.output = await call('batch', { ...base, part: 'batch', batch: index + 1, of: state.parts.length, last: index === state.parts.length - 1, assigned: part.rows,
-        dataModule: state.foundation, exemplar: index === state.parts.length - 1 ? [...exemplarReferences, ...exemplarWalkthrough] : exemplarReferences, helperSource: helperSource(artifactTopic).join('\n'), previous: part.output, feedback: capFeedback(feedback), round }, part.rows, index === state.parts.length - 1);
+      const before = part.output;
+      part.output = holdUnnamed(await call('batch', { ...base, part: 'batch', batch: index + 1, of: state.parts.length, last: index === state.parts.length - 1, assigned: part.rows,
+        dataModule: state.foundation, exemplar: index === state.parts.length - 1 ? [...exemplarReferences, ...exemplarWalkthrough] : exemplarReferences, helperSource: helperSource(artifactTopic).join('\n'), previous: part.output, feedback: capFeedback(feedback), round }, part.rows, index === state.parts.length - 1), before, feedback);
       // The model returns ids as strings; the checks compare with the prompt's own id (a number in prompts.json).
       part.output.replay = part.output.replay.map(row => ({ ...row, id: part.rows.find(item => String(item.id) === String(row.id)).id }));
       part.ok = true;
