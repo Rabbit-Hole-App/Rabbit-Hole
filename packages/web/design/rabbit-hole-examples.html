@@ -10,7 +10,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./rabbit-hole.css">
-<link rel="stylesheet" href="../src/landing/examples-art.css">
 </head>
 <body class="content-page examples-page">
 <header id="bar" class="on">
@@ -40,6 +39,13 @@
       <h1>Examples</h1>
       <p>See what people build with Rabbit Hole.</p>
     </div>
+    <div class="examples-articles" id="canvases" aria-labelledby="examples-heading">
+      <div class="examples-heading">
+        <h2 id="examples-heading">Canvases to explore.</h2>
+        <span id="examples-count"></span>
+      </div>
+      <ul class="cards examples-grid" id="examples-grid"></ul>
+    </div>
   </section>
 </main>
 <footer data-content-footer>
@@ -50,5 +56,6 @@
 <script type="module" src="../src/landing/analytics.js"></script>
 <script type="module" src="../src/landing/navigation.js"></script>
 <script type="module" src="../src/landing/content-footer.js"></script>
+<script type="module" src="../src/landing/examples.js"></script>
 </body>
 </html>

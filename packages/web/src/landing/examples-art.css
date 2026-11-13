@@ -24,3 +24,31 @@
   .examples-art{top:-125px}
   .examples-art img{object-position:88% center}
 }
+
+/* The canvas cards: the Blog's card pattern (shared .card, .card-hover, .card-action) in the page's brown ink. */
+.examples-page{--ex-ink:#3a2410;--ex-muted:#6b4a1f;--ex-line:#6b4a1f33}
+.examples-articles{max-width:1120px;margin:0 auto;padding:16px 0 80px}
+.examples-heading{display:flex;align-items:baseline;justify-content:space-between;gap:24px;padding-bottom:24px;border-bottom:1px solid var(--ex-line)}
+.examples-page #below .examples-heading h2{font:500 36px/1.15 var(--display);letter-spacing:-.04em;margin:0}
+.examples-heading>span{font:400 12px/1.5 var(--ui);color:var(--ex-muted);white-space:nowrap}
+.examples-page .examples-grid{list-style:none;padding:0;margin-top:28px;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 24px}
+.examples-grid>li,.examples-grid article{min-width:0;height:100%}
+.examples-page .example-card{--card-action-ink:var(--ex-ink);--card-action-line:var(--ex-line);display:flex;flex-direction:column;height:100%;padding:0;overflow:hidden;border-radius:14px;border-color:var(--ex-line);background:#fff;color:var(--ex-ink);text-decoration:none;box-shadow:none;transform:none;transition:transform 200ms var(--ease-out),box-shadow 200ms var(--ease-out)}
+.example-canvas{aspect-ratio:1.5;overflow:hidden;background:#fbf6ec;border-bottom:1px solid var(--ex-line)}
+.example-canvas img{display:block;width:100%;height:100%;object-fit:cover;object-position:top left;transform-origin:top left;transition:transform 400ms var(--ease-out)}
+.example-copy{display:flex;flex-direction:column;flex:1;padding:22px 24px 20px}
+.examples-page .example-card h3{font:500 25px/1.15 var(--display);letter-spacing:-.04em;margin:0 0 10px;text-wrap:pretty}
+.examples-page .example-card p{font:400 14px/1.65 var(--ui);color:var(--ex-muted);margin:0 0 24px}
+.example-meta{display:flex;align-items:center;gap:12px;margin-top:auto;padding-top:16px;border-top:1px solid var(--ex-line);font:500 11px/1.4 var(--ui);color:var(--ex-muted)}
+.example-meta .card-action{margin-left:auto;color:var(--ex-ink)}
+.examples-page .example-card:focus-visible{outline:2px solid var(--ex-ink);outline-offset:5px}
+@media(hover:hover) and (pointer:fine){
+  .examples-page .example-card:hover{transform:translateY(-3px);box-shadow:0 14px 28px -18px #6b4a1f80}
+  .examples-page .example-card:hover .example-canvas img{transform:scale(1.04)}
+}
+@media(max-width:900px){.examples-page .examples-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.examples-page .examples-grid{grid-template-columns:1fr}.examples-page #below .examples-heading h2{font-size:30px}}
+@media(prefers-reduced-motion:reduce){
+  .examples-page .example-card,.example-canvas img{transition:none}
+  .examples-page .example-card:hover{transform:none}.examples-page .example-card:hover .example-canvas img{transform:none}
+}
