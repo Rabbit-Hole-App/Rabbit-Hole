@@ -25,7 +25,7 @@ export const ticksTo = max => { const step = [0.1, 0.2, 0.5, 1, 2, 5, 10].find(s
 // Geometry: a 892 x 358 frame, two 407 px lanes, 105 px per metre unless the axis (the highest rise over the input domain plus 5%, rounded up to 0.1 m) needs less.
 export const geometry = range => {
   const max = ceilTo(range.rise * 1.05, 0.1);
-  return { width: 892, height: 358, scale: Math.min(105, 231 / max), axisMax: max, ticks: ticksTo(max) };
+  return { width: 892, height: 358, scale: Math.min(105, Math.round(231 / max * 1e6) / 1e6), axisMax: max, ticks: ticksTo(max) };
 };
 
 export function source(ctx) {

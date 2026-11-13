@@ -20,7 +20,7 @@ export const words = Object.freeze({
 });
 
 // Geometry: a 892 x 388 frame, one lane across it, 200 px per metre unless the plan's highest rise needs less (ctx.range.rise is the largest height above launch over the input domain).
-export const geometry = range => ({ width: 892, height: 388, scale: Math.min(200, 256 / range.rise) });
+export const geometry = range => ({ width: 892, height: 388, scale: Math.min(200, Math.round(256 / range.rise * 1e6) / 1e6) });
 
 export function source(ctx) {
   const { slots, geometry: geo } = ctx;

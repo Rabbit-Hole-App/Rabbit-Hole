@@ -22,7 +22,7 @@ const ceilTo = (value, step) => Number((Math.ceil(value / step - 1e-9) * step).t
 // 0.2 s, its value axis to the plotted quantity's largest size plus 10% rounded up to 0.5 (ctx.range: rise, end, plotted).
 export const geometry = range => {
   const max = ceilTo(range.rise * 1.05, 0.1);
-  return { width: 892, height: 358, scale: Math.min(105, 231 / max), axisMax: max, ticks: ticksTo(max), timeMax: ceilTo(range.end, 0.2), valueMax: ceilTo(range.plotted * 1.1, 0.5) };
+  return { width: 892, height: 358, scale: Math.min(105, Math.round(231 / max * 1e6) / 1e6), axisMax: max, ticks: ticksTo(max), timeMax: ceilTo(range.end, 0.2), valueMax: ceilTo(range.plotted * 1.1, 0.5) };
 };
 
 export function source(ctx) {
