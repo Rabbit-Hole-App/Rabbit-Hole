@@ -218,3 +218,13 @@ test('R2 drift pin: interact-style.js and the interact branches of AnimatedScene
   assert.equal(interactShapeStyle('neutral').fill, SURFACE); assert.equal(interactStrokeColor('input'), INK); assert.equal(interactStrokeColor('input', null, { chosen: true }), PATH);
   assert.equal(INTERACT_FONT, TEACHING_FONT);
 });
+
+test('step 7 chrome, pinned: a composed card is drawn inside ExplanationBody (the written card\'s Kicker header, px-4 frame and mt-2 section gap), its description is the 14 px muted body style and its readouts are tabular numbers', () => {
+  const body = read('./LearningBlocks.jsx'), at = body.indexOf('<div className="flex min-h-0 flex-1 flex-col px-4 pb-3">');
+  assert.ok(at > 0, 'the ExplanationBody container');
+  const after = body.slice(at, at + 4000);
+  assert.match(after, /<Kicker block=\{block\}>[\s\S]*'Explanation'/); assert.match(after, /className="mt-2 flex min-h-0 flex-1 flex-col"/);
+  assert.ok(after.indexOf('<InteractCardContent') > after.indexOf('<Kicker block={block}>'), 'the composed card sits under the shared Kicker');
+  assert.match(read('./interact-description-fit.js'), /className: 'shrink-0 text-sm leading-snug text-ink-2'/);
+  assert.match(read('./explain-program/ProgramScene.jsx'), /data-input-readout=\{input\.id\} className="text-xs tabular-nums text-ink-2"/);
+});
