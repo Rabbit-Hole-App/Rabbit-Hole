@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "cycle",
+    "title": "Repeat until the stopping test passes",
+    "steps": [
+      "Compute $\\hat y=wx+b$",
+      "Compute $J$ from squared residuals",
+      "Compute $\\partial_w J$ and $\\partial_b J$",
+      "Update $w\\leftarrow w-\\alpha\\partial_w J$ and $b\\leftarrow b-\\alpha\\partial_b J$",
+      "Check stopping tolerance"
+    ],
+    "caption": "Illustrative loop. $J=\\frac{1}{n}\\sum_i(\\hat y_i-y_i)^2$; exact toy minimum $J=0.48$. Exit when the stopping test passes; otherwise repeat."
+  }
+}

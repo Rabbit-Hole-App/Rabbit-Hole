@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Slope and intercept",
+    "x": {
+      "label": "Input $x$",
+      "min": 0,
+      "max": 6
+    },
+    "y": {
+      "label": "Target $y$",
+      "min": 0,
+      "max": 6
+    },
+    "series": [
+      {
+        "label": "Toy observations",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "y": [
+            2,
+            4,
+            5,
+            4,
+            5
+          ]
+        }
+      },
+      {
+        "label": "Fitted line",
+        "kind": "line",
+        "samples": {
+          "x": [
+            0,
+            6
+          ],
+          "y": [
+            2.2,
+            5.8
+          ]
+        }
+      },
+      {
+        "label": "Slope triangle",
+        "kind": "line",
+        "samples": {
+          "x": [
+            3,
+            4,
+            4
+          ],
+          "y": [
+            4,
+            4,
+            4.6
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "label": "$b=2.2$",
+        "x": 0,
+        "y": 2.2
+      }
+    ],
+    "caption": "Rise $0.6$ for run $1$; $\\hat y(5)=0.6\\times 5+2.2=5.2$."
+  }
+}

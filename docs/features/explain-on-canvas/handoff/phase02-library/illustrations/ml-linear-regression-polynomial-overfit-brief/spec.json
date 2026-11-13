@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "title": "Training fit is not generalization",
+    "columns": [
+      {
+        "heading": "Straight line",
+        "items": [
+          "Leaves some training error"
+        ]
+      },
+      {
+        "heading": "Degree 4 interpolant",
+        "items": [
+          "Matches every training point"
+        ]
+      }
+    ],
+    "caption": "Illustrative extrapolation: matching training points does not guarantee good predictions."
+  }
+}

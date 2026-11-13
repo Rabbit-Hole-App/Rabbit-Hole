@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Ridge shrinks the weight",
+    "x": {
+      "label": "Penalty",
+      "min": 0,
+      "max": 4
+    },
+    "y": {
+      "label": "Weight",
+      "min": 0,
+      "max": 0.6
+    },
+    "series": [
+      {
+        "label": "Ridge solutions",
+        "kind": "line",
+        "samples": {
+          "x": [
+            0,
+            1,
+            2,
+            4
+          ],
+          "y": [
+            0.6,
+            0.4,
+            0.3,
+            0.2
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "axis": "y",
+        "value": 0,
+        "label": "Zero limit"
+      }
+    ],
+    "caption": "$w=1.2/(2+λ)$. At $λ=1$, $w=0.4$. The intercept is unpenalized."
+  }
+}

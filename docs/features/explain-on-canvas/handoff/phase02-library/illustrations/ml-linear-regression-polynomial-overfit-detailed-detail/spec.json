@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "New-target squared errors",
+    "unit": "$y^2$",
+    "bars": [
+      {
+        "label": "Line",
+        "value": 0
+      },
+      {
+        "label": "Interpolant",
+        "value": 125.44
+      }
+    ],
+    "caption": "Illustrative target. $(17-5.8)^2=125.44$."
+  }
+}

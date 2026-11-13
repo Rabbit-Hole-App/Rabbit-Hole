@@ -1446,6 +1446,186 @@
       "width": 720,
       "height": 299
     },
+    "ml-linear-regression-cost-bowl/320": {
+      "sha256": "c923c3a4a23c588258920190011c628c5e4283fd6369b9fa9fbbf0cd7017cbae",
+      "width": 420,
+      "height": 644
+    },
+    "ml-linear-regression-cost-bowl/408": {
+      "sha256": "c923c3a4a23c588258920190011c628c5e4283fd6369b9fa9fbbf0cd7017cbae",
+      "width": 420,
+      "height": 644
+    },
+    "ml-linear-regression-cost-bowl/720": {
+      "sha256": "2850b5ca66738016c61b69650f0f5f0d1327ab66c763d6f21ef3697d4008f205",
+      "width": 720,
+      "height": 627
+    },
+    "ml-linear-regression-feature-scaling/320": {
+      "sha256": "fb6dc64f2969cc33951ec91dca2aaf730c99a875c9788cc82017e3ee6ac3f6c0",
+      "width": 420,
+      "height": 524
+    },
+    "ml-linear-regression-feature-scaling/408": {
+      "sha256": "fb6dc64f2969cc33951ec91dca2aaf730c99a875c9788cc82017e3ee6ac3f6c0",
+      "width": 420,
+      "height": 524
+    },
+    "ml-linear-regression-feature-scaling/720": {
+      "sha256": "64498b0d461323077728d45ebb105f73b68111b2a88b443d5d28faa52e5b7fa5",
+      "width": 720,
+      "height": 507
+    },
+    "ml-linear-regression-first-step/320": {
+      "sha256": "e28e71c587d2d1f87fe8fd90a54b669d1f885d1db048138ba79686e4c0e4b41d",
+      "width": 320,
+      "height": 367
+    },
+    "ml-linear-regression-first-step/408": {
+      "sha256": "88bc7ca2267a4d39ee6160f68da21d722d69bb7bd5b536aa9c03a8f8974ea888",
+      "width": 408,
+      "height": 328
+    },
+    "ml-linear-regression-first-step/720": {
+      "sha256": "6f449813deace0be6f6b61e7870408c59555ffedf30a1ebb5cc1b047a355d553",
+      "width": 720,
+      "height": 311
+    },
+    "ml-linear-regression-held-out-row/320": {
+      "sha256": "05568027117a33bb84c5cd28b6e1ffabba7a8fd0c08e21b830c290df796aace9",
+      "width": 320,
+      "height": 521
+    },
+    "ml-linear-regression-held-out-row/408": {
+      "sha256": "824dca494ab1928da03ec5dd000c807601d36b7faaa230bea8b79a936b719787",
+      "width": 408,
+      "height": 415
+    },
+    "ml-linear-regression-held-out-row/720": {
+      "sha256": "b11e8fb154cac5f0eb691aec8fa3981d4cf690939551f827056db45d72af8719",
+      "width": 720,
+      "height": 356
+    },
+    "ml-linear-regression-learning-rate/320": {
+      "sha256": "87180dd14092da86582886287b65a5a3ee026802947b2009111b9b44a466a208",
+      "width": 420,
+      "height": 593
+    },
+    "ml-linear-regression-learning-rate/408": {
+      "sha256": "87180dd14092da86582886287b65a5a3ee026802947b2009111b9b44a466a208",
+      "width": 420,
+      "height": 593
+    },
+    "ml-linear-regression-learning-rate/720": {
+      "sha256": "6c8933decf2efa4119ff8aadf12e7ced5b245f328c82621c04321a71f0ada1f5",
+      "width": 720,
+      "height": 576
+    },
+    "ml-linear-regression-normal-equation/320": {
+      "sha256": "cbfc6aa6047c45135a7b7284f111104efead778613e1344a129274b254fe82ad",
+      "width": 320,
+      "height": 481
+    },
+    "ml-linear-regression-normal-equation/408": {
+      "sha256": "d2dfe44acd6f2f845807f32a52f5155616dbcfa7c796c3107b0cd014d8a45f7a",
+      "width": 408,
+      "height": 372
+    },
+    "ml-linear-regression-normal-equation/720": {
+      "sha256": "d836395aa8d54930fdb9e82cf574226392a0186906c6187eea1bd9ebf035ec87",
+      "width": 720,
+      "height": 303
+    },
+    "ml-linear-regression-polynomial-overfit/320": {
+      "sha256": "8e1f079bd42272e9e2616cb3963c9ea46eaf4258940d0f44807bc44572c12a93",
+      "width": 420,
+      "height": 563
+    },
+    "ml-linear-regression-polynomial-overfit/408": {
+      "sha256": "8e1f079bd42272e9e2616cb3963c9ea46eaf4258940d0f44807bc44572c12a93",
+      "width": 420,
+      "height": 563
+    },
+    "ml-linear-regression-polynomial-overfit/720": {
+      "sha256": "dabc7ca7591de7c9a4e89aff2fa2e3647dd3510aa045e8b4813400aa882095a4",
+      "width": 720,
+      "height": 563
+    },
+    "ml-linear-regression-r-squared/320": {
+      "sha256": "6fa69440456d85056e3442bbebccf0118ce1770d775dccdb57df5f901b264a14",
+      "width": 320,
+      "height": 263
+    },
+    "ml-linear-regression-r-squared/408": {
+      "sha256": "b4a7d68542563d36ffc68ac16e14a8754879c27eb457595e94d4766d2face75b",
+      "width": 408,
+      "height": 263
+    },
+    "ml-linear-regression-r-squared/720": {
+      "sha256": "add026806dd8084b71092b609f716de0112730529addda022c58ae21f5cdaa55",
+      "width": 720,
+      "height": 224
+    },
+    "ml-linear-regression-residual-mse/320": {
+      "sha256": "0452b25cd3aca2e11c0ff47d9ffeac79c0e8b36b282662ba184a92c734078aaf",
+      "width": 420,
+      "height": 620
+    },
+    "ml-linear-regression-residual-mse/408": {
+      "sha256": "0452b25cd3aca2e11c0ff47d9ffeac79c0e8b36b282662ba184a92c734078aaf",
+      "width": 420,
+      "height": 620
+    },
+    "ml-linear-regression-residual-mse/720": {
+      "sha256": "8e6e3886577bacd0da02b3f38c3e1b4b598fcbeaadfecb3c50cbd38403a073dd",
+      "width": 720,
+      "height": 603
+    },
+    "ml-linear-regression-ridge-shrinkage/320": {
+      "sha256": "0bc38581f781ea4856fa954e757cc658743217015c36d65a1b27c5ca44ea9a55",
+      "width": 420,
+      "height": 524
+    },
+    "ml-linear-regression-ridge-shrinkage/408": {
+      "sha256": "0bc38581f781ea4856fa954e757cc658743217015c36d65a1b27c5ca44ea9a55",
+      "width": 420,
+      "height": 524
+    },
+    "ml-linear-regression-ridge-shrinkage/720": {
+      "sha256": "7ecde693d2fb262be3f7d04fd6298aba9b8765e3e3ee2b0706bdf3da15a42357",
+      "width": 720,
+      "height": 507
+    },
+    "ml-linear-regression-slope-intercept/320": {
+      "sha256": "20e9311e600dcfa4293c22465a93091f3ea975c2e944ca5d3f24a572a1ec9082",
+      "width": 420,
+      "height": 580
+    },
+    "ml-linear-regression-slope-intercept/408": {
+      "sha256": "20e9311e600dcfa4293c22465a93091f3ea975c2e944ca5d3f24a572a1ec9082",
+      "width": 420,
+      "height": 580
+    },
+    "ml-linear-regression-slope-intercept/720": {
+      "sha256": "d8fb2a16a25a54fe46e4685822178136cc1e81ac62a47ab83c3874e7fb0c31eb",
+      "width": 720,
+      "height": 563
+    },
+    "ml-linear-regression-training-loop/320": {
+      "sha256": "9766346240d4186fad1d55a3003a0d6014dde288d7833580bc5c711180aa4e27",
+      "width": 320,
+      "height": 467
+    },
+    "ml-linear-regression-training-loop/408": {
+      "sha256": "90f6daed2c48b494c5ff9e383cddc11ca64ca4c6154e10aad40b49765d19ef70",
+      "width": 408,
+      "height": 430
+    },
+    "ml-linear-regression-training-loop/720": {
+      "sha256": "a5eab290214a00a7af9c84bf00373d6051fb5d3ba6790dd6f0d6e09eff4fb5a6",
+      "width": 720,
+      "height": 391
+    },
     "ml-local-outlier-factor/320": {
       "sha256": "8b755c039ddc59b54f5d28e4276dc8e119f67ce128bb27f1002d859e04081a35",
       "width": 420,

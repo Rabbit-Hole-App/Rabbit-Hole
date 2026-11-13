@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "title": "Direct solve or iterative updates?",
+    "columns": [
+      {
+        "heading": "Normal equation",
+        "items": [
+          "Use a direct solve when the feature matrix is manageable."
+        ]
+      },
+      {
+        "heading": "Gradient descent",
+        "items": [
+          "Use iterative updates for very large or streaming data."
+        ]
+      }
+    ],
+    "caption": "Choose by feature count, memory and data access, not by an assumption that iterative fitting is a different regression model."
+  }
+}
