@@ -11,10 +11,13 @@ import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
 import { InteractModelError, schemaProblems } from './interact-model-adapters.js';
 import { resolveInteractProfile } from './interact-models.js';
 
-export const FIXTURE_IDS = Object.freeze(['toss-drop-standard', 'toss-drop-standard-controls', 'pendulum-period']);
+// toss-drop-overview-legacy is the old static Moment Overview (the plan overviewProgram), retired from the pin family on 2026-11-13 (interact-design-pin.js pins the Interact
+// Overview, toss-overview, for brief); it keeps its scripted build and oracle under this id so its tests still run.
+export const LEGACY_OVERVIEW = 'toss-drop-overview-legacy';
+export const FIXTURE_IDS = Object.freeze(['toss-drop-standard', 'toss-drop-standard-controls', 'pendulum-period', LEGACY_OVERVIEW]);
 // The canonical scene a Depth builds: the fixtures and scripts keep the scene names (overview, standard, deep); the Depth values are brief, balanced, detailed.
 const SCENE_OF = Object.freeze({ brief: 'overview', balanced: 'standard', detailed: 'deep' });
-const FIXTURE_DEPTHS = Object.freeze({ 'toss-drop-standard': ['brief', 'balanced', 'detailed'], 'toss-drop-standard-controls': ['balanced'], 'pendulum-period': ['balanced'] });
+const FIXTURE_DEPTHS = Object.freeze({ 'toss-drop-standard': ['balanced', 'detailed'], 'toss-drop-standard-controls': ['balanced'], 'pendulum-period': ['balanced'], [LEGACY_OVERVIEW]: ['brief'] });
 
 // script: { <role>: ({ input, images, system, schema, config, n }) => output }, keyed by the logical role. The adapter validates every reply
 // against the schema the role was asked for, exactly as a provider adapter does, and records each call (inputs included) in .log.
@@ -75,13 +78,13 @@ export function fixtureDesignRoles(fixtureId) {
     async design({ request }) {
       if (!FIXTURE_DEPTHS[fixtureId]?.includes(depthOf(request.depth))) throw new Error(`fixture ${fixtureId} has depths ${FIXTURE_DEPTHS[fixtureId]?.join(', ')} only`);
       const { plans } = await interactFixtures();
-      return { plan: fixtureId === 'toss-drop-standard-controls' ? plans.standardControls : fixtureId === 'pendulum-period' ? plans.pendulum : depthOf(request.depth) === 'brief' ? plans.overviewProgram : plans[SCENE_OF[depthOf(request.depth)]], reviews: [{ source: 'fixture', verdict: 'pass', note: 'canonical plan; no design model was called' }], revisions: [], calls: [] };
+      return { plan: fixtureId === 'toss-drop-standard-controls' ? plans.standardControls : fixtureId === 'pendulum-period' ? plans.pendulum : fixtureId === LEGACY_OVERVIEW ? plans.overviewProgram : plans[SCENE_OF[depthOf(request.depth)]], reviews: [{ source: 'fixture', verdict: 'pass', note: 'canonical plan; no design model was called' }], revisions: [], calls: [] };
     },
   };
 }
 
 // Everything a fixture run needs, by fixture id: the runner ctx fields that are not the profile.
-export async function fixtureRun(fixtureId, depth = 'balanced') {
+export async function fixtureRun(fixtureId, depth = fixtureId === LEGACY_OVERVIEW ? 'brief' : 'balanced') {
   depth = depthOf(depth);
   if (!FIXTURE_IDS.includes(fixtureId)) throw new Error(`unknown fixture "${fixtureId}"; available: ${FIXTURE_IDS.join(', ')}`);
   if (fixtureId === 'toss-drop-standard-controls') throw new Error('fixture toss-drop-standard-controls is a design-pin plan only (INTERACT_DESIGN_FIXTURE): it has no scripted build, the real builder builds it');
