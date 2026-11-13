@@ -7,7 +7,7 @@ const WEB = `${REPO}/packages/web`;
 const NAME = 'rabbit-hole-web-dev-interact';
 const step = process.argv[2];
 // The clone's vars (owner 2026-11-13: the three Depth cards on the pin family). Override any with KEY=VALUE after the step, e.g. `deploy INTERACT_RUN=browser INTERACT_BUILD_PROFILE=google-low`.
-const VARS = { INTERACT_SCENE_PLAN_ENABLED: 'true', USAGE_PLATFORM_DAY_USD: '20', INTERACT_DESCRIPTION_FIT: 'estimate', INTERACT_DESIGN_FIXTURE: 'toss', INTERACT_RUN: 'headless', INTERACT_REVIEW: 'shadow', INTERACT_BUILD_PROFILE: 'opus-baseline', EXPLAIN_DIAGNOSTICS: 'true' };
+const VARS = { INTERACT_SCENE_PLAN_ENABLED: 'true', USAGE_PLATFORM_DAY_USD: '20', INTERACT_DESCRIPTION_FIT: 'estimate', INTERACT_DESIGN_FIXTURE: 'toss', INTERACT_RUN: 'headless', INTERACT_REVIEW: 'shadow', INTERACT_BUILD_PROFILE: 'opus-baseline', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_SEEK: 'on' };
 for (const arg of process.argv.slice(3)) { const m = /^([A-Z0-9_]+)=(.*)$/.exec(arg); if (m) VARS[m[1]] = m[2]; }
 const varArgs = Object.entries(VARS).flatMap(([k, v]) => ['--var', `${k}:${v}`]);
 

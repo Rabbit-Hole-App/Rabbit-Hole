@@ -15,7 +15,6 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..
 const BASE = 'https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev', DEV_CP = 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
 const EMAIL = 'owner-interact-preview@example.com', UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };
 const PROMPT = '/interactive At the highest point of a vertical throw, is acceleration zero because velocity is zero?';
-const NAMES = { brief: /Brief/, balanced: /Balanced/, detailed: /Detailed/ };
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const env = readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8');
 const secret = (env.match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1] || '').trim().replace(/^['"]|['"]$/g, '');
@@ -45,7 +44,7 @@ await composer.waitFor({ timeout: 90000 });
 await page.waitForTimeout(2000);
 // The Depth menu: open it, choose the depth by its name.
 const current = await page.locator('[data-depth-menu] [data-depth]').first().getAttribute('data-depth').catch(() => null);
-if (current !== DEPTH) { await page.locator('[data-depth-menu] [data-depth]').first().click(); await page.getByRole('menuitemradio', { name: NAMES[DEPTH] }).click(); }
+if (current !== DEPTH) { await page.locator('[data-depth-menu] [data-depth]').first().click(); await page.locator(`[data-depth-option="${DEPTH}"]`).click(); }
 log('depth now', await page.locator('[data-depth-menu] [data-depth]').first().getAttribute('data-depth').catch(() => null));
 const box = page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 const jobsNow = async () => { const l = await api('GET', `/api/learn/explain/jobs?board=${boardId}`); return (l.data?.jobs || []).length; };
