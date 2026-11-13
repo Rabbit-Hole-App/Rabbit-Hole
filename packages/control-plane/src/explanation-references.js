@@ -126,7 +126,9 @@ export function selectWithSteer({ prompt = '', context = '', requiredKinds = [],
     if (picked.length === MAX_REFERENCES) break;
   }
   const steer = topical && picked[0]?.id === topical.ref.id ? { kind: (singleByPanel.get(topical.ref.id) ?? topical.ref).spec.diagram.kind, source: 'reference', id: topical.ref.id, referenceKind: topical.ref.spec.diagram.kind, score: topical.score } : null;
-  return { references: picked.length || !shapeFallback ? picked : shapeExamples(prompt, required), steer };
+  // Release 129 (reviewer 2026-11-13): a steered request sends its steered reference alone (the planner's shape example comes with it in learn-artifact.js), never a second worked reference.
+  const sent = steer ? picked.slice(0, 1) : picked;
+  return { references: sent.length || !shapeFallback ? sent : shapeExamples(prompt, required), steer };
 }
 
 // Owner 2026-11-08 (Codex set 3): a selected two-panel reference (comparison panels, visual transformation) is sent as its one-diagram `-single` variant (about half the
