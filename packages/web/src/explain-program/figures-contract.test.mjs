@@ -40,11 +40,14 @@ test('axis: strict keys, min below max, ticks inside, bounds with its tick label
   assert.match(issue(axis({ orientation: 'z' })), /orientation/);
   assert.match(issue(axis({ label: '' })), /label/);
   assert.match(issue(axis({ href: 'https://example.com' })), /unrecognized|href/i);
-  assert.match(issue(axis({ y: 420 - FIGURE_BAND.x + 1 })), /stay inside/, 'no room below the line for ticks and title');
-  assert.equal(ok(axis({ y: 420 - FIGURE_BAND.x })).ok, true);
-  assert.match(issue(axis({ x: 640 - 399 })), /stay inside/, 'runs past the right edge');
-  assert.match(issue(axis({ orientation: 'y', x: FIGURE_BAND.y - 1, y: 300, length: 200 })), /stay inside/, 'no room left of a y axis');
-  assert.match(issue(axis({ orientation: 'y', x: 80, y: 300, length: 300 - FIGURE_BAND.titleRoom + 1 })), /stay inside/, 'its top end leaves no room for the title');
+  // An axis that leaves the frame is FITTED (moved, then shortened: frame-fit.js), never refused (owner 2026-11-13); figureProblem still judges whatever the fit cannot save.
+  const fitted = object => { const result = ok(object); assert.equal(result.ok, true, result.issue); assert.deepEqual(result.fitted, ['fitted:axis']); return result.value.objects[0]; };
+  assert.equal(fitted(axis({ y: 420 - FIGURE_BAND.x + 1 })).y, 420 - FIGURE_BAND.x, 'moved up to keep room below the line for ticks and title');
+  assert.equal(ok(axis({ y: 420 - FIGURE_BAND.x })).fitted, undefined);
+  assert.equal(fitted(axis({ x: 640 - 399 })).x, 640 - 400, 'moved left off the right edge');
+  assert.equal(fitted(axis({ orientation: 'y', x: FIGURE_BAND.y - 1, y: 300, length: 200 })).x, FIGURE_BAND.y, 'moved right: room left of a y axis');
+  assert.equal(fitted(axis({ orientation: 'y', x: 80, y: 300, length: 300 - FIGURE_BAND.titleRoom + 1 })).y, 300 - FIGURE_BAND.titleRoom + 1 + FIGURE_BAND.titleRoom, 'its top end keeps room for the title');
+  assert.equal(ok(axis({ orientation: 'y', x: 80, y: 300, length: 300 - FIGURE_BAND.titleRoom })).ok, true);
   assert.equal(ok(axis({ orientation: 'y', x: 80, y: 300, length: 300 - FIGURE_BAND.titleRoom })).ok, true);
 });
 
@@ -60,7 +63,9 @@ test('plot: rectangle inside the frame, 1 to 3 series, 24 points, points inside 
   assert.match(issue(plot({ series: points(FIGURE_LIMITS.points + 1) })), /points/);
   assert.match(issue(plot({ series: [{ label: 'Ball', kind: 'line', points: [{ x: 0, y: 0 }, { x: 3, y: 1 }] }] })), /point outside the plot axes/);
   assert.match(issue(plot({ series: [{ label: 'Ball', kind: 'line', points: [{ x: 0, y: -1 }, { x: 1, y: 1 }] }] })), /point outside the plot axes/);
-  assert.match(issue(plot({ series: [{ label: 'Ball', kind: 'line', points: [{ x: 0, y: 0 }] }] })), /at least two points/);
+  const single = ok(plot({ series: [{ label: 'Ball', kind: 'line', points: [{ x: 0, y: 0 }] }] })); // the current-point dot, not a refusal (frame-fit.js)
+  assert.equal(single.ok, true, single.issue);
+  assert.deepEqual([single.value.objects[0].series[0].kind, single.fitted], ['scatter', ['fitted:single-point']]);
   assert.match(issue(plot({ axes: { x: { label: 'T', min: 2, max: 2 }, y: { label: 'H', min: 0, max: 1 } } })), /min (must be )?below max/);
   assert.match(issue(plot({ series: [{ label: 'Ball', kind: 'curve', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] }] })), /kind/);
 });

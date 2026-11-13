@@ -11,7 +11,7 @@
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { CAPTURE_BUDGET, evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
 import { createSnapshotResolver, resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
-import { frameOverlaps, traceFrame, traceObjects } from '../../web/src/explain-program/frame-overlap.js';
+import { fitGuestLabels, frameOverlaps, traceFrame, traceObjects } from '../../web/src/explain-program/frame-overlap.js';
 import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
 import { parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { REVIEW_LIMITS, ReviewError, reviewCaptures, reviewProblems } from './explain-review.js';
@@ -240,6 +240,7 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
       if (a?.supports?.[s.id]?.trace && z?.supports?.[s.id]?.trace && !differs(a.supports[s.id].trace.quantities, z.supports[s.id].trace.quantities)) bad('binding_no_effect', `supportingVisuals.${s.id}.parameterBindings`, `support panel "${s.id}" does not change when "${b.fromInputId}" moves`);
     }
   }
+  coverage.fitted = [...new Set(captures.flatMap(c => c.trace?.fitted ?? []))].sort(); // the fits that were applied to the frames (frame-fit.js, frame-overlap.js fitGuestLabels): notes, never problems
   coverage.descriptionNumbers = { unsupported: descriptionNumbers(plan) };
   coverage.proseOnly = plan.scene.checkpoints.filter(cp => !(oracle?.expect ?? []).some(e => e.case === `cp-${cp.id}`)).map(cp => cp.id); // expected text only: the reviewer judges these
   return { problems, coverage };
@@ -483,10 +484,10 @@ export function headlessCaptureCard(_env, { limits } = {}) {
       const program = artifact.program, request = { requestId: '1', inputs, time, seed: 0, state: null };
       const out = runProgram(engine, { source: program.source, request, sdkVersion: program.sdkVersion }, limits ?? LIMITS);
       if (!out.ok) return { error: { code: out.code, diagnostic: out.detail } };
-      const parsed = parseGuestResult(out.value, program.manifest, program.sdkVersion);
+      const parsed = fitGuestLabels(parseGuestResult(out.value, program.manifest, program.sdkVersion), program.sdkVersion);
       if (!parsed.ok) return { error: { code: parsed.error.code, diagnostic: parsed.issue } };
       const { frame, quantities } = parsed.value;
-      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), objects: traceObjects(frame.objects), frame: traceFrame(frame), frameHash: await sha256Hex(canonicalJson(frame.objects)), inputs, time };
+      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), objects: traceObjects(frame.objects), frame: traceFrame(frame), frameHash: await sha256Hex(canonicalJson(frame.objects)), ...(parsed.fitted?.length ? { fitted: parsed.fitted } : {}), inputs, time };
     };
     const supportOf = id => artifacts.supporting.find(s => s.id === id).artifact;
     const resolver = createSnapshotResolver({ evaluate: ({ panelId, inputs, time }) => run(supportOf(panelId), resolveInputs(supportOf(panelId).program.manifest, inputs), time) });

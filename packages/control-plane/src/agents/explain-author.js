@@ -230,7 +230,7 @@ export function programContext(limits, capabilities, { stateful = false, repair 
         groundMark: 'sdk.groundMark(id, x, y, w, label?) is a horizontal mark centred on x with its label below it.',
       } } : {}), ...(!repair && capabilities?.includes(FIGURES_CAPABILITY) ? { figures: { // authoring only, like the other extension docs
         usage: 'Declare figures in manifest.capabilities when using these helpers. Each returns ONE frame object (not an array) in frame coordinates (y down): put it in frame.objects. The host draws the ticks, titles and gridlines.',
-        axis: 'sdk.axis(id, {x,y,length,orientation:"x"|"y",min,max,ticks?,label,unit?,role?}): an x axis runs right from (x,y), a y axis runs UP from (x,y); keep 52 px free below an x axis, and 60 px to the left of a y axis and 28 px above it, for tick labels and its title.',
+        axis: 'sdk.axis(id, {x,y,length,orientation:"x"|"y",min,max,ticks?,label,unit?,role?}): ticks is a list of numbers between min and max (at most 12), not a count; an x axis runs right from (x,y), a y axis runs UP from (x,y); keep 52 px free below an x axis, and 60 px to the left of a y axis and 28 px above it, for tick labels and its title.',
         plot: 'sdk.plot(id, {x,y,w,h,axes:{x:{label,min,max,unit?},y:{...}},series:[{label,kind:"line"|"scatter"|"step",points:[{x,y}]}]}) at least 200 x 160, at most 3 series of 24 points, every point inside the axes. (Without axes it is the earlier sdk.plot.)',
         diagram: 'sdk.diagram(spec, {x,y,w,id?}) draws a written diagram (spec is the diagram JSON) at width w; it is scaled down to fit the room below y.',
         callout: 'sdk.callout(x,y,lines,{id?,role?}): 1 to 4 text lines in stacked boxes beside an object; spread the result into frame.objects.',

@@ -197,17 +197,13 @@ test('sdk.vector under sdk-8 puts its label beside the middle of the arrow, 10 p
   assert.deepEqual(layoutProblems({ objects: sdk.vector('h', { x: 100, y: 200 }, { dx: 80, dy: 0 }, { label: 'Gravity' }), width: 640, height: 420 }), []);
 });
 
-// ---- bodies (interact scene look): the renderer colours a body by order, so an sdk-8 frame cannot give one the olive (observed) role ----------------------------------------------------
-test('an sdk-8 frame is refused when a body (a circle of 12 px or more) has role observed, naming the circle; a small mark, other roles and older SDKs are untouched', () => {
+// ---- bodies (interact scene look): the renderer colours a body by order, so a role on a body is ignored (owner 2026-11-13 14:20: never refused; it was refused in aff5cf4f8) ----------------
+test('a body with role observed is NOT refused: the frame parses, the role is simply not what colours the body (the 2026-11-13 google-low f1 run: circle "ball.toss" with role "observed")', () => {
   const manifest = { ...MANIFEST, capabilities: ['time_playback', 'figures'] };
   const parse = (objects, version = 'sdk-8') => parseGuestResult({ frame: { width: 640, height: 420, objects, readouts: [] }, quantities: {} }, manifest, version);
-  const refused = parse([sdk.circle('ball', 100, 100, 24, { role: 'observed' })]);
-  assert.equal(refused.ok, false);
-  assert.match(refused.issue, /circle "ball" is a body with role "observed" \(olive.*give the body no role/);
-  assert.equal(parse([sdk.circle('dot', 100, 100, 8, { role: 'observed' })]).ok, true, 'a mark is a measured-data dot, not a body');
-  assert.equal(parse([sdk.circle('ball', 100, 100, 24, { role: 'input' })]).ok, true);
-  assert.equal(parse([sdk.circle('ball', 100, 100, 24)]).ok, true);
-  assert.equal(parse([sdk.circle('ball', 100, 100, 24, { role: 'observed' })], 'sdk-7').ok, true, 'older cards keep their rules');
+  for (const role of ['observed', 'input', undefined]) assert.equal(parse([sdk.circle('ball.toss', 100, 100, 24, role ? { role } : undefined)]).ok, true, String(role));
+  assert.equal(parse([sdk.circle('dot', 100, 100, 8, { role: 'observed' })]).ok, true, 'a mark is a measured-data dot');
+  assert.equal(parse([sdk.circle('ball', 100, 100, 24, { role: 'observed' })], 'sdk-7').ok, true);
 });
 
 // ---- the helpers fit, they never refuse (owner 2026-11-13, the google-low night's failures: sdk.panel "lane too narrow", readout "needs more room for its label", plot "<=24 items") ----
@@ -217,12 +213,13 @@ test('sdk.panel fits a title and a state in a narrow lane: the title keeps its w
   const tight = sdk.panel({ id: 'toss', x: 40, y: 60, w: 150, h: 200, title: 'Toss', state: 'Still for an instant' });   // the night's lane: 150 - 56 - 24 = 70 px of room, 'Still for an instant' needs 216
   assert.deepEqual(tight.map(object => object.id), ['toss', 'toss.title', 'toss.state'], 'still the three objects of a lane');
   assert.equal(tight[1].text, 'Toss');
-  assert.ok(tight[2].text.endsWith('…') && tight[2].text.length < 'Still for an instant'.length, tight[2].text);
+  assert.ok('Still for an instant'.startsWith(tight[2].text) && tight[2].text.length < 'Still for an instant'.length && !tight[2].text.includes('…'), tight[2].text);
+  assert.equal(tight[2].text, 'Still', 'cut at a word boundary, no ellipsis');
   assert.equal(tight[2].y, tight[1].y, 'the heading is still one line');
   const narrow = sdk.panel({ id: 'toss', x: 40, y: 60, w: 100, h: 200, title: 'Toss', state: 'Still for an instant' });   // 100 - 56 - 24 = 20 px: under 60, so the state moves under the title
   assert.equal(narrow[1].x, narrow[2].x, 'the state starts where the title starts');
   assert.ok(narrow[2].y > narrow[1].y && narrow[2].y < 60, 'a second line under the title, still above the lane');
-  assert.ok(narrow[2].text.endsWith('…'), 'shortened to the lane width: 100 px');
+  assert.ok(narrow[2].text.length < 'Still for an instant'.length && !narrow[2].text.includes('…'), 'cut to the lane width: 100 px, no ellipsis');
   assert.doesNotThrow(() => sdk.panel({ x: 0, y: 30, w: 20, h: 100, title: 'A long title here', state: 'Held' }));
 });
 
@@ -230,10 +227,11 @@ test('sdk.readout fits its label to the box and keeps the value whole; only a bo
   const whole = sdk.readout('g', { x: 0, y: 0, w: 300, h: 30, label: 'Gravitational force', value: 9.8, unit: 'N', decimals: 1 });
   assert.equal(whole[0].text, 'Gravitational force: 9.8 N');
   const fitted = sdk.readout('g', { x: 0, y: 0, w: 150, h: 30, label: 'Gravitational force', value: 9.8, unit: 'N', decimals: 1 })[0];   // the night's "readout needs more room for its label"
-  assert.ok(fitted.text.endsWith('…: 9.8 N') && fitted.text.length < whole[0].text.length, fitted.text);
+  assert.ok(fitted.text.endsWith(': 9.8 N') && fitted.text.length < whole[0].text.length && !fitted.text.includes('…'), fitted.text);
+  assert.ok(/^Gravit[a-z]*: 9\.8 N$/.test(fitted.text) && !fitted.text.includes('…'), fitted.text);
   assert.deepEqual([fitted.kind, fitted.id, fitted.w, fitted.role], ['box', 'g', 150, 'output']);
   const tiny = sdk.readout('g', { x: 0, y: 0, w: 40, h: 30, label: 'Gravitational force', value: 9.8, unit: 'N' })[0];
-  assert.ok(tiny.text.endsWith(': 9.80 N'), 'the value is whole even when nothing else fits');
+  assert.equal(tiny.text, '9.80 N', 'the value is whole even when nothing else fits, and there is no ellipsis');
   assert.throws(() => sdk.readout('g', { x: 0, y: 0, w: 150, h: 30, label: 'x', value: Infinity }), /finite value/, 'a bad value is still refused: that is not a fit');
 });
 

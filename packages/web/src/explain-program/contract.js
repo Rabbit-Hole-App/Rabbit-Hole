@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { fitFrame } from './frame-fit.js';
 import { RASTER_LIMITS, rasterProblem } from '../raster-pixels.js';
 import { ROLES } from '../scene-vocab.js';
 import { IMAGE_FIXTURE_IDS } from './sdk-image.js';
@@ -52,7 +53,7 @@ export const FIGURE_KINDS = Object.freeze(['axis', 'plot', 'diagram']);
 // What a figure keeps free beside its line, in frame units, so the frame bounds check is the same number the renderer draws with (FrameFigures.jsx): an x axis keeps
 // BAND.x below it for ticks and its title, a y axis keeps BAND.y to its left and titleRoom above its top end.
 export const FIGURE_BAND = Object.freeze({ x: 52, y: 60, titleRoom: 28 }); // 22 until run 2 (2026-11-13): the y title sat on the top tick label; it now rides 18 px above the axis end
-// A body (a circle of at least this diameter, frame-look.js) is coloured by the renderer, by order; an sdk-8 frame cannot give one the observed (olive) role.
+// A body (a circle of at least this diameter, frame-look.js) is coloured by the renderer, by order, whatever role it carries (a role on a body is ignored, never refused: owner 2026-11-13).
 export const BODY_MIN = 12;
 export const FIGURE_LIMITS = Object.freeze({ series: 3, points: 24, ticks: 12, specBytes: 16 * 1024, plotMin: Object.freeze({ w: 200, h: 160 }) });
 
@@ -253,7 +254,7 @@ const imageCrop = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).m
   .refine(({ x, y, w, h }) => x + w <= 1 && y + h <= 1, 'crop must stay within the source');
 const axisRange = z.object({ label: plain(40), min: finite(1e9), max: finite(1e9), unit: maybePlain(16).optional() }).strict().refine(axis => axis.min < axis.max, { message: 'min must be below max', path: ['max'] });
 const plotPoint = z.object({ x: finite(1e9), y: finite(1e9) }).strict();
-const plotSeries = z.object({ label: plain(40), kind: z.enum(['line', 'scatter', 'step']), points: z.array(plotPoint).min(1).max(FIGURE_LIMITS.points) }).strict()
+const plotSeries = z.object({ label: plain(40), kind: z.enum(['line', 'scatter', 'step']), points: z.array(plotPoint).max(FIGURE_LIMITS.points) }).strict()
   .refine(series => series.kind === 'scatter' || series.points.length >= 2, { message: 'a line or step series needs at least two points', path: ['points'] });
 // The spec is the written card's own diagram JSON: parseTutorDiagram is its validator (a bad spec is invalid_output, never drawn), and it counts as one object.
 const diagramSpec = z.unknown().superRefine((spec, context) => {
@@ -475,15 +476,18 @@ export function parseReduceRequest(raw, manifest) {
 // Output is measured before it is parsed: the canonical serialized byte length of the WHOLE result (frame, quantities, and for
 // a response its id and metrics) must not exceed CONTRACT_LIMITS.maxOutputBytes, the one authoritative output limit. A result
 // that is over, too deep, or not plain JSON is invalid_output; the issue text states the limit and echoes none of the content.
-// The SDK's figure helpers (sdk.panel, sdk.readout, sdk.vector...) return an array of frame objects, so a frame that lists one helper result next to plain objects holds an array where an object belongs
-// (the 2026-11-13 google-low runs: "frame.objects.9: expected object, received array", every run). That is a fit, not a refusal: nested arrays in `objects` are flattened before the strict check.
-const flatObjects = frame => (Array.isArray(frame?.objects) && frame.objects.some(Array.isArray) ? { ...frame, objects: frame.objects.flat(Infinity) } : frame);
+// A frame that is wrong in a way the host can put right is put right before the strict check, and each fit is logged as `fitted:<id>` on the result (frame-fit.js): an array inside `objects` (the
+// SDK's figure helpers return arrays: the 2026-11-13 google-low runs, "frame.objects.9: expected object, received array"), a repeated id, an axis outside the frame, an axis `ticks` count, a line series
+// of under two points (a label over a body is fitted by frame-overlap.js fitGuestLabels). Everything else still goes to the strict check and is refused there.
 function parseOutput(schema, raw) {
-  raw = schema === Frame ? flatObjects(raw) : schema === GuestResult && raw?.frame ? { ...raw, frame: flatObjects(raw.frame) } : raw;
+  const fitted = [];
+  if (schema === Frame) { const fit = fitFrame(raw); raw = fit.frame; fitted.push(...fit.fitted); }
+  else if (schema === GuestResult && raw?.frame) { const fit = fitFrame(raw.frame); raw = fit.fitted.length ? { ...raw, frame: fit.frame } : raw; fitted.push(...fit.fitted); }
   try { canonicalBytes(raw, CONTRACT_LIMITS.maxOutputBytes); } catch {
     return { ok: false, error: new RuntimeError('invalid_output'), issue: `the result is over ${CONTRACT_LIMITS.maxOutputBytes} bytes, nested too deeply, or not plain JSON` };
   }
-  return parseWith(schema, raw, 'invalid_output');
+  const parsed = parseWith(schema, raw, 'invalid_output');
+  return parsed.ok && fitted.length ? { ...parsed, fitted } : parsed;
 }
 export const parseFrame = raw => parseOutput(Frame, raw);
 // With a schema 2 manifest, every frame must also have exactly the declared viewport and draw every declared target under its own id
@@ -503,8 +507,6 @@ export function parseGuestResult(raw, manifest = null, sdkVersion = null) {
   if (objects.some(object => FIGURE_KINDS.includes(object.kind)) && (sdkVersion !== FIGURES_SDK_VERSION || !manifest?.capabilities?.includes(FIGURES_CAPABILITY))) {
     return invalid(`frame: axis, plot and diagram objects require the ${FIGURES_CAPABILITY} capability and ${FIGURES_SDK_VERSION}`);
   }
-  const olive = sdkVersion === FIGURES_SDK_VERSION ? objects.find(object => object.kind === 'circle' && object.w >= BODY_MIN && object.role === 'observed') : null;
-  if (olive) return invalid(`frame: circle "${olive.id}" is a body with role "observed" (olive, the colour of measured data); the renderer colours bodies by order (the first process blue, the second decision gold), so give the body no role`);
   for (const readout of result.value.frame.readouts) {
     const definition = manifest?.readouts?.find(item => item.id === readout.id);
     if (!definition) continue; // an undeclared readout is normalizeFrame's refusal

@@ -13,6 +13,7 @@ import {
   RuntimeError, STATEFUL_SCHEMA_VERSION, parseArtifact, parseEvaluateRequest, parseGuestResult, parseInitializeRequest, parseReduceRequest,
   parseState, parseStatefulEvaluateRequest, verifyHashes,
 } from './contract.js';
+import { fitGuestLabels } from './frame-overlap.js';
 import { LIMITS } from './limits.js';
 import { PROGRAM_STAMPS, SUPPORTED_PROGRAM_TUPLES } from './stamps.js';
 
@@ -57,7 +58,7 @@ function parseResult(operation, value, program) {
     const state = parseState(value);
     return state.ok ? { ok: true, value: { state: state.value } } : state;
   }
-  return parseGuestResult(value, program.manifest, program.sdkVersion);
+  return fitGuestLabels(parseGuestResult(value, program.manifest, program.sdkVersion), program.sdkVersion); // a label over a body is moved (an sdk-8 program), never refused
 }
 
 export function createProgramHost({ artifact, limits = LIMITS, createWorker = defaultWorker }) {

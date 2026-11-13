@@ -11,8 +11,8 @@ import { ROLES } from '../scene-vocab.js';
 //   sdk.vector(id, from, vec, { label?, side?: 'left' | 'right', ... })   the sdk-7 arrow; the label sits beside the shaft's midpoint (10 px clear), not at the tip.
 //     vec = { value, direction }: `direction` names the POSITIVE axis and `value` is signed along it, so { value: -9.8, direction: 'up' } points DOWN and { value: -9.8, direction: 'down' } points UP.
 //   sdk.panel({ x, y, w, h, title, state, id?, role? })   a lane: [box, title text, state text]; the heading line sits 14 px above y
-// The helpers FIT, they never refuse a thing that can be drawn smaller (owner 2026-11-13): a panel's state is shortened with an ellipsis to the room beside its title (under 60 px of room it moves to a
-// second line under the title); a readout's label is shortened to the box's room and its value is always whole; a plot keeps at most 3 series of 24 points (sampled evenly, the first and last point kept),
+// The helpers FIT, they never refuse a thing that can be drawn smaller (owner 2026-11-13): a panel's state is cut at a word boundary to the room beside its title (under 60 px of room it moves to a
+// second line under the title); a readout's label is cut to the box's room and its value is always whole; a plot keeps at most 3 series of 24 points (sampled evenly, the first and last point kept),
 // an axis at most 12 given ticks and a callout at most 4 lines. The strict contract caps (contract.js FIGURE_LIMITS) still refuse a hand-written frame object.
 export const FIGURES_SOURCE = String.raw`
 (function () {
@@ -81,10 +81,16 @@ export const FIGURES_SOURCE = String.raw`
   };
   // sdk.panel({ x, y, w, h, title, state, id?, role? }): a lane. The box (tinted by role) is the lane; its heading and state text sit in one line above it, the title at the left and
   // the state after it, so the caller keeps 28 px free above y. Returns [box, title, state], three frame objects.
-  // A text shortened with an ellipsis until wide(text) fits the room (at least one character stays).
+  // The first keep characters of a text, cut at a word boundary when the cut falls inside a word that has an earlier boundary. A label is never marked as cut (no ellipsis).
+  var shorten = function (text, keep) {
+    var cut = text.slice(0, keep), space = cut.lastIndexOf(' ');
+    if (text.charAt(keep) !== ' ' && space > 0) cut = cut.slice(0, space);
+    return cut.replace(/\s+$/, '');
+  };
+  // A text cut until wide(text) fits the room (at least one character stays).
   var fitText = function (text, room) {
     if (wide(text) <= room) return text;
-    return text.slice(0, Math.max(1, Math.floor((room - 16) / 10) - 1)).replace(/\s+$/, '') + '\u2026';
+    return shorten(text, Math.max(1, Math.floor((room - 16) / 10)));
   };
   sdk.panel = function (opts) {
     need('panel', opts, ['x', 'y', 'w', 'h', 'title', 'state']);
@@ -95,7 +101,7 @@ export const FIGURES_SOURCE = String.raw`
     if (stacked) return [sdk.box(id, opts.x, opts.y, opts.w, opts.h, lane), sdk.text(id + '.title', opts.x, line - 16, title, heading), sdk.text(id + '.state', opts.x, line, fitText(state, opts.w), heading)];
     return [sdk.box(id, opts.x, opts.y, opts.w, opts.h, lane), sdk.text(id + '.title', opts.x, line, title, heading), sdk.text(id + '.state', opts.x + wide(title) + gap, line, fitText(state, room), heading)];
   };
-  // sdk.readout (the earlier one, sdk-grid.js) refuses a box too small for its label. Here the label is shortened with an ellipsis until the readout fits, and its value is always drawn whole; a box
+  // sdk.readout (the earlier one, sdk-grid.js) refuses a box too small for its label. Here the label is cut at a word boundary until the readout fits, and its value is always drawn whole; a box
   // too small even for the value alone is still drawn (the layout rules report the overflow) rather than refused.
   var earlierReadout = sdk.readout;
   sdk.readout = function (id, options) {
@@ -103,13 +109,17 @@ export const FIGURES_SOURCE = String.raw`
     catch (error) {
       if (String(error && error.message).indexOf('needs more room for its label') < 0) throw error;
     }
-    for (var keep = options.label.length - 1; keep >= 0; keep -= 1) {
-      try { return earlierReadout(id, Object.assign({}, options, { label: options.label.slice(0, keep).replace(/\s+$/, '') + '\u2026' })); }
+    var tried = '';
+    for (var keep = options.label.length - 1; keep >= 1; keep -= 1) {
+      var label = shorten(options.label, keep);
+      if (!label || label === tried) continue;
+      tried = label;
+      try { return earlierReadout(id, Object.assign({}, options, { label: label })); }
       catch (error) {
         if (String(error && error.message).indexOf('needs more room for its label') < 0) throw error;
       }
     }
-    return [sdk.box(id, options.x, options.y, options.w, options.h, { text: '\u2026: ' + sdk.format(options.value, options.decimals) + (options.unit ? ' ' + options.unit : ''), role: options.role === undefined ? 'output' : options.role })];
+    return [sdk.box(id, options.x, options.y, options.w, options.h, { text: sdk.format(options.value, options.decimals) + (options.unit ? ' ' + options.unit : ''), role: options.role === undefined ? 'output' : options.role })];
   };
   // sdk.vector under sdk-8: the arrow is the earlier one; its label (opts.label, a short text) sits BESIDE the shaft's midpoint, 10 px clear of it, on the right-hand side of the direction of the
   // arrow (an up arrow: to its right) or the left with opts.side = 'left', so it is never at the tip where the body is. The renderer colours the arrow and label by kind from the label or id

@@ -6,7 +6,7 @@
 //   lane      a box with a text "<id>.title" and a text "<id>.state" beside it (sdk.panel). Lanes are ordered left to right: the first is drawn blue-soft, the second warm-soft, any other plain.
 //             Every lane draws the frame's first y axis (sdk.axis, orientation 'y') inside its left edge, with a dashed grid; that axis object itself is then not drawn a second time.
 //   body      a circle of 12 px or more (sdk.circle). Bodies are coloured by order, whatever role they carry: the first process blue, the second decision gold, any later one the third identity slot.
-//             An sdk-8 frame cannot give a body role "observed" (olive): contract.js parseGuestResult refuses it.
+//             A role on a body is ignored (it is never refused).
 //   text      a text whose anchor lies inside a lane is kept inside the lane, and any text is kept inside the frame when its size is given (its drawn position moves, never its meaning, and a text that
 //             was moved is not a layout problem: frame-overlap.js layoutProblems does not flag a text for leaving the frame).
 import { textWidthPx } from '../interact-description-fit.js';
