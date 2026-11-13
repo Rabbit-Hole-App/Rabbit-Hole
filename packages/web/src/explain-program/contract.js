@@ -475,7 +475,11 @@ export function parseReduceRequest(raw, manifest) {
 // Output is measured before it is parsed: the canonical serialized byte length of the WHOLE result (frame, quantities, and for
 // a response its id and metrics) must not exceed CONTRACT_LIMITS.maxOutputBytes, the one authoritative output limit. A result
 // that is over, too deep, or not plain JSON is invalid_output; the issue text states the limit and echoes none of the content.
+// The SDK's figure helpers (sdk.panel, sdk.readout, sdk.vector...) return an array of frame objects, so a frame that lists one helper result next to plain objects holds an array where an object belongs
+// (the 2026-11-13 google-low runs: "frame.objects.9: expected object, received array", every run). That is a fit, not a refusal: nested arrays in `objects` are flattened before the strict check.
+const flatObjects = frame => (Array.isArray(frame?.objects) && frame.objects.some(Array.isArray) ? { ...frame, objects: frame.objects.flat(Infinity) } : frame);
 function parseOutput(schema, raw) {
+  raw = schema === Frame ? flatObjects(raw) : schema === GuestResult && raw?.frame ? { ...raw, frame: flatObjects(raw.frame) } : raw;
   try { canonicalBytes(raw, CONTRACT_LIMITS.maxOutputBytes); } catch {
     return { ok: false, error: new RuntimeError('invalid_output'), issue: `the result is over ${CONTRACT_LIMITS.maxOutputBytes} bytes, nested too deeply, or not plain JSON` };
   }

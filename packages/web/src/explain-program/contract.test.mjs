@@ -99,6 +99,16 @@ test('a valid frame normalises defaults; wrong frames are invalid_output', () =>
   }
 });
 
+test('a helper result listed beside plain objects (an array inside objects) is flattened, not refused; the 60-object cap and every object check still apply', () => {
+  const box = id => ({ kind: 'box', id, x: 0, y: 0, w: 4, h: 4 }), nested = frame([[box('a'), box('b')], box('c'), [[box('d')]]]);
+  const parsed = parseFrame(nested);
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.value.objects.map(o => o.id), ['a', 'b', 'c', 'd']);
+  assert.equal(parseFrame(frame([Array.from({ length: 61 }, (_, i) => box(`b${i}`))])).ok, false, 'flattening does not lift the cap');
+  assert.equal(parseFrame(frame([[box('a'), { kind: 'nope', id: 'x' }]])).ok, false, 'a bad object inside the array is still refused');
+  assert.equal(parseGuestResult({ frame: nested, quantities: {} }).ok, true);
+});
+
 test('frame budgets: 60 objects, 2000 points each, 10000 points in total, finite points, a hostile key', () => {
   const boxes = n => Array.from({ length: n }, (_, i) => ({ kind: 'box', id: `b${i}`, x: i, y: 0, w: 4, h: 4 }));
   assert.equal(parseFrame(frame(boxes(60))).ok, true);
