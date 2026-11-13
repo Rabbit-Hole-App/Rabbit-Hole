@@ -119,3 +119,22 @@ test('every program draws its v and a letters and "Launch height" inside the lan
     for (const id of [...letters, ...launch]) assert.ok(inLane(id), `${name}: ${id} is inside a lane`);
   }
 });
+
+// Arrow directions are a rule (interact-oracle.js arrows, interact-checks.js arrow_direction): the acceleration and force arrows point down at every time, the velocity arrow up before the top,
+// absent at it, down after. The r11 Deep card drew its acceleration arrow up (value -9.8 with direction 'down'); a rule finds that at once and names the object.
+test('arrow directions: the programs pass, and a flipped acceleration arrow or a velocity arrow that never turns is refused with the object named', async () => {
+  for (const name of NAMES) {
+    const r = await check(name), rows = interactOracle(r.plan).arrows;
+    assert.ok(rows.length >= 6, `${name}: arrow rows ${rows.length}`);
+    assert.deepEqual(r.det.problems.filter(p => p.code === 'arrow_direction'), [], name);
+  }
+  const flipped = await check('tossDeep', d => { d.main.program.source = d.main.program.source.replace("{ value: g, direction: 'down' }, { scale: 3.4, label: 'a'", "{ value: -g, direction: 'down' }, { scale: 3.4, label: 'a'"); });
+  const up = flipped.det.problems.filter(p => p.code === 'arrow_direction');
+  assert.ok(up.length >= 4, 'every case with the arrow drawn is refused');
+  assert.match(up[0].message, /^the arrow "vec\.a" points up at \S+, expected down - /);
+  const stuck = await check('tossStandard', d => { d.main.program.source = d.main.program.source.replace("{ value: Math.abs(v), direction: v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3, label: 'v', side: v > 0 ? 'left' : 'right' }", "{ value: Math.abs(v), direction: 'up' }, { scale: 12, minLength: 3, label: 'v', side: v > 0 ? 'left' : 'right' }"); });
+  const never = stuck.det.problems.filter(p => p.code === 'arrow_direction');
+  assert.ok(never.some(p => /"vec\.v\.(toss|drop)" points up at \S+, expected down/.test(p.message)), JSON.stringify(never.map(p => p.message)));
+  const missing = await check('tossOverview', d => { d.main.program.source = d.main.program.source.replace(/ *objects\.push\(\.\.\.clear\(sdk\.vector\('vec\.a'.*(\r?\n)/, ''); });
+  assert.ok(missing.det.problems.some(p => p.code === 'arrow_direction' && /"vec\.a" is not drawn at \S+, expected down/.test(p.message)));
+});
