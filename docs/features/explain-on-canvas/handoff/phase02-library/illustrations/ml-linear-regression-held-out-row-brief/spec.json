@@ -2,15 +2,11 @@
   "version": 1,
   "diagram": {
     "kind": "sample-set",
-    "title": "Reserve a row before fitting",
+    "title": "Keep the test row out of fitting",
     "samples": [
       {
         "id": "A",
         "label": "$(1,2)$"
-      },
-      {
-        "id": "C",
-        "label": "$(3,5)$"
       },
       {
         "id": "E",
@@ -20,20 +16,19 @@
     "groups": [
       {
         "id": "train",
-        "label": "Training",
+        "label": "Training example",
         "members": [
-          "A",
-          "C"
+          "A"
         ]
       },
       {
         "id": "test",
-        "label": "Test",
+        "label": "Test row",
         "members": [
           "E"
         ]
       }
     ],
-    "caption": "Selected training rows; the test row stays unseen during fitting."
+    "caption": "Selected rows. Fit without the test row, then evaluate its prediction."
   }
 }

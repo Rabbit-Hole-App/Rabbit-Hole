@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Square each residual",
+    "unit": "$\\mathrm{target}^2$",
+    "bars": [
+      {
+        "label": "A",
+        "value": 0.64
+      },
+      {
+        "label": "B",
+        "value": 0.36
+      },
+      {
+        "label": "C",
+        "value": 1
+      },
+      {
+        "label": "D",
+        "value": 0.36
+      },
+      {
+        "label": "E",
+        "value": 0.04
+      }
+    ],
+    "caption": "Worked example. $\\mathrm{MSE}=\\frac{0.64+0.36+1+0.36+0.04}{5}=\\frac{2.4}{5}=0.48$."
+  }
+}

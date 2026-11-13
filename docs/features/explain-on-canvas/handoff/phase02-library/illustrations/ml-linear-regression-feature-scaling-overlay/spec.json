@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Unscaled feature weights",
+    "caption": "Illustrative. A narrow valley creates zigzags.",
+    "x": {
+      "label": "Weight $w_1$",
+      "min": -4,
+      "max": 4
+    },
+    "y": {
+      "label": "Weight $w_2$",
+      "min": -2,
+      "max": 2
+    },
+    "series": [
+      {
+        "label": "Descent",
+        "kind": "line",
+        "samples": {
+          "x": [
+            -3,
+            -2.4,
+            -1.92
+          ],
+          "y": [
+            1,
+            -0.6,
+            0.36
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "ellipse",
+        "label": "Inner cost",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radiusX": 1,
+        "radiusY": 0.353553390593
+      },
+      {
+        "kind": "ellipse",
+        "label": "Outer cost",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radiusX": 2,
+        "radiusY": 0.707106781187
+      }
+    ]
+  }
+}

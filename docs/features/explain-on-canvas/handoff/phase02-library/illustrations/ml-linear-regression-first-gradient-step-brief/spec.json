@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "The first parameter update",
+    "caption": "The arrow updates both parameters; its horizontal movement is the weight change.",
+    "x": {
+      "label": "Weight $w$",
+      "min": 0,
+      "max": 0.7
+    },
+    "y": {
+      "label": "Intercept $b$",
+      "min": 0,
+      "max": 2.2
+    },
+    "series": [
+      {
+        "label": "Parameter states",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 0,
+            "y": 0,
+            "label": "Initial"
+          },
+          {
+            "x": 0.264,
+            "y": 0.08,
+            "label": "$w=0.264$"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "vector",
+        "label": "Update",
+        "from": {
+          "x": 0,
+          "y": 0
+        },
+        "to": {
+          "x": 0.264,
+          "y": 0.08
+        }
+      }
+    ]
+  }
+}

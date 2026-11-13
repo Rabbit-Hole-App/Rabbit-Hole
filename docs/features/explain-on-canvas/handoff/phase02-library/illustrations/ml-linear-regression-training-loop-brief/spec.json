@@ -2,12 +2,12 @@
   "version": 1,
   "diagram": {
     "kind": "cycle",
-    "title": "Repeat until the stopping test passes",
+    "title": "Repeat the gradient descent loop",
     "steps": [
-      "Compute predictions and cost",
-      "Compute gradients and update parameters",
-      "Check whether to stop"
+      "Predict and measure loss",
+      "Compute gradients and update",
+      "Check cost; repeat if high"
     ],
-    "caption": "Illustrative loop. Exit when the stopping test passes; otherwise repeat. Low cost alone does not certify optimality."
+    "caption": "Illustrative loop. If cost is high, repeat; if low, stop. A low cost need not be the exact minimum."
   }
 }

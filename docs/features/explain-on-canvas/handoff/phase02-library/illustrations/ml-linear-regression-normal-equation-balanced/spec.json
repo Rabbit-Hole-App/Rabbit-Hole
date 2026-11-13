@@ -2,25 +2,25 @@
   "version": 1,
   "diagram": {
     "kind": "comparison",
-    "title": "Direct solve or iterative updates?",
+    "title": "Direct solving versus iterative fitting",
+    "caption": "Here $p$ counts features. Dense direct solving becomes expensive as the feature count grows.",
     "columns": [
       {
         "heading": "Normal equation",
         "items": [
-          "Solve directly for the least-squares fit.",
-          "Prefer a manageable feature matrix.",
-          "$w=0.6,\\\\ b=2.2$"
+          "$w=0.6, b=2.2$",
+          "No learning rate to tune",
+          "Dense solve costs $O(p^3)$"
         ]
       },
       {
         "heading": "Gradient descent",
         "items": [
-          "Repeat updates with a tuned rate.",
-          "Prefer very large or streaming datasets.",
-          "After an update, $w=0.264$."
+          "First update: $w=0.264$",
+          "Tune rate and stopping rule",
+          "Scales through repeated data passes"
         ]
       }
-    ],
-    "caption": "Choose by feature count, memory and data access, not by an assumption that iterative fitting is a different regression model."
+    ]
   }
 }

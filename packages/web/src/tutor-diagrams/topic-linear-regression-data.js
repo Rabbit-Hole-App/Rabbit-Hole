@@ -5,249 +5,261 @@ export const toyData = {
   usedBy: [1, 2, 3, 5, 6, 7, 9, 10, 11, 12],
 };
 
-const sources = [{
-  kind: 'curriculum',
-  path: 'phases/02-ml-fundamentals/02-linear-regression/docs/en.md',
-  revision: 'e7db050e64bde3be17a9381476f748da26d85692',
-}];
-
 export const metadata = {
   topic: 'linear-regression',
   artifactTopic: 'linear-regression',
   title: 'Linear Regression',
   lessons: ['02'],
-  sources,
-  briefLink: sources[0].path,
+  sources: [{
+    kind: 'curriculum',
+    path: 'phases/02-ml-fundamentals/02-linear-regression/docs/en.md',
+    revision: 'e7db050e64bde3be17a9381476f748da26d85692',
+  }],
+  briefLink: null,
 };
 
-const sum = values => values.reduce((total, value) => total + value, 0);
+const sum = values => values.reduce((a, b) => a + b, 0);
+const mean = values => sum(values) / values.length;
+const point = (x, y) => ({ x, y });
 
-function summaryOf(rows) {
-  const n = rows.length;
+function summarize(rows) {
   const xs = rows.map(row => row[0]);
   const ys = rows.map(row => row[1]);
-  const sumX = sum(xs);
-  const sumY = sum(ys);
-  const meanX = sumX / n;
-  const meanY = sumY / n;
-  const centeredX = xs.map(x => x - meanX);
-  const centeredY = ys.map(y => y - meanY);
+  const meanX = mean(xs);
+  const meanY = mean(ys);
+  const sxx = sum(xs.map(x => (x - meanX) ** 2));
+  const sxy = sum(rows.map(([x, y]) => (x - meanX) * (y - meanY)));
+  const syy = sum(ys.map(y => (y - meanY) ** 2));
   return {
-    n, sumX, sumY,
-    sumXX: sum(xs.map(x => x * x)),
+    sumX: sum(xs), sumY: sum(ys),
+    sumXX: sum(xs.map(x => x ** 2)),
     sumXY: sum(rows.map(([x, y]) => x * y)),
-    sumYY: sum(ys.map(y => y * y)),
-    meanX, meanY, centeredX, centeredY,
-    sxx: sum(centeredX.map(x => x * x)),
-    sxy: sum(centeredX.map((x, i) => x * centeredY[i])),
-    syy: sum(centeredY.map(y => y * y)),
+    sumYY: sum(ys.map(y => y ** 2)),
+    meanX, meanY, sxx, sxy, syy,
+    varianceX: sxx / rows.length,
+    varianceY: syy / rows.length,
+    covarianceXY: sxy / rows.length,
+    minX: Math.min(...xs), maxX: Math.max(...xs),
+    minY: Math.min(...ys), maxY: Math.max(...ys),
   };
 }
 
-function fitOf(rows) {
-  const summary = summaryOf(rows);
+function solve(rows) {
+  const summary = summarize(rows);
   const w = summary.sxy / summary.sxx;
   const b = summary.meanY - w * summary.meanX;
   return { summary, w, b };
 }
 
-function lossOf(rows, w, b) {
+function evaluate(rows, w, b) {
   const predictions = rows.map(([x]) => w * x + b);
   const residuals = rows.map(([, y], i) => y - predictions[i]);
-  const squares = residuals.map(value => value * value);
-  const sse = sum(squares);
-  return { predictions, residuals, squares, sse, mse: sse / rows.length };
+  const squaredErrors = residuals.map(error => error ** 2);
+  const sse = sum(squaredErrors);
+  return { predictions, residuals, squaredErrors, sse, mse: sse / rows.length };
 }
 
 function newtonCoefficients(rows) {
-  const work = rows.map(([, y]) => y);
-  const coefficients = [work[0]];
+  const coefficients = rows.map(row => row[1]);
   for (let order = 1; order < rows.length; order += 1) {
-    for (let i = 0; i < rows.length - order; i += 1) {
-      work[i] = (work[i + 1] - work[i]) / (rows[i + order][0] - rows[i][0]);
+    for (let i = rows.length - 1; i >= order; i -= 1) {
+      coefficients[i] = (coefficients[i] - coefficients[i - 1]) / (rows[i][0] - rows[i - order][0]);
     }
-    coefficients.push(work[0]);
   }
   return coefficients;
 }
 
-function interpolate(x, knots, coefficients) {
-  let value = coefficients.at(-1);
-  for (let i = coefficients.length - 2; i >= 0; i -= 1) {
-    value = coefficients[i] + (x - knots[i]) * value;
-  }
-  return value;
+function interpolate(rows, coefficients, x) {
+  let y = coefficients.at(-1);
+  for (let i = coefficients.length - 2; i >= 0; i -= 1) y = y * (x - rows[i][0]) + coefficients[i];
+  return y;
 }
 
-function normalize(value) {
-  if (typeof value === 'number') return value === 0 ? 0 : Number(value.toPrecision(12));
-  if (Array.isArray(value)) return value.map(normalize);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalize(item)]));
+function descentPath(initial, rate, curvature, iterations) {
+  const path = [initial];
+  for (let i = 0; i < iterations; i += 1) {
+    const previous = path.at(-1);
+    path.push(point(previous.x * (1 - rate), previous.y * (1 - rate * curvature)));
   }
+  return path;
+}
+
+function clean(value) {
+  if (typeof value === 'number') return Number(value.toFixed(12));
+  if (Array.isArray(value)) return value.map(clean);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, clean(item)]));
   return value;
 }
 
 export function derived() {
-  const { rows, features } = toyData;
+  const rows = toyData.rows;
   const n = rows.length;
+  const featureCount = toyData.features.length;
   const zero = n - n;
-  const one = features.length;
-  const two = one + one;
-  const million = 10 ** 6;
+  const unit = n / n;
+  const two = unit + unit;
+  const { summary, w, b } = solve(rows);
   const points = rows.map(([x, y], i) => ({ id: String.fromCharCode(65 + i), x, y }));
-  const { summary, w, b } = fitOf(rows);
-  const fittedLoss = lossOf(rows, w, b);
-  const baseline = { prediction: summary.meanY, ...lossOf(rows, zero, summary.meanY) };
-  const xMin = Math.min(...rows.map(([x]) => x));
-  const xMax = Math.max(...rows.map(([x]) => x));
-  const extensionX = xMax + one;
-  const line = [zero, extensionX].map(x => ({ x, y: w * x + b }));
-  const from = { x: summary.meanX, y: w * summary.meanX + b };
-  const corner = { x: from.x + one, y: from.y };
-  const to = { x: corner.x, y: w * corner.x + b };
+  const result = evaluate(rows, w, b);
+  const spacing = Math.min(...rows.slice(1).map((row, i) => row[0] - rows[i][0]));
+  const externalX = summary.maxX + spacing;
+  const slopeFrom = point(summary.meanX, w * summary.meanX + b);
+  const slopeCorner = point(summary.meanX + spacing, slopeFrom.y);
+  const slopeTo = point(slopeCorner.x, w * slopeCorner.x + b);
   const fit = {
-    w, b, ...fittedLoss, baseline,
-    explainedSse: baseline.sse - fittedLoss.sse,
-    rSquared: one - fittedLoss.sse / baseline.sse,
-    unexplainedFraction: fittedLoss.sse / baseline.sse,
-    benchmarks: { perfectR2: one, meanR2: zero, perfectSse: zero, meanSse: baseline.sse },
-    intercept: { x: zero, y: b },
-    triangle: { from, corner, to, run: corner.x - from.x, rise: to.y - corner.y },
-    line,
+    w, b, ...result,
+    intercept: point(zero, b),
+    line: [point(zero, b), point(externalX, w * externalX + b)],
+    slope: { from: slopeFrom, corner: slopeCorner, to: slopeTo, run: spacing, rise: slopeTo.y - slopeFrom.y },
   };
-  const profileSamples = Array.from({ length: n }, (_, i) => {
-    const slope = w * i / two;
-    const intercept = summary.meanY - slope * summary.meanX;
-    const mse = (summary.sxx * slope ** 2 - two * summary.sxy * slope + summary.syy) / n;
-    return { w: slope, b: intercept, mse };
-  });
-  const profile = {
-    numerator: { quadratic: summary.sxx, linear: -two * summary.sxy, constant: summary.syy },
-    divisor: n,
-    curvature: two * summary.sxx / n,
-    samples: profileSamples,
+  let running = zero;
+  const cumulativeSquares = result.squaredErrors.map(value => (running += value));
+  const profileWeights = Array.from({ length: n }, (_, i) => i * w / two);
+  const profileIntercepts = profileWeights.map(weight => summary.meanY - weight * summary.meanX);
+  const profilePoints = profileWeights.map((weight, i) => point(weight, evaluate(rows, weight, profileIntercepts[i]).mse));
+  const costProfile = {
+    coefficients: { a: summary.sxx, b: -two * summary.sxy, c: summary.syy, divisor: n },
+    points: profilePoints,
+    intercepts: profileIntercepts,
+    minimum: point(w, result.mse),
+    curvature: two * summary.varianceX,
   };
-  const initialLoss = lossOf(rows, zero, zero);
-  const errors = initialLoss.residuals.map(value => -value);
-  const weightedErrors = errors.map((value, i) => value * rows[i][0]);
-  const sumErrors = sum(errors);
+  const initialErrors = rows.map(([, y]) => -y);
+  const weightedErrors = rows.map(([x], i) => x * initialErrors[i]);
+  const sumErrors = sum(initialErrors);
   const sumWeightedErrors = sum(weightedErrors);
   const dw = two * sumWeightedErrors / n;
   const db = two * sumErrors / n;
-  const learningRates = [10 ** -2, 10 ** -1];
-  const steps = learningRates.map(rate => {
+  const initial = {
+    w: zero, b: zero,
+    predictions: rows.map(() => zero),
+    errors: initialErrors, weightedErrors, sumErrors, sumWeightedErrors, dw, db,
+    mse: evaluate(rows, zero, zero).mse,
+  };
+  const rates = [10 ** -2, 10 ** -1];
+  const steps = rates.map(rate => {
     const deltaW = -rate * dw;
     const deltaB = -rate * db;
-    return { rate, step: one, w: deltaW, b: deltaB, deltaW, deltaB, ...lossOf(rows, deltaW, deltaB) };
+    const scored = evaluate(rows, deltaW, deltaB);
+    return {
+      rate, step: unit, w: deltaW, b: deltaB, deltaW, deltaB,
+      predictions: scored.predictions,
+      errors: scored.residuals.map(error => -error),
+      squaredErrors: scored.squaredErrors,
+      sse: scored.sse, mse: scored.mse,
+      costChange: scored.mse - initial.mse,
+      trace: [point(zero, initial.mse), point(unit, scored.mse)],
+    };
   });
-  const descent = {
-    learningRates,
-    start: { w: zero, b: zero, ...initialLoss, errors, weightedErrors, sumErrors, sumWeightedErrors, dw, db },
-    steps,
-  };
-  const ridgeSamples = [zero, one, two, n - one].map(lambda => {
-    const ridgeW = summary.sxy / (summary.sxx + n * lambda);
-    const ridgeB = summary.meanY - ridgeW * summary.meanX;
-    const mse = lossOf(rows, ridgeW, ridgeB).mse;
-    const penalty = lambda * ridgeW ** 2;
-    return { lambda, w: ridgeW, b: ridgeB, mse, penalty, cost: mse + penalty };
-  });
-  const ridge = {
-    numerator: summary.sxy / n,
-    denominatorBase: summary.sxx / n,
-    asymptote: zero,
-    samples: ridgeSamples,
-  };
-  const trainRows = rows.slice(0, -one);
-  const testRows = rows.slice(-one);
-  const trainFit = fitOf(trainRows);
-  const trainLoss = lossOf(trainRows, trainFit.w, trainFit.b);
-  const testLoss = lossOf(testRows, trainFit.w, trainFit.b);
-  const holdout = {
-    trainIds: points.slice(0, -one).map(point => point.id),
-    testIds: points.slice(-one).map(point => point.id),
-    summary: trainFit.summary,
-    w: trainFit.w, b: trainFit.b,
-    trainLoss, testLoss,
-    prediction: testLoss.predictions[0],
-    actual: testRows[0][1],
-    residual: testLoss.residuals[0],
-    squaredError: testLoss.squares[0],
-    testMse: testLoss.mse,
-  };
-  const knots = rows.map(([x]) => x);
-  const coefficients = newtonCoefficients(rows);
-  const polynomialAt = x => interpolate(x, knots, coefficients);
-  const sampleCount = two * n + one + two;
-  const polynomialSamples = Array.from({ length: sampleCount }, (_, i) => {
-    const x = extensionX * i / (sampleCount - one);
-    return { x, y: polynomialAt(x) };
-  });
-  const fittedValues = knots.map(polynomialAt);
-  const polynomialSse = sum(fittedValues.map((value, i) => (value - rows[i][1]) ** 2));
-  const illustrativeY = w * extensionX + b;
-  const extrapolated = polynomialAt(extensionX);
-  const polynomial = {
-    illustrative: true,
-    degree: n - one,
-    knots, coefficients, samples: polynomialSamples, fittedValues,
-    trainSse: polynomialSse,
-    trainMse: polynomialSse / n,
-    newPoint: {
-      x: extensionX, y: illustrativeY,
-      linePrediction: illustrativeY,
-      polynomialPrediction: extrapolated,
-      lineSquaredError: (illustrativeY - illustrativeY) ** 2,
-      polynomialSquaredError: (extrapolated - illustrativeY) ** 2,
-    },
-  };
-  const residualMin = Math.min(...fittedLoss.residuals);
-  const residualSpan = Math.max(...fittedLoss.residuals) - residualMin;
-  const scalingRows = rows.map(([x], i) => [
-    (x - xMin) / (xMax - xMin),
-    million * (fittedLoss.residuals[i] - residualMin) / residualSpan,
-  ]);
-  const means = [zero, one].map(column => sum(scalingRows.map(row => row[column])) / n);
-  const standardDeviations = means.map((mean, column) => Math.sqrt(sum(scalingRows.map(row => (row[column] - mean) ** 2)) / n));
-  const standardized = scalingRows.map(row => row.map((value, column) => (value - means[column]) / standardDeviations[column]));
-  const radiusX = (xMax - xMin) / two;
-  const radiusY = one / two;
-  const rawHessian = [one, (radiusX / radiusY) ** 2];
-  const scaledHessian = [one, one];
-  const rawRate = (two - one / n) / rawHessian[1];
-  const scaledRate = one - one / (two * n);
-  const start = [-summary.meanX / two, two / n];
-  const path = (hessian, rate) => Array.from({ length: n - one }, (_, i) => ({
-    x: start[0] * (one - rate * hessian[0]) ** i,
-    y: start[1] * (one - rate * hessian[1]) ** i,
-  }));
+  const gradient = { initial, rates, steps };
+  const span = 10 ** (n + featureCount);
+  const normalized = rows.map(([x]) => (x - summary.minX) / (summary.maxX - summary.minX));
+  const scalingMean = mean(normalized);
+  const scalingSd = Math.sqrt(mean(normalized.map(value => (value - scalingMean) ** 2)));
+  const curvature = two ** summary.meanX;
+  const rawRate = unit / n;
+  const scaledRate = unit / two;
+  const scalingInitial = point(-summary.meanX, unit);
   const scaling = {
     illustrative: true,
-    geometry: 'Schematic contours and paths; synthesized features reuse the toy rows.',
-    rows: scalingRows,
-    featureCount: scalingRows[0].length,
-    ranges: [zero, one].map(column => [Math.min(...scalingRows.map(row => row[column])), Math.max(...scalingRows.map(row => row[column]))]),
-    means, standardDeviations, standardized,
-    rawContour: { radiusX, radiusY },
-    scaledContour: { radiusX, radiusY: radiusX },
-    rawDescent: { hessian: rawHessian, rate: rawRate, points: path(rawHessian, rawRate) },
-    scaledDescent: { hessian: scaledHessian, rate: scaledRate, points: path(scaledHessian, scaledRate) },
+    smallSpan: unit, largeSpan: span,
+    normalized,
+    largeFeature: normalized.map(value => value * span),
+    mean: scalingMean, standardDeviation: scalingSd,
+    largeMean: scalingMean * span, largeStandardDeviation: scalingSd * span,
+    standardized: normalized.map(value => (value - scalingMean) / scalingSd),
+    curvature, rawRate, scaledRate,
+    rawIterations: n, scaledIterations: two,
+    rawPath: descentPath(scalingInitial, rawRate, curvature, n),
+    scaledPath: descentPath(scalingInitial, scaledRate, unit, two),
+    contours: Array.from({ length: two }, (_, i) => ({
+      radius: i + unit,
+      rawRadiusX: i + unit,
+      rawRadiusY: (i + unit) / Math.sqrt(curvature),
+      scaledRadiusX: i + unit,
+      scaledRadiusY: i + unit,
+    })),
+  };
+  const coefficients = newtonCoefficients(rows);
+  const sampleStep = spacing / two;
+  const sampleCount = Math.round((externalX - summary.minX) / sampleStep) + unit;
+  const polynomialSamples = Array.from({ length: sampleCount }, (_, i) => {
+    const x = summary.minX + i * sampleStep;
+    return point(x, interpolate(rows, coefficients, x));
+  });
+  const polynomialTrainPredictions = rows.map(([x]) => interpolate(rows, coefficients, x));
+  const linePrediction = w * externalX + b;
+  const polynomialPrediction = interpolate(rows, coefficients, externalX);
+  const newPoint = point(externalX, Math.round(linePrediction));
+  const polynomial = {
+    illustrative: true,
+    degree: n - unit, coefficients, nodes: rows.map(([x]) => x),
+    sampleStep, sampleCount, samples: polynomialSamples,
+    trainPredictions: polynomialTrainPredictions,
+    trainMse: mean(rows.map(([, y], i) => (y - polynomialTrainPredictions[i]) ** two)),
+    newPoint, linePrediction, polynomialPrediction,
+    lineSquaredError: (newPoint.y - linePrediction) ** two,
+    polynomialSquaredError: (newPoint.y - polynomialPrediction) ** two,
+  };
+  const deviations = rows.map(([, y]) => y - summary.meanY);
+  const squaredDeviations = deviations.map(value => value ** two);
+  const total = sum(squaredDeviations);
+  const rSquared = {
+    baselineMean: summary.meanY,
+    deviations, squaredDeviations, total,
+    residual: result.sse,
+    explained: total - result.sse,
+    unexplainedFraction: result.sse / total,
+    value: unit - result.sse / total,
+    perfect: { sse: zero, value: unit },
+    baseline: { sse: total, value: zero },
+  };
+  const lambdas = [zero, ...Array.from({ length: two + unit }, (_, i) => two ** i)];
+  const ridgePoints = lambdas.map(lambda => point(lambda, summary.covarianceXY / (summary.varianceX + lambda)));
+  const ridgeIntercepts = ridgePoints.map(({ y: weight }) => summary.meanY - weight * summary.meanX);
+  const ridgeMse = ridgePoints.map(({ y: weight }, i) => evaluate(rows, weight, ridgeIntercepts[i]).mse);
+  const penalties = ridgePoints.map(({ x: lambda, y: weight }) => lambda * weight ** two);
+  const ridge = {
+    numerator: summary.covarianceXY, denominator: summary.varianceX,
+    points: ridgePoints, intercepts: ridgeIntercepts,
+    mse: ridgeMse, penalties,
+    costs: ridgeMse.map((value, i) => value + penalties[i]),
+    asymptote: zero,
+  };
+  const train = rows.slice(zero, -unit);
+  const test = rows.slice(-unit);
+  const trainFit = solve(train);
+  const trainScore = evaluate(train, trainFit.w, trainFit.b);
+  const testScore = evaluate(test, trainFit.w, trainFit.b);
+  const holdout = {
+    trainIds: points.slice(zero, -unit).map(({ id }) => id),
+    testIds: points.slice(-unit).map(({ id }) => id),
+    trainCount: train.length, testCount: test.length,
+    summary: trainFit.summary, w: trainFit.w, b: trainFit.b,
+    trainPredictions: trainScore.predictions,
+    trainResiduals: trainScore.residuals,
+    trainSquaredErrors: trainScore.squaredErrors,
+    trainMse: trainScore.mse,
+    testPredictions: testScore.predictions,
+    testResiduals: testScore.residuals,
+    testSquaredErrors: testScore.squaredErrors,
+    testMse: testScore.mse,
   };
   const axes = {
-    toy: { xMin: zero, xMax: extensionX, yMin: zero, yMax: Math.ceil(Math.max(...rows.map(([, y]) => y), ...line.map(point => point.y))) },
-    profile: { xMin: zero, xMax: Math.max(...profileSamples.map(sample => sample.w)), yMin: zero, yMax: Math.max(...profileSamples.map(sample => sample.mse)) },
-    weight: { min: zero, max: w + learningRates.at(-1) },
-    learningCost: { xMin: zero, xMax: one, yMin: zero, yMax: Math.ceil(Math.max(initialLoss.mse, ...steps.map(step => step.mse))) },
-    ridge: { xMin: zero, xMax: Math.max(...ridgeSamples.map(sample => sample.lambda)), yMin: zero, yMax: w },
-    polynomial: { xMin: zero, xMax: extensionX, yMin: zero, yMax: Math.ceil(Math.max(...polynomialSamples.map(point => point.y), illustrativeY)) },
-    contours: { xMin: -radiusX, xMax: radiusX, yMin: -radiusX, yMax: radiusX },
-    errorTotals: { min: zero, max: baseline.sse },
+    scatter: { xMin: zero, xMax: externalX, yMin: zero, yMax: summary.maxY + spacing },
+    weight: { xMin: zero, xMax: w + rates.at(-1), yMin: zero, yMax: unit },
+    costProfile: { xMin: zero, xMax: Math.max(...profileWeights), yMin: zero, yMax: Math.max(...profilePoints.map(({ y }) => y)) },
+    learning: { xMin: zero, xMax: unit, yMin: zero, yMax: Math.ceil(Math.max(initial.mse, ...steps.map(step => step.mse))) },
+    scaling: { xMin: -(summary.maxX - summary.minX), xMax: summary.maxX - summary.minX, yMin: -two, yMax: two },
+    polynomial: { xMin: summary.minX, xMax: externalX, yMin: zero, yMax: Math.ceil(Math.max(...polynomialSamples.map(({ y }) => y), newPoint.y)) },
+    ridge: { xMin: zero, xMax: Math.max(...lambdas), yMin: zero, yMax: w },
+    rSquared: { xMin: zero, xMax: two, yMin: zero, yMax: total },
   };
-  return normalize({
-    constants: { zero, one, two, million },
-    points,
-    counts: { rows: n, features: features.length, train: trainRows.length, test: testRows.length },
-    summary, fit, profile, descent, ridge, holdout, polynomial, scaling, axes,
+  return clean({
+    constants: { zero, unit, two },
+    counts: { rows: n, features: featureCount },
+    points, summary, fit,
+    residualCost: { cumulativeSquares, count: n, sum: result.sse, mean: result.mse },
+    costProfile, gradient, scaling, polynomial, rSquared, ridge, holdout, axes,
   });
 }

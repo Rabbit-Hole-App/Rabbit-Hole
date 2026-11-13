@@ -2,22 +2,22 @@
   "version": 1,
   "diagram": {
     "kind": "bar-chart",
-    "title": "Error relative to predicting the mean",
+    "title": "Compare the fitted line with the mean baseline",
     "unit": "$y^2$",
     "bars": [
       {
-        "label": "Total",
+        "label": "Mean baseline",
         "value": 6
       },
       {
-        "label": "Residual",
+        "label": "Remaining error",
         "value": 2.4
       },
       {
-        "label": "Removed",
+        "label": "Explained reduction",
         "value": 3.6
       }
     ],
-    "caption": "Explained fraction $R^2=0.6$, relative to the mean baseline."
+    "caption": "Mean prediction $4$; the fitted line has $R^2=0.6$."
   }
 }

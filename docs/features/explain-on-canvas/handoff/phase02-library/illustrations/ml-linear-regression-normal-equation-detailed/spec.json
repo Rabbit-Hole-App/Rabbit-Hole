@@ -2,25 +2,27 @@
   "version": 1,
   "diagram": {
     "kind": "comparison",
-    "title": "Direct solve or iterative updates?",
+    "title": "Direct solving versus iterative fitting",
+    "caption": "The intercept is fitted too. Prefer QR or SVD to explicitly forming a matrix inverse.",
     "columns": [
       {
         "heading": "Normal equation",
         "items": [
-          "$w=\\\\frac{6}{10}=0.6$",
-          "$b=4-0.6\\\\times3=2.2$",
-          "Dense inversion costs $O(p^3)$ in feature count $p$."
+          "$w=6/10=0.6$",
+          "$b=4-0.6(3)=2.2$",
+          "Dense solve costs $O(p^3)$",
+          "Check rank and numerical conditioning"
         ]
       },
       {
         "heading": "Gradient descent",
         "items": [
-          "$w'=0+0.01\\\\times\\\\frac{2}{5}\\\\times66=0.264$",
-          "Repeat until a stopping criterion is met.",
-          "Avoid a dense inverse; tune the learning rate."
+          "$w'=w-\\eta g_w$",
+          "$w'=0+0.264=0.264$",
+          "$b'=0.08$",
+          "Tune learning rate and stopping rule"
         ]
       }
-    ],
-    "caption": "With full column rank, direct solving and converged descent target the same fit. Prefer QR or SVD to explicitly forming an inverse."
+    ]
   }
 }

@@ -1,26 +1,34 @@
 {
   "version": 1,
   "diagram": {
-    "kind": "flow",
-    "title": "Penalize weight magnitude",
-    "nodes": [
+    "kind": "coordinate-plot",
+    "title": "A larger ridge penalty shrinks the weight",
+    "x": {
+      "label": "Ridge penalty $λ$",
+      "min": 0,
+      "max": 4
+    },
+    "y": {
+      "label": "Fitted weight $w$",
+      "min": 0,
+      "max": 0.6
+    },
+    "series": [
       {
-        "id": "penalty",
-        "label": "Add ridge penalty",
-        "role": "process"
-      },
-      {
-        "id": "weight",
-        "label": "Decrease $w$",
-        "role": "outcome"
+        "label": "Ridge solutions",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 0.6
+          },
+          {
+            "x": 4,
+            "y": 0.2
+          }
+        ]
       }
     ],
-    "edges": [
-      {
-        "from": "penalty",
-        "to": "weight"
-      }
-    ],
-    "caption": "Penalize the weight, not the intercept."
+    "caption": "Sampled ridge solutions. The intercept is not penalized; the weight approaches zero as the penalty grows."
   }
 }

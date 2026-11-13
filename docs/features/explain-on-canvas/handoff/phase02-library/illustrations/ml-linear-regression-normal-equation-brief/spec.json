@@ -2,21 +2,21 @@
   "version": 1,
   "diagram": {
     "kind": "comparison",
-    "title": "Direct solve or iterative updates?",
+    "title": "Choose a solver for the problem",
+    "caption": "Feature count, sparsity and memory matter more than a simple small-versus-large row rule.",
     "columns": [
       {
         "heading": "Normal equation",
         "items": [
-          "Use a direct solve when the feature matrix is manageable."
+          "Exact least-squares solution for modest feature counts"
         ]
       },
       {
         "heading": "Gradient descent",
         "items": [
-          "Use iterative updates for very large or streaming data."
+          "Iterative fitting for large, sparse or streaming data"
         ]
       }
-    ],
-    "caption": "Choose by feature count, memory and data access, not by an assumption that iterative fitting is a different regression model."
+    ]
   }
 }

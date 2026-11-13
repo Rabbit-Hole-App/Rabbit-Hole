@@ -2,18 +2,18 @@
   "version": 1,
   "diagram": {
     "kind": "bar-chart",
-    "title": "Error relative to predicting the mean",
+    "title": "Compare the fitted line with the mean baseline",
     "unit": "$y^2$",
     "bars": [
       {
-        "label": "Total",
+        "label": "Mean baseline",
         "value": 6
       },
       {
-        "label": "Residual",
+        "label": "Remaining error",
         "value": 2.4
       }
     ],
-    "caption": "The line leaves less squared error than the mean baseline."
+    "caption": "The fitted line leaves less squared error than predicting the mean."
   }
 }

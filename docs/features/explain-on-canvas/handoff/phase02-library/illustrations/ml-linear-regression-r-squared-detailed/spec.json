@@ -2,22 +2,22 @@
   "version": 1,
   "diagram": {
     "kind": "bar-chart",
-    "title": "Error relative to predicting the mean",
+    "title": "Compare the fitted line with the mean baseline",
     "unit": "$y^2$",
     "bars": [
       {
-        "label": "Total",
+        "label": "Mean baseline",
         "value": 6
       },
       {
-        "label": "Residual",
+        "label": "Remaining error",
         "value": 2.4
       },
       {
-        "label": "Removed",
+        "label": "Explained reduction",
         "value": 3.6
       }
     ],
-    "caption": "$R^2=1-2.4/6=0.6$. Perfect: $R^2=1$; mean baseline: $R^2=0$."
+    "caption": "$R^2=1-2.4/6=0.6$. Explained reduction $6-2.4=3.6$."
   }
 }

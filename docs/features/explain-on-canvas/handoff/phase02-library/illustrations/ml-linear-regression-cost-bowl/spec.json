@@ -2,9 +2,9 @@
   "version": 1,
   "diagram": {
     "kind": "coordinate-plot",
-    "title": "The MSE bowl and its bottom",
+    "title": "A minimized slice of the cost bowl",
     "x": {
-      "label": "Slope $w$",
+      "label": "Slope weight",
       "min": 0,
       "max": 1.2
     },
@@ -15,7 +15,7 @@
     },
     "series": [
       {
-        "label": "Optimized-intercept cost",
+        "label": "Profiled cost",
         "kind": "line",
         "smooth": true,
         "samples": {
@@ -32,19 +32,18 @@
             0.48,
             0.66,
             1.2
-          ],
-          "showValues": true
+          ]
         }
       }
     ],
     "annotations": [
       {
         "kind": "point",
-        "label": "Lowest cost",
+        "label": "Minimum $(0.6,0.48)$",
         "x": 0.6,
         "y": 0.48
       }
     ],
-    "caption": "Refit the intercept at each slope. The bottom is $w=0.6$ with $\\mathrm{MSE}=0.48$."
+    "caption": "Worked example. The intercept is reoptimized at every slope weight."
   }
 }

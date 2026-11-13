@@ -1,22 +1,72 @@
 {
   "version": 1,
   "diagram": {
-    "kind": "comparison",
-    "title": "Training fit is not generalization",
-    "columns": [
+    "kind": "coordinate-plot",
+    "title": "Perfect training fit can fail beyond the data",
+    "caption": "Illustrative extrapolation scenario. Training fits are computed from the shared rows.",
+    "x": {
+      "label": "Input feature",
+      "min": 1,
+      "max": 6
+    },
+    "y": {
+      "label": "Target",
+      "min": 0,
+      "max": 17
+    },
+    "series": [
       {
-        "heading": "Straight line",
-        "items": [
-          "Leaves some training error"
-        ]
+        "label": "Training",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "y": [
+            2,
+            4,
+            5,
+            4,
+            5
+          ]
+        }
       },
       {
-        "heading": "Degree 4 interpolant",
-        "items": [
-          "Matches every training point"
-        ]
+        "label": "Straight fit",
+        "kind": "line",
+        "samples": {
+          "x": [
+            1,
+            6
+          ],
+          "y": [
+            2.8,
+            5.8
+          ]
+        }
+      },
+      {
+        "label": "Interpolating polynomial",
+        "kind": "line",
+        "samples": {
+          "x": {
+            "start": 1,
+            "step": 1
+          },
+          "y": [
+            2,
+            4,
+            5,
+            4,
+            5,
+            17
+          ]
+        }
       }
-    ],
-    "caption": "Illustrative extrapolation: matching training points does not guarantee good predictions."
+    ]
   }
 }

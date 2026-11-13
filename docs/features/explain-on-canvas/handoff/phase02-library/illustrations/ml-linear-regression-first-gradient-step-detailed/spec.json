@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "The first parameter update",
+    "caption": "Apply $w'=w-\\eta g_w$ and $b'=b-\\eta g_b$ simultaneously.",
+    "x": {
+      "label": "Weight $w$",
+      "min": 0,
+      "max": 0.7
+    },
+    "y": {
+      "label": "Intercept $b$",
+      "min": 0,
+      "max": 2.2
+    },
+    "series": [
+      {
+        "label": "Parameter states",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 0,
+            "y": 0,
+            "label": "Initial"
+          },
+          {
+            "x": 0.264,
+            "y": 0.08,
+            "label": "$w=0.264$"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "vector",
+        "label": "Update",
+        "from": {
+          "x": 0,
+          "y": 0
+        },
+        "to": {
+          "x": 0.264,
+          "y": 0.08
+        }
+      },
+      {
+        "kind": "point",
+        "label": "Least squares",
+        "x": 0.6,
+        "y": 2.2
+      }
+    ]
+  }
+}

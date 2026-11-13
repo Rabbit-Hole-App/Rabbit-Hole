@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Slope and intercept",
+    "x": {
+      "label": "Input feature",
+      "min": 0,
+      "max": 6
+    },
+    "y": {
+      "label": "Target",
+      "min": 0,
+      "max": 6
+    },
+    "series": [
+      {
+        "label": "Observed",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            1,
+            5
+          ],
+          "y": [
+            2,
+            5
+          ]
+        }
+      },
+      {
+        "label": "Fitted line",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 2.2
+          },
+          {
+            "x": 6,
+            "y": 5.8
+          }
+        ]
+      }
+    ],
+    "caption": "Worked example. Selected points; slope is rise over run, intercept is the zero-input prediction."
+  }
+}

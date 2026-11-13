@@ -2,10 +2,11 @@
   "version": 1,
   "diagram": {
     "kind": "coordinate-plot",
-    "title": "Fit is not generalization",
+    "title": "Perfect training fit can fail beyond the data",
+    "caption": "Illustrative extrapolation scenario. Training fits are computed from the shared rows.",
     "x": {
-      "label": "Input",
-      "min": 0,
+      "label": "Input feature",
+      "min": 1,
       "max": 6
     },
     "y": {
@@ -15,7 +16,7 @@
     },
     "series": [
       {
-        "label": "Toy",
+        "label": "Training",
         "kind": "scatter",
         "samples": {
           "x": [
@@ -35,21 +36,21 @@
         }
       },
       {
-        "label": "Line",
+        "label": "Straight fit",
         "kind": "line",
         "samples": {
           "x": [
-            0,
+            1,
             6
           ],
           "y": [
-            2.2,
+            2.8,
             5.8
           ]
         }
       },
       {
-        "label": "Interpolant",
+        "label": "Interpolating polynomial",
         "kind": "line",
         "samples": {
           "x": {
@@ -70,16 +71,17 @@
             17
           ]
         }
-      }
-    ],
-    "annotations": [
+      },
       {
-        "kind": "point",
-        "label": "New target",
-        "x": 6,
-        "y": 5.8
+        "label": "Illustrative new target",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 6,
+            "y": 6
+          }
+        ]
       }
-    ],
-    "caption": "Illustrative new target; exact toy fits."
+    ]
   }
 }

@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "kind": "sample-set",
-    "title": "Reserve a row before fitting",
+    "title": "Keep the test row out of fitting",
     "samples": [
       {
         "id": "A",
@@ -28,7 +28,7 @@
     "groups": [
       {
         "id": "train",
-        "label": "Training",
+        "label": "Training: 4 rows",
         "members": [
           "A",
           "B",
@@ -38,12 +38,12 @@
       },
       {
         "id": "test",
-        "label": "Test",
+        "label": "Test: 1 row",
         "members": [
           "E"
         ]
       }
     ],
-    "caption": "$w=3.5/5=0.7$; $b=3.75-0.7*2.5=2$. Test $MSE=(5-5.5)^2=0.25$."
+    "caption": "Fit $w=0.7$, $b=2$; test squared error $(5.5-5)^2=0.25$."
   }
 }

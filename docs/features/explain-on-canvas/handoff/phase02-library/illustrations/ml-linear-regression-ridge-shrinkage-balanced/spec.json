@@ -2,14 +2,14 @@
   "version": 1,
   "diagram": {
     "kind": "coordinate-plot",
-    "title": "Ridge shrinks the weight",
+    "title": "A larger ridge penalty shrinks the weight",
     "x": {
-      "label": "Penalty",
+      "label": "Ridge penalty $λ$",
       "min": 0,
       "max": 4
     },
     "y": {
-      "label": "Weight",
+      "label": "Fitted weight $w$",
       "min": 0,
       "max": 0.6
     },
@@ -17,20 +17,28 @@
       {
         "label": "Ridge solutions",
         "kind": "line",
-        "samples": {
-          "x": [
-            0,
-            1,
-            2,
-            4
-          ],
-          "y": [
-            0.6,
-            0.4,
-            0.3,
-            0.2
-          ]
-        }
+        "points": [
+          {
+            "x": 0,
+            "y": 0.6,
+            "label": "$w=0.6$"
+          },
+          {
+            "x": 1,
+            "y": 0.4,
+            "label": "$w=0.4$"
+          },
+          {
+            "x": 2,
+            "y": 0.3,
+            "label": "$w=0.3$"
+          },
+          {
+            "x": 4,
+            "y": 0.2,
+            "label": "$w=0.2$"
+          }
+        ]
       }
     ],
     "annotations": [
@@ -41,6 +49,6 @@
         "label": "Zero limit"
       }
     ],
-    "caption": "The intercept is unpenalized; larger penalties reduce the fitted weight."
+    "caption": "Sampled ridge solutions. The intercept is not penalized; the weight approaches zero as the penalty grows."
   }
 }

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "title": "Compare the updated parameters",
+    "caption": "Both runs begin with $J=17.2$. The larger rate overshoots $w=0.6$.",
+    "columns": [
+      {
+        "heading": "$\\eta=0.01$",
+        "items": [
+          "$w'=-0.01(-26.4)=0.264$",
+          "$b'=-0.01(-8)=0.08$",
+          "$J'=10.490176$"
+        ]
+      },
+      {
+        "heading": "$\\eta=0.1$",
+        "items": [
+          "$w'=-0.1(-26.4)=2.64$",
+          "$b'=-0.1(-8)=0.8$",
+          "$J'=31.0816$"
+        ]
+      }
+    ]
+  }
+}

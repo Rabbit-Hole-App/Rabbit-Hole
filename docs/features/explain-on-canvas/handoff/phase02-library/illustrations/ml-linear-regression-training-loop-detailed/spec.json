@@ -2,14 +2,14 @@
   "version": 1,
   "diagram": {
     "kind": "cycle",
-    "title": "Repeat until the stopping test passes",
+    "title": "Repeat the gradient descent loop",
     "steps": [
-      "Compute $\\hat y=wx+b$",
-      "Compute $J$ from squared residuals",
-      "Compute $\\partial_w J$ and $\\partial_b J$",
-      "Update $w\\leftarrow w-\\alpha\\partial_w J$ and $b\\leftarrow b-\\alpha\\partial_b J$",
-      "Check stopping tolerance"
+      "Predict $\\hat y=wx+b$",
+      "Compute $J=\\frac{1}{m}\\sum_i(\\hat y_i-y_i)^2$",
+      "Compute gradients $g_w,g_b$",
+      "Update $w\\gets w-\\alpha g_w$ and $b\\gets b-\\alpha g_b$",
+      "Check cost; stop if low"
     ],
-    "caption": "Illustrative loop. $J=\\frac{1}{n}\\sum_i(\\hat y_i-y_i)^2$; exact toy minimum $J=0.48$. Exit when the stopping test passes; otherwise repeat."
+    "caption": "Illustrative loop. If cost is high, repeat; if low, stop. A low cost need not be the exact minimum."
   }
 }

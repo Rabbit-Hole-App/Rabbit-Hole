@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "title": "Interpret the reference cases",
+    "columns": [
+      {
+        "heading": "Perfect fit",
+        "items": [
+          "Residual sum $0$",
+          "$R^2=1$"
+        ]
+      },
+      {
+        "heading": "Mean baseline",
+        "items": [
+          "Residual sum $6$",
+          "$R^2=0$"
+        ]
+      }
+    ],
+    "caption": "A model worse than the mean baseline can have negative explained variance."
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Learning rate changes the next cost",
+    "caption": "Recompute $J=\\frac{1}{n}\\sum_i(wx_i+b-y_i)^2$ after updating both parameters.",
+    "x": {
+      "label": "Gradient updates",
+      "min": 0,
+      "max": 1
+    },
+    "y": {
+      "label": "Mean squared error",
+      "min": 0,
+      "max": 32
+    },
+    "series": [
+      {
+        "label": "$\\eta=0.01$",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 17.2
+          },
+          {
+            "x": 1,
+            "y": 10.490176,
+            "label": "$10.490176$"
+          }
+        ]
+      },
+      {
+        "label": "$\\eta=0.1$",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 17.2
+          },
+          {
+            "x": 1,
+            "y": 31.0816,
+            "label": "$31.0816$"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "axis": "y",
+        "value": 17.2,
+        "label": "Initial cost"
+      }
+    ]
+  }
+}

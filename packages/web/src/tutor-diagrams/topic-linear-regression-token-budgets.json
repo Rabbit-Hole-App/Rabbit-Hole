@@ -2,255 +2,283 @@
   "encoding": "cl100k_base",
   "maxSpecTokens": 300,
   "refs": {
-    "ml-linear-regression-slope-intercept": {
+    "ml-linear-regression-line-meaning": {
       "overview": [
         {
-          "tokens": 164,
-          "sha256": "a8eff5e9786d29c67a322d1ee6470fe3c120406a141f4cf1196f01c7017151d4"
+          "tokens": 133,
+          "sha256": "667ff44a052e65dc70b17cb7e5e443f42990d5d8108f882b8b5f6a67faa79480"
         }
       ],
       "standard": [
         {
-          "tokens": 205,
-          "sha256": "d9708c310d149a60c709c03968a36d3fdd96001c9678d1ba8243bcfa8f569975"
+          "tokens": 210,
+          "sha256": "785018300734d7c8d1b45dbabf31721443531e06390934ea3dcecd482690296a"
         }
       ],
       "deep": [
         {
-          "tokens": 221,
-          "sha256": "a0f0a0d90f4b6b9c6eb8e5ca6b31c32a8886fd40524cb45cbbf9072e82da551e"
+          "tokens": 216,
+          "sha256": "cdd24fac9e1d30ce251c66400f9075dd070d816c8711c5e0cac648cbd954c95e"
+        },
+        {
+          "tokens": 91,
+          "sha256": "96f504fc330378ce4c92bd5e4ce5ded110c9a3d427e4972bf757d3ee02d2bc97"
         }
       ]
     },
-    "ml-linear-regression-residual-mse": {
+    "ml-linear-regression-residual-cost": {
       "overview": [
         {
-          "tokens": 117,
-          "sha256": "c76583dd61af3ae50e49cfe9f46c1702c7a7ac2f16a3b9236823491c97c5d68b"
+          "tokens": 153,
+          "sha256": "9e65376341d2161e4df7b2c713f3ee056bf332f596903edc328838b084cbd4a7"
         }
       ],
       "standard": [
         {
-          "tokens": 136,
-          "sha256": "aeb608f487171e678a736bea042e7a434745d5f574fce0a879786c432fd421aa"
+          "tokens": 203,
+          "sha256": "bc5ff2c40e051c5f965e38277744032cbbd8560a67fd7d8d290e9c1f5f5d521e"
+        },
+        {
+          "tokens": 99,
+          "sha256": "4991f39abf7d148849a4d41c4c17a8c345a600bcae6916d867be6a5eed445098"
         }
       ],
       "deep": [
         {
-          "tokens": 161,
-          "sha256": "fec728d233e9424aa296f3e94b69c137771f19081c1574fc6f284484c0bdb9fa"
+          "tokens": 217,
+          "sha256": "e47926829dcab3acd74c00a929e6b06a26b13f6a660a7e3e732e9e64649b3541"
+        },
+        {
+          "tokens": 133,
+          "sha256": "13264fa73931397aa0e87824caf7dcd61523654c83ed027b57ac1d9cc6383d8c"
         }
       ]
     },
     "ml-linear-regression-cost-bowl": {
       "overview": [
         {
-          "tokens": 134,
-          "sha256": "352acac810d9720c5aa532eeb96929f2a677413325f171094065e074654f2441"
+          "tokens": 148,
+          "sha256": "c6766a12a557392021186a0d7ccc3ef7383619485125f5e621d529d2ceba5e5a"
         }
       ],
       "standard": [
         {
-          "tokens": 188,
-          "sha256": "a0be11fd5bedc00295d102acf837bd5f65b63aa52c3926d485792c85f54f9d02"
+          "tokens": 171,
+          "sha256": "5d4148b7280c8e1d1469ce40e378c47da9ad90df02da37845de56d56544c63e6"
         }
       ],
       "deep": [
         {
-          "tokens": 188,
-          "sha256": "9406fa2efefb373d4df5e8e2c805165584d6efe0ee6c53d015a02a1f8ffe33fa"
+          "tokens": 197,
+          "sha256": "18da8b11a6c9d6edc49a395613ae18dd49a36f3ce9543fbfa0bdee8cb6ad5013"
         }
       ]
     },
     "ml-linear-regression-training-loop": {
       "overview": [
         {
-          "tokens": 65,
-          "sha256": "fb3642031fc76f577f7beb69f73a76e6ea02a57140229fbd03734247f21dd9f9"
+          "tokens": 68,
+          "sha256": "d5e03bf30446ac8724ccd1bee9b858e9f601d44491d96d2a27ba7c53f0817072"
         }
       ],
       "standard": [
         {
-          "tokens": 69,
-          "sha256": "218bb49e72cf6dd46d18267d9d6e0cf0fdfb9ae39065d393bb834d618f2dff58"
+          "tokens": 81,
+          "sha256": "58e93f216e0edd2beeb68942758222d099145754defdc6070d57b703e759e40e"
         }
       ],
       "deep": [
         {
-          "tokens": 140,
-          "sha256": "33b1b711f75e450b9f00e78dee150ab9687e227772fae77d270307fa8afed30d"
+          "tokens": 125,
+          "sha256": "63a4dd06f35280b9d188c51d6e17c3fc142c20c5b17994d54c61565d5f67ad08"
         }
       ]
     },
-    "ml-linear-regression-first-step": {
+    "ml-linear-regression-first-gradient-step": {
       "overview": [
         {
-          "tokens": 82,
-          "sha256": "c1af82556fc7793525466ccc491911ed7539fb42c2dd944d199bbd63ae579b5e"
+          "tokens": 161,
+          "sha256": "32a3f3dfa8a65e5b7abffabab5ee4a31af16fac9865db6debdfc197185e3b072"
         }
       ],
       "standard": [
         {
-          "tokens": 135,
-          "sha256": "4e0c9b3e45dd4ad668de717370b1f8a065dc75fae5597e6cfd8d3b62db49cf69"
+          "tokens": 182,
+          "sha256": "e9fe20fb37711cff3acb49b7b4082fcaf74b37f8d45e26eabba6c3d8a6f7924c"
         }
       ],
       "deep": [
         {
-          "tokens": 150,
-          "sha256": "7f60df8715a788b46e1983a0f25dc4b3143f43956e790fbdc3bd746a76f08235"
+          "tokens": 192,
+          "sha256": "cf14b7ae88b16473fa4dadb0de52e0fe991271b60902d3729c267c12b9bb2095"
+        },
+        {
+          "tokens": 138,
+          "sha256": "b0f0fd1280b7a03f1f924bb10f3bfd232e8b996f147ea7c1ecfbbacb10dff940"
         }
       ]
     },
-    "ml-linear-regression-learning-rate": {
+    "ml-linear-regression-rate-comparison": {
       "overview": [
         {
-          "tokens": 96,
-          "sha256": "3b9169d71221b2a9265c13d7c8b3aa93af08b64eab21c9159da4af1feb873b4f"
+          "tokens": 153,
+          "sha256": "9f97e9fd12042a3977bb7eea99dcc589b87a5c6249a808861362dd480f2a6eec"
         }
       ],
       "standard": [
         {
-          "tokens": 220,
-          "sha256": "b44074f658f582d679447816930ac55ccf38c0d07a17ea5c9bc72786427732c0"
+          "tokens": 196,
+          "sha256": "e761d2ef8aa67efb52b427120252cab0caa436e348ae0aa057d0ac203db5080a"
         }
       ],
       "deep": [
         {
-          "tokens": 235,
-          "sha256": "fe40ef9a321d5a56b420529aefc63dbb02e80f521c815fcc2f0b5dcd30972983"
+          "tokens": 207,
+          "sha256": "927131d1ddd4de7d446ecfa5ff37c7e87700a8ad30f66e34ba2e8a9c5ebca399"
+        },
+        {
+          "tokens": 159,
+          "sha256": "ef2be063960d9f446bf6b9556e33e370bcba460ae2dd806a48592f56914236d0"
         }
       ]
     },
     "ml-linear-regression-normal-equation": {
       "overview": [
         {
-          "tokens": 87,
-          "sha256": "5e3cb647cefa8cd41e58978cdfec441f63f6e87d9d1638ac05eb767036a008ca"
+          "tokens": 82,
+          "sha256": "02592dc75716202cc532d6e964a21994a5f143c710304fa28dead8de440c32cd"
         }
       ],
       "standard": [
         {
-          "tokens": 125,
-          "sha256": "006283b2a0ca6b27c0f8e4c1d1d93fb6a3331f7244d95ebcec387e6e35fe8010"
+          "tokens": 115,
+          "sha256": "67372d8e3fd84e58002eb270544356ada93e9a6f99fd00729ffaae6235fae4da"
         }
       ],
       "deep": [
         {
-          "tokens": 162,
-          "sha256": "8f6b316e69ca4d4d19b3b0fdc5377ddb0a72357e7544b8efddd29ba59e7dd067"
+          "tokens": 145,
+          "sha256": "d676470ae1f5ff36efbbb16be8cf7910af526f0e4e77fbf27bdab3692e35bd80"
         }
       ]
     },
-    "ml-linear-regression-feature-scaling": {
+    "ml-linear-regression-feature-scaling-overlay": {
       "overview": [
         {
-          "tokens": 84,
-          "sha256": "ac0f9175fab358fc4e9d7dfda93c6f8985b00c185a1e8622e5162c54773ade2c"
+          "tokens": 140,
+          "sha256": "6d98063583c7804ab7648538b271e64b293d3298b69bce93541b6037d2059bcc"
+        },
+        {
+          "tokens": 127,
+          "sha256": "61b3b817c10a851055bfdac3a242ed580241bbd18e14832adae67efbb5117d95"
         }
       ],
       "standard": [
         {
-          "tokens": 186,
-          "sha256": "0f58b63e855044a819273336e14e4524c9d01b8cd25f507f293b78db01cd75f9"
+          "tokens": 182,
+          "sha256": "e99e04e094a73e6ca7702e7c6368a8dc4333b248e3564fc4a15b794ad80f2d66"
         },
         {
-          "tokens": 177,
-          "sha256": "a7795b781b897532bc579ec71f515655200456f45ee567fba66d3a7789c7b4a6"
+          "tokens": 158,
+          "sha256": "a2f2289ba5868e54d6e9bb51aa6d8365e31a83dd8b6345145ecf47a745e26177"
         }
       ],
       "deep": [
         {
-          "tokens": 201,
-          "sha256": "7273f520701c9cfaaad9ba9f0e91c39f11d71004c7f842f3d9d009b0068717b5"
+          "tokens": 196,
+          "sha256": "a14677c6b2ed1cbb4ede751dab69cd8a8c07832dd94769b31e35a2b3aa40e573"
         },
         {
-          "tokens": 186,
-          "sha256": "501f8d54ec1cf1ea84456f9ad0d3f5bcbee976910c4f7d9d265a16c4320962e2"
+          "tokens": 184,
+          "sha256": "3c4bf5a077c380f59b6cb443a8e568e6cb8ec713f06a9dffd5d40dac8027985c"
         }
       ]
     },
     "ml-linear-regression-polynomial-overfit": {
       "overview": [
         {
-          "tokens": 70,
-          "sha256": "e5d4baad8f888edaa46107e5673266324713f095cb877a4c24a16cdebe8f5efd"
+          "tokens": 176,
+          "sha256": "e889e8707c32af6a6b6dd82d8534a80a6f11dfdcd82f81a1317d335c1882665b"
         }
       ],
       "standard": [
         {
-          "tokens": 218,
-          "sha256": "064411e40b783d9803a1acaef8ee4941c53d82db749d0966e00143216fb24b8b"
+          "tokens": 230,
+          "sha256": "bd59af8864c6150de43418119b8b33d308327830b06d14ee8bfa938e6824af0a"
         }
       ],
       "deep": [
         {
-          "tokens": 224,
-          "sha256": "0fdfcb4c0af95c476d8e64262402022daf43bf217946291052ee12b87e18058d"
+          "tokens": 228,
+          "sha256": "56938de2593099e8a72dac22dfdf2c26c4ed8cd649a4f0b4b390c1f662c968b9"
         },
         {
-          "tokens": 72,
-          "sha256": "3e43dd872a64935d2b5893879e77e65834edea8c982f645b6d8d010a8694c95d"
+          "tokens": 113,
+          "sha256": "35f55e193de0c928c1c69b598e8e8aac834bdb7eff95661b00acdea62b802e3b"
         }
       ]
     },
     "ml-linear-regression-r-squared": {
       "overview": [
         {
-          "tokens": 66,
-          "sha256": "00e7477927c125bcaa946ce582fb716f12a2041296a70e87e1b8be0e2e6f8e5b"
+          "tokens": 70,
+          "sha256": "1312cede878ea19827ba4530f99bb62aa9cae2cbe11363fa5bfdc4ca03ceab23"
         }
       ],
       "standard": [
         {
-          "tokens": 83,
-          "sha256": "5bf64ef81b8a690746771cdf0a92843c3d1bb8d4a2468131121b516b7210eaa5"
+          "tokens": 90,
+          "sha256": "cad387abc99045ba2760d2ee86def4abb6b68fe82cd4742fb5cb3b25d0800119"
         }
       ],
       "deep": [
         {
-          "tokens": 103,
-          "sha256": "b1a5b772096de98c8978ef5b3e270d60a32bbaf4944a9775affed1a830424e9e"
+          "tokens": 102,
+          "sha256": "35b5e6ea44efcef0b3ea618e66ab01d7a4fdcff192f7a5494fd7fd4d73fc3410"
+        },
+        {
+          "tokens": 84,
+          "sha256": "99129afdd22f2cc5990da441316b2c65e909b78f7db858192923149775fe3714"
         }
       ]
     },
     "ml-linear-regression-ridge-shrinkage": {
       "overview": [
         {
-          "tokens": 79,
-          "sha256": "6fe65e8cbb8068d0759504454c402eebbe04d90d84679250354435258f40308e"
+          "tokens": 125,
+          "sha256": "f94eb52b9e570505152c2c34648a0c98d38450b89c01ff834730d518ee1da5cf"
         }
       ],
       "standard": [
         {
-          "tokens": 137,
-          "sha256": "ff67ef9bb711bef7fe87839eaf36f20c7e0896227c37a9226fbec6ba8d8257d9"
+          "tokens": 206,
+          "sha256": "6797b3aae247ed3db4c3a3b02264f2ccc14d856c97ab7132798ca6432ad75c44"
         }
       ],
       "deep": [
         {
-          "tokens": 155,
-          "sha256": "bf8a5e7205e2bc353bb0c1b52ffc9888b1e1460e7fec4ecc331f009e96181367"
+          "tokens": 217,
+          "sha256": "929a7adc109665912b89326b3bb81757b45dd1a08e6163777075de68e162f8e3"
         }
       ]
     },
     "ml-linear-regression-held-out-row": {
       "overview": [
         {
-          "tokens": 106,
-          "sha256": "96d532849984f0f81620beff270746f7572f10de776315f8594146f4fd54848a"
+          "tokens": 97,
+          "sha256": "f000720c11e858d27fd54fe69385d67211ab9a461c7679ea724674aec045e84b"
         }
       ],
       "standard": [
         {
-          "tokens": 148,
-          "sha256": "b6d50b3cbcbd49fea2225d4fe0f56412017415bf8a3361c87352a4aa826aa8e1"
+          "tokens": 145,
+          "sha256": "91359f6baf3c394e87f3a235ddf23f37584fdf2e804441aee6ec814482b99086"
         }
       ],
       "deep": [
         {
-          "tokens": 171,
-          "sha256": "6e6a72ecceb5e09ed64878207447616dd26c6f98e6400f78adff021bd5235d44"
+          "tokens": 162,
+          "sha256": "add9c118b594c242251cb45b2866b644814af6531ab18c73b5fd47203d77ebd8"
         }
       ]
     }

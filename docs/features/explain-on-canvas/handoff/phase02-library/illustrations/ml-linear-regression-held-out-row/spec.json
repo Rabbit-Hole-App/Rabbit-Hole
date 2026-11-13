@@ -2,7 +2,7 @@
   "version": 1,
   "diagram": {
     "kind": "sample-set",
-    "title": "Reserve a row before fitting",
+    "title": "Keep the test row out of fitting",
     "samples": [
       {
         "id": "A",
@@ -28,7 +28,7 @@
     "groups": [
       {
         "id": "train",
-        "label": "Training",
+        "label": "Training: 4 rows",
         "members": [
           "A",
           "B",
@@ -38,12 +38,12 @@
       },
       {
         "id": "test",
-        "label": "Test",
+        "label": "Test: 1 row",
         "members": [
           "E"
         ]
       }
     ],
-    "caption": "Fit only the training rows. Held-out prediction $y_{pred}=5.5$; actual $y=5$."
+    "caption": "Fit only the training rows. Evaluate the untouched test row after fitting."
   }
 }
