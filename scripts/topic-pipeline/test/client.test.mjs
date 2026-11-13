@@ -284,3 +284,40 @@ test('selected model must be configured and explicit author temperature is honor
   await configured.client.call('author', {}, options);
   assert.equal(request.temperature, 0.3);
 });
+
+// Streaming path (config openai.stream): server-sent events, the final response event is the answer, the response id is logged as soon as it is named.
+const NL = String.fromCharCode(10);
+const sse = events => new Response(events.map(event => `data: ${JSON.stringify(event)}${NL}${NL}`).join(''), { status: 200, headers: { 'content-type': 'text/event-stream' } });
+
+test('with openai.stream the call streams, answers from the completed event and logs the response id', async t => {
+  const requests = [];
+  const { client, state } = await setup(t, async (url, init) => {
+    requests.push({ url, method: init.method, body: JSON.parse(init.body) });
+    return sse([{ type: 'response.created', response: { id: 'resp_s1', status: 'in_progress' } }, { type: 'response.output_text.delta', delta: '{"ok"' },
+      { type: 'response.completed', response: { id: 'resp_s1', ...openaiBody() } }]);
+  }, config => { config.openai.stream = true; });
+  assert.deepEqual(await client.call('author', { lesson: 'text' }, options), { ok: true });
+  assert.equal(requests.length, 1, 'no polling');
+  assert.equal(requests[0].body.stream, true);
+  assert.equal(requests[0].body.background, false);
+  assert.equal(state.calls[0].responseId, 'resp_s1');
+  assert.equal(state.calls[0].usd, 0.0014);
+});
+
+test('a stream that ends without a final response records unknown usage with the response id', async t => {
+  const { client, state } = await setup(t, async () => sse([{ type: 'response.created', response: { id: 'resp_s2', status: 'in_progress' } }]), config => { config.openai.stream = true; });
+  await assert.rejects(client.call('author', { lesson: 'text' }, options), /transport failed/);
+  assert.equal(state.calls[0].usageKnown, false);
+  assert.equal(state.calls[0].responseId, 'resp_s2');
+});
+
+test('the response id of a background call is written to inflight.jsonl when the provider names it', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'topic-inflight-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const config = configFixture(), state = { version: 1, topic: 'decision-trees', calls: [], stages: {}, spendUsd: 0 };
+  const own = createClient({ config, state, topicDir: dir, fetchImpl: async () => response({ id: 'resp_b2', ...openaiBody() }) });
+  await own.call('author', { lesson: 'text' }, options);
+  await new Promise(done => setTimeout(done, 50));
+  const lines = (await readFile(join(dir, 'inflight.jsonl'), 'utf8')).trim().split(NL).map(line => JSON.parse(line));
+  assert.deepEqual(lines.map(line => [line.agent, line.responseId, line.mode]), [['author', 'resp_b2', 'background']]);
+});

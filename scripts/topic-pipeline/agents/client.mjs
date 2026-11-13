@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import Ajv from 'ajv';
 import { getEncoding } from 'js-tiktoken';
@@ -33,14 +33,37 @@ function anthropicSchema(schema) {
   return output;
 }
 
-function requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput = ceilings[agent].output) {
+// The streaming path (config openai.stream: true, reviewer 2026-11-13): the same Responses request with stream:true instead of background mode; the result is the final response
+// event. Server-sent events: blocks split by a blank line, `data:` lines hold JSON. Returns the final response object, or null when the stream ended without one.
+export async function readStream(response, onId = () => {}) {
+  const decoder = new TextDecoder();
+  let buffer = '', done = null, failed = null;
+  const take = block => {
+    const data = block.split('\n').filter(line => line.startsWith('data:')).map(line => line.slice(5).trim()).join('\n');
+    if (!data || data === '[DONE]') return;
+    let event; try { event = JSON.parse(data); } catch { return; }
+    if (typeof event.response?.id === 'string') onId(event.response.id);
+    if (event.type === 'response.completed' || event.type === 'response.incomplete') done = event.response;
+    else if (event.type === 'response.failed') failed = event.response ?? { status: 'failed' };
+    else if (event.type === 'error') failed = { status: 'failed', error: event.error ?? { type: 'stream_error' } };
+  };
+  for await (const chunk of response.body) {
+    buffer += decoder.decode(chunk, { stream: true }).replace(/\r\n/g, '\n');
+    for (let cut = buffer.indexOf('\n\n'); cut !== -1; cut = buffer.indexOf('\n\n')) { take(buffer.slice(0, cut)); buffer = buffer.slice(cut + 2); }
+  }
+  if (buffer.trim()) take(buffer);
+  return failed ?? done;
+}
+
+function requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput = ceilings[agent].output, stream = false) {
   const text = JSON.stringify(inputs) + (feedback ? `\nValidation errors: ${feedback}\nReturn corrected JSON matching the schema.` : '');
   if (provider === 'openai') return {
     model, instructions: system, input: [{ role: 'user', content: [{ type: 'input_text', text }] }],
     reasoning: { effort }, text: { format: { type: 'json_schema', name: agent, schema, strict: true } },
-    max_output_tokens: maxOutput, tools: [], tool_choice: 'none', stream: false,
+    max_output_tokens: maxOutput, tools: [], tool_choice: 'none', stream,
     // Background mode: the POST returns at once and the result is polled, so a long max-effort call never hits the ~300 s fetch header timeout (reviewer 2026-11-12, store accepted).
-    background: true, store: true,
+    // With config openai.stream the call streams instead (no polling, so no queue to stall in).
+    background: !stream, store: true,
   };
   return {
     model, system, messages: [{ role: 'user', content: [
@@ -127,7 +150,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
     for (let attempt = 1; attempt <= 2; attempt++) {
       let body;
       try {
-        body = requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput);
+        body = requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput, provider === 'openai' && settings.stream === true);
         if (provider === 'openai' && settings.temperature !== undefined) body.temperature = settings.temperature;
       }
       catch { throw new Error('Cannot serialize the agent input and schema'); }
@@ -138,10 +161,14 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
       const started = Date.now();
       let response, payload;
       let transportFailed = false, responseId;
+      // The response id is recorded the moment the provider names it (inflight.jsonl), so a call that never returns can still be reconciled from the stored response.
+      const note = id => { responseId = id; appendFile(join(topicDir, 'inflight.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), agent, attempt, responseId: id, mode: body.stream ? 'stream' : 'background' })}\n`).catch(() => {}); };
       try {
         response = await fetchImpl(settings.endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
-        payload = await response.json();
-        responseId = typeof payload?.id === 'string' ? payload.id.slice(0, 100) : undefined;
+        if (body.stream === true && response.ok) payload = await readStream(response, id => note(String(id).slice(0, 100)));
+        else payload = await response.json();
+        if (typeof payload?.id === 'string' && !responseId) note(payload.id.slice(0, 100));
+        if (body.stream === true && response.ok && !payload) throw new Error('The stream ended without a final response');
         const deadline = Date.now() + (settings.pollTimeoutMs ?? 3_600_000);
         for (let misses = 0; body.background && response.ok && responseId && ['queued', 'in_progress'].includes(payload?.status);) {
           if (Date.now() > deadline) throw new Error('Background response poll timed out');
