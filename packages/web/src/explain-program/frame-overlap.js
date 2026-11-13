@@ -6,6 +6,7 @@
 import { estimateTextBox } from '../scene-layout.js';
 import { textStyle } from '../scene-style.js';
 import { textWidthPx } from '../interact-description-fit.js';
+import { BODY_MIN } from './contract.js';
 
 // Characters a run is worth at the body size: a math run's TeX length scaled by the equation rule above.
 const runLength = run => (run.kind === 'math' ? Math.ceil(run.tex.length * (textStyle('equation').fontSize * 0.5) / (textStyle('body').fontSize * 0.6)) : run.text.length);
@@ -137,6 +138,7 @@ const round1 = n => Math.round(n * 10) / 10;
 
 // -> [{ a, b, kind, width, height, gap?, hint }]: the label rules on frame objects (a text object's `text` or `runs`; a figure's own text by figureTextBoxes), at most `limit`.
 //   text-line / text-arrow : a label closer than LABEL_CLEARANCE to a line or an arrow shaft (a mark under MARK_LENGTH: touching it); `gap` is the measured distance, width and height are 0
+//   text-body              : a label over a body (a circle of 12 px or more): `width` is how far into the body's radius the label reaches, height 0
 //   text-text              : a figure's title or tick label over a text object or another figure's text
 //   text-frame             : a label or figure title that leaves the frame, `b` is 'frame', width and height the overflow in px; only when the frame's width and height are given
 // Each carries `hint`, one line saying what to change. Pure geometry on the frame, no subject and no wording.
@@ -152,6 +154,14 @@ export function layoutProblems(frame, limit = 8) {
       if ((o.kind !== 'line' && o.kind !== 'arrow') || o.opacity === 0 || !o.from || !o.to || o.id === label.owner) continue;
       const length = Math.hypot(o.to.x - o.from.x, o.to.y - o.from.y), need = length < MARK_LENGTH ? 0 : LABEL_CLEARANCE, gap = segmentGap(o.from, o.to, label.box);
       if (need ? gap < need - 1e-6 : gap === 0) push({ a: label.id, b: o.id, kind: `text-${o.kind === 'arrow' ? 'arrow' : 'line'}`, width: 0, height: 0, gap: round1(gap), hint: `move "${label.id}" so it is at least ${LABEL_CLEARANCE} px clear of "${o.id}" (it is ${round1(gap)} px), or move "${o.id}"` });
+    }
+  }
+  // A label never sits on a body (a circle of BODY_MIN or more): the nearest point of its ink box to the body's centre is farther than its radius.
+  const bodies = objects.filter(o => o.kind === 'circle' && o.w >= BODY_MIN && o.opacity !== 0);
+  for (const label of labels) {
+    for (const body of bodies) {
+      const { xMin, xMax, yMin, yMax } = label.box, reach = Math.hypot(Math.max(xMin - body.x, 0, body.x - xMax), Math.max(yMin - body.y, 0, body.y - yMax)), over = body.w / 2 - reach;
+      if (over > 0) push({ a: label.id, b: body.id, kind: 'text-body', width: round1(over), height: 0, hint: `move "${label.id}" off the body "${body.id}" (it covers ${round1(over)} px of it): put it beside the body, not on it` });
     }
   }
   for (const figure of figures) {

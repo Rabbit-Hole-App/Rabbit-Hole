@@ -50,7 +50,7 @@ test('filled interactive shapes share the written palette and geometry while ord
   }
   assert.equal(interactShapeStyle('neutral').fill, 'var(--viz-surface, #fbfbfa)');
   assert.equal(interactShapeStyle('input', {}, undefined, 'identity-1').fill, PALETTE.process);
-  assert.equal(interactShapeStyle('input', {}, undefined, 'identity-2').fill, PALETTE.olive);
+  assert.equal(interactShapeStyle('input', {}, undefined, 'identity-2').fill, PALETTE.decision, 'the second body is the decision hue; olive is the observed role only');
   assert.equal(interactShapeStyle('input', {}, undefined, 'identity-3').fill, PALETTE.coral);
   assert.equal(INTERACT_BOX_RADIUS, 7);
   assert.equal(INTERACT_FONT, TEACHING_FONT, 'one font constant, shared with the written diagrams');

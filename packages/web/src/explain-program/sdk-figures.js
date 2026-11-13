@@ -8,6 +8,7 @@ import { ROLES } from '../scene-vocab.js';
 //     (a call WITHOUT axes is the earlier sdk.plot(id, { xDomain, yDomain, ... }), unchanged, and returns an array of objects)
 //   sdk.diagram(spec, { x, y, w, id?, role? })   spec is the written diagram JSON; id defaults to 'diagram'
 //   sdk.callout(x, y, lines, { id?, role? })   a readout box of one to four lines beside an object: an array of boxes, one per line
+//   sdk.vector(id, from, vec, { label?, side?: 'left' | 'right', ... })   the sdk-7 arrow; the label sits beside the shaft's midpoint (10 px clear), not at the tip
 //   sdk.panel({ x, y, w, h, title, state, id?, role? })   a lane: [box, title text, state text]; the heading line sits 14 px above y
 export const FIGURES_SOURCE = String.raw`
 (function () {
@@ -68,6 +69,28 @@ export const FIGURES_SOURCE = String.raw`
     if (room < wide(state)) throw new RangeError('sdk.panel: the lane is too narrow for its title and state');
     var lane = { role: role.role === undefined ? 'neutral' : role.role }, heading = { role: 'neutral' }, line = opts.y - 14;
     return [sdk.box(id, opts.x, opts.y, opts.w, opts.h, lane), sdk.text(id + '.title', opts.x, line, title, heading), sdk.text(id + '.state', opts.x + wide(title) + gap, line, state, heading)];
+  };
+  // sdk.vector under sdk-8: the arrow is the earlier one; its label (opts.label, a short text) sits BESIDE the shaft's midpoint, 10 px clear of it, on the right-hand side of the direction of the
+  // arrow (an up arrow: to its right) or the left with opts.side = 'left', so it is never at the tip where the body is. The renderer colours the arrow and label by kind from the label or id
+  // (v blue, a orange dashed, F green: frame-look.js vectorKind).
+  var earlierVector = sdk.vector;
+  sdk.vector = function (id, from, vec, opts) {
+    opts = opts || {};
+    var plain = {};
+    for (var key in opts) if (key !== 'label' && key !== 'side') plain[key] = opts[key];
+    var out = earlierVector(id, from, vec, plain);
+    if (opts.label == null) return out;
+    if (opts.side !== undefined && opts.side !== 'left' && opts.side !== 'right') throw new RangeError('sdk.vector: side is left or right');
+    var text = words('vector', String(opts.label), 24), half = 7.5 * text.length / 2, arrow = out[0], mid = from, dx = 0, dy = -1;
+    if (arrow) {
+      mid = { x: (arrow.from.x + arrow.to.x) / 2, y: (arrow.from.y + arrow.to.y) / 2 };
+      var length = Math.sqrt(Math.pow(arrow.to.x - arrow.from.x, 2) + Math.pow(arrow.to.y - arrow.from.y, 2)) || 1;
+      dx = (arrow.to.x - arrow.from.x) / length; dy = (arrow.to.y - arrow.from.y) / length;
+    }
+    var side = opts.side === 'left' ? -1 : 1, nx = -dy * side, ny = dx * side, textOpts = roleOf('vector', opts);
+    textOpts.align = 'middle';
+    out.push(sdk.text(id + 'L', mid.x + nx * (10 + half), mid.y + ny * (10 + 5), text, textOpts));
+    return out;
   };
 })();
 `;

@@ -9,7 +9,8 @@ const ROLES = {
   input: 'process', output: 'outcome', prediction: 'lavender', observed: 'olive',
   learner: 'decision', tutor: 'rose', code: 'slate', warning: 'coral', success: 'outcome',
 };
-const IDENTITIES = { 'identity-1': 'process', 'identity-2': 'olive', 'identity-3': 'coral' };
+// The second body of a scene is the decision hue, as the Codex reference cards draw it (the first is process blue); olive is the observed-data role and no body takes it.
+const IDENTITIES = { 'identity-1': 'process', 'identity-2': 'decision', 'identity-3': 'coral' };
 // The teaching font, as TutorDiagram draws a teaching diagram (tutor-diagrams/TutorDiagram.js), so a composed /interactive card reads like the written /explain card.
 export const INTERACT_FONT = TEACHING_FONT;
 export const INTERACT_BOX_RADIUS = 7;

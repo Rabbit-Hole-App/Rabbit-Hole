@@ -1,5 +1,6 @@
 import { rasterRuns } from './raster-pixels.js';
-import { FigureShape } from './explain-program/FrameFigures.jsx';
+import { FigureShape, LookShape } from './explain-program/FrameFigures.jsx';
+import { frameLook } from './explain-program/frame-look.js';
 import { Children, cloneElement, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
@@ -482,7 +483,9 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
   };
   // The evaluator owns where the camera is; this only spends it. Zoom is about
   // the frame centre, so focusing an object does not also shove it off-screen.
-  const visibleObjects = state.objects.filter(object => object.visible);
+  // A composed card's scene is read for its lanes, bodies and callouts (explain-program/frame-look.js), so the same drawing comes out whoever wrote the program.
+  const sceneObjects = state.objects.filter(object => object.visible);
+  const visibleObjects = interact ? frameLook(sceneObjects).objects : sceneObjects;
   // A row label drawing leftward from a grid near the default left edge can
   // need more room than x=0 leaves it (see requiredLeftMargin). Widening the
   // canvas only by what is actually needed leaves every scene without the
@@ -619,7 +622,9 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
               {object.highlighted && !isText && !isData && (isCircle
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: look.stroke }} />
                 : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: look.stroke }} />)}
-              {isFigure
+              {interact && object.look
+                ? <LookShape object={object} />
+                : isFigure
                 ? (interact ? <FigureShape object={object} /> : null) /* axis, plot and diagram are the composed card's: the /animation frame draws nothing for them (validateScene refuses them there) */
                 : isData
                 ? <DataShape object={object} role={role} pop={pop} chosen={chosen} inkAt={inkAt} interact={interact}
@@ -690,7 +695,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                 <RunsLabel runs={object.runs} text={object.label} x={label.x} y={label.y} anchor={label.anchor} baseline={label.baseline}
                   type={{ ...type, fontFamily: type.fontFamily ?? (isCircle ? MONO : undefined) }} fill={labelFill} />
               )}
-              {!maths && !isFigure && !(object.runs && object.textProgress >= 1) && (
+              {!maths && !isFigure && !object.look && !(object.runs && object.textProgress >= 1) && (
                 <text
                   x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
                   fontSize={type.fontSize}
