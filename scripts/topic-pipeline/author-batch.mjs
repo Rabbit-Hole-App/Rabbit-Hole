@@ -120,6 +120,8 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
       part.ok = false;
       part.output = await call('batch', { ...base, part: 'batch', batch: index + 1, of: state.parts.length, last: index === state.parts.length - 1, assigned: part.rows,
         dataModule: state.foundation, exemplar: index === state.parts.length - 1 ? [...exemplarReferences, ...exemplarWalkthrough] : exemplarReferences, helperSource: helperSource(artifactTopic).join('\n'), previous: part.output, feedback: String(feedback ?? ''), round }, part.rows, index === state.parts.length - 1);
+      // The model returns ids as strings; the checks compare with the prompt's own id (a number in prompts.json).
+      part.output.replay = part.output.replay.map(row => ({ ...row, id: part.rows.find(item => String(item.id) === String(row.id)).id }));
       part.ok = true;
     }));
     const failure = results.find(result => result.status === 'rejected');
