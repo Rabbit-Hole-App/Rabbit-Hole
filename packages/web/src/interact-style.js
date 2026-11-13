@@ -1,6 +1,7 @@
 import { shapeStyle, textStyle } from './scene-style.js';
 import { FILLED_INK, INK, PALETTE, PATH, SURFACE } from './tutor-diagrams/primitives.js';
-import { TEACHING_FONT } from './tutor-diagrams/teaching-theme.js';
+import { LEGIBILITY_FLOORS } from './scene-layout.js';
+import { TEACHING_FONT, TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
 
 // Every colour comes from the written card's own exports (tutor-diagrams/primitives.js): no literal colour lives here (the drift test pins that).
 const COLORS = PALETTE;
@@ -31,11 +32,16 @@ export function interactStrokeColor(role, identity = null, state = {}) {
   return WATCHED_ROLES.has(role) ? interactMarkColor(role, identity) : INK;
 }
 
-// The scene's text classes in a composed card, taken toward the written diagrams' (tutor-diagrams/TutorDiagram.js: a 700 title, 600 headings, 400 body and
-// captions, mono code). The SIZES are deliberately not changed: the written card's 17/14/14/13 px sit under this scene's legibility floors (20/17/15/14,
-// scene-layout.js LEGIBILITY_FLOORS) and a floor is never relaxed; a caption's weight and the code family are the parts that do not conflict.
-const INTERACT_TEXT = Object.freeze({ caption: { fontWeight: 400 }, code: { fontFamily: 'var(--font-mono)' } });
-export const interactTextStyle = typographyRole => ({ ...textStyle(typographyRole), ...INTERACT_TEXT[typographyRole] });
+// The scene's text classes in a composed card ARE the written card's (TEACHING_TEXT: 17/700 title, 14/600 heading, 14/400 body, 13/400 captions, mono code), and
+// its legibility floors are those sizes (owner 2026-11-12: the written card is the proven-legible reference). Legacy /animation scenes keep their own sizes and floors.
+const INTERACT_TEXT = Object.freeze({ code: { fontFamily: 'var(--font-mono)' } });
+export const interactTextStyle = typographyRole => {
+  const text = TEACHING_TEXT[typographyRole];
+  return { ...textStyle(typographyRole), ...(text ? { fontSize: text.size, fontWeight: text.weight } : {}), ...INTERACT_TEXT[typographyRole] };
+};
+export const INTERACT_FLOORS = Object.freeze({ ...Object.fromEntries(Object.entries(TEACHING_TEXT).map(([role, text]) => [role, text.size])), metadata: LEGIBILITY_FLOORS.metadata });
+// Passed to legibleFrame / sceneLegibility so a composed card is sized by these sizes and floors.
+export const INTERACT_LOOK = Object.freeze({ size: role => interactTextStyle(role).fontSize, floor: role => INTERACT_FLOORS[role] ?? INTERACT_FLOORS.body });
 
 export function interactShapeStyle(role, state = {}, tier, identity = null) {
   const { strokeWidth } = shapeStyle(role, state, tier, identity);

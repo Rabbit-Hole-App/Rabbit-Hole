@@ -41,9 +41,9 @@ function sceneObject(object) {
 // (scene-layout.js): the frame is drawn at its declared width and height (Frame fixedView), so the box is that size times the
 // scale its text classes need, capped at the widest a scene card may grow (MAX_SCENE_VIEWPORT), aspect kept. Generic: the
 // declared size and the text classes only.
-export function legibleFrame(scene) {
+export function legibleFrame(scene, look = null) {
   // The scale each class needs is floor / authored size, read from the scene cards' own legibility report (1 when no text).
-  const classes = Object.values(sceneLegibility(scene)?.effective ?? {});
+  const classes = Object.values(sceneLegibility(scene, null, look)?.effective ?? {});
   const required = classes.reduce((worst, size) => Math.max(worst, size.floor / size.authored), 0) || 1;
   const w = Math.min(scene.width * required, MAX_SCENE_VIEWPORT.w);
   return { w: Math.round(w), h: Math.round(w * scene.height / scene.width) };
@@ -60,8 +60,8 @@ export function programCardSize(box, { chrome, minWidth = 0 }) {
 // Focus may draw a frame smaller than its legible box, down to the scale where its smallest text reaches the smallest floor the
 // legibility rules allow anywhere (LEGIBILITY_FLOORS.metadata, 12 px): the per-class floors size the canvas card, 12 px is the
 // readable minimum. A frame of body text (15 px) may shrink to 0.8 of its box; one already capped under its floors, not at all.
-export function readableScale(scene, legible = legibleFrame(scene)) {
-  const sizes = Object.values(sceneLegibility(scene)?.effective ?? {}).map(size => size.authored);
+export function readableScale(scene, legible = legibleFrame(scene), look = null) {
+  const sizes = Object.values(sceneLegibility(scene, null, look)?.effective ?? {}).map(size => size.authored);
   const smallest = (sizes.length ? Math.min(...sizes) : LEGIBILITY_FLOORS.body) * legible.w / scene.width;
   return Math.min(1, LEGIBILITY_FLOORS.metadata / smallest);
 }

@@ -6,6 +6,7 @@ import { Frame } from './AnimatedScene.jsx';
 import { evaluateScene } from './scene-evaluate.js';
 import { getSceneState, validateScene } from './animation-scene.js';
 import { legibleFrame } from './explain-program/frame.js';
+import { INTERACT_LOOK } from './interact-style.js';
 import { createProgramHost, programStamps } from './explain-program/host.js';
 import { fixturesAdmitted, programErrorMessage } from './explain-program/program-card.js';
 import { DESCRIPTION_STYLE } from './interact-description-fit.js';
@@ -61,7 +62,7 @@ function usePanelFrame(panel, block, mainInputs) {
 
 function SupportPanel({ panel, block, mainInputs }) {
   const { frame, error } = usePanelFrame(panel, block, mainInputs);
-  const legible = frame ? legibleFrame(frame.scene) : null;
+  const legible = frame ? legibleFrame(frame.scene, INTERACT_LOOK) : null;
   return (
     <div data-interact-support={panel.id} data-interact-support-state={error ? 'failed' : frame ? 'drawn' : 'loading'} className={BOX} style={BOX_STYLE}>
       <p className="px-3 pt-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">{panel.title}</p>

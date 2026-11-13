@@ -355,15 +355,16 @@ export const MAX_SCENE_VIEWPORT = Object.freeze({ w: 1120, h: 860 });
 // units already ARE CSS pixels. Returns the clamped viewport plus the scale
 // and the per-class effective sizes that viewport actually produces, so a
 // caller can size a block with it and a gate can check it, from one function.
-export function sceneLegibility(scene, viewport = null) {
+// look (optional): { size(name), floor(name) } replaces the scene text sizes and floors, for a composed /interactive card (interact-style.js INTERACT_LOOK); absent: unchanged.
+export function sceneLegibility(scene, viewport = null, look = null) {
   const bounds = sceneContentBounds(scene);
   if (!bounds) return null;
   const classes = typographyClassesUsed(scene);
   // The scale every class needs: authored sizes are CSS pixels, so this is 1
   // unless an author wrote something smaller than its own floor.
   const required = classes.reduce((worst, name) => {
-    const authored = name === 'metadata' ? ROW_LABEL_FONT_SIZE : textStyle(name).fontSize;
-    return Math.max(worst, legibilityFloor(name) / authored);
+    const authored = name === 'metadata' ? ROW_LABEL_FONT_SIZE : (look ? look.size(name) : textStyle(name).fontSize);
+    return Math.max(worst, (look ? look.floor(name) : legibilityFloor(name)) / authored);
   }, 0) || 1;
   const contentW = (bounds.xMax - bounds.xMin) + SCENE_PAD * 2;
   const contentH = (bounds.yMax - bounds.yMin) + SCENE_PAD * 2;
@@ -376,8 +377,8 @@ export function sceneLegibility(scene, viewport = null) {
   const scale = box.w / span.w;
   const effective = {};
   for (const name of classes) {
-    const authored = name === 'metadata' ? ROW_LABEL_FONT_SIZE : textStyle(name).fontSize;
-    effective[name] = { authored, effectivePx: authored * scale, floor: legibilityFloor(name) };
+    const authored = name === 'metadata' ? ROW_LABEL_FONT_SIZE : (look ? look.size(name) : textStyle(name).fontSize);
+    effective[name] = { authored, effectivePx: authored * scale, floor: look ? look.floor(name) : legibilityFloor(name) };
   }
   return { bounds, classes, scale, viewport: box, span, effective, clamped: wanted.w > MAX_SCENE_VIEWPORT.w };
 }

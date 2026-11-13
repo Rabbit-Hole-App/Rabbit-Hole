@@ -7,6 +7,7 @@ import { CardSourceScope } from '../use-card-source.js';
 import { Frame } from '../AnimatedScene.jsx';
 import { InputWidget } from '../SceneControls.jsx';
 import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
+import { INTERACT_LOOK } from '../interact-style.js';
 import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler, frameKey, watchSeen } from './playback.js';
 import { useProgramState } from './use-program-state.js';
@@ -157,8 +158,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useEffect(() => { setBox(null); }, [artifact]);
   useEffect(() => {
     if (!view || box) return;
-    const legible = legibleFrame(view.scene);
-    setBox({ ...legible, minScale: readableScale(view.scene, legible) });
+    const look = composition ? INTERACT_LOOK : null; // a composed /interactive card is sized by the written card's text sizes and floors
+    const legible = legibleFrame(view.scene, look);
+    setBox({ ...legible, minScale: readableScale(view.scene, legible, look) });
     onProgramFrame?.(legible);
   }, [view, box, onProgramFrame]);
 
@@ -350,7 +352,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const shownTime = playing ? view.time : time;
   // On the canvas the frame keeps its legible box: a larger card draws it larger; a smaller one (a learner's resize) scrolls the
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
-  const legible = box ?? legibleFrame(view.scene);
+  const legible = box ?? legibleFrame(view.scene, composition ? INTERACT_LOOK : null);
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>

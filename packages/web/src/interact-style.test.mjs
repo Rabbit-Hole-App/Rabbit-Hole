@@ -8,11 +8,12 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { buildSync } from 'esbuild';
 import { normalizeFrame } from './explain-program/frame.js';
-import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle, interactStrokeColor, interactTextStyle } from './interact-style.js';
-import { LEGIBILITY_FLOORS } from './scene-layout.js';
+import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle, interactStrokeColor, interactTextStyle, INTERACT_FLOORS, INTERACT_LOOK } from './interact-style.js';
+import { legibleFrame } from './explain-program/frame.js';
+import { LEGIBILITY_FLOORS, sceneLegibility } from './scene-layout.js';
 import { inkOver, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
 import { INK, PALETTE, PATH, SURFACE } from './tutor-diagrams/primitives.js';
-import { TEACHING_FONT, TEACHING_STYLE } from './tutor-diagrams/teaching-theme.js';
+import { TEACHING_FONT, TEACHING_STYLE, TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
 
 const SWATCHES = {
   input: PALETTE.process,
@@ -201,11 +202,26 @@ test('interact mode draws the frame on the teaching surface with the written dia
   assert.match(read('./InteractSupportPanels.jsx'), /background: TEACHING\.inset/);
 });
 
-test('interact text classes follow the written diagrams where no legibility floor is crossed: caption weight 400, mono code, sizes untouched; /animation text is as before', () => {
-  assert.deepEqual(interactTextStyle('caption'), { ...textStyle('caption'), fontWeight: 400 });
+test('interact text classes ARE the written cards (17/14/14/13) and its floors are those sizes; legacy sizes and floors are untouched', () => {
+  for (const [role, text] of Object.entries(TEACHING_TEXT)) {
+    assert.equal(interactTextStyle(role).fontSize, text.size, `${role} size`); assert.equal(interactTextStyle(role).fontWeight, text.weight, `${role} weight`);
+    assert.equal(INTERACT_FLOORS[role], text.size, `${role} floor is the written card's size`); assert.ok(interactTextStyle(role).fontSize >= INTERACT_FLOORS[role]);
+  }
+  assert.deepEqual([INTERACT_FLOORS.display, INTERACT_FLOORS.heading, INTERACT_FLOORS.body, INTERACT_FLOORS.caption], [17, 14, 14, 13]);
+  assert.equal(INTERACT_FLOORS.metadata, LEGIBILITY_FLOORS.metadata, 'the smallest floor is unchanged');
   assert.equal(interactTextStyle('code').fontFamily, 'var(--font-mono)');
-  for (const role of ['display', 'heading', 'body', 'annotation', 'equation']) assert.deepEqual(interactTextStyle(role), textStyle(role), `${role} is unchanged`);
-  for (const role of ['display', 'heading', 'body', 'caption', 'annotation', 'code', 'equation']) assert.ok(interactTextStyle(role).fontSize >= LEGIBILITY_FLOORS[role], `${role} stays at or above its legibility floor`);
+  assert.match(read('./tutor-diagrams/TutorDiagram.js'), /size: 17, weight: 700/, 'the written card draws its title at TEACHING_TEXT.display');
+  assert.deepEqual(LEGIBILITY_FLOORS, { display: 20, heading: 17, equation: 15, body: 15, caption: 14, annotation: 13, code: 13, metadata: 12 }, 'the legacy floors are unchanged');
+  assert.equal(textStyle('body').fontSize, 15, 'a legacy scene still draws body text at 15 px');
+});
+
+test('a composed frame is sized by the written cards sizes: body text at 14 px reaches its floor at the declared size, where the legacy floors would not', () => {
+  const frame = normalizeFrame({ width: 640, height: 420, objects: [{ kind: 'text', id: 't', x: 20, y: 40, text: 'hello', role: 'neutral' }] });
+  assert.equal(frame.ok, true, frame.issue);
+  assert.deepEqual(legibleFrame(frame.scene, INTERACT_LOOK), { w: 640, h: 420 }, 'drawn at its declared size');
+  const report = sceneLegibility(frame.scene, null, INTERACT_LOOK);
+  assert.deepEqual([report.effective.body.authored, report.effective.body.floor], [14, 14]);
+  assert.deepEqual(legibleFrame(frame.scene), legibleFrame(frame.scene, null), 'no look: the legacy result');
 });
 
 test('R2 drift pin: interact-style.js and the interact branches of AnimatedScene.jsx hold no literal colour or font, and every resolved role style is a written-card export', () => {
