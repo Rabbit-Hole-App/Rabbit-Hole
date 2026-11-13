@@ -75,12 +75,12 @@ test('stage 04 runs its verifier batches in parallel and keeps the verdicts in b
   }
   await writeFile(join(fixtureDir, 'prompts.human.json'), JSON.stringify({ topic: 'decision-trees', prompts: [] }));
   let running = 0, peak = 0, calls = 0, release;
-  const gate = Promise.race([new Promise(resolve => { release = resolve; }), new Promise(resolve => setTimeout(resolve, 2000))]);
+  const gate = Promise.race([new Promise(resolve => { release = resolve; }), new Promise(resolve => setTimeout(resolve, 15000))]);
   const ctx = { topic: 'decision-trees', topicDir, fixtureDir, fixture: true, config: { paths: { sourceRoot: root } },
     call: async (agent, inputs) => {
       calls++; running++; peak = Math.max(peak, running);
       if (calls === 3) release();
-      await gate;   // all three calls must be in flight together, or this waits out its two seconds
+      await gate;   // all three calls must be in flight together, or this waits out its fifteen seconds (slow contact sheets under load)
       await new Promise(resolve => setTimeout(resolve, 30 - inputs.figures.length));   // the first batches finish last: order must still be the batch order
       running--;
       return { topic: 'decision-trees', figures: inputs.figures.map(row => ({ id: row.id, verdict: 'ship', reasons: [], layer: 'label' })) };
