@@ -1454,6 +1454,7 @@
   "none": [
     "packages/control-plane/telemetry-migrations/**",
     "scripts/explain-bench/**",
+    "scripts/topic-pipeline/**",
     "packages/control-plane/animation-sgd-qualification.mjs", "packages/control-plane/build-animation-mvp1-correction-fixture.mjs",
     "packages/**/test/**",
     "packages/**/*.test.mjs",
@@ -1583,6 +1584,7 @@
   ],
   "noneReasons": {
     "scripts/explain-bench/**": "Hand-run /explain benchmark tooling (copy of the quality-bench scripts, the selector and planner benches, the prompt sets and the batch 3C value script); never imported by the app or a worker; set3-bench.test.mjs is run by hand with the bench",
+    "scripts/topic-pipeline/**": "Hand-run lesson pipeline tooling (stages, agent prompts, checks and its own tests, run with node --test scripts/topic-pipeline/test/*.test.mjs by hand and in the release gate); never imported by the app or a worker",
     "packages/control-plane/animation-sgd-qualification.mjs": "Offline SGD qualification check, run by hand and imported only by the control-plane unit tests; never by the app or a worker",
     "packages/control-plane/build-animation-mvp1-correction-fixture.mjs": "Generator of the offline MVP1 correction fixture (test/fixtures); run by hand, never by the app or a worker",
     "packages/control-plane/telemetry-migrations/**": "TELEMETRY_DB schema; applied only to the telemetry database, which the local fork stack does not bind; proven by node:sqlite unit tests",
