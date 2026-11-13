@@ -131,19 +131,26 @@ function tossCases(plan, { inputControls, defaults, at, tl }) {
   return cases;
 }
 
-function tossOracle(plan, id, ref, values) {
+// Arrow directions (y grows downward on the screen; sdk.vector's `direction` names the POSITIVE axis and `value` is signed along it, so a negative acceleration drawn with direction "up" points down).
+// The acceleration and the force always point down. The velocity arrow points up before the top, is absent at it, and points down after; within 0.1 m/s of zero it may be missing (the card hides an arrow
+// under its minimum length).
+const WHY = { v: 'velocity points up before the top, is zero at the top and points down after it', a: 'the acceleration is -g, so its arrow always points down (direction names the positive axis, value is signed along it)', F: 'the force is m g downward, so its arrow always points down' };
+const velocityDir = v => Math.abs(v) < NEAR ? 'none' : Math.abs(v) < 0.1 ? `${v > 0 ? 'up' : 'down'}-or-none` : v > 0 ? 'up' : 'down';
+
+function tossOracle(plan, id, ref, values, arrows = () => []) {
   const required = new Set([...plan.scene.observations.flatMap(o => o.quantityIds).filter(q => !(q in plan.mode.fixedValues)), ...plan.scene.readoutIds]);
-  const expect = [];
+  const expect = [], directions = [];
   for (const [caseId, [inputs, t]] of Object.entries(tossCases(plan, ref))) {
     const g = ref.gOf(inputs), u = inputs.launchSpeed, top = u / g, tau = t - top;
+    for (const [objectId, dir, quantity] of arrows({ velocity: u - g * t, tau, g })) directions.push({ case: caseId, id: objectId, dir, why: WHY[quantity] });
     for (const [name, expected] of Object.entries(values({ u, g, m: inputs.mass ?? 1, t, tau, top, peak: u * u / (2 * g), height: Math.max(0, u * t - g * t * t / 2), velocity: u - g * t }))) if (required.has(name) && expected !== undefined) expect.push({ case: caseId, panel: 'main', name, expected, tol: TOL });
   }
-  return expect.length ? { id, expect } : null;
+  return expect.length ? { id, expect, arrows: directions } : null;
 }
 
 export function tossOverviewOracle(plan) {
   const ref = tossReference(plan, 'brief', { gravity: false, mass: false, offset: 0 });
-  return ref && tossOracle(plan, 'toss-overview', ref, v => ({ velocity: v.velocity, height: v.height, apexTime: v.top, apexHeight: v.peak, launchSpeed: v.u }));
+  return ref && tossOracle(plan, 'toss-overview', ref, v => ({ velocity: v.velocity, height: v.height, apexTime: v.top, apexHeight: v.peak, launchSpeed: v.u }), v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a']]);
 }
 
 export function tossStandardOracle(plan) {
@@ -153,12 +160,12 @@ export function tossStandardOracle(plan) {
     tossedVelocity: v.velocity, tossedAcceleration: -v.g, tossedHeight: v.height, apexTime: v.top, apexHeight: v.peak, launchSpeed: v.u, gravity: v.g,
     dropVelocity: released(v) ? -v.g * Math.max(0, v.tau) : 0, dropHeight: released(v) ? v.height : v.peak,
     dropAcceleration: Math.abs(v.tau) < NEAR ? undefined : v.tau > 0 ? -v.g : 0,
-  }));
+  }), v => [['vec.v.toss', velocityDir(v.velocity), 'v'], ['vec.a.toss', 'down', 'a'], ['vec.v.drop', velocityDir(v.tau > 0 ? -v.g * v.tau : 0), 'v'], ['vec.a.drop', 'down-or-none', 'a']]);
 }
 
 export function tossDeepOracle(plan) {
   const ref = tossReference(plan, 'detailed', { gravity: true, mass: true, offset: 0 });
-  return ref && tossOracle(plan, 'toss-deep', ref, v => ({ height: v.height, velocity: v.velocity, acceleration: -v.g, force: v.m * v.g, apexTime: v.top, apexHeight: v.peak, launchSpeed: v.u, gravity: v.g, mass: v.m }));
+  return ref && tossOracle(plan, 'toss-deep', ref, v => ({ height: v.height, velocity: v.velocity, acceleration: -v.g, force: v.m * v.g, apexTime: v.top, apexHeight: v.peak, launchSpeed: v.u, gravity: v.g, mass: v.m }), v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a'], ['vec.F', 'down-or-none', 'F']]);
 }
 
 // The trusted expected values for this plan, or null when no oracle exists for it (the checks then say so).

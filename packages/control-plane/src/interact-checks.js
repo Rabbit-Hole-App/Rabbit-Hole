@@ -202,6 +202,17 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     coverage.oracle.checked += 1;
     if (!(Math.abs(actual - e.expected) <= tol)) bad('numeric_mismatch', `${e.case}.${e.panel}.${e.name}`, `${e.name} at ${e.case} is ${round6(actual)}, expected ${round6(e.expected)} (tolerance ${tol})`, e.case);
   }
+  // Arrow directions from the trusted physics (oracle.arrows: {case, id, dir}): the drawn from -> to of an arrow object, y growing downward. dir is up, down or none (absent or under a pixel long),
+  // or up-or-none / down-or-none (the arrow may be missing, as when a body has no velocity yet or the arrow is under its minimum length). A name and a direction the repairer can act on.
+  for (const e of oracle?.arrows ?? []) {
+    const cap = capOf(e.case);
+    if (!cap?.trace?.objects) { coverage.oracle.skipped.push(`${e.case}:${e.id}`); continue; }
+    const o = cap.trace.objects.find(x => x.id === e.id && x.kind === 'arrow'), dy = o ? o.to.y - o.from.y : 0, drawn = o && Math.hypot(o.to.x - o.from.x, dy) >= 1;
+    const got = !drawn ? 'none' : dy > 0 ? 'down' : 'up', allowed = e.dir.replace('-or-none', ''), optional = e.dir.endsWith('-or-none');
+    coverage.oracle.checked += 1;
+    if (got === allowed || (optional && got === 'none')) continue;
+    bad('arrow_direction', `${e.case}.${e.id}`, `the arrow "${e.id}" ${drawn ? `points ${got}` : 'is not drawn'} at ${e.case}, expected ${optional ? `${allowed} or no arrow` : allowed === 'none' ? 'no arrow (the quantity is zero)' : `${allowed}`} - ${e.why}`, e.case);
+  }
   if (!oracle) coverage.oracle.note = 'no trusted expected values were supplied: numbers are checked structurally, not against an oracle';
 
   // Behavioural: every adjustable input visibly does something. Tested from the boundary captures that were sampled; what was not sampled is said.
