@@ -31,7 +31,7 @@ export function AxisFigure({ spec, id }) {
       : label(lines, x0 - TICK_LEN - 4, at, { anchor: 'end', size: TICK }));
   }
   parts.push(horizontal ? label(title, x0 + length, y0 + TICK_LEN + 4 + tickHeight(ticks) + 14, { anchor: 'end', size: TITLE, weight: 700 })
-    : label(title, x0 - FIGURE_BAND.y + 4, y0 - length - 8, { anchor: 'start', size: TITLE, weight: 700 }));
+    : label(title, x0 - FIGURE_BAND.y + 4, y0 - length - 18, { anchor: 'start', size: TITLE, weight: 700 }));
   return <g data-frame-figure="axis" data-axis={id} role="img" aria-label={`${title}, ${min} to ${max}`}>{parts.map((part, index) => cloneElement(part, { key: index }))}</g>;
 }
 

@@ -9,7 +9,8 @@ import { createRequire } from 'node:module';
 
 const BASE = 'https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev';
 const DEV_CP = 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
-const EMAIL = 'owner-interact-preview@example.com';
+// The morning account is fresh (2,500 credits): owner-interact-preview had 812 left on 2026-11-13, below the 842 a Generate press reserves, so it answers 429 allowance_limited.
+const EMAIL = process.env.PREVIEW_EMAIL || 'owner-interact-morning@example.com';
 const PROFILE = 'C:/s/spec/interact-real/owner-browser-profile';
 const STATE = 'C:/s/spec/interact-real/current.json';
 const UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };

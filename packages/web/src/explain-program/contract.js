@@ -51,7 +51,7 @@ export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arr
 export const FIGURE_KINDS = Object.freeze(['axis', 'plot', 'diagram']);
 // What a figure keeps free beside its line, in frame units, so the frame bounds check is the same number the renderer draws with (FrameFigures.jsx): an x axis keeps
 // BAND.x below it for ticks and its title, a y axis keeps BAND.y to its left and titleRoom above its top end.
-export const FIGURE_BAND = Object.freeze({ x: 52, y: 60, titleRoom: 22 });
+export const FIGURE_BAND = Object.freeze({ x: 52, y: 60, titleRoom: 28 }); // 22 until run 2 (2026-11-13): the y title sat on the top tick label; it now rides 18 px above the axis end
 export const FIGURE_LIMITS = Object.freeze({ series: 3, points: 24, ticks: 12, specBytes: 16 * 1024, plotMin: Object.freeze({ w: 200, h: 160 }) });
 
 const finite = limit => z.number().min(-limit).max(limit); // z.number() already refuses NaN and Infinity

@@ -26,7 +26,7 @@ export const BENCH_JUDGE_SCHEMA = Object.freeze({
       object: { type: 'string', maxLength: 64 },
       category: { type: 'string', enum: ['source', 'spec', 'component', 'renderer', 'budget'] },
       severity: { type: 'string', enum: ['blocker', 'major', 'minor'] },
-      message: { type: 'string', maxLength: 400 },
+      message: { type: 'string', maxLength: 1200 }, // run 2 (2026-11-13): Sonnet wrote a 400+ character finding and a 400 limit refused the whole judgement; the bench lane is read by a person, so a longer message is kept, not refused
     } } },
   },
 });

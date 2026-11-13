@@ -13,7 +13,8 @@ if (!OUT) { console.error('usage: node run-depth.mjs <out-dir> <brief|balanced|d
 mkdirSync(OUT, { recursive: true });
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', '..');
 const BASE = 'https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev', DEV_CP = 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
-const EMAIL = 'owner-interact-preview@example.com', UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };
+// A fresh test account per night: the older owner-interact-preview account had spent most of its 2,500 monthly credits and the Generate press (which reserves about 842) answered 429 allowance_limited.
+const EMAIL = process.env.RUN_EMAIL || 'owner-interact-night@example.com', UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };
 const PROMPT = '/interactive At the highest point of a vertical throw, is acceleration zero because velocity is zero?';
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const env = readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8');
@@ -37,6 +38,8 @@ await context.addCookies([{ name: 'small_session', value: session, domain: new U
 const page = await context.newPage();
 page.on('console', m => { if (m.type() === 'error') log('console.error', m.text().slice(0, 200)); });
 page.on('pageerror', e => log('pageerror', String(e).slice(0, 200)));
+let approveFailed = null;
+page.on('response', async r => { if (/\/explain\/jobs\/[^/]+\/approve/.test(r.url()) && r.status() >= 400) approveFailed = `approve ${r.status()}: ${(await r.text().catch(() => '')).slice(0, 200)}`; });
 page.on('response', async r => { if (/\/api\/learn\/(explain\/jobs|chat)/.test(r.url()) && r.request().method() === 'POST') log('POST', r.url().replace(BASE, ''), r.status(), (await r.text().catch(() => '')).slice(0, 200)); });
 await page.goto(url);
 const composer = page.locator('[data-chat-pane] [data-chat-composer]').first();
@@ -67,13 +70,17 @@ while (Date.now() - t0 < 1500000) {
   const l = await api('GET', `/api/learn/explain/jobs?board=${boardId}`); const arr = Array.isArray(l.data) ? l.data : (l.data?.jobs || []);
   jobId = arr[arr.length - 1]?.id || arr[0]?.id || jobId;
   if (jobId) { const r = await api('GET', `/api/learn/explain/jobs/${jobId}?board=${boardId}`); job = r.data?.job; if (job?.terminal || ['ready', 'failed', 'cancelled'].includes(job?.stage)) break; }
+  if (approveFailed) { log('STOP', approveFailed); break; }
   await sleep(5000);
 }
 log('job end', JSON.stringify({ id: job?.id, stage: job?.stage, stop: job?.stopReason, failure: job?.failure?.message?.slice(0, 300), card: job?.cardId, ms: Date.now() - t0 }));
 // The private detail (stages, calls, findings) and the ledger row.
 let detailStatus = null;
 if (jobId) {
-  const d = await api('GET', `/api/learn/explain/jobs/${jobId}?board=${boardId}&detail=1`); detailStatus = d.status;
+  // With INTERACT_REVIEW=shadow the card is ready before the bench judge has scored it: wait (up to 3 minutes) for the judge record, so the ledger row carries it.
+  let d = await api('GET', `/api/learn/explain/jobs/${jobId}?board=${boardId}&detail=1`);
+  for (let i = 0; job?.stage === 'ready' && d.data?.diagnostics?.bench && (d.data.diagnostics.bench.pending || d.data.diagnostics.bench.running) && i < 36; i += 1) { await sleep(5000); d = await api('GET', `/api/learn/explain/jobs/${jobId}?board=${boardId}&detail=1`); }
+  detailStatus = d.status;
   writeFileSync(`${OUT}/job-${jobId}-final-full.json`, JSON.stringify(d.data, null, 2));
   const r = spawnSync(process.execPath, [join(REPO, 'scripts/interact/ledger.mjs'), '--clone', BASE, '--job', jobId, '--board', boardId], { encoding: 'utf8' });
   log('ledger:', (r.stdout + r.stderr).trim().slice(0, 300));

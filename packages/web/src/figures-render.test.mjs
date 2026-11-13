@@ -61,7 +61,7 @@ test('a y axis grows up from its start, takes the declared ticks, and puts its t
   assert.match(g, /<polyline points="80,300 80,60"/);
   for (const tick of ['0', '2.5', '5']) assert.ok(texts(g).includes(tick), `tick ${tick}`);
   assert.ok(texts(g).includes('Height (m)'));
-  assert.match(g, /<text x="24" y="52"[^>]*><tspan[^>]*>Height \(m\)</, 'the title sits in the room above the top end, at the left of the band');
+  assert.match(g, /<text x="24" y="42"[^>]*><tspan[^>]*>Height \(m\)</, 'the title sits in the room above the top end, at the left of the band');
 });
 
 test('a plot has an area, dashed gridlines, tick labels, titles, and its series in the written plot colours', () => {
@@ -123,7 +123,7 @@ test('the markup of each figure kind in the composed card is pinned', () => {
 });
 const EXPECTED_MARKUP_HASHES = {
   axisX: 'a560140acaa12466e1f91058e0d27fe305a0b69b54e8c3179d95b4f5b01f3491',
-  axisY: 'a02a5f2cad60c8245a10c64b8a79179acf022b455e19ac064b9562214cb442a9',
+  axisY: '82f48c2487842873aefc04b0df5a842101a1e332028dc432030980c9adaccdec',
   plot: '9d2a6f3f51fce6d606936642767acbc88cdc7ce16f801cce22e8ffcf2a514577',
   diagram: '97c0443ec308667cf6f1cb2952b53cc20095b02dff7461dba427894a792de4c5',
 };
