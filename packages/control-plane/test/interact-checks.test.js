@@ -3,7 +3,7 @@
 // Expected numbers come from the equations of docs/features/interact.md section 7 (packages/web/src/interact-build-fixtures.js), not from the builds.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CAPTURE_BUDGET, captureBudgetProblems, planHash, requiredCaptureCount } from '../../web/src/interact-plan.js';
+import { CAPTURE_BUDGET, captureBudgetProblems, evalScalar, planHash, requiredCaptureCount, unshownControls } from '../../web/src/interact-plan.js';
 import { resolveTimeline } from '../../web/src/interact-composition.js';
 import { G, fixtureDraft, standardOracle, tossDrop } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
@@ -11,7 +11,7 @@ import { RenderError } from '../src/explain-render.js';
 import { InteractModelError } from '../src/interact-models.js';
 import { interactRepairTool } from '../src/agents/explain-repair.js';
 import { validateBuildOutput } from '../src/interact-build.js';
-import { compositionLayoutText, lenientFindingText, CHECK_LIMITS, INTERACT_REVIEW_RULES, buildPlanCaptureCases, checkRound, checkSceneAgainstPlan, classifyFailure, repairRound } from '../src/interact-checks.js';
+import { captureListText, compositionLayoutText, lenientFindingText, CHECK_LIMITS, INTERACT_REVIEW_RULES, buildPlanCaptureCases, checkRound, checkSceneAgainstPlan, classifyFailure, repairRound } from '../src/interact-checks.js';
 import { fixtureCaptureCard, fixtureContext, fixtureScript } from '../src/interact-fixtures.js';
 
 const { capabilities, plans } = await interactFixtures();
@@ -52,11 +52,12 @@ test('Deep capture cases resolve the endpoint independently for each tested inpu
   const byId = Object.fromEntries(cases.flatMap(c => [c, ...c.aliases.map(a => ({ ...c, id: a }))]).map(c => [c.id, c]));
   assert.equal(byId['cp-trialReturn'].time, end(5)); assert.equal(byId['cp-referenceReturn'].time, end(3));
   assert.notEqual(byId['cp-trialReturn'].time, byId['cp-referenceReturn'].time);
-  assert.equal(byId['bound-speed-min'].time, end(3), 'a boundary is captured at that state\'s own endpoint'); assert.equal(byId['bound-speed-max'].time, end(5));
+  assert.equal(byId['bound-speed-min'].time, 3 / G, 'a boundary is captured at the instant the plan schedules for that control (the trial top), at that value'); assert.equal(byId['bound-speed-max'].time, 5 / G);
   assert.equal(byId['cp-trialTop'].time, 5 / G); assert.deepEqual(byId['bound-speed-min'].supports[0].inputs, { trialSpeed: 3 });
-  // Both boundary states are the same states as two approved moments, so they are those captures under a second name, not extra images.
-  assert.deepEqual([cases.length, coverage.required, coverage.omitted], [4, 4, []]);
-  assert.ok(cases.find(c => c.id === 'cp-referenceReturn').aliases.includes('bound-speed-min') && cases.find(c => c.id === 'cp-trialReturn').aliases.includes('bound-speed-max'));
+  // The maximum is the approved trial top (a second name, not an extra image); the minimum at its own top is one more capture, after the required ones.
+  assert.deepEqual([cases.length, coverage.required, coverage.omitted], [5, 4, []]);
+  assert.ok(cases.find(c => c.id === 'cp-trialTop').aliases.includes('bound-speed-max'));
+  assert.deepEqual(coverage.boundaries, [{ control: 'speed', bound: 'min', checkpoint: 'trialTop' }, { control: 'speed', bound: 'max', checkpoint: 'trialTop' }], 'the report names the checkpoint chosen');
   assert.equal(new Set(cases.map(c => JSON.stringify([c.inputs, c.time, c.events]))).size, cases.length, 'identical states are one capture');
 });
 
@@ -332,4 +333,37 @@ test('overlap: a label drawn on a ball is a deterministic problem naming both ob
   assert.ok(problem, JSON.stringify(out.failure.problems)); assert.match(problem, /"up-label" overlaps "tossed-ball" \(text-circle/);
   assert.equal(ctx.adapter.log.filter(l => l.role === 'build_review').length, 0, 'no review of a card the checks already refused');
   assert.equal(out.failure.problems.filter(p => /\[overlap\]/.test(p) && /up-label/.test(p) && /tossed-ball/.test(p)).length, 1, 'a pair is reported once, at the first state it appears in');
+});
+
+test('boundary captures sit at the checkpoint the plan schedules for the control: the maximum launch speed at its apex, and the end of the flight only when no checkpoint references the input', async () => {
+  // toss-drop-standard-controls: the first checkpoint that references launchSpeed is the top, and at the maximum speed that is 5/g = 0.51 s, not the end of the flight at 1.02 s.
+  const p = plans.standardControls, refs = (e, id) => !!e && (e.op === 'input' ? e.id === id : e.op !== 'literal' && (refs(e.left, id) || refs(e.right, id)));
+  const first = p.scene.checkpoints.find(cp => refs(cp.time, 'launchSpeed'));
+  assert.equal(first.id, 'top'); assert.ok(Math.abs(evalScalar(first.time, { launchSpeed: 5 }, { launchSpeed: [3, 5] }) - 5 / G) < 1e-12);
+  assert.ok(Math.abs(evalScalar(p.mode.timeline.end, { launchSpeed: 5 }, { launchSpeed: [3, 5] }) - 10 / G) < 1e-12, 'while the end of the flight is 2u/g = 1.02 s');
+  // the same rule through the real planner, on the Deep plan whose checkpoints reference launchSpeed
+  const deep = await candidate('deep'), planned = buildPlanCaptureCases(deep.plan, deep.composition, deep.artifacts);
+  assert.deepEqual(planned.coverage.boundaries.map(b => b.checkpoint), ['trialTop', 'trialTop']);
+  assert.ok(planned.cases.some(c => c.label === 'Launch speed at min, at Trial top'), JSON.stringify(planned.cases.map(c => c.label)));
+  // a plan with no checkpoint that references the input falls back to the end of the flight
+  const flat = clone(deep.plan); for (const cp of flat.scene.checkpoints) cp.time = { op: 'literal', value: 0.1 };
+  const fallback = buildPlanCaptureCases(flat, deep.composition, deep.artifacts), max = [...fallback.cases, ...fallback.cases.flatMap(c => c.aliases.map(a => ({ ...c, id: a })))].find(c => c.id === 'bound-speed-max');
+  assert.deepEqual(fallback.coverage.boundaries.map(b => b.checkpoint), [null, null]);
+  assert.equal(max.time, resolveTimeline(deep.composition, { launchSpeed: 5 }).end);
+});
+
+test('the review is told which captures exist and what each shows; a plan whose observations no capture could show is a design-time capture_budget problem', async () => {
+  const deep = await candidate('deep'), planned = buildPlanCaptureCases(deep.plan, deep.composition, deep.artifacts);
+  const text = captureListText(planned.cases);
+  assert.match(text, /the ONLY images that exist; never ask for one that is not listed/);
+  assert.match(text, /cp-trialTop = Trial top \(t = 0\.510204 s, inputs \{"launchSpeed":5/);
+  assert.match(text, /bound-speed-min = Launch speed at min, at Trial top/);
+  // toss-drop-standard-controls: 5 required + 1 boundary (the maximum Launch speed, shown at its top) = 6, within the budget
+  assert.deepEqual(captureBudgetProblems(plans.standardControls), []);
+  assert.deepEqual(unshownControls(plans.standardControls).map(c => c.id), ['speed'], 'an observation reads what Launch speed changes and no checkpoint overrides it');
+  // one more checkpoint leaves no slot for that boundary capture: the observation could not be shown, so the plan is refused before it is built
+  const crowded = clone(plans.standardControls); crowded.scene.checkpoints.push({ ...clone(crowded.scene.checkpoints[0]), id: 'extra', time: { op: 'literal', value: 0.05 } });
+  const problems = captureBudgetProblems(crowded);
+  assert.equal(problems[0].code, 'capture_budget'); assert.match(problems[0].message, /needs 6 .* 1 more to show what "Launch speed" changes at another value/);
+  assert.deepEqual(captureBudgetProblems(plans.deep), [], 'the Deep plan\'s checkpoints already override Launch speed');
 });

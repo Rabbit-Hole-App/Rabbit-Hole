@@ -76,8 +76,20 @@ export function buildPlanCaptureCases(plan, composition, artifacts, { limit = CH
     add(required, { id: `cp-${cp.id}`, kind: 'checkpoint', checkpointId: cp.id, label: cp.label, inputs, time, events: cp.actions.slice(0, REVIEW_EVENTS).map(press) });
   }
   if (timed) add(required, { id: 'end', kind: 'end', label: 'endpoint', inputs: { ...defaults }, time: endOf(defaults), events: [] });
+  // A boundary value of a control is captured at the INSTANT the plan already schedules for that control: the first checkpoint (in plan order) whose time expression references the
+  // control's input, evaluated at the boundary inputs, so the card shows e.g. the maximum launch speed at its own top and not only at the end of the flight. Only a control no
+  // checkpoint references falls back to the end of the flight. coverage.boundaries records the checkpoint chosen for each.
+  const references = (expr, id) => !!expr && (expr.op === 'input' ? expr.id === id : expr.op !== 'literal' && (references(expr.left, id) || references(expr.right, id)));
+  const boundaries = [];
   for (const c of plan.controls) {
-    const name = c.binding.id, bounded = (tag, value) => add(optional, { id: `bound-${c.id}-${tag}`, kind: 'boundary', label: `${c.label} at ${tag}`, inputs: { ...defaults, [name]: value }, time: endOf({ ...defaults, [name]: value }), events: [] });
+    const name = c.binding.id, anchor = timed ? plan.scene.checkpoints.find(cp => references(cp.time, name)) ?? null : null;
+    const bounded = (tag, value) => {
+      const inputs = { ...defaults, ...(anchor?.inputOverrides ?? {}), [name]: value };
+      let time = endOf(inputs), where = '';
+      if (anchor) { try { time = evalAt(anchor.time, composition, inputs); where = `, at ${anchor.label}`; } catch (error) { if (!(error instanceof ScalarExprError)) throw error; } }
+      boundaries.push({ control: c.id, bound: String(tag), checkpoint: where ? anchor.id : null });
+      add(optional, { id: `bound-${c.id}-${tag}`, kind: 'boundary', label: `${c.label} at ${tag}${where}`, inputs, time, events: [] });
+    };
     if (c.type === 'number') { bounded('min', c.min); bounded('max', c.max); }
     else if (c.type === 'select') for (const o of c.options.slice(0, 4)) if (o.value !== c.default) bounded(o.value, o.value);
     else if (c.type === 'boolean') bounded(c.default ? 'off' : 'on', !c.default);
@@ -100,7 +112,7 @@ export function buildPlanCaptureCases(plan, composition, artifacts, { limit = CH
   const incomplete = required.length > limit, room = Math.max(0, limit - required.length);
   const cases = incomplete ? required.slice(0, limit) : [...required, ...optional.slice(0, room)];
   const omitted = [...(incomplete ? required.slice(limit) : []), ...optional.slice(room)].map(c => ({ id: c.id, label: c.label, reason: incomplete ? 'required coverage does not fit the image budget' : 'over the image budget' }));
-  return { cases, probes: probes.slice(0, CHECK_LIMITS.maxProbes), coverage: { limit, required: required.length, sampled: cases.length, omitted, incomplete, problems, probes: Math.min(probes.length, CHECK_LIMITS.maxProbes), probesOmitted: Math.max(0, probes.length - CHECK_LIMITS.maxProbes) } };
+  return { cases, probes: probes.slice(0, CHECK_LIMITS.maxProbes), coverage: { limit, required: required.length, sampled: cases.length, omitted, incomplete, problems, boundaries, probes: Math.min(probes.length, CHECK_LIMITS.maxProbes), probesOmitted: Math.max(0, probes.length - CHECK_LIMITS.maxProbes) } };
 }
 
 // ---- deterministic checks ---------------------------------------------------------------------------------------------------------
@@ -253,6 +265,8 @@ export function compositionLayoutText(plan, composition) {
   return `Trusted card layout, top to bottom (nothing follows the last row):\n${rows.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
 }
 
+// What each scheduled capture shows, so the reviewer judges these images and never asks for one the plan did not schedule.
+export const captureListText = cases => `Scheduled captures (the ONLY images that exist; never ask for one that is not listed, and judge an observation only against the captures that show its state): ${cases.map(c => `${c.id} = ${c.label} (t = ${round6(c.time)} s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''})`).join('; ')}.`;
 const quantityList = (plan) => plan.scene.quantities.map(q => ({ id: q.id, label: q.label, unit: q.unit, meaning: q.meaning, reference: q.reference, ...(q.relation ? { relation: q.relation } : {}) }));
 export function reviewRequest(plan, composition) {
   const loose = descriptionNumbers(plan);
@@ -357,7 +371,9 @@ export async function reviewCandidate(job, ctx, { cases, captures, coverage, det
   let review;
   try {
     review = await reviewCaptures({
-      request: reviewRequest(plan, composition) + (partial ? `
+      request: reviewRequest(plan, composition) + `
+
+${captureListText(shown.flatMap(c => cases.filter(k => k.id === c.caseId)))}` + (partial ? `
 
 ${compositionLayoutText(plan, composition)}` : ''), compiledHash: composition.envelopeHash, facts: factsOf(plan, artifacts), evidence: job.evidence || [],
       captures: [...shown.map(c => { const k = cases.find(x => x.id === c.caseId); return { id: c.caseId, compiledHash: c.compositionHash, theme: 'light', time: k.time, inputs: k.inputs, events: k.events, step: k.label, png: c.png, ...(c.data ? { data: c.data } : {}) }; }),

@@ -527,8 +527,20 @@ export function requiredCaptureCount(plan) {
   if (timeline) add({ ...defaults }, at(timeline.end, defaults), []);
   return keys.size;
 }
+// An observation about what a control changes is shown only by a capture at that control's other value. A control whose effects an observation reads, and that no checkpoint overrides, gets
+// one boundary capture (its maximum) in the review's budget; the required captures plus those must fit, or the plan names an observation no capture could show.
+const BOUNDARY_TYPES = ['number', 'select', 'boolean', 'index'];
+export function unshownControls(plan) {
+  const observed = new Set(plan.scene.observations.flatMap(o => [...o.quantityIds, ...o.readoutIds]));
+  return plan.controls.filter(c => c.binding.kind === 'input' && BOUNDARY_TYPES.includes(c.type)
+    && (c.affects || []).some(a => a.scope === 'main' && ['quantity', 'readout'].includes(a.kind) && observed.has(a.id))
+    && !plan.scene.checkpoints.some(cp => Object.hasOwn(cp.inputOverrides || {}, c.binding.id)));
+}
 export function captureBudgetProblems(plan, budget = CAPTURE_BUDGET) {
-  const count = requiredCaptureCount(plan), fixed = plan.mode.timeline ? 2 : 1;
+  const count = requiredCaptureCount(plan), fixed = plan.mode.timeline ? 2 : 1, boundary = unshownControls(plan);
+  if (count + boundary.length > budget && count <= budget) {
+    return [{ path: 'scene.observations', code: 'capture_budget', message: `the rendered review reads at most ${budget} images: this plan needs ${count} for its start${fixed === 2 ? ', end' : ''} and checkpoints and ${boundary.length} more to show what ${boundary.map(c => `"${c.label}"`).join(', ')} change${boundary.length === 1 ? 's' : ''} at another value, so an observation could not be shown; name fewer checkpoints or fewer adjustable controls` }];
+  }
   return count > budget ? [{ path: 'scene.checkpoints', code: 'capture_budget', message: `the rendered review reads at most ${budget} images and this plan needs ${count} (the start${fixed === 2 ? ' and the end are' : ' is'} always captured); name at most ${budget - fixed} checkpoints whose state differs from the start${fixed === 2 ? ' and the end' : ''}` }] : [];
 }
 

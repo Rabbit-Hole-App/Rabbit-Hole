@@ -41,7 +41,7 @@ test('the Standard Experiment fixture (toss-drop-standard-controls): the main sc
   // the timeline is relative to the top and moves with the launch speed: apex u/g, end 2u/g, displayOffset -u/g, over the whole range
   const at = (expr, u) => evalScalar(expr, { launchSpeed: u }, { launchSpeed: [3, 5] });
   for (const u of [3, 4.1, 5]) { assert.ok(Math.abs(at(p.mode.timeline.end, u) - 2 * u / G) < 1e-12); assert.ok(Math.abs(at(p.mode.timeline.displayOffset, u) + u / G) < 1e-12); assert.ok(Math.abs(at(p.mode.timeline.markers[1].time, u) - u / G) < 1e-12); }
-  assert.deepEqual(p.scene.checkpoints.map(c => c.id), ['before', 'top', 'after']);
+  assert.deepEqual(p.scene.checkpoints.map(c => c.id), ['top', 'before', 'after'], 'the top first: a boundary of Launch speed is captured at the first checkpoint that references it');
   assert.equal(requiredCaptureCount(p), 5, 'start, three checkpoints and the end; the 6th slot is the launch speed maximum'); assert.deepEqual(captureBudgetProblems(p), []);
   assert.ok(p.cardDescription.length <= 150); assert.ok((await descriptionFit(p)).widths.every(w => w.lines >= 2 && w.lines <= 4), 'the estimated fit accepts the copy');
   assert.ok(p.claims.some(c => /every launch speed/.test(c.text)));

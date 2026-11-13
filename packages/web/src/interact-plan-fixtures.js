@@ -243,9 +243,10 @@ export async function interactFixtures() {
       entities: [...standard.scene.entities, entity('velocityArrow', 'Velocity arrow', 'Shows the signed velocity of each ball; shrinks to a dot at the top.'), entity('accelerationArrow', 'Acceleration arrow', 'Shows the constant -9.8 m/s^2 on each ball.')],
       quantities: [...standard.scene.quantities, quantity('height', 'Height of the tossed ball', 'm', 'Height of the tossed ball above the launch mark.', 'Measured from the launch mark, up is positive.', 'height = launchSpeed * t - gravity * t^2 / 2')],
       observations: [...standard.scene.observations, { id: 'apexMoves', text: 'A faster throw reaches its top later and higher; at the top the velocity reads zero and the acceleration still reads -9.8 m/s^2.', quantityIds: ['apexTime', 'velocity'], readoutIds: ['tossedVelocity', 'tossedHeight'] }],
+      // The top comes first: a boundary value of Launch speed is captured at the first checkpoint that references it, so the maximum speed is shown at its own top (interact-checks.js buildPlanCaptureCases).
       checkpoints: [
-        { id: 'before', label: '0.10 s before the top', time: bin('subtract', liveApex, lit(0.1)), inputOverrides: {}, actions: [], expected: 'Velocity +0.98 m/s, acceleration -9.8 m/s^2, 0.049 m below the peak.' },
         { id: 'top', label: 'At the top', time: liveApex, inputOverrides: {}, actions: [], expected: 'Velocity 0, acceleration -9.8 m/s^2; the gate releases the held ball.' },
+        { id: 'before', label: '0.10 s before the top', time: bin('subtract', liveApex, lit(0.1)), inputOverrides: {}, actions: [], expected: 'Velocity +0.98 m/s, acceleration -9.8 m/s^2, 0.049 m below the peak.' },
         { id: 'after', label: '0.10 s after the top', time: bin('add', liveApex, lit(0.1)), inputOverrides: {}, actions: [], expected: 'Velocity -0.98 m/s, acceleration -9.8 m/s^2, 0.049 m below the peak.' },
       ],
       readoutIds: ['tossedHeight', 'tossedVelocity', 'tossedAcceleration'],
