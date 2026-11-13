@@ -103,7 +103,9 @@ export async function run(ctx) {
       }
       record.commits.push(sha);
     }
-    for (let i = 0; i < commands.length; i++) {
+    // integration.suites: false = integrate only; the suites run once, in the release gate of the candidate (reviewer 2026-11-13).
+    if (ctx.config.integration?.suites === false) record.checks.push({ suites: 'skipped: run in the release gate' });
+    else for (let i = 0; i < commands.length; i++) {
       const result = await configuredCommand(ctx, '05', `suite-${i + 1}`, commands[i], record.worktree);
       artefacts.push(result.log);
       record.checks.push({ command: i + 1, status: 'ok' });
