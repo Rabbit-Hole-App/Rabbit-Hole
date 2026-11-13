@@ -1,0 +1,77 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time }) {\n  const g = 9.8;\n  const v0 = Number(inputs.launchSpeed);\n  const tTop = v0 / g;\n  const hTop = (v0 * v0) / (2 * g);\n  const duration = (2 * v0) / g;\n  const currentT = Math.min(Math.max(0, time), duration);\n\n  const velocity = v0 - g * currentT;\n  const height = Math.max(0, v0 * currentT - 0.5 * g * currentT * currentT);\n\n  let mState = \"Moving up\";\n  if (Math.abs(velocity) < 0.05) {\n    mState = \"Still for an instant\";\n  } else if (velocity < 0) {\n    mState = \"Moving down\";\n  }\n  const gState = \"Gravity pulls down\";\n\n  const originX = 220;\n  const originY = 360;\n  const scaleY = 180;\n\n  const ballX = originX;\n  const ballY = originY - height * scaleY;\n\n  const frameObjects = [];\n\n  const lane = sdk.panel({\n    id: \"lane.main\",\n    x: 40,\n    y: 30,\n    w: 560,\n    h: 370,\n    title: \"Vertical Toss\",\n    state: `${mState} | ${gState}`\n  });\n  frameObjects.push(...lane);\n\n  const yAxis = sdk.axis(\"axis.y\", {\n    x: 100,\n    y: originY,\n    length: 300,\n    orientation: \"y\",\n    min: 0,\n    max: 1.5,\n    ticks: [0, 0.5, 1.0, 1.5],\n    label: \"Height\",\n    unit: \"m\"\n  });\n  frameObjects.push(yAxis);\n\n  const launchGuide = sdk.line(\"heightGuide\", 90, originY, 340, originY, {\n    role: \"neutral\",\n    opacity: 0.5\n  });\n  const launchText = sdk.text(\"launchLabel\", 345, originY + 4, \"Launch height (0 m)\", {\n    role: \"neutral\"\n  });\n  frameObjects.push(launchGuide, launchText);\n\n  const ball = sdk.circle(\"ball.toss\", ballX, ballY, 28, {\n    role: \"learner\"\n  });\n  frameObjects.push(ball);\n\n  const vVector = sdk.vector(\n    \"vec.v\",\n    { x: ballX - 35, y: ballY },\n    {\n      value: velocity,\n      direction: \"up\",\n      scale: 18,\n      minLength: 10,\n      label: \"v\",\n      role: \"input\"\n    }\n  );\n  frameObjects.push(...vVector);\n\n  const aVector = sdk.vector(\n    \"vec.a\",\n    { x: ballX + 35, y: ballY },\n    {\n      value: -g,\n      direction: \"up\",\n      scale: 4,\n      minLength: 10,\n      label: \"a (gravity)\",\n      role: \"warning\"\n    }\n  );\n  frameObjects.push(...aVector);\n\n  const calloutLines = [\n    `v = ${sdk.format(velocity, 2)} m/s`,\n    `a = -9.80 m/s²`,\n    `h = ${sdk.format(height, 2)} m`\n  ];\n  const callout = sdk.callout(ballX + 70, ballY - 20, calloutLines, {\n    id: \"callout.toss\"\n  });\n  frameObjects.push(...callout);\n\n  return {\n    frame: {\n      width: 640,\n      height: 420,\n      objects: frameObjects,\n      readouts: [\n        { id: \"motionState\", value: mState },\n        { id: \"gravityState\", value: gState }\n      ]\n    },\n    quantities: {\n      launchSpeed: v0,\n      gravity: g,\n      apexTime: tTop,\n      apexHeight: hTop,\n      velocity: velocity,\n      height: height\n    }\n  };\n}\n",
+    "manifest": {
+     "title": "The ball stops rising. Gravity doesn’t stop.",
+     "summary": "Gravity slows the ball on the way up and speeds it up on the way down. At the top, the ball is still for an instant while gravity is still pulling it downward.",
+     "description": "A tossed ball moves vertically against a fixed height scale. Velocity and acceleration vectors are drawn beside it along with live motion readouts.",
+     "assumptions": [
+      "Gravity fixed at 9.8 m/s^2, no air resistance, up is positive."
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.0204081632653061,
+     "instructions": "Change launch speed, then press Play. At the top, playback pauses so you can inspect the arrows. Press Play again to watch the ball fall, or drag the timeline to inspect any moment.",
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "motionState",
+       "label": "Motion state",
+       "kind": "state",
+       "labels": [
+        "Moving up",
+        "Still for an instant",
+        "Moving down"
+       ]
+      },
+      {
+       "id": "gravityState",
+       "label": "Gravity state",
+       "kind": "state",
+       "labels": [
+        "Gravity pulls down"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 1707,
+  "prompt_tokens": 8330,
+  "total_tokens": 10037
+ }
+}

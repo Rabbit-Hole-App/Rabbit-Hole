@@ -1,0 +1,36 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs }) {\n  const u = inputs.launchSpeed, g = inputs.gravity;\n  const T = u / g, E = 2 * T, H = u * u / (2 * g);\n  return { frame: null, quantities: null, _: 0 };\n}\n",
+    "manifest": {
+     "title": "x",
+     "summary": "x",
+     "assumptions": [],
+     "description": "x",
+     "inputs": [],
+     "readouts": [],
+     "capabilities": []
+    }
+   }
+  }
+ },
+ "usage": {
+  "input_tokens": 11414,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 6867,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 1585,
+  "output_tokens_details": {
+   "thinking_tokens": 1346
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ }
+}

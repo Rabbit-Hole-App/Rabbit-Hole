@@ -1,0 +1,23 @@
+{
+ "error": {
+  "code": "schema_mismatch",
+  "message": "The structured result does not match its schema: $.main: expected object",
+  "problems": null,
+  "usage": {
+   "input_tokens": 11519,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 6867,
+   "cache_creation": {
+    "ephemeral_5m_input_tokens": 0,
+    "ephemeral_1h_input_tokens": 0
+   },
+   "output_tokens": 2097,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "inference_geo": "global",
+   "speed": "standard"
+  }
+ }
+}
