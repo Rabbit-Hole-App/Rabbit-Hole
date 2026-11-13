@@ -102,7 +102,7 @@ const indexInput = z.object({
 const inputSchema = z.union([numberInput, selectInput, booleanInput, indexInput]);
 // kind (additive): absent or 'number' is a number readout as before; 'state' names a mode the frame reports as one of its labels (Moving up, Still for an instant, Moving down), never a number.
 const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2),
-  kind: z.enum(['number', 'state']).optional(), labels: z.array(plain(40)).min(2).max(6).optional() }).strict()
+  kind: z.enum(['number', 'state']).optional(), labels: z.array(plain(40)).min(1).max(6).optional() }).strict()
   .superRefine((readout, context) => {
     if (readout.kind === 'state' && !readout.labels) context.addIssue({ code: 'custom', message: 'a state readout lists its labels', path: ['labels'] });
     if (readout.kind !== 'state' && readout.labels) context.addIssue({ code: 'custom', message: 'only a state readout has labels', path: ['labels'] });
