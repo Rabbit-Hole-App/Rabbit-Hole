@@ -129,9 +129,9 @@ test('the real frame renders the Tutor palette, legible on-fill text and the sam
   }));
   const themed = render(true);
   const standard = render(false);
-  assert.match(themed, /font-family="Arial, Liberation Sans, sans-serif"/);
+  assert.match(themed, /font-family="Inter, Liberation Sans, Arial, sans-serif"/);
   assert.match(themed, new RegExp(`rx="7"[^>]+fill:${PALETTE.process}`));
   assert.match(themed, /fill:#32211c"[^>]*>Label</);
-  assert.doesNotMatch(standard, new RegExp(`font-family="Arial, Liberation Sans, sans-serif"|fill:${PALETTE.process}`));
+  assert.doesNotMatch(standard, new RegExp(`font-family="Inter, Liberation Sans, Arial, sans-serif"|font-family="Arial, Liberation Sans, sans-serif"|fill:${PALETTE.process}`));
   for (const svg of [themed, standard]) assert.match(svg, /--viz-selection-outer/);
 });

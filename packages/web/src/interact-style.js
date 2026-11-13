@@ -11,7 +11,8 @@ const ROLES = {
 const IDENTITIES = { 'identity-1': 'process', 'identity-2': 'olive', 'identity-3': 'coral' };
 const FILLED_INK = '#32211c';
 
-export const INTERACT_FONT = 'Arial, Liberation Sans, sans-serif';
+// The teaching font, as TutorDiagram draws a teaching diagram (tutor-diagrams/TutorDiagram.js), so a composed /interactive card reads like the written /explain card.
+export const INTERACT_FONT = 'Inter, Liberation Sans, Arial, sans-serif';
 export const INTERACT_BOX_RADIUS = 7;
 
 const hueFor = (role, identity) => COLORS[IDENTITIES[identity] ?? ROLES[role]];
