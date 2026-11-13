@@ -353,6 +353,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // On the canvas the frame keeps its legible box: a larger card draws it larger; a smaller one (a learner's resize) scrolls the
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
   const legible = box ?? legibleFrame(view.scene, composition ? INTERACT_LOOK : null);
+  const readoutRows = composed ? (view.readouts || []).filter(r => composition.main.readoutIds.includes(r.id)) : [];
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
@@ -369,6 +370,12 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       </div>
       <p className="sr-only">{manifest.summary}</p>
       <div ref={controls} className="flex shrink-0 flex-col gap-2">
+      {/* The card draws the plan's readouts (the program reports them; it does not draw them as text): one entry per declared readout, label, value and unit, tabular numbers. */}
+      {composed && readoutRows.length > 0 && (
+        <ul data-interact-readouts className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-sm text-ink-2">
+          {readoutRows.map(value => <li key={value.id} data-interact-readout={value.id}>{value.label}: <span className="text-ink tabular-nums">{value.text}</span></li>)}
+        </ul>
+      )}
       {duration > 0 && (
         <div data-animation-transport className="flex items-center gap-1.5">
           <button type="button" data-animation-play onClick={play} className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">

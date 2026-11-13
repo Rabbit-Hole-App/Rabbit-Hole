@@ -4,15 +4,16 @@ import { experimentControls } from './interact-composition-adapter.js';
 // (ProgramScene.jsx, InteractCardContent.jsx, InteractSupportPanels.jsx) draw exactly the sections cardLayout returns, so the order,
 // the omitted rows and the absence of text below a scene are decided here once, and tested without a browser.
 
-// Title (the card header), the description (2 to 4 lines), optional supporting visuals, the main scene, the external timeline when timed,
-// the experiment controls when declared. Nothing else exists: there is no kind for a caption, Notes or a takeaway.
-export const SECTION_ORDER = Object.freeze(['title', 'description', 'support', 'scene', 'timeline', 'controls']);
+// Title (the card header), the description (2 to 4 lines), optional supporting visuals, the main scene, the readouts row when the plan has readouts (one line per
+// declared readout, drawn by the card, not by the program), the external timeline when timed, the experiment controls when declared. Nothing else exists: there is no kind for a caption, Notes or a takeaway.
+export const SECTION_ORDER = Object.freeze(['title', 'description', 'support', 'scene', 'readouts', 'timeline', 'controls']);
 export const MAX_SUPPORTS = 2;
 const rank = kind => SECTION_ORDER.indexOf(kind);
 
 // -> the sections of this card, top to bottom. An absent row is absent, with its space.
 export function cardLayout(composition) {
   const sections = [{ kind: 'title' }, { kind: 'description' }, ...composition.supports.map(panel => ({ kind: 'support', id: panel.id })), { kind: 'scene' }];
+  if (composition.main?.readoutIds?.length) sections.push({ kind: 'readouts', ids: composition.main.readoutIds });
   if (composition.timeline) sections.push({ kind: 'timeline' });
   const controls = experimentControls(composition);
   if (controls.length) sections.push({ kind: 'controls', ids: controls.map(control => control.id) });
@@ -29,12 +30,13 @@ export function layoutProblems(sections) {
   if (kinds[1] !== 'description') bad('description_second', 'the description follows the title');
   for (const once of ['title', 'description', 'scene']) if (kinds.filter(kind => kind === once).length !== 1) bad('exactly_one', `a card has exactly one ${once}`);
   if (kinds.filter(kind => kind === 'support').length > MAX_SUPPORTS) bad('support_limit', `at most ${MAX_SUPPORTS} supporting panels`);
-  for (const once of ['timeline', 'controls']) if (kinds.filter(kind => kind === once).length > 1) bad('exactly_one', `a card has at most one ${once} row`);
-  if (kinds.some((kind, i) => i > 0 && rank(kind) < rank(kinds[i - 1]))) bad('order', 'sections are out of order: title, description, supporting visuals, scene, timeline, controls');
-  const scene = kinds.indexOf('scene');
-  // The animation touches its timeline: nothing sits between the scene and the row that controls it.
-  if (kinds.includes('timeline') && kinds[scene + 1] !== 'timeline') bad('timeline_adjacent', 'the timeline sits directly under the scene');
-  if (kinds.includes('controls') && kinds[scene + 1] !== 'controls' && !(kinds[scene + 1] === 'timeline' && kinds[scene + 2] === 'controls')) bad('controls_adjacent', 'the controls follow the scene, or its timeline');
+  for (const once of ['readouts', 'timeline', 'controls']) if (kinds.filter(kind => kind === once).length > 1) bad('exactly_one', `a card has at most one ${once} row`);
+  if (kinds.some((kind, i) => i > 0 && rank(kind) < rank(kinds[i - 1]))) bad('order', 'sections are out of order: title, description, supporting visuals, scene, readouts, timeline, controls');
+  const scene = kinds.indexOf('scene'), under = kinds[scene + 1] === 'readouts' ? scene + 2 : scene + 1; // the readouts row is data, not prose: it may sit between the scene and its timeline
+  if (kinds.includes('readouts') && kinds[scene + 1] !== 'readouts') bad('readouts_adjacent', 'the readouts row sits directly under the scene');
+  // The animation touches its timeline: nothing but its own readouts sits between the scene and the row that controls it.
+  if (kinds.includes('timeline') && kinds[under] !== 'timeline') bad('timeline_adjacent', 'the timeline sits directly under the scene (or its readouts)');
+  if (kinds.includes('controls') && kinds[under] !== 'controls' && !(kinds[under] === 'timeline' && kinds[under + 1] === 'controls')) bad('controls_adjacent', 'the controls follow the scene, its readouts or its timeline');
   return out;
 }
 

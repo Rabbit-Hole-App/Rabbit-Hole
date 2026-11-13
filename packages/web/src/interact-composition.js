@@ -229,8 +229,14 @@ function mainBindingProblems(plan, artifact, bad) {
         for (const got of t.markers || []) if (!timeline.markers.some(x => x.id === got.id)) bad(['mode', 'timeline', 'markers', got.id], 'timeline_mismatch', `marker "${got.id}" is not approved`);
       }
     }
-    // Every approved readout is declared; learner-facing numbers are drawn inside the scene, never in a footer.
-    for (const r of plan.scene.readoutIds) if (!(m.readouts || []).some(x => x.id === r)) bad(['scene', 'readoutIds', r], 'readout_missing', `the approved readout "${r}" is not declared`);
+    // Every approved readout is declared in manifest.readouts with a label and a unit ('' for a pure number): the card draws them in its own readouts row (interact-card-layout.js),
+    // so a readout that is only reported, or only drawn as scene text, is a problem the repairer answers. The adjustable inputs are declared the same way.
+    for (const r of plan.scene.readoutIds) {
+      const got = (m.readouts || []).find(x => x.id === r);
+      if (!got) bad(['scene', 'readoutIds', r], 'readout_missing', `the approved readout "${r}" is not declared in manifest.readouts`);
+      else if (!String(got.label ?? '').trim() || got.unit == null) bad(['scene', 'readoutIds', r], 'readout_unlabelled', `the readout "${r}" needs a label and a unit (use '' for a pure number)`);
+    }
+    for (const id of plan.mode.adjustableIds) if (!(m.inputs || []).some(x => x.id === id)) bad(['mode', 'adjustableIds', id], 'input_missing', `the approved adjustable input "${id}" is not declared in manifest.inputs`);
     return;
   }
   // Declarative path.
@@ -287,7 +293,11 @@ function supportProblems(plan, panel, bad) {
       if (!ok) bad(at('parameterBindings'), 'binding_incompatible', `main ${from.type} "${from.id}" does not fit support input "${input.id}" (${input.type} ${input.min ?? ''}${input.max !== undefined ? `..${input.max}` : ''})`);
     }
     for (const b of support.parameterBindings) if (!(m.inputs || []).some(i => i.id === b.toInputId)) bad(at('parameterBindings'), 'binding_incompatible', `support panel "${id}" declares no input "${b.toInputId}"`);
-    for (const r of support.readoutIds) if (!(m.readouts || []).some(x => x.id === r)) bad(at('readoutIds'), 'readout_missing', `the approved readout "${r}" of "${id}" is not declared`);
+    for (const r of support.readoutIds) {
+      const got = (m.readouts || []).find(x => x.id === r);
+      if (!got) bad(at('readoutIds'), 'readout_missing', `the approved readout "${r}" of "${id}" is not declared in manifest.readouts`);
+      else if (!String(got.label ?? '').trim() || got.unit == null) bad(at('readoutIds'), 'readout_unlabelled', `the readout "${r}" of "${id}" needs a label and a unit (use '' for a pure number)`);
+    }
   } else {
     const p = artifact.spec.presentation || {};
     if (p.mode === 'time' || p.mode === 'steps' || (p.experiments || []).length) bad(at('controls'), 'support_controls', `support panel "${id}" is timed, stepped or has controls; supporting views are static and read-only`);

@@ -141,6 +141,8 @@ test('control bindings: missing, extra and changed controls are refused; labels,
   await refuses(plans.deep, 'deep', d => { d.main.program.manifest.inputs[0].unit = 'cm/s'; }, 'control_mismatch');
   await refuses(plans.deep, 'deep', d => { delete d.main.program.manifest.inputs[0].step; }, 'control_mismatch');
   await refuses(plans.deep, 'deep', d => { d.main.program.manifest.readouts.pop(); }, 'readout_missing');
+  await refuses(plans.deep, 'deep', d => { delete d.main.program.manifest.readouts[0].unit; }, 'readout_unlabelled'); // a readout the card draws in its own row needs a label and a unit ('' for a pure number)
+  await refuses(plans.deep, 'deep', d => { d.main.program.manifest.inputs = d.main.program.manifest.inputs.filter(input => input.id !== 'launchSpeed'); }, 'input_missing'); // every adjustable id is declared in manifest.inputs
 });
 
 test('timeline bindings: the program declares the maximum duration, the approved pacing, origin and markers', async () => {

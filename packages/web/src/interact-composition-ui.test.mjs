@@ -35,16 +35,18 @@ rmSync(dir, { recursive: true, force: true });
 const { plans } = await interactFixtures();
 const comp = name => { const out = normalizeComposition(compositionFromPlan(plans[name])); assert.equal(out.ok, true, JSON.stringify(out.problems)); return out.value; };
 const kinds = composition => cardLayout(composition).map(section => section.kind);
+// A plan with readouts gets a readouts row directly under its scene (drawn by the card): the expected order with it.
+const withReadouts = (name, list) => list.flatMap(kind => (kind === 'scene' && plans[name].scene.readoutIds.length ? ['scene', 'readouts'] : [kind]));
 
 // ---- card section order ------------------------------------------------------------------------------------------------------
 
 test('the card order is Title, description, supporting visuals, scene, timeline when timed, controls when declared', () => {
-  assert.deepEqual([...SECTION_ORDER], ['title', 'description', 'support', 'scene', 'timeline', 'controls']);
-  assert.deepEqual(kinds(comp('overview')), ['title', 'description', 'scene'], 'Static with no controls: no timeline row, no controls row, no space for them');
-  assert.deepEqual(kinds(comp('standard')), ['title', 'description', 'support', 'scene', 'timeline'], 'Standard: Three moments above the animation, the animation touching its timeline, no controls row');
-  assert.deepEqual(kinds(comp('deep')), ['title', 'description', 'support', 'scene', 'timeline', 'controls']);
-  assert.deepEqual(kinds(comp('untimedExperiment')), ['title', 'description', 'scene', 'controls'], 'an untimed Experiment: the controls directly below the scene');
-  assert.deepEqual(kinds(comp('staticAdjustable')), ['title', 'description', 'scene', 'controls'], 'Static with a still-recomputing control keeps its row');
+  assert.deepEqual([...SECTION_ORDER], ['title', 'description', 'support', 'scene', 'readouts', 'timeline', 'controls']);
+  assert.deepEqual(kinds(comp('overview')), withReadouts('overview', ['title', 'description', 'scene']), 'Static with no controls: no timeline row, no controls row, no space for them');
+  assert.deepEqual(kinds(comp('standard')), withReadouts('standard', ['title', 'description', 'support', 'scene', 'timeline']), 'Standard: Three moments above the animation, the animation touching its timeline, no controls row');
+  assert.deepEqual(kinds(comp('deep')), withReadouts('deep', ['title', 'description', 'support', 'scene', 'timeline', 'controls']));
+  assert.deepEqual(kinds(comp('untimedExperiment')), withReadouts('untimedExperiment', ['title', 'description', 'scene', 'controls']), 'an untimed Experiment: the controls directly below the scene');
+  assert.deepEqual(kinds(comp('staticAdjustable')), withReadouts('staticAdjustable', ['title', 'description', 'scene', 'controls']), 'Static with a still-recomputing control keeps its row');
   for (const name of Object.keys(plans)) assert.deepEqual(layoutProblems(cardLayout(comp(name))), [], name);
 });
 
@@ -53,15 +55,16 @@ test('Standard puts the fixed Three moments panel above the live animation, whic
   const support = layout.findIndex(s => s.kind === 'support'), scene = layout.findIndex(s => s.kind === 'scene');
   assert.equal(layout[support].id, 'threeMoments');
   assert.ok(support < scene);
-  assert.equal(layout[scene + 1].kind, 'timeline');
-  assert.equal(layout.length, scene + 2, 'nothing after the timeline');
+  assert.equal(layout[scene + 1].kind, 'readouts', 'the plan has readouts: their row sits directly under the scene');
+  assert.equal(layout[scene + 2].kind, 'timeline', 'and the timeline directly under that');
+  assert.equal(layout.length, scene + 3, 'nothing after the timeline');
   assert.equal(comp('standard').supports[0].title, 'Three moments around the top');
 });
 
 test('the Deep card draws Compare the two peaks, then the animation, its playback, then Launch speed', () => {
   const composition = comp('deep'), layout = cardLayout(composition);
   assert.equal(composition.supports[0].title, 'Compare the two peaks');
-  assert.deepEqual(layout.map(s => s.kind), ['title', 'description', 'support', 'scene', 'timeline', 'controls']);
+  assert.deepEqual(layout.map(s => s.kind), withReadouts('deep', ['title', 'description', 'support', 'scene', 'timeline', 'controls']));
   assert.deepEqual(layout.at(-1).ids, ['speed', 'resetAll'], 'playback and the scrubber are the timeline row; the experiment row holds the rest');
   assert.deepEqual(experimentControls(composition).map(c => c.label), ['Launch speed', 'Reset experiment']);
 });
@@ -228,4 +231,22 @@ test('Focus counts the description and supporting panels live: the drawing gets 
   const legacyFixed = focusFixed({ cardW: 900, cardH: 800, viewportW: 860, viewportH: 600, rowsH: 80 });
   assert.deepEqual(focusRoom({ cardW: 900, cardH: 800, fixed: legacyFixed, rowsH: 80 }), { w: 860, h: 800 - (800 - 600 - 80) - 80 });
   assert.equal(focusRoom({ cardW: 100, cardH: 100, fixed: { w: 300, h: 300 }, rowsH: 50, introH: 50 }).h, 0, 'never negative');
+});
+
+test('the readouts row: one section after the scene when the plan has readouts, absent otherwise; a readouts row may not be moved away from the scene', async () => {
+  const { layoutProblems } = await import('./interact-card-layout.js');
+  assert.ok(kinds(comp('standard')).includes('readouts')); assert.equal(plans.standard.scene.readoutIds.length > 0, true);
+  const ok = ['title', 'description', 'scene', 'readouts', 'timeline', 'controls'].map(kind => ({ kind }));
+  assert.deepEqual(layoutProblems(ok), []);
+  assert.ok(layoutProblems(['title', 'description', 'scene', 'timeline', 'readouts'].map(kind => ({ kind }))).some(p => p.code === 'order' || p.code === 'readouts_adjacent'), 'readouts after the timeline is refused');
+  assert.ok(layoutProblems(['title', 'description', 'scene', 'controls', 'readouts'].map(kind => ({ kind }))).length > 0);
+});
+
+test('the card draws the readouts row itself: label, value and unit as tabular numbers at 14 px, filtered to the plan readouts, only for a composed card', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
+  assert.match(src, /composed && readoutRows\.length > 0/);
+  assert.match(src, /data-interact-readouts className="flex flex-wrap items-baseline gap-x-4 gap-y-0\.5 text-sm text-ink-2"/);
+  assert.match(src, /data-interact-readout=\{value\.id\}>\{value\.label\}: <span className="text-ink tabular-nums">\{value\.text\}<\/span>/);
+  assert.match(src, /composition\.main\.readoutIds\.includes\(r\.id\)/);
 });
