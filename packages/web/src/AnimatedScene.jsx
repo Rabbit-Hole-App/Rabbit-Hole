@@ -1,5 +1,5 @@
 import { rasterRuns } from './raster-pixels.js';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { Children, cloneElement, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import katex from 'katex';
@@ -24,7 +24,8 @@ import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-s
 import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, estimateTextBox, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { cellInk, heatStyle, identityVar, inkOver, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
-import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle } from './interact-style.js';
+import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle, interactStrokeColor } from './interact-style.js';
+import { INK, PATH, connector } from './tutor-diagrams/primitives.js';
 import { escapeYields, withoutSceneHighlight } from './scene-selection.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
@@ -430,6 +431,15 @@ function RunsLabel({ runs, text, x, y, anchor, baseline, type, fill }) {
 // Exported for ProgramScene (explain-program): the same trusted drawing for a generated program's frame, which arrives as a
 // scene plus its state at one moment. fixedView draws exactly the declared width and height instead of fitting the content, so
 // a frame that changes every tick does not rescale; every scene card leaves it off and is framed as before.
+// A composed card's line or arrow: the written diagrams' connector (tutor-diagrams/primitives.js: its stroke widths, round caps and arrowhead geometry),
+// tinted to a role hue only when the colour is neither INK nor the PATH blue the connector already draws.
+function InteractConnector({ from, to, arrow, color }) {
+  const element = connector([[from.x, from.y], [to.x, to.y]], { arrow, path: color === PATH });
+  if (color === PATH || color === INK) return element;
+  const tint = child => cloneElement(child, child.type === 'polygon' ? { fill: color } : { stroke: color });
+  return element.type === 'g' ? cloneElement(element, {}, ...Children.toArray(element.props.children).map(tint)) : tint(element);
+}
+
 export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false, interact = false }) {
   const sceneShapeStyle = interact ? interactShapeStyle : shapeStyle;
   const radius = interact ? INTERACT_BOX_RADIUS : 12;
@@ -530,6 +540,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           // Path length interpolation: the line is drawn, not faded in.
           const tipX = start.x + (end.x - start.x) * connection.progress;
           const tipY = start.y + (end.y - start.y) * connection.progress;
+          if (interact) return <g key={connection.key}><InteractConnector from={start} to={{ x: tipX, y: tipY }} arrow={connection.progress > 0.98} color={INK} /></g>;
           return <line key={connection.key} x1={start.x} y1={start.y} x2={tipX} y2={tipY} style={{ stroke: interact ? interactMarkColor('neutral') : roleVar('neutral') }} strokeWidth={interact ? 1.5 : 2.5} strokeLinecap="round" markerEnd={connection.progress > 0.98 ? (interact ? 'url(#animation-arrow-tinted)' : 'url(#animation-arrow)') : undefined} />;
         })}
         <defs>
@@ -633,6 +644,9 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                     <polyline points={object.points.map(([px, py]) => `${px},${py}`).join(' ')} fill="none" strokeLinecap="round" strokeLinejoin="round"
                       clipPath={object.clip ? `url(#${clipPrefix}-${object.id})` : undefined} style={{ stroke: wireInk, strokeWidth: look.strokeWidth }} />
                   </>)
+                : isStroke && interact
+                ? <InteractConnector from={{ x: object.from?.x ?? object.x, y: object.from?.y ?? object.y }} to={{ x: object.to?.x ?? object.x, y: object.to?.y ?? object.y }}
+                    arrow={object.type === 'arrow'} color={interactStrokeColor(role, object.identitySlot, { highlighted: object.highlighted, chosen })} />
                 : isStroke
                 ? <line x1={object.from?.x ?? object.x} y1={object.from?.y ?? object.y}
                     x2={object.to?.x ?? object.x} y2={object.to?.y ?? object.y}

@@ -10,7 +10,7 @@ import { buildSync } from 'esbuild';
 import { normalizeFrame } from './explain-program/frame.js';
 import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle } from './interact-style.js';
 import { inkOver, selectionStyle, shapeStyle } from './scene-style.js';
-import { PALETTE } from './tutor-diagrams/primitives.js';
+import { PALETTE, PATH } from './tutor-diagrams/primitives.js';
 
 const SWATCHES = {
   input: PALETTE.process,
@@ -165,4 +165,23 @@ test('a legacy (non-interact) frame renders byte for byte as before the interact
   const markup = bundle.renderToStaticMarkup(bundle.createElement(bundle.Frame, { scene: result.scene, state: result.state, interact: false, fixedView: true, picked: 'b', pop: { duration: 0 } }));
   const hash = createHash('sha256').update(markup).digest('hex');
   assert.equal(hash, 'a8bf78ff4ecb1b46f4ac8b1e6b6c281876a03f039c990c4e49bb74a7e71e176d', 'update only with an owner decision to restyle /animation');
+});
+
+test('interact mode draws line and arrow as the written connector: INK by default, PATH when chosen, a role hue only for output, warning and learner', () => {
+  const bundle = frameBundle();
+  const result = normalizeFrame({ width: 480, height: 200, objects: [
+    { kind: 'arrow', id: 'plain', from: { x: 20, y: 40 }, to: { x: 140, y: 40 }, role: 'input' },
+    { kind: 'arrow', id: 'watch', from: { x: 20, y: 80 }, to: { x: 140, y: 80 }, role: 'warning' },
+    { kind: 'arrow', id: 'picked', from: { x: 20, y: 120 }, to: { x: 140, y: 120 }, role: 'neutral' },
+    { kind: 'line', id: 'bare', from: { x: 200, y: 40 }, to: { x: 320, y: 40 }, role: 'neutral' },
+  ] });
+  assert.equal(result.ok, true, result.issue);
+  const render = interact => bundle.renderToStaticMarkup(bundle.createElement(bundle.Frame, { scene: result.scene, state: result.state, interact, fixedView: true, picked: 'picked', pop: { duration: 0 } }));
+  const themed = render(true), group = id => { const at = themed.indexOf(`data-animation-object="${id}"`); const next = themed.indexOf('data-animation-object=', at + 1); return at < 0 ? '' : themed.slice(at, next < 0 ? undefined : next); };
+  assert.match(themed, /data-tutor-arrowhead/, 'the arrowhead is the written connector polygon');
+  assert.match(group('plain'), /stroke="var\(--color-ink, #32211c\)"/); assert.match(group('plain'), /fill="var\(--color-ink, #32211c\)"/);
+  assert.match(group('picked'), new RegExp(`stroke="${PATH}"`)); assert.match(group('picked'), /stroke-width="3"/);
+  assert.match(group('watch'), /stroke="color-mix\(in srgb, #F58371 33%/); assert.match(group('watch'), /fill="color-mix\(in srgb, #F58371 33%/);
+  assert.doesNotMatch(group('bare'), /data-tutor-arrowhead/, 'a line has no head');
+  assert.doesNotMatch(render(false), /data-tutor-arrowhead/, 'the /animation frame keeps its marker arrows');
 });
