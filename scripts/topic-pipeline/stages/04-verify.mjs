@@ -27,8 +27,10 @@ async function verifyBatch(ctx, roots, prompts, tag) {
     }
     if (current.length) slices.push([currentStart, current]);
   }
-  for (const [offset, batch] of slices) {
-    const images = [], numbers = [];
+  // The batches are independent (their own contact sheets and verdicts), so they run in parallel like the author's batches (reviewer 2026-11-13).
+  // Verdicts and artefacts keep the batch order; the first failure is thrown once every call has settled.
+  const outcomes = await Promise.allSettled(slices.map(async ([offset, batch]) => {
+    const images = [], numbers = [], sheets = [];
     for (const [index, root] of roots.entries()) {
       const selected = batch.filter(row => row.index === index);
       if (!selected.length) continue;
@@ -36,15 +38,18 @@ async function verifyBatch(ctx, roots, prompts, tag) {
         outDir: join(ctx.topicDir, 'verify-input', tag, `${offset}-${index}`) });
       numbers.push(...(await readJson(sheet.numbersPath)).numbers);
       images.push(...await imageInputs(sheet.contactSheetPath));
-      artefacts.push(sheet.contactSheetPath, sheet.numbersPath);
+      sheets.push(sheet.contactSheetPath, sheet.numbersPath);
     }
     const expected = batch.map(row => row.id);
     const result = await callAgent(ctx, 'verifier', { topic: ctx.topic, figures: batch.map(({ id, spec }) => ({ id, spec })), numbers, prompts }, {
       schema: verifySchema, images, mode: tag === 'human' ? 'human' : 'agent', validate: value => validateIds(value, 'figures', expected, ctx.topic),
     });
     validateIds(result, 'figures', expected, ctx.topic);
-    verdicts.push(...result.figures);
-  }
+    return { sheets, figures: result.figures };
+  }));
+  const failure = outcomes.find(outcome => outcome.status === 'rejected');
+  if (failure) throw failure.reason;
+  for (const { value } of outcomes) { artefacts.push(...value.sheets); verdicts.push(...value.figures); }
   const result = { topic: ctx.topic, figures: verdicts };
   const path = join(ctx.topicDir, `verify.${tag}.json`);
   await writeJson(path, result);
