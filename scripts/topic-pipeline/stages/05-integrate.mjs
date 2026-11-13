@@ -139,7 +139,7 @@ export async function run(ctx) {
     record.head = (await command(ctx, '05', 'integration-head', 'git', ['rev-parse', 'HEAD'], { cwd: record.worktree })).stdout.trim();
     record.status = 'ok';
     artefacts.push(await manifest(ctx, 'integration.json', record));
-    return { status: 'ok', artefacts, notes: `Topic data integrated in a separate release worktree; configured suites passed; A1 properties ${count}/362; ${record.smoke.skipped ? 'tier-1 smoke skipped (deterministic checks only).' : 'tier-1 bench passed.'}${smoke ? '' : ' smoke set missing; used the topic demo set.'}` };
+    return { status: 'ok', artefacts, notes: `Topic data integrated in a separate release worktree; configured suites passed; A1 properties ${count}/362; ${record.smoke.skipped ? 'tier-1 smoke skipped (deterministic checks only).' : 'tier-1 bench passed.'}${record.smoke.skipped || record.smoke.note === '' ? '' : ' smoke set missing; used the topic demo set.'}` };
   } catch (error) {
     record.status = 'fail';
     record.error = scrub(error.message, ctx);
