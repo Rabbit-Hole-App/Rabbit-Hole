@@ -2,6 +2,7 @@
 // words make one JEV call and nothing else (no author, render, reservation or database write before Generate); a failure
 // answers, never a capability; the signed decision is bound to the learner, canvas, words, mode, selection, refs and the
 // Motion input.
+import '../../web/src/agent/slash-flags-test-on.mjs'; // every slash command on: these tests are about routing, not which commands ship (web SLASH_FLAGS)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chatRouteFetch, decideChat, verifyChatRoute, FALLBACK } from '../src/chat-capability-route.js';
