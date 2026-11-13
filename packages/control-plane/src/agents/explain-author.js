@@ -3,6 +3,7 @@
 // D's (explain-review.js), a separate call that never sees the author's reasoning.
 import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
 import { CONTRACT_LIMITS, STATEFUL_CONTRACT } from '../../../web/src/explain-program/contract.js';
+import { INPUT_TYPES_PROMPT_SENTENCE } from '../../../web/src/interact-control-catalogue.js';
 import { RASTER_CAPABILITY, CYCLIC_CAPABILITY, MEDIUM_CAPABILITY, PROPS_CAPABILITY, FIGURES_CAPABILITY } from '../../../web/src/explain-program/stamps.js';
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
@@ -232,7 +233,8 @@ export function programContext(limits, capabilities, { stateful = false, repair 
         axis: 'sdk.axis(id, {x,y,length,orientation:"x"|"y",min,max,ticks?,label,unit?,role?}): an x axis runs right from (x,y), a y axis runs UP from (x,y); keep 52 px free below an x axis, and 60 px to the left of a y axis and 22 px above it, for tick labels and its title.',
         plot: 'sdk.plot(id, {x,y,w,h,axes:{x:{label,min,max,unit?},y:{...}},series:[{label,kind:"line"|"scatter"|"step",points:[{x,y}]}]}) at least 200 x 160, at most 3 series of 24 points, every point inside the axes. (Without axes it is the earlier sdk.plot.)',
         diagram: 'sdk.diagram(spec, {x,y,w,id?}) draws a written diagram (spec is the diagram JSON) at width w; it is scaled down to fit the room below y.',
-      } } : {}), ...(!repair && capabilities?.includes(MEDIUM_CAPABILITY) ? { medium: {
+      } } : {}), ...(!repair && capabilities?.includes('inputs_v2') ? { inputs_v2: { usage: INPUT_TYPES_PROMPT_SENTENCE } } : {}), // authoring only; the plan declares inputs_v2 only behind INTERACT_INPUTS_V2=on
+      ...(!repair && capabilities?.includes(MEDIUM_CAPABILITY) ? { medium: {
         usage: 'Declare medium_visuals in manifest.capabilities when using one of these helpers. Use existing controls or state and spread the returned objects into frame.objects.',
         trace: 'sdk.trace(id,{x,y,w,h,domain:[min,max],unit?,lanes:[{id,label,spans:[{id,label,start,end,role?,detail?,parent?,dependsOn?:[id]}]}],cursor?,selected?}) for up to 12 time spans. Use original trace records when supplied; identify simulated traces.',
         field: 'sdk.field(id,{x,y,w,h,kind:"contour"|"vector",xDomain,yDomain,xLabel,yLabel,xUnit,yUnit,valueLabel,valueUnit,sample:(x,y)=>number|[u,v],samples?,levels?,maxMagnitude?}). Contours need levels; vectors need a fixed maxMagnitude. Use empty units for dimensionless axes.',

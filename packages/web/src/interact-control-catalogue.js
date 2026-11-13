@@ -27,8 +27,7 @@ function componentLimits(componentControls) {
   return map;
 }
 
-// TODO(integrator): interact-design.js designCapabilities passes `inputsV2: env.INTERACT_INPUTS_V2 === 'on'` (default off) and the program build prompt carries INPUT_TYPES_PROMPT_SENTENCE
-// (agents/explain-author.js, Agent B) when inputsV2 is on; neither file is Agent C's.
+// interact-design.js designCapabilities passes inputsV2: INTERACT_INPUTS_V2 === 'on' (default off); agents/explain-author.js lists INPUT_TYPES_PROMPT_SENTENCE in the authoring docs when the panel's runtime lists inputs_v2.
 export const INDEX_ITEMS = 12; // CONTRACT_LIMITS-sized: a program index input has 2 to 12 items (contract.js)
 // The one build-prompt sentence for the new input types, shown only when inputsV2 is enabled.
 export const INPUT_TYPES_PROMPT_SENTENCE = 'manifest.inputs types: number {min, max, step, default}, select {options, default}, boolean {default: true|false; reads inputs.<id> as a boolean} and index {items: 2 to 12 {id, label}, default: the position of an item, presentation: picker|slider; reads inputs.<id> as an integer 0 to items - 1}; a manifest with a boolean or index input lists "inputs_v2" in capabilities.';

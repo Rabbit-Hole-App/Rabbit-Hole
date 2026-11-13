@@ -54,7 +54,7 @@ export async function designPromptContracts() {
 // ---- capabilities and per-panel runtime binding (the owner's rule: every panel, control-free ones too) ----
 // ponytail: componentControls lists the four declarative input types; deriving them from the enabled components' declared inputs waits for the build lane's component audit.
 const COMPONENT_CONTROLS = ['choice', 'bool', 'index', 'indices'];
-export const designCapabilities = (env, job) => interactCapabilities({ renderers: ['spec', ...(programEnabled(env) ? ['program'] : [])], stateful: statefulEnabled(env), componentControls: COMPONENT_CONTROLS, evidenceIds: (job.evidence || []).map(record => record.id) });
+export const designCapabilities = (env, job) => interactCapabilities({ renderers: ['spec', ...(programEnabled(env) ? ['program'] : [])], stateful: statefulEnabled(env), inputsV2: env.INTERACT_INPUTS_V2 === 'on', componentControls: COMPONENT_CONTROLS, evidenceIds: (job.evidence || []).map(record => record.id) });
 
 const sdkHelpers = sdkVersion => new Set([...(programSdkSource(sdkVersion) || '').matchAll(/\bsdk\.([A-Za-z_]\w*)\s*=/g)].map(match => match[1]));
 const EXTENSIONS = [[[], 'default visual helpers'], [['medium_visuals'], 'medium visuals'], [['cyclic_networks'], 'cyclic networks'], [['raster_visuals'], 'raster visuals'], [['heat_grid'], 'heat grid'], [['props'], 'physical props (sdk.vector, sdk.gate, sdk.groundMark)'], [['figures'], 'semantic figures (sdk.axis, sdk.plot with axes, sdk.diagram)']];
