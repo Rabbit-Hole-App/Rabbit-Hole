@@ -10,6 +10,10 @@ const step = process.argv[2];
 const VARS = { INTERACT_SCENE_PLAN_ENABLED: 'true', USAGE_PLATFORM_DAY_USD: '40', /* 20 until 2026-11-13 02:30 PT: the guard sums the shared dev database's rolling 24 hours (other sessions included) and refused at about 17 of 20 dollars of other use; the runs themselves cost about 3 dollars */ INTERACT_DESCRIPTION_FIT: 'estimate', INTERACT_DESIGN_FIXTURE: 'toss', INTERACT_RUN: 'headless', INTERACT_REVIEW: 'shadow', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_SEEK: 'on' };
 for (const arg of process.argv.slice(3)) { const m = /^([A-Z0-9_]+)=(.*)$/.exec(arg); if (m) VARS[m[1]] = m[2]; }
 if (step === 'deploy' && !VARS.INTERACT_BUILD_PROFILE) { console.error('refused: pass the profile, e.g. `deploy INTERACT_BUILD_PROFILE=google-low INTERACT_FALLBACK=off` (owner 2026-11-13 13:40: the clone has no default profile, so a redeploy never changes it by accident)'); process.exit(2); }
+if (step === 'deploy') { // a deployable profile is one the registry lists; a bench-only model role (interact-models.js benchRole, scripts/interact/bench-author.mjs) is never one
+  const { INTERACT_REGISTRY } = await import('../../../../../../packages/control-plane/src/interact-models.js');
+  if (!Object.hasOwn(INTERACT_REGISTRY.profiles, VARS.INTERACT_BUILD_PROFILE)) { console.error(`refused: ${VARS.INTERACT_BUILD_PROFILE} is not a deployable profile (${Object.keys(INTERACT_REGISTRY.profiles).join(', ')}); bench models run in-process only`); process.exit(2); }
+}
 const varArgs = Object.entries(VARS).flatMap(([k, v]) => ['--var', `${k}:${v}`]);
 
 const env0 = {};

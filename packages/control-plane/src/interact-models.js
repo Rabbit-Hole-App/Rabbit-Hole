@@ -98,6 +98,20 @@ export const INTERACT_REGISTRY = deepFreeze({
     scripted: { version: 1, extends: 'opus-baseline', roles: {} } },
 });
 
+// BENCH ONLY (owner brief 2026-11-13 14:20, scripts/interact/bench-author.mjs): the build_author role of one candidate model, the fast profile's settings as they are today (reasoning low; Fireworks temperature 0, seed 7;
+// Gemini neither) and Sonnet at effort low with no thinking. It is NOT in INTERACT_REGISTRY.profiles, so no profile id names it and no deploy can select it (deploy-clone.mjs refuses any profile the registry does not list).
+export const BENCH_TIMEOUT_MS = 120000;
+export const BENCH_MODELS = Object.freeze(['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'accounts/fireworks/models/gpt-oss-120b', 'claude-sonnet-5-5']);
+export function benchRole(model) {
+  if (!BENCH_MODELS.includes(model)) throw refuse('unknown_bench_model', `No bench model ${String(model).slice(0, 80)}; the bench runs ${BENCH_MODELS.join(', ')}.`);
+  if (model === 'claude-sonnet-5-5') {
+    const c = opusRole('build_author');
+    return { ...c, model, timeoutMs: BENCH_TIMEOUT_MS, pricingKey: { ...c.pricingKey, model }, settings: { effort: 'low' }, capabilities: { ...c.capabilities, settings: ['effort'], vision: false }, maxImages: 0 };
+  }
+  const step = fastStep('build_author', model.startsWith('accounts/fireworks/') ? 'fireworks' : 'google', false);
+  return { ...step, model, timeoutMs: BENCH_TIMEOUT_MS, pricingKey: { ...step.pricingKey, model } }; // the profile's own deadline (google 12 s, fireworks 8 s) is recorded per row, not enforced: a timeout says nothing about correctness
+}
+
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const posInt = v => Number.isSafeInteger(v) && v > 0;
 function checkRole(role, c, registry, nested = false) {

@@ -1,0 +1,113 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "manifest": {
+     "title": "Zero velocity isn’t zero acceleration.",
+     "summary": "A tossed ball and a ball released from rest at the top share the same motion afterwards. Gravity gives acceleration -g at every instant, including the top.",
+     "assumptions": [
+      "No air resistance, the same gravity for both balls, up is positive."
+     ],
+     "description": "Two lanes show a tossed ball and a second ball held by a gate at the apex height. The gate opens at the top. Arrows show velocity and acceleration.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "gravity",
+       "label": "Gravity",
+       "unit": "m/s^2",
+       "default": 9.8,
+       "min": 6,
+       "max": 12,
+       "step": 0.1
+      }
+     ],
+     "readouts": [
+      {
+       "id": "tossedVelocity",
+       "label": "Toss velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "tossedAcceleration",
+       "label": "Toss acceleration",
+       "unit": "m/s^2",
+       "decimals": 1
+      },
+      {
+       "id": "dropVelocity",
+       "label": "Drop velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "dropAcceleration",
+       "label": "Drop acceleration",
+       "unit": "m/s^2",
+       "decimals": 1
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ],
+     "duration": 1.6666666666666667,
+     "timeline": {
+      "label": "Time from the top",
+      "displayOffset": -0.4081632653061224,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "before",
+        "label": "-0.10 s",
+        "time": 0.30816326530612237
+       },
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       },
+       {
+        "id": "after",
+        "label": "+0.10 s",
+        "time": 0.5081632653061224
+       }
+      ]
+     }
+    },
+    "source": "export function evaluate({inputs,time}){\nconst u=inputs.launchSpeed,g=inputs.gravity;\nconst T=u/g,H=u*u/(2*g);\nconst t=Math.min(Math.max(time,0),2*T);\nconst y=u*t-g*t*t/2;\nconst v=u-g*t;\nconst rel=t>=T-1e-9;\nconst yd=rel?y:H;\nconst vd=rel?(t>T+1e-9?-g*(t-T):0):0;\nconst ad=rel&&t>T+1e-9?-g:(rel?-g:0);\nconst ad2=t>=T?-g:0;\nconst yy=m=>360-m/2.2*270;\nconst o=[];\no.push(...sdk.panel({id:'lane.toss',x:20,y:40,w:290,h:360,title:'Toss',state:t<1e-9?'At launch':Math.abs(t-T)<1e-9?'At the top':t<T?'Rising':t>=2*T-1e-9?'At launch height':'Falling'}));\no.push(...sdk.panel({id:'lane.drop',x:330,y:40,w:290,h:360,title:'Drop',state:!rel?'Held in place':t<T+0.05?'Just released':t>=2*T-1e-9?'At launch height':'Falling together'}));\nconst cx1=165,cx2=475;\no.push(...sdk.groundMark('mark.toss',cx1,360,120,'launch'));\no.push(...sdk.gate('gate',cx2,yy(H)+22,{open:rel}));\no.push(sdk.circle('ball.toss',cx1,yy(y),26));\no.push(sdk.circle('ball.drop',cx2,yy(yd),26));\nconst s=14;\no.push(...sdk.vector('vec.v.toss',{x:cx1-30,y:yy(y)},{value:v,direction:'up'},{scale:s,label:'v'}));\no.push(...sdk.vector('vec.a.toss',{x:cx1+30,y:yy(y)},{value:-g,direction:'up'},{scale:s*0.6,label:'a'}));\no.push(...sdk.vector('vec.v.drop',{x:cx2-30,y:yy(yd)},{value:vd,direction:'up'},{scale:s,label:'v'}));\no.push(...sdk.vector('vec.a.drop',{x:cx2+30,y:yy(yd)},{value:ad2,direction:'up'},{scale:s*0.6,label:'a'}));\no.push(...sdk.callout(cx1+45,yy(y)-50,['v '+sdk.format(v,2)+' m/s','a '+sdk.format(-g,1)+' m/s²'],{id:'callout.toss'}));\no.push(...sdk.callout(cx2+45,yy(yd)-50,['v '+sdk.format(vd,2)+' m/s','a '+sdk.format(ad2,1)+' m/s²'],{id:'callout.drop'}));\nreturn {frame:{width:640,height:420,objects:o,readouts:[{id:'tossedVelocity',value:v},{id:'tossedAcceleration',value:-g},{id:'dropVelocity',value:vd},{id:'dropAcceleration',value:ad2}]},quantities:{launchSpeed:u,gravity:g,apexTime:T,apexHeight:H,tossedVelocity:v,tossedAcceleration:-g,tossedHeight:y,dropVelocity:vd,dropAcceleration:ad2,dropHeight:yd}};}"
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "input_tokens": 11409,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 6867,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 1969,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ }
+}

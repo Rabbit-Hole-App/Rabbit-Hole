@@ -1,0 +1,106 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time }) {\n  const u = Number(inputs.launchSpeed);\n  const g = Number(inputs.gravity);\n  const tApex = u / g;\n  const hApex = (u * u) / (2 * g);\n  const t = Number(time);\n\n  let yToss = u * t - 0.5 * g * t * t;\n  if (yToss < 0) yToss = 0;\n  const vToss = t <= (2 * u) / g ? u - g * t : 0;\n  const aToss = t <= (2 * u) / g ? -g : 0;\n\n  const gateOpen = t >= tApex;\n  let yDrop = hApex;\n  let vDrop = 0;\n  let aDrop = 0;\n  if (t > tApex) {\n    const dt = t - tApex;\n    yDrop = hApex - 0.5 * g * dt * dt;\n    if (yDrop < 0) yDrop = 0;\n    vDrop = -g * dt;\n    aDrop = -g;\n  }\n\n  let tossState = \"At launch\";\n  if (Math.abs(t - tApex) < 0.02) tossState = \"At the top\";\n  else if (t > 0 && t < tApex) tossState = \"Rising\";\n  else if (t > tApex && yToss > 0) tossState = \"Falling\";\n  else if (yToss <= 0 && t > tApex) tossState = \"At launch height\";\n\n  let dropState = \"Held in place\";\n  if (Math.abs(t - tApex) < 0.02) dropState = \"Just released\";\n  else if (t > tApex && yDrop > 0) dropState = \"Falling together\";\n  else if (yDrop <= 0 && t > tApex) dropState = \"At launch height\";\n\n  const pxPerMeter = 120;\n  const y0 = 360;\n  const tossX = 160;\n  const dropX = 480;\n\n  const tossCenterY = y0 - yToss * pxPerMeter;\n  const dropCenterY = y0 - yDrop * pxPerMeter;\n  const apexY = y0 - hApex * pxPerMeter;\n\n  const objects = [];\n\n  const tossPanel = sdk.panel({ x: 30, y: 30, w: 260, h: 360, title: \"Toss Lane\", state: tossState, id: \"lane.toss\" });\n  const dropPanel = sdk.panel({ x: 350, y: 30, w: 260, h: 360, title: \"Drop Lane\", state: dropState, id: \"lane.drop\" });\n  objects.push(...tossPanel, ...dropPanel);\n\n  objects.push(sdk.axis(\"axis.toss\", { x: 60, y: y0, length: 280, orientation: \"y\", min: 0, max: 2.2, label: \"Height\", unit: \"m\" }));\n  objects.push(sdk.axis(\"axis.drop\", { x: 380, y: y0, length: 280, orientation: \"y\", min: 0, max: 2.2, label: \"Height\", unit: \"m\" }));\n\n  objects.push(...sdk.gate(\"gate\", dropX, apexY, { open: gateOpen, w: 40, label: \"Apex Gate\" }));\n\n  if (gateOpen) {\n    objects.push(sdk.circle(\"ghost.toss\", tossX, apexY, 24, { opacity: 0.35, role: \"neutral\" }));\n    objects.push(sdk.circle(\"ghost.drop\", dropX, apexY, 24, { opacity: 0.35, role: \"neutral\" }));\n  }\n\n  objects.push(sdk.circle(\"ball.toss\", tossX, tossCenterY, 28, { role: \"learner\" }));\n  objects.push(sdk.circle(\"ball.drop\", dropX, dropCenterY, 28, { role: \"prediction\" }));\n\n  objects.push(...sdk.vector(\"vec.v.toss\", { x: tossX - 22, y: tossCenterY }, { value: vToss, direction: \"up\", scale: 18, label: \"v\" }));\n  objects.push(...sdk.vector(\"vec.a.toss\", { x: tossX + 22, y: tossCenterY }, { value: aToss, direction: \"up\", scale: 12, label: \"a\" }));\n\n  objects.push(...sdk.vector(\"vec.v.drop\", { x: dropX - 22, y: dropCenterY }, { value: vDrop, direction: \"up\", scale: 18, label: \"v\" }));\n  objects.push(...sdk.vector(\"vec.a.drop\", { x: dropX + 22, y: dropCenterY }, { value: aDrop, direction: \"up\", scale: 12, label: \"a\" }));\n\n  const tossLines = [`v = ${sdk.format(vToss, 2)} m/s`, `a = ${sdk.format(aToss, 2)} m/s²`];\n  const dropLines = [`v = ${sdk.format(vDrop, 2)} m/s`, `a = ${sdk.format(aDrop, 2)} m/s²`];\n  objects.push(...sdk.callout(tossX + 40, tossCenterY - 20, tossLines, { id: \"callout.toss\" }));\n  objects.push(...sdk.callout(dropX + 40, dropCenterY - 20, dropLines, { id: \"callout.drop\" }));\n\n  const quantities = {\n    launchSpeed: u,\n    gravity: g,\n    apexTime: tApex,\n    apexHeight: hApex,\n    tossedVelocity: vToss,\n    tossedAcceleration: aToss,\n    tossedHeight: yToss,\n    dropVelocity: vDrop,\n    dropAcceleration: aDrop,\n    dropHeight: yDrop\n  };\n\n  const readouts = [\n    { id: \"tossedVelocity\", value: vToss },\n    { id: \"tossedAcceleration\", value: aToss },\n    { id: \"dropVelocity\", value: vDrop },\n    { id: \"dropAcceleration\", value: aDrop }\n  ];\n\n  return {\n    frame: sdk.frame(objects, { width: 640, height: 420, readouts }),\n    quantities\n  };\n}",
+    "manifest": {
+     "title": "Zero velocity isn’t zero acceleration.",
+     "summary": "Compare a tossed ball passing through the top of its flight with a ball dropped from rest at that same instant.",
+     "description": "Two vertical lanes show a tossed ball and a dropped ball. At the top of the toss, velocity is instantly zero, but constant gravity gives both balls identical downward acceleration.",
+     "assumptions": [
+      "No air resistance, the same gravity for both balls, up is positive."
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "gravity",
+       "label": "Gravity",
+       "unit": "m/s^2",
+       "default": 9.8,
+       "min": 6,
+       "max": 12,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.6666666666666667,
+     "instructions": "Change launch speed or gravity, then press Play. At each pause, compare velocity and acceleration.",
+     "timeline": {
+      "label": "Time from the top",
+      "displayOffset": -0.4081632653061224,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "before",
+        "label": "-0.10 s",
+        "time": 0.30816326530612237
+       },
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       },
+       {
+        "id": "after",
+        "label": "+0.10 s",
+        "time": 0.5081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "tossedVelocity",
+       "label": "Toss velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "tossedAcceleration",
+       "label": "Toss acceleration",
+       "unit": "m/s^2",
+       "decimals": 2
+      },
+      {
+       "id": "dropVelocity",
+       "label": "Drop velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "dropAcceleration",
+       "label": "Drop acceleration",
+       "unit": "m/s^2",
+       "decimals": 2
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 2492,
+  "prompt_tokens": 9631,
+  "prompt_tokens_details": {
+   "cached_tokens": 8152
+  },
+  "total_tokens": 12123
+ }
+}
