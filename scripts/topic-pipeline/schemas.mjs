@@ -99,6 +99,12 @@ export function validateAuthorFiles(value, { topic, repoRoot, dryRun = false }) 
   const check = ajv.compile(createAuthorSchema(topic, { dryRun }));
   if (!check(value)) throw new Error(`Invalid authored-file schema ${ajv.errorsText(check.errors)}`);
   const paths = value.files.map(file => file.path);
-  if (new Set(paths).size !== paths.length || value.files.some(file => file.path.includes('..') || Buffer.byteLength(file.content) > 204800)) throw new Error('Authored files exceed path or byte limits');
+  // Name the exact file and limit: the author repairs from this message.
+  const duplicate = paths.find((path, index) => paths.indexOf(path) !== index);
+  const escaping = value.files.find(file => file.path.includes('..'));
+  const large = value.files.find(file => Buffer.byteLength(file.content) > 204800);
+  if (duplicate) throw new Error(`Authored files exceed path or byte limits: ${duplicate} appears more than once; return each file once`);
+  if (escaping) throw new Error(`Authored files exceed path or byte limits: ${escaping.path} contains '..'`);
+  if (large) throw new Error(`Authored files exceed path or byte limits: ${large.path} is ${Buffer.byteLength(large.content)} bytes (limit 204800)`);
   return value;
 }
