@@ -157,3 +157,10 @@ test('replay ids go back to the prompts own id type (numbers in prompts.json)', 
   const replay = JSON.parse(response.files.find(file => file.path === P.replay).content).prompts;
   assert.deepEqual(replay.map(row => row.id), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 });
+
+test('feedback sent to a re-called batch is capped', async () => {
+  const { capFeedback, FEEDBACK_LIMIT } = await import('../author-batch.mjs');
+  assert.equal(capFeedback('short'), 'short');
+  const capped = capFeedback('x'.repeat(FEEDBACK_LIMIT + 500));
+  assert.ok(capped.length < FEEDBACK_LIMIT + 100 && /500 more characters/u.test(capped));
+});

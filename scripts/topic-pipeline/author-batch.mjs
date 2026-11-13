@@ -108,6 +108,11 @@ export function routeFailure(feedback, { artifactTopic, parts, referenceRanges, 
   return { foundation: false, parts: owned.size ? owned : new Set(parts.keys()) };
 }
 
+// Feedback goes to every re-called batch; cap it so one large report cannot push a batch input past its ceiling.
+export const FEEDBACK_LIMIT = 30000;
+export const capFeedback = text => String(text ?? '').length > FEEDBACK_LIMIT ? `${String(text).slice(0, FEEDBACK_LIMIT)}
+[feedback truncated: ${String(text).length - FEEDBACK_LIMIT} more characters]` : String(text ?? '');
+
 export function createBatchedAuthor({ call, base, rows, size, artifactTopic, diagrams, registry, exemplar }) {
   const p = paths(artifactTopic, diagrams);
   const state = { foundation: null, parts: planBatches(rows, size).map(group => ({ rows: group, output: null, ok: false })), referenceRanges: [], testRanges: [] };
@@ -120,7 +125,7 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
       redoFoundation = route.foundation; redo = route.parts;
     }
     if (redoFoundation) {
-      state.foundation = (await call('foundation', { ...base, part: 'foundation', exemplar: exemplarData, previous: state.foundation ?? [], feedback: String(feedback ?? ''), round })).files;
+      state.foundation = (await call('foundation', { ...base, part: 'foundation', exemplar: exemplarData, previous: state.foundation ?? [], feedback: capFeedback(feedback), round })).files;
       state.parts.forEach(part => { part.ok = false; });
     }
     state.parts.forEach((part, index) => { if (!part.ok) redo.add(index); });
@@ -128,7 +133,7 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
       const part = state.parts[index];
       part.ok = false;
       part.output = await call('batch', { ...base, part: 'batch', batch: index + 1, of: state.parts.length, last: index === state.parts.length - 1, assigned: part.rows,
-        dataModule: state.foundation, exemplar: index === state.parts.length - 1 ? [...exemplarReferences, ...exemplarWalkthrough] : exemplarReferences, helperSource: helperSource(artifactTopic).join('\n'), previous: part.output, feedback: String(feedback ?? ''), round }, part.rows, index === state.parts.length - 1);
+        dataModule: state.foundation, exemplar: index === state.parts.length - 1 ? [...exemplarReferences, ...exemplarWalkthrough] : exemplarReferences, helperSource: helperSource(artifactTopic).join('\n'), previous: part.output, feedback: capFeedback(feedback), round }, part.rows, index === state.parts.length - 1);
       // The model returns ids as strings; the checks compare with the prompt's own id (a number in prompts.json).
       part.output.replay = part.output.replay.map(row => ({ ...row, id: part.rows.find(item => String(item.id) === String(row.id)).id }));
       part.ok = true;

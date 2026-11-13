@@ -136,7 +136,8 @@ ${await prompt('author-batch')}`;
       }
       await isolated(target, 'snapshots', payload, roundDir);
       const replay = await isolated(target, 'replay', { ...payload, expected: inspection.expected }, roundDir);
-      if (!replay.passed) throw new Error(JSON.stringify(replay, null, 2));
+      // The failure names collisions and rows that missed their reference; the passing rows would only bloat the next author input past its ceiling.
+      if (!replay.passed) { const { rows, ...rest } = replay; throw new Error(JSON.stringify({ ...rest, failingRows: rows.filter(row => !row.firstPick) }, null, 2)); }
       const plans = {};
       for (const row of inspection.replayCases) for (const prompt of row.paraphrases ?? []) {
         plans[prompt] ??= {};
