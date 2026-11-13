@@ -9,7 +9,7 @@ import { buildSync } from 'esbuild';
 import { normalizeFrame } from './frame.js';
 import { programSdkSource } from './sdk.js';
 import { PALETTE } from '../tutor-diagrams/primitives.js';
-import { TEACHING } from '../tutor-diagrams/teaching-theme.js';
+import { TEACHING, TEACHING_ACCENT } from '../tutor-diagrams/teaching-theme.js';
 
 // The look of a generated card's scene (frame-look.js), drawn by the real Frame in interact mode: structural markup checks on frames built with the sdk-8 helpers in this process. The helpers are the
 // real guest source (programSdkSource), so a naming convention these tests rely on is the one the author's own helper calls produce.
@@ -95,4 +95,20 @@ test('a vector is the written connector by kind: v blue solid with a head, a ora
   assert.match(group(markup, 'vec.vL'), new RegExp('fill="' + TEACHING.blue + '"'));
   assert.match(group(markup, 'vec.FL'), new RegExp('fill="' + TEACHING.green + '"'));
   assert.doesNotMatch(group(markup, 'plain'), new RegExp(TEACHING.blue), 'no kind, no look');
+});
+
+test('a callout is ONE white card (1 px border, radius 9) whose lines are blue-ink bold, orange, green, muted in order, and a card that reaches past its lane is drawn back inside it', () => {
+  const lane = sdk.panel({ id: 'lane.toss', x: 72, y: 50, w: 250, h: 300, title: 'Toss', state: 'Rising' });
+  const objects = [...lane, ...sdk.callout(250, 200, ['v = +4.00 m/s', 'a = -9.8 m/s2', 'F = 2 N', 'note'], { id: 'callout.toss' })];
+  const markup = draw(objects);
+  const card = group(markup, 'callout.toss.l0');
+  assert.match(card, new RegExp('data-frame-callout="callout.toss"'));
+  assert.equal((card.match(/<rect/g) || []).length, 1, 'one card, not a box per line');
+  assert.match(card, new RegExp('rx="9" fill="' + TEACHING.surface + '" stroke="' + TEACHING.line + '" stroke-width="1"'));
+  const inks = [...card.matchAll(/<text[^>]*fill="(#[0-9a-f]+)"[^>]*font-weight="(\d+)"[^>]*>/g)].map(m => [m[1], m[2]]);
+  assert.deepEqual(inks.map(i => i[0]), [TEACHING_ACCENT.blueInk, TEACHING.warm, TEACHING.green, TEACHING.muted]);
+  assert.equal(inks[0][1], '600');
+  assert.equal(group(markup, 'callout.toss.l1').includes('<rect'), false, 'the other lines draw nothing of their own');
+  const x = Number(card.match(/<rect x="([0-9.]+)"/)[1]), w = Number(card.match(/<rect[^>]*width="([0-9.]+)"/)[1]);
+  assert.ok(x + w <= 72 + 250 - 6 + 1e-6, 'the card ends inside the lane (right edge 322): ' + (x + w));
 });

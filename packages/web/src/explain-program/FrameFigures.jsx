@@ -4,7 +4,7 @@ import { LANE_AXIS_X, LANE_INSET } from './frame-look.js';
 import { renderTutorDiagram } from '../tutor-diagrams/TutorDiagram.js';
 import { plotTicks } from '../tutor-diagrams/plot-ticks.js';
 import { connector, label, lineHeight, textWidth } from '../tutor-diagrams/primitives.js';
-import { TEACHING as T, TEACHING_SERIES, TEACHING_TEXT, teachingConnector } from '../tutor-diagrams/teaching-theme.js';
+import { TEACHING as T, TEACHING_ACCENT, TEACHING_SERIES, TEACHING_TEXT, teachingConnector } from '../tutor-diagrams/teaching-theme.js';
 
 // The semantic figures of a program frame (contract.js: axis, plot, diagram) drawn the way the written card draws them, for the composed /interactive card only (AnimatedScene.jsx,
 // interact mode; the /animation frame draws nothing for these types, and validateScene refuses them there). Tick placement is the written plots' own (plot-ticks.js), tick labels and
@@ -124,6 +124,17 @@ function LaneShape({ lane }) {
   return <g data-frame-lane-card={lane.id}>{parts}</g>;
 }
 
+// A callout (sdk.callout): one white card, 1 px border, radius 9, its lines stacked 10 px in from the left edge; line 1 blue ink and bold, 2 orange, 3 green, 4 muted.
+const CALLOUT_COLOR = { blueInk: TEACHING_ACCENT.blueInk, warm: T.warm, green: T.green, muted: T.muted };
+function CalloutShape({ card }) {
+  return (
+    <g data-frame-callout={card.name}>
+      <rect x={card.x} y={card.y} width={card.w} height={card.h} rx="9" fill={T.surface} stroke={T.line} strokeWidth="1" />
+      {card.lines.map((line, index) => <text key={index} x={card.x + 10} y={line.y} dominantBaseline="central" fill={CALLOUT_COLOR[line.ink]} fontSize={index === 0 ? 13 : 12} fontWeight={index === 0 ? 600 : 400}>{line.text}</text>)}
+    </g>
+  );
+}
+
 // A vector is the written connector, tinted by its kind: v blue solid, a orange dashed, F green. Its label (13 px) takes the same colour.
 const VECTOR = Object.freeze({ v: { color: T.blue, width: 2.2 }, a: { color: T.warm, width: 2, dashed: true }, F: { color: T.green, width: 2 } });
 function VectorShape({ object }) {
@@ -136,6 +147,7 @@ function VectorShape({ object }) {
 // The entry AnimatedScene.jsx calls for an object frame-look.js recognised: a lane, its heading line (title 15 px / 600, state 12 px muted), a vector or its label, or nothing for an object another part draws.
 export function LookShape({ object }) {
   const { part } = object.look;
+  if (part === 'callout-card') return <CalloutShape card={object.look.card} />;
   if (part === 'vector') return <VectorShape object={object} />;
   if (part === 'vector-label') return <text x={object.x} y={object.y} fill={VECTOR[object.look.kind].color} fontSize="13" textAnchor={object.align === 'middle' ? 'middle' : 'start'}>{object.label}</text>;
   if (part === 'lane') return <LaneShape lane={object.look.lane} />;

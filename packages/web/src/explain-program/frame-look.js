@@ -50,6 +50,27 @@ export function clampText(object, lane) {
 export const BODY_SLOTS = Object.freeze(['identity-1', 'identity-2', 'identity-3']);
 export const isBody = object => kindOf(object) === 'circle' && object.w >= BODY_MIN;
 
+// A callout is the boxes "<id>.l0" .. "<id>.l3" of sdk.callout (stacked, equally wide, each with its own text). They are drawn as ONE white card whose lines take their colours by order (the first blue
+// ink and bold, the second orange, the third green, the fourth muted), and the card is kept inside the lane it sits in. -> Map(box id -> look): the lowest line carries the whole card, the others none.
+export const CALLOUT_INK = Object.freeze(['blueInk', 'warm', 'green', 'muted']);
+function calloutsOf(objects, lanes) {
+  const groups = new Map();
+  for (const object of objects) {
+    const match = kindOf(object) === 'box' && textOf(object) ? /^(.+)\.l([0-3])$/.exec(object.id) : null;
+    if (match) groups.set(match[1], [...(groups.get(match[1]) ?? []), { object, line: Number(match[2]) }]);
+  }
+  const out = new Map();
+  for (const [name, entries] of groups) {
+    const lines = entries.sort((a, b) => a.line - b.line).map(({ object }) => object);
+    const box = { x: Math.min(...lines.map(o => o.x)), y: Math.min(...lines.map(o => o.y)), w: Math.max(...lines.map(o => o.w)), h: lines.reduce((sum, o) => sum + o.h, 0) };
+    const home = laneAt(lanes, box.x + box.w / 2, box.y + box.h / 2);
+    const dx = home ? clamp(box.x, home.x + LANE_INSET, home.x + home.w - LANE_INSET - box.w) - box.x : 0, dy = home ? clamp(box.y, home.y + LANE_INSET, home.y + home.h - LANE_INSET - box.h) - box.y : 0;
+    const card = { name, x: box.x + dx, y: box.y + dy, w: box.w, h: box.h, lines: lines.map((o, i) => ({ text: textOf(o), y: o.y + dy + o.h / 2, ink: CALLOUT_INK[i] })) };
+    lines.forEach((o, i) => out.set(o.id, i === 0 ? { part: 'callout-card', card } : { part: 'callout-line' }));
+  }
+  return out;
+}
+
 // A vector's kind, from the words of its label first and then of its id: v (velocity), a (acceleration) or F (force). It decides the colour and the dash, nothing else. Words are split at case
 // changes and non-letters ("vec.v", "tossedVelocity", "Gravity pulls down"); the first word that names a kind wins, and a single letter v, a or F (any case) counts.
 const KIND_WORDS = Object.freeze({
@@ -74,8 +95,10 @@ export function frameLook(objects) {
   const source = lanes[0]?.axis?.id;
   const labels = new Map(objects.filter(object => kindOf(object) === 'text').map(object => [object.id, textOf(object)]));
   const vectors = new Map(objects.filter(object => kindOf(object) === 'arrow').map(object => [object.id, vectorKind(labels.get(`${object.id}L`), object.id)]).filter(([, kind]) => kind));
+  const callouts = calloutsOf(objects, lanes);
   let bodies = 0;
   const out = objects.map(object => {
+    if (callouts.has(object.id)) return { ...object, look: callouts.get(object.id) };
     const lane = byId.get(object.id);
     if (lane) return { ...object, look: { part: 'lane', lane } };
     if (titles.has(object.id)) return { ...object, look: { part: titles.get(object.id) } };
