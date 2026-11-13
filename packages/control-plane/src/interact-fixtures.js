@@ -6,6 +6,7 @@
 import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
 import { canonicalJson, parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { createSnapshotResolver } from '../../web/src/interact-composition.js';
+import { traceObjects } from '../../web/src/explain-program/frame-overlap.js';
 import { depthOf } from './chat-depth.js';
 import { deepOracle, fixtureDraft, overviewOracle, pendulumOracle, standardOracle } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
@@ -76,7 +77,7 @@ export function fixtureCaptureCard({ limits } = {}) {
       const parsed = parseGuestResult(out.value, program.manifest, program.sdkVersion);
       if (!parsed.ok) return { error: { code: parsed.error.code, diagnostic: parsed.issue } };
       const { frame, quantities } = parsed.value;
-      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), frameHash: await sha256Hex(canonicalJson(frame.objects)), inputs, time };
+      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), objects: traceObjects(frame.objects), frameHash: await sha256Hex(canonicalJson(frame.objects)), inputs, time };
     };
     const supportOf = id => artifacts.supporting.find(s => s.id === id).artifact;
     const resolver = createSnapshotResolver({ evaluate: ({ panelId, inputs, time }) => run(supportOf(panelId), resolveInputs(supportOf(panelId).program.manifest, inputs), time) });

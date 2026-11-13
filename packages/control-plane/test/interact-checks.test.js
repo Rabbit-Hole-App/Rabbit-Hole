@@ -323,3 +323,13 @@ test('a finding message over 400 characters does not void the whole review: the 
   assert.deepEqual(schemaProblems(lenient, reply), [], 'the validation schema accepts it');
   assert.equal(JSON.stringify(strict).includes('"maxLength":400'), true, 'the original schema is not mutated');
 });
+
+test('overlap: a label drawn on a ball is a deterministic problem naming both objects, and the repairer is handed it (the check never reaches the reviewer)', async () => {
+  const onBall = withSource("sdk.text('up-label', 560, 28, 'up is +')", "sdk.text('up-label', 215, 330, 'up is +')");
+  const ctx = ctxWith(), out = await checkRound(await candidate('standard', onBall), ctx);
+  assert.equal(out.status, 'failed'); assert.equal(out.failure.stage, 'check');
+  const problem = out.failure.problems.find(p => /\[overlap\]/.test(p));
+  assert.ok(problem, JSON.stringify(out.failure.problems)); assert.match(problem, /"up-label" overlaps "tossed-ball" \(text-circle/);
+  assert.equal(ctx.adapter.log.filter(l => l.role === 'build_review').length, 0, 'no review of a card the checks already refused');
+  assert.equal(out.failure.problems.filter(p => /\[overlap\]/.test(p) && /up-label/.test(p) && /tossed-ball/.test(p)).length, 1, 'a pair is reported once, at the first state it appears in');
+});

@@ -11,6 +11,7 @@
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { CAPTURE_BUDGET, evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
 import { resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
+import { frameOverlaps } from '../../web/src/explain-program/frame-overlap.js';
 import { REVIEW_LIMITS, ReviewError, reviewCaptures, reviewProblems } from './explain-review.js';
 import { REVIEW_EVENTS, RenderError } from './explain-render.js';
 import { programFacts } from './explain-program.js';
@@ -132,7 +133,7 @@ export function descriptionNumbers(plan) {
 export function checkSceneAgainstPlan({ plan, composition, captures, cases, probes = [], oracle = null, allowPartialCard = false }) {
   const problems = [], bad = (code, path, message, at) => problems.push({ code, path, message, ...(at ? { case: at } : {}) });
   const coverage = { cases: [], oracle: { checked: 0, skipped: [] }, effects: { tested: [], untested: [] }, proseOnly: [] };
-  const byCase = new Map(captures.map(c => [c.caseId, c]));
+  const byCase = new Map(captures.map(c => [c.caseId, c])), overlapSeen = new Set();
   const capOf = id => byCase.get(id) ?? byCase.get(cases.find(c => c.aliases?.includes(id))?.id);
   const reported = new Set(plan.scene.observations.flatMap(o => o.quantityIds));
   for (const name of Object.keys(plan.mode.fixedValues)) reported.delete(name);
@@ -158,6 +159,14 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     // Drawn text (trace.texts, when the capture seam reports it): the Story and the description are shown by the card, never drawn into a scene.
     for (const text of [...(t.texts ?? []), ...plan.supportingVisuals.flatMap(s => cap.supports?.[s.id]?.trace?.texts ?? [])]) {
       if (norm(plan.story).includes(norm(text)) && norm(text).length >= 60 || norm(text).includes(norm(plan.cardDescription).slice(0, 80))) { bad('story_in_scene', where, `a scene draws the Story or the description as text ("${text.slice(0, 50)}")`, c.id); break; }
+    }
+    // Host-computed geometry: a label on a ball, box or arrowhead, an arrowhead on a ball, or two labels on each other (any intersection of the estimated boxes) is a problem the
+    // repairer answers with the two object ids; it is not left to the reviewer. A pair is reported once, at the first state it appears in.
+    for (const o of frameOverlaps({ objects: t.objects ?? [] })) {
+      const key = [o.a, o.b].sort().join('|');
+      if (overlapSeen.has(key)) continue;
+      overlapSeen.add(key);
+      bad('overlap', where, `"${o.a}" overlaps "${o.b}" (${o.kind}, ${o.width} x ${o.height} px) at "${c.label}"`, c.id);
     }
     for (const s of plan.supportingVisuals) {
       const st = cap.supports?.[s.id];

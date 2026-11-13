@@ -20,7 +20,7 @@ export function tossDrop({ u = 3, g = G } = {}) {
 
 const STANDARD_MAIN = String.raw`
 export function evaluate({ time }) {
-  const U = 3, G = 9.8, APEX = U / G, PEAK = U * U / (2 * G), S = 600, GROUND = 330, XT = 220, XH = 440;
+  const U = 3, G = 9.8, APEX = U / G, PEAK = U * U / (2 * G), S = 500, GROUND = 330, XT = 220, XH = 440;
   const t = Math.min(time, 2 * APEX);
   const height = U * t - G * t * t / 2, velocity = U - G * t;
   const fall = Math.max(0, t - APEX), drop = G * fall * fall / 2, heldVelocity = -G * fall;
@@ -51,7 +51,7 @@ export function evaluate({ time }) {
 
 const THREE_MOMENTS = String.raw`
 export function evaluate() {
-  const U = 3, G = 9.8, APEX = U / G, PEAK = U * U / (2 * G), S = 600, GROUND = 330;
+  const U = 3, G = 9.8, APEX = U / G, PEAK = U * U / (2 * G), S = 500, GROUND = 330;
   const moments = [{ id: 'before', t: APEX - 0.1, x: 120, label: '0.10 s before' }, { id: 'top', t: APEX, x: 320, label: 'at the top' }, { id: 'after', t: APEX + 0.1, x: 520, label: '0.10 s after' }];
   const shown = v => (Math.abs(v) < 5e-9 ? 0 : v), sign = v => (shown(v) > 0 ? '+' : '');
   const peakY = GROUND - S * PEAK, objects = [sdk.line('peak-line', 60, peakY, 580, peakY, { role: 'prediction', opacity: 0.5 }), sdk.text('up-label', 560, 28, 'up is +')];
@@ -99,7 +99,7 @@ export function evaluate() {
   const objects = [
     sdk.line('ground', 60, GROUND + 12, 580, GROUND + 12),
     sdk.line('shared-height', 150, PEAKY, 520, PEAKY, { role: 'prediction', opacity: 0.5 }),
-    sdk.text('shared-label', 330, PEAKY - 14, 'same height, zero velocity'),
+    sdk.text('shared-label', 330, PEAKY - 30, 'same height, zero velocity'),
     sdk.circle('tossed-ball', XT, PEAKY, 24, { role: 'output' }),
     sdk.circle('released-ball', XR, PEAKY, 24, { role: 'input' }),
     sdk.circle('tossed-after', XT, PEAKY + fall, 24, { role: 'output', opacity: 0.35 }),
