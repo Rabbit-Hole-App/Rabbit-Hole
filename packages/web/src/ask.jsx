@@ -18,7 +18,7 @@ import { codeRef } from './chat-sources.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
@@ -269,7 +269,7 @@ export function NextStepsCard({ steps, onPick }) {
   );
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false, roadmap = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', compact = false, composerOnly = false, stripHost = null, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, nextStepRef = null, codebase = null, hideConversation = false, roadmap = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -314,6 +314,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // composer, in one thread, and make no card; Add to canvas turns an answer
   // into a card. Asking about a selected card still answers as a linked card.
   const sheetMode = sheet && composerOnly;
+  const stripMode = !!(stripHost && chat && !tocView);
+  const regionHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
+  const inlineSlot = useRef(null);
+  useLayoutEffect(() => { const where = stripMode ? stripHost : inlineSlot.current; if (where && regionHost.parentNode !== where) where.appendChild(regionHost); });
   const [sheetOpen, setSheetOpen] = useState(true);
   const [sheetHistory, setSheetHistory] = useState(false);
   const sheetThread = useRef(null);
@@ -563,6 +567,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null, onAdmitted = null } = {}) => {
+    if (stripMode) chat.panels.openChat(); // sent from the canvas strip: the Chat shows the conversation
     // The area picture is still uploading: Send is held (ChatComposer hold), and a line that reaches here another way waits too, so the question never goes without its image.
     if (uploadHeld(canvasTarget) && !keepDraft && !about) return;
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
@@ -945,9 +950,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // composer's draft and chips stay as they are.
   // Ctrl+K's explicit command (owner spec 2026-10-29 4.2): { line, about } runs through this Chat's own dispatcher (LearnSlash), as if
   // typed here, about Ctrl+K's selection; the composer's draft and chips are never touched. false: not taken (another command runs).
-  useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about, line, typed, onAdmitted } = {}) => {
-    // typed (the canvas's bottom strip, CanvasChatStrip.jsx): the learner's own words, sent exactly as if typed in this composer (routing included).
-    if (typed) return send(typed, undefined, { onAdmitted });
+  useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about, line, onAdmitted } = {}) => {
     if (line) { if (!slashRef.current?.handoff) return false; promptCommand.current = lineCommand(line); return slashRef.current.handoff(line, { about: about ?? null, target: about?.selection ?? null, onAdmitted }); }
     if (prompt) return send(prompt, undefined, { command: asked, prompted: true, about, keepDraft: true, onAdmitted });
     const index = msgs.findIndex(m => m.messageId === regenerate?.messageId);
@@ -1021,6 +1024,178 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     </div>}
   </>;
   const pinnedTarget = !!(chat && canvasTarget?.ref && chat.context.isAttached(canvasTarget.ref));
+  // The strip (owner 2026-11-13): while the right panel is closed the canvas offers a host (stripHost) at its bottom and this one composer, tools
+  // and all, is drawn there as a pill; Send then opens the panel. chipsNode: the context chips, in the stacked box or above the pill.
+  const chipsNode = chat ? <ContextChips hideDocs={tocView} readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
+            selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, uploading: !!canvasTarget.uploading, onClear: onClearCanvasTarget } : null} extra={boardPending}
+            code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null;
+  const composerRegion = (
+      <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
+        {/* @-mention suggestions above the input */}
+        {!tocView && atHits.length > 0 && (
+          <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
+            {atHits.map((a) => (
+              <button
+                key={a.name}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setMentions((m) => (m.includes(a.name) ? m : [...m, a.name]));
+                  setInput(input.replace(/@[a-z0-9-]*$/, ''));
+                  inputRef.current?.focus();
+                }}
+                className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover"
+              >
+                <KindIcon kind={a.kind} schedule={a.schedule} />
+                {a.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {(file || mentions.length > 0) && (
+          <div className="mb-1 flex flex-wrap gap-1.5">
+            {mentions.map((m) => (
+              <span key={m} className="inline-flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs">
+                @{m}
+                <button aria-label={`Remove ${m}`} className="cursor-pointer text-ink-2 hover:text-ink" onClick={() => setMentions((ms) => ms.filter((x) => x !== m))}><X size={11} /></button>
+              </span>
+            ))}
+            {file && (
+              <span className="inline-flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-xs text-ink-2">
+                <Paperclip size={12} strokeWidth={1.5} /> {file.name}
+                <button aria-label="Remove attachment" className="cursor-pointer hover:text-ink" onClick={() => setFile(null)}><X size={12} /></button>
+              </span>
+            )}
+          </div>
+        )}
+        {!contentPanel && demo && <button type="button" disabled={busy || demo.disabled} onClick={() => send(demo.prompt)} className="mb-2 self-start rounded-full border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-50">
+          {demo.prompt} <span className="ml-1 text-ink-3">· Demo</span>
+        </button>}
+        {/* Learn's repository context. A file or lines also show the file's path, the lines (or Whole file) and, for lines, the
+            first few as a preview (repositoryExcerpt, display only; repository-browser.md "Files in Learn"). */}
+        {!tocView && repository && !codebase && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
+          <div className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>
+          {passage && <div data-context-path className="mt-0.5 truncate font-mono text-[11px] text-green-900/80" title={passage.path}>{passage.path} · {passage.lines}</div>}
+          {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
+        </div>; })()}
+        {/* The selected card (or armed region, area or group) the next question is about: always visible while it rides. */}
+        {canvasTarget && !chat && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
+          {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
+          {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.docPage && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
+          {/* A card shows its material icon, unless it has a picture; a title that already names its kind (a group called Group 2) is shown once. */}
+          {canvasTarget.card && !canvasTarget.preview && <MaterialIcon type={canvasTarget.context?.material_type} />}
+          {!canvasTarget.card && !String(canvasTarget.title ?? '').toLowerCase().startsWith(String(canvasTarget.kind).toLowerCase()) && <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>}
+          <span className="max-w-[260px] truncate">{String(canvasTarget.title).replace(/\$([^$]*)\$/g, '$1')}</span>
+          <button type="button" aria-label={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} title={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
+        </div>}
+        {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
+        {!chat && boardPending}
+        {chat && !tocView && chat.coaching && <TutorCoaching chat={chat} send={text => send(text)} messages={msgs.length} busy={busy} />}
+        {chat && !tocView && chat.coaching?.state && <TutorActivity chat={chat} board={chat.board || 'main'} />}
+        {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
+        {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
+        {!tocView && <CadReview ops={workspace?.canvasOps} />}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={(prompt, handoff) => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true, ...(handoff ? { about: handoff.about, keepDraft: true } : {}) })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
+        {stripMode && chipsNode && <div className="mb-1.5">{chipsNode}</div>}
+        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
+          onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
+            if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : placeholder} busy={busy}
+          dock={dock || stripMode} hold={uploadHeld(canvasTarget) ? 'Waiting for the picture to upload' : ''} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
+          stacked={!!chat && !stripMode} pill={stripMode} tocView={tocView} chips={chat && !stripMode ? chipsNode : null}
+          leading={<>
+          {!tocView && <div className="relative shrink-0">
+            <button
+              type="button"
+              aria-label="Add"
+              disabled={voiceOn}
+              title={chat ? 'Add context' : undefined}
+              onMouseDown={(e) => { e.stopPropagation(); setPlusOpen(!plusOpen); }}
+              className={cn(chat ? COMPOSER_TOOL : dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}
+            >
+              <Plus size={chat ? 16 : 14} strokeWidth={1.5} />
+            </button>
+            <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={chat ? 'bottom-10 left-0 w-64' : dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
+              {/* The Chat pane adds to the canvas's one context collection through the Context header's own Add context dialog: a file
+                  (chat.context.upload, the context-docs upload) or a web address (owner brief 2026-10-29). */}
+              {chat ? <MenuItem icon={Upload} data-upload-context onClick={() => { setPlusOpen(false); setAddContext(true); }}>Upload Context</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+                Add images, PDFs, or CSVs
+              </MenuItem>}
+              {chat ? <MenuItem icon={AtSign} data-mention-canvas disabled={privateChat || canvasMentioned.length >= CANVAS_MENTIONS} onClick={() => { setPlusOpen(false); setMentionPick(true); }}>
+                Mention a canvas
+              </MenuItem> : <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
+                Mention an app
+              </MenuItem>}
+            </Menu>
+            {/* On document.body: inside the composer's form, the picker's buttons would submit (send) the chat. */}
+            {addContext && chat && <AddContextDialog onClose={() => { setAddContext(false); inputRef.current?.focus(); }} />}
+            {mentionPick && chat && createPortal(<CanvasRefPicker mention exclude={null} linked={canvasMentioned.map(ref => canvasBoardId(ref.sourceId))} returnFocus={() => inputRef.current}
+              onPick={canvas => { const ref = canvasMentionRef(canvas.id); if (chat.context.isAttached(ref)) return { ok: false, reason: 'exists' }; rememberCanvas(canvas); chat.context.attach(ref); return { ok: true }; }}
+              onClose={() => setMentionPick(false)} />, document.body)}
+            <input
+              ref={fileRef}
+              type="file"
+              accept={chat ? CONTEXT_ACCEPT : '.png,.jpg,.jpeg,.gif,.webp,.pdf,.csv,.txt'}
+              className="hidden"
+              onChange={(e) => { const picked = e.target.files[0]; e.target.value = ''; if (picked) { if (chat) chat.context.upload(picked); else setFile(picked); } }}
+            />
+          </div>}
+          {contextDocs.enabled && !chat && (
+            <div className="relative shrink-0">
+              <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
+                onMouseDown={(e) => { e.stopPropagation(); setCtxOpen(!ctxOpen); }}
+                className={cn(dock ? COMPOSER_ADD.replace(' w-9 ', ' min-w-9 ') : 'inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', 'gap-1 px-2', ctxOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>
+                <Files size={dock ? 16 : 14} strokeWidth={1.5} />
+                {contextDocs.on > 0 && <span className="text-xs font-medium">{contextDocs.on}</span>}
+              </button>
+              <Menu open={ctxOpen} onClose={() => setCtxOpen(false)} className={dock ? 'bottom-11 left-0 w-[22rem] max-w-[92vw] p-1' : 'bottom-8 left-0 w-[22rem] max-w-[92vw] p-1'}>
+                <ContextDocs context={contextDocs} />
+              </Menu>
+            </div>
+          )}
+          {srcOpts.length > 0 && !chat && (
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                aria-label="Sources"
+                title="What the agent reads"
+                onMouseDown={(e) => { e.stopPropagation(); setSrcOpen(!srcOpen); }}
+                className={cn('inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink', srcOpen && 'bg-active text-ink')}
+              >
+                <SlidersHorizontal size={14} strokeWidth={1.5} />
+              </button>
+              <Menu open={srcOpen} onClose={() => setSrcOpen(false)} className="bottom-8 left-0 w-64 p-2">
+                <div className="pb-1.5 text-xs font-medium text-ink-2">Sources</div>
+                {srcOpts.map(([k, label]) => {
+                  const SI = SOURCE_ICON[k];
+                  return (
+                  <div key={k} className="flex h-7 items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">{SI && <SI size={14} strokeWidth={1.5} className="text-ink-2" />}{label}</span>
+                    <Toggle
+                      aria-label={label}
+                      on={srcOn.has(k)}
+                      onChange={() => setSrcOn((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; })}
+                    />
+                  </div>
+                  );
+                })}
+                <div className="pt-1.5 text-xs text-ink-3">{privateChat
+                  ? `${scope.run ? 'Run details' : 'Job definition'} always included. Choose additional evidence above.`
+                  : "The agent only reads what's on here."}</div>
+              </Menu>
+            </div>
+          )}
+          {/* The Chat toolbar after Plus, in order: the mode, the / slot, the mic; Send sits at the far right. Context, Files and
+              Graph open from the panel header's one control (owner brief 2026-10-16 item 6), not from here. */}
+          {chat && <ModeSelector disabled={voiceOn} />}
+          {(dock || chat) && chatControl}
+          {(dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
+          </>}
+          voice={voiceOn ? <VoiceField voice={voice} /> : null}
+          trailing={dock || chat ? null : chatControl}
+        />
+      </div>
+  );
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1', sheetMode && 'relative')}>
       {/* The Chat pane's own header (ChatPane: title, History, New chat) replaces this row there. */}
@@ -1180,172 +1355,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       </div>
       {!(contentPanel || hideConversation || composerOnly) && <JumpToLatest follow={follow} />}
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
-      <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
-        {/* @-mention suggestions above the input */}
-        {!tocView && atHits.length > 0 && (
-          <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
-            {atHits.map((a) => (
-              <button
-                key={a.name}
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setMentions((m) => (m.includes(a.name) ? m : [...m, a.name]));
-                  setInput(input.replace(/@[a-z0-9-]*$/, ''));
-                  inputRef.current?.focus();
-                }}
-                className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover"
-              >
-                <KindIcon kind={a.kind} schedule={a.schedule} />
-                {a.name}
-              </button>
-            ))}
-          </div>
-        )}
-        {(file || mentions.length > 0) && (
-          <div className="mb-1 flex flex-wrap gap-1.5">
-            {mentions.map((m) => (
-              <span key={m} className="inline-flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs">
-                @{m}
-                <button aria-label={`Remove ${m}`} className="cursor-pointer text-ink-2 hover:text-ink" onClick={() => setMentions((ms) => ms.filter((x) => x !== m))}><X size={11} /></button>
-              </span>
-            ))}
-            {file && (
-              <span className="inline-flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-xs text-ink-2">
-                <Paperclip size={12} strokeWidth={1.5} /> {file.name}
-                <button aria-label="Remove attachment" className="cursor-pointer hover:text-ink" onClick={() => setFile(null)}><X size={12} /></button>
-              </span>
-            )}
-          </div>
-        )}
-        {!contentPanel && demo && <button type="button" disabled={busy || demo.disabled} onClick={() => send(demo.prompt)} className="mb-2 self-start rounded-full border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-50">
-          {demo.prompt} <span className="ml-1 text-ink-3">· Demo</span>
-        </button>}
-        {/* Learn's repository context. A file or lines also show the file's path, the lines (or Whole file) and, for lines, the
-            first few as a preview (repositoryExcerpt, display only; repository-browser.md "Files in Learn"). */}
-        {!tocView && repository && !codebase && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
-          <div className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>
-          {passage && <div data-context-path className="mt-0.5 truncate font-mono text-[11px] text-green-900/80" title={passage.path}>{passage.path} · {passage.lines}</div>}
-          {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
-        </div>; })()}
-        {/* The selected card (or armed region, area or group) the next question is about: always visible while it rides. */}
-        {canvasTarget && !chat && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
-          {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
-          {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.docPage && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
-          {/* A card shows its material icon, unless it has a picture; a title that already names its kind (a group called Group 2) is shown once. */}
-          {canvasTarget.card && !canvasTarget.preview && <MaterialIcon type={canvasTarget.context?.material_type} />}
-          {!canvasTarget.card && !String(canvasTarget.title ?? '').toLowerCase().startsWith(String(canvasTarget.kind).toLowerCase()) && <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>}
-          <span className="max-w-[260px] truncate">{String(canvasTarget.title).replace(/\$([^$]*)\$/g, '$1')}</span>
-          <button type="button" aria-label={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} title={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
-        </div>}
-        {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
-        {!chat && boardPending}
-        {chat && !tocView && chat.coaching && <TutorCoaching chat={chat} send={text => send(text)} messages={msgs.length} busy={busy} />}
-        {chat && !tocView && chat.coaching?.state && <TutorActivity chat={chat} board={chat.board || 'main'} />}
-        {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
-        {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
-        {!tocView && <CadReview ops={workspace?.canvasOps} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} scope={chatThread?.restore.key ?? null} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={(prompt, handoff) => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true, ...(handoff ? { about: handoff.about, keepDraft: true } : {}) })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
-        {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
-        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
-          onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
-            if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : placeholder} busy={busy}
-          dock={dock} hold={uploadHeld(canvasTarget) ? 'Waiting for the picture to upload' : ''} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
-          stacked={!!chat} tocView={tocView} chips={chat ? <ContextChips hideDocs={tocView} readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
-            selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, uploading: !!canvasTarget.uploading, onClear: onClearCanvasTarget } : null} extra={boardPending}
-            code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null}
-          leading={<>
-          {!tocView && <div className="relative shrink-0">
-            <button
-              type="button"
-              aria-label="Add"
-              disabled={voiceOn}
-              title={chat ? 'Add context' : undefined}
-              onMouseDown={(e) => { e.stopPropagation(); setPlusOpen(!plusOpen); }}
-              className={cn(chat ? COMPOSER_TOOL : dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}
-            >
-              <Plus size={chat ? 16 : 14} strokeWidth={1.5} />
-            </button>
-            <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={chat ? 'bottom-10 left-0 w-64' : dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
-              {/* The Chat pane adds to the canvas's one context collection through the Context header's own Add context dialog: a file
-                  (chat.context.upload, the context-docs upload) or a web address (owner brief 2026-10-29). */}
-              {chat ? <MenuItem icon={Upload} data-upload-context onClick={() => { setPlusOpen(false); setAddContext(true); }}>Upload Context</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
-                Add images, PDFs, or CSVs
-              </MenuItem>}
-              {chat ? <MenuItem icon={AtSign} data-mention-canvas disabled={privateChat || canvasMentioned.length >= CANVAS_MENTIONS} onClick={() => { setPlusOpen(false); setMentionPick(true); }}>
-                Mention a canvas
-              </MenuItem> : <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
-                Mention an app
-              </MenuItem>}
-            </Menu>
-            {/* On document.body: inside the composer's form, the picker's buttons would submit (send) the chat. */}
-            {addContext && chat && <AddContextDialog onClose={() => { setAddContext(false); inputRef.current?.focus(); }} />}
-            {mentionPick && chat && createPortal(<CanvasRefPicker mention exclude={null} linked={canvasMentioned.map(ref => canvasBoardId(ref.sourceId))} returnFocus={() => inputRef.current}
-              onPick={canvas => { const ref = canvasMentionRef(canvas.id); if (chat.context.isAttached(ref)) return { ok: false, reason: 'exists' }; rememberCanvas(canvas); chat.context.attach(ref); return { ok: true }; }}
-              onClose={() => setMentionPick(false)} />, document.body)}
-            <input
-              ref={fileRef}
-              type="file"
-              accept={chat ? CONTEXT_ACCEPT : '.png,.jpg,.jpeg,.gif,.webp,.pdf,.csv,.txt'}
-              className="hidden"
-              onChange={(e) => { const picked = e.target.files[0]; e.target.value = ''; if (picked) { if (chat) chat.context.upload(picked); else setFile(picked); } }}
-            />
-          </div>}
-          {contextDocs.enabled && !chat && (
-            <div className="relative shrink-0">
-              <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
-                onMouseDown={(e) => { e.stopPropagation(); setCtxOpen(!ctxOpen); }}
-                className={cn(dock ? COMPOSER_ADD.replace(' w-9 ', ' min-w-9 ') : 'inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', 'gap-1 px-2', ctxOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>
-                <Files size={dock ? 16 : 14} strokeWidth={1.5} />
-                {contextDocs.on > 0 && <span className="text-xs font-medium">{contextDocs.on}</span>}
-              </button>
-              <Menu open={ctxOpen} onClose={() => setCtxOpen(false)} className={dock ? 'bottom-11 left-0 w-[22rem] max-w-[92vw] p-1' : 'bottom-8 left-0 w-[22rem] max-w-[92vw] p-1'}>
-                <ContextDocs context={contextDocs} />
-              </Menu>
-            </div>
-          )}
-          {srcOpts.length > 0 && !chat && (
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                aria-label="Sources"
-                title="What the agent reads"
-                onMouseDown={(e) => { e.stopPropagation(); setSrcOpen(!srcOpen); }}
-                className={cn('inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink', srcOpen && 'bg-active text-ink')}
-              >
-                <SlidersHorizontal size={14} strokeWidth={1.5} />
-              </button>
-              <Menu open={srcOpen} onClose={() => setSrcOpen(false)} className="bottom-8 left-0 w-64 p-2">
-                <div className="pb-1.5 text-xs font-medium text-ink-2">Sources</div>
-                {srcOpts.map(([k, label]) => {
-                  const SI = SOURCE_ICON[k];
-                  return (
-                  <div key={k} className="flex h-7 items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">{SI && <SI size={14} strokeWidth={1.5} className="text-ink-2" />}{label}</span>
-                    <Toggle
-                      aria-label={label}
-                      on={srcOn.has(k)}
-                      onChange={() => setSrcOn((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; })}
-                    />
-                  </div>
-                  );
-                })}
-                <div className="pt-1.5 text-xs text-ink-3">{privateChat
-                  ? `${scope.run ? 'Run details' : 'Job definition'} always included. Choose additional evidence above.`
-                  : "The agent only reads what's on here."}</div>
-              </Menu>
-            </div>
-          )}
-          {/* The Chat toolbar after Plus, in order: the mode, the / slot, the mic; Send sits at the far right. Context, Files and
-              Graph open from the panel header's one control (owner brief 2026-10-16 item 6), not from here. */}
-          {chat && <ModeSelector disabled={voiceOn} />}
-          {(dock || chat) && chatControl}
-          {(dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
-          </>}
-          voice={voiceOn ? <VoiceField voice={voice} /> : null}
-          trailing={dock || chat ? null : chatControl}
-        />
-      </div>
+      {/* The composer lives in regionHost (a div React portals it into) so it can move, without remounting, between this slot and the
+          canvas strip (stripHost, owner 2026-11-13: the bottom strip is the Chat's own composer, same tools, while the panel is closed). */}
+      <div ref={inlineSlot} className="contents" />
+      {createPortal(composerRegion, regionHost)}
       </>)}
     </div>
   );

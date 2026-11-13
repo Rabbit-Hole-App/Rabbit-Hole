@@ -88,7 +88,11 @@ export function useNextSteps({ tutor = null, canvasApi, canvasState, record = nu
   const { basis, stop, semantic, settling = false } = gateHooks(gate, steps.state(), { allowed: !!coaching?.allowed, visible: !!coaching?.visible, shown, trigger: hooksTrigger({ lastTurn: tutor?.lastTurn, canvasState, graded }) });
   useEffect(() => { steps.update({ basis, stop, semantic, settling }); }, [basis, stop, settling]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
-  return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select, refresh: steps.refresh, request: () => { gate.ask = true; asked(n => n + 1); } };
+  const view = useSyncExternalStore(steps.subscribe, steps.view, steps.view);
+  // Owner 2026-11-13: a Curious that is shown with no saved set asks once by itself; nobody has to press Suggest (the button stays for a later retry).
+  const auto = coaching?.allowed && coaching?.visible && shown && view.status === 'unavailable' && view.reason === 'curious_empty';
+  useEffect(() => { if (auto && !gate.auto) { gate.auto = gate.ask = true; asked(n => n + 1); } }, [auto]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { ...view, select: steps.select, refresh: steps.refresh, request: () => { gate.ask = true; asked(n => n + 1); } };
 }
 
 // The signed-in viewer's own { org, email } (/api/me), only to find their own tab store. Read on each request, never kept: a

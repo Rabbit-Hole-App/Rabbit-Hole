@@ -414,7 +414,7 @@ test('wiring: the canvas provides the host; admission is reported by the Chat st
   assert.match(canvas, /chatWorkspace\.ask\(\{ line: `\/explain \$\{question\}`, about: \{ selection \}, onAdmitted: told \}\)/, 'Ask in a new card is the written /explain');
   assert.match(canvas, /const canAsk = !!chatWorkspace\?\.ask && !visiting, canNote = !readOnly && !localCopy;/, 'a capability that is absent leaves no function, so the card omits the control');
   assert.match(ask, /if \(r\.ok\) onAdmitted\?\.\(\);\n\s+const reader = r\.body\.getReader\(\);/, 'the stream opened');
-  assert.match(ask, /chat\.registerSender\(\(\{ regenerate, prompt, command: asked, about, line, typed, onAdmitted \} = \{\}\) => \{/);
+  assert.match(ask, /chat\.registerSender\(\(\{ regenerate, prompt, command: asked, about, line, onAdmitted \} = \{\}\) => \{/);
   assert.match(ask, /\.handoff\(line, \{ about: about \?\? null, target: about\?\.selection \?\? null, onAdmitted \}\)/);
   assert.match(slash, /if \(handoff\?\.onAdmitted && !ui\.prompt && ui\.notice\?\.tone !== 'error'\) handoff\.onAdmitted\(\);/);
   assert.match(page, /target\?\.parentLink && target\.id \? \{ parent: \{ id: target\.id, \.\.\.target\.parentLink \} \}/);

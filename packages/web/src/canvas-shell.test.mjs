@@ -35,7 +35,7 @@ test('the bottom strip: the minimap above the zoom row at lower left, the hooks 
   assert.ok(strip.indexOf('data-canvas-minimap') < strip.indexOf('data-canvas-composer') && strip.indexOf('data-canvas-composer') < strip.indexOf('data-canvas-lower-right'), 'minimap left, composer, hooks right');
   assert.match(strip, /md:flex-row md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s');
   // On a phone the hooks sit above the composer, at the right.
-  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} className=\{`\$\{DOCK_WIDTH\} relative flex min-w-0 items-center gap-2 md:mx-0 md:shrink max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
+  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} className=\{`\$\{DOCK_WIDTH\} relative min-w-0 md:mx-0 md:shrink max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
   assert.match(strip, /data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1"/);
   assert.doesNotMatch(canvas.slice(0, canvas.indexOf('<div data-canvas-bottom')), /<CanvasMinimap boxes=\{minimapBoxes\} view=\{view\} onFit=\{zoomFit\}\n\s+surface=\{\{ w: surface\.current\?\.clientWidth \|\| 0, h: surface\.current\?\.clientHeight \|\| 0 \}\}\n\s+onView=\{next => setView\(v => \(\{ \.\.\.v, x: next\.x, y: next\.y \}\)\)\} \/>\}/, 'no second desktop minimap');
   assert.match(read('CanvasMinimap.jsx'), /className="relative overflow-hidden rounded-xl/, 'its frame is in the strip\'s flow');
@@ -45,20 +45,29 @@ test('the bottom strip: the minimap above the zoom row at lower left, the hooks 
 // button outside the composer, on its left; minimized, the strip is the Rabbit Hole mark on black at the lower right, and the last choice
 // is kept on this device (ui-prefs.js chatStrip). The canvas no longer gives the composer a ComposerHide context, so the composer's
 // own Hide icon (ChatComposer.jsx) never shows in it.
-test('the chat strip: a round Minimize outside its left, the Rabbit Hole button at the lower right, the choice remembered', () => {
+test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize on its top-left corner, the Rabbit Hole button at the lower right, the choice remembered', () => {
   assert.match(canvas, /const \[composerHidden, setComposerHidden\] = useState\(\(\) => uiPrefs\(\)\.chatStrip === 'min'\);/);
   assert.match(canvas, /saveUiPref\('chatStrip', value\)/);
   assert.doesNotMatch(canvas, /ComposerHide\.Provider/);
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
-  assert.match(strip, /<button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{hideComposer\}\n[^\n]*rounded-full[^\n]*\n\s+<div className="min-w-0 flex-1">\{composer\}<\/div>/, 'the round button, then the composer');
+  assert.match(strip, /<button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{hideComposer\}\n[^\n]*absolute -top-2\.5 -left-2\.5[^\n]*h-6 w-6[^\n]*rounded-full[^\n]*\n\s+\{composer\}/, 'a small circle on the frame\'s top-left corner');
   assert.match(strip, /\{composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer"/);
-  assert.match(strip, /bg-black[^\n]*<img src="\/rabbit-hole-white-on-black-128\.png"/, 'white mark on black');
+  assert.match(strip, /bg-black[^\n]*<img src="\/static\/rabbit-hole-white-on-black-128\.png"/, 'white mark on black, under /static, the one public path the workers serve for it');
   assert.ok(strip.indexOf('data-hooks-slot') < strip.indexOf('data-composer-show'), 'beside the Curious card, at the lower right');
-  assert.match(read('ChatComposer.jsx'), /canvasStrip \? 'data-canvas-strip-composer' : 'data-chat-composer'/, 'never a second [data-chat-composer]');
-  const page = read('LearnPage.jsx');
-  assert.match(page, /composer=\{panelOpen \? null : <CanvasChatStrip \/>\}/, 'only while the right panel is closed');
+  const page = read('LearnPage.jsx'), ask = read('ask.jsx'), composer = read('ChatComposer.jsx');
+  assert.match(page, /composer=\{panelOpen \? null : <div ref=\{setStripHost\} data-canvas-chat-strip \/>\}/, 'only while the right panel is closed');
   assert.match(page, /hooks=\{steps && !panelOpen \? <NextStepsCard/, 'Curious leaves with it');
-  assert.match(read('CanvasChatStrip.jsx'), /chat\.ask\(\{ typed: text \}\)/, 'Send goes through the Chat loop');
+  assert.match(page, /const chatAskProps = \{ stripHost,/);
+  assert.match(page, /<ResizableSidePanel aria-label="Learn agent chat"[^\n]*keepMounted collapsed=\{!panelOpen\}/, 'the Chat stays mounted while closed, so its composer can be the strip');
+  // One composer, not a second one: the Chat's AskPanel moves its own composer region between its slot and the strip host.
+  assert.match(ask, /const stripMode = !!\(stripHost && chat && !tocView\);/);
+  assert.match(ask, /where\.appendChild\(regionHost\)/);
+  assert.match(ask, /\{createPortal\(composerRegion, regionHost\)\}/);
+  assert.match(ask, /dock=\{dock \|\| stripMode\}/);
+  assert.match(ask, /stacked=\{!!chat && !stripMode\} pill=\{stripMode\}/, 'a pill with the same tools, not the stacked box');
+  assert.match(ask, /if \(stripMode\) chat\.panels\.openChat\(\);/, 'Send opens the panel');
+  assert.match(composer, /rounded-full py-2 pr-2\.5 pl-3/, 'round on both sides');
+  assert.doesNotMatch(read('ChatComposer.jsx'), /data-canvas-strip-composer/, 'never a second composer element');
 });
 
 // Owner, 2026-10-08: "in the canvas above the chat composer you are cutting the canvas too much". The canvas runs to the
