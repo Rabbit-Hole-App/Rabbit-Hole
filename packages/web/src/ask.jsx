@@ -215,15 +215,9 @@ export function NextStepsCard({ steps, onPick }) {
   useEffect(() => { if (steps?.status === 'ready' && frame.current) height.current = frame.current.offsetHeight; });
   if (!steps) return null;
   const visible = steps.status === 'loading' || steps.status === 'stale' || (steps.status === 'ready' && steps.options.length === 3);
-  // View > Curious shown again with no saved set (owner brief 2026-10-21 message 25 item 2): a compact empty state. Only its
-  // button asks for a set (useNextSteps request); showing Curious never does.
-  if (steps.status === 'unavailable' && steps.reason === 'curious_empty' && typeof steps.request === 'function') return (
-    <section data-next-steps="empty" aria-label="Curious where this goes?" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
-      <span className="text-xs font-medium whitespace-nowrap text-ink-2">No suggestions yet</span>
-      <button type="button" data-next-steps-request aria-label="Suggest next steps" title="Suggest next steps for this canvas" onClick={() => steps.request()}
-        className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-ink hover:bg-hover">Suggest</button>
-    </section>
-  );
+  // No saved set (owner 2026-11-13, replacing the 2026-10-21 empty state with its Suggest button): nothing is drawn. useNextSteps asks for a set
+  // by itself as soon as the card is shown, and the loading card below takes over.
+  if (steps.status === 'unavailable' && steps.reason === 'curious_empty') return null;
   if (minimized && visible) return (
     <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="ml-auto flex w-max max-w-full items-center">
       <button type="button" data-next-steps-restore aria-label="Restore suggestions" title="Curious where this goes? Show the suggestions" aria-expanded="false" onClick={() => setMinimized(false)}

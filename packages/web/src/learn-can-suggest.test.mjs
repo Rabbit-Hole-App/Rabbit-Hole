@@ -17,8 +17,11 @@ test('canSuggest: On, unpaused and ready in any mode; off when paused, Off or no
 });
 
 // Owner 2026-11-13: a shown Curious with no saved set asks once by itself; the Suggest button is only for a later retry.
-test('useNextSteps asks once by itself when the card is shown with no saved set', () => {
+test('useNextSteps asks by itself when the card is shown with no saved set, and the card draws no empty state', () => {
   const hook = readFileSync(new URL('./LearnNextSteps.jsx', import.meta.url), 'utf8').split('\r\n').join('\n');
   assert.match(hook, /const auto = coaching\?\.allowed && coaching\?\.visible && shown && view\.status === 'unavailable' && view\.reason === 'curious_empty';/);
-  assert.match(hook, /if \(auto && !gate\.auto\) \{ gate\.auto = gate\.ask = true; asked\(n => n \+ 1\); \}/);
+  assert.match(hook, /if \(auto\) \{ gate\.ask = true; asked\(n => n \+ 1\); \}/);
+  const card = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8').split('\r\n').join('\n');
+  assert.match(card, /if \(steps\.status === 'unavailable' && steps\.reason === 'curious_empty'\) return null;/);
+  assert.doesNotMatch(card, /No suggestions yet|data-next-steps-request/, 'no Suggest button');
 });

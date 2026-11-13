@@ -89,9 +89,10 @@ export function useNextSteps({ tutor = null, canvasApi, canvasState, record = nu
   useEffect(() => { steps.update({ basis, stop, semantic, settling }); }, [basis, stop, settling]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
   const view = useSyncExternalStore(steps.subscribe, steps.view, steps.view);
-  // Owner 2026-11-13: a Curious that is shown with no saved set asks once by itself; nobody has to press Suggest (the button stays for a later retry).
+  // Owner 2026-11-13: a Curious that is shown with no saved set asks by itself, every time it is in that state (a reset of the controls puts it back
+  // there); the request is per basis, so a repeat never sends a second one. Nobody presses Suggest and no empty card is drawn.
   const auto = coaching?.allowed && coaching?.visible && shown && view.status === 'unavailable' && view.reason === 'curious_empty';
-  useEffect(() => { if (auto && !gate.auto) { gate.auto = gate.ask = true; asked(n => n + 1); } }, [auto]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (auto) { gate.ask = true; asked(n => n + 1); } }, [auto]); // eslint-disable-line react-hooks/exhaustive-deps
   return { ...view, select: steps.select, refresh: steps.refresh, request: () => { gate.ask = true; asked(n => n + 1); } };
 }
 
