@@ -19,8 +19,10 @@ Clone settings: `INTERACT_DESIGN_FIXTURE=toss` (brief -> toss-overview, balanced
 | r12-brief-opus-baseline | brief | opus-baseline | ready (accepted) | 1 | 73 s | $0.288 | pass (0 major) |  |
 | r13-balanced-opus-baseline | balanced | opus-baseline | ready (accepted) | 1 | 95 s | $0.318 | fail (3 major) |  |
 | r14-detailed-opus-baseline | detailed | opus-baseline | failed (budget) | 0 |  | $0.000 |  | platform daily guard (not a bug) |
+| undefined | detailed | opus-baseline | failed (budget) | 0 |  | $0.000 |  | undefined |
+| undefined | detailed | opus-baseline | ready (accepted) | 3 | 179 s | $0.682 | fail (2 major) | undefined |
 
-Total learner and judge cost of the runs: about $2.66. The judge is claude-sonnet-5-5 and platform-paid; fail / pass is its blind score of the delivered card, not a gate.
+Total learner and judge cost of the runs: about $3.38. The judge is claude-sonnet-5-5 and platform-paid; fail / pass is its blind score of the delivered card, not a gate.
 
 ## What the runs found and fixed
 

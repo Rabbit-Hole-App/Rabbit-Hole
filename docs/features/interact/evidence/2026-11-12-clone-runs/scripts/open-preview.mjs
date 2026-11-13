@@ -66,5 +66,5 @@ catch { context = await chromium.launchPersistentContext(PROFILE, options); }
 await context.addCookies([{ name: 'small_session', value: session, domain: new URL(BASE).hostname, path: '/', httpOnly: true, secure: true, sameSite: 'Lax' }]);
 const tab = context.pages()[0] || await context.newPage();
 await tab.goto(url);
-console.log('Browser open on your new canvas. In Chat set Depth to Balanced, then type the /interactive prompt. Close the browser window when done.');
+console.log('Browser open on your new canvas. In Chat set Depth to Brief, Balanced or Detailed (the Overview, Standard or Deep card), then type: At the highest point of a vertical throw, is acceleration zero because velocity is zero? (start it with /interactive). Close the browser window when done.');
 await new Promise(resolve => context.on('close', resolve));
