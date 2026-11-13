@@ -27,6 +27,11 @@ test('the first y axis becomes every lane\'s axis and is hidden as an object; an
   assert.deepEqual(objects.filter(o => o.look).map(o => [o.id, o.look.part]), [['h', 'hidden'], ['a', 'lane'], ['a.title', 'lane-title'], ['a.state', 'lane-state'], ['b', 'lane'], ['b.title', 'lane-title'], ['b.state', 'lane-state']]);
 });
 
+test('the fixed ids keep their meaning whatever the order: ball.drop declared first is still the second hue; suffixed vector ids resolve their kind', () => {
+  const { objects } = frameLook([{ kind: 'circle', id: 'ball.drop', x: 5, y: 5, w: 20 }, { kind: 'circle', id: 'ball.toss', x: 50, y: 5, w: 20 }, { kind: 'arrow', id: 'vec.v.toss', from: { x: 0, y: 0 }, to: { x: 0, y: -30 } }, { kind: 'arrow', id: 'vec.a.drop', from: { x: 0, y: 0 }, to: { x: 0, y: 30 } }, { kind: 'arrow', id: 'vec.F', from: { x: 0, y: 0 }, to: { x: 0, y: 30 } }]);
+  assert.deepEqual(objects.map(o => o.identitySlot ?? o.look.kind), ['identity-2', 'identity-1', 'v', 'a', 'F']);
+});
+
 test('a frame without a lane comes back as the same array', () => {
   const objects = [{ kind: 'text', id: 't', x: 1, y: 1, text: 'hi' }];
   assert.equal(frameLook(objects).objects, objects);
