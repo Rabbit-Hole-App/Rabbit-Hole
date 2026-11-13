@@ -194,7 +194,7 @@ test('a re-called batch receives only the references the feedback names, and the
   const { author, calls, logs } = mockedAuthor();
   await author('', 1);
   calls.length = 0; logs.length = 0;
-  const report = { topic: 'demo', figures: [{ id: 'ml-p6-brief', verdict: 'fix', reasons: ['axis'], layer: 'label' }, { id: 'ml-p5', verdict: 'ship', reasons: [], layer: 'label' }, { id: 'ml-p9', verdict: 'fix', reasons: ['x'], layer: 'label' }] };
+  const report = { topic: 'demo', figures: [{ id: 'ml-p6-brief', verdict: 'fix', reasons: ['axis'], layer: 'label' }, { id: 'ml-p5', verdict: 'ship', reasons: [], layer: 'label' }, { id: 'ml-p2', verdict: 'ship', reasons: [], layer: 'label' }, { id: 'ml-p9', verdict: 'fix', reasons: ['x'], layer: 'label' }] };
   await author(JSON.stringify(report), 2);
   const batch2 = calls.find(call => call.batch === 2), batch3 = calls.find(call => call.batch === 3);
   assert.deepEqual(batch2.previous.references.map(reference => reference.id), ['ml-p6']);

@@ -186,7 +186,7 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
   const roundFn = async function round(feedback, round) {
     let redoFoundation = !state.foundation, redo = new Set();
     if (state.foundation && state.parts.every(part => part.ok)) {
-      const route = routeFailure(feedback, { artifactTopic, parts: state.parts, referenceRanges: state.referenceRanges, testRanges: state.testRanges }, diagrams);
+      const route = routeFailure(namedSource(String(feedback ?? '')), { artifactTopic, parts: state.parts, referenceRanges: state.referenceRanges, testRanges: state.testRanges }, diagrams);
       redoFoundation = route.foundation; redo = route.parts;
     }
     if (redoFoundation) {
