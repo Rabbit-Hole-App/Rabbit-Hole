@@ -24,7 +24,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CircleHelp, Maximize2, Minimize2, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, CircleHelp, MessageSquare, Maximize2, Minimize2, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
@@ -328,6 +328,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const convHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
   const convSlot = useRef(null), windowBody = useRef(null);
   useLayoutEffect(() => { const where = windowMode ? windowBody.current : convSlot.current; if (where && convHost.parentNode !== where) where.appendChild(convHost); });
+  // Minimized, the window is gone completely; this button in the strip's toolbar (next to the Curious toggle) shows it again, and hides it while it is open.
+  const chatWindowButton = stripMode && windowHost && windowSeen ? (
+    <button type="button" data-chat-window-toggle aria-label={winState === 'min' ? 'Show chat' : 'Hide chat'} aria-pressed={winState !== 'min'} title={winState === 'min' ? 'Show the chat' : 'Hide the chat'} onMouseDown={event => event.preventDefault()} onClick={() => setWinState(winState === 'min' ? 'normal' : 'min')}
+      className={cn(COMPOSER_TOOL, winState !== 'min' && 'bg-active text-ink')}><MessageSquare size={16} strokeWidth={1.7} /></button>) : null;
   const regionHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
   const inlineSlot = useRef(null);
   useLayoutEffect(() => { const where = stripMode ? stripHost : inlineSlot.current; if (where && regionHost.parentNode !== where) where.appendChild(regionHost); });
@@ -1269,6 +1273,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           {chat && <ModeSelector disabled={voiceOn} />}
           {(dock || chat) && chatControl}
           {curiousButton}
+          {chatWindowButton}
           {SHOW_VOICE_TOGGLE && (dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
           </>}
           voice={voiceOn ? <VoiceField voice={voice} /> : null}
@@ -1381,11 +1386,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
       <div ref={inlineSlot} className="contents" />
       {createPortal(composerRegion, regionHost)}
       {windowMode && createPortal(
-        <section data-chat-window data-chat-window-state={winState} aria-label="Chat" className={cn('mb-1.5 flex flex-col overflow-hidden rounded-xl border border-line-strong bg-white shadow-pop', winState === 'normal' && 'h-80 max-h-[55vh]', winState === 'max' && 'h-[min(75vh,760px)]')}>
+        <section data-chat-window data-chat-window-state={winState} aria-label="Chat" className={cn('mb-1.5 flex flex-col overflow-hidden rounded-xl border border-line-strong bg-white shadow-pop', winState === 'normal' && 'h-80 max-h-[55vh]', winState === 'max' && 'h-[min(75vh,760px)]', winState === 'min' && 'hidden')}>
           <header className="flex h-9 shrink-0 items-center gap-0.5 pr-1.5 pl-3">
             <h2 data-chat-window-title className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{chatTitle(chat.thread)}</h2>
-            <button type="button" data-chat-window-minimize aria-label={winState === 'min' ? 'Restore chat' : 'Minimize chat'} title={winState === 'min' ? 'Restore the chat' : 'Minimize the chat'} onClick={() => setWinState(winState === 'min' ? 'normal' : 'min')}
-              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink">{winState === 'min' ? <ChevronUp size={15} /> : <Minus size={15} />}</button>
+            <button type="button" data-chat-window-minimize aria-label="Minimize chat" title="Minimize the chat: the chat button in the strip brings it back" onClick={() => setWinState('min')}
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink"><Minus size={15} /></button>
             <button type="button" data-chat-window-maximize aria-label={winState === 'max' ? 'Restore chat size' : 'Maximize chat'} title={winState === 'max' ? 'Restore the chat size' : 'Maximize the chat'} onClick={() => setWinState(winState === 'max' ? 'normal' : 'max')}
               className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink">{winState === 'max' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</button>
           </header>

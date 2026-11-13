@@ -73,7 +73,10 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(ask, /where\.appendChild\(convHost\)/);
   assert.match(ask, /\{createPortal\(conversationRegion, convHost\)\}/, 'the conversation moves into the window without remounting');
   assert.match(ask, /winState === 'normal' && 'h-80 max-h-\[55vh\]'/, 'fixed height');
-  assert.match(ask, /data-chat-window-minimize aria-label=\{winState === 'min' \? 'Restore chat' : 'Minimize chat'\}/);
+  assert.match(ask, /data-chat-window-minimize aria-label="Minimize chat"/);
+  assert.match(ask, /winState === 'min' && 'hidden'\)\}>/, 'minimized, the window is gone completely');
+  assert.match(ask, /data-chat-window-toggle aria-label=\{winState === 'min' \? 'Show chat' : 'Hide chat'\}/, 'the strip\'s chat button brings it back');
+  assert.match(ask, /\{curiousButton\}\n\s+\{chatWindowButton\}/, 'next to the Curious toggle in the toolbar');
   assert.match(ask, /data-chat-window-maximize aria-label=\{winState === 'max' \? 'Restore chat size' : 'Maximize chat'\}/);
   assert.match(page, /chatWindow=\{panelOpen \? null : <div ref=\{setWindowHost\} data-canvas-chat-window className="empty:hidden" \/>\}/);
   assert.match(canvas, /\{chatWindow\}\n\s+\{\/\*[^\n]*\n\s+\{hooks && <div data-hooks-slot/, 'above the suggestions and the composer');
