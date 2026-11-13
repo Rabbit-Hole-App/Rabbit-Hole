@@ -33,12 +33,12 @@ function anthropicSchema(schema) {
   return output;
 }
 
-function requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback) {
+function requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput = ceilings[agent].output) {
   const text = JSON.stringify(inputs) + (feedback ? `\nValidation errors: ${feedback}\nReturn corrected JSON matching the schema.` : '');
   if (provider === 'openai') return {
     model, instructions: system, input: [{ role: 'user', content: [{ type: 'input_text', text }] }],
     reasoning: { effort }, text: { format: { type: 'json_schema', name: agent, schema, strict: true } },
-    max_output_tokens: ceilings[agent].output, tools: [], tool_choice: 'none', stream: false,
+    max_output_tokens: maxOutput, tools: [], tool_choice: 'none', stream: false,
     // Background mode: the POST returns at once and the result is polled, so a long max-effort call never hits the ~300 s fetch header timeout (reviewer 2026-11-12, store accepted).
     background: true, store: true,
   };
@@ -47,7 +47,7 @@ function requestBody(provider, model, effort, agent, inputs, system, schema, ima
       ...images.map(image => ({ type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } })),
       { type: 'text', text },
     ] }],
-    max_tokens: ceilings[agent].output, output_config: { effort, format: { type: 'json_schema', schema: anthropicSchema(schema) } },
+    max_tokens: maxOutput, output_config: { effort, format: { type: 'json_schema', schema: anthropicSchema(schema) } },
     stream: false,
   };
 }
@@ -87,12 +87,17 @@ function outputText(payload, provider) {
 }
 
 export function createClient({ config, state, topicDir, fetchImpl = globalThis.fetch }) {
-  async function persist() {
-    try { await saveState(topicDir, state); }
-    catch { throw new Error('Cannot save provider usage state'); }
+  // Calls may run in parallel (batched author): saves are queued so two never write the state file at once.
+  let saving = Promise.resolve();
+  function persist() {
+    saving = saving.catch(() => {}).then(async () => {
+      try { await saveState(topicDir, state); }
+      catch { throw new Error('Cannot save provider usage state'); }
+    });
+    return saving;
   }
 
-  async function call(agent, inputs, { schema, system, images = [], validate } = {}) {
+  async function call(agent, inputs, { schema, system, images = [], validate, maxOutput } = {}) {
     if (!Object.hasOwn(ceilings, agent)) throw new Error('Unknown pipeline agent');
     if (state.calls?.some(entry => entry.usageKnown === false)) throw new Error('Unknown provider usage must be reconciled before another call');
     if (!schema || typeof schema !== 'object' || typeof system !== 'string' || !system.trim()) throw new Error('Agent call requires a JSON schema and system prompt');
@@ -122,7 +127,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
     for (let attempt = 1; attempt <= 2; attempt++) {
       let body;
       try {
-        body = requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback);
+        body = requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput);
         if (provider === 'openai' && settings.temperature !== undefined) body.temperature = settings.temperature;
       }
       catch { throw new Error('Cannot serialize the agent input and schema'); }
@@ -167,7 +172,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
       } catch (error) {
         feedback = redact(error.message, config).slice(0, 4000);
         // Keep the rejected answer (redacted) so a failed round can be diagnosed; best effort, never fails the call.
-        try { await mkdir(join(topicDir, 'rejected'), { recursive: true }); await writeFile(join(topicDir, 'rejected', `${agent}-${Date.now()}-attempt${attempt}.txt`), redact(outputText(payload, provider), config)); } catch { /* diagnostics only */ }
+        try { await mkdir(join(topicDir, 'rejected'), { recursive: true }); await writeFile(join(topicDir, 'rejected', `${agent}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-attempt${attempt}.txt`), redact(outputText(payload, provider), config)); } catch { /* diagnostics only */ }
       }
     }
     throw new Error(`Agent output failed schema validation after two attempts (last stop_reason ${stopReason}): ${feedback}`);

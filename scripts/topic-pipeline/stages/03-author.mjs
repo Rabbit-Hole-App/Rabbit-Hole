@@ -1,7 +1,8 @@
 import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { callAgent } from '../agents/call.mjs';
-import { agentSettings } from '../budget.mjs';
+import { BATCH_OUTPUT_CEILING, agentSettings } from '../budget.mjs';
+import { createBatchedAuthor, batchSchema, foundationSchema, paths as batchPaths, validateBatch, validateFoundation } from '../author-batch.mjs';
 import { createAuthorSchema, dedupeAuthorFiles, validateAuthorFiles } from '../schemas.mjs';
 import { authorInputs, authorTopic, authorWorktree, commitAuthorRound, git, isolated,
   prepareAuthorRuntime, testAuthored, writeAuthored } from '../author.mjs';
@@ -53,6 +54,20 @@ export async function run(ctx) {
   let feedback = ctx.authorFeedback ?? verification ?? '';
   if (typeof feedback !== 'string') feedback = JSON.stringify(feedback, null, 2);
   const planner = ctx.planner ?? createPlanner(ctx.config, { state: ctx.state, stage: '03', onUsage: () => saveState(ctx.topicDir, ctx.state) });
+  // Batched author (limits.authorBatchSize): a foundation call, then parallel batches of prompts. Not used with REUSE prompts or topic briefs; those keep the single call.
+  const batchSize = ctx.config.limits?.authorBatchSize;
+  let batchedRound = null;
+  if (Number.isInteger(batchSize) && batchSize > 0 && !coverage.prompts.some(row => row.decision === 'REUSE') && !inputs.briefs.length) {
+    const prompt = name => readFile(new URL(`../agents/prompts/${name}.md`, import.meta.url), 'utf8');
+    const system = `${await prompt('author')}
+
+${await prompt('author-batch')}`;
+    const dryRun = ctx.fixture && ctx.dryRun, p = batchPaths(target.artifactTopic, DIAGRAMS), options = { topic: ctx.topic, dryRun, repoRoot: target.worktree };
+    batchedRound = createBatchedAuthor({ artifactTopic: target.artifactTopic, diagrams: DIAGRAMS, size: batchSize, rows: prompts.prompts, registry: inputs.registry.content, exemplar: inputs.exemplar,
+      base: { topic: inputs.topic, artifactTopic: inputs.artifactTopic, idPrefix: inputs.idPrefix, metadata: inputs.metadata, prompts, coverage, sop: inputs.sop, kindSchema: inputs.kindSchema, toyDataTemplate: inputs.toyDataTemplate },
+      call: (kind, payload, assigned, last) => kind === 'foundation' ? callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: foundationSchema(ctx.topic, dryRun), validate: value => validateFoundation(value, options, p) })
+        : callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: batchSchema, validate: value => validateBatch(value, assigned, last) }) });
+  }
   for (let round = startingRound + 1; round <= rounds; round++) {
     const roundDir = join(authorDir, `round-${round}`);
     await mkdir(roundDir, { recursive: true });
@@ -61,7 +76,7 @@ export async function run(ctx) {
     const warnings = [];
     const saveWarnings = () => warnings.length ? writeFile(join(roundDir, 'warnings.txt'), `${warnings.join('\n')}\n`) : null;
     try {
-      const response = await callAgent(ctx, 'author', { ...inputs, previousFiles: [...accepted.values()], feedback: String(feedback), round }, {
+      const response = batchedRound ? await batchedRound(feedback, round) : await callAgent(ctx, 'author', { ...inputs, previousFiles: [...accepted.values()], feedback: String(feedback), round }, {
         schema: createAuthorSchema(ctx.topic, { dryRun: ctx.fixture && ctx.dryRun }),
         validate: value => { for (const path of dedupeAuthorFiles(value)) { const line = `Warning: the author returned ${path} more than once; kept the last entry.`; console.error(line); warnings.push(line); } return validateAuthorFiles(value, { topic: ctx.topic, dryRun: ctx.fixture && ctx.dryRun, repoRoot: target.worktree }); } });
       await saveWarnings();
