@@ -4,7 +4,7 @@ Evidence for a review of branch `interact/capture-budget` (base `81028bb3f`, mai
 `rabbit-hole-web-dev-interact` (Cloudflare account of the repository, dev D1, test user `owner-interact-preview@example.com`). No production touch. No secret is in this
 folder: the scripts read keys by name from an uncommitted `.env`. Job, board and canvas ids are dev-clone data.
 
-Code head at the time of writing: `cc140cf87`. The commit that adds this folder follows it.
+Code head when the first evidence commit was written: `cc140cf87`; later commits (fix-2 steps 4 to 6, items 7 and 8, run 13) are listed at the end.
 
 ## Commits on the branch (oldest first, base `81028bb3f`)
 
@@ -57,3 +57,17 @@ source. Findings in `diagnostics.findings` are the deterministic problems and th
 secrets by name), `driveB/C/E/W.mjs` (retry, screenshots, controls and the written card), `diag-size.mjs`, `shot-fit.mjs`, `prodvars.mjs` (read-only check of prod binding names),
 `open-preview.mjs` and `.cmd` (the signed-in launcher, `--canvas <name>`). They need `RABBIT_HOLE_DEV_TEST_BYPASS` and the Cloudflare token in `small-deploy/.env` and run against the
 dev clone only.
+
+## Update: fix-2 steps 4 to 6 and items 7, 8 (run 13)
+
+| Commit | What it does |
+|---|---|
+| `c5bb5abd1` | `sdk.gate` and `sdk.groundMark` in the opt-in `sdk-7` (bounds and object counts pinned) |
+| `cec7fc25e` | host overlap check (`frame-overlap.js`): text over ball/box/arrowhead, arrowhead over ball; wired into the capture checks as `[overlap]` problems naming both objects; two scripted fixture programs that overlapped were fixed |
+| `98c150c46` | build and repair prompts use `sdk.vector` / `sdk.gate` (props runtime); reviewers treat a label contradicting the card's claim as major; the `props` runtime is registered in the design catalogue and offered for the controls fixture |
+| `9905e9166` | card description renders inline math through MdInline (fit estimate counts the rendered text); a composed card's minimum width is 440 |
+
+Run 13 (`13-fix2-rebuild-READY`): pinned `toss-drop-standard-controls` with the `props` runtime, deployed Version ID `196e985a-b9aa-439b-b034-32f65c53a529`. Ready on repair round 2, $0.80.
+The builder used `sdk.vector` (4 calls), `sdk.gate` (1) and `sdk.groundMark` (1) and drew no arrow by hand; the program declares 640 x 420 at 14 px text, drawn at scale 1.0
+(card 676 x 685). The overlap check raised no problem in any round; all rejections were reviewer findings. Not built: restyle steps 3 and 4 (`axis`, `plot`, `diagram` frame kinds, sdk-8).
+Screenshot: `s4-rebuilt-card-states-vs-written-100pct.png` (written card, then rest, Top marker, speed 5.0 at its top, arrows off).
