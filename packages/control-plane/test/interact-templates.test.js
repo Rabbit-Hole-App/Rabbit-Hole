@@ -42,6 +42,14 @@ test('the generated programs pass validate, every deterministic check, the layou
   }
 });
 
+test('a fourth plan on the same one-body template (a ball thrown up from a 1 m ledge on the Moon) is built with no change to the template', async () => {
+  const plan = referencePlans.ledgeTossMoon;
+  assert.ok(plan, 'the ledge plan is a reference plan'); assert.equal(plan.scene.template, 'one-body');
+  const r = await runDraft('ledgeTossMoon', { main: { kind: 'program', program: generateProgram(plan, inputOf(plan)) }, supporting: [] });
+  assert.deepEqual(r.det.problems, [], r.det.problems.map(p => p.message).join(' / '));
+  assert.ok(r.det.coverage.oracle.checked >= 10, `oracle rows checked: ${r.det.coverage.oracle.checked}`);
+});
+
 // Intended differences from the scripted program, by plan: none today. A difference is listed here with the reason, never skipped silently.
 const INTENDED = { tossOverview: { quantities: new Set(['acceleration']) } }; // the Overview plan now carries an acceleration quantity (-gravity) for its slots; the scripted program predates it
 

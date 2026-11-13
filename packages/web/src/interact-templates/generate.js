@@ -45,7 +45,8 @@ export function generateProgram(plan, buildInput) {
   // The quantity table: one JS expression per quantity over the inputs and t, piecewise as a ternary on t.
   const parsed = {}, js = {};
   for (const quantity of scene.quantities) {
-    const trees = parseQuantity(quantity, scope);
+    // an input quantity with no formula of its own is the bare input name (its value is the input or the fixed number)
+    const trees = parseQuantity(quantity.formula === undefined && (inputIds.includes(quantity.id) || quantity.id in fixed) ? { ...quantity, formula: quantity.id } : quantity, scope);
     if (!trees) throw new TemplateError('no_formula', `the quantity "${quantity.id}" has no formula; a template build reads every quantity from one`);
     parsed[quantity.id] = trees;
     js[quantity.id] = trees.formulaAfter ? `(t < ${exprToJs(trees.switchAt)} ? ${exprToJs(trees.formula)} : ${exprToJs(trees.formulaAfter)})` : exprToJs(trees.formula);
