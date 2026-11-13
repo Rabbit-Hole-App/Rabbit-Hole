@@ -5,7 +5,7 @@ import { FIGURES_PROGRAM_STAMPS } from './explain-program/stamps.js';
 // them, written by hand so the owner can review the LOOK of a generated scene against the Codex HTML cards (docs/features/interact/references) with no model call. Fixture data, never product
 // logic: the pipeline never reads this file to decide what is right; the tests run each program through the real headless checks (interact-checks.js) against the oracles of interact-oracle.js.
 // The look is the renderer's (frame-look.js, FrameFigures.jsx); a program only follows its conventions: ball.toss / ball.drop bodies, lane.toss / lane.drop sdk.panel lanes, the frame's first y
-// sdk.axis, vec.* vectors, callout.* callouts, plot.vt with its .note. Geometry follows the Codex SVGs at a 1000 px viewport (a 892 px scene; two 432 px lanes in a 864 px frame; 105 px per metre).
+// sdk.axis, vec.* vectors, callout.* callouts, plot.vt with its .note. Geometry follows the Codex SVGs at a 1000 px viewport (a 892 px scene; two 432 px columns in a 892 px frame; 105 px per metre).
 // No vector label sits inside a lane: frame-overlap.js counts the lane's own box as a box under every text object over it (text-box), so a v or a label over a lane cannot pass; the callout carries
 // the readings instead. The program never draws text inside a lane.
 
@@ -55,22 +55,22 @@ export function evaluate({ inputs, time }) {
 const STANDARD_SOURCE = COMMON + String.raw`
 export function evaluate({ inputs, time }) {
   const u = inputs.launchSpeed, g = inputs.gravity, m = motion(u, g, time), atTop = Math.abs(m.tau) < EPS;
-  const FLOOR = 277, S = 105, R = 15, released = m.tau >= -EPS, peakY = FLOOR - m.peak * S;
+  const FLOOR = 299, S = 105, R = 15, released = m.tau >= -EPS, peakY = FLOOR - m.peak * S;
   const drop = { h: released ? m.h : m.peak, v: released ? -g * Math.max(0, m.tau) : 0, a: released ? -g : 0 };
   const lane = (tag, title, x0, where, body) => {
-    const x = x0 + 142, y = FLOOR - body.h * S, out = [...sdk.panel({ id: 'lane.' + tag, x: x0, y: 34, w: 407, h: 254, title: title, state: where }),
+    const x = x0 + 142, y = FLOOR - body.h * S, out = [...sdk.panel({ id: 'lane.' + tag, x: x0, y: 34, w: 407, h: 276, title: title, state: where }),
       sdk.text('label.launch.' + tag, x0 + 296, FLOOR + 27, 'Launch height'), sdk.line('guide.' + tag, x, peakY, x, FLOOR, { opacity: 0.35 })];
     return { x, y, out };
   };
   const tossWhere = m.launch ? 'At launch' : atTop ? 'At the top' : m.ended ? 'At launch height' : m.v > 0 ? 'Rising' : 'Falling';
   const dropWhere = !released ? 'Held in place' : atTop ? 'Just released' : m.ended ? 'At launch height' : 'Falling together';
-  const L1 = lane('toss', 'Toss', 12, tossWhere, { h: m.h }), L2 = lane('drop', 'Drop', 445, dropWhere, drop);
+  const L1 = lane('toss', 'Toss', 26, tossWhere, { h: m.h }), L2 = lane('drop', 'Drop', 459, dropWhere, drop);
   const ghosts = released && m.tau > EPS;
   const arrows = (tag, x, y, v, a) => {
     const out = Math.abs(v) * 12 < 1 ? [sdk.circle('vec.v.' + tag + '.zero', x - 26, y, 6, { role: 'input' })]
       : sdk.vector('vec.v.' + tag, { x: x - 26, y: y }, { value: Math.abs(v), direction: v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3 });
     if (a !== 0) out.push(...sdk.vector('vec.a.' + tag, { x: x + 25, y: y }, { value: Math.abs(a), direction: 'down' }, { scale: 3.4 }));
-    out.push(...sdk.callout(x + 52, sdk.clamp(y - 29, 40, 226), ['v = ' + sg(v, 2) + ' m/s', 'a = ' + (a === 0 ? '0.0' : '−' + g.toFixed(1)) + ' m/s²'], { id: 'callout.' + tag }));
+    out.push(...sdk.callout(x + 52, sdk.clamp(y - 29, 40, 248), ['v = ' + sg(v, 2) + ' m/s', 'a = ' + (a === 0 ? '0.0' : '−' + g.toFixed(1)) + ' m/s²'], { id: 'callout.' + tag }));
     return out;
   };
   const objects = [sdk.axis('axis.h', { x: 60, y: FLOOR, length: 2.2 * S, orientation: 'y', min: 0, max: 2.2, ticks: [0, 0.5, 1, 1.5, 2], label: 'Height', unit: 'm' }), ...L1.out, ...L2.out];
@@ -79,7 +79,7 @@ export function evaluate({ inputs, time }) {
   objects.push(sdk.circle('ball.toss', L1.x, L1.y, 2 * R), sdk.circle('ball.drop', L2.x, L2.y, 2 * R));
   objects.push(...arrows('toss', L1.x, L1.y, m.v, -g), ...arrows('drop', L2.x, L2.y, drop.v, drop.a));
   return {
-    frame: sdk.frame(objects, { width: 864, height: 358, readouts: [{ id: 'tossedVelocity', value: m.v }, { id: 'tossedAcceleration', value: -g }, { id: 'dropVelocity', value: drop.v }, { id: 'dropAcceleration', value: drop.a }] }),
+    frame: sdk.frame(objects, { width: 892, height: 358, readouts: [{ id: 'tossedVelocity', value: m.v }, { id: 'tossedAcceleration', value: -g }, { id: 'dropVelocity', value: drop.v }, { id: 'dropAcceleration', value: drop.a }] }),
     quantities: { launchSpeed: u, gravity: g, apexTime: m.top, apexHeight: m.peak, tossedVelocity: m.v, tossedAcceleration: -g, tossedHeight: m.h, dropVelocity: drop.v, dropAcceleration: drop.a, dropHeight: drop.h },
   };
 }`;
@@ -88,26 +88,26 @@ export function evaluate({ inputs, time }) {
 const DEEP_SOURCE = COMMON + String.raw`
 export function evaluate({ inputs, time }) {
   const u = inputs.launchSpeed, g = inputs.gravity, mass = inputs.mass, m = motion(u, g, time), atTop = Math.abs(m.tau) < EPS;
-  const FLOOR = 277, S = 105, X = 12 + 129, R = 13, y = FLOOR - m.h * S, topY = FLOOR - m.peak * S, force = mass * g;
+  const FLOOR = 299, S = 105, X = 26 + 129, R = 13, y = FLOOR - m.h * S, topY = FLOOR - m.peak * S, force = mass * g;
   const where = m.launch ? 'Ready to toss' : atTop ? 'At the top' : m.ended ? 'Back at launch height' : m.v > 0 ? 'Rising' : 'Falling';
   const line = [{ x: 0, y: u }, { x: m.end, y: -u }];
   const objects = [
     sdk.axis('axis.h', { x: 60, y: FLOOR, length: 2.2 * S, orientation: 'y', min: 0, max: 2.2, ticks: [0, 0.5, 1, 1.5, 2], label: 'Height', unit: 'm' }),
-    ...sdk.panel({ id: 'lane.toss', x: 12, y: 34, w: 407, h: 254, title: 'The motion', state: where }),
-    sdk.text('label.launch', 308, FLOOR + 27, 'Launch height'),
+    ...sdk.panel({ id: 'lane.toss', x: 26, y: 34, w: 407, h: 276, title: 'The motion', state: where }),
+    sdk.text('label.launch', 322, FLOOR + 27, 'Launch height'),
     sdk.line('guide.toss', X, topY, X, FLOOR, { opacity: 0.35 }),
   ];
   if (!m.launch) objects.push(sdk.circle('ghost.toss', X, FLOOR, 2 * R, { opacity: 0.35 }));
   objects.push(sdk.circle('ball.toss', X, y, 2 * R));
   if (Math.abs(m.v) * 12 >= 1) objects.push(...sdk.vector('vec.v', { x: X - 22, y: y }, { value: Math.abs(m.v), direction: m.v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3 }));
   objects.push(...sdk.vector('vec.a', { x: X + 23, y: y }, { value: g, direction: 'down' }, { scale: 3.4 }));
-  objects.push(...sdk.callout(X + 49, sdk.clamp(y - 37, 40, 198), ['v = ' + sg(m.v, 2) + ' m/s', 'a = −' + g.toFixed(1) + ' m/s²', 'Fg = ' + force.toFixed(1) + ' N ↓'], { id: 'callout.toss' }));
-  objects.push(sdk.text('plot.vt.head', 445, 20, 'Velocity over time'), sdk.text('plot.vt.eq', 445 + 190, 20, 'v = ' + u.toFixed(1) + ' − ' + g.toFixed(1) + 't'));
-  objects.push(sdk.plot('plot.vt', { x: 445, y: 30, w: 407, h: 294, axes: { x: { label: 'Time since launch', unit: 's', min: 0, max: 1.8 }, y: { label: 'Velocity', unit: 'm/s', min: -5.5, max: 5.5 } },
+  objects.push(...sdk.callout(X + 49, sdk.clamp(y - 37, 40, 220), ['v = ' + sg(m.v, 2) + ' m/s', 'a = −' + g.toFixed(1) + ' m/s²', 'Fg = ' + force.toFixed(1) + ' N ↓'], { id: 'callout.toss' }));
+  objects.push(sdk.text('plot.vt.head', 459, 20, 'Velocity over time'), sdk.text('plot.vt.eq', 459 + 190, 20, 'v = ' + u.toFixed(1) + ' − ' + g.toFixed(1) + 't'));
+  objects.push(sdk.plot('plot.vt', { x: 459, y: 30, w: 407, h: 294, axes: { x: { label: 'Time since launch', unit: 's', min: 0, max: 1.8 }, y: { label: 'Velocity', unit: 'm/s', min: -5.5, max: 5.5 } },
     series: [{ label: 'v = u − g t', kind: 'line', points: line }, { label: 'now', kind: 'scatter', points: [{ x: m.t, y: m.v }] }] }));
-  objects.push(sdk.text('plot.vt.note', 445 + 40, 338, 'Slope a = −' + g.toFixed(1) + ' m/s²'));
+  objects.push(sdk.text('plot.vt.note', 459 + 40, 338, 'Slope a = −' + g.toFixed(1) + ' m/s²'));
   return {
-    frame: sdk.frame(objects, { width: 864, height: 358, readouts: [{ id: 'velocity', value: m.v }, { id: 'acceleration', value: -g }, { id: 'force', value: force }, { id: 'motionState', value: where }] }),
+    frame: sdk.frame(objects, { width: 892, height: 358, readouts: [{ id: 'velocity', value: m.v }, { id: 'acceleration', value: -g }, { id: 'force', value: force }, { id: 'motionState', value: where }] }),
     quantities: { launchSpeed: u, gravity: g, mass: mass, apexTime: m.top, apexHeight: m.peak, height: m.h, velocity: m.v, acceleration: -g, force: force },
   };
 }`;
