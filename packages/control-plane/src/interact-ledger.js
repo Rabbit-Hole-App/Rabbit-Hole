@@ -31,7 +31,7 @@ export function ledgerRow(job) {
     judgeVerdict: judge?.verdict ?? null, judgeMajor: judge ? (judge.findings ?? []).filter(f => f.severity === 'major').length : null,
     judgeCostUsd: judgeMicros === undefined ? null : typeof judgeMicros === 'number' ? judgeMicros / 1e6 : null,
     costUsd: priced.length && priced.every(m => typeof m === 'number') ? priced.reduce((n, m) => n + m, 0) / 1e6 : null,
-    msSteer: job.timing.steerMs ?? null, // TODO(integrator): interact-steer.js (item 5, Agent B) writes the measured JEV steer time to job.timing.steerMs
+    msSteer: job.timing.steerMs ?? null, // interact-job.js buildStage writes the measured JEV steer time (interact-steer.js) to job.timing.steerMs
     msAuthor: stageMs('authoring'), msValidate: stageMs('validating'), msRun: run, msCheck: job.build?.ms?.check ?? null, msReview: stageMs('reviewing'), msRepair: stageMs('repairing'),
     msTotal: t.generateToResultMs,
   };

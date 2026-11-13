@@ -3,8 +3,7 @@
 // it does today (the card is never blocked on a classifier). The questions CLASSIFY only (a kind, which composites, a class of failure); every rule stays the server's
 // (explanation-planner.js: a rule put into a question flipped 53 plans at the wrong depths). Consumers are seams: interact-build.js buildInput(job, plan, hash, steer)
 // and explain-program-stage.js programRepairContent(job, failure) with failure.triage; with null, their request is byte-identical to today's.
-// TODO(integrator): explain-job.js / interact-job.js call steerBuild(env, plan) before buildScene (passed as ctx.steer) and triageFailure(env, problems) before a repair
-// (as failure.triage), and add the returned ms as msSteer on the timing record (item 1 column).
+// Wired in interact-job.js: buildStage calls steerBuild before buildScene (ctx.steer; its ms is job.timing.steerMs, the ledger's msSteer) and repairStage calls triageFailure before a repair (failure.triage).
 import { FIX_AT, PHYSICAL_AT, PLANNER_MODEL, PLANNER_TIMEOUT_MS } from './explanation-planner.js';
 
 export const STEER_SETTING = 'INTERACT_STEER';

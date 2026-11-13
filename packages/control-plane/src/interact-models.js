@@ -89,7 +89,6 @@ const opusRole = role => ({
 // candidate adapter may call. A profile is { version, extends?, roles } where roles override single roles of the profile it extends.
 // Candidate profiles (Celeris, Cerebras-served, Gemini Flash) are added here once their adapter, exact model id, access and price are verified:
 // none is guessed. The only non-Opus profiles are the fast build profiles above (google-low, fireworks-low).
-// TODO(integrator): explain-job.js buildRoleCtx wires only the anthropic adapter; wire 'openai-compatible' (interactAdapters accepts fetch) so a fast profile can send; its admit/settle hooks already cover it.
 export const INTERACT_REGISTRY = deepFreeze({
   defaultProfile: 'opus-baseline',
   providers: { anthropic: { credentialRef: 'ANTHROPIC_API_KEY' }, celeris: { credentialRef: 'CELERIS_API_KEY' }, google: { credentialRef: CHAIN_STEPS.google.credentialRef }, fireworks: { credentialRef: CHAIN_STEPS.fireworks.credentialRef } },

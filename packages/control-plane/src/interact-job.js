@@ -14,6 +14,7 @@ import * as explainRender from './explain-render.js';
 import { buildScene } from './interact-build.js';
 import { CHECK_LIMITS, buildPlanCaptureCases, captureAndCheck, headlessCaptureCard, repairRound, reviewCandidate } from './interact-checks.js';
 import { interactOracle } from './interact-oracle.js';
+import { steerBuild, triageFailure } from './interact-steer.js';
 import { learnMedia } from './learn-storage.js';
 
 const fail = (message, status, code) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
@@ -35,7 +36,10 @@ export const undeliverable = plan => {
 export async function buildStage(job, ctx) {
   const problem = undeliverable(job.design.plan);
   if (problem) return { gap: capabilityGap(['other'], problem, 'builder') };
-  return outcome(await buildScene(planJob(job, ctx), ctx.role));
+  // INTERACT_STEER=jev (off by default: steerBuild answers null without a request): the JEV steer narrows the authoring docs; its time is the ledger's msSteer. Any failure is null and the build is unchanged.
+  const steer = await steerBuild(ctx.env, job.design.plan);
+  if (steer) job.timing.steerMs = steer.ms;
+  return outcome(await buildScene(planJob(job, ctx), steer ? { ...ctx.role, steer } : ctx.role));
 }
 const outcome = r => (r.gap ? { gap: r.gap } : r.problems ? { problems: r.problems, details: r.details, category: 'spec', repairable: true, draft: r.draft } : { artifacts: r.artifacts, composition: r.composition, draft: r.draft });
 
@@ -107,7 +111,9 @@ export async function reviewStage(job, ctx) {
 
 export async function repairStage(job, ctx) {
   const { draft, artifacts, composition, captures } = ctx.build;
-  const failure = job.build.failure ?? { stage: 'validate', problems: [], findings: [] };
+  const failure0 = job.build.failure ?? { stage: 'validate', problems: [], findings: [] };
+  const triage = await triageFailure(ctx.env, failure0.problems ?? []); // off unless INTERACT_STEER=jev; null leaves the repair request as it was
+  const failure = triage ? { ...failure0, triage } : failure0;
   const named = new Set((failure.findings || []).map(f => f.target?.capture).filter(Boolean));
   const media = learnMedia(ctx.env), withPixels = [];
   for (const c of captures || []) if (named.has(c.caseId) && c.key) { const object = await media?.get(c.key); if (object) withPixels.push({ caseId: c.caseId, png: new Uint8Array(await object.arrayBuffer()) }); }

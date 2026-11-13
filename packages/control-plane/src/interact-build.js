@@ -191,7 +191,7 @@ export function cleanBuildReply(reply, schema) {
 //   ctx: the interact role context of callInteractRole (env, profile, adapters, admit, settle, signal, fixture ...).
 // Throws InteractBuildError before any call when the plan is not the approved one; a role-call failure propagates as the InteractModelError it is
 // (provider failure, distinct from a build problem). A build problem is returned for the repair loop, never thrown.
-// ctx.steer: the JEV steer or null (TODO(integrator): interact-job.js sets it from steerBuild(env, plan); see interact-steer.js).
+// ctx.steer: the JEV steer or null (interact-job.js buildStage sets it from steerBuild(env, plan); see interact-steer.js).
 export async function buildScene(job, ctx) {
   const { plan, hash } = await approvedPlanOf(job);
   const before = canonicalJson(plan);
