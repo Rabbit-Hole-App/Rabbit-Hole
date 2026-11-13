@@ -99,13 +99,24 @@
       "h": 769
     }
   },
-  "14-edit-with-ai": {
-    "desktop": {
-      "src": "14-edit-with-ai-desktop.webp",
-      "w": 1404,
-      "h": 1233
+  "14-edit-with-ai": [
+    {
+      "caption": "Before",
+      "desktop": {
+        "src": "14-edit-with-ai-a-desktop.webp",
+        "w": 1356,
+        "h": 2094
+      }
+    },
+    {
+      "caption": "After",
+      "desktop": {
+        "src": "14-edit-with-ai-b-desktop.webp",
+        "w": 1356,
+        "h": 2394
+      }
     }
-  },
+  ],
   "16-sharing-forking": {
     "desktop": {
       "src": "16-sharing-forking-desktop.webp",
