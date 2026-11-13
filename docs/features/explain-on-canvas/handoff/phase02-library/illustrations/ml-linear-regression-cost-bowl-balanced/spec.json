@@ -39,7 +39,7 @@
     "annotations": [
       {
         "kind": "point",
-        "label": "Minimum $(0.6,0.48)$",
+        "label": "Minimum",
         "x": 0.6,
         "y": 0.48
       }

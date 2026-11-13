@@ -23,10 +23,26 @@
             "y": 0.6
           },
           {
+            "x": 1,
+            "y": 0.4
+          },
+          {
+            "x": 2,
+            "y": 0.3
+          },
+          {
             "x": 4,
             "y": 0.2
           }
         ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "axis": "y",
+        "value": 0,
+        "label": "Zero limit"
       }
     ],
     "caption": "Sampled ridge solutions. The intercept is not penalized; the weight approaches zero as the penalty grows."

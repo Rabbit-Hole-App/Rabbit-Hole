@@ -11,8 +11,8 @@
     },
     "y": {
       "label": "Weight $w_2$",
-      "min": -2,
-      "max": 2
+      "min": -4,
+      "max": 4
     },
     "series": [
       {

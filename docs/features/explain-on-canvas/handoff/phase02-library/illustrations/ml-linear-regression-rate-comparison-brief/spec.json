@@ -37,6 +37,14 @@
           }
         ]
       }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "axis": "y",
+        "value": 17.2,
+        "label": "Initial cost"
+      }
     ]
   }
 }

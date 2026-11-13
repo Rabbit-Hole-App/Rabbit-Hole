@@ -116,8 +116,8 @@ Illustrative geometry explains the mechanism; the shared data has only its origi
 
 `ml-linear-regression-polynomial-overfit` · `coordinate-plot`
 
-- **Brief** — Compare the line with a coarsely sampled interpolant and the training observations.
-- **Balanced** — Add denser polynomial samples and the explicitly illustrative external target.
+- **Brief** — Show every training observation, the half-step polynomial samples and the illustrative external target; omit the straight-line comparison.
+- **Balanced** — Add the straight fit for comparison against the same training observations and external target.
 - **Detailed** — Add a grouped error chart separating training mean error from the external point's squared error.
 
 The degree-$4$ interpolant passes through every training point and has training $MSE=0$. The straight line has training $MSE=0.48$. At input $6$, the polynomial predicts $17$ and the line predicts $5.8$. An illustrative new target is $6$, obtained by rounding the line's prediction; it is not an observed validation row. Polynomial squared error is $(17-6)^2=121$, while line squared error is $(5.8-6)^2=0.04$. This constructed case demonstrates why interpolation does not guarantee extrapolation, not that a linear model must always generalize better.
@@ -134,7 +134,7 @@ The degree-$4$ interpolant passes through every training point and has training 
 - **Balanced** — Add the explained reduction and identify the fitted coefficient of determination.
 - **Detailed** — Show the ratio arithmetic and separate perfect-fit and baseline reference cases.
 
-Predicting the target mean $4$ gives squared deviations $4,0,1,0,1$, totaling $SS_{tot}=6$. The fitted line leaves $SS_{res}=2.4$. Thus $R^2=1-2.4/6=0.6$ and the explained reduction is $6-2.4=3.6$. This is a fraction of baseline squared error removed, not a fraction of predictions that are correct. A perfect fit has residual sum zero and $R^2=1$; the mean baseline has residual sum $6$ and $R^2=0$. A model worse than that baseline can have negative $R^2$.
+Predicting the target mean $4$ gives squared deviations $4,0,1,0,1$, totaling $SS_{tot}=6$. The fitted line leaves $SS_{res}=2.4$. Thus $R^2=1-2.4/6=0.6$ and the explained reduction is $6-2.4=3.6$. This is a fraction of baseline squared error removed, not a fraction of predictions that are correct. A perfect fit has squared residual sum zero and $R^2=1$; the mean baseline has squared residual sum $6$ and $R^2=0$. The unsquared residuals around the mean sum to zero; they are not the error total in the bars or reference cases. A model worse than that baseline can have negative $R^2$.
 
 [Brief preview](../illustrations/ml-linear-regression-r-squared-brief/408.svg) · [Balanced preview](../illustrations/ml-linear-regression-r-squared/408.svg) · [Detailed preview](../illustrations/ml-linear-regression-r-squared-detailed/408.svg)
 
@@ -144,8 +144,8 @@ Predicting the target mean $4$ gives squared deviations $4,0,1,0,1$, totaling $S
 
 `ml-linear-regression-ridge-shrinkage` · `coordinate-plot`
 
-- **Brief** — Connect the endpoint solutions to show the shrinkage direction.
-- **Balanced** — Show every sampled penalty solution and the zero-weight limit.
+- **Brief** — Show every sampled penalty solution and the zero-weight limit without individual weight labels.
+- **Balanced** — Add fitted weight labels and a marker identifying the unpenalized solution.
 - **Detailed** — Add the objective and the exact weight and intercept formulas.
 
 Use $MSE+λw^2$ with an unpenalized intercept. Feature variance is $2$ and feature-target covariance is $1.2$, so $w=1.2/(2+λ)$ and $b=4-3w$. Penalties $0,1,2,4$ give weights $0.6,0.4,0.3,0.2$. The plotted segments connect sampled exact solutions; the formula describes the continuous relationship. The weight approaches zero as the penalty grows. This normalization matters: using a summed rather than mean squared-error objective would change the penalty's numerical scale.
@@ -158,8 +158,8 @@ Use $MSE+λw^2$ with an unpenalized intercept. Feature variance is $2$ and featu
 
 `ml-linear-regression-held-out-row` · `sample-set`
 
-- **Brief** — Show a representative training row separately from the test row.
-- **Balanced** — Show all row memberships, with training and test counts.
+- **Brief** — Show every source row, group all training rows together and identify the omitted test row; retain both membership counts in the group label.
+- **Balanced** — Give the test row its own explicit group beside the complete training group.
 - **Detailed** — Add the training-only coefficients and the test prediction's squared-error calculation.
 
 Rows A through D are training data; row E is held out. The training feature mean is $2.5$, the target mean is $3.75$, centered cross-products sum to $3.5$ and centered feature squares sum to $5$. Fit $w=3.5/5=0.7$ and $b=3.75-0.7(2.5)=2$. On the held-out input $5$, prediction is $0.7(5)+2=5.5$, against actual target $5$. The test mean squared error is $(5.5-5)^2=0.25$. The full-data line must not be used for this test calculation. A single test row gives a concrete calculation, not a reliable generalization estimate; repeated model choices should use validation data rather than tuning against this test result.

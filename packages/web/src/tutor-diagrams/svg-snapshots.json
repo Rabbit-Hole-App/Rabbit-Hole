@@ -1447,17 +1447,17 @@
       "height": 299
     },
     "ml-linear-regression-cost-bowl/320": {
-      "sha256": "c9fdf74ddcd125bb67d8e5ba1c17b077e9144e71f00aae38dcd809bed462f5b6",
+      "sha256": "7a50d9d329a2a1a23b3fbc747df22f098a0fec53c2c6b16f1e047c743b850ede",
       "width": 420,
       "height": 524
     },
     "ml-linear-regression-cost-bowl/408": {
-      "sha256": "c9fdf74ddcd125bb67d8e5ba1c17b077e9144e71f00aae38dcd809bed462f5b6",
+      "sha256": "7a50d9d329a2a1a23b3fbc747df22f098a0fec53c2c6b16f1e047c743b850ede",
       "width": 420,
       "height": 524
     },
     "ml-linear-regression-cost-bowl/720": {
-      "sha256": "1db4665911855f60b6cc5bb535c36abe104353a5c07ea1763f1221a847248eac",
+      "sha256": "cab3c3911ec2ce7a6264ad0293c379d32a20aa40c0d3f42f608d2bc5aa7e735e",
       "width": 720,
       "height": 507
     },
@@ -1597,19 +1597,19 @@
       "height": 511
     },
     "ml-linear-regression-ridge-shrinkage/320": {
-      "sha256": "6bdab0bbbdd45cadabaf86220e81a6a675e8c35850472d93ce9ad71498b0ad11",
+      "sha256": "7fee7f464cb41f4d8161d622d85b13e1ed6611b5810f5f648b75691bb919bb69",
       "width": 420,
-      "height": 659
+      "height": 683
     },
     "ml-linear-regression-ridge-shrinkage/408": {
-      "sha256": "6bdab0bbbdd45cadabaf86220e81a6a675e8c35850472d93ce9ad71498b0ad11",
+      "sha256": "7fee7f464cb41f4d8161d622d85b13e1ed6611b5810f5f648b75691bb919bb69",
       "width": 420,
-      "height": 659
+      "height": 683
     },
     "ml-linear-regression-ridge-shrinkage/720": {
-      "sha256": "e48bdc5d0b6f77d139b410bd00f19b90e405cc4c58a9bd10db4dce911b348fc5",
+      "sha256": "14fc06d0f949031ba7a25178407f0a2a33b97acf9f192ae4e5320089a61b9947",
       "width": 720,
-      "height": 620
+      "height": 644
     },
     "ml-linear-regression-training-loop/320": {
       "sha256": "c9bc6fc10daec2fd23738f096ea286fed9598e006bc4e81e303a32cbdeb4c4d3",

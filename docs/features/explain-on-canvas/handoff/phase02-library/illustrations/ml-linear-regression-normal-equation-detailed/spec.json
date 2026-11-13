@@ -17,7 +17,7 @@
       {
         "heading": "Gradient descent",
         "items": [
-          "$w'=w-\\eta g_w$",
+          "$w'=w-\\eta g$",
           "$w'=0+0.264=0.264$",
           "$b'=0.08$",
           "Tune learning rate and stopping rule"

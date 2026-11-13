@@ -20,11 +20,6 @@
         "kind": "scatter",
         "points": [
           {
-            "x": 0,
-            "y": 0,
-            "label": "Initial"
-          },
-          {
             "x": 0.264,
             "y": 0.08,
             "label": "$w=0.264$"
@@ -44,6 +39,12 @@
           "x": 0.264,
           "y": 0.08
         }
+      },
+      {
+        "kind": "point",
+        "label": "Least squares",
+        "x": 0.6,
+        "y": 2.2
       }
     ]
   }

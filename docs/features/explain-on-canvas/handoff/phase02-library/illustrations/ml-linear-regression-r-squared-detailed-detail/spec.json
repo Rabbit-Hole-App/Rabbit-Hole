@@ -7,14 +7,14 @@
       {
         "heading": "Perfect fit",
         "items": [
-          "Residual sum $0$",
+          "Squared residual sum $0$",
           "$R^2=1$"
         ]
       },
       {
         "heading": "Mean baseline",
         "items": [
-          "Residual sum $6$",
+          "Squared residual sum $6$",
           "$R^2=0$"
         ]
       }

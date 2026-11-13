@@ -10,18 +10,18 @@ const lrOne = data.derived();
 const lrOneAxes = bounds => ({ x: { label: 'Input feature', min: bounds.xMin, max: bounds.xMax }, y: { label: 'Target', min: bounds.yMin, max: bounds.yMax } });
 function lrOneLine(brief, deep = false) {
   const d = lrOne;
-  const selected = brief ? [d.points[0], d.points.at(-1)] : d.points;
+  const selected = brief ? [d.fit.slope.from, d.fit.slope.to] : d.points;
   return {
     kind: 'coordinate-plot', title: 'Slope and intercept', ...lrOneAxes(d.axes.scatter),
     series: [
-      { label: 'Observed', kind: 'scatter', samples: { x: selected.map(p => p.x), y: selected.map(p => p.y) } },
-      { label: 'Fitted line', kind: 'line', points: d.fit.line.map((p, i) => ({ ...p, ...(!brief && i === 0 ? { label: `$b=${d.fit.b}$` } : {}) })) },
+      { label: brief ? 'Line predictions' : 'Observed', kind: 'scatter', samples: { x: selected.map(p => p.x), y: selected.map(p => p.y) } },
+      { label: 'Fitted line', kind: 'line', points: d.fit.line.map((p, i) => ({ ...p, ...(i === 0 ? { label: `$b=${d.fit.b}$` } : {}) })) },
     ],
-    ...(!brief ? { annotations: [
+    annotations: [
       { kind: 'segment', label: deep ? 'Run' : `Run $${d.fit.slope.run}$`, from: d.fit.slope.from, to: d.fit.slope.corner },
       { kind: 'segment', label: deep ? 'Rise' : `Rise $${d.fit.slope.rise}$`, from: d.fit.slope.corner, to: d.fit.slope.to },
-    ] } : {}),
-    caption: brief ? 'Worked example. Selected points; slope is rise over run, intercept is the zero-input prediction.' : deep ? `Worked example. $w=${d.fit.slope.rise}/${d.fit.slope.run}=${d.fit.w}$.` : 'Worked example.',
+    ],
+    caption: brief ? 'Worked example. Fit uses all toy rows; dots are predictions.' : deep ? `Worked example. $w=${d.fit.slope.rise}/${d.fit.slope.run}=${d.fit.w}$.` : 'Worked example.',
   };
 }
 function lrOneLineArithmetic() {
@@ -73,7 +73,7 @@ function lrOneBowl(depth) {
     x: { label: 'Slope weight', min: d.axes.costProfile.xMin, max: d.axes.costProfile.xMax },
     y: { label: 'Mean squared error', min: d.axes.costProfile.yMin, max: d.axes.costProfile.yMax },
     series: [{ label: 'Profiled cost', kind: 'line', smooth: true, samples: { x: selected.map(q => q.x), y: selected.map(q => q.y) } }],
-    annotations: [{ kind: 'point', label: brief ? 'Lowest cost' : `Minimum $(${p.minimum.x},${p.minimum.y})$`, x: p.minimum.x, y: p.minimum.y }],
+    annotations: [{ kind: 'point', label: brief ? 'Lowest cost' : 'Minimum', x: p.minimum.x, y: p.minimum.y }],
     caption: depth === 'deep'
       ? `Worked example. $b=${d.summary.meanY}-${d.summary.meanX}w$; $J(w)=\\frac{${c.a}w^2-${d.constants.two}\\times${d.summary.sxy}w+${c.c}}{${c.divisor}}$. Positive quadratic coefficient.`
       : 'Worked example. The intercept is reoptimized at every slope weight.',
@@ -103,13 +103,14 @@ const lrB2Axes = (bounds, horizontal, vertical) => ({ x: { label: horizontal, mi
 function lrB2First(level) {
   const initial = { x: lrB2.gradient.initial.w, y: lrB2.gradient.initial.b };
   const next = { x: lrB2Small.w, y: lrB2Small.b };
+  const nextPoint = { ...next, label: `$w=${lrB2Small.w}$` };
   return {
     kind: 'coordinate-plot', title: 'The first parameter update',
     caption: level === 'deep' ? 'Apply $w\'=w-\\eta g_w$ and $b\'=b-\\eta g_b$ simultaneously.' : 'The arrow updates both parameters; its horizontal movement is the weight change.',
     x: { label: 'Weight $w$', min: lrB2.axes.weight.xMin, max: lrB2.axes.weight.xMax },
     y: { label: 'Intercept $b$', min: lrB2.axes.weight.yMin, max: lrB2.fit.b },
-    series: [{ label: 'Parameter states', kind: 'scatter', points: [{ ...initial, label: 'Initial' }, { ...next, label: `$w=${lrB2Small.w}$` }] }],
-    annotations: [{ kind: 'vector', label: 'Update', from: initial, to: next }, ...(level === 'overview' ? [] : [{ kind: 'point', label: 'Least squares', x: lrB2.fit.w, y: lrB2.fit.b }])],
+    series: [{ label: 'Parameter states', kind: 'scatter', points: level === 'overview' ? [nextPoint] : [{ ...initial, label: 'Initial' }, nextPoint] }],
+    annotations: [{ kind: 'vector', label: 'Update', from: initial, to: next }, { kind: 'point', label: 'Least squares', x: lrB2.fit.w, y: lrB2.fit.b }],
   };
 }
 function lrB2FirstArithmetic() {
@@ -133,7 +134,7 @@ function lrB2Rates(level) {
       label: `$\\eta=${step.rate}$`, kind: brief ? 'scatter' : 'line',
       points: (brief ? step.trace.slice(-1) : step.trace).map((point, i, points) => ({ ...point, ...(i === points.length - 1 ? { label: `$${step.mse}$` } : {}) })),
     })),
-    ...(brief ? {} : { annotations: [{ kind: 'reference-line', axis: 'y', value: lrB2.gradient.initial.mse, label: 'Initial cost' }] }),
+    annotations: [{ kind: 'reference-line', axis: 'y', value: lrB2.gradient.initial.mse, label: 'Initial cost' }],
   };
 }
 function lrB2RateArithmetic() {
@@ -155,20 +156,21 @@ function lrB2Normal(level) {
     caption: deep ? 'The intercept is fitted too. Prefer QR or SVD to explicitly forming a matrix inverse.' : 'Here $p$ counts features. Dense direct solving becomes expensive as the feature count grows.',
     columns: [
       { heading: 'Normal equation', items: deep ? [`$w=${lrB2.summary.sxy}/${lrB2.summary.sxx}=${lrB2.fit.w}$`, `$b=${lrB2.summary.meanY}-${lrB2.fit.w}(${lrB2.summary.meanX})=${lrB2.fit.b}$`, 'Dense solve costs $O(p^3)$', 'Check rank and numerical conditioning'] : [`$w=${lrB2.fit.w}, b=${lrB2.fit.b}$`, 'No learning rate to tune', 'Dense solve costs $O(p^3)$'] },
-      { heading: 'Gradient descent', items: deep ? [`$w'=w-\\eta g_w$`, `$w'=${lrB2.gradient.initial.w}+${lrB2Small.deltaW}=${lrB2Small.w}$`, `$b'=${lrB2Small.b}$`, 'Tune learning rate and stopping rule'] : [`First update: $w=${lrB2Small.w}$`, 'Tune rate and stopping rule', 'Scales through repeated data passes'] },
+      { heading: 'Gradient descent', items: deep ? [`$w'=w-\\eta g$`, `$w'=${lrB2.gradient.initial.w}+${lrB2Small.deltaW}=${lrB2Small.w}$`, `$b'=${lrB2Small.b}$`, 'Tune learning rate and stopping rule'] : [`First update: $w=${lrB2Small.w}$`, 'Tune rate and stopping rule', 'Scales through repeated data passes'] },
     ],
   };
 }
 function lrB2Scaling(level, standardized) {
   const s = lrB2.scaling;
   const brief = level === 'overview';
-  const count = brief ? lrB2.constants.two : lrB2.counts.rows - lrB2.constants.two;
+  const count = brief && standardized ? lrB2.constants.two : lrB2.counts.rows - lrB2.constants.two;
   const path = (standardized ? s.scaledPath : s.rawPath).slice(lrB2.constants.zero, count);
   const contours = brief ? s.contours.slice(-1) : s.contours;
+  const bounds = standardized ? { ...lrB2.axes.scaling, yMin: lrB2.axes.scaling.xMin, yMax: lrB2.axes.scaling.xMax } : lrB2.axes.scaling;
   return {
     kind: 'coordinate-plot', title: standardized ? 'After standardization' : 'Unscaled feature weights',
-    caption: level === 'deep' ? (standardized ? `Illustrative. $z=(x-\\mu)/\\sigma$; $\\mu=${s.mean}$ and $\\sigma=${s.standardDeviation}$.` : `Illustrative. $J=(w_1^2+${s.curvature}w_2^2)/2$ models unequal curvature.`) : (standardized ? 'Illustrative. Round contours allow a direct path.' : 'Illustrative. A narrow valley creates zigzags.'),
-    ...lrB2Axes(lrB2.axes.scaling, 'Weight $w_1$', 'Weight $w_2$'),
+    caption: level === 'deep' ? (standardized ? 'Illustrative. $z=(x-\\mu)/\\sigma$; the idealized scaled bowl is $J=(w_1^2+w_2^2)/2$.' : `Illustrative. $J=(w_1^2+${s.curvature}w_2^2)/2$ models unequal curvature.`) : (standardized ? 'Illustrative. Round contours allow a direct path.' : 'Illustrative. A narrow valley creates zigzags.'),
+    ...lrB2Axes(bounds, 'Weight $w_1$', 'Weight $w_2$'),
     series: [{ label: 'Descent', kind: 'line', samples: { x: path.map(point => point.x), y: path.map(point => point.y) } }],
     annotations: contours.map((contour, i) => ({
       kind: standardized ? 'circle' : 'ellipse', label: brief || i === contours.length - 1 ? 'Outer cost' : 'Inner cost',
@@ -188,7 +190,6 @@ const lrFinalAxis = (label, bounds, axis) => ({ label, min: bounds[`${axis}Min`]
 function lrFinalPolynomial(depth) {
   const d = lrFinalData;
   const brief = depth === 'overview';
-  const samples = brief ? d.polynomial.samples.filter((_, i) => i % d.constants.two === d.constants.zero) : d.polynomial.samples;
   return {
     kind: 'coordinate-plot', title: 'Perfect training fit can fail beyond the data',
     caption: depth === 'deep' ? `Illustrative error $(${d.polynomial.polynomialPrediction}-${d.polynomial.newPoint.y})^2=${d.polynomial.polynomialSquaredError}$.` : 'Illustrative extrapolation scenario. Training fits are computed from the shared rows.',
@@ -196,9 +197,9 @@ function lrFinalPolynomial(depth) {
     y: lrFinalAxis('Target', d.axes.polynomial, 'y'),
     series: [
       { label: 'Training', kind: 'scatter', samples: { x: d.points.map(p => p.x), y: d.points.map(p => p.y) } },
-      { label: 'Straight fit', kind: 'line', samples: { x: [d.summary.minX, d.axes.polynomial.xMax], y: [d.fit.predictions[d.constants.zero], d.polynomial.linePrediction] } },
-      { label: 'Interpolating polynomial', kind: 'line', samples: { x: { start: d.summary.minX, step: brief ? d.fit.slope.run : d.polynomial.sampleStep }, y: samples.map(p => p.y) } },
-      ...(!brief ? [{ label: 'Illustrative new target', kind: 'scatter', points: [d.polynomial.newPoint] }] : []),
+      ...(!brief ? [{ label: 'Straight fit', kind: 'line', samples: { x: [d.summary.minX, d.axes.polynomial.xMax], y: [d.fit.predictions[d.constants.zero], d.polynomial.linePrediction] } }] : []),
+      { label: 'Interpolating polynomial', kind: 'line', samples: { x: { start: d.summary.minX, step: d.polynomial.sampleStep }, y: d.polynomial.samples.map(p => p.y) } },
+      { label: 'Illustrative new target', kind: 'scatter', points: [d.polynomial.newPoint] },
     ],
   };
 }
@@ -234,8 +235,8 @@ function lrFinalRSquaredLimits() {
   return {
     kind: 'comparison', title: 'Interpret the reference cases',
     columns: [
-      { heading: 'Perfect fit', items: [`Residual sum $${r.perfect.sse}$`, `$R^2=${r.perfect.value}$`] },
-      { heading: 'Mean baseline', items: [`Residual sum $${r.baseline.sse}$`, `$R^2=${r.baseline.value}$`] },
+      { heading: 'Perfect fit', items: [`Squared residual sum $${r.perfect.sse}$`, `$R^2=${r.perfect.value}$`] },
+      { heading: 'Mean baseline', items: [`Squared residual sum $${r.baseline.sse}$`, `$R^2=${r.baseline.value}$`] },
     ],
     caption: 'A model worse than the mean baseline can have negative explained variance.',
   };
@@ -243,13 +244,15 @@ function lrFinalRSquaredLimits() {
 function lrFinalRidge(depth) {
   const d = lrFinalData;
   const brief = depth === 'overview';
-  const points = brief ? [d.ridge.points[d.constants.zero], d.ridge.points.at(-d.constants.unit)] : d.ridge.points;
   return {
     kind: 'coordinate-plot', title: 'A larger ridge penalty shrinks the weight',
     x: lrFinalAxis('Ridge penalty $λ$', d.axes.ridge, 'x'),
     y: lrFinalAxis('Fitted weight $w$', d.axes.ridge, 'y'),
-    series: [{ label: 'Ridge solutions', kind: 'line', points: points.map(p => ({ ...p, ...(!brief ? { label: `$w=${p.y}$` } : {}) })) }],
-    ...(!brief ? { annotations: [{ kind: 'reference-line', axis: 'y', value: d.ridge.asymptote, label: 'Zero limit' }] } : {}),
+    series: [{ label: 'Ridge solutions', kind: 'line', points: d.ridge.points.map(p => ({ ...p, ...(!brief ? { label: `$w=${p.y}$` } : {}) })) }],
+    annotations: [
+      { kind: 'reference-line', axis: 'y', value: d.ridge.asymptote, label: 'Zero limit' },
+      ...(!brief ? [{ kind: 'point', label: 'No penalty', x: d.ridge.points[d.constants.zero].x, y: d.ridge.points[d.constants.zero].y }] : []),
+    ],
     caption: depth === 'deep'
       ? `$w=${d.ridge.numerator}/(${d.ridge.denominator}+λ)$; $b=${d.summary.meanY}-${d.summary.meanX}w$. Minimize $MSE+λw^2$.`
       : 'Sampled ridge solutions. The intercept is not penalized; the weight approaches zero as the penalty grows.',
@@ -259,16 +262,17 @@ function lrFinalHoldout(depth) {
   const d = lrFinalData;
   const h = d.holdout;
   const brief = depth === 'overview';
-  const points = brief ? d.points.filter(p => p.id === h.trainIds[d.constants.zero] || h.testIds.includes(p.id)) : d.points;
   const held = d.points.find(p => h.testIds.includes(p.id));
   return {
     kind: 'sample-set', title: 'Keep the test row out of fitting',
-    samples: points.map(p => ({ id: p.id, label: `$(${p.x},${p.y})$` })),
-    groups: [
-      { id: 'train', label: brief ? 'Training example' : `Training: ${h.trainCount} rows`, members: points.filter(p => h.trainIds.includes(p.id)).map(p => p.id) },
-      { id: 'test', label: brief ? 'Test row' : `Test: ${h.testCount} row`, members: h.testIds },
+    samples: d.points.map(p => ({ id: p.id, label: `$(${p.x},${p.y})$` })),
+    groups: brief ? [
+      { id: 'train', label: `Train: ${h.trainCount} rows; test: ${h.testCount}`, members: h.trainIds, omitted: h.testIds },
+    ] : [
+      { id: 'train', label: `Training: ${h.trainCount} rows`, members: h.trainIds },
+      { id: 'test', label: `Test: ${h.testCount} row`, members: h.testIds },
     ],
-    caption: brief ? 'Selected rows. Fit without the test row, then evaluate its prediction.' : depth === 'deep'
+    caption: brief ? 'Fit the training group. Its omitted row is the test row, evaluated only after fitting.' : depth === 'deep'
       ? `Fit $w=${h.w}$, $b=${h.b}$; test squared error $(${h.testPredictions[d.constants.zero]}-${held.y})^2=${h.testMse}$.`
       : 'Fit only the training rows. Evaluate the untouched test row after fitting.',
   };

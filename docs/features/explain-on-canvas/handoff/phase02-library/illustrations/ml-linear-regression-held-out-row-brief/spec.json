@@ -9,6 +9,18 @@
         "label": "$(1,2)$"
       },
       {
+        "id": "B",
+        "label": "$(2,4)$"
+      },
+      {
+        "id": "C",
+        "label": "$(3,5)$"
+      },
+      {
+        "id": "D",
+        "label": "$(4,4)$"
+      },
+      {
         "id": "E",
         "label": "$(5,5)$"
       }
@@ -16,19 +28,18 @@
     "groups": [
       {
         "id": "train",
-        "label": "Training example",
+        "label": "Train: 4 rows; test: 1",
         "members": [
-          "A"
-        ]
-      },
-      {
-        "id": "test",
-        "label": "Test row",
-        "members": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "omitted": [
           "E"
         ]
       }
     ],
-    "caption": "Selected rows. Fit without the test row, then evaluate its prediction."
+    "caption": "Fit the training group. Its omitted row is the test row, evaluated only after fitting."
   }
 }

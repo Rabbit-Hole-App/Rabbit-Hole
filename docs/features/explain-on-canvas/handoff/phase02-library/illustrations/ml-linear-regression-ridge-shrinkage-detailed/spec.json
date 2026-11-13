@@ -47,6 +47,12 @@
         "axis": "y",
         "value": 0,
         "label": "Zero limit"
+      },
+      {
+        "kind": "point",
+        "label": "No penalty",
+        "x": 0,
+        "y": 0.6
       }
     ],
     "caption": "$w=1.2/(2+λ)$; $b=4-3w$. Minimize $MSE+λw^2$."

@@ -170,6 +170,53 @@ test('linear-regression line meaning adds slope arithmetic in the main Detailed 
   lrOneNear(d.fit.slope.run, expected.fit.slope.to.x - expected.fit.slope.from.x);
   lrOneNear(d.fit.w, (expected.fit.slope.to.y - expected.fit.slope.from.y) / (expected.fit.slope.to.x - expected.fit.slope.from.x));
 });
+test('linear-regression brief line uses fitted predictions and visibly marks both parameters', () => {
+  const r = references.find(item => item.id === 'ml-linear-regression-line-meaning');
+  assert.ok(r);
+  const d = data.derived();
+  const expected = lrOneIndependent();
+  const brief = r.depths.overview.spec.diagram;
+  const scatter = brief.series.find(series => series.kind === 'scatter');
+  assert.strictEqual(scatter.label, 'Line predictions');
+  assert.ok(brief.caption.includes('Fit uses all toy rows'));
+  assert.ok(brief.caption.includes('dots are predictions'));
+  assert.strictEqual(scatter.samples.x.length, d.constants.two);
+  scatter.samples.x.forEach((x, i) => lrOneNear(scatter.samples.y[i], expected.fit.w * x + expected.fit.b));
+  lrOneCompare({ x: scatter.samples.x[0], y: scatter.samples.y[0] }, expected.fit.slope.from);
+  lrOneCompare({ x: scatter.samples.x.at(-1), y: scatter.samples.y.at(-1) }, expected.fit.slope.to);
+  const line = brief.series.find(series => series.kind === 'line');
+  lrOneCompare(line.points[0], expected.fit.intercept);
+  assert.strictEqual(line.points[0].label, `$b=${d.fit.b}$`);
+  const run = brief.annotations.find(annotation => annotation.label.startsWith('Run '));
+  const rise = brief.annotations.find(annotation => annotation.label.startsWith('Rise '));
+  assert.ok(run && rise);
+  lrOneCompare(run.from, expected.fit.slope.from);
+  lrOneCompare(run.to, expected.fit.slope.corner);
+  lrOneCompare(rise.from, expected.fit.slope.corner);
+  lrOneCompare(rise.to, expected.fit.slope.to);
+  lrOneNear(run.to.x - run.from.x, expected.fit.slope.run);
+  lrOneNear(rise.to.y - rise.from.y, expected.fit.slope.rise);
+  assert.strictEqual(run.label, `Run $${d.fit.slope.run}$`);
+  assert.strictEqual(rise.label, `Rise $${d.fit.slope.rise}$`);
+  assert.ok(lrOneElements(r.depths.overview) < lrOneElements(r.depths.standard));
+});
+test('linear-regression bowl labels leave coordinates to the renderer', () => {
+  const r = references.find(item => item.id === 'ml-linear-regression-cost-bowl');
+  assert.ok(r);
+  const expected = lrOneIndependent();
+  for (const depth of ['overview', 'standard', 'deep']) {
+    const annotation = r.depths[depth].spec.diagram.annotations[0];
+    assert.strictEqual(annotation.label, depth === 'overview' ? 'Lowest cost' : 'Minimum');
+    lrOneNear(annotation.x, expected.fit.w);
+    lrOneNear(annotation.y, expected.fit.mse);
+    const samples = r.depths[depth].spec.diagram.series[0].samples;
+    samples.x.forEach((weight, i) => {
+      const intercept = expected.summary.meanY - weight * expected.summary.meanX;
+      const mse = data.toyData.rows.reduce((sum, [x, y]) => sum + (weight * x + intercept - y) ** 2, 0) / data.toyData.rows.length;
+      lrOneNear(samples.y[i], mse);
+    });
+  }
+});
 }
 {
 const lrB2Add = values => values.reduce((total, value) => total + value, 0);
@@ -313,6 +360,60 @@ test('every visual number is supplied by the shared derivation or batch derivati
     });
   });
 });
+test('brief parameter and rate plots retain their comparison anchors', () => {
+  const d = data.derived();
+  const first = references.find(ref => ref.id === 'ml-linear-regression-first-gradient-step');
+  const briefFirst = first.depths.overview.spec.diagram;
+  const balancedFirst = first.depths.standard.spec.diagram;
+  const optimum = briefFirst.annotations.find(item => item.kind === 'point');
+  lrB2Check(optimum, { x: d.fit.w, y: d.fit.b });
+  const update = briefFirst.annotations.find(item => item.kind === 'vector');
+  lrB2Check(update.from, { x: d.gradient.initial.w, y: d.gradient.initial.b });
+  lrB2Check(update.to, { x: d.gradient.steps[0].w, y: d.gradient.steps[0].b });
+  assert.ok(briefFirst.series[0].points.length < balancedFirst.series[0].points.length);
+  const rateRef = references.find(ref => ref.id === 'ml-linear-regression-rate-comparison');
+  const briefRates = rateRef.depths.overview.spec.diagram;
+  const baseline = briefRates.annotations.find(item => item.kind === 'reference-line');
+  assert.strictEqual(baseline.axis, 'y');
+  lrB2Check(baseline.value, lrB2Add(data.toyData.rows.map(([, y]) => y * y)) / data.toyData.rows.length);
+  assert.ok(briefRates.series[0].points[0].y < baseline.value);
+  assert.ok(briefRates.series[1].points[0].y > baseline.value);
+  assert.ok(briefRates.series.reduce((count, series) => count + series.points.length, 0) < rateRef.depths.standard.spec.diagram.series.reduce((count, series) => count + series.points.length, 0));
+});
+test('scaling repair shows a bounce and equal-span circular contours', () => {
+  const overlay = references.find(ref => ref.id === 'ml-linear-regression-feature-scaling-overlay');
+  const rows = data.toyData.rows;
+  const meanX = lrB2Add(rows.map(([x]) => x)) / rows.length;
+  const rawRate = 1 / rows.length;
+  const curvature = 2 ** meanX;
+  const briefRaw = overlay.depths.overview.spec.diagram;
+  const samples = briefRaw.series[0].samples;
+  assert.ok(samples.x.length >= 3);
+  samples.x.forEach((x, k) => lrB2Check(x, -meanX * (1 - rawRate) ** k));
+  samples.y.forEach((y, k) => lrB2Check(y, (1 - rawRate * curvature) ** k));
+  assert.ok(samples.y[0] * samples.y[1] < 0);
+  assert.ok(samples.y[1] * samples.y[2] < 0);
+  assert.ok(briefRaw.annotations.length < overlay.depths.standard.spec.diagram.annotations.length);
+  const range = Math.max(...rows.map(([x]) => x)) - Math.min(...rows.map(([x]) => x));
+  for (const level of ['overview', 'standard', 'deep']) {
+    const plot = overlay.depths[level].detailSpec.diagram;
+    lrB2Check(plot.x, { min: -range, max: range });
+    lrB2Check(plot.y, { min: -range, max: range });
+    assert.strictEqual(plot.x.max - plot.x.min, plot.y.max - plot.y.min);
+    plot.annotations.forEach(contour => {
+      assert.strictEqual(contour.kind, 'circle');
+      lrB2Check(contour.center, { x: 0, y: 0 });
+    });
+  }
+  const caption = overlay.depths.deep.detailSpec.diagram.caption;
+  assert.ok(caption.includes('idealized scaled bowl'));
+  assert.ok(caption.includes('$J=(w_1^2+w_2^2)/2$'));
+  assert.ok(!caption.includes(String(data.derived().scaling.standardDeviation)));
+  const normal = references.find(ref => ref.id === 'ml-linear-regression-normal-equation');
+  const updateRule = normal.depths.deep.spec.diagram.columns[1].items[0];
+  assert.ok(!updateRule.includes('_'));
+  assert.ok(updateRule.includes('\\eta'));
+});
 }
 {
 const finalReferenceIds = ['ml-linear-regression-polynomial-overfit', 'ml-linear-regression-r-squared', 'ml-linear-regression-ridge-shrinkage', 'ml-linear-regression-held-out-row'];
@@ -373,6 +474,7 @@ test('polynomial samples and every displayed extrapolation error are independent
   rows.forEach(([x], i) => finalNear(d.fit.predictions[i], w * x + b));
   const gap = Math.min(...rows.slice(1).map((r, i) => r[0] - rows[i][0]));
   const externalX = Math.max(...rows.map(r => r[0])) + gap;
+  finalNear(d.polynomial.sampleStep, gap / 2);
   finalNear(d.polynomial.newPoint.x, externalX);
   finalNear(d.polynomial.newPoint.y, Math.round(w * externalX + b));
   finalNear(d.polynomial.linePrediction, w * externalX + b);
@@ -386,11 +488,18 @@ test('polynomial samples and every displayed extrapolation error are independent
   finalNear(d.axes.polynomial.yMax, Math.ceil(Math.max(d.polynomial.newPoint.y, ...d.polynomial.samples.map(p => interpolate(p.x)))));
   const ref = references.find(r => r.id === finalReferenceIds[0]);
   const balanced = ref.spec.diagram;
+  const brief = ref.depths.overview.spec.diagram;
   assert.deepStrictEqual(balanced.series[0].samples.y, rows.map(r => r[1]));
   assert.deepStrictEqual(balanced.series[2].samples.y, d.polynomial.samples.map(p => p.y));
   assert.deepStrictEqual(balanced.series[3].points, [d.polynomial.newPoint]);
-  assert.ok(ref.depths.overview.spec.diagram.series.length < balanced.series.length);
-  assert.ok(ref.depths.overview.spec.diagram.series[2].samples.y.length < balanced.series[2].samples.y.length);
+  assert.deepStrictEqual(brief.series.find(s => s.label === 'Training').samples, balanced.series[0].samples);
+  const briefCurve = brief.series.find(s => s.label === 'Interpolating polynomial');
+  assert.deepStrictEqual(briefCurve.samples, balanced.series[2].samples);
+  briefCurve.samples.y.forEach((y, i) => finalNear(y, interpolate(briefCurve.samples.x.start + i * briefCurve.samples.x.step)));
+  assert.deepStrictEqual(brief.series.find(s => s.label === 'Illustrative new target').points, [d.polynomial.newPoint]);
+  assert.ok(!brief.series.some(s => s.label === 'Straight fit'));
+  const elements = diagram => diagram.series.reduce((count, series) => count + (series.points ? series.points.length : series.samples.y.length), 0);
+  assert.ok(elements(brief) < elements(balanced));
   assert.notStrictEqual(ref.depths.deep.spec.diagram.caption, balanced.caption);
   assert.strictEqual(ref.depths.deep.spec.diagram.caption, `Illustrative error $(${d.polynomial.polynomialPrediction}-${d.polynomial.newPoint.y})^2=${d.polynomial.polynomialSquaredError}$.`);
   assert.ok(ref.depths.deep.detailSpec.diagram.caption.startsWith('Illustrative'));
@@ -418,10 +527,15 @@ test('explained variance bars and reference cases follow the mean baseline arith
   finalNear(d.rSquared.perfect.value, 1 - d.rSquared.perfect.sse / total);
   finalNear(d.rSquared.baseline.sse, total);
   finalNear(d.rSquared.baseline.value, 1 - total / total);
+  finalNear(finalSum(rows.map(([, y]) => y - sy / n)), 0);
   const ref = references.find(r => r.id === finalReferenceIds[1]);
   assert.deepStrictEqual(ref.spec.diagram.bars.map(bar => bar.value), [d.rSquared.total, d.rSquared.residual, d.rSquared.explained]);
   assert.ok(ref.depths.overview.spec.diagram.bars.length < ref.spec.diagram.bars.length);
   assert.notStrictEqual(ref.depths.deep.spec.diagram.caption, ref.spec.diagram.caption);
+  assert.deepStrictEqual(ref.depths.deep.detailSpec.diagram.columns.map(column => column.items), [
+    [`Squared residual sum $${d.rSquared.perfect.sse}$`, `$R^2=${d.rSquared.perfect.value}$`],
+    [`Squared residual sum $${d.rSquared.baseline.sse}$`, `$R^2=${d.rSquared.baseline.value}$`],
+  ]);
 });
 
 test('ridge plotted solutions use mean squared error and an unpenalized intercept', () => {
@@ -451,9 +565,20 @@ test('ridge plotted solutions use mean squared error and an unpenalized intercep
   finalNear(d.axes.ridge.yMin, n - n);
   finalNear(d.axes.ridge.yMax, covariance / variance);
   const ref = references.find(r => r.id === finalReferenceIds[2]);
-  assert.deepStrictEqual(ref.spec.diagram.series[0].points.map(({ x, y }) => ({ x, y })), d.ridge.points);
-  assert.ok(ref.depths.overview.spec.diagram.series[0].points.length < ref.spec.diagram.series[0].points.length);
-  assert.notStrictEqual(ref.depths.deep.spec.diagram.caption, ref.spec.diagram.caption);
+  const balanced = ref.spec.diagram;
+  const brief = ref.depths.overview.spec.diagram;
+  assert.deepStrictEqual(balanced.series[0].points.map(({ x, y }) => ({ x, y })), d.ridge.points);
+  assert.deepStrictEqual(brief.series[0].points, d.ridge.points);
+  assert.deepStrictEqual(brief.annotations, balanced.annotations.slice(0, 1));
+  assert.strictEqual(brief.annotations[0].value, d.ridge.asymptote);
+  assert.strictEqual(balanced.annotations.length, brief.annotations.length + 1);
+  assert.deepStrictEqual(balanced.annotations[1], { kind: 'point', label: 'No penalty', x: expectedLambdas[0], y: covariance / variance });
+  const elements = diagram => diagram.series.length + diagram.series.reduce((count, series) => count + series.points.length, 0) + diagram.annotations.length;
+  assert.ok(elements(brief) < elements(balanced));
+  assert.ok(brief.series[0].points.every(point => !Object.hasOwn(point, 'label')));
+  assert.ok(balanced.series[0].points.every(point => Object.hasOwn(point, 'label')));
+  balanced.series[0].points.forEach(point => assert.strictEqual(point.label, `$w=${point.y}$`));
+  assert.notStrictEqual(ref.depths.deep.spec.diagram.caption, balanced.caption);
 });
 
 test('holdout membership, fitted coefficients and test squared error are recomputed without leakage', () => {
@@ -482,12 +607,21 @@ test('holdout membership, fitted coefficients and test squared error are recompu
   finalNear(d.holdout.testMse, finalSum(held.map(([x, y]) => (w * x + b - y) ** 2)) / held.length);
   const ref = references.find(r => r.id === finalReferenceIds[3]);
   const diagram = ref.spec.diagram;
+  const brief = ref.depths.overview.spec.diagram;
   assert.deepStrictEqual(diagram.samples.map(p => p.id), d.points.map(p => p.id));
   diagram.samples.forEach((sample, i) => assert.strictEqual(sample.label, `$(${data.toyData.rows[i][0]},${data.toyData.rows[i][1]})$`));
   assert.deepStrictEqual(diagram.groups[0].members, d.points.slice(0, -1).map(p => p.id));
   assert.deepStrictEqual(diagram.groups[1].members, d.points.slice(-1).map(p => p.id));
   diagram.groups[0].members.forEach(id => assert.ok(!diagram.groups[1].members.includes(id)));
-  assert.ok(ref.depths.overview.spec.diagram.samples.length < diagram.samples.length);
+  assert.strictEqual(diagram.groups[0].label, `Training: ${n} rows`);
+  assert.strictEqual(diagram.groups[1].label, `Test: ${held.length} row`);
+  assert.deepStrictEqual(brief.samples, diagram.samples);
+  assert.strictEqual(brief.groups.length, 1);
+  assert.deepStrictEqual(brief.groups[0].members, diagram.groups[0].members);
+  assert.deepStrictEqual(brief.groups[0].omitted, diagram.groups[1].members);
+  assert.deepStrictEqual(brief.groups[0].omitted, brief.samples.filter(sample => !brief.groups[0].members.includes(sample.id)).map(sample => sample.id));
+  assert.strictEqual(brief.groups[0].label, `Train: ${n} rows; test: ${held.length}`);
+  assert.ok(brief.samples.length + brief.groups.length < diagram.samples.length + diagram.groups.length);
   assert.notStrictEqual(ref.depths.deep.spec.diagram.caption, diagram.caption);
 });
 

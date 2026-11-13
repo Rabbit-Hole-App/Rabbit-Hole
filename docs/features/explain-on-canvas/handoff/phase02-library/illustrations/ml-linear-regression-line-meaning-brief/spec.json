@@ -15,16 +15,16 @@
     },
     "series": [
       {
-        "label": "Observed",
+        "label": "Line predictions",
         "kind": "scatter",
         "samples": {
           "x": [
-            1,
-            5
+            3,
+            4
           ],
           "y": [
-            2,
-            5
+            4,
+            4.6
           ]
         }
       },
@@ -34,7 +34,8 @@
         "points": [
           {
             "x": 0,
-            "y": 2.2
+            "y": 2.2,
+            "label": "$b=2.2$"
           },
           {
             "x": 6,
@@ -43,6 +44,32 @@
         ]
       }
     ],
-    "caption": "Worked example. Selected points; slope is rise over run, intercept is the zero-input prediction."
+    "annotations": [
+      {
+        "kind": "segment",
+        "label": "Run $1$",
+        "from": {
+          "x": 3,
+          "y": 4
+        },
+        "to": {
+          "x": 4,
+          "y": 4
+        }
+      },
+      {
+        "kind": "segment",
+        "label": "Rise $0.6$",
+        "from": {
+          "x": 4,
+          "y": 4
+        },
+        "to": {
+          "x": 4,
+          "y": 4.6
+        }
+      }
+    ],
+    "caption": "Worked example. Fit uses all toy rows; dots are predictions."
   }
 }
