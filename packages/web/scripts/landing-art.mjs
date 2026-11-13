@@ -27,8 +27,13 @@ const secret = name => {
   return value;
 };
 
+// The saved character sheet (design/art/characters.md, owner 2026-11-13): pasted word for word into every blog hero prompt so the characters stay the same.
+const sheet = () => {
+  const text = fs.readFileSync(path.join(WEB, 'design/art/characters.md'), 'utf8');
+  return text.slice(text.indexOf('## Sheet') + '## Sheet'.length).trim().split(/\r?\n/).join(' ');
+};
 const BLOG_HEAD = `Hand-drawn illustration in the style of a 19th-century book engraving, in the spirit of Tenniel's 1865 illustrations for Alice's Adventures in Wonderland and not the Disney designs, loose cross-hatching, slightly faded as if printed decades ago. A full panoramic Wonderland scene that fills the whole canvas edge to edge with no empty margins. In the foreground, grouped within the middle 55% of the width and all on one ground line: `;
-const BLOG_TINTS = `pale sage and moss greens in the foliage, hedges and mushrooms, dusty rose on the roses and the White Rabbit's waistcoat, faded powder blue only in the sky and distant hills, warm muted ochre on the tea table and the Hatter's coat, pale lavender on Alice's plain dress (with a white pinafore, hair loose, no headband), soft grey-plum tabby stripes on the Cheshire Cat, muted red-brown on the toadstools and the playing cards`;
+const BLOG_TINTS = `pale sage and moss greens in the foliage and hedges, cream-white roses shaded with pale plum, soft powder blue (#A9BCCB) across the sky and distant hills, warm muted ochre (#D8C08C) on the tea table and the mushroom caps, cream and pale sage on the toadstools, the playing cards drawn in plum ink with at most a faint touch of dusty rose, a faded slate blue-grey for any chalkboard with pale chalk lines; the characters keep exactly the colours of their sheet; no red and no strong pink anywhere except the White Rabbit's dusty-rose jacket`;
 const blogTail = tints => ` Behind them, a rich layered Wonderland receding into the distance, drawn in finer, lighter, fainter hatching so the foreground figures stand clearly forward: an overgrown garden of tall rose hedges and twisting old trees, a mad tea-party table set with teapots and cups, playing-card soldiers standing guard, giant mushrooms and oversized flowers, a grandfather clock among the trees, a tiny locked door at the foot of a great tree, hanging oil lamps, playing cards drifting through the air, and a distant castle with a checkerboard floor, with the dark mouth of a rabbit hole between tree roots near the right edge. Hand-coloured in soft, muted, washed-out watercolour tints laid over the ink line work, like a faded vintage hand-tinted book plate: ${tints}, off-white paper #F4F3EF and deep plum ink #3D2A5C for the line work. Low saturation, low contrast, matte, subtle paper grain, no pure black and no pure white anywhere. No text, no lettering, no numbers anywhere. A very wide panoramic strip, about 2.85 times wider than tall (16:5.6): compose every figure, including the Cheshire Cat on its bough, and the whole scene inside this wide low frame, with nothing cropped.`;
 const AMBER = 'pale warm amber-gold paper ground around #f0cf85, saturated amber #e8962a plates, one or two burnt-orange #d9531e strips, deep brown-black ink, small cream and soft ochre blocks. Grayscale technical drawings partly cross the colour blocks. No blue, no green, no pink.';
 const bannerPrompt = (page, subject, palette) => `Use case: stylized-concept. Asset type: original panoramic header artwork for the ${page} page of Rabbit Hole, an adaptive learning platform. Return the artwork alone.
@@ -106,7 +111,7 @@ if (kind === 'blog-hero' || kind === 'blog-post') {
   const dest = path.join(WEB, 'public/landing/blog', `${slug}-hero.jpg`);
   let bytes;
   if (from) bytes = fs.readFileSync(from);
-  else { const prompt = BLOG_HEAD + subject + blogTail(flag('palette', BLOG_TINTS)); bytes = await generateFlare(prompt, flag('quality', 'low')); record(`${slug}-hero`, 'GPT Image 2.5 Flare (gpt-image-2.5-flare, 2048x720)', prompt); }
+  else { const prompt = BLOG_HEAD + subject + ' Character designs, identical in every illustration of this series, so draw each one exactly like this: ' + sheet() + blogTail(flag('palette', BLOG_TINTS)); bytes = await generateFlare(prompt, flag('quality', 'low')); record(`${slug}-hero`, 'GPT Image 2.5 Flare (gpt-image-2.5-flare, 2048x720)', prompt); }
   console.log('saved', dest, toJpeg(bytes, dest));
   if (kind === 'blog-post') addPost(slug);
 } else if (kind === 'page-banner') {

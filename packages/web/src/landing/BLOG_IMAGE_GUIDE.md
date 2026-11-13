@@ -73,3 +73,6 @@ appears.
 
 ## Pipeline (owner, 2026-11-13)
 Never ask which model: run `node scripts/landing-art.mjs blog-hero <slug> "<subject sentences>"` from `packages/web`. It uses GPT Image 2.5 Flare at 2048x720 with the prompt above, writes `public/landing/blog/<slug>-hero.jpg` (90% JPEG) and saves the prompt to `design/art/<slug>-hero.prompt.md`. `blog-post <slug> "<subject>"` does the same and also lists a placeholder post first in `blog-posts.js` (card numbers follow publication order, so the first blog is 01; `--palette` swaps the tint sentence). A page header uses `page-banner` (Nano Banana 2.1, 4:1, the warm print collage). A generation costs a few cents. The script header lists the options.
+
+## Characters stay the same (owner, 2026-11-13)
+The look of the White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat is saved once in `design/art/characters.md` and pasted word for word into every `blog-hero`/`blog-post` prompt, so subject sentences only name a character and say what it does. Edit the sheet there to change a character everywhere. The default tint sentence is now cool (sage, powder blue, ochre, lavender, plum); dusty rose appears only on the Rabbit's jacket.
