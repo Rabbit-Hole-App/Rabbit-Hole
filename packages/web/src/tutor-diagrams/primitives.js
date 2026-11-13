@@ -47,6 +47,9 @@ export function widestFormula(text, size = 14) {
   return Math.max(0, ...mathLabel(text).math.filter(run => run.set).map(run => runWidth(run, size)));
 }
 
+const MIN_SIZE = 9;
+const UNSPACED = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}]/u;
+
 function wordParts(word) {
   return word.split(/(?<=[\p{L}\p{N}][-‐])(?=[\p{L}\p{N}])|(?<=\p{L}:)(?=\p{L})/u);
 }
@@ -63,8 +66,20 @@ export function longestWordWidth(text, size = 14) {
   return Math.max(...source.trim().split(/\s+/u).flatMap(wordParts).map(part => measure({ source: part, math }, size)));
 }
 
+// Lines wrap at whitespace only (and after a hyphen or colon); a word is never split across lines (owner rule 2026-11-12, "Predicte / d").
+// A single word wider than its box first costs the label one font step: the lines come back wrapped at size - 1 with fontSize set, and label()
+// draws them at that size. Only a word that still does not fit overflows its box, whole.
+function fitLines(parsed, width, size) {
+  // A formula line is one unit and already scaled to its line: only plain-text lines that are too wide cost the font a step.
+  const tooWide = (value, at) => { const line = mathLabel(value); return !line.math.length && measure(line, at) > width; };
+  let at = size, lines = wrapLabel(parsed, width, at);
+  while (at > MIN_SIZE && lines.some(value => tooWide(value, at))) lines = wrapLabel(parsed, width, --at);
+  if (at !== size) lines.fontSize = at;
+  return lines;
+}
+
 export function wrap(text, width, size = 14) {
-  return wrapLabel(mathLabel(text), width, size);
+  return fitLines(mathLabel(text), width, size);
 }
 
 function wrapLabel({ source, math }, width, size) {
@@ -84,7 +99,8 @@ function wrapLabel({ source, math }, width, size) {
         lines.push(line);
         line = '';
       }
-      // Long identifiers and unspaced scripts still need a bounded line; a formula is one unit.
+      // Only scripts written without spaces, and tokens with no letters (long numbers), break between characters; every other word stays whole (a formula is one unit).
+      if (/\p{L}/u.test(part) && !UNSPACED.test(part) && !part.includes('')) { line += part; continue; }
       for (const char of part.match(/\uE000\d+\uE001|[\s\S]/gu)) {
         if (line && !fits(line + char)) {
           lines.push(line);
@@ -126,16 +142,21 @@ function svgLabel(values, x, y, { size, weight, anchor, fill }) {
   return h('text', { x, y, fill, fontSize: size, fontWeight: weight, textAnchor: anchor }, ...plain);
 }
 
-export function label(lines, x, y, { size = 14, weight = 400, anchor = 'middle', tone = 'ink',
-  fill = tone === 'onFill' ? FILLED_INK : tone === 'muted' ? MUTED : INK, xhtml = false } = {}) {
+export function label(lines, x, y, { size: requested = 14, weight = 400, anchor = 'middle', tone = 'ink',
+  fill = tone === 'onFill' ? FILLED_INK : tone === 'muted' ? MUTED : INK, xhtml = false, fallback = true } = {}) {
+  const size = lines?.fontSize ?? requested; // wrap() sets fontSize when a word needed the font one step smaller
   const values = Array.isArray(lines) ? lines : [lines];
   const step = lineHeight(size);
   const center = index => y + (index - (values.length - 1) / 2) * step;
   const typeset = values.map(value => mathLabel(value)).map(parsed => parsed.math.some(run => run.set) ? parsed : null);
   if (!typeset.some(Boolean)) return svgLabel(values, x, y, { size, weight, anchor, fill });
   const plain = values.map((value, index) => typeset[index] ? null : value);
-  return h('g', null, plain.some(value => value !== null) ? svgLabel(plain, x, y, { size, weight, anchor, fill }) : null,
+  const typesetGroup = h('g', null, plain.some(value => value !== null) ? svgLabel(plain, x, y, { size, weight, anchor, fill }) : null,
     ...typeset.flatMap((parsed, index) => parsed ? [mathLine(parsed, x, center(index), { size, weight, anchor, fill, step, xhtml })] : []));
+  if (!fallback) return typesetGroup;
+  // A viewer that cannot draw the XHTML formula (a standalone SVG, a raster preview) shows the label as readable text instead of dropping it.
+  return h('switch', null, h('g', { requiredExtensions: XHTML }, typesetGroup),
+    h('g', { 'data-explanation-skip': '' }, svgLabel(values.map(nativeLine), x, y, { size, weight, anchor, fill })));
 }
 
 // A formula is one unbreakable run. Reserve its width before wrapping the caption.
@@ -146,27 +167,49 @@ export function fitCaption(scene, caption, gutter, size) {
   return { ...scene, width, elements: [h('g', { transform: `translate(${(width - scene.width) / 2} 0)` }, ...scene.elements)] };
 }
 
-function nativeCaptionMath(expression) {
-  return expression.replace(/(?<!\\)\\log_(?:\{(\d+)\}|(\d))/gu, (_, group, digit) =>
-    ' log' + [...(group ?? digit)].map(value => '₀₁₂₃₄₅₆₇₈₉'[Number(value)]).join(''));
+const SUB = { 0: '₀', 1: '₁', 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉', '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎', a: 'ₐ', e: 'ₑ', i: 'ᵢ', j: 'ⱼ', k: 'ₖ', n: 'ₙ', o: 'ₒ', p: 'ₚ', r: 'ᵣ', s: 'ₛ', t: 'ₜ', x: 'ₓ' };
+const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', n: 'ⁿ', i: 'ⁱ' };
+const SYMBOLS = { le: '≤', leq: '≤', ge: '≥', geq: '≥', ne: '≠', neq: '≠', times: '×', cdot: '·', approx: '≈', pm: '±', in: '∈', sum: 'Σ', infty: '∞', to: '→', rightarrow: '→', alpha: 'α', beta: 'β', theta: 'θ', sigma: 'σ', mu: 'μ', lambda: 'λ', pi: 'π', hat: '', bar: '' };
+// Unicode forms only when every character has one and no two letters touch: n+1 and 2 become ⁿ⁺¹ forms, but a word stays _parent (small letters in a row do not read).
+const script = (text, table) => text && !/\p{L}{2}/u.test(text) && [...text].every(char => table[char]) ? [...text].map(char => table[char]).join('') : null;
+
+// Readable plain text for a formula where the typeset HTML cannot be drawn (a standalone SVG viewer, a raster preview): no backslashes, braces or
+// markup are left in it. Subscripts and exponents use Unicode forms when every character has one, otherwise a plain _x / ^x.
+export function plainMath(expression) {
+  let text = expression;
+  const group = '(?:\\{([^{}]*)\\}|([A-Za-z0-9]))';
+  text = text.replace(/\\(?:mathrm|text|mathbf|operatorname)\{([^{}]*)\}/gu, '$1');
+  text = text.replace(/\\bar\s*\{?([A-Za-z])\}?/gu, '$1\u0305').replace(/\\hat\s*\{?([A-Za-z])\}?/gu, '$1\u0302');
+  text = text.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/gu, '($1)/($2)');
+  text = text.replace(new RegExp('_' + group, 'gu'), (_, braced, single) => { const value = braced ?? single; return script(value, SUB) ?? '_' + value; });
+  text = text.replace(new RegExp('\\^' + group, 'gu'), (_, braced, single) => { const value = braced ?? single; return script(value, SUP) ?? '^' + value; });
+  // A command name with no symbol (log, ln, sin) stays as its name and, like the typeset form, is set apart from what precedes it: p\log_2 p reads "p log₂ p".
+  text = text.replace(/\\([A-Za-z]+)/gu, (_, name, at, whole) => SYMBOLS[name] ?? (at > 0 && !/[\s([]/u.test(whole[at - 1]) ? ' ' + name : name));
+  return text.replace(/[{}]/gu, '').replace(/\\,|\\;|\\!/gu, ' ').replace(/\s+/gu, ' ').trim();
+}
+
+// The label's text with each formula written out by plainMath, one string per line.
+function nativeLine(value) {
+  const parsed = mathLabel(value), { math } = tokenizeMath(value);
+  return parsed.source.replace(new RegExp(SLOT, 'gu'), (_, index) => parsed.math[index].set ? plainMath(math[index].expression) : parsed.math[index].raw);
 }
 
 export function layoutCaption(text, width, size = 13) {
   if (!text) return { height: 0 };
   const parsed = mathLabel(text);
-  const lines = wrapLabel(parsed, width, size);
+  const lines = fitLines(parsed, width, size);
   const hasMath = parsed.math.some(run => run.set);
   let fallback = [];
   if (hasMath) {
     const { math } = tokenizeMath(text);
     const source = parsed.source.replace(new RegExp(SLOT, 'gu'), (_, index) =>
-      parsed.math[index].set ? nativeCaptionMath(math[index].expression) : math[index].raw);
+      parsed.math[index].set ? plainMath(math[index].expression) : math[index].raw);
     fallback = wrapLabel({ source, math: [] }, width, size);
   }
   return {
     height: Math.max(lines.length, fallback.length) * lineHeight(size),
     draw(x, y) {
-      const primary = label(lines, x, y, { size, tone: 'muted', xhtml: hasMath });
+      const primary = label(lines, x, y, { size, tone: 'muted', xhtml: hasMath, fallback: false });
       if (!hasMath) return primary;
       // Standalone SVG viewers without XHTML can show the entire caption as native text.
       return h('switch', null, h('g', { requiredExtensions: XHTML }, primary),
