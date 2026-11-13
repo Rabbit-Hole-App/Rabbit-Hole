@@ -10,6 +10,8 @@ const inp = id => ({ op: 'input', id });
 const bin = (op, left, right) => ({ op, left, right });
 const entity = (id, label, purpose) => ({ id, label, purpose });
 const quantity = (id, label, unit, meaning, reference, relation) => ({ id, label, unit, meaning, reference, ...(relation ? { relation } : {}) });
+// A quantity with the formula a template build computes (interact-formula.js); piecewise as formula while t < switchAt, formulaAfter from switchAt on.
+const withFormula = (q, formula, switchAt, formulaAfter) => ({ ...q, formula, ...(switchAt === undefined ? {} : { switchAt, formulaAfter }) });
 const affects = (...ids) => ids.map(([scope, kind, id]) => ({ scope, kind, id }));
 const tuple = SUPPORTED_PROGRAM_TUPLES.find(t => t.schemaVersion === 1 && t.sdkVersion === 'sdk-2');
 const propsTuple = SUPPORTED_PROGRAM_TUPLES.find(t => t.schemaVersion === 1 && t.sdkVersion === 'sdk-7');
@@ -294,11 +296,11 @@ const massControl = ids => tossControls({ id: 'massControl', label: 'Mass', type
 const seekTop = (markerId, ids) => tossControls({ id: 'atTop', label: 'At top', type: 'seek', purpose: 'Jump to the top of the toss and pause there.', selectionReason: 'The top is the one instant the explanation is about; a button reaches it exactly, which dragging the scrubber does not.', nativeControlId: 'program.seek', binding: { kind: 'marker', id: markerId }, effect: 'Seeks the top marker and pauses.' }, ids);
 const resetTo = (effect, ids) => tossControls({ id: 'resetAll', label: 'Reset experiment', type: 'reset', purpose: 'Return to the defaults.', selectionReason: 'Replay keeps the settings; Reset restores them so the learner can start over.', nativeControlId: 'program.reset', binding: { kind: 'reset' }, effect }, ids);
 const apexQuantities = [
-  quantity('apexTime', 'Time of the top', 's', 'Elapsed time from launch at which the velocity is zero.', 'Elapsed from launch.', 'apexTime = launchSpeed / gravity'),
-  quantity('apexHeight', 'Height of the top', 'm', 'Height of the ball at its top above the launch mark.', 'Measured from the launch mark, up is positive.', 'apexHeight = launchSpeed^2 / (2 * gravity)'),
+  withFormula(quantity('apexTime', 'Time of the top', 's', 'Elapsed time from launch at which the velocity is zero.', 'Elapsed from launch.', 'apexTime = launchSpeed / gravity'), 'launchSpeed / gravity'),
+  withFormula(quantity('apexHeight', 'Height of the top', 'm', 'Height of the ball at its top above the launch mark.', 'Measured from the launch mark, up is positive.', 'apexHeight = launchSpeed^2 / (2 * gravity)'), 'launchSpeed^2 / (2 * gravity)'),
 ];
-const launchSpeedQuantity = quantity('launchSpeed', 'Launch speed', 'm/s', 'Upward speed at the instant of the throw.', 'Measured at the launch mark, up is positive.');
-const gravityQuantity = quantity('gravity', 'Gravitational acceleration', 'm/s^2', 'Magnitude of the constant downward acceleration.', 'Idealized, no air resistance.');
+const launchSpeedQuantity = withFormula(quantity('launchSpeed', 'Launch speed', 'm/s', 'Upward speed at the instant of the throw.', 'Measured at the launch mark, up is positive.'), 'launchSpeed');
+const gravityQuantity = withFormula(quantity('gravity', 'Gravitational acceleration', 'm/s^2', 'Magnitude of the constant downward acceleration.', 'Idealized, no air resistance.'), 'gravity');
 
 function tossReferencePlans(h) {
   const runtime = tossRuntime(h);
@@ -318,8 +320,10 @@ function tossReferencePlans(h) {
       runtime,
       entities: [entity('ball', 'Ball', 'The tossed ball (frame object id ball.toss), an SVG glyph that starts at the launch mark.'), entity('motionArrow', 'Motion arrow', 'Blue arrow showing the signed velocity (frame object id vec.v, labelled v); absent at the top.'), entity('gravityArrow', 'Gravity arrow', 'Dashed warm arrow (frame object id vec.a, labelled a), the same downward length throughout.'), entity('heightGuide', 'Launch-height guide', 'A fixed guide at the launch height on one height scale.')],
       quantities: [launchSpeedQuantity, gravityQuantity, ...apexQuantities,
-        quantity('velocity', 'Vertical velocity', 'm/s', 'Signed rate of change of height, up positive.', 'Zero at the top.', 'velocity = launchSpeed - gravity * t'),
-        quantity('height', 'Height of the ball', 'm', 'Height above the launch mark.', 'Measured from the launch mark, up is positive.', 'height = launchSpeed * t - gravity * t^2 / 2')],
+        withFormula(quantity('velocity', 'Vertical velocity', 'm/s', 'Signed rate of change of height, up positive.', 'Zero at the top.', 'velocity = launchSpeed - gravity * t'), 'launchSpeed - gravity * t'),
+        withFormula(quantity('height', 'Height of the ball', 'm', 'Height above the launch mark.', 'Measured from the launch mark, up is positive.', 'height = launchSpeed * t - gravity * t^2 / 2'), 'launchSpeed * t - gravity * t^2 / 2'),
+        withFormula(quantity('acceleration', 'Vertical acceleration', 'm/s^2', 'Signed rate of change of velocity.', 'Constant -gravity during flight.'), '-gravity')],
+      template: 'one-body', slots: { height: 'height', velocity: 'velocity', acceleration: 'acceleration' },
       observations: [
         { id: 'motionArrow', text: 'The Motion arrow shortens while the ball rises, is absent at the top and points down while it falls.', quantityIds: ['velocity'], readoutIds: ['motionState'] },
         { id: 'gravityConstant', text: 'The gravity arrow keeps the same direction and length, so gravity pulls down at the top too.', quantityIds: [], readoutIds: ['gravityState'] },
@@ -363,12 +367,14 @@ function tossReferencePlans(h) {
       runtime,
       entities: [entity('tossedBall', 'Tossed ball', 'The ball thrown upward from the launch mark in the Toss lane (frame object id ball.toss).'), entity('dropBall', 'Dropped ball', 'The second ball in the Drop lane (frame object id ball.drop), held by the gate until the top.'), entity('gate', 'Release gate', 'Holds the second ball at the apex height, opens at the top.'), entity('velocityArrow', 'Velocity arrow', 'Blue arrow with the signed velocity of each ball (frame object ids vec.v.toss, vec.v.drop).'), entity('accelerationArrow', 'Acceleration arrow', 'Dashed warm arrow with the net acceleration of each ball (frame object ids vec.a.toss, vec.a.drop).')],
       quantities: [launchSpeedQuantity, quantity('gravity', 'Gravitational acceleration', 'm/s^2', 'Magnitude of the constant downward acceleration, the same for both balls.', 'Idealized, no air resistance.'), ...apexQuantities,
-        quantity('tossedVelocity', 'Toss velocity', 'm/s', 'Signed velocity of the tossed ball, up positive.', 'Zero at the top.', 'tossedVelocity = launchSpeed - gravity * t'),
-        quantity('tossedAcceleration', 'Toss acceleration', 'm/s^2', 'Net acceleration of the tossed ball.', 'Constant -gravity during flight.'),
-        quantity('tossedHeight', 'Toss height', 'm', 'Height of the tossed ball above the launch mark.', 'Measured from the launch mark, up is positive.', 'tossedHeight = launchSpeed * t - gravity * t^2 / 2'),
-        quantity('dropVelocity', 'Drop velocity', 'm/s', 'Signed velocity of the second ball: zero while held, then -gravity * (time from the top).', 'Up is positive.'),
-        quantity('dropAcceleration', 'Drop acceleration', 'm/s^2', 'Net acceleration of the second ball: zero while the gate holds it, -gravity after release.', 'Up is positive.'),
-        quantity('dropHeight', 'Drop height', 'm', 'Height of the second ball: the apex height while held, then equal to the tossed ball.', 'Measured from the launch mark, up is positive.')],
+        withFormula(quantity('tossedVelocity', 'Toss velocity', 'm/s', 'Signed velocity of the tossed ball, up positive.', 'Zero at the top.', 'tossedVelocity = launchSpeed - gravity * t'), 'launchSpeed - gravity * t'),
+        withFormula(quantity('tossedAcceleration', 'Toss acceleration', 'm/s^2', 'Net acceleration of the tossed ball.', 'Constant -gravity during flight.'), '-gravity'),
+        withFormula(quantity('tossedHeight', 'Toss height', 'm', 'Height of the tossed ball above the launch mark.', 'Measured from the launch mark, up is positive.', 'tossedHeight = launchSpeed * t - gravity * t^2 / 2'), 'launchSpeed * t - gravity * t^2 / 2'),
+        // The second ball is held until the top (t = launchSpeed / gravity), then falls from rest: the held values before, the free-fall expressions after.
+        withFormula(quantity('dropVelocity', 'Drop velocity', 'm/s', 'Signed velocity of the second ball: zero while held, then -gravity * (time from the top).', 'Up is positive.'), '0', 'launchSpeed / gravity', '-gravity * (t - launchSpeed / gravity)'),
+        withFormula(quantity('dropAcceleration', 'Drop acceleration', 'm/s^2', 'Net acceleration of the second ball: zero while the gate holds it, -gravity after release.', 'Up is positive.'), '0', 'launchSpeed / gravity', '-gravity'),
+        withFormula(quantity('dropHeight', 'Drop height', 'm', 'Height of the second ball: the apex height while held, then equal to the tossed ball.', 'Measured from the launch mark, up is positive.'), 'launchSpeed^2 / (2 * gravity)', 'launchSpeed / gravity', 'launchSpeed * t - gravity * t^2 / 2')],
+      template: 'two-lane', slots: { toss: { height: 'tossedHeight', velocity: 'tossedVelocity', acceleration: 'tossedAcceleration' }, drop: { height: 'dropHeight', velocity: 'dropVelocity', acceleration: 'dropAcceleration' } },
       observations: [
         { id: 'velocityFlips', text: 'The toss velocity reads +0.98, 0.00 and -0.98 m/s at -0.10, 0 and +0.10 s from the top at 9.8 m/s^2.', quantityIds: ['tossedVelocity'], readoutIds: ['tossedVelocity'] },
         { id: 'accelerationConstant', text: 'The toss acceleration stays at -gravity (-9.8 m/s^2 by default) at every instant, including the top.', quantityIds: ['tossedAcceleration'], readoutIds: ['tossedAcceleration'] },
@@ -412,11 +418,12 @@ function tossReferencePlans(h) {
       description: 'Two equal-width scenes side by side in one frame. Left, The motion: a ball (frame object id ball.toss) on a height ruler fixed at 0 to 2.2 m, zero at the launch mark, up positive, with a blue velocity arrow (vec.v), a separate dashed warm acceleration arrow (vec.a) and a callout (callout.toss) beside it reading velocity (m/s), acceleration (m/s^2) and the downward gravitational force (N), plus a state line (Ready to toss, Rising, At the top, Falling, Back at launch height). Right, Velocity over time (frame object id plot.vt): the line v = u - g t on fixed scales 0 to 1.8 s and -5.5 to +5.5 m/s, a blue trace up to the current instant, a linked marker, a faint continuation and an orange local segment labelled with the slope a = -g. Ball, marker and readings move together. No snapshot strip.',
       runtime,
       entities: [entity('ball', 'Ball', 'The tossed ball on the height ruler (frame object id ball.toss).'), entity('velocityArrow', 'Velocity arrow', 'Blue arrow with the signed velocity (frame object id vec.v, labelled v).'), entity('accelerationArrow', 'Acceleration arrow', 'Dashed warm arrow with the constant -gravity (frame object id vec.a, labelled a).'), entity('velocityGraph', 'Velocity-time graph', 'The line v = u - g t with a linked marker and the slope segment (frame object id plot.vt).')],
-      quantities: [launchSpeedQuantity, gravityQuantity, quantity('mass', 'Mass', 'kg', 'Mass of the ball.', 'Does not change the motion.'), ...apexQuantities,
-        quantity('height', 'Height of the ball', 'm', 'Height above the launch mark.', 'Measured from the launch mark, up is positive.', 'height = launchSpeed * t - gravity * t^2 / 2'),
-        quantity('velocity', 'Vertical velocity', 'm/s', 'Signed rate of change of height, up positive.', 'Zero at the top.', 'velocity = launchSpeed - gravity * t'),
-        quantity('acceleration', 'Vertical acceleration', 'm/s^2', 'Slope of the velocity-time line.', 'Constant -gravity.'),
-        quantity('force', 'Gravitational force', 'N', 'Magnitude of the downward force of gravity on the ball.', 'Downward.', 'force = mass * gravity')],
+      quantities: [launchSpeedQuantity, gravityQuantity, withFormula(quantity('mass', 'Mass', 'kg', 'Mass of the ball.', 'Does not change the motion.'), 'mass'), ...apexQuantities,
+        withFormula(quantity('height', 'Height of the ball', 'm', 'Height above the launch mark.', 'Measured from the launch mark, up is positive.', 'height = launchSpeed * t - gravity * t^2 / 2'), 'launchSpeed * t - gravity * t^2 / 2'),
+        withFormula(quantity('velocity', 'Vertical velocity', 'm/s', 'Signed rate of change of height, up positive.', 'Zero at the top.', 'velocity = launchSpeed - gravity * t'), 'launchSpeed - gravity * t'),
+        withFormula(quantity('acceleration', 'Vertical acceleration', 'm/s^2', 'Slope of the velocity-time line.', 'Constant -gravity.'), '-gravity'),
+        withFormula(quantity('force', 'Gravitational force', 'N', 'Magnitude of the downward force of gravity on the ball.', 'Downward.', 'force = mass * gravity'), 'mass * gravity')],
+      template: 'body-plot', slots: { height: 'height', velocity: 'velocity', acceleration: 'acceleration', force: 'force', plotted: 'velocity' },
       observations: [
         { id: 'velocitySamples', text: 'The velocity follows v = u - g t: +0.98, 0.00 and -0.98 m/s at 0.10 s before, at and 0.10 s after the top at 9.8 m/s^2.', quantityIds: ['velocity'], readoutIds: ['velocity'] },
         { id: 'accelerationSlope', text: 'The slope of the velocity line is -gravity at every instant, so the acceleration is nonzero at the top.', quantityIds: ['acceleration'], readoutIds: ['acceleration'] },
@@ -449,5 +456,57 @@ function tossReferencePlans(h) {
     assumptions: ['No air resistance, up is positive.'],
   };
 
-  return { tossOverview, tossStandard, tossDeep };
+  // ---- A fourth plan (brief 7 section 5, family `ledge`): a ball thrown up from a 1.0 m ledge on the Moon. The same one-body template as the Overview, no template code of its own: the
+  // plan's quantities, formulas, ranges and words are everything it adds. Height is measured from the ground, so the ledge is at 1.0 m; the flight ends when the ball is back at ledge height.
+  const moonG = lit(1.62), moonTop = topOf(moonG);
+  const ledgeTossMoon = {
+    ...tossCommon, depth: 'brief',
+    title: 'A ball on the Moon still stops at the top.',
+    story: 'Ana stood on a one-metre ledge at the edge of a moon base and threw a ball straight up. It rose slowly in the weak gravity, paused for an instant at the top, and then drifted back down to the ledge.\n\n"Why does it come down at all?" she asked. "It stopped."\n\nThe ball had stopped rising, but the Moon was still pulling it down, only more gently than Earth does. That pull slowed the ball on the way up and speeded it up on the way down.',
+    cardDescription: 'A ball thrown up from a 1.0 m ledge on the Moon slows, stops for an instant at the top and falls back. Gravity there is only 1.62 m/s^2, so the top comes later and higher.',
+    instructions: 'Change launch speed, then press Play. At the top, playback pauses so you can see the arrows.',
+    learningGoal: 'Say that the Moon still pulls the ball down at the top of its throw, where it is still for an instant.',
+    scene: {
+      description: 'One moving ball on a fixed height scale with a marked ledge at 1.0 m; the scale does not change with the launch speed, so a faster throw visibly rises higher. A blue Motion arrow beside the ball shortens on the way up, is absent at the top and points down on the way back. A separate dashed warm gravity arrow keeps the same direction and length throughout. Beside the ball a callout (frame object id callout.toss) reads Moving up, Still for an instant or Moving down, with Gravity pulls down always shown. The scene starts at launch and runs until the ball is back at ledge height. No second ball, graph, equation, number readout or comparison strip.',
+      runtime,
+      entities: [entity('ball', 'Ball', 'The thrown ball (frame object id ball.toss), an SVG glyph that starts at the ledge.'), entity('motionArrow', 'Motion arrow', 'Blue arrow showing the signed velocity (frame object id vec.v, labelled v); absent at the top.'), entity('gravityArrow', 'Gravity arrow', 'Dashed warm arrow (frame object id vec.a, labelled a), the same downward length throughout.'), entity('heightGuide', 'Ledge guide', 'A fixed guide at the ledge height on one height scale.')],
+      quantities: [
+        withFormula(quantity('launchSpeed', 'Launch speed', 'm/s', 'Upward speed at the instant of the throw.', 'Measured at the ledge, up is positive.'), 'launchSpeed'),
+        withFormula(quantity('gravity', 'Gravitational acceleration', 'm/s^2', 'Magnitude of the constant downward acceleration on the Moon.', 'Fixed at 1.62 m/s^2, no air resistance.'), 'gravity'),
+        withFormula(quantity('apexTime', 'Time of the top', 's', 'Elapsed time from launch at which the velocity is zero.', 'Elapsed from launch.', 'apexTime = launchSpeed / gravity'), 'launchSpeed / gravity'),
+        withFormula(quantity('apexHeight', 'Height of the top', 'm', 'Height of the ball at its top above the ground.', 'Measured from the ground, the ledge is at 1.0 m, up is positive.', 'apexHeight = 1 + launchSpeed^2 / (2 * gravity)'), '1 + launchSpeed^2 / (2 * gravity)'),
+        withFormula(quantity('velocity', 'Vertical velocity', 'm/s', 'Signed rate of change of height, up positive.', 'Zero at the top.', 'velocity = launchSpeed - gravity * t'), 'launchSpeed - gravity * t'),
+        withFormula(quantity('height', 'Height of the ball', 'm', 'Height above the ground.', 'Measured from the ground, the ledge is at 1.0 m, up is positive.', 'height = 1 + launchSpeed * t - gravity * t^2 / 2'), '1 + launchSpeed * t - gravity * t^2 / 2'),
+        withFormula(quantity('acceleration', 'Vertical acceleration', 'm/s^2', 'Signed rate of change of velocity.', 'Constant -gravity during flight.'), '-gravity')],
+      template: 'one-body', slots: { height: 'height', velocity: 'velocity', acceleration: 'acceleration' },
+      observations: [
+        { id: 'motionArrow', text: 'The Motion arrow shortens while the ball rises, is absent at the top and points down while it falls.', quantityIds: ['velocity'], readoutIds: ['motionState'] },
+        { id: 'gravityConstant', text: 'The gravity arrow keeps the same direction and length, so the Moon pulls the ball down at the top too.', quantityIds: ['acceleration'], readoutIds: ['gravityState'] },
+        { id: 'fasterHigher', text: 'A faster throw reaches its top later and higher on the same fixed height scale.', quantityIds: ['apexTime', 'apexHeight', 'height'], readoutIds: [] },
+      ],
+      checkpoints: [
+        { id: 'rising', label: 'Rising', time: bin('multiply', lit(0.5), moonTop), inputOverrides: {}, actions: [], expected: 'Moving up at 1.0 m/s: a short blue Motion arrow up, gravity arrow down.' },
+        { id: 'top', label: 'At the top', time: moonTop, inputOverrides: {}, actions: [], expected: 'Still for an instant at 1.235 s and 2.235 m: no Motion arrow, gravity arrow still down; playback pauses here.' },
+        { id: 'falling', label: 'Falling', time: bin('multiply', lit(1.5), moonTop), inputOverrides: {}, actions: [], expected: 'Moving down at 1.0 m/s: a short blue Motion arrow down, gravity arrow down.' },
+        { id: 'fastTop', label: 'Fastest throw at its top', time: moonTop, inputOverrides: { launchSpeed: 3.0 }, actions: [], expected: 'At 3.0 m/s the top comes at 1.852 s and 3.778 m, higher on the same height scale.' },
+      ],
+      readoutIds: ['motionState', 'gravityState'],
+    },
+    mode: {
+      kind: 'experiment', initialState: 'Launch speed 2.0 m/s; the ball on the 1.0 m ledge, time 0.000 s, paused.', fixedValues: { gravity: 1.62 }, adjustableIds: ['launchSpeed'],
+      timeline: { ...timeline('Time since launch', flightOf(moonG), lit(0), [{ id: 'top', label: 'Top', time: moonTop, pause: true }]), playbackRate: 0.5 }, // about 2.5 wall seconds to the top at 2.0 m/s
+      onInputChange: 'reset_pause',
+    },
+    controls: [
+      playback({ affects: affects(['main', 'entity', 'ball']) }),
+      scrubber('Time since launch', { affects: affects(['main', 'entity', 'ball'], ['main', 'readout', 'motionState']) }),
+      { ...speedControl([['main', 'entity', 'ball'], ['main', 'quantity', 'apexTime'], ['main', 'quantity', 'apexHeight']]), default: 2.0, min: 1.0, max: 3.0 },
+      seekTop('top', [['main', 'entity', 'ball'], ['main', 'readout', 'motionState']]),
+      resetTo('Restores launch speed 2.0 m/s, time 0 and paused.', [['main', 'quantity', 'launchSpeed']]),
+    ],
+    claims: [{ id: 'gravityAtTop', text: 'At the top the velocity is zero and the acceleration is still 1.62 m/s^2 downward, so the Moon keeps pulling.', evidenceIds: ['kinematics_note'], check: 'Differentiate v = u - g t: the slope is -g at every t, including the top.' }],
+    assumptions: ['Gravity fixed at 1.62 m/s^2 (the Moon), no air resistance, up is positive.'],
+  };
+
+  return { tossOverview, tossStandard, tossDeep, ledgeTossMoon };
 }

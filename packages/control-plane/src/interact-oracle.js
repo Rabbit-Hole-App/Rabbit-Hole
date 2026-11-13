@@ -134,7 +134,7 @@ function tossCases(plan, { inputControls, defaults, at, tl }) {
 // The toss plan's cases as { caseId: [inputs, elapsedSeconds] } (the ones its oracle's rows are keyed by), or null when the plan is not one of the three toss plans. bench-expressions.mjs evaluates a model's expressions at them.
 export function tossCasesOf(plan) {
   const options = { brief: { gravity: false, mass: false, offset: 0 }, balanced: { gravity: true, mass: false, offset: -1 }, detailed: { gravity: true, mass: true, offset: 0 } }[plan?.depth];
-  const ref = options && tossReference(plan, plan.depth, options);
+  const ref = (options && tossReference(plan, plan.depth, options)) || ledgeReference(plan);
   return ref ? { cases: tossCases(plan, ref), domains: Object.fromEntries(ref.inputControls.map(c => [c.binding.id, [c.min, c.max]])) } : null;
 }
 
@@ -175,5 +175,30 @@ export function tossDeepOracle(plan) {
   return ref && tossOracle(plan, 'toss-deep', ref, v => ({ height: v.height, velocity: v.velocity, acceleration: -v.g, force: v.m * v.g, apexTime: v.top, apexHeight: v.peak, launchSpeed: v.u, gravity: v.g, mass: v.m }), v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a'], ['vec.F', 'down-or-none', 'F']]);
 }
 
+// ---- The fourth plan, ledge-toss-moon (brief 7 section 5): a ball thrown up from a 1.0 m ledge on the Moon -------------------------------------------------------------------------
+// Height is measured from the ground, so the ledge is at 1.0 m: y = 1 + u t - g t^2 / 2, v = u - g t, a = -g with g = 1.62 fixed, launch speed u in 1.0..3.0 (default 2.0, step 0.1), the top at
+// u / g and the flight ends back at ledge height at 2 u / g; one pause marker, at the top. Like the toss references it exists only for a plan that IS this one (never by guessing).
+const MOON = 1.62, LEDGE = 1;
+
+function ledgeReference(plan) {
+  if (plan?.depth !== 'brief' || plan.mode.kind !== 'experiment' || plan.scene.runtime.renderer !== 'program' || !plan.mode.timeline || plan.supportingVisuals.length) return null;
+  const numbers = plan.controls.filter(c => c.type === 'number' && c.binding.kind === 'input'), tl = plan.mode.timeline;
+  const speed = numbers.find(c => c.binding.id === 'launchSpeed' && c.min === 1 && c.max === 3 && c.default === 2 && Math.abs(c.step - 0.1) < 1e-9);
+  if (!speed || numbers.length !== 1 || plan.mode.fixedValues.gravity !== MOON) return null;
+  const defaults = { launchSpeed: speed.default }, domains = { launchSpeed: [speed.min, speed.max] }, at = (expr, inputs) => evalScalar(expr, inputs, domains);
+  try {
+    for (const u of [2, 1, 3]) {
+      const inputs = { launchSpeed: u }, top = u / MOON, pauses = tl.markers.filter(k => k.pause).map(k => at(k.time, inputs));
+      if (Math.abs(at(tl.end, inputs) - 2 * top) > NEAR || Math.abs(at(tl.displayOffset, inputs)) > NEAR || pauses.length !== 1 || Math.abs(pauses[0] - top) > NEAR) return null;
+    }
+  } catch { return null; }
+  return { inputControls: [speed], defaults, at, gOf: () => MOON, tl };
+}
+
+export function ledgeMoonOracle(plan) {
+  const ref = ledgeReference(plan);
+  return ref && tossOracle(plan, 'ledge-toss-moon', ref, v => ({ velocity: v.velocity, height: LEDGE + v.u * v.t - v.g * v.t * v.t / 2, acceleration: -v.g, apexTime: v.top, apexHeight: LEDGE + v.peak, launchSpeed: v.u, gravity: v.g }), v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a']]);
+}
+
 // The trusted expected values for this plan, or null when no oracle exists for it (the checks then say so).
-export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan) ?? overviewDropOracle(plan) ?? pendulumPeriodOracle(plan) ?? tossOverviewOracle(plan) ?? tossStandardOracle(plan) ?? tossDeepOracle(plan);
+export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan) ?? overviewDropOracle(plan) ?? pendulumPeriodOracle(plan) ?? tossOverviewOracle(plan) ?? tossStandardOracle(plan) ?? tossDeepOracle(plan) ?? ledgeMoonOracle(plan);
