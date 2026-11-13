@@ -321,3 +321,15 @@ test('the response id of a background call is written to inflight.jsonl when the
   const lines = (await readFile(join(dir, 'inflight.jsonl'), 'utf8')).trim().split(NL).map(line => JSON.parse(line));
   assert.deepEqual(lines.map(line => [line.agent, line.responseId, line.mode]), [['author', 'resp_b2', 'background']]);
 });
+
+test('a response id named by several stream events is logged once', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'topic-inflight-once-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const config = configFixture(); config.openai.stream = true;
+  const state = { version: 1, topic: 'decision-trees', calls: [], stages: {}, spendUsd: 0 };
+  const own = createClient({ config, state, topicDir: dir, fetchImpl: async () => sse([{ type: 'response.created', response: { id: 'resp_once' } }, { type: 'response.in_progress', response: { id: 'resp_once' } },
+    { type: 'response.completed', response: { id: 'resp_once', ...openaiBody() } }]) });
+  await own.call('author', { lesson: 'text' }, options);
+  await new Promise(done => setTimeout(done, 50));
+  assert.equal((await readFile(join(dir, 'inflight.jsonl'), 'utf8')).trim().split(NL).length, 1);
+});

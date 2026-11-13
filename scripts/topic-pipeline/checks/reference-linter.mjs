@@ -16,6 +16,35 @@ const DISPLAY_NUMBER_FIELDS = new Set(['title', 'caption', 'label', 'edgeLabel',
 const DIAGRAM_ROOT = 'packages/web/src/tutor-diagrams';
 const MAX_BYTES = 200 * 1024;
 const flag = (id, depth, rule, detail, severity = 'error') => ({ id, depth, rule, detail, severity });
+
+// The linter's rule table (reviewer 2026-11-13): what each numbered rule says in plain words, what it exempts, and one pass and one fail. build-renderer-constraints.mjs writes it into the
+// constraints sheet the author reads, and a test refuses a rule number raised in these checks that has no row here, so the sheet cannot fall behind the linter.
+export const RULES = {
+  1: { name: 'token budget', text: 'Every spec, at every depth of every reference, is at most 300 cl100k_base tokens as compact JSON.',
+    exempt: 'none', pass: 'a 9-node flow with labels of a few words', fail: 'a 12-node flow with a 90-character detail on every node (over 300 tokens): shorten the labels or drop a node' },
+  2: { name: 'prompt, keywords and kind', text: 'Each lesson prompt appears verbatim in the prompts of exactly the reference that answers it; a reference has 2 to 3 lowercase learner keywords of at most 3 words; and the figure is the kind its prompt asks for (the flag names the prompt and both kinds).',
+    exempt: 'on a pre-existing library module this is a warning, on authored files an error', pass: 'prompt 3 asks for a tree and the reference draws a tree', fail: 'prompt 5 asks for a number-line and the reference draws a coordinate-plot (only the reviewer moves a prompt\'s kind)' },
+  3: { name: 'no role words', text: 'A label, heading, detail or item never starts with a role word: parallel, merge, decision, process, terminal, start, end.',
+    exempt: 'a title or a caption may start with one', pass: 'Pick the best split', fail: 'Merge: combine the votes, or Start the loop' },
+  4: { name: 'maths in delimiters', text: 'Every formula, symbol command, superscript or subscript sits inside a complete $…$ span: a backslash command, ^ or _ outside a span, or an unclosed $, fails.',
+    exempt: 'none', pass: 'Slope $m = 2.5$', fail: 'Slope m_1 = 2.5, or x^2 without dollar signs' },
+  5: { name: 'axis names', text: 'Each coordinate-plot axis (x and y) has a label, with its unit, that names a learner quantity. It is never blank, never only x, y, value, values, axis or score, and never contains the words "units" or "48ths" or "7.5°".',
+    exempt: 'none', pass: 'Weight (kg), Squared error, Study time (hours)', fail: 'Residual (y units), MSE (squared y units), Slope (y units per x unit): name the quantity and give a real unit, or no unit' },
+  6: { name: 'numbers from derived()', text: 'Every number shown in a title, caption or label comes from derived() of the data module, so a test can recompute it. The module needs a lesson test that asserts the shown numbers against derived(), and no display string in the module source types a number: build the label from derived().',
+    exempt: 'inside $…$ the exponents, the subscripts and the integers 0, 1 and 2 are formula constants, and a minus sign inside a formula is an operator; on pre-existing modules a missing derived() is a warning', pass: 'a label built from derived(), such as `Step ${d.step}`, where derived() has step', fail: 'a label that types -26.4 when derived() has no -26.4' },
+  7: { name: 'log axis spans two decades', text: 'A coordinate-plot axis with log scale has every series span at least 2 decades (largest value at least 100 times the smallest, smallest above 0).',
+    exempt: 'linear axes', pass: 'values from 1 to 1000', fail: 'values from 3 to 40 on a log axis: use a linear axis' },
+  8: { name: 'one worked reference per kind and prompt', text: 'Two worked references of the same kind must not both be selectable for one prompt.',
+    exempt: 'always a warning, never an error', pass: 'one worked reference plus a shape example', fail: 'two coordinate-plot worked references that both match prompt 4' },
+  9: { name: 'depths', text: 'Each reference has a diagram at all three depths. Brief has fewer rendered elements than Balanced, and Detailed shows at least one number or formula that Balanced does not.',
+    exempt: 'the Brief rule is an error only when Balanced has more than 6 elements (a two-bar chart may equal its Brief); on pre-existing modules rule 9 is a warning', pass: 'Brief 4 elements, Balanced 7, Detailed adds the arithmetic line $0.4 \\times 66$ and a new value', fail: 'Detailed repeats the numbers and formulas of Balanced ("Detailed adds no number or formula beyond Balanced"): add the next step of the arithmetic to Detailed, never a copy' },
+  10: { name: 'illustrative values', text: 'A reference whose values are illustrative (not computed from the toy data) says so: its caption starts with "Illustrative" or the title or caption contains the word.',
+    exempt: 'exact toy-data references', pass: 'Illustrative: loss over 1000 epochs', fail: 'an invented loss curve with a plain caption' },
+  11: { name: 'authored files only', text: 'Authored files are only the topic\'s own: topic-<name>-*.js, .mjs or .json under tutor-diagrams, the topic walkthrough, its docs folder, its figure briefs, its illustrations and the registry. At most 200 KB per file and 40 files; relative imports stay inside that set or trusted existing tutor-diagrams modules; no forbidden text in code.',
+    exempt: 'none', pass: 'topic-linear-regression-references.js', fail: 'an edit to a library file such as spec.js or to scripts/' },
+  12: { name: 'no word broken in a preview', text: 'At the preview widths (408, natural and 960) a label line never ends inside a word: lines wrap only at spaces.',
+    exempt: 'none', pass: 'Average the squared gaps wraps after a space', fail: 'a long unbroken word in a narrow node, such as a 20-letter name: shorten the label or use a wider element' },
+};
 const learnerKeyword = value => typeof value === 'string' && value.trim() && value === value.toLowerCase() && value.trim().split(/\s+/u).length <= 3;
 function hasLearnerKeywords(reference) {
   return (Array.isArray(reference.shortKeywords) && reference.shortKeywords.length >= 2 && reference.shortKeywords.length <= 3 && reference.shortKeywords.every(learnerKeyword))

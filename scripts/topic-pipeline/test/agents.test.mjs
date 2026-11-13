@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import Ajv from 'ajv';
 import sharp from 'sharp';
 import { run as promptsStage } from '../stages/01-prompts.mjs';
-import { run as verifyStage } from '../stages/04-verify.mjs';
+import { run as verifyStage, verifyBatch, previousRound } from '../stages/04-verify.mjs';
 import { run as auditStage } from '../stages/07-audit.mjs';
 import { promptsSchema, verifySchema, auditSchema, createAuthorSchema, validateAuthorFiles } from '../schemas.mjs';
 
@@ -91,4 +91,43 @@ test('stage 04 runs its verifier batches in parallel and keeps the verdicts in b
   const ids = JSON.parse(await readFile(join(topicDir, 'verify.human.json'), 'utf8')).figures.map(row => row.id);
   assert.equal(ids.length, 28);
   assert.deepEqual(ids, [...ids].sort((a, b) => (a.endsWith('@c3e40994') - b.endsWith('@c3e40994')) || a.localeCompare(b)), 'verdicts keep the order the references were read in');
+});
+
+test('a repair round verifies only the changed references and keeps the verdicts of the unchanged ones', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'topic-verify-repair-'));
+  const topicDir = join(root, 'linear-regression'), previewDir = join(topicDir, 'author', 'previews');
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="408" height="120"><text x="10" y="30">count 1</text></svg>';
+  const write = async (id, title) => {
+    const directory = join(previewDir, id); await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, 'spec.json'), JSON.stringify({ version: 1, diagram: { kind: 'tree', title, nodes: [{ id: 'a', label: 'one row' }] } }, null, 2));
+    await writeFile(join(directory, '408.svg'), svg);
+  };
+  await write('ml-lr-a', 'count 1'); await write('ml-lr-b', 'count 2');
+  const sent = [];
+  const ctx = { topic: 'linear-regression', topicDir, config: { paths: { sourceRoot: root } },
+    call: async (agent, inputs) => { sent.push(inputs.figures.map(row => row.id)); return { topic: 'linear-regression', figures: inputs.figures.map(row => ({ id: row.id, verdict: row.id === 'ml-lr-b' ? 'fix' : 'ship', reasons: [], layer: 'label' })) }; } };
+  const first = await verifyBatch(ctx, [previewDir], {}, 'round-1', null);
+  assert.deepEqual(sent, [['ml-lr-a', 'ml-lr-b']]);
+  assert.equal(first.reused, 0);
+  await write('ml-lr-b', 'count 3');   // the repair changed B only
+  const second = await verifyBatch(ctx, [previewDir], {}, 'round-2', await previousRound(ctx, 1));
+  assert.deepEqual(sent.slice(1), [['ml-lr-b']], 'only the changed reference is sent');
+  assert.equal(second.reused, 1);
+  assert.deepEqual(second.result.figures.map(row => [row.id, row.verdict]), [['ml-lr-a', 'ship'], ['ml-lr-b', 'fix']], 'verdicts keep the reference order, the unchanged one carried over');
+  const third = await verifyBatch(ctx, [previewDir], {}, 'round-3', await previousRound(ctx, 2));
+  assert.equal(third.reused, 2, 'nothing changed: no call');
+  assert.equal(sent.length, 2);
+});
+
+test('the human calibration runs once per topic: a recorded verify.human.json is reused', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'topic-verify-calibration-'));
+  const topicDir = join(root, 'decision-trees'), fixtureDir = join(topicDir, 'fixture');
+  await mkdir(fixtureDir, { recursive: true });
+  await writeFile(join(topicDir, 'verify.human.json'), JSON.stringify({ topic: 'decision-trees', figures: [{ id: 'ml-trees-test', verdict: 'ship', reasons: [], layer: 'label' }] }));
+  let calls = 0;
+  const ctx = { topic: 'decision-trees', topicDir, fixtureDir, fixture: true, config: { paths: { sourceRoot: root } }, call: async () => { calls++; throw new Error('no provider call expected'); } };
+  const result = await verifyStage(ctx);
+  assert.equal(result.status, 'ok');
+  assert.equal(calls, 0);
+  assert.match(result.notes, /1 ship, 0 fix/u);
 });

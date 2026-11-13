@@ -162,7 +162,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
       let response, payload;
       let transportFailed = false, responseId;
       // The response id is recorded the moment the provider names it (inflight.jsonl), so a call that never returns can still be reconciled from the stored response.
-      const note = id => { responseId = id; appendFile(join(topicDir, 'inflight.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), agent, attempt, responseId: id, mode: body.stream ? 'stream' : 'background' })}\n`).catch(() => {}); };
+      const note = id => { if (responseId === id) return; responseId = id; appendFile(join(topicDir, 'inflight.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), agent, attempt, responseId: id, mode: body.stream ? 'stream' : 'background' })}\n`).catch(() => {}); };
       try {
         response = await fetchImpl(settings.endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
         if (body.stream === true && response.ok) payload = await readStream(response, id => note(String(id).slice(0, 100)));
