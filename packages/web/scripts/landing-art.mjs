@@ -1,8 +1,9 @@
 // Landing-page art pipeline: one command per kind of picture, with the model, size, prompt template and output path fixed
 // (owner, 2026-11-13: never ask which image model). Only the subject changes.
 //
-//   node scripts/landing-art.mjs blog-hero <slug> "<subject sentences>" [--palette "<tint sentence>"] [--quality low|medium|high] [--from <png>]
-//     --palette replaces the default tint sentence (the colours of the foliage, roses, mushrooms, coats); keep it inside the guide palette.
+//   node scripts/landing-art.mjs blog-hero <slug> "<subject sentences>" [--scene <name>] [--palette <name>] [--quality low|medium|high] [--from <png>]
+//     --scene / --palette take a name from design/art/scenes.md / palettes.md (or free text); left out, the first one no earlier hero used is picked, so
+//     every post gets a new background and colour scheme. The characters come from design/art/characters.md and the reference plate.
 //     GPT Image 2.5 Flare, 2048x720, the Wonderland engraving of BLOG_IMAGE_GUIDE.md -> public/landing/blog/<slug>-hero.jpg
 //   node scripts/landing-art.mjs blog-post <slug> "<subject sentences>" [same options]
 //     blog-hero, then also lists a placeholder post first in src/landing/blog-posts.js. Card numbers follow publication order automatically.
@@ -32,10 +33,31 @@ const sheet = () => {
   const text = fs.readFileSync(path.join(WEB, 'design/art/characters.md'), 'utf8');
   return text.slice(text.indexOf('## Sheet') + '## Sheet'.length).trim().split(/\r?\n/).join(' ');
 };
-const REF_NOTE = `The attached image is the reference plate of this illustration series. Draw a completely NEW scene, but draw the White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat exactly as they look in the reference plate: the same faces, hair, clothes, proportions, colours and engraved manner. Take ONLY the characters from the plate: its scenery colours are not wanted. Everything that is not a character must be drawn in a cool, calm palette of sage and moss green, powder blue, pale lavender, plum-grey and warm ochre with cream; every mushroom cap is ochre or pale cream-tan with cream spots (never red or terracotta), the roses are cream-white, the hedges, flowers and sky have no pink or red cast, and the only red-pink in the whole picture is the White Rabbit's jacket. Do not copy the reference plate's composition. `;
+const REF_NOTE = `The attached image is the reference plate of this illustration series. Draw a completely NEW scene, but draw the White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat exactly as they look in the reference plate: the same faces, hair, clothes, proportions, colours and engraved manner. Take ONLY the characters from the plate: its scenery, setting and scenery colours are not wanted. Draw the setting and the colours exactly as described below. Do not copy the reference plate's composition. `;
 const BLOG_HEAD = `Hand-drawn illustration in the style of a 19th-century book engraving, in the spirit of Tenniel's 1865 illustrations for Alice's Adventures in Wonderland and not the Disney designs, loose cross-hatching, slightly faded as if printed decades ago. A full panoramic Wonderland scene that fills the whole canvas edge to edge with no empty margins. In the foreground, grouped within the middle 55% of the width and all on one ground line: `;
-const BLOG_TINTS = `pale sage and moss greens in the foliage and hedges, cream-white roses shaded with pale plum, soft powder blue (#A9BCCB) across the sky and distant hills, warm muted ochre (#D8C08C) on the tea table and the mushroom caps, cream and pale sage on the toadstools, the playing cards drawn in plum ink with at most a faint touch of dusty rose, a faded slate blue-grey for any chalkboard with pale chalk lines; the characters keep exactly the colours of their sheet; no red and no strong pink anywhere except the White Rabbit's dusty-rose jacket`;
-const blogTail = tints => ` Behind them, a rich layered Wonderland receding into the distance, drawn in finer, lighter, fainter hatching so the foreground figures stand clearly forward: an overgrown garden of tall rose hedges and twisting old trees, a mad tea-party table set with teapots and cups, playing-card soldiers standing guard, giant mushrooms and oversized flowers, a grandfather clock among the trees, a tiny locked door at the foot of a great tree, hanging oil lamps, playing cards drifting through the air, and a distant castle with a checkerboard floor, with the dark mouth of a rabbit hole between tree roots near the right edge. Hand-coloured in soft, muted, washed-out watercolour tints laid over the ink line work, like a faded vintage hand-tinted book plate: ${tints}, off-white paper #F4F3EF and deep plum ink #3D2A5C for the line work. Low saturation, low contrast, matte, subtle paper grain, no pure black and no pure white anywhere. No text, no lettering, no numbers anywhere. A very wide panoramic strip, about 2.85 times wider than tall (16:5.6): compose every figure, including the Cheshire Cat on its bough, and the whole scene inside this wide low frame, with nothing cropped.`;
+// Scenes and palettes live in design/art/scenes.md and palettes.md. --scene / --palette take a saved name or free text; without them the first
+// one no earlier hero used is picked (each hero's prompt record names them), so no two posts share a background or a colour scheme.
+const listOf = file => {
+  const text = fs.readFileSync(path.join(WEB, 'design/art', file), 'utf8').replace(/\r\n/g, '\n');
+  const body = text.slice(text.search(/^## (Scenes|Palettes)$/m)).split('\n').slice(1);
+  return Object.fromEntries(body.filter(l => /^[a-z-]+: /.test(l)).map(l => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 2)]));
+};
+const usedBy = (label, seed, skipSlug) => {
+  const dir = path.join(WEB, 'design/art'), used = new Set([seed]);
+  for (const f of fs.readdirSync(dir)) {
+    if (!f.endsWith('-hero.prompt.md') || f === `${skipSlug}-hero.prompt.md`) continue;
+    const m = fs.readFileSync(path.join(dir, f), 'utf8').match(new RegExp(`^${label}: (\S+)`, 'm'));
+    if (m) used.add(m[1]);
+  }
+  return used;
+};
+const pick = (label, given, file, seed, skipSlug) => {
+  const all = listOf(file);
+  if (given) return all[given] ? [given, all[given]] : ['custom', given];
+  const name = Object.keys(all).find(n => !usedBy(label, seed, skipSlug).has(n)) ?? Object.keys(all)[0];
+  return [name, all[name]];
+};
+const blogTail = (scene, palette) => ` Behind them, a rich layered Wonderland setting receding into the distance, drawn in finer, lighter, fainter hatching so the foreground figures stand clearly forward: ${scene}. Draw only the characters named above. Hand-coloured in soft, muted, washed-out watercolour tints laid over the ink line work, like a faded vintage hand-tinted book plate: ${palette}; the characters keep exactly the colours of their sheet; no pink or red cast anywhere in the scenery, and the only red-pink in the whole picture is the White Rabbit's dusty-rose jacket; off-white paper #F4F3EF and deep plum ink #3D2A5C for the line work. Low saturation, low contrast, matte, subtle paper grain, no pure black and no pure white anywhere. No text, no lettering, no numbers anywhere. A very wide panoramic strip, about 2.85 times wider than tall (16:5.6): compose every named figure and the whole scene inside this wide low frame, with nothing cropped.`;
 const AMBER = 'pale warm amber-gold paper ground around #f0cf85, saturated amber #e8962a plates, one or two burnt-orange #d9531e strips, deep brown-black ink, small cream and soft ochre blocks. Grayscale technical drawings partly cross the colour blocks. No blue, no green, no pink.';
 const bannerPrompt = (page, subject, palette) => `Use case: stylized-concept. Asset type: original panoramic header artwork for the ${page} page of Rabbit Hole, an adaptive learning platform. Return the artwork alone.
 Create one very wide abstract technical print collage in the language of an old scanned engineering journal mixed with experimental risograph publishing: thin irregular black ink, rough halftone, broken little numerals, overlapping translucent colour plates, stark oversized crops, flat economical shapes, visible paper grain.
@@ -80,7 +102,7 @@ function toJpeg(bytes, dest, width) {
   fs.rmSync(tmp, { force: true });
   return r.stdout.trim();
 }
-function record(name, model, prompt) {
+function record(name, model, prompt, extra = '') {
   const file = path.join(WEB, 'design/art', `${name}.prompt.md`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `# ${name}\n\nGenerated ${new Date().toISOString().slice(0, 10)} with ${model} by scripts/landing-art.mjs.\n\n## Prompt\n\n${prompt}\n`);
@@ -119,7 +141,14 @@ if (kind === 'blog-hero' || kind === 'blog-post') {
   const dest = path.join(WEB, 'public/landing/blog', `${slug}-hero.jpg`);
   let bytes;
   if (from) bytes = fs.readFileSync(from);
-  else { const ref = process.argv.includes('--no-ref') ? null : path.join(WEB, 'design/art/characters-reference.jpg'); const prompt = (ref ? REF_NOTE : '') + BLOG_HEAD + subject + ' Character designs, identical in every illustration of this series, so draw each one exactly like this: ' + sheet() + blogTail(flag('palette', BLOG_TINTS)); bytes = await generateFlare(prompt, flag('quality', 'low'), ref); record(`${slug}-hero`, 'GPT Image 2.5 Flare (gpt-image-2.5-flare, 2048x720)', prompt); }
+  else {
+    const ref = process.argv.includes('--no-ref') ? null : path.join(WEB, 'design/art/characters-reference.jpg');
+    const [sceneName, scene] = pick('Scene', flag('scene'), 'scenes.md', 'garden', slug), [paletteName, palette] = pick('Palette', flag('palette'), 'palettes.md', 'rose', slug);
+    const prompt = (ref ? REF_NOTE : '') + BLOG_HEAD + subject + ' Character designs, identical in every illustration of this series, so draw each one exactly like this: ' + sheet() + blogTail(scene, palette);
+    bytes = await generateFlare(prompt, flag('quality', 'low'), ref);
+    record(`${slug}-hero`, 'GPT Image 2.5 Flare (gpt-image-2.5-flare, 2048x720)', prompt, `Scene: ${sceneName}\nPalette: ${paletteName}\n\n`);
+    console.log('scene', sceneName, '| palette', paletteName);
+  }
   console.log('saved', dest, toJpeg(bytes, dest));
   if (kind === 'blog-post') addPost(slug);
 } else if (kind === 'page-banner') {
