@@ -224,13 +224,13 @@ export const INTERACT_REVIEW_RULES = `This is the COMPLETE learner card built fr
 - Check the order Title, description, supporting panels, scene, transport, controls; that the scene sits directly above its transport; and that NO explanatory text, caption, note or takeaway appears below any scene or below the controls. Fail a card that has one.
 - Check the displayed time against the plan's timeline (its origin and range), that signs, units and directions match the plan's quantities, and that the drawing and its readouts agree with the traced quantities.
 - Check the description against the Story for meaning and any scientific qualification, and flag a number in the description that the plan does not support.
-- A required observation or control effect you cannot judge from what you were shown is a finding, not a pass.`;
+- A required observation or control effect you cannot judge from what you were shown is a finding, not a pass. A readout or label that contradicts the card's own claim (for example 'a = 0' on a card whose claim is that the acceleration is -9.8 m/s^2 at v = 0) is a major finding unless the scene says why.`;
 
 export const INTERACT_REVIEW_RULES_PARTIAL = `This is NOT the composed card. The render service cannot yet draw the whole card in one image, so each capture is ONE panel (the main scene at the state named, or a supporting panel's read-only snapshot) and the card's order and text are given as trusted text. You did not see the Title, the description, the transport or the controls as pixels: do not claim you did, and judge their order from the layout text only.
 - For every required observation and every approved checkpoint, find the capture that shows it and say whether it does; a checkpoint's expected text is the claim to verify, and the traces give the exact numbers.
 - Check that each panel's drawing and readouts agree with its traced quantities, that signs, units and directions match the plan's quantities, and that no scene draws the Story or the description as text.
 - Check the displayed time range in the layout text against the plan's timeline, and the description against the Story for meaning and any scientific qualification; flag a number in the description that the plan does not support.
-- A required observation or control effect you cannot judge from what you were shown is a finding, not a pass.`;
+- A required observation or control effect you cannot judge from what you were shown is a finding, not a pass. A readout or label that contradicts the card's own claim (for example 'a = 0' on a card whose claim is that the acceleration is -9.8 m/s^2 at v = 0) is a major finding unless the scene says why.`;
 
 // The trusted composed layout as text, for the reviewer of a partial capture: what the learner sees top to bottom, from the composition (never from a model).
 // A timeline whose end, offset or markers are expressions of an input is recomputed by the card for every input state (resolveTimeline); say so, with the range at each bound, so the

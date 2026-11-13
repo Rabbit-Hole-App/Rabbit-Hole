@@ -3,7 +3,7 @@
 // D's (explain-review.js), a separate call that never sees the author's reasoning.
 import { LIMITS as RUNTIME_LIMITS } from '../../../web/src/explain-program/limits.js';
 import { CONTRACT_LIMITS, STATEFUL_CONTRACT } from '../../../web/src/explain-program/contract.js';
-import { RASTER_CAPABILITY, CYCLIC_CAPABILITY, MEDIUM_CAPABILITY } from '../../../web/src/explain-program/stamps.js';
+import { RASTER_CAPABILITY, CYCLIC_CAPABILITY, MEDIUM_CAPABILITY, PROPS_CAPABILITY } from '../../../web/src/explain-program/stamps.js';
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
 
@@ -222,7 +222,12 @@ export function programContext(limits, capabilities, { stateful = false, repair 
         geometry: 'sdk.geometry(id, {x,y,w,h,xDomain:[min,max],yDomain:[min,max],points?:[{id,at:[x,y],label?,role?}],segments?,vectors?,paths?}). Segments and vectors are {id,from:[x,y],to:[x,y],label?,role?}; paths are {id,points:[[x,y],...],role?}. Use equal pixels per unit for distances and angles.',
         timeline: 'sdk.timeline(id, {x,y,w,h,domain:[min,max],lanes:[{id,label,events:[{id,at,label,role?}]}],cursor?,unit?}) for ordered events with a cursor in domain units',
         readout: 'sdk.readout(id, {x,y,w,h,label,value,unit?,decimals?,role?}) for a formatted number inside the scene. Keep manifest readouts for values shown below the scene.',
-      }, ...(!repair && capabilities?.includes(MEDIUM_CAPABILITY) ? { medium: {
+      }, ...(!repair && capabilities?.includes(PROPS_CAPABILITY) ? { props: { // authoring only, like the other extension docs (the repair request's size budget)
+        usage: 'Declare props in manifest.capabilities when using these helpers. Each returns an ARRAY of frame objects in frame coordinates (y down): spread it into frame.objects.',
+        vector: 'sdk.vector(id, {x,y}, {value, direction:"up"|"down"|"left"|"right"|{x,y}} or {dx,dy}, {scale?, minLength?:12, label?, role?}) draws value x scale pixels from the point: an arrow from minLength up, a plain line below it, nothing at zero, and with label a text just past the tip. Use it for every velocity, acceleration and force arrow.',
+        gate: 'sdk.gate(id, x, y, {open, w?:36, label?}) is a release gate centred on x: two strokes flat when closed, swung down when open, its label below them.',
+        groundMark: 'sdk.groundMark(id, x, y, w, label?) is a horizontal mark centred on x with its label below it.',
+      } } : {}), ...(!repair && capabilities?.includes(MEDIUM_CAPABILITY) ? { medium: {
         usage: 'Declare medium_visuals in manifest.capabilities when using one of these helpers. Use existing controls or state and spread the returned objects into frame.objects.',
         trace: 'sdk.trace(id,{x,y,w,h,domain:[min,max],unit?,lanes:[{id,label,spans:[{id,label,start,end,role?,detail?,parent?,dependsOn?:[id]}]}],cursor?,selected?}) for up to 12 time spans. Use original trace records when supplied; identify simulated traces.',
         field: 'sdk.field(id,{x,y,w,h,kind:"contour"|"vector",xDomain,yDomain,xLabel,yLabel,xUnit,yUnit,valueLabel,valueUnit,sample:(x,y)=>number|[u,v],samples?,levels?,maxMagnitude?}). Contours need levels; vectors need a fixed maxMagnitude. Use empty units for dimensionless axes.',
@@ -295,5 +300,5 @@ Rules:
 - Time: evaluate receives elapsed seconds from 0 and must not draw a clock of its own. manifest.duration is the LONGEST endpoint over the whole input range (timeline.durationSeconds); manifest.timeline carries label, displayOffset, playbackRate and markers exactly as timeline gives them for the default inputs. Compute positions from the elapsed time and the inputs only, so the same time gives the same picture however fast it plays; playbackRate paces the wall clock only. The held, released or compared objects must agree at every time you are asked about, including time 0.
 - Numbers: compute every quantity from its equation in the program, in the plan's units and sign convention (up positive when the plan says so). Report each quantity named in scene.quantities that an observation uses, and each scene.readoutIds entry, in the returned quantities and frame.readouts under the plan's own id, from the same variables that draw the picture, so the drawing and the numbers cannot disagree. Every readout id and every named quantity is emitted at EVERY time and input state as a finite number, never null, a string or absent: one the plan ties to a single moment (for example the velocity 0.1 s before the top) is still reported at every time, as its own constant value. Show learner-facing measurements inside the scene (text objects) or in a declared readout; never in a footer.
 - Stay in program.limits, use only the program.sdk helpers, keep one idea per card, no import statements, no network, no hash, version, permission or limit fields. Do not copy any example wording.
-- ${MANIFEST_LIMITS_TEXT} Keep every frame at most 1120 x 860 pixels (the default is 960 x 540): the reviewer receives each capture as an image. Declare the frame 640 wide by 400 to 440 high (schema 2: 640 x 420), text at or above the floors (body 15 px, heading 17 px, display 20 px), so the card is never scaled up.
+- ${MANIFEST_LIMITS_TEXT} Keep every frame at most 1120 x 860 pixels (the default is 960 x 540): the reviewer receives each capture as an image. Declare the frame 640 wide by 400 to 440 high (schema 2: 640 x 420), text at or above the floors (body 15 px, heading 17 px, display 20 px), so the card is never scaled up. When the panel's runtime lists the props capability (sdk-7), draw every velocity, acceleration or force arrow with sdk.vector (its label comes with it, just past the tip) and a release gate with sdk.gate; never place a label at a fixed offset from an arrow's tail.
 Call ${INTERACT_BUILD_TOOL_NAME} exactly once.`;

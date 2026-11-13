@@ -12,6 +12,7 @@ const entity = (id, label, purpose) => ({ id, label, purpose });
 const quantity = (id, label, unit, meaning, reference, relation) => ({ id, label, unit, meaning, reference, ...(relation ? { relation } : {}) });
 const affects = (...ids) => ids.map(([scope, kind, id]) => ({ scope, kind, id }));
 const tuple = SUPPORTED_PROGRAM_TUPLES.find(t => t.schemaVersion === 1 && t.sdkVersion === 'sdk-2');
+const propsTuple = SUPPORTED_PROGRAM_TUPLES.find(t => t.schemaVersion === 1 && t.sdkVersion === 'sdk-7');
 
 const programRuntime = catalogueHash => ({ renderer: 'program', schemaVersion: tuple.schemaVersion, sdkVersion: tuple.sdkVersion, programTuple: tuple, requiredHelpers: [], requiredCapabilities: ['time_playback'], catalogueHash });
 const specRuntime = catalogueHash => ({ renderer: 'spec', schemaVersion: 1, sdkVersion: null, programTuple: null, requiredHelpers: [], requiredCapabilities: [], catalogueHash });
@@ -236,6 +237,8 @@ export async function interactFixtures() {
     supportingVisuals: [],
     scene: {
       ...standard.scene,
+      // The physical-props SDK (sdk-7, capability props): sdk.vector, sdk.gate and sdk.groundMark are offered to the builder for this card.
+      runtime: { ...programRuntime(h), sdkVersion: propsTuple.sdkVersion, programTuple: propsTuple, requiredCapabilities: ['time_playback', 'props'] },
       description: 'A tossed ball rises from a launch mark and falls; a second ball is held by a release gate until the apex instant. Up is positive and both share one height scale. A velocity arrow and an acceleration arrow sit on each ball and update with the scrubber; the launch speed moves the apex.',
       entities: [...standard.scene.entities, entity('velocityArrow', 'Velocity arrow', 'Shows the signed velocity of each ball; shrinks to a dot at the top.'), entity('accelerationArrow', 'Acceleration arrow', 'Shows the constant -9.8 m/s^2 on each ball.')],
       quantities: [...standard.scene.quantities, quantity('height', 'Height of the tossed ball', 'm', 'Height of the tossed ball above the launch mark.', 'Measured from the launch mark, up is positive.', 'height = launchSpeed * t - gravity * t^2 / 2')],

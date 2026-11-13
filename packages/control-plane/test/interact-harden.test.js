@@ -11,7 +11,7 @@ import { InteractModelError, INTERACT_LIMITS, INTERACT_ROLES } from '../src/inte
 import { normalizeStructured } from '../src/interact-model-adapters.js';
 import { buildScene, buildSchema, schemaOptions, validateBuildOutput } from '../src/interact-build.js';
 import { REVIEW_TOOL } from '../src/explain-review.js';
-import { lenientFindingText, checkRound, repairRound } from '../src/interact-checks.js';
+import { lenientFindingText, checkRound, repairRound, INTERACT_REVIEW_RULES, INTERACT_REVIEW_RULES_PARTIAL } from '../src/interact-checks.js';
 import { fixtureCaptureCard, fixtureContext, fixtureScript } from '../src/interact-fixtures.js';
 
 const { capabilities, plans } = await interactFixtures();
@@ -43,6 +43,8 @@ test('every length, count and range limit of the program manifest is stated in b
   }
   for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.ok(system.includes(MANIFEST_LIMITS_TEXT), 'both build prompts carry the manifest limits');
   for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.match(system, /Declare the frame 640 wide by 400 to 440 high.*body 15 px, heading 17 px, display 20 px.*never scaled up/, 'the card is authored at its target size (a live card declared 1120 x 590)');
+  for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.match(system, /props capability \(sdk-7\).*sdk\.vector.*sdk\.gate.*never place a label at a fixed offset from an arrow's tail/, 'vectors and gates come from the helpers, labels never from the tail');
+  for (const rules of [INTERACT_REVIEW_RULES, INTERACT_REVIEW_RULES_PARTIAL]) assert.match(rules, /contradicts the card's own claim.*major finding unless the scene says why/);
   assert.match(INTERACT_REPAIR_SYSTEM, /no longer calls an approved helper.*changing the arguments you pass to that helper/, 'a repair keeps calling the approved helpers (a live run lost three rounds to helper_missing)');
   for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.match(system, /emitted at EVERY time and input state as a finite number, never null, a string or absent/, 'a live run lost three rounds to readouts that were null or missing at some states');
   assert.ok(STATEFUL_MANIFEST_PROPERTIES.viewport, 'the stateful extras are exported for the prompt');
