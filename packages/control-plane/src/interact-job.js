@@ -12,8 +12,9 @@ import { resolveSupportInputs, verifyComposition } from '../../web/src/interact-
 import { capabilityGap } from './explain-author.js';
 import * as explainRender from './explain-render.js';
 import { buildScene } from './interact-build.js';
-import { CHECK_LIMITS, buildPlanCaptureCases, captureAndCheck, headlessCaptureCard, repairRound, reviewCandidate } from './interact-checks.js';
+import { CHECK_LIMITS, buildPlanCaptureCases, captureAndCheck, clockMs, headlessCaptureCard, repairRound, reviewCandidate, round1 } from './interact-checks.js';
 import { interactOracle } from './interact-oracle.js';
+import { buildTemplate, templateGate } from './interact-template.js';
 import { steerBuild, triageFailure } from './interact-steer.js';
 import { learnMedia } from './learn-storage.js';
 
@@ -36,6 +37,11 @@ export const undeliverable = plan => {
 export async function buildStage(job, ctx) {
   const problem = undeliverable(job.design.plan);
   if (problem) return { gap: capabilityGap(['other'], problem, 'builder') };
+  // INTERACT_BUILD_KIND=template and a plan that names a template: the program is generated from the plan, no build_author call (interact-template.js). A gate that does not pass logs why and the
+  // model build below runs as before; `ms.gen` is the generate, seal and compose body time, measured with the monotonic clock.
+  const gate = templateGate(ctx.env, job.design.plan);
+  if (gate?.ok) { const at = clockMs(), built = await buildTemplate(planJob(job, ctx), ctx.role); return { ...outcome(built), template: true, ms: { gen: round1(clockMs() - at) } }; }
+  if (gate) { job.build.templateFallback = gate.reason; console.log(JSON.stringify({ event: 'interact_template_skipped', job: job.id, reason: gate.reason })); }
   // INTERACT_STEER=jev (off by default: steerBuild answers null without a request): the JEV steer narrows the authoring docs; its time is the ledger's msSteer. Any failure is null and the build is unchanged.
   const steer = await steerBuild(ctx.env, job.design.plan);
   if (steer) job.timing.steerMs = steer.ms;
@@ -44,11 +50,11 @@ export async function buildStage(job, ctx) {
 const outcome = r => (r.gap ? { gap: r.gap } : r.problems ? { problems: r.problems, details: r.details, category: 'spec', repairable: true, draft: r.draft } : { artifacts: r.artifacts, composition: r.composition, draft: r.draft });
 
 export async function validateStage(job, ctx) {
-  const { artifacts, composition } = ctx.build;
-  const j = planJob(job, ctx), intact = await verifyComposition(composition, artifacts);
-  if (intact.length) return { problems: intact.map(p => `${p.path}: ${p.message}`), category: 'spec', repairable: true };
-  if (composition.planHash !== j.planHash) return { problems: ['the composition is not the approved plan\'s'], category: 'spec', repairable: true };
-  return {};
+  const at = clockMs(), { artifacts, composition } = ctx.build;
+  const j = planJob(job, ctx), intact = await verifyComposition(composition, artifacts), ms = { validate: round1(clockMs() - at) }; // the body time, without the alarm hop before the stage (the ledger's template rows)
+  if (intact.length) return { problems: intact.map(p => `${p.path}: ${p.message}`), category: 'spec', repairable: true, ms };
+  if (composition.planHash !== j.planHash) return { problems: ['the composition is not the approved plan\'s'], category: 'spec', repairable: true, ms };
+  return { ms };
 }
 
 // The stored capture records hold the pixels' key and hash and the runtime traces, never bytes; the review reads the bytes back from LEARN_MEDIA by key.

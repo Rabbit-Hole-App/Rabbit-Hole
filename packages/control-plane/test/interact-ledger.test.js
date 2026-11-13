@@ -91,7 +91,7 @@ test('ledger.md renders the run-15 row under the same columns', () => {
   assert.equal(head, `| ${LEDGER_COLUMNS.join(' | ')} |`);
   assert.equal(rule.split('|').length, head.split('|').length);
   assert.match(line, /^\| ej_a7e7bb226e614a02b5a426e30218f615 \| 8f564bdf\w+ \| balanced \| ready \| accepted \|/);
-  assert.match(line, /\| 0\.620628 \|  \| 65860 \| 45 \| 30098 \|  \| 50 \| 76187 \| 49185 \| 221425 \|  \| v1 \|$/);
+  assert.match(line, /\| 0\.620628 \|  \| 65860 \| 45 \| 30098 \|  \| 50 \| 76187 \| 49185 \| 221425 \|  \| v1 \| model \|  \|$/); // buildKind and msHopWait are the last two columns (a model build: buildKind model, no hop wait)
 });
 
 test('the script appends one line per job to ledger.jsonl and regenerates ledger.md; a rerun replaces the line (dry run on the saved response, no network)', () => {

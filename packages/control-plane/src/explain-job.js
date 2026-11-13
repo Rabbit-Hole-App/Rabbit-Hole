@@ -47,6 +47,7 @@ import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } fro
 import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
 import { verifyComposition } from '../../web/src/interact-composition.js';
 import { captureCardFor, interactBuildPipeline, reviewMode } from './interact-job.js';
+import { templateGate } from './interact-template.js';
 import { clockMs, round1 } from './interact-checks.js';
 import { benchJudge } from './interact-bench.js';
 import { ledgerRow } from './interact-ledger.js';
@@ -500,13 +501,15 @@ export class ExplainJobs {
     const payer = await usagePayer(this.usageEnv(job, job.actionKey));
     if (payer?.chargeClass !== 'would_charge') return; // platform-funded work: the per-call platform guard still applies
     const allowance = await allowanceFor(this.env.LEARN_DB, this.env, payer.userId, payer.period);
+    // A template build (INTERACT_BUILD_KIND=template, a plan that names a template) makes no build_author or build_repair call, so it reserves none; the platform-paid judge was never in this reservation.
+    const need = templateGate(this.env, job.design?.plan)?.ok ? 0 : job.reservation.generationMicros;
     let reason = null;
     try {
       const { used, reserved } = await usageTotals(this.env.LEARN_DB, payer.userId, payer.period);
       const left = (allowance ?? 0) - used;
       if (allowance == null) reason = 'allowance_unavailable';
       else if (left <= 0) reason = 'allowance_exhausted';
-      else if (left - reserved < job.reservation.generationMicros) reason = reserved > 0 && left >= job.reservation.generationMicros ? 'allowance_reserved' : 'allowance_insufficient';
+      else if (left - reserved < need) reason = reserved > 0 && left >= need ? 'allowance_reserved' : 'allowance_insufficient';
     } catch { reason = 'allowance_unavailable'; }
     if (reason) throw Object.assign(fail('Not enough AI credits.', reason === 'allowance_unavailable' ? 503 : 429), { refusal: { reason, period: payer.period } });
   }
@@ -808,6 +811,7 @@ export class ExplainJobs {
         'openai-compatible': { name: 'openai-compatible', call: args => interactAdapters({ env: this.env, fetch: this.interactFetch(job, args.config) })['openai-compatible'].call(args) } },
       // ponytail: the render service cannot compose the card, so every capture is per-panel (completeCard:false) and the reviewer is told so; see interact-checks.js.
       completeCardUnavailable: true, captureCard: this.deps.captureCard ?? captureCardFor(this.env, { jobId: job.id, ...(this.deps.render || {}) }),
+      ...(this.deps.generateProgram ? { generate: this.deps.generateProgram } : {}), // a test seam for a template build's generator (interact-template.js)
       admit: info => this.admitBuildCall(job, info), settle: info => this.settleBuildCall(job, info) };
     return scripted ? { ...ctx, adapters: { anthropic: scriptedBuildAdapter(job) } } : ctx; // the scripted profile: no transport, no spend (interact-scripted.js)
   }
@@ -855,15 +859,22 @@ export class ExplainJobs {
     const keep = (name, value) => this.state.storage.put(`build:${job.id}:${name}`, value);
     const drop = names => Promise.all(names.map(name => this.state.storage.delete?.(`build:${job.id}:${name}`)));
     const b = job.build;
-    const failWith = async (failure, over = out) => { b.failure = failure; job.findings.push({ round: job.round, stage, ...(failure.problems?.length ? { problems: failure.problems } : { accepted: false, findings: failure.findings }) }); return this.repairOrStop(job, over); };
+    const failWith = async (failure, over = out) => {
+      b.failure = failure; job.findings.push({ round: job.round, stage, ...(failure.problems?.length ? { problems: failure.problems } : { accepted: false, findings: failure.findings }) });
+      // A generated (template) program has no repair loop: a problem in it is our bug. The job stops with the first problem's text (the ledger's repairCauses keeps all of them).
+      if (b.kind === 'template') return this.stopWith(job, 'template_error', 'spec', `The card could not be built from its template: ${String(failure.problems?.[0] ?? 'a check failed').slice(0, 300)}`);
+      return this.repairOrStop(job, over);
+    };
     if (out.incomplete) return this.stopWith(job, 'incomplete', 'spec', `This scene plan needs more checks than one review can cover (${String(out.incomplete).slice(0, 300)}). Edit the request to use fewer checkpoints.`);
     if (stage === 'authoring') {
+      if (out.template) { b.kind = 'template'; b.ms = { ...b.ms, gen: out.ms.gen }; } // generated from the plan: no build_author call (interact-template.js); gen is its monotonic body time
       if (out.draft) await keep('draft', out.draft);
       if (out.problems) return failWith({ stage: 'validate', problems: out.problems, findings: [] });
       await keep('artifacts', out.artifacts); await keep('composition', out.composition); await drop(['captures']);
       b.envelopeHash = out.composition.envelopeHash; b.failure = null;
       next('validating');
     } else if (stage === 'validating') {
+      if (out.ms) b.ms = { ...b.ms, validate: round1((b.ms?.validate ?? 0) + out.ms.validate) };
       if (out.problems?.length) return failWith({ stage: 'validate', problems: out.problems, findings: [] });
       next('rendering');
     } else if (stage === 'rendering') {
