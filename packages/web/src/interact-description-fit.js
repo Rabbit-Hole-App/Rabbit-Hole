@@ -29,6 +29,8 @@ const NARROW = new Set("ijl.,:;'|!()[]/");
 const WIDE = new Set('mwMW@%');
 const advance = char => (char === ' ' ? 0.28 : NARROW.has(char) ? 0.3 : WIDE.has(char) ? 0.88 : char === '-' ? 0.36 : /[A-Z]/.test(char) ? 0.68 : /[0-9]/.test(char) ? 0.62 : /[frt]/.test(char) ? 0.4 : 0.56);
 const wordWidth = (word, fontPx) => [...word].reduce((sum, char) => sum + advance(char), 0) * fontPx;
+// One line of text at fontPx, from the same advance tables (the frame layout check measures labels with it).
+export const textWidthPx = (text, fontPx) => wordWidth(String(text), fontPx);
 
 export function estimateLines(text, columnPx, style = DESCRIPTION_STYLE) {
   const space = advance(' ') * style.fontPx;
