@@ -1,6 +1,18 @@
 // Published blog posts. The cards and the story count both render from this array.
 export const stories=[
   {
+    // PLACEHOLDER post (owner 2026-11-13): the owner writes the real title, excerpt, category, author, read time and body about /explain.
+    // Hero: GPT Image 2.5 Flare through scripts/landing-art.mjs blog-hero (prompt in design/art/explain-post-hero.prompt.md).
+    slug:'explain-post',category:'Product',tag:'Placeholder',author:'Placeholder author',readTime:'1 min read',
+    date:'2026-11-13',dateLabel:'13 Nov 2026',
+    title:'Placeholder title for the /explain post',
+    excerpt:'Placeholder excerpt: one or two sentences about /explain.',
+    mark:'Explain.',motif:'explain',
+    hero:'The White Rabbit on a tree stump pointing at a chalkboard that shows a curve and its tangent line, while Alice sits on a mushroom listening, the Caterpillar and the Mad Hatter watch and the Cheshire Cat grins from a bough, in a hand-tinted engraving of Wonderland.',
+    body:`<p>Placeholder paragraph. The post about /explain goes here.</p>
+      <p>Placeholder paragraph.</p>`
+  },
+  {
     // Owner-written, 2026-11-02 ("Rabbit Holes, Not Courses.html"; the file dates it only "November 2026").
     slug:'rabbit-holes-not-courses',category:'Behind the scenes',tag:'Founder notes',author:'From the founder',readTime:'5 min read',
     date:'2026-11-02',dateLabel:'2 Nov 2026',

@@ -68,3 +68,6 @@ appears.
 | Post | Image | Alt text | Status |
 |---|---|---|---|
 | `rabbit-holes-not-courses` | `rabbit-holes-not-courses-hero.jpg` | The White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat in a hand-tinted engraving of Wonderland, walking through a garden with a tea-party table, playing-card soldiers and a castle behind them. | Generated 2026-11-02 with GPT Image 2.5 Flare at 2048x720, quality high, attempt 4 of 4 (US$0.0239; attempts 1 to 3 were US$0.0123, US$0.0445 and US$0.0235, total about US$0.10). Attempts 1 to 3 were replaced at the owner's request (too simple, then monochrome). Highlights capped at #F4F3EF; 90% JPEG, 0.9 MB. The Cat is a muted grey-lavender tabby, not Disney's pink and purple. |
+
+## Pipeline (owner, 2026-11-13)
+Never ask which model: run `node scripts/landing-art.mjs blog-hero <slug> "<subject sentences>"` from `packages/web`. It uses GPT Image 2.5 Flare at 2048x720 with the prompt above, writes `public/landing/blog/<slug>-hero.jpg` (90% JPEG) and saves the prompt to `design/art/<slug>-hero.prompt.md`. A page header uses `page-banner` (Nano Banana 2.1, 4:1, the warm print collage). A generation costs a few cents. The script header lists the options.

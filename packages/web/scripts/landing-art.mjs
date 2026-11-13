@@ -1,0 +1,89 @@
+// Landing-page art pipeline: one command per kind of picture, with the model, size, prompt template and output path fixed
+// (owner, 2026-11-13: never ask which image model). Only the subject changes.
+//
+//   node scripts/landing-art.mjs blog-hero <slug> "<subject sentences>" [--quality low|medium|high] [--from <png>]
+//     GPT Image 2.5 Flare, 2048x720, the Wonderland engraving of BLOG_IMAGE_GUIDE.md -> public/landing/blog/<slug>-hero.jpg
+//   node scripts/landing-art.mjs page-banner <name> "<page name>" "<subject>" [--palette "<text>"] [--from <image>]
+//     Nano Banana 2.1, 4:1 2K, the warm print collage of design/examples-collage-prompt.md -> public/landing/<name>-v1.jpg (2800 wide)
+//
+// --from converts an image you already have (no model call). The key is read by name from small-deploy/.env, never printed.
+// The prompt used is saved to design/art/<output name>.prompt.md. A generation costs a few cents (Flare low about $0.006).
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ENV = 'C:/Users/cyudhist/Desktop/workspace/small-deploy/.env';
+const flag = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
+const [kind, ...rest] = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && !all[i - 1]?.startsWith('--'));
+const secret = name => {
+  const line = fs.readFileSync(ENV, 'utf8').split(/\r?\n/).map(l => l.match(new RegExp(`^\\s*${name}\\s*=\\s*(.*)$`))).find(Boolean);
+  const value = line?.[1]?.trim().replace(/^["']|["']$/g, '');
+  if (!value) throw Error(`${name} missing from small-deploy/.env`);
+  return value;
+};
+
+const BLOG_HEAD = `Hand-drawn illustration in the style of a 19th-century book engraving, in the spirit of Tenniel's 1865 illustrations for Alice's Adventures in Wonderland and not the Disney designs, loose cross-hatching, slightly faded as if printed decades ago. A full panoramic Wonderland scene that fills the whole canvas edge to edge with no empty margins. In the foreground, grouped within the middle 55% of the width and all on one ground line: `;
+const BLOG_TAIL = ` Behind them, a rich layered Wonderland receding into the distance, drawn in finer, lighter, fainter hatching so the foreground figures stand clearly forward: an overgrown garden of tall rose hedges and twisting old trees, a mad tea-party table set with teapots and cups, playing-card soldiers standing guard, giant mushrooms and oversized flowers, a grandfather clock among the trees, a tiny locked door at the foot of a great tree, hanging oil lamps, playing cards drifting through the air, and a distant castle with a checkerboard floor, with the dark mouth of a rabbit hole between tree roots near the right edge. Hand-coloured in soft, muted, washed-out watercolour tints laid over the ink line work, like a faded vintage hand-tinted book plate: pale sage and moss greens in the foliage, hedges and mushrooms, dusty rose on the roses and the White Rabbit's waistcoat, faded powder blue only in the sky and distant hills, warm muted ochre on the tea table and the Hatter's coat, pale lavender on Alice's plain dress (with a white pinafore, hair loose, no headband), soft grey-plum tabby stripes on the Cheshire Cat, muted red-brown on the toadstools and the playing cards, off-white paper #F4F3EF and deep plum ink #3D2A5C for the line work. Low saturation, low contrast, matte, subtle paper grain, no pure black and no pure white anywhere. No text, no lettering, no numbers anywhere. A very wide panoramic strip, about 2.85 times wider than tall (16:5.6): compose every figure, including the Cheshire Cat on its bough, and the whole scene inside this wide low frame, with nothing cropped.`;
+const AMBER = 'pale warm amber-gold paper ground around #f0cf85, saturated amber #e8962a plates, one or two burnt-orange #d9531e strips, deep brown-black ink, small cream and soft ochre blocks. Grayscale technical drawings partly cross the colour blocks. No blue, no green, no pink.';
+const bannerPrompt = (page, subject, palette) => `Use case: stylized-concept. Asset type: original panoramic header artwork for the ${page} page of Rabbit Hole, an adaptive learning platform. Return the artwork alone.
+Create one very wide abstract technical print collage in the language of an old scanned engineering journal mixed with experimental risograph publishing: thin irregular black ink, rough halftone, broken little numerals, overlapping translucent colour plates, stark oversized crops, flat economical shapes, visible paper grain.
+Subject: ${subject} Decorative fragments in an intriguing composition, not a literal infographic.
+Palette (warm, NO pink, NO magenta, NO red-pink): ${palette}
+Composition: panoramic, asymmetrical, sophisticated. Detail clusters on the right 45% of the image, richest at the upper right, with a cropped curved plate and a vertical strip touching the far right edge, and a few small ink fragments at the far left edge. The centre-left from 8% to 58% width and 15% to 95% height is almost entirely unprinted pale paper with fine grain, left quiet for a big dark two-word HTML heading. Fragments may crop off the image edges. No outer border.
+Constraints: original artwork only. No words, no headings, no slogans, no logos, no brand, no mascot or rabbit, no people, no buttons, no web interface, no watermark, no 3D gloss, no smooth digital gradients. Only tiny decorative numerals and figure notation. Must remain visibly a print collage, not a plain texture.`;
+
+async function generateFlare(prompt, quality) {
+  const res = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST', headers: { Authorization: `Bearer ${secret('OPENAI_API_KEY')}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'gpt-image-2.5-flare', prompt, n: 1, size: '2048x720', quality, output_format: 'png' }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.data?.[0]?.b64_json) throw Error(`OpenAI image failed: HTTP ${res.status} ${JSON.stringify(body?.error?.message || '').slice(0, 200)}`);
+  return Buffer.from(body.data[0].b64_json, 'base64');
+}
+async function generateBanana(prompt) {
+  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+    method: 'POST', headers: { 'x-goog-api-key': secret('GEMINI_API_KEY'), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'gemini-nano-banana-2.1', input: [{ type: 'text', text: prompt }], store: false, response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: '4:1', image_size: '2K' } }),
+  });
+  const body = await res.json().catch(() => null);
+  const block = (body?.steps || []).filter(s => s.type === 'model_output').flatMap(s => s.content || []).filter(p => p.type === 'image').at(-1);
+  if (!res.ok || !block?.data) throw Error(`Gemini image failed: HTTP ${res.status} ${JSON.stringify(body?.error?.message || '').slice(0, 200)}`);
+  return Buffer.from(block.data, 'base64');
+}
+function toJpeg(bytes, dest, width) {
+  const tmp = `${dest}.src`;
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(tmp, bytes);
+  const py = `from PIL import Image\nim=Image.open(r'${tmp}').convert('RGB')\nw=${width || 0}\nif w and im.width>w: im=im.resize((w,round(im.height*w/im.width)),Image.LANCZOS)\nim.save(r'${dest}','JPEG',quality=90,optimize=True)\nprint(im.size)`;
+  const r = spawnSync('python', ['-c', py], { encoding: 'utf8' });
+  if (r.status !== 0) throw Error(`JPEG conversion failed (the generated image is kept at ${tmp}, rerun with --from): ${r.stderr}`);
+  fs.rmSync(tmp, { force: true });
+  return r.stdout.trim();
+}
+function record(name, model, prompt) {
+  const file = path.join(WEB, 'design/art', `${name}.prompt.md`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `# ${name}\n\nGenerated ${new Date().toISOString().slice(0, 10)} with ${model} by scripts/landing-art.mjs.\n\n## Prompt\n\n${prompt}\n`);
+}
+
+const from = flag('from');
+if (kind === 'blog-hero') {
+  const [slug, subject] = rest;
+  if (!slug || (!subject && !from)) throw Error('usage: blog-hero <slug> "<subject sentences>" [--quality low] [--from <png>]');
+  const dest = path.join(WEB, 'public/landing/blog', `${slug}-hero.jpg`);
+  let bytes;
+  if (from) bytes = fs.readFileSync(from);
+  else { const prompt = BLOG_HEAD + subject + BLOG_TAIL; bytes = await generateFlare(prompt, flag('quality', 'low')); record(`${slug}-hero`, 'GPT Image 2.5 Flare (gpt-image-2.5-flare, 2048x720)', prompt); }
+  console.log('saved', dest, toJpeg(bytes, dest));
+} else if (kind === 'page-banner') {
+  const [name, page, subject] = rest;
+  if (!name || (!from && (!page || !subject))) throw Error('usage: page-banner <name> "<page name>" "<subject>" [--palette "<text>"] [--from <image>]');
+  const dest = path.join(WEB, 'public/landing', `${name}-v1.jpg`);
+  let bytes;
+  if (from) bytes = fs.readFileSync(from);
+  else { const prompt = bannerPrompt(page, subject, flag('palette', AMBER)); bytes = await generateBanana(prompt); record(`${name}-banner`, 'Nano Banana 2.1 (gemini-nano-banana-2.1, 4:1, 2K)', prompt); }
+  console.log('saved', dest, toJpeg(bytes, dest, 2800));
+} else throw Error('usage: landing-art.mjs blog-hero | page-banner (see the header of this file)');
