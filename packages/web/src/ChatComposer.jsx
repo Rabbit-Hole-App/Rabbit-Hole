@@ -40,7 +40,7 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // token (UI-16, the Learn composers): the chosen command's pill as one inline token before the text. It sits over the
 // field's first line and the text is indented by its width, so the words start right after it and wrap under it.
 export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-lg px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, hold = '', ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null }) {
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, hold = '', ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null, canvasStrip = false }) {
   // The Table of contents' own composer (TocWorkspace: its AskPanel passes tocView) is data-toc-composer, so [data-chat-composer]
   // stays the one Chat composer. A prop, so this file never imports chat-workspace.jsx's graph (voice-ui.test.mjs bundles it).
   const submit = () => { if (!busy && !disabled && !hold && (ready || value.trim())) onSubmit(value); };
@@ -96,7 +96,8 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
   const frame = dock
     ? `gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-3.5 max-md:gap-1.5 max-md:px-2.5 max-md:py-2.5 ${flat ? 'shadow-[0_1px_2px_rgba(15,15,15,0.05)]' : 'shadow-pop'}`
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
-  return <form data-chat-composer className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
+  // canvasStrip (the canvas's bottom strip, CanvasChatStrip.jsx): data-canvas-strip-composer, so [data-chat-composer] stays the one Chat composer.
+  return <form {...{ [canvasStrip ? 'data-canvas-strip-composer' : 'data-chat-composer']: true }} className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
     {leading}
     {body}
     {trailing}

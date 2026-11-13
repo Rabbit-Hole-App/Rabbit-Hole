@@ -35,23 +35,30 @@ test('the bottom strip: the minimap above the zoom row at lower left, the hooks 
   assert.ok(strip.indexOf('data-canvas-minimap') < strip.indexOf('data-canvas-composer') && strip.indexOf('data-canvas-composer') < strip.indexOf('data-canvas-lower-right'), 'minimap left, composer, hooks right');
   assert.match(strip, /md:flex-row md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s');
   // On a phone the hooks sit above the composer, at the right.
-  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} className=\{`\$\{DOCK_WIDTH\} relative min-w-0 md:mx-0 md:shrink max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
-  assert.match(strip, /data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1"/);
+  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} className=\{`\$\{DOCK_WIDTH\} relative flex min-w-0 items-center gap-2 md:mx-0 md:shrink max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
+  assert.match(strip, /data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1"/);
   assert.doesNotMatch(canvas.slice(0, canvas.indexOf('<div data-canvas-bottom')), /<CanvasMinimap boxes=\{minimapBoxes\} view=\{view\} onFit=\{zoomFit\}\n\s+surface=\{\{ w: surface\.current\?\.clientWidth \|\| 0, h: surface\.current\?\.clientHeight \|\| 0 \}\}\n\s+onView=\{next => setView\(v => \(\{ \.\.\.v, x: next\.x, y: next\.y \}\)\)\} \/>\}/, 'no second desktop minimap');
   assert.match(read('CanvasMinimap.jsx'), /className="relative overflow-hidden rounded-xl/, 'its frame is in the strip\'s flow');
 });
 
-// Owner, 2026-10-13: "the icon to hide the main chat composer, should be better placed and not hanging above". It is the composer's
-// own icon button in its own row (ChatComposer.jsx, through the canvas's ComposerHide context), not a pill the canvas positions
-// from outside over the composer's top border. e2e/canvas-shell-check.mjs measures that it lies inside the composer.
-test('Hide chat composer is a button in the composer row, before Send, not a pill hanging over its border', () => {
-  const composer = read('ChatComposer.jsx');
-  assert.match(composer, /export const ComposerHide = createContext\(null\);/);
-  assert.match(composer, /data-composer-hide aria-label="Hide chat composer" title="Hide chat composer - your draft stays" onClick=\{hide\} className=\{COMPOSER_ADD\}><ChevronDown size=\{14\} strokeWidth=\{1\.5\} \/>/);
-  assert.match(composer, /\{trailing\}\n\s+\{dock && <ComposerHideButton \/>\}\n\s+\{send\}/, 'in the row, after the field and before Send');
-  assert.match(composer, /const send = voice \? null : busy && onStop \?/);
-  assert.match(canvas, /<ComposerHide\.Provider value=\{hideComposer\}>\{composer\}<\/ComposerHide\.Provider>/);
-  assert.doesNotMatch(canvas, /data-composer-hide|absolute -top-2\.5 right-4/, 'the canvas no longer positions the button over the composer');
+// Owner, 2026-11-13 (replaces the 2026-10-13 in-composer hide icon): the canvas's bottom chat strip has its Minimize as a round
+// button outside the composer, on its left; minimized, the strip is the Rabbit Hole mark on black at the lower right, and the last choice
+// is kept on this device (ui-prefs.js chatStrip). The canvas no longer gives the composer a ComposerHide context, so the composer's
+// own Hide icon (ChatComposer.jsx) never shows in it.
+test('the chat strip: a round Minimize outside its left, the Rabbit Hole button at the lower right, the choice remembered', () => {
+  assert.match(canvas, /const \[composerHidden, setComposerHidden\] = useState\(\(\) => uiPrefs\(\)\.chatStrip === 'min'\);/);
+  assert.match(canvas, /saveUiPref\('chatStrip', value\)/);
+  assert.doesNotMatch(canvas, /ComposerHide\.Provider/);
+  const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
+  assert.match(strip, /<button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{hideComposer\}\n[^\n]*rounded-full[^\n]*\n\s+<div className="min-w-0 flex-1">\{composer\}<\/div>/, 'the round button, then the composer');
+  assert.match(strip, /\{composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer"/);
+  assert.match(strip, /bg-black[^\n]*<img src="\/rabbit-hole-white-on-black-128\.png"/, 'white mark on black');
+  assert.ok(strip.indexOf('data-hooks-slot') < strip.indexOf('data-composer-show'), 'beside the Curious card, at the lower right');
+  assert.match(read('ChatComposer.jsx'), /canvasStrip \? 'data-canvas-strip-composer' : 'data-chat-composer'/, 'never a second [data-chat-composer]');
+  const page = read('LearnPage.jsx');
+  assert.match(page, /composer=\{panelOpen \? null : <CanvasChatStrip \/>\}/, 'only while the right panel is closed');
+  assert.match(page, /hooks=\{steps && !panelOpen \? <NextStepsCard/, 'Curious leaves with it');
+  assert.match(read('CanvasChatStrip.jsx'), /chat\.ask\(\{ typed: text \}\)/, 'Send goes through the Chat loop');
 });
 
 // Owner, 2026-10-08: "in the canvas above the chat composer you are cutting the canvas too much". The canvas runs to the

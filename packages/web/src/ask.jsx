@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
-import { ArrowUp, AtSign, BookOpen, ChevronUp, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, CircleHelp, CornerDownRight, Eraser, RefreshCw, Copy, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap, Upload } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { contextPassage } from './map-files.js';
@@ -32,7 +32,7 @@ import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js'
 import CommandPill from './CommandPill.jsx';
 import { NO_STEPS, composerCommand, historyKey, recordStep, removesToken, travel } from './command-token.js';
 import { composerKey } from './composer-keys.js';
-import { chatSendKey, sendKeyLabel } from './ui-prefs.js';
+import { chatSendKey, saveUiPref, sendKeyLabel, uiPrefs } from './ui-prefs.js';
 import { answersInChat, commandLine, holdsLine, lineCommand, releaseLine } from './learn-slash.js';
 import { toolOf, typedOf } from './agent/slash.js';
 import { mergeOutputs, outputSink } from './chat-output-refs.js';
@@ -204,8 +204,10 @@ function NextStepsHeader({ steps, spinning = false, onMinimize }) {
 
 export function NextStepsCard({ steps, onPick }) {
   const [working, setWorking] = useState(null);
-  // Minimized: a small chip that frees the card's room; Restore shows the same suggestions again, never asking for new ones.
-  const [minimized, setMinimized] = useState(false);
+  // Minimized: a round icon that frees the card's room; Restore shows the same suggestions again, never asking for new ones. The
+  // choice is this device's (ui-prefs.js curiousMin, owner 2026-11-13), so it holds when the card leaves with the opened Chat panel and returns.
+  const [minimized, setMinimizedNow] = useState(() => uiPrefs().curiousMin);
+  const setMinimized = on => { setMinimizedNow(on); try { saveUiPref('curiousMin', on); } catch { /* storage refused: the choice holds until a reload */ } };
   // The last set's height: the skeleton that replaces it keeps it, so the card does not change size while the next set loads.
   const frame = useRef(null), height = useRef(0);
   useEffect(() => { if (steps?.status === 'ready' && frame.current) height.current = frame.current.offsetHeight; });
@@ -221,10 +223,9 @@ export function NextStepsCard({ steps, onPick }) {
     </section>
   );
   if (minimized && visible) return (
-    <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
-      <span className="truncate text-xs font-medium text-ink-2">Curious where this goes?</span>
-      <button type="button" data-next-steps-restore aria-label="Restore suggestions" title="Show the suggestions" aria-expanded="false" onClick={() => setMinimized(false)}
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink"><ChevronUp size={14} /></button>
+    <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="ml-auto flex w-max max-w-full items-center">
+      <button type="button" data-next-steps-restore aria-label="Restore suggestions" title="Curious where this goes? Show the suggestions" aria-expanded="false" onClick={() => setMinimized(false)}
+        className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-pop hover:bg-hover hover:text-ink"><CircleHelp size={20} strokeWidth={1.7} /></button>
     </section>
   );
   // A set on its way for this basis, loading or stale (owner, 2026-10-08: "if the questions are still being loaded just show
@@ -944,7 +945,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // composer's draft and chips stay as they are.
   // Ctrl+K's explicit command (owner spec 2026-10-29 4.2): { line, about } runs through this Chat's own dispatcher (LearnSlash), as if
   // typed here, about Ctrl+K's selection; the composer's draft and chips are never touched. false: not taken (another command runs).
-  useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about, line, onAdmitted } = {}) => {
+  useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about, line, typed, onAdmitted } = {}) => {
+    // typed (the canvas's bottom strip, CanvasChatStrip.jsx): the learner's own words, sent exactly as if typed in this composer (routing included).
+    if (typed) return send(typed, undefined, { onAdmitted });
     if (line) { if (!slashRef.current?.handoff) return false; promptCommand.current = lineCommand(line); return slashRef.current.handoff(line, { about: about ?? null, target: about?.selection ?? null, onAdmitted }); }
     if (prompt) return send(prompt, undefined, { command: asked, prompted: true, about, keepDraft: true, onAdmitted });
     const index = msgs.findIndex(m => m.messageId === regenerate?.messageId);

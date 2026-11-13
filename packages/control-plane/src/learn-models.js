@@ -56,8 +56,10 @@ export const LEARN_TASKS = Object.freeze({
   home_ask: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 900 }),
   // Professor Next Steps (docs/features/professor-next-steps.md §2.4): the hook planner, one tool (suggest_next_steps) on
   // tool_choice auto; its escalation runs once on a missing tool call, a validator failure or an ambiguous reading.
-  tutor_next_steps: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1500 }),
-  tutor_next_steps_escalation: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
+  // Owner 2026-11-13: both run on Gemini 3.5 Flash Lite like chat (CHAT_GEMINI, through ask.js anthropic() -> geminiChat), no Sonnet or Opus; the
+  // reasoning effort is chat's (CHAT_REASONING), so no effort here. The budget leaves room for Gemini's thinking before the tool call.
+  tutor_next_steps: Object.freeze({ provider: 'anthropic', model: CHAT_GEMINI, effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
+  tutor_next_steps_escalation: Object.freeze({ provider: 'anthropic', model: CHAT_GEMINI, effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
   // Explore's AI find (/api/learn/boards/published/find, explore-find.js; explore-publish.md): a sentence-length search
   // picks and ranks published canvases and creators. The small model, one JSON reply, cached per normalised query.
   explore_find: Object.freeze({ provider: 'anthropic', model: 'claude-haiku-4-5-20251001', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 400 }),
@@ -216,6 +218,8 @@ export function loggedModel(task, callModel) {
 // ponytail: the e2e runners keep their own copy; point them here when they are next edited.
 export const MODEL_PRICES = Object.freeze(Object.fromEntries(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-4-5-20251001'].map(model => [model, mtokRates('anthropic', model)])));
 export function costUsd({ model, input_tokens = 0, output_tokens = 0, cache_creation_input_tokens = 0, cache_read_input_tokens = 0, speed = null }) {
+  // Gemini 3.5 Flash Lite (chat and the Curious planner): its own price row, no cache tiers (pricing-registry.js).
+  if (model === CHAT_GEMINI) return (p => (p ? p.micros / 1e6 : null))(priceUsage({ provider: 'google', model, quantities: { input: input_tokens, output: output_tokens } }));
   if (!MODEL_PRICES[model]) return null;
   const priced = priceUsage({ model, tier: speed === 'fast' ? 'fast' : 'standard', quantities: anthropicQuantities({ input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens }) });
   return priced ? priced.micros / 1e6 : null;

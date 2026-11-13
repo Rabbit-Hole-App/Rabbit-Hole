@@ -64,7 +64,7 @@ import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame, memberPorts } from './learn-connectors.js';
 import { publicExplainBack } from './explain-back-private.js';
 import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, inputSubmission, isExplainBack, isInputLink } from './explain-inputs.js';
-import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
+import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
@@ -1621,8 +1621,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [renaming, setRenaming] = useState(null); // { id, title, rect }: a card's title being renamed in place (card-rename.js)
   // The right-click Rename and a card header's double-click open the same in-place editor (CardRename context, CardHeader.jsx).
   const startRename = id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: startTitleOf(block, describeBlock(block)?.title), rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); };
-  const [composerHidden, setComposerHidden] = useState(false);
-  const hideComposer = useCallback(() => setComposerHidden(true), []);
+  // The canvas chat strip (owner 2026-11-13): minimized to the Rabbit Hole button at the lower right, and the last choice is kept on
+  // this device (ui-prefs.js chatStrip), so a canvas opens the way the learner left it.
+  const [composerHidden, setComposerHidden] = useState(() => uiPrefs().chatStrip === 'min');
+  const keepStrip = value => { try { saveUiPref('chatStrip', value); } catch { /* storage refused: the choice holds until a reload */ } };
+  const hideComposer = useCallback(() => { setComposerHidden(true); keepStrip('min'); }, []);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
   useEffect(() => {
     if (!composerHidden) return undefined;
@@ -6738,18 +6741,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* Hide the composer (owner brief 2 item 5): it stays mounted - draft, attachments, the selected card's context and
             a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
             small Show button instead). The hooks card's minimized state is its own. */}
-        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
-          <ComposerHide.Provider value={hideComposer}>{composer}</ComposerHide.Provider>
-        </div>}
-        {composer && composerHidden && <div data-composer-show-slot className="flex justify-center max-md:order-2">
-          <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"
-            onClick={() => { setComposerHidden(false); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] textarea, [data-canvas-composer] input[type="text"], [data-canvas-composer] [contenteditable="true"]')?.focus({ preventScroll: true })); }}
-            className="flex h-8 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs text-ink-2 shadow-md hover:text-ink"><MessageCircle size={13} />Chat<ChevronUp size={13} /></button>
+        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative flex min-w-0 items-center gap-2 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
+          <button type="button" data-composer-hide aria-label="Minimize chat composer" title="Minimize chat composer - your draft stays" onClick={hideComposer}
+            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-white text-ink-2 shadow-pop hover:bg-hover hover:text-ink"><Minus size={16} strokeWidth={1.8} /></button>
+          <div className="min-w-0 flex-1">{composer}</div>
         </div>}
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
-        <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
+        <div data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
           {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
+          {/* The minimized chat strip: the Rabbit Hole mark on black (owner 2026-11-13), at the lower right, beside the Curious icon. */}
+          {composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"
+            onClick={() => { setComposerHidden(false); keepStrip('open'); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea')?.focus({ preventScroll: true })); }}
+            className="h-12 w-12 shrink-0 cursor-pointer overflow-hidden rounded-full bg-black shadow-pop hover:opacity-90"><img src="/rabbit-hole-white-on-black-128.png" srcSet="/rabbit-hole-white-on-black-128.png 1x, /rabbit-hole-white-on-black-256.png 2x" alt="" draggable={false} className="h-full w-full object-cover" /></button>}
         </div>
         {/* UI.08: a ready later offer's Next card | Cancel, centred over this strip (the canvas area beside the panel), above the chrome; it stays put while the world pans. */}
         {!readOnly && roadmap && <div data-next-card-slot className="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 justify-center empty:hidden"><SurfaceBoundary artifact="next_card_pill"><NextCardPill card={(roadmap.cards || []).find(card => card.next && card.state === 'pending')} onAccept={() => roadmap.onAccept?.()} onCancel={() => roadmap.onCancel?.()} /></SurfaceBoundary></div>}

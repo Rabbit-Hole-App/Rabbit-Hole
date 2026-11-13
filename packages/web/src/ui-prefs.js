@@ -7,7 +7,7 @@
 // sloppiness (UI-34, owner note 2026-10-23) is the drawing preference of the canvas style panel: 0 Clean, 1 Sketchy, 2 Rough,
 // the level the next shape, arrow or connector is drawn with. Colour, width and dash are not kept: they have no such store.
 const KEY = 'rh.ui-prefs';
-export const UI_PREF_DEFAULTS = Object.freeze({ textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: true, holeMap: true, curious: true, comments: true, toolbar: true, sloppiness: 0 });
+export const UI_PREF_DEFAULTS = Object.freeze({ textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: true, holeMap: true, curious: true, comments: true, toolbar: true, sloppiness: 0, chatStrip: 'open', curiousMin: false });
 // Interface text only: index.css scales the chrome's text tokens by these and the canvas world keeps authored content at 1.
 export const TEXT_SIZES = { default: 1, large: 1.125, larger: 1.25 };
 const VALID = {
@@ -19,6 +19,9 @@ const VALID = {
   curious: value => typeof value === 'boolean',
   comments: value => typeof value === 'boolean',
   toolbar: value => typeof value === 'boolean',
+  // The canvas chat strip (owner 2026-11-13): open, or minimized to the Rabbit Hole button; curiousMin: the Curious card folded to its icon.
+  chatStrip: value => value === 'open' || value === 'min',
+  curiousMin: value => typeof value === 'boolean',
   sloppiness: value => value === 0 || value === 1 || value === 2,
 };
 

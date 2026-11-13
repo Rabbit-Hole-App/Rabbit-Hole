@@ -173,8 +173,8 @@ test('the roadmap roles: eight registered entries, one tool each, no fallback, p
 // Professor Next Steps (docs/features/professor-next-steps.md §2.4): Sonnet low first, Opus once as the escalation; the
 // one price map the decision telemetry's cost_usd reads.
 test('the hook planner roles and the model price map', () => {
-  assert.deepEqual(LEARN_TASKS.tutor_next_steps, { provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1500 });
-  assert.deepEqual(LEARN_TASKS.tutor_next_steps_escalation, { provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 });
+  assert.deepEqual(LEARN_TASKS.tutor_next_steps, { provider: 'anthropic', model: 'gemini-3.5-flash-lite', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }); // owner 2026-11-13: Curious runs on chat's Gemini
+  assert.deepEqual(LEARN_TASKS.tutor_next_steps_escalation, { provider: 'anthropic', model: 'gemini-3.5-flash-lite', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 });
   assert.ok(Object.isFrozen(LEARN_TASKS.tutor_next_steps) && Object.isFrozen(LEARN_TASKS.tutor_next_steps_escalation));
   assert.deepEqual(MODEL_PRICES, { 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.1], 'claude-haiku-4-5-20251001': [1, 5, 0.1] }); // Sonnet 5.5 cached input is $0.10 (owner 2026-10-23, confirmed by Anthropic)
   assert.equal(costUsd({ model: 'claude-opus-5-5', input_tokens: 1000, output_tokens: 100, cache_creation_input_tokens: 400, cache_read_input_tokens: 2000 }), (1000 * 4 + 100 * 20 + 400 * 4 * 1.25 + 2000 * 0.2) / 1e6);
