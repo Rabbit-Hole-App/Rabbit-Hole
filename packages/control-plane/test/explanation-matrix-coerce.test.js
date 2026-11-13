@@ -34,42 +34,32 @@ test('card 12 (figure-chapters 02): the old code reports the row ids, the new co
   assert.deepEqual(events(), [{ event: 'explanation_matrix_coerced', action: 'coerced', diagram: 'matrix', columnsCoerced: 0, rowsFromColumns: 0, rangeDerived: null, rowIdsAdded: 0, rowIdsDropped: 4 }]);
 });
 
-test('card 27 (heatmap, columns are {heading, items}, no rows) and the logistic confusion matrix: no labels for the items, so nothing is transposed and no Item 1, Item 2 is invented (release 126)', t => {
+test('card 27 (heatmap, columns are {heading, items}, no rows, no range): transposed into three rows, range derived from the numeric cells, the author\'s numbers kept', t => {
   const events = capture(t);
   assert.ok(!valid(CARD_27));
-  const md27 = body(CARD_27);
-  assert.equal(correctDiagrams(md27).md, md27, 'left for the one repair');
-  assert.ok(!/Item \d/.test(correctDiagrams(md27).md));
-  // The shape the model wrote for logistic card 11 (pack run 2026-11-12T232359): columns {heading, items}, the items unlabeled.
-  const card11 = { version: 1, diagram: { title: 'Thresholded predictions', caption: '8 cases at t=0.5.', kind: 'matrix', columns: [{ heading: 'Predicted positive', items: ['TP 3', 'FP 1'] }, { heading: 'Predicted negative', items: ['FN 1', 'TN 3'] }, { heading: 'Actual total', items: ['4', '4'] }] } };
-  const md11 = body(card11);
-  const out = correctDiagrams(md11);
-  assert.equal(out.md, md11);
-  assert.ok(!out.corrections?.matrix_coerced);
-  assert.deepEqual(events().map(e => [e.action, /Item 1, Item 2 is never invented/.test(e.reason)]), [['left', true], ['left', true], ['left', true]]);
-});
-
-test('with the labels the author gave (as many row headings as items) the transposition keeps them: the confusion matrix reads Actually positive / Actually negative across, never Item 1, Item 2', t => {
-  const events = capture(t);
-  const labelled = { version: 1, diagram: { title: 'Thresholded predictions', caption: '8 cases at t=0.5.', kind: 'matrix',
-    columns: [{ heading: 'Predicted positive', items: ['TP 3', 'FP 1'] }, { heading: 'Predicted negative', items: ['FN 1', 'TN 3'] }, { heading: 'Actual total', items: ['4', '4'] }],
-    rows: [{ heading: 'Actually positive' }, { heading: 'Actually negative' }] } };
-  const fixed = specOf(correctDiagrams(body(labelled)).md);
+  const out = correctDiagrams(body(CARD_27)), fixed = specOf(out.md);
   assert.ok(valid(fixed));
-  assert.deepEqual(fixed.diagram.columns, ['Actually positive', 'Actually negative']);
-  assert.deepEqual(fixed.diagram.rows.map(r => [r.heading, ...r.cells]), [['Predicted positive', 'TP 3', 'FP 1'], ['Predicted negative', 'FN 1', 'TN 3'], ['Actual total', '4', '4']]);
-  assert.ok(!JSON.stringify(fixed).includes('Item '));
-  assert.deepEqual(events().map(e => [e.action, e.rowsFromColumns]), [['transposed', 3]]);
+  assert.deepEqual(out.corrections, { matrix_coerced: 1 });
+  assert.deepEqual(fixed.diagram.rows.map(r => r.label), ['Clean', 'Sampled noise', 'Noisy result']);
+  assert.deepEqual(fixed.diagram.rows.map(r => r.cells), CARD_27.diagram.columns.map(c => c.items.map(Number)));
+  assert.deepEqual(fixed.diagram.columns, ['Item 1', 'Item 2', 'Item 3', 'Item 4']);
+  assert.deepEqual(fixed.diagram.range, { min: -0.5, max: 0.8 });
+  assert.deepEqual([fixed.diagram.title, fixed.diagram.caption], [CARD_27.diagram.title, CARD_27.diagram.caption]);
+  assert.deepEqual(events().map(({ action, rowsFromColumns, rangeDerived }) => [action, rowsFromColumns, rangeDerived]), [['transposed', 3, [-0.5, 0.8]]]);
 });
 
-test('card 28 and the demo card 03 gini-split (matrix, columns are {heading, items}, no rows): left for the repair, every column and item untouched, no Item n', t => {
+test('card 28 and the demo card 03 gini-split (matrix, columns are {heading, items}, no rows): transposed, every item kept in order', t => {
   const events = capture(t);
-  for (const [name, spec] of [['28', CARD_28], ['03', GINI_03]]) {
+  for (const [name, spec, rowNames, width] of [['28', CARD_28, ['Original toy pattern', 'Associated caption'], 2], ['03', GINI_03, ['Class 0', 'Class 1', 'Gini', 'Weight'], 3]]) {
     assert.ok(!valid(spec), name);
-    const md = body(spec);
-    assert.equal(correctDiagrams(md).md, md, `card ${name} is left as the author wrote it`);
+    const fixed = specOf(correctDiagrams(body(spec)).md);
+    assert.ok(valid(fixed), `card ${name} validates`);
+    assert.deepEqual(fixed.diagram.rows.map(r => r.heading), rowNames);
+    assert.deepEqual(fixed.diagram.rows.map(r => r.cells), spec.diagram.columns.map(c => c.items));
+    assert.deepEqual(fixed.diagram.columns, Array.from({ length: width }, (_, i) => `Item ${i + 1}`));
+    assert.deepEqual([fixed.diagram.title, fixed.diagram.caption], [spec.diagram.title, spec.diagram.caption]);
   }
-  assert.deepEqual(events().map(e => [e.diagram, e.action]), [['matrix', 'left'], ['matrix', 'left']]);
+  assert.deepEqual(events().map(e => [e.diagram, e.action, e.rowsFromColumns]), [['matrix', 'transposed', 2], ['matrix', 'transposed', 4]]);
 });
 
 test('former row headings become the column headings when there are as many as items; a heatmap keeps the author\'s own range', t => {
@@ -77,7 +67,7 @@ test('former row headings become the column headings when there are as many as i
   const withRows = specOf(correctDiagrams(body(matrix([{ heading: 'Precision', items: ['0.8', '0.6'] }, { heading: 'Recall', items: ['0.7', '0.9'] }], [{ heading: 'Model A' }, { heading: 'Model B' }]))).md);
   assert.deepEqual(withRows.diagram.columns, ['Model A', 'Model B']);
   assert.deepEqual(withRows.diagram.rows, [{ heading: 'Precision', cells: ['0.8', '0.6'] }, { heading: 'Recall', cells: ['0.7', '0.9'] }]);
-  const heat = specOf(correctDiagrams(body({ version: 1, diagram: { kind: 'heatmap', title: 'H', columns: [{ label: 'a', cells: [1, 2] }, { label: 'b', cells: [3, null] }], rows: [{ label: 'x' }, { label: 'y' }], range: { min: 0, max: 10 } } })).md);
+  const heat = specOf(correctDiagrams(body({ version: 1, diagram: { kind: 'heatmap', title: 'H', columns: [{ label: 'a', cells: [1, 2] }, { label: 'b', cells: [3, null] }], range: { min: 0, max: 10 } } })).md);
   assert.deepEqual([heat.diagram.range, heat.diagram.rows.map(r => r.cells)], [{ min: 0, max: 10 }, [[1, 2], [3, null]]]);
 });
 
@@ -94,7 +84,7 @@ test('anything else is left for the repair and logged with its reason: unequal l
   const events = capture(t);
   const cases = [
     ['column lists of different lengths', matrix([{ heading: 'a', items: ['1', '2'] }, { heading: 'b', items: ['1', '2', '3'] }])],
-    ['heatmap cells are not numeric', { version: 1, diagram: { kind: 'heatmap', title: 'H', columns: [{ heading: 'a', items: ['low', 'high'] }, { heading: 'b', items: ['1', '2'] }], rows: [{ label: 'x' }, { label: 'y' }] } }],
+    ['heatmap cells are not numeric', { version: 1, diagram: { kind: 'heatmap', title: 'H', columns: [{ heading: 'a', items: ['low', 'high'] }, { heading: 'b', items: ['1', '2'] }] } }],
     ['a column object with no heading, label, text or title', matrix([{ items: ['1', '2'] }, { heading: 'b', items: ['1', '2'] }])],
     ['column lists mixed with other columns', matrix([{ heading: 'a', items: ['1', '2'] }, 'Plain'])],
     ['rows with cells of their own beside the column lists', matrix([{ heading: 'a', items: ['1', '2'] }, { heading: 'b', items: ['3', '4'] }], [{ heading: 'x', cells: ['1', '2'] }, { heading: 'y', cells: ['3', '4'] }])],
@@ -105,7 +95,7 @@ test('anything else is left for the repair and logged with its reason: unequal l
 
 test('a coercion that does not make the whole diagram valid is not applied (logged as left)', t => {
   const events = capture(t);
-  const long = matrix([{ heading: 'a', items: ['1'] }, { heading: 'b', items: ['2'] }], [{ heading: 'x' }]); // one item each: the transposed matrix would have a single column
+  const long = matrix([{ heading: 'a', items: ['1'] }, { heading: 'b', items: ['2'] }]); // one item each: the transposed matrix would have a single column
   const md = body(long);
   assert.equal(correctDiagrams(md).md, md);
   const [event] = events();
@@ -128,9 +118,9 @@ test('a teaching matrix whose rows have no id gets unique ids from the headings;
 test('idempotent and inert: a second pass changes nothing, and a valid matrix or other diagram is untouched with no event', t => {
   const events = capture(t);
   for (const spec of [CARD_12, CARD_27, CARD_28]) { const once = correctDiagrams(body(spec)).md; assert.equal(correctDiagrams(once).md, once); }
-  assert.equal(events().length, 5, 'card 12 coerced once; cards 27 and 28 are left (no labels for the items) and logged again on the second pass');
+  assert.equal(events().length, 3);
   const ok = matrix(['A', 'B'], [{ heading: 'x', cells: ['1', '2'] }, { heading: 'y', cells: ['3', '4'] }]);
   const cycle = { version: 1, diagram: { kind: 'cycle', title: 'Loop', steps: ['Plan', 'Do', 'Check'] } };
   for (const spec of [ok, cycle]) { const md = body(spec); assert.equal(correctDiagrams(md).md, md); assert.equal(markdownVisuals(md).diagrams.length, 1); }
-  assert.equal(events().length, 5, 'no new event');
+  assert.equal(events().length, 3, 'no new event');
 });
