@@ -42,7 +42,9 @@ export function assembleReferences(artifactTopic, parts) {
 
 export function assembleTests(artifactTopic, parts) {
   const lines = ['import test from \'node:test\';', 'import assert from \'node:assert\';', `import * as data from './topic-${artifactTopic}-data.js';`,
-    `import { references, derived } from './topic-${artifactTopic}-references.js';`, `import replay from './topic-${artifactTopic}-replay-cases.json' with { type: 'json' };`], ranges = [];
+    `import { references, derived } from './topic-${artifactTopic}-references.js';`, `import replay from './topic-${artifactTopic}-replay-cases.json' with { type: 'json' };`,
+    // The merged derived() must carry every data-module value. This also gives the linter's rule 6 (a test asserting against derived()) its syntactic evidence when a batch asserts through data.derived().
+    'test(\'the merged derived() carries every value of the data module\', () => assert.deepStrictEqual(Object.fromEntries(Object.keys(data.derived()).map(key => [key, derived()[key]])), data.derived()));'], ranges = [];
   parts.forEach((part, index) => {
     lines.push('{');
     const start = lines.length + 1;

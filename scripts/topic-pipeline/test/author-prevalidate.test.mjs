@@ -68,3 +68,9 @@ test('renderer-constraints.md is current and lists the refinement messages by ki
   assert.match(content, /^## flow$/mu);
   assert.match(content, /^## tree$/mu);
 });
+
+test('a batch that asserts through data.derived() still satisfies the derived-assertion rule', async t => {
+  const value = part([{ id: 'a', label: 'Go', role: 'process' }, { id: 'b', label: 'Stop', role: 'outcome' }]);
+  value.tests = "test('numbers', () => { const d = data.derived(); assert.ok(d.total === 1); });";
+  assert.deepEqual(await check(t, value), []);
+});
