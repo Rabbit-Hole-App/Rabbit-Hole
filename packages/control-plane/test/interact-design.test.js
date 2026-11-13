@@ -29,6 +29,7 @@ test('the Design Author prompt carries the whole narrative, depth and Mode/Contr
   assert.match(DESIGN_AUTHOR_SYSTEM, /control-free static panel still needs one/);
   assert.match(DESIGN_AUTHOR_SYSTEM, /New plans never use Steps/);
   assert.match(DESIGN_AUTHOR_SYSTEM, /reads at most 6 images and always captures the start.*at most 4 other checkpoints/);
+  assert.match(DESIGN_AUTHOR_SYSTEM, /at most 60 objects in all.*at most 3 timeline markers.*at most 6 entities and 4 readouts/);
 });
 
 test('the Design Reviewer prompt keeps the ordered two-part reviewer prompt and adds the contract, blocking semantics and control review', () => {
