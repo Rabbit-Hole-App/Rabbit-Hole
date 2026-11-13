@@ -42,6 +42,7 @@ test('every length, count and range limit of the program manifest is stated in b
     assert.ok(MANIFEST_LIMITS_TEXT.includes(`${path} ${limit}`), `the prompt text states ${path} ${limit}`);
   }
   for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.ok(system.includes(MANIFEST_LIMITS_TEXT), 'both build prompts carry the manifest limits');
+  assert.match(INTERACT_REPAIR_SYSTEM, /no longer calls an approved helper.*changing the arguments you pass to that helper/, 'a repair keeps calling the approved helpers (a live run lost three rounds to helper_missing)');
   assert.ok(STATEFUL_MANIFEST_PROPERTIES.viewport, 'the stateful extras are exported for the prompt');
   assert.match(INTERACT_BUILD_SYSTEM, /1120 x 860/, 'the frame size the reviewer can take is stated');
 });
