@@ -112,3 +112,17 @@ test('a callout is ONE white card (1 px border, radius 9) whose lines are blue-i
   const x = Number(card.match(/<rect x="([0-9.]+)"/)[1]), w = Number(card.match(/<rect[^>]*width="([0-9.]+)"/)[1]);
   assert.ok(x + w <= 72 + 250 - 6 + 1e-6, 'the card ends inside the lane (right edge 322): ' + (x + w));
 });
+
+test('a plot: muted ticks and titles, the trace in blue, the current point a process-blue dot with dashed blue guides, and its note (the text plot.vt.note) in orange under it', () => {
+  const plot = sdk.plot('plot.vt', { x: 72, y: 20, w: 420, h: 280, axes: { x: { label: 'Time since launch', unit: 's', min: 0, max: 0.8 }, y: { label: 'Velocity', unit: 'm/s', min: -4, max: 4 } },
+    series: [{ label: 'Velocity', kind: 'line', points: [{ x: 0, y: 4 }, { x: 0.8, y: -4 }] }, { label: 'Now', kind: 'scatter', points: [{ x: 0.2, y: 2 }] }] });
+  const markup = draw([plot, sdk.text('plot.vt.note', 90, 330, 'Slope a = -9.8 m/s2')], { width: 640, height: 360 });
+  const g = group(markup, 'plot.vt');
+  assert.ok(texts(g).includes('Time since launch (s)'));
+  assert.match(g, new RegExp('<text[^>]*fill="' + TEACHING.muted + '"[^>]*font-weight="600"'), 'titles are muted');
+  assert.match(g, new RegExp('<text[^>]*fill="' + TEACHING.muted + '"[^>]*font-size="13"'), 'tick labels are muted');
+  assert.match(g, new RegExp('<polyline[^>]*stroke="' + TEACHING.blue + '"[^>]*data-frame-series="Velocity"'));
+  assert.match(g, new RegExp('<circle[^>]*r="6"[^>]*fill="' + PALETTE.process + '"[^>]*data-frame-current'));
+  assert.equal((g.match(new RegExp('stroke="' + TEACHING.blue + '"[^>]*stroke-dasharray', 'g')) || []).length >= 2, true, 'dashed guides to both axes');
+  assert.match(group(markup, 'plot.vt.note'), new RegExp('fill="' + TEACHING.warm + '" font-size="13" font-weight="600" text-anchor="start">Slope a = -9.8 m/s2<'));
+});

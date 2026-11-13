@@ -88,6 +88,7 @@ export function vectorKind(label, id) {
 
 // -> { objects, lanes }: the objects the renderer draws, in the same order. An object that is part of a recognised look carries `look: { part, ... }` (drawn by LookShape) or an `identitySlot` (a body); a
 // child that left its lane is moved back inside it. Nothing else changes, and a frame with nothing to read comes back as it was.
+//   plot      a series of one scatter point is the current point (process-blue dot, dashed blue guides to the axes); a text "<plot id>.note" is the plot's note, drawn orange (13 px / 600).
 //   vector    an arrow (sdk.vector) whose label text "<id>L", or whose id, names a kind (vectorKind): drawn blue solid for v, orange dashed for a, green for F; its label takes the same colour.
 export function frameLook(objects) {
   const lanes = lanesOf(objects), byId = new Map(lanes.map(lane => [lane.id, lane]));
@@ -95,7 +96,7 @@ export function frameLook(objects) {
   const source = lanes[0]?.axis?.id;
   const labels = new Map(objects.filter(object => kindOf(object) === 'text').map(object => [object.id, textOf(object)]));
   const vectors = new Map(objects.filter(object => kindOf(object) === 'arrow').map(object => [object.id, vectorKind(labels.get(`${object.id}L`), object.id)]).filter(([, kind]) => kind));
-  const callouts = calloutsOf(objects, lanes);
+  const callouts = calloutsOf(objects, lanes), plots = new Set(objects.filter(object => kindOf(object) === 'plot').map(object => object.id));
   let bodies = 0;
   const out = objects.map(object => {
     if (callouts.has(object.id)) return { ...object, look: callouts.get(object.id) };
@@ -109,6 +110,7 @@ export function frameLook(objects) {
       const home = laneAt(lanes, object.x, object.y), at = home ? clampText(object, home) : null;
       const moved = at && (at.x !== object.x || at.y !== object.y) ? { ...object, ...at } : object;
       const owner = object.id.endsWith('L') ? vectors.get(object.id.slice(0, -1)) : null;
+      if (object.id.endsWith('.note') && plots.has(object.id.slice(0, -5))) return { ...moved, look: { part: 'plot-note' } };
       return owner ? { ...moved, look: { part: 'vector-label', kind: owner } } : moved;
     }
     return object;

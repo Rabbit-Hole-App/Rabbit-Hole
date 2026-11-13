@@ -3,7 +3,7 @@ import { FIGURE_BAND } from './contract.js';
 import { LANE_AXIS_X, LANE_INSET } from './frame-look.js';
 import { renderTutorDiagram } from '../tutor-diagrams/TutorDiagram.js';
 import { plotTicks } from '../tutor-diagrams/plot-ticks.js';
-import { connector, label, lineHeight, textWidth } from '../tutor-diagrams/primitives.js';
+import { FILLED_INK, PALETTE, connector, label, lineHeight, textWidth } from '../tutor-diagrams/primitives.js';
 import { TEACHING as T, TEACHING_ACCENT, TEACHING_SERIES, TEACHING_TEXT, teachingConnector } from '../tutor-diagrams/teaching-theme.js';
 
 // The semantic figures of a program frame (contract.js: axis, plot, diagram) drawn the way the written card draws them, for the composed /interactive card only (AnimatedScene.jsx,
@@ -60,17 +60,22 @@ export function PlotFigure({ spec, box, id }) {
   xTicks.forEach(({ at }, index) => parts.push(cloneElement(teachingConnector([[at, top], [at, bottom]], { dashed: true }), { key: `gx${index}` })));
   yTicks.forEach(({ at, lines, anchor }, index) => {
     parts.push(cloneElement(teachingConnector([[left, at], [right, at]], { dashed: true }), { key: `gy${index}` }));
-    parts.push(cloneElement(label(lines, left - 8, at, { anchor, size: TICK }), { key: `ty${index}` }));
+    parts.push(cloneElement(label(lines, left - 8, at, { anchor, size: TICK, fill: T.muted }), { key: `ty${index}` }));
   });
   const xHeight = tickHeight(xTicks);
-  xTicks.forEach(({ at, lines, anchor }, index) => parts.push(cloneElement(label(lines, at, bottom + 8 + xHeight / 2, { anchor, size: TICK }), { key: `tx${index}` })));
-  parts.push(cloneElement(label(xTitle, right, bottom + 8 + xHeight + 14, { anchor: 'end', size: TITLE, weight: 700 }), { key: 'xt' }));
-  parts.push(cloneElement(label(yTitle, box.x + 4, box.y + 12, { anchor: 'start', size: TITLE, weight: 700 }), { key: 'yt' }));
+  xTicks.forEach(({ at, lines, anchor }, index) => parts.push(cloneElement(label(lines, at, bottom + 8 + xHeight / 2, { anchor, size: TICK, fill: T.muted }), { key: `tx${index}` })));
+  parts.push(cloneElement(label(xTitle, right, bottom + 8 + xHeight + 14, { anchor: 'end', size: TITLE, weight: 600, fill: T.muted }), { key: 'xt' }));
+  parts.push(cloneElement(label(yTitle, box.x + 4, box.y + 12, { anchor: 'start', size: TITLE, weight: 600, fill: T.muted }), { key: 'yt' }));
   let legendRight = right;
   series.forEach((entry, index) => {
     const color = TEACHING_SERIES[index];
     const mapped = entry.points.map(point => [px(point.x), py(point.y)]);
-    if (entry.kind === 'scatter') mapped.forEach(([cx, cy], dot) => parts.push(<circle key={`s${index}d${dot}`} cx={cx} cy={cy} r="5" fill={color} stroke={T.surface} strokeWidth="1.1" data-frame-series={entry.label} />));
+    // A scatter series of ONE point is the current point: a process-blue dot with dashed blue guides to both axes (the written card's moving marker).
+    if (entry.kind === 'scatter' && mapped.length === 1) {
+      const [cx, cy] = mapped[0], guide = points => cloneElement(connector(points, { arrow: false, dashed: true }), { stroke: T.blue });
+      parts.push(cloneElement(guide([[cx, cy], [cx, bottom]]), { key: `s${index}gx` }), cloneElement(guide([[left, cy], [cx, cy]]), { key: `s${index}gy` }));
+      parts.push(<circle key={`s${index}d`} cx={cx} cy={cy} r="6" fill={PALETTE.process} stroke={FILLED_INK} strokeWidth="1.3" data-frame-series={entry.label} data-frame-current="" />);
+    } else if (entry.kind === 'scatter') mapped.forEach(([cx, cy], dot) => parts.push(<circle key={`s${index}d${dot}`} cx={cx} cy={cy} r="5" fill={color} stroke={T.surface} strokeWidth="1.1" data-frame-series={entry.label} />));
     else parts.push(<polyline key={`s${index}`} points={(entry.kind === 'step' ? stepPoints(mapped) : mapped).map(point => point.join(',')).join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" data-frame-series={entry.label} />);
     // More than one series: a legend row above the plot area, right-aligned, each entry a colour swatch and its label.
     if (series.length > 1) {
@@ -147,6 +152,7 @@ function VectorShape({ object }) {
 // The entry AnimatedScene.jsx calls for an object frame-look.js recognised: a lane, its heading line (title 15 px / 600, state 12 px muted), a vector or its label, or nothing for an object another part draws.
 export function LookShape({ object }) {
   const { part } = object.look;
+  if (part === 'plot-note') return <text x={object.x} y={object.y} fill={T.warm} fontSize="13" fontWeight="600" textAnchor={object.align === 'middle' ? 'middle' : 'start'}>{object.label}</text>;
   if (part === 'callout-card') return <CalloutShape card={object.look.card} />;
   if (part === 'vector') return <VectorShape object={object} />;
   if (part === 'vector-label') return <text x={object.x} y={object.y} fill={VECTOR[object.look.kind].color} fontSize="13" textAnchor={object.align === 'middle' ? 'middle' : 'start'}>{object.label}</text>;
