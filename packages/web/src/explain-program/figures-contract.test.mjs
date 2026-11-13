@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FIGURE_BAND, FIGURE_KINDS, FIGURE_LIMITS, OBJECT_KINDS, parseFrame, parseGuestResult } from './contract.js';
 import { FIGURES_CAPABILITY, FIGURES_SDK_VERSION } from './stamps.js';
+import { normalizeFrame } from './frame.js';
+import { getSceneState } from '../animation-scene.js';
 
 // Hand-authored data: the semantic figure kinds (axis, plot, diagram) of the frame contract.
 const frame = objects => ({ width: 640, height: 420, objects, readouts: [] });
@@ -47,7 +49,7 @@ test('axis: strict keys, min below max, ticks inside, bounds with its tick label
 });
 
 test('plot: rectangle inside the frame, 1 to 3 series, 24 points, points inside the axes', () => {
-  assert.match(issue(plot({ w: 179 })), /at least 180 x 120/);
+  assert.match(issue(plot({ w: 199 })), /at least 200 x 160/);
   assert.match(issue(plot({ x: 300 })), /inside the frame/);
   assert.match(issue(plot({ series: [] })), /series/);
   const series = n => Array.from({ length: n }, (_, i) => ({ label: `S${i}`, kind: 'line', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] }));
@@ -86,4 +88,21 @@ test('a frame with a figure needs the figures capability and sdk-8, the rest of 
     assert.match(out.issue, /require the figures capability and sdk-8/);
   }
   assert.equal(parseGuestResult({ frame: frame([{ kind: 'box', id: 'b', x: 1, y: 1, w: 10, h: 10 }]), quantities: {} }, manifest(['time_playback']), 'sdk-7').ok, true);
+});
+
+test('normalizeFrame threads each figure kind into a scene object with its box and its data, and keeps the other objects unchanged', () => {
+  const result = normalizeFrame(frame([axis(), axis({ id: 'ay', orientation: 'y', x: 90, y: 340, length: 280 }), plot({ id: 'pl' }), diagram({ id: 'dg', y: 100 }), { kind: 'box', id: 'b', x: 1, y: 1, w: 10, h: 10 }]));
+  assert.equal(result.ok, true, result.issue);
+  const byId = Object.fromEntries(result.state.objects.map(object => [object.id, object]));
+  assert.deepEqual([byId.ax.type, byId.ay.type, byId.pl.type, byId.dg.type], ['axis', 'axis', 'plot', 'figure']);
+  // an x axis: the line at y with 4 above and the band below it; a y axis grows up from its start, band to its left, title room above
+  assert.deepEqual([byId.ax.x, byId.ax.y, byId.ax.w, byId.ax.h], [80, 296, 400, FIGURE_BAND.x + 4]);
+  assert.deepEqual([byId.ay.x, byId.ay.y, byId.ay.w, byId.ay.h], [90 - FIGURE_BAND.y, 340 - 280 - FIGURE_BAND.titleRoom, FIGURE_BAND.y + 4, 280 + FIGURE_BAND.titleRoom + 8]);
+  assert.deepEqual([byId.ax.axisSpec.x0, byId.ax.axisSpec.y0, byId.ax.axisSpec.length, byId.ax.axisSpec.label, byId.ax.axisSpec.unit], [80, 300, 400, 'Time', 's']);
+  assert.deepEqual([byId.pl.x, byId.pl.y, byId.pl.w, byId.pl.h], [40, 20, 400, 260]);
+  assert.equal(byId.pl.plotSpec.series[0].points.length, 3);
+  assert.deepEqual([byId.dg.x, byId.dg.y, byId.dg.w, byId.dg.h], [20, 100, 400, 320], 'a diagram owns the width and the height the frame leaves below it');
+  assert.equal(byId.dg.diagramSpec.diagram.kind, 'flow');
+  assert.equal('axisSpec' in byId.b || 'plotSpec' in byId.b || 'diagramSpec' in byId.b, false);
+  assert.equal(getSceneState(result.scene, 0).objects.length, 5);
 });

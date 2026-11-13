@@ -46,7 +46,7 @@ export const FIGURE_KINDS = Object.freeze(['axis', 'plot', 'diagram']);
 // What a figure keeps free beside its line, in frame units, so the frame bounds check is the same number the renderer draws with (FrameFigures.jsx): an x axis keeps
 // BAND.x below it for ticks and its title, a y axis keeps BAND.y to its left and titleRoom above its top end.
 export const FIGURE_BAND = Object.freeze({ x: 52, y: 60, titleRoom: 22 });
-export const FIGURE_LIMITS = Object.freeze({ series: 3, points: 24, ticks: 12, specBytes: 16 * 1024, plotMin: Object.freeze({ w: 180, h: 120 }) });
+export const FIGURE_LIMITS = Object.freeze({ series: 3, points: 24, ticks: 12, specBytes: 16 * 1024, plotMin: Object.freeze({ w: 200, h: 160 }) });
 
 const finite = limit => z.number().min(-limit).max(limit); // z.number() already refuses NaN and Infinity
 const coordinate = finite(CONTRACT_LIMITS.coordinate);

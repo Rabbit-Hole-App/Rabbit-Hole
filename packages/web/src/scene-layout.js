@@ -316,6 +316,7 @@ export function typographyClassesUsed(scene) {
     else if (object.type === 'code') classes.add('code');
     else if (object.type === 'equation') classes.add('equation');
     else if (['grid', 'strip', 'bars', 'tokens'].includes(object.type)) { classes.add('caption'); classes.add('metadata'); }
+    else if (object.type === 'axis' || object.type === 'plot') { classes.add('caption'); } // tick labels and axis titles are drawn at the caption size
     else if (state.label) classes.add('body');
   }
   return [...classes].sort();

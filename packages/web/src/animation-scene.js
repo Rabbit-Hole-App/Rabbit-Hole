@@ -46,7 +46,10 @@ export const plainRuns = runs => runs.map(run => (run.kind === 'math' ? plainMat
 // Every type here has a branch in AnimatedScene.jsx. Adding a member without
 // one produces an object that validates and draws nothing, which is how arrow,
 // line and image shipped invisible. The renderer's own test reads this list.
-export const RENDERED_TYPES = ['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens', 'polyline', 'raster'];
+export const RENDERED_TYPES = ['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens', 'polyline', 'raster', 'axis', 'plot', 'figure'];
+// The semantic figures of a program frame (the Frame kinds axis, plot and diagram, explain-program/frame.js). Only that gate builds them (it names its scene allowFigures:
+// true) and only the composed /interactive card draws them (AnimatedScene.jsx, interact mode): a legacy /animation scene naming one is refused, never drawn blank.
+export const FIGURE_TYPES = ['axis', 'plot', 'figure'];
 
 const objectSchema = z.object({
   id: z.string().min(1).max(64),
@@ -107,6 +110,10 @@ const objectSchema = z.object({
     // polyline: a bounded series of finite points (curves, coils, plotted data) and an optional clip rectangle. Generic
     // by design - nothing here names a curve's meaning. x/y/w/h on the object are its bounding box, set by the author.
     points: z.array(z.tuple([z.number(), z.number()])).min(2).max(2000).optional(),
+    // axis, plot, figure (FIGURE_TYPES): the Frame object's own data, already validated by explain-program/contract.js; x, y, w, h are the box the figure occupies.
+    axisSpec: z.object({ orientation: z.enum(['x', 'y']), x0: z.number(), y0: z.number(), length: z.number().positive(), min: z.number(), max: z.number(), ticks: z.array(z.number()).max(12).optional(), label: z.string().max(40), unit: z.string().max(16).optional() }).optional(),
+    plotSpec: z.object({ axes: z.object({ x: z.any(), y: z.any() }), series: z.array(z.any()).min(1).max(3) }).optional(),
+    diagramSpec: z.record(z.string(), z.unknown()).optional(),
     clip: z.object({ x: z.number(), y: z.number(), w: z.number().positive().max(2000), h: z.number().positive().max(2000) }).strict().optional(),
     rows: z.number().int().positive().max(64).optional(),
     cols: z.number().int().positive().max(64).optional(),
@@ -290,6 +297,7 @@ export function validateScene(raw) {
   // anywhere else every part would draw at once, on top of each other.
   const unpaged = !raw?.paged && (raw?.objects || []).find(object => object?.part !== undefined);
   if (unpaged) throw new Error(`Object "${unpaged.id}" declares a part, but no input is presented as a pager`);
+  const allowFigures = raw?.allowFigures === true;
   raw = resolveDerived(raw);
   // A legacy scene may still name a hex colour. Translate the closed set we
   // recognise into a role before zod ever sees `color` - unknown keys are
@@ -302,6 +310,8 @@ export function validateScene(raw) {
     throw new Error(`Invalid animation at ${issue.path.join('.') || 'root'}: ${issue.message}`);
   }
   const scene = parsed.data;
+  const figure = scene.objects.find(object => FIGURE_TYPES.includes(object.type));
+  if (figure && !allowFigures) throw new Error(`Object "${figure.id}": a ${figure.type} is drawn only by a program frame`);
   const rasterPixels = scene.objects.filter(object => object.type === 'raster').reduce((sum, object) => sum + object.initialState.rows * object.initialState.cols, 0);
   if (rasterPixels > RASTER_LIMITS.framePixels) throw new Error('at most 8192 raster pixels per scene');
   const parts = [...new Set(scene.objects.map(object => object.part).filter(part => part !== undefined))];
@@ -428,6 +438,12 @@ export function validateScene(raw) {
       throw new Error(`Object "${object.id}": ${object.type === 'arrow' ? 'an' : 'a'} ${object.type} needs a from and a to`);
     }
     if (object.type === 'polyline' && !object.initialState.points) throw new Error(`Object "${object.id}": a polyline needs points`);
+    if (FIGURE_TYPES.includes(object.type)) {
+      const { x, y, w, h, axisSpec, plotSpec, diagramSpec } = object.initialState;
+      if (!(w && h)) throw new Error(`Object "${object.id}": a ${object.type} needs a width and a height`);
+      if (!{ axis: axisSpec, plot: plotSpec, figure: diagramSpec }[object.type]) throw new Error(`Object "${object.id}": a ${object.type} needs its data`);
+      if (x < 0 || y < 0 || x + w > scene.width || y + h > scene.height) throw new Error(`Object "${object.id}": a ${object.type} must stay inside the scene`);
+    }
   }
   for (const event of scene.timeline) {
     // A name is an author convenience, not something the evaluator should ever
@@ -595,6 +611,8 @@ export function getSceneState(scene, time) {
     to: object.initialState.to ?? null,
     src: object.initialState.src ?? null,
     ...(object.type === 'raster' ? { pixels: [...object.initialState.pixels] } : {}),
+    // Only a figure carries its data; every other object's state keeps exactly the keys it always had.
+    ...(object.type === 'axis' ? { axisSpec: object.initialState.axisSpec } : object.type === 'plot' ? { plotSpec: object.initialState.plotSpec } : object.type === 'figure' ? { diagramSpec: object.initialState.diagramSpec } : {}),
     label: object.initialState.label ?? object.initialState.text ?? (object.initialState.runs ? plainRuns(object.initialState.runs) : ''),
     runs: object.initialState.runs ?? null,
     textProgress: 1,
