@@ -1096,6 +1096,21 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 .xp-reset:active:not(:disabled) { background: var(--xp-blue-pressed); }
 .xp-reset:disabled { cursor: default; opacity: 0.5; }
 .xp-controls { padding: 14px 20px 16px; border-top: 1px solid var(--xp-border); }
+.xp-transport-wrap { padding: 14px; border-top: 1px solid var(--xp-border); }
+.xp-transport-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 2px 8px; }
+.xp-transport-heading > label { font-size: 14px; font-weight: 550; }
+.xp-transport-heading > span { font-size: 13px; color: var(--xp-muted); }
+.xp-transport { display: grid; grid-template-columns: 96px minmax(50px, 1fr) 83px; gap: 12px; align-items: center; padding: 9px 10px; border: 1px solid var(--xp-border); border-radius: 9px; background: var(--xp-panel); }
+.xp-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 6px 11px; border: 1px solid var(--xp-blue-border); border-radius: 8px;
+  color: var(--xp-blue-ink); background: var(--xp-blue-soft); font-size: 13px; font-weight: 650; white-space: nowrap; }
+.xp-button:hover:not(:disabled) { background: var(--xp-blue-hover); }
+.xp-button:active:not(:disabled) { background: var(--xp-blue-pressed); }
+.xp-button-secondary { border-color: var(--xp-border); color: var(--xp-muted); background: var(--xp-card); }
+.xp-button:disabled { cursor: default; opacity: 0.5; }
+.xp-scrubber { position: relative; display: flex; align-items: center; min-width: 0; }
+.xp-scrubber[data-interact-tick]::before { content: ""; position: absolute; left: var(--xp-tick, 50%); width: 1px; height: 13px; background: var(--xp-blue-border); pointer-events: none; }
+.xp-scrubber input { position: relative; width: 100%; min-width: 0; height: 24px; margin: 0; accent-color: var(--xp-blue); cursor: pointer; }
+.xp-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--xp-blue-ink); text-align: right; white-space: nowrap; }
 [data-interact-experiment] [data-interact-readouts] { margin: 0; padding: 6px 19px 12px; list-style: none; font-size: 13px; line-height: 1.4; color: var(--xp-muted); }
 [data-interact-experiment] [data-interact-readout] > span { color: var(--xp-ink); font-variant-numeric: tabular-nums; }
 

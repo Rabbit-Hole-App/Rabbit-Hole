@@ -111,6 +111,17 @@ export function autopauseMarker(composition, inputs, from, to) {
   return hits.reduce((first, marker) => (first && first.time <= marker.time ? first : marker), null);
 }
 // The moment a seek control (the At top button) jumps to: its marker's time for these inputs; null when the timeline has no such marker.
+// The transport's chrome (owner brief 2026-11-13 codex match): the timeline's own label above the strip, whether the clock runs slower than real time ("Slow motion"), and where the
+// scrubber's centre tick sits: the first pause marker's place on the track as a percent (the Codex reference's --top-progress), null when the timeline has none, so no tick marks nothing.
+export function transportChrome(manifest, composition = null, inputs = {}) {
+  const timeline = timelineOf(composition, inputs) ?? manifest.timeline ?? null, end = programDuration(manifest, composition, inputs);
+  const pause = (timeline?.markers ?? []).filter(marker => marker.pause && Number.isFinite(marker.time)).sort((a, b) => a.time - b.time)[0];
+  return {
+    label: timeline?.label ?? 'Explanation time',
+    slowMotion: playbackRate(manifest, composition, inputs) < 1,
+    tick: pause && end > 0 ? Math.round(Math.min(1, Math.max(0, pause.time / end)) * 10000) / 100 : null,
+  };
+}
 export const seekTime = (composition, inputs, markerId) => timelineOf(composition, inputs)?.markers.find(marker => marker.id === markerId)?.time ?? null;
 export function setProgramInputUnder(block, manifest, name, value, composition = null) {
   const next = setProgramInput(block, manifest, name, value);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ProgramManifest } from './contract.js';
-import { autopauseMarker, inputChange, resetsOnInput, seekTime } from './program-card.js';
+import { autopauseMarker, inputChange, programDuration, resetsOnInput, seekTime, transportChrome } from './program-card.js';
 import { CardCompositionSchema, nativeDeclaration } from '../interact-composition.js';
 import { cardLayout, layoutProblems } from '../interact-card-layout.js';
 import { normalizeComposition } from '../interact-composition-adapter.js';
@@ -77,4 +77,15 @@ test('the controls row keeps the seek button before Reset, and the card layout i
   const sections = cardLayout(composition), controls = sections.find(section => section.kind === 'controls');
   assert.deepEqual(controls.ids.slice(-2), ['atTop', 'reset']);
   assert.deepEqual(layoutProblems(sections), []);
+});
+
+test('the transport chrome (owner brief 2026-11-13 codex match): the timeline label, Slow motion only below real time, the scrubber tick at the first pause marker, none without one', () => {
+  const inputs = { launchSpeed: 4 }, chrome = transportChrome(manifest, composition, inputs);
+  assert.equal(chrome.label, composition.main.timeline.label);
+  assert.equal(chrome.slowMotion, composition.main.timeline.playbackRate < 1);
+  const end = programDuration(manifest, composition, inputs);
+  assert.ok(chrome.tick > 0 && chrome.tick < 100 && Math.abs(chrome.tick - seekTime(composition, inputs, top.id) / end * 100) < 0.01, 'the tick is the top marker\'s place on the track, in percent');
+  const calm = structuredClone(composition); calm.main.timeline.playbackRate = 1; calm.main.timeline.markers.forEach(marker => { delete marker.pause; });
+  assert.deepEqual([transportChrome(manifest, calm, inputs).slowMotion, transportChrome(manifest, calm, inputs).tick], [false, null], 'real time and no pause marker: no label, no tick');
+  assert.equal(transportChrome(manifest, null, {}).label, 'Explanation time', 'a card with no timeline label keeps the old name');
 });

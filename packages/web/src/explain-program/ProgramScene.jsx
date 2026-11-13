@@ -17,7 +17,7 @@ import { EXPERIMENT_STYLE, InteractIntro } from '../InteractSupportPanels.jsx';
 import { focusFixed, focusRoom } from '../interact-card-layout.js';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
-  autopauseMarker, inputChange, pressPlay, seekTime, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration, programInputWidget,
+  autopauseMarker, inputChange, pressPlay, seekTime, transportChrome, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration, programInputWidget,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -72,7 +72,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const [box, setBox] = useState(null); // the legible frame box, from the first frame of this artifact (frame.js legibleFrame)
   const [playing, setPlaying] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false); // the viewer's own: never saved, never part of the card's derived size
-  const notesId = useId();
+  const notesId = useId(), timeId = useId();
   const still = useReducedMotion();
   const latest = useRef(block);
   latest.current = block;
@@ -367,7 +367,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   const readoutRows = composed ? (view.readouts || []).filter(r => composition.main.readoutIds.includes(r.id)) : [];
   // A composed card draws the scene, its readouts, the transport and the controls in ONE experiment box (owner brief 2026-11-13 codex match; index.css [data-interact-experiment]),
   // headed by the program's own title (the plan has no subtitle field, so none is drawn) with Reset as its one top-right icon; every other card draws them as before.
-  const heading = composed ? manifest.title || composition.title : null;
+  const heading = composed ? manifest.title || composition.title : null, transport = composed ? transportChrome(manifest, composition, inputs) : null;
   const Wrap = composed ? 'section' : Fragment;
   const wrapProps = composed ? { 'data-interact-experiment': '', 'aria-label': heading, style: EXPERIMENT_STYLE, className: 'flex min-h-0 flex-1 flex-col' } : {};
   return (
@@ -392,14 +392,33 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           style={{ ...(focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }), ...(dragIds.length ? { touchAction: 'none' } : {}) }}>{picture}</div>
       </div>
       <p className="sr-only">{manifest.summary}</p>
-      <div ref={controls} className="flex shrink-0 flex-col gap-2">
+      <div ref={controls} className={`flex shrink-0 flex-col ${composed ? '' : 'gap-2'}`}>
       {/* The card draws the plan's readouts (the program reports them; it does not draw them as text): one entry per declared readout, label, value and unit, tabular numbers. */}
       {composed && readoutRows.length > 0 && (
         <ul data-interact-readouts>
           {readoutRows.map(value => <li key={value.id} data-interact-readout={value.id}>{value.label}: <span>{value.text}</span></li>)}
         </ul>
       )}
-      {duration > 0 && (
+      {duration > 0 && composed && (
+        // The composed transport (owner brief 2026-11-13 codex match): the timeline's label (and "Slow motion" when it runs slower than real time) above one panel strip: Play, the scrubber with its centre tick, the signed time.
+        <div data-animation-transport className="xp-transport-wrap">
+          <div className="xp-transport-heading">
+            <label htmlFor={timeId}>{transport.label}</label>
+            {transport.slowMotion && <span data-interact-slow>Slow motion</span>}
+          </div>
+          <div className="xp-transport" role="group" aria-label="Playback">
+            <button type="button" data-animation-play onClick={play} className="xp-button">
+              {playing ? <Pause size={16} /> : <Play size={16} />}{playing ? 'Pause' : atEnd ? 'Replay' : 'Play'}
+            </button>
+            <div data-interact-scrubber className="xp-scrubber" {...(transport.tick === null ? {} : { 'data-interact-tick': '', style: { '--xp-tick': `${transport.tick}%` } })}>
+              <input id={timeId} type="range" aria-label={transport.label} min={0} max={duration} step={scrubStep(manifest, composition)} value={time}
+                onChange={event => { setPlaying(false); seek(clampTime(manifest, snapToMarker(manifest, Number(event.target.value), composition, inputs), composition, inputs)); }} />
+            </div>
+            <output data-program-time htmlFor={timeId} className="xp-value">{timeLabel(manifest, shownTime, composition, inputs)}</output>
+          </div>
+        </div>
+      )}
+      {duration > 0 && !composed && (
         <div data-animation-transport className="flex items-center gap-1.5">
           <button type="button" data-animation-play onClick={play} className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
             {playing ? <Pause size={14} /> : <Play size={14} />}{playing ? 'Pause' : atEnd ? 'Replay' : 'Play'}

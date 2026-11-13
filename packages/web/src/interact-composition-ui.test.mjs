@@ -263,7 +263,7 @@ test('the experiment box: one 12 px bordered box holds the heading row, the scen
   const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
   assert.match(src, /const Wrap = composed \? 'section' : Fragment;/);
   assert.match(src, /'data-interact-experiment': '', 'aria-label': heading, style: EXPERIMENT_STYLE/);
-  assert.match(src, /const heading = composed \? manifest\.title \|\| composition\.title : null;/, 'the heading is the program\'s title, never a subtitle the plan has no field for');
+  assert.match(src, /const heading = composed \? manifest\.title \|\| composition\.title : null, transport = composed \? transportChrome\(manifest, composition, inputs\) : null;/, 'the heading is the program\'s title, never a subtitle the plan has no field for');
   assert.match(src, /<div data-interact-heading><h2>\{heading\}<\/h2><\/div>/);
   assert.ok(src.indexOf('<Wrap {...wrapProps}>') < src.indexOf('<div data-program-viewport') && src.indexOf('</Wrap>') > src.indexOf('<div ref={controls}'), 'the scene and every row sit inside the box');
   const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
@@ -321,4 +321,21 @@ test('the card draws the readouts row itself: one muted 13 px line directly unde
   const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
   assert.match(css, /\[data-interact-experiment\] \[data-interact-readouts\] \{[^}]*font-size: 13px;[^}]*color: var\(--xp-muted\);/);
   assert.match(css, /\[data-interact-experiment\] \[data-interact-readout\] > span \{ color: var\(--xp-ink\); font-variant-numeric: tabular-nums; \}/);
+});
+
+test('the composed transport: label row above one panel strip (Play, the scrubber with its centre tick, the signed time); the legacy transport is untouched (owner brief 2026-11-13 codex match)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
+  assert.match(src, /\{duration > 0 && composed && \(/);
+  assert.match(src, /\{duration > 0 && !composed && \(\s*<div data-animation-transport className="flex items-center gap-1\.5">/, 'the legacy row is as it was');
+  assert.equal((src.match(/data-animation-transport/g) || []).length, 2, 'one transport per card kind, never two on one card');
+  assert.match(src, /<label htmlFor=\{timeId\}>\{transport\.label\}<\/label>\s*\{transport\.slowMotion && <span data-interact-slow>Slow motion<\/span>\}/);
+  assert.match(src, /'data-interact-tick': '', style: \{ '--xp-tick': `\$\{transport\.tick\}%` \}/);
+  assert.match(src, /<output data-program-time htmlFor=\{timeId\} className="xp-value">/);
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(css, /\.xp-transport \{ display: grid; grid-template-columns: 96px minmax\(50px, 1fr\) 83px; gap: 12px; align-items: center; padding: 9px 10px; border: 1px solid var\(--xp-border\); border-radius: 9px; background: var\(--xp-panel\); \}/);
+  assert.match(css, /\.xp-button \{[^}]*min-height: 36px;[^}]*border: 1px solid var\(--xp-blue-border\); border-radius: 8px;\s*color: var\(--xp-blue-ink\); background: var\(--xp-blue-soft\);/);
+  assert.match(css, /\.xp-value \{ font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: var\(--xp-blue-ink\); text-align: right;/);
+  assert.match(css, /\.xp-scrubber\[data-interact-tick\]::before \{[^}]*left: var\(--xp-tick, 50%\); width: 1px; height: 13px;/);
+  assert.match(css, /\.xp-scrubber input \{[^}]*accent-color: var\(--xp-blue\)/);
 });
