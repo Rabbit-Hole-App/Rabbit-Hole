@@ -172,7 +172,7 @@ export const FEEDBACK_LIMIT = 30000;
 export const capFeedback = text => String(text ?? '').length > FEEDBACK_LIMIT ? `${String(text).slice(0, FEEDBACK_LIMIT)}
 [feedback truncated: ${String(text).length - FEEDBACK_LIMIT} more characters]` : String(text ?? '');
 
-export function createBatchedAuthor({ call, base, rows, size, artifactTopic, diagrams, registry, exemplar }) {
+export function createBatchedAuthor({ call, base, rows, size, artifactTopic, diagrams, registry, exemplar, log = () => {} }) {
   const p = paths(artifactTopic, diagrams);
   const state = { foundation: null, parts: planBatches(rows, size).map(group => ({ rows: group, output: null, ok: false })), referenceRanges: [], testRanges: [] };
   const exemplarData = exemplar.filter(file => /-data(?:\.test)?\.m?js$/u.test(file.path));
@@ -184,6 +184,7 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
       redoFoundation = route.foundation; redo = route.parts;
     }
     if (redoFoundation) {
+      log({ round, foundation: true, mode: state.foundation ? 'again' : 'first' });
       state.foundation = (await call('foundation', { ...base, part: 'foundation', exemplar: exemplarData, previous: state.foundation ?? [], feedback: capFeedback(feedback), round })).files;
       state.parts.forEach(part => { part.ok = false; });
     }
@@ -192,6 +193,9 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
       const part = state.parts[index];
       part.ok = false;
       const before = part.output, last = index === state.parts.length - 1, narrow = retryScope(before, part.rows, feedback);
+      // Measurement of the narrow retry (reviewer 2026-11-13): what each batch call was sent and what was held back, per round.
+      log({ round, batch: index + 1, mode: !before ? 'first' : narrow ? 'narrow' : 'whole', called: (narrow ? narrow.previous.references : before?.references ?? part.rows).map(item => item.id),
+        held: narrow ? before.references.filter(reference => !narrow.previous.references.includes(reference)).map(reference => reference.id) : [], feedbackChars: String(narrow ? narrow.feedback : feedback ?? '').length });
       const answer = await call('batch', { ...base, part: 'batch', batch: index + 1, of: state.parts.length, last, assigned: narrow ? narrow.rows : part.rows,
         dataModule: state.foundation, exemplar: last ? [...exemplarReferences, ...exemplarWalkthrough] : exemplarReferences, helperSource: helperSource(artifactTopic).join('\n'),
         previous: narrow ? narrow.previous : part.output, feedback: capFeedback(narrow ? narrow.feedback : feedback), round }, narrow ? narrow.rows : part.rows, last, narrow ? returned => mergeRetry(returned, before) : null, part.rows);

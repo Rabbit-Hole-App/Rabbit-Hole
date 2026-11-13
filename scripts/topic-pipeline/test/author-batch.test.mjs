@@ -80,15 +80,15 @@ test('failures route to the batch that owns them', () => {
 });
 
 function mockedAuthor(extra = {}) {
-  const calls = [];
+  const calls = [], logs = [];
   const call = async (kind, payload, assigned, last) => {
     calls.push({ kind, batch: payload.batch, feedback: payload.feedback, previous: payload.previous });
     const message = extra.fail?.(kind, payload);
     if (message) throw new Error(message);
     return kind === 'foundation' ? { files: dataModule } : part(assigned, last);
   };
-  const author = createBatchedAuthor({ call, base: { topic: 'demo' }, rows, size: 4, artifactTopic: A, diagrams: D, registry, exemplar: [{ path: `${D}/lesson-x-data.js`, content: '' }, { path: `${D}/lesson-x-references.js`, content: '' }, { path: 'docs/walk.md', content: '' }] });
-  return { author, calls };
+  const author = createBatchedAuthor({ log: entry => logs.push(entry), call, base: { topic: 'demo' }, rows, size: 4, artifactTopic: A, diagrams: D, registry, exemplar: [{ path: `${D}/lesson-x-data.js`, content: '' }, { path: `${D}/lesson-x-references.js`, content: '' }, { path: 'docs/walk.md', content: '' }] });
+  return { author, calls, logs };
 }
 
 test('round 1 runs the foundation once, then every batch in parallel; the merged files cover the stage', async () => {
@@ -191,9 +191,9 @@ test('a re-called batch keeps its unnamed references through the whole round loo
 });
 
 test('a re-called batch receives only the references the feedback names, and their feedback', async () => {
-  const { author, calls } = mockedAuthor();
+  const { author, calls, logs } = mockedAuthor();
   await author('', 1);
-  calls.length = 0;
+  calls.length = 0; logs.length = 0;
   const report = { topic: 'demo', figures: [{ id: 'ml-p6-brief', verdict: 'fix', reasons: ['axis'], layer: 'label' }, { id: 'ml-p5', verdict: 'ship', reasons: [], layer: 'label' }, { id: 'ml-p9', verdict: 'fix', reasons: ['x'], layer: 'label' }] };
   await author(JSON.stringify(report), 2);
   const batch2 = calls.find(call => call.batch === 2), batch3 = calls.find(call => call.batch === 3);
@@ -202,6 +202,7 @@ test('a re-called batch receives only the references the feedback names, and the
   assert.deepEqual(JSON.parse(batch2.feedback).figures.map(figure => figure.id), ['ml-p6-brief'], 'the feedback keeps only the figures naming its references');
   assert.deepEqual(batch3.previous.references.map(reference => reference.id), ['ml-p9']);
   assert.equal(calls.some(call => call.batch === 1), false, 'a batch the feedback does not name is not called');
+  assert.deepEqual(logs.map(({ batch, mode, called, held }) => [batch, mode, called, held]), [[2, 'narrow', ['ml-p6'], ['ml-p5', 'ml-p7', 'ml-p8']], [3, 'narrow', ['ml-p9'], ['ml-p10']]], 'the round log says what each batch was sent and what was held');
 });
 
 test('a narrow retry replaces the named references in place and keeps every other reference byte-identical', () => {

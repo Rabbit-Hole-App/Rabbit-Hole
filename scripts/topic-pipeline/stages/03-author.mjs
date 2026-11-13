@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { appendFile, cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { callAgent } from '../agents/call.mjs';
 import { BATCH_OUTPUT_CEILING, agentSettings } from '../budget.mjs';
@@ -73,7 +73,7 @@ ${await prompt('author-batch')}`;
       if (flags.length) throw new Error(JSON.stringify(flags, null, 2));
     };
     const dryRun = ctx.fixture && ctx.dryRun, p = batchPaths(target.artifactTopic, DIAGRAMS), options = { topic: ctx.topic, dryRun, repoRoot: target.worktree };
-    batchedRound = createBatchedAuthor({ artifactTopic: target.artifactTopic, diagrams: DIAGRAMS, size: batchSize, rows: prompts.prompts, registry: inputs.registry.content, exemplar: inputs.exemplar,
+    batchedRound = createBatchedAuthor({ log: entry => appendFile(join(roundDirNow, 'retries.jsonl'), `${JSON.stringify(entry)}\n`).catch(() => {}), artifactTopic: target.artifactTopic, diagrams: DIAGRAMS, size: batchSize, rows: prompts.prompts, registry: inputs.registry.content, exemplar: inputs.exemplar,
       base: { topic: inputs.topic, artifactTopic: inputs.artifactTopic, idPrefix: inputs.idPrefix, metadata: inputs.metadata, prompts, coverage, sop: inputs.sop, kindSchema: inputs.kindSchema, rendererConstraints: inputs.rendererConstraints, toyDataTemplate: inputs.toyDataTemplate },
       call: (kind, payload, assigned, last, merge, all) => kind === 'foundation' ? callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: foundationSchema(ctx.topic, dryRun), validate: value => validateFoundation(value, options, p) })
         : callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: batchSchema, validate: async value => { validateBatch(value, assigned, last); await prevalidate(merge ? merge(value) : value, all ?? assigned, payload); return value; } }) });
