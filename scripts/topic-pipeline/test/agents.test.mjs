@@ -61,3 +61,34 @@ test('fixture stages 01, 04 and 07 use source text, defective and corrected prev
   assert.deepEqual(calls, ['prompt-writer', 'verifier', 'auditor']);
   assert.equal(JSON.parse(await readFile(join(topicDir, 'audit.json'))).cards[0].verdict, 'hold');
 });
+
+test('stage 04 runs its verifier batches in parallel and keeps the verdicts in batch order', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'topic-verify-parallel-'));
+  const topicDir = join(root, 'decision-trees'), fixtureDir = join(topicDir, 'fixture');
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="408" height="120"><text x="10" y="30">count 1</text></svg>';
+  for (const [folder, suffix] of [['references.human', ''], ['references.defective', '@c3e40994']]) {
+    for (let i = 1; i <= 14; i++) {
+      const directory = join(fixtureDir, folder, `ml-trees-${String(i).padStart(2, '0')}${suffix}`); await mkdir(directory, { recursive: true });
+      await writeFile(join(directory, 'spec.json'), JSON.stringify({ version: 1, diagram: { kind: 'tree', title: 'count 1', nodes: [{ id: 'a', label: 'one row' }] } }, null, 2));
+      await writeFile(join(directory, '408.svg'), svg);
+    }
+  }
+  await writeFile(join(fixtureDir, 'prompts.human.json'), JSON.stringify({ topic: 'decision-trees', prompts: [] }));
+  let running = 0, peak = 0, calls = 0, release;
+  const gate = Promise.race([new Promise(resolve => { release = resolve; }), new Promise(resolve => setTimeout(resolve, 2000))]);
+  const ctx = { topic: 'decision-trees', topicDir, fixtureDir, fixture: true, config: { paths: { sourceRoot: root } },
+    call: async (agent, inputs) => {
+      calls++; running++; peak = Math.max(peak, running);
+      if (calls === 3) release();
+      await gate;   // all three calls must be in flight together, or this waits out its two seconds
+      await new Promise(resolve => setTimeout(resolve, 30 - inputs.figures.length));   // the first batches finish last: order must still be the batch order
+      running--;
+      return { topic: 'decision-trees', figures: inputs.figures.map(row => ({ id: row.id, verdict: 'ship', reasons: [], layer: 'label' })) };
+    } };
+  assert.equal((await verifyStage(ctx)).status, 'ok');
+  assert.equal(calls, 3);
+  assert.ok(peak > 1, `the verifier batches overlapped (peak ${peak})`);
+  const ids = JSON.parse(await readFile(join(topicDir, 'verify.human.json'), 'utf8')).figures.map(row => row.id);
+  assert.equal(ids.length, 28);
+  assert.deepEqual(ids, [...ids].sort((a, b) => (a.endsWith('@c3e40994') - b.endsWith('@c3e40994')) || a.localeCompare(b)), 'verdicts keep the order the references were read in');
+});

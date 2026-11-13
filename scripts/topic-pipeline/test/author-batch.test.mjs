@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { assembleReferences, assembleTests, createBatchedAuthor, holdUnnamed, paths, planBatches, routeFailure, validateBatch, validateFoundation, wireRegistry } from '../author-batch.mjs';
+import { assembleReferences, assembleTests, createBatchedAuthor, holdUnnamed, mergeRetry, paths, planBatches, retryScope, routeFailure, validateBatch, validateFoundation, wireRegistry } from '../author-batch.mjs';
 import { estimateTopic } from '../budget.mjs';
 
 const A = 'demo-topic', D = 'packages/web/src/tutor-diagrams', P = paths(A, D);
@@ -109,7 +109,7 @@ test('a failure is repaired by calling only the owning batch, with the verbatim 
   await author('{"id":"ml-p6","rule":6,"detail":"Display numbers absent from derived(): 7"}', 2);
   assert.deepEqual(calls.map(call => [call.kind, call.batch]), [['batch', 2]]);
   assert.match(calls[0].feedback, /Display numbers absent/u);
-  assert.ok(calls[0].previous.references.some(reference => reference.id === 'ml-p5'), 'the batch sees its own previous answer');
+  assert.deepEqual(calls[0].previous.references.map(reference => reference.id), ['ml-p6'], 'the batch sees only its own named reference');
   calls.length = 0;
   await author('Error in topic-demo-topic-data.js:3', 3);
   assert.deepEqual(calls.map(call => call.kind), ['foundation', 'batch', 'batch', 'batch']);
@@ -188,4 +188,35 @@ test('a re-called batch keeps its unnamed references through the whole round loo
   const content = response.files.find(file => file.path === P.references).content;
   assert.match(content, /id: 'ml-p6'[^\n]*round 2/u);
   for (const id of ['ml-p5', 'ml-p7', 'ml-p8']) assert.doesNotMatch(content.split('\n').find(line => line.includes(`id: '${id}'`)), /round 2/u);
+});
+
+test('a re-called batch receives only the references the feedback names, and their feedback', async () => {
+  const { author, calls } = mockedAuthor();
+  await author('', 1);
+  calls.length = 0;
+  const report = { topic: 'demo', figures: [{ id: 'ml-p6-brief', verdict: 'fix', reasons: ['axis'], layer: 'label' }, { id: 'ml-p5', verdict: 'ship', reasons: [], layer: 'label' }, { id: 'ml-p9', verdict: 'fix', reasons: ['x'], layer: 'label' }] };
+  await author(JSON.stringify(report), 2);
+  const batch2 = calls.find(call => call.batch === 2), batch3 = calls.find(call => call.batch === 3);
+  assert.deepEqual(batch2.previous.references.map(reference => reference.id), ['ml-p6']);
+  assert.deepEqual(batch2.previous.replay.map(row => row.referenceId), ['ml-p6']);
+  assert.deepEqual(JSON.parse(batch2.feedback).figures.map(figure => figure.id), ['ml-p6-brief'], 'the feedback keeps only the figures naming its references');
+  assert.deepEqual(batch3.previous.references.map(reference => reference.id), ['ml-p9']);
+  assert.equal(calls.some(call => call.batch === 1), false, 'a batch the feedback does not name is not called');
+});
+
+test('a narrow retry replaces the named references in place and keeps every other reference byte-identical', () => {
+  const assigned = rows.slice(0, 4), before = part(assigned), named = assigned[1];
+  const scope = retryScope(before, assigned, '{"id":"ml-p2"}');
+  assert.deepEqual(scope.rows.map(row => row.id), ['p2']);
+  const returned = part([named], false, ' /* repaired */');
+  const merged = mergeRetry({ ...returned, tests: 'complete tests' }, before);
+  assert.deepEqual(merged.references.map(reference => reference.id), ['ml-p1', 'ml-p2', 'ml-p3', 'ml-p4']);
+  assert.equal(merged.references[1].expression, returned.references[0].expression);
+  for (const index of [0, 2, 3]) assert.equal(merged.references[index].expression, before.references[index].expression);
+  assert.deepEqual(merged.replay.map(row => row.referenceId), ['ml-p1', 'ml-p2', 'ml-p3', 'ml-p4']);
+  assert.equal(merged.tests, 'complete tests');
+  assert.equal(retryScope(before, assigned, 'Agent output failed schema validation'), null, 'no reference named: the whole batch is called');
+  assert.equal(retryScope(before, assigned, 'ml-p1 ml-p2 ml-p3 ml-p4'), null, 'every reference named: the whole batch is called');
+  assert.equal(retryScope(null, assigned, 'ml-p2'), null, 'first call');
+  assert.equal(retryScope(before, assigned, 'ml-p2 plain text failure').feedback, 'ml-p2 plain text failure', 'feedback that is not a verifier report stays whole');
 });

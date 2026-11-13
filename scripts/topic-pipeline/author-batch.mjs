@@ -115,6 +115,43 @@ export function holdUnnamed(output, previous, feedback) {
   return { ...output, references, replay };
 }
 
+// Narrow retry (reviewer 2026-11-13): a re-called batch whose feedback names some, not all, of its references is sent only those references (and their replay rows), their
+// prompts as `assigned`, and the feedback naming them (a verifier report keeps only the named figures; any other feedback text stays whole). Null = call the whole batch.
+export function retryScope(before, rows, feedback) {
+  if (!before) return null;
+  const text = String(feedback ?? ''), source = namedSource(text), named = before.references.filter(reference => source.includes(reference.id));
+  if (!named.length || named.length === before.references.length) return null;
+  const ids = new Set(named.map(reference => reference.id)), replay = before.replay.filter(row => ids.has(row.referenceId));
+  const prompts = new Set(replay.map(row => String(row.id))), kept = rows.filter(row => prompts.has(String(row.id)));
+  if (replay.length !== named.length || kept.length !== named.length) return null;
+  return { rows: kept, previous: { ...before, references: named, replay }, feedback: namedFeedback(text, ids) };
+}
+
+// A verifier report lists every figure, shipped ones too: only the figures with a fix verdict name a reference. Any other feedback names what it mentions.
+function namedSource(text) {
+  try {
+    const fixes = JSON.parse(text)?.figures?.filter(figure => figure.verdict === 'fix');
+    return Array.isArray(fixes) && fixes.length ? JSON.stringify(fixes) : text;
+  } catch { return text; }
+}
+
+function namedFeedback(text, ids) {
+  try {
+    const report = JSON.parse(text);
+    const figures = Array.isArray(report?.figures) ? report.figures.filter(figure => [...ids].some(id => String(figure.id).includes(id))) : [];
+    return figures.length ? JSON.stringify({ ...report, figures }, null, 2) : text;
+  } catch { return text; }
+}
+
+// The answer to a narrow retry holds only the named references and replay rows; they replace their old ones in place, every other reference stays byte-identical,
+// and prelude, derived, tests and walkthrough come back complete from the author.
+export function mergeRetry(returned, before) {
+  const byReference = new Map(returned.references.map(reference => [reference.id, reference])), byPrompt = new Map(returned.replay.map(row => [String(row.id), row])), replaced = new Map();
+  const replay = before.replay.map(row => { const next = byPrompt.get(String(row.id)); if (!next) return row; replaced.set(row.referenceId, next.referenceId); return next; });
+  const references = before.references.map(reference => replaced.has(reference.id) ? byReference.get(replaced.get(reference.id)) : reference);
+  return { ...returned, references, replay };
+}
+
 // Which parts own a failure? Foundation, a set of batches, or (nothing recognisable) every batch.
 export function routeFailure(feedback, { artifactTopic, parts, referenceRanges, testRanges }, diagrams) {
   const text = String(feedback ?? ''), p = paths(artifactTopic, diagrams), owned = new Set();
@@ -154,9 +191,11 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
     const results = await Promise.allSettled([...redo].map(async index => {
       const part = state.parts[index];
       part.ok = false;
-      const before = part.output;
-      part.output = holdUnnamed(await call('batch', { ...base, part: 'batch', batch: index + 1, of: state.parts.length, last: index === state.parts.length - 1, assigned: part.rows,
-        dataModule: state.foundation, exemplar: index === state.parts.length - 1 ? [...exemplarReferences, ...exemplarWalkthrough] : exemplarReferences, helperSource: helperSource(artifactTopic).join('\n'), previous: part.output, feedback: capFeedback(feedback), round }, part.rows, index === state.parts.length - 1), before, feedback);
+      const before = part.output, last = index === state.parts.length - 1, narrow = retryScope(before, part.rows, feedback);
+      const answer = await call('batch', { ...base, part: 'batch', batch: index + 1, of: state.parts.length, last, assigned: narrow ? narrow.rows : part.rows,
+        dataModule: state.foundation, exemplar: last ? [...exemplarReferences, ...exemplarWalkthrough] : exemplarReferences, helperSource: helperSource(artifactTopic).join('\n'),
+        previous: narrow ? narrow.previous : part.output, feedback: capFeedback(narrow ? narrow.feedback : feedback), round }, narrow ? narrow.rows : part.rows, last, narrow ? returned => mergeRetry(returned, before) : null, part.rows);
+      part.output = narrow ? mergeRetry(answer, before) : holdUnnamed(answer, before, feedback);
       // The model returns ids as strings; the checks compare with the prompt's own id (a number in prompts.json).
       part.output.replay = part.output.replay.map(row => ({ ...row, id: part.rows.find(item => String(item.id) === String(row.id)).id }));
       part.ok = true;

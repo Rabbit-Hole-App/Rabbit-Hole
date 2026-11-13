@@ -75,8 +75,8 @@ ${await prompt('author-batch')}`;
     const dryRun = ctx.fixture && ctx.dryRun, p = batchPaths(target.artifactTopic, DIAGRAMS), options = { topic: ctx.topic, dryRun, repoRoot: target.worktree };
     batchedRound = createBatchedAuthor({ artifactTopic: target.artifactTopic, diagrams: DIAGRAMS, size: batchSize, rows: prompts.prompts, registry: inputs.registry.content, exemplar: inputs.exemplar,
       base: { topic: inputs.topic, artifactTopic: inputs.artifactTopic, idPrefix: inputs.idPrefix, metadata: inputs.metadata, prompts, coverage, sop: inputs.sop, kindSchema: inputs.kindSchema, rendererConstraints: inputs.rendererConstraints, toyDataTemplate: inputs.toyDataTemplate },
-      call: (kind, payload, assigned, last) => kind === 'foundation' ? callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: foundationSchema(ctx.topic, dryRun), validate: value => validateFoundation(value, options, p) })
-        : callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: batchSchema, validate: async value => { validateBatch(value, assigned, last); await prevalidate(value, assigned, payload); return value; } }) });
+      call: (kind, payload, assigned, last, merge, all) => kind === 'foundation' ? callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: foundationSchema(ctx.topic, dryRun), validate: value => validateFoundation(value, options, p) })
+        : callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: batchSchema, validate: async value => { validateBatch(value, assigned, last); await prevalidate(merge ? merge(value) : value, all ?? assigned, payload); return value; } }) });
   }
   for (let round = startingRound + 1; round <= rounds; round++) {
     const roundDir = join(authorDir, `round-${round}`);
