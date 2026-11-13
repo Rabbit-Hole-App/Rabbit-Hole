@@ -13,8 +13,9 @@ test('every depth and detail variant folder of an authored reference is allowed'
   assert.ok(allowed('packages/web/src/tutor-diagrams/__snapshots__/ml-logistic-regression-accuracy-trap-balanced.svg', ctx, author));
 });
 
-test('another reference, a stray file in a variant folder and non-topic paths stay out', () => {
-  assert.equal(allowed(`${preview}ml-logistic-regression-other-balanced/408.svg`, ctx, author), false);
+test('an earlier round's reference of the same topic is allowed; other topics, stray files and non-topic paths stay out', () => {
+  assert.ok(allowed(`${preview}ml-logistic-regression-renamed-in-round-two-balanced/408.svg`, ctx, author));
+  assert.equal(allowed(`${preview}ml-trees-other-balanced/408.svg`, ctx, author), false);
   assert.equal(allowed(`${preview}ml-logistic-regression-accuracy-trap-balanced/notes.txt`, ctx, author), false);
   assert.equal(allowed('scripts/topic-pipeline/run.mjs', ctx, author), false);
 });

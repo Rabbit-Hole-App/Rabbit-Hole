@@ -16,6 +16,9 @@ export function allowed(path, ctx, author) {
   if (path === `docs/features/explain-on-canvas/handoff/phase02-library/topic-walkthroughs/${topic}.md`) return true;
   const preview = 'docs/features/explain-on-canvas/handoff/phase02-library/illustrations/';
   if (refs.some(id => VARIANTS.map(suffix => `${id}${suffix}`).some(variant => path.startsWith(`${preview}${variant}/`) && /\/(?:natural|408|960)\.svg$|\/spec\.json$/.test(path)))) return true;
+  // An earlier author round's references (renamed or dropped by a later round) stay inside the topic's own id prefix: its commits are integrated in order, so the final tree is the last round's.
+  const prefix = ctx.fixture && ctx.dryRun ? 'ml-dry-trees-' : `ml-${ctx.topic}-`;
+  if (path.startsWith(`${preview}${prefix}`) && /^[a-z0-9-]+\/(?:natural\.svg|408\.svg|960\.svg|spec\.json)$/.test(path.slice(preview.length + prefix.length))) return true;
   if (path.startsWith('packages/web/src/tutor-diagrams/__snapshots__/') && refs.some(id => VARIANTS.some(suffix => path.endsWith(`/${id}${suffix}.svg`)))) return true;
   // Brief paths are lesson metadata, supplied by the topic manifest rather than inferred from a slug.
   return (ctx.metadata?.sources ?? []).some(source => source.kind === 'brief' && source.path === path && path.startsWith('docs/features/explain-on-canvas/handoff/figure-briefs/briefs/') && path.endsWith('.md'));
