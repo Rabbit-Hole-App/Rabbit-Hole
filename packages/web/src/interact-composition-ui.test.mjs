@@ -339,3 +339,30 @@ test('the composed transport: label row above one panel strip (Play, the scrubbe
   assert.match(css, /\.xp-scrubber\[data-interact-tick\]::before \{[^}]*left: var\(--xp-tick, 50%\); width: 1px; height: 13px;/);
   assert.match(css, /\.xp-scrubber input \{[^}]*accent-color: var\(--xp-blue\)/);
 });
+
+test('the composed controls: a parameter grid (label and value on one line, the range under), a divider, then the At top button; no Interact label, no inline "Launch speed:" layout; the legacy row is untouched (owner brief 2026-11-13 codex match)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
+  assert.match(src, /<div><label htmlFor=\{id\}>\{input\.label\}<\/label><output data-input-readout=\{input\.id\} htmlFor=\{id\}>\{text\}<\/output><\/div>/, 'label and value on one line');
+  assert.match(src, /stacked=\{composed\}/);
+  assert.match(src, /className: 'xp-parameters', role: 'group', 'aria-label': 'Experiment parameters'/);
+  assert.match(src, /const Tail = composed && hasTail \? 'div' : Fragment, tailProps = Tail === 'div' \? \{ className: 'xp-actions' \} : \{\};/, 'the buttons sit after a divider');
+  assert.match(src, /composed \? 'xp-button xp-button-secondary xp-seek'/, 'At top is a secondary button');
+  assert.match(src, /\{!composed && rows\.length > 0 && <span data-interact-rule/, 'the legacy rule stays on the legacy row only');
+  assert.match(src, /data-input-readout=\{input\.id\} className="text-xs tabular-nums text-ink-2"/, 'the legacy inline control keeps its layout');
+  assert.doesNotMatch(src, /[A-Za-z]\.\.\.<|…/, 'no ellipsis in a label');
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(css, /\.xp-parameter label \{ font-size: 14px; font-weight: 550; \}/);
+  assert.match(css, /\.xp-parameter output \{ font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var\(--xp-blue-ink\); white-space: nowrap; \}/);
+  assert.match(css, /\.xp-parameter > div \{ display: flex; align-items: baseline; justify-content: space-between;/);
+  assert.match(css, /\.xp-parameter input \{[^}]*accent-color: var\(--xp-blue\)/);
+  assert.match(css, /\.xp-actions \{[^}]*padding-left: 20px; border-left: 1px solid var\(--xp-border\); \}/, 'a 1 px divider before the buttons');
+});
+
+test('the instructions: a bold Instructions label, then the plan\'s paragraph at 15 px muted, 1.55 (owner brief 2026-11-13 codex match); no instructions, no block', () => {
+  const html = B.renderToStaticMarkup(B.createElement(B.InteractIntro, { composition: comp('overview'), block: { id: 'card-1' }, mainInputs: {}, instructions: 'Press Play, then At top.' }));
+  assert.match(html, /data-card-instructions="true" class="shrink-0 text-\[15px\] leading-\[1\.55\] text-ink-2"/);
+  assert.match(html, /<strong class="mb-\[5px\] block text-ink" style="font-weight:650">Instructions<\/strong><p class="m-0">Press Play, then At top\.<\/p>/);
+  assert.ok(html.indexOf('data-card-description') < html.indexOf('data-card-instructions'), 'the instructions follow the description');
+  assert.doesNotMatch(B.renderToStaticMarkup(B.createElement(B.InteractIntro, { composition: comp('overview'), block: { id: 'card-1' }, mainInputs: {} })), /Instructions|data-card-instructions/);
+});

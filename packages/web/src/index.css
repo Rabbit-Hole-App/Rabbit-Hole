@@ -1095,7 +1095,16 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 .xp-reset:hover:not(:disabled) { background: var(--xp-blue-hover); }
 .xp-reset:active:not(:disabled) { background: var(--xp-blue-pressed); }
 .xp-reset:disabled { cursor: default; opacity: 0.5; }
-.xp-controls { padding: 14px 20px 16px; border-top: 1px solid var(--xp-border); }
+.xp-controls { padding: 16px 20px 14px; border-top: 1px solid var(--xp-border); }
+.xp-controls-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 22px; }
+.xp-parameters { display: grid; flex: 1 1 300px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 26px; min-width: 0; }
+.xp-parameter { min-width: 0; }
+.xp-parameter > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.xp-parameter label { font-size: 14px; font-weight: 550; }
+.xp-parameter output { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--xp-blue-ink); white-space: nowrap; }
+.xp-parameter input { width: 100%; min-width: 0; height: 24px; margin: 0; accent-color: var(--xp-blue); cursor: pointer; }
+.xp-actions { display: flex; flex-wrap: wrap; align-items: center; align-self: stretch; gap: 12px; padding-left: 20px; border-left: 1px solid var(--xp-border); }
+.xp-seek { min-width: 66px; }
 .xp-transport-wrap { padding: 14px; border-top: 1px solid var(--xp-border); }
 .xp-transport-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 2px 8px; }
 .xp-transport-heading > label { font-size: 14px; font-weight: 550; }

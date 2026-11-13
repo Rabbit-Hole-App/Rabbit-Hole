@@ -93,7 +93,13 @@ export function InteractIntro({ composition, block, mainInputs, instructions }) 
   return (
     <div data-interact-intro className="flex shrink-0 flex-col gap-2">
       <p data-card-description className={DESCRIPTION_STYLE.className} style={{ maxWidth: DESCRIPTION_STYLE.focusMeasurePx }}><MdInline text={composition.cardDescription} mathOnly /></p>
-      {instructions && <p data-card-instructions className={DESCRIPTION_STYLE.className} style={{ maxWidth: DESCRIPTION_STYLE.focusMeasurePx }}>{instructions}</p>}
+      {/* The plan's instructions (owner brief 2026-11-13 codex match): a bold Instructions label, then the paragraph, 15 px muted at 1.55 (the Codex reference). */}
+      {instructions && (
+        <div data-card-instructions className="shrink-0 text-[15px] leading-[1.55] text-ink-2" style={{ maxWidth: DESCRIPTION_STYLE.focusMeasurePx }}>
+          <strong className="mb-[5px] block text-ink" style={{ fontWeight: 650 }}>Instructions</strong>
+          <p className="m-0">{instructions}</p>
+        </div>
+      )}
       {composition.supports.map(panel => <SupportPanel key={panel.id} panel={panel} block={block} mainInputs={mainInputs} />)}
     </div>
   );

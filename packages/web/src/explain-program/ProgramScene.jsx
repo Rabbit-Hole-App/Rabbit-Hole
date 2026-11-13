@@ -29,9 +29,21 @@ const NOOP = () => {};
 const STILL = { duration: 0 };
 
 // One scalar control: the labelled range slider the scene cards' sliders use, with a readout that keeps its unit.
-function NumberInput({ input, value, onInput }) {
+// stacked (a composed card, owner brief 2026-11-13 codex match): the label and the value on ONE line, the range under them (index.css .xp-parameter).
+function NumberInput({ input, value, onInput, stacked = false }) {
   const decimals = input.step && input.step < 1 ? String(input.step).split('.')[1]?.length ?? 0 : 0;
   const shown = Number(value).toFixed(decimals);
+  const id = useId();
+  if (stacked) {
+    const text = `${shown}${input.unit ? ` ${input.unit}` : ''}`;
+    return (
+      <div role="group" aria-label={input.label} data-interact-parameter={input.id} className="xp-parameter">
+        <div><label htmlFor={id}>{input.label}</label><output data-input-readout={input.id} htmlFor={id}>{text}</output></div>
+        <input id={id} type="range" data-input-control={input.id} min={input.min} max={input.max} step={input.step ?? (input.max - input.min) / 100} value={value}
+          aria-label={input.label} aria-valuetext={text} onChange={event => onInput(input.id, Number(event.target.value), { live: true })} />
+      </div>
+    );
+  }
   return (
     <div role="group" aria-label={input.label} className="flex flex-wrap items-center gap-1.5">
       <span className="text-xs font-medium text-ink-2">{input.label}:</span>
@@ -369,6 +381,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // headed by the program's own title (the plan has no subtitle field, so none is drawn) with Reset as its one top-right icon; every other card draws them as before.
   const heading = composed ? manifest.title || composition.title : null, transport = composed ? transportChrome(manifest, composition, inputs) : null;
   const Wrap = composed ? 'section' : Fragment;
+  const hasTail = seeks.length > 0 || actions.length > 0 || targets.length > 0;
+  const Params = composed && rows.length > 0 ? 'div' : Fragment, paramsProps = Params === 'div' ? { className: 'xp-parameters', role: 'group', 'aria-label': 'Experiment parameters' } : {};
+  const Tail = composed && hasTail ? 'div' : Fragment, tailProps = Tail === 'div' ? { className: 'xp-actions' } : {};
   const wrapProps = composed ? { 'data-interact-experiment': '', 'aria-label': heading, style: EXPERIMENT_STYLE, className: 'flex min-h-0 flex-1 flex-col' } : {};
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
@@ -431,17 +446,21 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       {(composed ? rows.length > 0 || seeks.length > 0 || actions.length > 0 || targets.length > 0 : rows.length > 0 || actions.length > 0 || targets.length > 0) && (
         <div data-scene-controls className={composed ? 'xp-controls' : 'rounded-lg border border-line bg-white px-3 pt-1.5 pb-2'}>
           {!composed && <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {rows.map(input => (input.type === 'number'
-              ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} />
-              : <InputWidget key={input.id} {...programInputWidget(input)} value={inputs[input.id]} onInput={setInput} />))}
+          <div className={composed ? 'xp-controls-row' : 'flex flex-wrap items-center gap-x-4 gap-y-2'}>
+            {/* A composed card: the parameters in one grid (label and value on a line, the range under), then a divider and the buttons (At top, declared actions and selections); every other card keeps its one wrapping row. */}
+            <Params {...paramsProps}>
+              {rows.map(input => (input.type === 'number'
+                ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} stacked={composed} />
+                : <InputWidget key={input.id} {...programInputWidget(input)} value={inputs[input.id]} onInput={setInput} />))}
+            </Params>
+            <Tail {...tailProps}>
             {/* After a rule, the plan's seek buttons (At top): each jumps the timeline to its marker and pauses. */}
             {seeks.length > 0 && (
               <>
-                {rows.length > 0 && <span data-interact-rule role="separator" aria-orientation="vertical" className="h-5 w-px bg-line" />}
+                {!composed && rows.length > 0 && <span data-interact-rule role="separator" aria-orientation="vertical" className="h-5 w-px bg-line" />}
                 {seeks.map(control => (
                   <button key={control.id} type="button" data-interact-seek={control.binding.id} onClick={() => atMarker(control.binding.id)}
-                    className="flex h-8 items-center rounded-lg border border-line px-3 text-sm text-ink hover:bg-hover">{control.label}</button>
+                    className={composed ? 'xp-button xp-button-secondary xp-seek' : 'flex h-8 items-center rounded-lg border border-line px-3 text-sm text-ink hover:bg-hover'}>{control.label}</button>
                 ))}
               </>
             )}
@@ -451,7 +470,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
               <div role="group" aria-label="Actions" className="flex flex-wrap items-center gap-1.5">
                 {actions.map(action => (
                   <button key={action.id} type="button" data-program-action={action.id} disabled={programState.full} onClick={() => act({ type: 'action', action: action.id })}
-                    className="flex h-8 items-center rounded-lg border border-line px-3 text-sm text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent">{action.label}</button>
+                    className={composed ? 'xp-button xp-button-secondary' : 'flex h-8 items-center rounded-lg border border-line px-3 text-sm text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent'}>{action.label}</button>
                 ))}
               </div>
             )}
@@ -461,10 +480,11 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
                 {targets.map(target => (
                   <button key={target.id} type="button" data-program-target={target.id} disabled={programState.full} onClick={() => act({ type: 'select', target: target.id })}
                     {...(target.drag ? { 'data-program-drag': '', 'aria-keyshortcuts': 'ArrowLeft ArrowRight ArrowUp ArrowDown', 'aria-description': 'Arrow keys move it', onKeyDown: event => nudge(target.id, event) } : {})}
-                    className="flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent">{target.label}</button>
+                    className={composed ? 'xp-button xp-button-secondary' : 'flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent'}>{target.label}</button>
                 ))}
               </div>
             )}
+            </Tail>
             {/* Reset: the icon at the end of the row (SceneControls.jsx ResetButton), shown while something differs. A composed /interact card draws it in its experiment box's corner instead (above), always, greyed while nothing differs. */}
             {!composed && changed && <ResetButton onReset={reset} />}
           </div>

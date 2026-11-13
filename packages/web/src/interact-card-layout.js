@@ -17,7 +17,8 @@ export function cardLayout(composition) {
   if (composition.main?.readoutIds?.length) sections.push({ kind: 'readouts', ids: composition.main.readoutIds });
   if (composition.timeline) sections.push({ kind: 'timeline' });
   // The controls row always ends with Reset (owner 2026-11-12: one place, one icon on every composed card): the plan's own reset control moves to the end, and a plan without one gets
-  // the card's own (RESET_ID, drawn by the player; there is no plan control behind it).
+  // the card's own (RESET_ID, drawn by the player; there is no plan control behind it). Where it is DRAWN is the player's business (owner brief 2026-11-13 codex match: the
+  // experiment box's top-right corner icon, ProgramScene.jsx); the section still ends with it, so reset_last holds and Reset stays tracked as the controls' last id.
   const controls = experimentControls(composition), own = controls.find(control => control.type === 'reset');
   const reset = own?.id ?? RESET_ID;
   sections.push({ kind: 'controls', ids: [...controls.filter(control => control !== own).map(control => control.id), reset], reset });
