@@ -10,7 +10,7 @@ export const SCENE_PLAN_VERSION = 1;
 
 // Engineering defaults from the spec (not measured claims); a valid request that needs more is a capability gap.
 export const PLAN_LIMITS = Object.freeze({
-  title: 120, story: 12000, cardDescription: 500, entry: 1200, label: 60,
+  title: 120, story: 12000, cardDescription: 500, instructions: 300, entry: 1200, label: 60,
   entities: 24, quantities: 16, observations: 12, checkpoints: 12, claims: 32, controls: 24, supports: 2,
   markers: 12, // ponytail: the spec bounds markers only as "bounded"; 12 matches checkpoints, raise on a real need
   items: 256, exprNodes: 32, exprDepth: 8, timeline: CONTRACT_LIMITS.duration,
@@ -156,19 +156,22 @@ const items = z.array(z.object({ id, label: controlText(PLAN_LIMITS.label) }).st
 const control = z.discriminatedUnion('type', [
   z.object({ ...controlBase, type: z.literal('playback'), binding: timelineBinding, labels: z.object({ paused: z.literal('Play'), playing: z.literal('Pause'), ended: z.literal('Replay') }).strict() }).strict(),
   z.object({ ...controlBase, type: z.literal('scrubber'), binding: timelineBinding, unit: z.literal('s'), step: z.number().positive().finite() }).strict(),
-  z.object({ ...controlBase, type: z.literal('number'), binding: inputBinding, unit: z.string().max(16), default: z.number().finite(), min: z.number().finite(), max: z.number().finite(), step: z.number().positive().finite() }).strict(),
+  // onChange (additive): what a change of THIS number does on a timed scene, overriding mode.onInputChange (a mass that only rescales a force recomputes the still; the launch speed resets and pauses).
+  z.object({ ...controlBase, type: z.literal('number'), binding: inputBinding, unit: z.string().max(16), default: z.number().finite(), min: z.number().finite(), max: z.number().finite(), step: z.number().positive().finite(), onChange: z.enum(['recompute_still', 'reset_pause']).optional() }).strict(),
   z.object({ ...controlBase, type: z.literal('select'), binding: inputBinding, default: z.string(), options: z.array(z.object({ value: z.string().regex(/^[A-Za-z0-9_.-]{1,32}$/), label: controlText(PLAN_LIMITS.label) }).strict()).min(2).max(CONTRACT_LIMITS.options) }).strict(),
   z.object({ ...controlBase, type: z.literal('boolean'), binding: inputBinding, default: z.boolean() }).strict(),
   z.object({ ...controlBase, type: z.literal('index'), binding: inputBinding, default: z.number().int().min(0), dataRef: id, items, presentation: z.enum(['picker', 'slider']) }).strict(),
   z.object({ ...controlBase, type: z.literal('multi_select'), binding: inputBinding, default: z.array(z.number().int().min(0)).max(PLAN_LIMITS.items), dataRef: id, items }).strict(),
   z.object({ ...controlBase, type: z.literal('action'), binding: z.object({ kind: z.literal('action'), id }).strict(), effect: controlText(PLAN_LIMITS.entry) }).strict(),
   z.object({ ...controlBase, type: z.literal('target'), binding: z.object({ kind: z.literal('target'), id }).strict(), interaction: z.enum(['select', 'drag']), effect: controlText(PLAN_LIMITS.entry) }).strict(),
+  // seek: a button that jumps the shared timeline to one named marker (the At top button); needs mode.timeline.
+  z.object({ ...controlBase, type: z.literal('seek'), binding: z.object({ kind: z.literal('marker'), id }).strict(), effect: controlText(PLAN_LIMITS.entry) }).strict(),
   z.object({ ...controlBase, type: z.literal('reset'), binding: z.object({ kind: z.literal('reset') }).strict(), effect: controlText(PLAN_LIMITS.entry) }).strict(),
 ]);
 
 const timeline = z.object({
   label: text(PLAN_LIMITS.label), unit: z.literal('s'), start: z.literal(0), end: scalarExpr, displayOffset: scalarExpr,
-  markers: z.array(z.object({ id, label: text(PLAN_LIMITS.label), time: scalarExpr }).strict()).max(PLAN_LIMITS.markers),
+  markers: z.array(z.object({ id, label: text(PLAN_LIMITS.label), time: scalarExpr, pause: z.boolean().optional() }).strict()).max(PLAN_LIMITS.markers), // pause: playback stops when it reaches this marker
   initialTime: z.literal(0), initialPlayback: z.literal('paused'), playbackRate: z.number().positive().finite().max(PLAN_LIMITS.playbackRate),
 }).strict();
 
@@ -184,13 +187,15 @@ const claim = z.object({ id, text: text(), evidenceIds: z.array(z.string().min(1
 
 // A card description is plain text the card shows in 2 to 4 rendered lines. The schema bounds the input (500 characters);
 // whether it renders in 2 to 4 lines is a fit receipt (DescriptionFitSchema), because character count is no substitute.
-const cardDescription = z.string().min(1).max(PLAN_LIMITS.cardDescription).refine(value => value.trim().length > 0, 'must not be blank')
+const plainParagraph = max => z.string().min(1).max(max).refine(value => value.trim().length > 0, 'must not be blank')
   .refine(value => !HTML_TAG.test(value) && !CONTROL_CHARS.test(value), 'plain single-paragraph text only');
+const cardDescription = plainParagraph(PLAN_LIMITS.cardDescription);
 
 const planShape = z.object({
   schemaVersion: z.literal(SCENE_PLAN_VERSION, { error: () => `unknown ScenePlan version: expected ${SCENE_PLAN_VERSION}` }),
   depth: z.enum(['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep']), // brief | balanced | detailed; the old names stay readable (a plan saved before the 2026-11-08 rename keeps its hash)
   title: text(PLAN_LIMITS.title), story: text(PLAN_LIMITS.story), cardDescription, learningGoal: text(),
+  instructions: plainParagraph(PLAN_LIMITS.instructions).optional(), // how to use the controls: 2 to 3 lines under the description (owner 2026-11-13)
   supportingVisuals: z.array(support).max(PLAN_LIMITS.supports), scene, mode,
   controls: z.array(control).max(PLAN_LIMITS.controls),
   assumptions: z.array(text()).max(16), limitations: z.array(text()).max(16), claims: z.array(claim).max(PLAN_LIMITS.claims),
@@ -209,6 +214,15 @@ function executableString(root) {
     else if (value && typeof value === 'object') for (const key of Object.keys(value)) stack.push([value[key], [...path, key]]);
   }
   return null;
+}
+
+function gapHolds(expr, domains) {
+  const names = Object.keys(domains).slice(0, 4), count = 3 ** names.length;
+  for (let k = 0; k < count; k += 1) {
+    const values = Object.fromEntries(names.map((n, i) => { const [lo, hi] = domains[n], pick = Math.floor(k / 3 ** i) % 3; return [n, pick === 0 ? lo : pick === 1 ? (lo + hi) / 2 : hi]; }));
+    try { if (evalScalar(expr, values, domains) < -1e-9) return false; } catch { return false; }
+  }
+  return true;
 }
 
 export function planProblems(plan) {
@@ -268,6 +282,11 @@ export function planProblems(plan) {
   const kinds = type => controls.filter(c => c.type === type);
   const mutable = inputs.size > 0 || kinds('action').length > 0 || kinds('target').length > 0;
   const transport = kinds('playback').length + kinds('scrubber').length;
+  controls.forEach((c, i) => {
+    if (c.type !== 'seek') return;
+    if (!tl) bad(['controls', i], 'timeline_controls_mismatch', 'a seek control needs mode.timeline');
+    else if (!tl.markers.some(m => m.id === c.binding.id)) bad(['controls', i, 'binding', 'id'], 'dangling_reference', `marker "${c.binding.id}" is not on the timeline`);
+  });
   if (tl && (kinds('playback').length !== 1 || kinds('scrubber').length !== 1)) bad(['controls'], 'timeline_controls_mismatch', 'a timed plan declares exactly one playback and one scrubber control');
   if (!tl && transport) bad(['controls'], 'timeline_controls_mismatch', 'playback and scrubber controls need mode.timeline');
   if (modeBlock.onInputChange !== (tl ? 'reset_pause' : 'recompute_still')) bad(['mode', 'onInputChange'], 'on_input_change_mismatch', tl ? 'a timed scene uses reset_pause' : 'an untimed scene uses recompute_still');
@@ -296,8 +315,10 @@ export function planProblems(plan) {
       if (!t || !end) return;
       if (t[0] < 0) return bad(path, 'out_of_domain', 'a time before 0 is outside the elapsed timeline');
       if (canonicalJson(expr) === canonicalJson(tl.end)) return; // exactly the end: trivially inside
-      const gap = span({ op: 'subtract', left: tl.end, right: expr }, path);
-      if (gap && gap[0] < 0) bad(path, 'out_of_domain', 'a time can land after the end for some admitted input');
+      const difference = { op: 'subtract', left: tl.end, right: expr }, gap = span(difference, path);
+      // Interval arithmetic loses the correlation between the end and a marker that read the same input (u/g against 2u/g), so a negative lower bound is checked again
+      // at the min, middle and max of every number input (3^n points, n at most 4): the gap must be non-negative at each. shortcut: a sample, exact for the monotone expressions plans use.
+      if (gap && gap[0] < 0 && !gapHolds(difference, domains)) bad(path, 'out_of_domain', 'a time can land after the end for some admitted input');
     };
     tl.markers.forEach((marker, i) => inside(marker.time, ['mode', 'timeline', 'markers', i, 'time']));
     main.checkpoints.forEach((cp, i) => { if (cp.time) inside(cp.time, ['scene', 'checkpoints', i, 'time']); });

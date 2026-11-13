@@ -88,7 +88,7 @@ export function focusFrameBox(legible, room, minScale = 1) {
   return { w: Math.round(legible.w * scale), h: Math.round(legible.h * scale), scroll: fit < minScale };
 }
 
-const readoutText = (definition, value) => `${value.toFixed(definition.decimals)}${definition.unit ? ` ${definition.unit}` : ''}`;
+const readoutText = (definition, value) => (definition.kind === 'state' ? String(value) : `${value.toFixed(definition.decimals)}${definition.unit ? ` ${definition.unit}` : ''}`);
 
 // Result: { ok: true, scene, state, readouts: [{ id, label, text }] } or { ok: false, error: RuntimeError, issue }.
 // manifest (optional) binds the frame's readouts to their definitions; an undeclared readout id is invalid_output.
@@ -101,7 +101,8 @@ export function normalizeFrame(raw, manifest = null) {
   for (const readout of frame.readouts) {
     const definition = manifest?.readouts.find(item => item.id === readout.id);
     if (manifest && !definition) return invalid(`readouts: "${readout.id}" is not declared in the manifest`);
-    readouts.push({ id: readout.id, label: definition?.label ?? readout.id, text: definition ? readoutText(definition, readout.value) : String(readout.value) });
+    if (definition && (definition.kind === 'state' ? !definition.labels.includes(readout.value) : typeof readout.value !== 'number')) return invalid(`readouts: "${readout.id}" ${definition.kind === 'state' ? 'reports one of its labels' : 'reports a number'}`);
+    readouts.push({ id: readout.id, label: definition?.label ?? readout.id, text: definition ? readoutText(definition, readout.value) : String(readout.value), ...(definition?.kind === 'state' ? { kind: 'state' } : {}) });
   }
   try {
     // duration is a required positive number by the scene schema; a program frame is one moment, so any value serves.
