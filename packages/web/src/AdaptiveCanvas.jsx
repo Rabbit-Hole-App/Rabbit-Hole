@@ -6744,12 +6744,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
           <button type="button" data-composer-hide aria-label="Minimize chat composer" title="Minimize chat composer - your draft stays" onClick={hideComposer}
             className="absolute -top-2.5 -left-2.5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-white text-ink-2 shadow-pop hover:bg-hover hover:text-ink"><Minus size={12} strokeWidth={2} /></button>
+          {/* Curious (owner 2026-11-13): the three suggestions are small pills in a row right above the strip, so they leave with it. */}
+          {hooks && <div data-hooks-slot ref={hooksSlot} className={`mb-1.5 empty:hidden ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
           {composer}
         </div>}
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
         <div data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
-          {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
+          {hooks && !composer && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
           {/* The minimized chat strip: the Rabbit Hole mark on black (owner 2026-11-13), at the lower right, beside the Curious icon. */}
           {composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"
             onClick={() => { setComposerHidden(false); keepStrip('open'); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea')?.focus({ preventScroll: true })); }}

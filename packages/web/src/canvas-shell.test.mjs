@@ -50,7 +50,7 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(canvas, /saveUiPref\('chatStrip', value\)/);
   assert.doesNotMatch(canvas, /ComposerHide\.Provider/);
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
-  assert.match(strip, /<button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{hideComposer\}\n[^\n]*absolute -top-2\.5 -left-2\.5[^\n]*h-6 w-6[^\n]*rounded-full[^\n]*\n\s+\{composer\}/, 'a small circle on the frame\'s top-left corner');
+  assert.match(strip, /<button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{hideComposer\}\n[^\n]*absolute -top-2\.5 -left-2\.5[^\n]*h-6 w-6[^\n]*rounded-full[^\n]*\n\s+\{\/\*[^\n]*\*\/\}\n\s+\{hooks && <div data-hooks-slot[^\n]*\n\s+\{composer\}/, 'a small circle on the frame\'s top-left corner, then the three Curious pills, then the composer (owner 2026-11-13)');
   assert.match(strip, /\{composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer"/);
   assert.match(strip, /bg-black[^\n]*<img src="\/static\/rabbit-hole-white-on-black-128\.png"/, 'white mark on black, under /static, the one public path the workers serve for it');
   assert.ok(strip.indexOf('data-hooks-slot') < strip.indexOf('data-composer-show'), 'beside the Curious card, at the lower right');
