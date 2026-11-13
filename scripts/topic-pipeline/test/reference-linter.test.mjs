@@ -190,6 +190,14 @@ test('rule 11: relative data imports and test-only node:test/node:assert pass; e
   assert.ok(staticFlags("import fs from 'node:fs';", 'topic-fixture-data.test.mjs').some(issue => issue.detail.includes('node:fs')));
 });
 
+test('rule 11: the forbidden-text scan covers js, mjs and json, not markdown prose', () => {
+  const walkthrough = { path: 'docs/features/explain-on-canvas/handoff/phase02-library/topic-walkthroughs/fixture.md', content: 'The learner does not require a library; we fetch no data and use eval of nothing.' };
+  assert.deepEqual(lintAuthoredFiles({ files: [walkthrough], repoRoot: process.cwd(), topic: 'fixture', lesson: '03' }), []);
+  assert.ok(staticFlags('const a = require("x");').some(issue => issue.detail.includes('require')));
+  const json = { path: 'packages/web/src/tutor-diagrams/topic-fixture-replay-cases.json', content: '{"note":"eval"}' };
+  assert.ok(lintAuthoredFiles({ files: [json], repoRoot: process.cwd(), topic: 'fixture', lesson: '03' }).some(issue => issue.detail.includes('eval')));
+});
+
 test('rule 11: 200 KB/40-file boundaries and topic allowlist pass; excess/escape paths fail', () => {
   const prefix = '//';
   assert.deepEqual(staticFlags(prefix + 'x'.repeat(200 * 1024 - prefix.length)), []);
