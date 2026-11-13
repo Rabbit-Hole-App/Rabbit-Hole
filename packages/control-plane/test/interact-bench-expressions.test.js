@@ -47,8 +47,8 @@ test('the report counts pass per model and depth and lists the failed ids of a m
   const rows = [...Array.from({ length: 10 }, () => ({ model: 'm1', depth: 'brief', result: 'pass', msAuthor: 1000, costUsd: 0.001 })),
     ...Array.from({ length: 10 }, (_, i) => ({ model: 'm2', depth: 'brief', result: i < 5 ? 'pass' : 'fail', msAuthor: 2000, costUsd: 0.002, wrongIds: i < 5 ? [] : [{ id: 'height', case: 'start' }], missingIds: [], unresolved: [] }))];
   const md = reportMarkdown(rows);
-  assert.match(md, /\| m1 \| brief \| 10 \| 10 \| 10\/10 \|/);
-  assert.match(md, /\| m2 \| brief \| 10 \| 5 \| 5\/10 \|/);
+  assert.match(md, /\| m1 \| brief \| 10 \| 10 \| 10\/10 \| 10\/10 \|/);
+  assert.match(md, /\| m2 \| brief \| 10 \| 5 \| 5\/10 \| 5\/10 \|/);
   assert.match(md, /\*\*m2\*\* \(under 8\/10 at brief\): wrong height \(5\)/);
   assert.doesNotMatch(md, /\*\*m1\*\*/);
 });

@@ -1,0 +1,65 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "op": "input",
+    "id": "launchSpeed"
+   },
+   "gravity": {
+    "op": "input",
+    "id": "gravity"
+   },
+   "mass": {
+    "op": "input",
+    "id": "mass"
+   },
+   "apexTime": {
+    "op": "divide",
+    "id": "launchSpeed/gravity left-right split missing in manual construct, wait, let us build proper expression node tree: apexTime = launchSpeed / gravity -> left: launchSpeed, right: gravity"
+   },
+   "apexHeight": {
+    "op": "literal",
+    "value": 0
+   },
+   "height": {
+    "op": "literal",
+    "value": 0
+   },
+   "velocity": {
+    "op": "literal",
+    "value": 0
+   },
+   "acceleration": {
+    "op": "literal",
+    "value": 0
+   },
+   "force": {
+    "op": "literal",
+    "value": 0
+   }
+  },
+  "moments": {
+   "before": {
+    "op": "literal",
+    "value": 0
+   },
+   "top": {
+    "op": "literal",
+    "value": 0
+   },
+   "heavyTop": {
+    "op": "literal",
+    "value": 0
+   },
+   "fastTop": {
+    "op": "literal",
+    "value": 0
+   }
+  }
+ },
+ "usage": {
+  "completion_tokens": 334,
+  "prompt_tokens": 1493,
+  "total_tokens": 1827
+ }
+}
