@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { callAgent } from '../agents/call.mjs';
+import { agentSettings } from '../budget.mjs';
 import { createAuthorSchema, validateAuthorFiles } from '../schemas.mjs';
 import { authorInputs, authorTopic, authorWorktree, commitAuthorRound, git, isolated,
   prepareAuthorRuntime, testAuthored, writeAuthored } from '../author.mjs';
@@ -15,6 +16,7 @@ const optionalJson = async file => { try { return await readJson(file); } catch 
 
 export async function run(ctx) {
   const rounds = ctx.config.limits?.authorRounds;
+  const effort = agentSettings(ctx.config, 'author').effort; // recorded in the notes: attempts may override it with --author-effort
   if (!Number.isInteger(rounds) || rounds < 1) throw new Error('limits.authorRounds must be a positive integer.');
   const prompts = await readJson(join(ctx.topicDir, 'prompts.json'));
   const coverage = await readJson(join(ctx.topicDir, 'coverage.json'));
@@ -136,7 +138,7 @@ export async function run(ctx) {
         promptDepthCases: replay.rows.length, priorDepthCases: replay.priorCases, previewCount: contact.previewCount };
       manifest.commit = commit;
       await saveManifest();
-      return { status: 'ok', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds}: linter green, ${inspection.expected.length} prompt references first at all depths, ${(paraphrases.firstPickRate * 100).toFixed(1)}% paraphrase first picks, commit ${commit}.` };
+      return { status: 'ok', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds} (effort ${effort}): linter green, ${inspection.expected.length} prompt references first at all depths, ${(paraphrases.firstPickRate * 100).toFixed(1)}% paraphrase first picks, commit ${commit}.` };
     } catch (error) {
       feedback = error.message;
       await writeFile(join(roundDir, 'feedback.txt'), feedback + '\n');
@@ -146,11 +148,11 @@ export async function run(ctx) {
       if (ctx.state.calls?.some(entry => entry.usageKnown === false)) {
         manifest.status = 'fail';
         await saveManifest();
-        return { status: 'fail', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds} stopped: provider usage is unknown. Reconcile it before rerunning; no further round was started.` };
+        return { status: 'fail', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds} (effort ${effort}) stopped: provider usage is unknown. Reconcile it before rerunning; no further round was started.` };
       }
     }
   }
   manifest.status = 'fail';
   await saveManifest();
-  return { status: 'fail', artefacts: [authorDir, publishedManifest], notes: `Author checks did not pass within ${rounds} configured rounds. Verbatim feedback is saved in author/round-${manifest.roundsUsed}/feedback.txt.` };
+  return { status: 'fail', artefacts: [authorDir, publishedManifest], notes: `Author checks did not pass within ${rounds} configured rounds (effort ${effort}). Verbatim feedback is saved in author/round-${manifest.roundsUsed}/feedback.txt.` };
 }
