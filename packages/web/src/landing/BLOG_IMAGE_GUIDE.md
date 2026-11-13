@@ -15,6 +15,8 @@ Defined once as CSS variables on `.blog-page` in `blog-stories.css`.
 | `--hero-plum` | plum | `#8A7AA6` | shading, secondary shapes |
 | `--hero-rose` | rose | `#D9B8C4` | one accent per image, at most |
 | `--hero-sage` | sage | `#B7C2B0` | optional second accent |
+| `--hero-blue` | powder blue | `#A9BCCB` | sky, water, cool coats; added 2026-11-13 so an image need not lean on rose |
+| `--hero-ochre` | ochre | `#D8C08C` | warm tables, caps, coats; added 2026-11-13 |
 
 No pure black or white anywhere in a hero image.
 
