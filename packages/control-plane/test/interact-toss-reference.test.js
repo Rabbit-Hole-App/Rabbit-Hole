@@ -69,6 +69,17 @@ test('an oracle never matches by guessing: a changed range, default, pause marke
   assert.equal(tossOverviewOracle(broken('tossOverview', p => { p.mode.timeline.markers.push({ id: 'extra', label: 'Extra', time: p.mode.timeline.end, pause: true }); })), null, 'the Overview pauses at the top only');
 });
 
+import { designCapabilities, runtimeProblems } from '../src/interact-design.js';
+
+test('the reference plans are sealable as written (sdk-8 schema 1) and the design catalogue offers their At top control only with INTERACT_SEEK=on', async () => {
+  const { referenceCapabilities } = await interactFixtures();
+  for (const name of Object.keys(plans)) assert.deepEqual(runtimeProblems(plans[name], referenceCapabilities), [], name);
+  const env = { EXPLAIN_PROGRAM_ENABLED: 'true', EXPLAIN_PROGRAM_STATEFUL: 'true' }, job = { evidence: [{ id: 'kinematics_note' }] };
+  assert.equal((await designCapabilities({ ...env, INTERACT_SEEK: 'on' }, job)).catalogueHash, referenceCapabilities.catalogueHash, 'the pinned plans bind to exactly the catalogue the job is offered');
+  assert.ok((await designCapabilities({ ...env, INTERACT_SEEK: 'on' }, job)).catalogue.some(d => d.id === 'program.seek'));
+  assert.ok(!(await designCapabilities(env, job)).catalogue.some(d => d.id === 'program.seek'), 'off by default: the older catalogue and every older hash are unchanged');
+});
+
 // ---- the pin family (interact-design-pin.js) ----
 import { FIXTURE_DEPTHS, PIN_FIXTURES, designPinOf, pinnedDesignCall, pinnedFixtureId, pinnedPlan } from '../src/interact-design-pin.js';
 import { fixtureRun, FIXTURE_IDS, LEGACY_OVERVIEW } from '../src/interact-fixtures.js';

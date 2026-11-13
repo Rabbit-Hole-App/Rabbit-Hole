@@ -427,6 +427,33 @@ test('the dev-only design pin also pins toss-drop-standard-controls: the Experim
   assert.equal(interactOracle(plan), null, 'neither oracle matches: Standard needs a fixed 3.0 m/s with no input, Deep needs depth detailed and the reference speed');
 });
 
+test('one pin family: INTERACT_DESIGN_FIXTURE=toss answers brief, balanced and detailed with toss-overview, toss-standard and toss-deep, zero design calls, the real hashes, and each oracle matches', async t => {
+  const names = { brief: ['toss-overview', 'tossOverview'], balanced: ['toss-standard', 'tossStandard'], detailed: ['toss-deep', 'tossDeep'] };
+  for (const [depth, [id, name]] of Object.entries(names)) {
+    const s = designStack(t);
+    delete s.deps.descriptionFit;
+    Object.assign(s.env, { INTERACT_DESIGN_FIXTURE: 'toss', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_DESCRIPTION_FIT: 'estimate', INTERACT_SEEK: 'on' });
+    const { body } = await s.create({ depth });
+    const { job } = await s.design(body.job.id);
+    assert.equal(job.stage, 'awaiting_approval', `${depth}: ${JSON.stringify([job.stopReason, job.failure])}`);
+    assert.deepEqual(s.model.roles(), [], `${depth}: no design model call`); assert.equal(job.calls.length, 0);
+    const plan = await pinnedPlan('toss', job);
+    assert.equal(plan.title, fixtures.referencePlans[name].title, id);
+    assert.equal(job.design.planHash, await planHash(plan), `${depth}: the real hash of the fixture plan`);
+    assert.equal(job.design.plan.depth, depth);
+    assert.ok(job.design.finalHash && job.design.approvalHash && job.design.fit.styleVersion === 'card-description-v1:estimate');
+    assert.equal(interactOracle(plan).id, id, `${depth}: the oracle matches the pinned plan`);
+    assert.deepEqual(plan.supportingVisuals, [], 'one program frame');
+  }
+  const off = designStack(t);   // the seek catalogue is opt-in: without INTERACT_SEEK a reference plan is a capability gap, never a silent downgrade
+  delete off.deps.descriptionFit;
+  Object.assign(off.env, { INTERACT_DESIGN_FIXTURE: 'toss', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_DESCRIPTION_FIT: 'estimate' });
+  const refused = await off.create({ depth: 'brief' });
+  const { job } = await off.design(refused.body.job.id);
+  assert.notEqual(job.stage, 'awaiting_approval', 'without the seek catalogue the At top control is unavailable');
+  assert.deepEqual(off.model.roles(), [], 'and the pin still makes no model call');
+});
+
 test('a job records its flow, profile and prompt versions at creation and keeps them; the switch is per job', async t => {
   const s = designStack(t);
   const { body } = await s.create(), id = body.job.id;
