@@ -17,7 +17,7 @@ import { InteractIntro } from '../InteractSupportPanels.jsx';
 import { focusFixed, focusRoom } from '../interact-card-layout.js';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
-  inputChange, pressPlay, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration, programInputWidget,
+  autopauseMarker, inputChange, pressPlay, seekTime, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration, programInputWidget,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -176,9 +176,14 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useEffect(() => {
     if (!playing || !duration) return undefined;
     const rate = playbackRate(manifest, composition, inputs), origin = performance.now() - time * 1000 / rate;
+    let previous = time;
     const tick = now => {
       const next = (now - origin) / 1000 * rate;
+      // A marker the plan marked pause stops playback exactly on it (the next Play carries on from it).
+      const stop = composed ? autopauseMarker(composition, inputs, previous, Math.min(next, duration)) : null;
+      if (stop) { setTime(stop.time); setPlaying(false); return; }
       if (next >= duration) { setTime(duration); setPlaying(false); return; }
+      previous = next;
       setTime(next);
       frame.current = requestAnimationFrame(tick);
     };
@@ -346,6 +351,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // A schema 2 Reset saves only once its initial state has been checked (persist above); a failed one keeps the last good state.
   const reset = () => { dragging.current = null; setPlaying(false); seek(0); if (programState.stateful) { setPendingInputs(null); programState.reset(programInputs(manifest, {})); } else onChange(resetProgram(latest.current)); };
   const rows = manifest.inputs;
+  const seeks = composed ? composition.main.controls.filter(control => control.type === 'seek') : [];
+  const atMarker = markerId => { const at = seekTime(composition, inputs, markerId); if (at === null) return; setPlaying(false); seek(clampTime(manifest, at, composition, inputs)); };
   const changed = programChanged(manifest, latest.current) || programTime(manifest, latest.current, composition) > 0 || programState.changed;
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
   // the requested moment, which the picture settles on within one evaluation (data-program-settling until then).
@@ -358,7 +365,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
       {composed
-        ? <InteractIntro composition={composition} block={block} mainInputs={inputs} instructions={manifest.instructions} />
+        ? <InteractIntro composition={composition} block={block} mainInputs={inputs} instructions={composition.instructions ?? manifest.instructions} />
         : <>
           {manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
           {manifest.instructions && <p data-card-instructions className="shrink-0 text-sm leading-snug text-ink-2">{manifest.instructions}</p>}
@@ -393,6 +400,16 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
             {rows.map(input => (input.type === 'number'
               ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} />
               : <InputWidget key={input.id} {...programInputWidget(input)} value={inputs[input.id]} onInput={setInput} />))}
+            {/* After a rule, the plan's seek buttons (At top): each jumps the timeline to its marker and pauses. */}
+            {seeks.length > 0 && (
+              <>
+                {rows.length > 0 && <span data-interact-rule role="separator" aria-orientation="vertical" className="h-5 w-px bg-line" />}
+                {seeks.map(control => (
+                  <button key={control.id} type="button" data-interact-seek={control.binding.id} onClick={() => atMarker(control.binding.id)}
+                    className="flex h-8 items-center rounded-lg border border-line px-3 text-sm text-ink hover:bg-hover">{control.label}</button>
+                ))}
+              </>
+            )}
             {/* Declared buttons, then the declared selectable objects (also clickable in the drawing): native buttons, so Tab, Enter and
                 Space work. While the transition queue is full they are greyed and keep their names. */}
             {actions.length > 0 && (
