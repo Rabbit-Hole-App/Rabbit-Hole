@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ACCOUNT } from './prod-release.mjs';
-import { MVP_BANNER, REQUIRED, SUITES, affectedTests, checkRecovery, makeRecord, mvpSummary, mvpVerdict, previewArgs, recordDigest, runPreview, verifyArgs } from './mvp-fast-path.mjs';
+import { GATE_REQUIRED, MVP_BANNER, REQUIRED, SUITES, affectedTests, gateLine, checkRecovery, makeRecord, mvpSummary, mvpVerdict, previewArgs, recordDigest, runPreview, verifyArgs } from './mvp-fast-path.mjs';
 
 const SHA = '42f5a4f065d4a1df1b47e2f150893b83d7befe3b', OTHER = 'b0ee85f3' + '0'.repeat(32), TREE = 'e'.repeat(40);
 const treeOf = s => (s === SHA ? TREE : null);
@@ -249,4 +249,53 @@ test('verify: the arguments, and exit 0 only for a record production would accep
     git('update-ref', ref, git('commit-tree', tree, '-m', 'unrelated root'));
     assert.match(verify(line(good)).stderr, /does not contain [0-9a-f]{8} as an ancestor/, 'a branch that no longer contains the release commit');
   } finally { git('update-ref', '-d', ref); }
+});
+
+// ---- the record from the gate run (reviewer 2026-11-13, item 4): no preview deploy ----
+const GATE_FIRST = `GATE: PASS(smoke) ${SHA} tier=smoke vs the 118 baseline`;
+const gateIo = (first = GATE_FIRST, calls = []) => ({ ...fake({}, calls), gate: async () => { calls.push('gate'); const ok = gateLine(SHA).test(first); return { exit: ok ? 0 : 1, cmd: 'gate report 125-gate-report.txt', line: first, version: 'gate:0123456789ab' }; } });
+
+test('gate record: build, affected tests and smoke run, then the gate report is read; nothing is deployed, and production accepts the record', async () => {
+  const io = gateIo();
+  const rec = await flow(io, { gate: '125-gate-report.txt' });
+  assert.deepEqual(io.calls, ['build', 'tests', 'smoke', 'gate'], 'no deploy step');
+  assert.deepEqual(rec.checks.map(c => c.name), GATE_REQUIRED);
+  assert.deepEqual([rec.targets.env, rec.targets.report, rec.version], ['gate', '125-gate-report.txt', 'gate:0123456789ab']);
+  assert.equal(rec.targets.worker, undefined);
+  assert.deepEqual([rec.gates, rec.broad_ci, rec.release_gate], ['bypassed', 'bypassed', 'bypassed'], 'the bypass wording is the same');
+  const verdict = mvpVerdict(line(rec), SHA, treeOf);
+  assert.ok(verdict.record, verdict.error);
+  assert.deepEqual(mvpSummary(verdict.record), { digest: rec.digest, worker: null, gate_report: '125-gate-report.txt', checks: GATE_REQUIRED.map(n => `${n}:pass`), recovery: { branch: 'recovery/x', tip: 'd'.repeat(40) }, broad_ci: 'bypassed', release_gate: 'bypassed' });
+});
+
+test('gate record: a gate report that is not a PASS for this commit fails the check and the record is never accepted', async () => {
+  for (const first of [`GATE: FAIL ${SHA}`, `GATE: PASS(smoke) ${OTHER}`, 'SUITES: GREEN', `GATE: PASS ${SHA.slice(0, 8)}`, '']) {
+    const rec = await flow(gateIo(first), { gate: 'g.txt' });
+    assert.equal(rec.checks.at(-1).result, 'fail', first);
+    assert.match(mvpVerdict(line(rec), SHA, treeOf).error, /required check gate did not pass/, first);
+  }
+});
+
+test('gate record: a record cannot claim a gate and carry another commit\'s line, a dev target, or no report name', () => {
+  const gated = (over = {}, line_ = GATE_FIRST) => makeRecord(parts({ targets: { env: 'gate', report: 'g.txt' }, version: 'gate:0123456789ab', checks: [...REQUIRED.slice(0, 3).map(pass), { ...pass('gate'), line: line_ }], ...over }));
+  assert.ok(mvpVerdict(line(gated()), SHA, treeOf).record);
+  assert.match(mvpVerdict(line(gated({}, `GATE: PASS(smoke) ${OTHER}`)), SHA, treeOf).error, /does not carry this commit/);
+  assert.match(mvpVerdict(line(gated({ targets: { env: 'dev', worker: 'rabbit-hole-web-dev-x' } })), SHA, treeOf).error, /names the gate report/);
+  assert.match(mvpVerdict(line(gated({ targets: { env: 'gate' } })), SHA, treeOf).error, /names the gate report/);
+  const noGateLine = makeRecord(parts({ targets: { env: 'gate', report: 'g.txt' }, checks: [...REQUIRED.slice(0, 3).map(pass), pass('gate')] }));
+  assert.match(mvpVerdict(line(noGateLine), SHA, treeOf).error, /does not carry this commit/);
+});
+
+test('gate record: the clone-deploy record is unchanged: without a gate check every old rule still applies', () => {
+  assert.ok(mvpVerdict(line(GOOD), SHA, treeOf).record);
+  const noPreview = makeRecord(parts({ checks: REQUIRED.slice(0, 3).map(pass) }));
+  assert.match(mvpVerdict(line(noPreview), SHA, treeOf).error, /required check preview is missing/);
+});
+
+test('gate record: --gate needs a report file, turns the deploy off, and no clone name is required', () => {
+  const base = ['--mvp', '--sha', SHA, '--smoke', 'node s.mjs', '--recovery', 'recovery/x'];
+  const o = previewArgs([...base, '--gate', 'C:/q/125-gate-report.txt'], 'dir');
+  assert.deepEqual([o.gate, o.deploy], ['C:/q/125-gate-report.txt', false]);
+  assert.throws(() => previewArgs([...base, '--gate'], 'dir'), /--gate needs the gate report file/);
+  assert.equal(previewArgs([...base], 'dir').deploy, true, 'without --gate the preview still deploys');
 });
