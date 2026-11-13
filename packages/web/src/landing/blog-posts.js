@@ -87,7 +87,7 @@ export const storyCountLabel=count=>`${count} ${count===1?'story':'stories'}`;
 export const renderStoryCards=stories=>stories.map((story,index)=>`<li><article>
     <a class="card blog-card card-hover" href="${href(story)}" aria-labelledby="story-${story.slug}">
       ${cover(story)}<div class="blog-card-copy">
-        <div class="blog-card-category"><span>${story.category}</span><span aria-hidden="true">${String(index+1).padStart(2,'0')}</span></div>
+        <div class="blog-card-category"><span>${story.category}</span><span aria-hidden="true">${String(stories.length-index).padStart(2,'0')}</span></div>
         <h3 id="story-${story.slug}">${story.title}</h3><p>${story.excerpt}</p>
         <div class="blog-card-meta"><span class="blog-card-details">${metadata(story)}</span><span class="card-action" aria-hidden="true"><span class="card-action-label">Read story</span><span class="card-action-icon"><span class="card-action-arrow">↗</span></span></span></div>
       </div>

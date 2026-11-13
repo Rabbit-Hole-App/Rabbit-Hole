@@ -4,6 +4,8 @@
 //   node scripts/landing-art.mjs blog-hero <slug> "<subject sentences>" [--palette "<tint sentence>"] [--quality low|medium|high] [--from <png>]
 //     --palette replaces the default tint sentence (the colours of the foliage, roses, mushrooms, coats); keep it inside the guide palette.
 //     GPT Image 2.5 Flare, 2048x720, the Wonderland engraving of BLOG_IMAGE_GUIDE.md -> public/landing/blog/<slug>-hero.jpg
+//   node scripts/landing-art.mjs blog-post <slug> "<subject sentences>" [same options]
+//     blog-hero, then also lists a placeholder post first in src/landing/blog-posts.js. Card numbers follow publication order automatically.
 //   node scripts/landing-art.mjs page-banner <name> "<page name>" "<subject>" [--palette "<text>"] [--from <image>]
 //     Nano Banana 2.1, 4:1 2K, the warm print collage of design/examples-collage-prompt.md -> public/landing/<name>-v1.jpg (2800 wide)
 //
@@ -71,15 +73,42 @@ function record(name, model, prompt) {
   fs.writeFileSync(file, `# ${name}\n\nGenerated ${new Date().toISOString().slice(0, 10)} with ${model} by scripts/landing-art.mjs.\n\n## Prompt\n\n${prompt}\n`);
 }
 
+// blog-post also lists a PLACEHOLDER post first in blog-posts.js (the owner writes the real text there). The card number is computed
+// from the post's place in publication order, so nothing else changes.
+function addPost(slug) {
+  const file = path.join(WEB, 'src/landing/blog-posts.js');
+  const raw = fs.readFileSync(file, 'utf8'), crlf = raw.includes('\r\n'), src = raw.replace(/\r\n/g, '\n');
+  if (src.includes(`slug:'${slug}'`)) { console.log('post already listed:', slug); return; }
+  const now = new Date(), iso = now.toISOString().slice(0, 10);
+  const label = `${now.getUTCDate()} ${now.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' })} ${now.getUTCFullYear()}`;
+  const entry = [
+    '  {',
+    '    // PLACEHOLDER post (added by scripts/landing-art.mjs): the owner writes the real title, excerpt, category, author, read time and body.',
+    `    slug:'${slug}',category:'Placeholder category',tag:'Placeholder',author:'Placeholder author',readTime:'1 min read',`,
+    `    date:'${iso}',dateLabel:'${label}',`,
+    "    title:'Placeholder title',",
+    "    excerpt:'Placeholder excerpt.',",
+    `    mark:'Placeholder.',motif:'${slug}',`,
+    "    hero:'Placeholder alt text describing the hero image.',",
+    '    body:`<p>Placeholder paragraph.</p>`',
+    '  },',
+  ].join('\n');
+  const marker = 'export const stories=[\n';
+  const out = src.replace(marker, marker + entry + '\n');
+  fs.writeFileSync(file, crlf ? out.replace(/\n/g, '\r\n') : out);
+  console.log('listed placeholder post first in blog-posts.js:', slug);
+}
+
 const from = flag('from');
-if (kind === 'blog-hero') {
+if (kind === 'blog-hero' || kind === 'blog-post') {
   const [slug, subject] = rest;
-  if (!slug || (!subject && !from)) throw Error('usage: blog-hero <slug> "<subject sentences>" [--quality low] [--from <png>]');
+  if (!slug || (!subject && !from)) throw Error('usage: blog-hero|blog-post <slug> "<subject sentences>" [--quality low] [--from <png>]');
   const dest = path.join(WEB, 'public/landing/blog', `${slug}-hero.jpg`);
   let bytes;
   if (from) bytes = fs.readFileSync(from);
   else { const prompt = BLOG_HEAD + subject + blogTail(flag('palette', BLOG_TINTS)); bytes = await generateFlare(prompt, flag('quality', 'low')); record(`${slug}-hero`, 'GPT Image 2.5 Flare (gpt-image-2.5-flare, 2048x720)', prompt); }
   console.log('saved', dest, toJpeg(bytes, dest));
+  if (kind === 'blog-post') addPost(slug);
 } else if (kind === 'page-banner') {
   const [name, page, subject] = rest;
   if (!name || (!from && (!page || !subject))) throw Error('usage: page-banner <name> "<page name>" "<subject>" [--palette "<text>"] [--from <image>]');
