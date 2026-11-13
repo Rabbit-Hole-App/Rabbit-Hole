@@ -37,6 +37,8 @@ function requestBody(provider, model, effort, agent, inputs, system, schema, ima
     model, instructions: system, input: [{ role: 'user', content: [{ type: 'input_text', text }] }],
     reasoning: { effort }, text: { format: { type: 'json_schema', name: agent, schema, strict: true } },
     max_output_tokens: ceilings[agent].output, tools: [], tool_choice: 'none', stream: false,
+    // Background mode: the POST returns at once and the result is polled, so a long max-effort call never hits the ~300 s fetch header timeout (reviewer 2026-11-12, store accepted).
+    background: true, store: true,
   };
   return {
     model, system, messages: [{ role: 'user', content: [
@@ -128,15 +130,24 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
         : { 'x-api-key': settings.apiKey, 'anthropic-version': settings.apiVersion ?? '2026-10-21' }) };
       const started = Date.now();
       let response, payload;
-      let transportFailed = false;
+      let transportFailed = false, responseId;
       try {
         response = await fetchImpl(settings.endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
         payload = await response.json();
+        responseId = typeof payload?.id === 'string' ? payload.id.slice(0, 100) : undefined;
+        const deadline = Date.now() + (settings.pollTimeoutMs ?? 3_600_000);
+        for (let misses = 0; body.background && response.ok && responseId && ['queued', 'in_progress'].includes(payload?.status);) {
+          if (Date.now() > deadline) throw new Error('Background response poll timed out');
+          await new Promise(done => setTimeout(done, settings.pollMs ?? 10_000));
+          try { response = await fetchImpl(`${settings.endpoint.replace(/\/+$/, '')}/${encodeURIComponent(responseId)}`, { method: 'GET', headers }); payload = await response.json(); misses = 0; }
+          catch (error) { if (++misses >= 5) throw error; }
+        }
       } catch { transportFailed = true; }
       const usage = usageFrom(payload, provider);
       const entry = { agent, model, attempt, inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0,
         reasoningTokens: usage?.reasoningTokens ?? 0, usageKnown: Boolean(usage),
-        usd: usage ? callPrice(config, model, usage.inputTokens, usage.outputTokens) : 0, ms: Date.now() - started };
+        usd: usage ? callPrice(config, model, usage.inputTokens, usage.outputTokens) : 0, ms: Date.now() - started,
+        ...(responseId && !usage ? { responseId } : {}) }; // the id lets unknown usage be reconciled from the stored response
       // recordSpend mutates before throwing on an overrun. Always save that charge.
       try { recordSpend(state, entry); }
       finally { await persist(); }
