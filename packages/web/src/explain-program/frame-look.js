@@ -5,8 +5,11 @@
 // The conventions are the ones the SDK helpers already produce (explain-program/sdk-figures.js), so an author who uses the helpers gets the look without knowing it:
 //   lane      a box with a text "<id>.title" and a text "<id>.state" beside it (sdk.panel). Lanes are ordered left to right: the first is drawn blue-soft, the second warm-soft, any other plain.
 //             Every lane draws the frame's first y axis (sdk.axis, orientation 'y') inside its left edge, with a dashed grid; that axis object itself is then not drawn a second time.
+//   body      a circle of 12 px or more (sdk.circle). Bodies are coloured by order, whatever role they carry: the first process blue, the second decision gold, any later one the third identity slot.
+//             An sdk-8 frame cannot give a body role "observed" (olive): contract.js parseGuestResult refuses it.
 //   text      a text whose anchor lies inside a lane is kept inside the lane (its drawn position moves, never its meaning).
 import { textWidthPx } from '../interact-description-fit.js';
+import { BODY_MIN } from './contract.js';
 
 export const LANE_INSET = 6; // px a child keeps from a lane's edge
 export const LANE_AXIS_X = 36; // the lane axis line sits this far in from the lane's left edge, its tick labels to the left of it
@@ -41,26 +44,31 @@ export function clampText(object, lane) {
   return { x: clamp(object.x, left, right), y: clamp(object.y, lane.y + TEXT_SIZE, lane.y + lane.h - LANE_INSET) };
 }
 
-// -> { objects, lanes }: the objects the renderer draws, in the same order. An object that is part of a recognised look carries `look: { part, ... }` (drawn by LookShape); a child that left its
-// lane is moved back inside it. Nothing else changes, and a frame with no lane comes back as it was.
+// A body is a circle of at least this diameter (a smaller one is a mark, a dot or a hole); bodies take the scene's identity hues in the order they appear: the first process blue, the second decision gold,
+// any later one the third slot (interact-style.js IDENTITIES). The author does not pick a body's colour.
+
+export const BODY_SLOTS = Object.freeze(['identity-1', 'identity-2', 'identity-3']);
+export const isBody = object => kindOf(object) === 'circle' && object.w >= BODY_MIN;
+
+// -> { objects, lanes }: the objects the renderer draws, in the same order. An object that is part of a recognised look carries `look: { part, ... }` (drawn by LookShape) or an `identitySlot` (a body); a
+// child that left its lane is moved back inside it. Nothing else changes, and a frame with nothing to read comes back as it was.
 export function frameLook(objects) {
-  const lanes = lanesOf(objects);
-  if (!lanes.length) return { objects, lanes };
-  const byId = new Map(lanes.map(lane => [lane.id, lane]));
+  const lanes = lanesOf(objects), byId = new Map(lanes.map(lane => [lane.id, lane]));
   const titles = new Map(lanes.flatMap(lane => [[`${lane.id}.title`, 'lane-title'], [`${lane.id}.state`, 'lane-state']]));
-  const source = lanes[0].axis?.id;
-  return {
-    lanes,
-    objects: objects.map(object => {
-      const lane = byId.get(object.id);
-      if (lane) return { ...object, look: { part: 'lane', lane } };
-      if (titles.has(object.id)) return { ...object, look: { part: titles.get(object.id) } };
-      if (object.id === source) return { ...object, look: { part: 'hidden' } };
-      if (kindOf(object) === 'text') {
-        const home = laneAt(lanes, object.x, object.y);
-        if (home) { const at = clampText(object, home); if (at.x !== object.x || at.y !== object.y) return { ...object, ...at }; }
-      }
-      return object;
-    }),
-  };
+  const source = lanes[0]?.axis?.id;
+  let bodies = 0;
+  const out = objects.map(object => {
+    const lane = byId.get(object.id);
+    if (lane) return { ...object, look: { part: 'lane', lane } };
+    if (titles.has(object.id)) return { ...object, look: { part: titles.get(object.id) } };
+    if (object.id === source) return { ...object, look: { part: 'hidden' } };
+    if (isBody(object)) return { ...object, identitySlot: BODY_SLOTS[Math.min(bodies++, BODY_SLOTS.length - 1)] };
+    if (kindOf(object) === 'text') {
+      const home = laneAt(lanes, object.x, object.y);
+      if (home) { const at = clampText(object, home); if (at.x !== object.x || at.y !== object.y) return { ...object, ...at }; }
+    }
+    return object;
+  });
+  const changed = out.some((object, index) => object !== objects[index]);
+  return { lanes, objects: changed ? out : objects };
 }

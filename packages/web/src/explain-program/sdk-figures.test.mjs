@@ -181,3 +181,16 @@ return sdk;`)();
   assert.equal(old.callout, undefined);
   assert.equal(old.panel, undefined);
 });
+
+// ---- bodies (interact scene look): the renderer colours a body by order, so an sdk-8 frame cannot give one the olive (observed) role ----------------------------------------------------
+test('an sdk-8 frame is refused when a body (a circle of 12 px or more) has role observed, naming the circle; a small mark, other roles and older SDKs are untouched', () => {
+  const manifest = { ...MANIFEST, capabilities: ['time_playback', 'figures'] };
+  const parse = (objects, version = 'sdk-8') => parseGuestResult({ frame: { width: 640, height: 420, objects, readouts: [] }, quantities: {} }, manifest, version);
+  const refused = parse([sdk.circle('ball', 100, 100, 24, { role: 'observed' })]);
+  assert.equal(refused.ok, false);
+  assert.match(refused.issue, /circle "ball" is a body with role "observed" \(olive.*give the body no role/);
+  assert.equal(parse([sdk.circle('dot', 100, 100, 8, { role: 'observed' })]).ok, true, 'a mark is a measured-data dot, not a body');
+  assert.equal(parse([sdk.circle('ball', 100, 100, 24, { role: 'input' })]).ok, true);
+  assert.equal(parse([sdk.circle('ball', 100, 100, 24)]).ok, true);
+  assert.equal(parse([sdk.circle('ball', 100, 100, 24, { role: 'observed' })], 'sdk-7').ok, true, 'older cards keep their rules');
+});

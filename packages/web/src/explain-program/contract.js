@@ -52,6 +52,8 @@ export const FIGURE_KINDS = Object.freeze(['axis', 'plot', 'diagram']);
 // What a figure keeps free beside its line, in frame units, so the frame bounds check is the same number the renderer draws with (FrameFigures.jsx): an x axis keeps
 // BAND.x below it for ticks and its title, a y axis keeps BAND.y to its left and titleRoom above its top end.
 export const FIGURE_BAND = Object.freeze({ x: 52, y: 60, titleRoom: 28 }); // 22 until run 2 (2026-11-13): the y title sat on the top tick label; it now rides 18 px above the axis end
+// A body (a circle of at least this diameter, frame-look.js) is coloured by the renderer, by order; an sdk-8 frame cannot give one the observed (olive) role.
+export const BODY_MIN = 12;
 export const FIGURE_LIMITS = Object.freeze({ series: 3, points: 24, ticks: 12, specBytes: 16 * 1024, plotMin: Object.freeze({ w: 200, h: 160 }) });
 
 const finite = limit => z.number().min(-limit).max(limit); // z.number() already refuses NaN and Infinity
@@ -497,6 +499,8 @@ export function parseGuestResult(raw, manifest = null, sdkVersion = null) {
   if (objects.some(object => FIGURE_KINDS.includes(object.kind)) && (sdkVersion !== FIGURES_SDK_VERSION || !manifest?.capabilities?.includes(FIGURES_CAPABILITY))) {
     return invalid(`frame: axis, plot and diagram objects require the ${FIGURES_CAPABILITY} capability and ${FIGURES_SDK_VERSION}`);
   }
+  const olive = sdkVersion === FIGURES_SDK_VERSION ? objects.find(object => object.kind === 'circle' && object.w >= BODY_MIN && object.role === 'observed') : null;
+  if (olive) return invalid(`frame: circle "${olive.id}" is a body with role "observed" (olive, the colour of measured data); the renderer colours bodies by order (the first process blue, the second decision gold), so give the body no role`);
   for (const readout of result.value.frame.readouts) {
     const definition = manifest?.readouts?.find(item => item.id === readout.id);
     if (!definition) continue; // an undeclared readout is normalizeFrame's refusal

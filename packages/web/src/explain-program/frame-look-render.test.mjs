@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { buildSync } from 'esbuild';
 import { normalizeFrame } from './frame.js';
 import { programSdkSource } from './sdk.js';
+import { PALETTE } from '../tutor-diagrams/primitives.js';
 import { TEACHING } from '../tutor-diagrams/teaching-theme.js';
 
 // The look of a generated card's scene (frame-look.js), drawn by the real Frame in interact mode: structural markup checks on frames built with the sdk-8 helpers in this process. The helpers are the
@@ -71,4 +72,13 @@ test('a label inside a lane is kept inside it: a callout-sized text past the lan
   assert.ok(x < 310 - 6 - 60 && x > 60, `x ${x} is inside the lane (right edge 310)`);
   const middle = draw([...lanes, sdk.text('mid', 305, 120, 'centre', { align: 'middle' })]);
   assert.ok(Number(group(middle, 'mid').match(/<text x="([0-9.]+)"/)[1]) < 304, 'a middle-aligned text keeps its half width inside');
+});
+
+test('bodies are coloured by order, whatever role the author gave: the first process blue, the second decision gold, a mark under 12 px keeps its own role', () => {
+  const markup = draw([sdk.circle('toss-ball', 150, 200, 26, { role: 'output' }), sdk.circle('drop-ball', 430, 200, 26, { role: 'input' }), sdk.circle('dot', 300, 100, 6, { role: 'warning' })]);
+  const fill = id => group(markup, id).match(/<circle[^>]*style="fill:([^;]+);/)[1];
+  assert.equal(fill('toss-ball'), PALETTE.process);
+  assert.equal(fill('drop-ball'), PALETTE.decision);
+  assert.equal(fill('dot'), PALETTE.coral, 'a mark is not a body');
+  assert.match(group(markup, 'toss-ball'), /stroke:#32211c/);
 });
