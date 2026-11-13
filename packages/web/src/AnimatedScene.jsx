@@ -1,4 +1,5 @@
 import { rasterRuns } from './raster-pixels.js';
+import { FigureShape } from './explain-program/FrameFigures.jsx';
 import { Children, cloneElement, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
@@ -13,7 +14,7 @@ import katex from 'katex';
 // no such CSS and rendered every equation as flat, unstyled text. Importing
 // it here directly makes AnimatedScene correct on its own.
 import 'katex/dist/katex.min.css';
-import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, presentationMode, stepAt, validateScene } from './animation-scene.js';
+import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, FIGURE_TYPES, getSceneState, presentationMode, stepAt, validateScene } from './animation-scene.js';
 import { applyInputToBlock, evaluateScene, experimentChanged, resetInputs } from './scene-evaluate.js';
 import { lockedInputNames, revealHiddenInputs } from './scene-activity.js';
 import SceneControls, { CardPager, StepPager } from './SceneControls.jsx';
@@ -572,6 +573,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           const isPolyline = object.type === 'polyline';
           const isImage = object.type === 'image';
           const isRaster = object.type === 'raster';
+          const isFigure = FIGURE_TYPES.includes(object.type);
           const maths = isEquation ? typeset(shown) : null;
           // A circle is placed by its centre, so its label is centred on the
           // same point; boxes centre inside their frame.
@@ -617,7 +619,9 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
               {object.highlighted && !isText && !isData && (isCircle
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: look.stroke }} />
                 : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: look.stroke }} />)}
-              {isData
+              {isFigure
+                ? (interact ? <FigureShape object={object} /> : null) /* axis, plot and diagram are the composed card's: the /animation frame draws nothing for them (validateScene refuses them there) */
+                : isData
                 ? <DataShape object={object} role={role} pop={pop} chosen={chosen} inkAt={inkAt} interact={interact}
                     onInputPick={object.pickInput && lockedInputs.includes(object.pickInput) ? null : onInputPick} />
                 : isRaster
@@ -686,7 +690,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                 <RunsLabel runs={object.runs} text={object.label} x={label.x} y={label.y} anchor={label.anchor} baseline={label.baseline}
                   type={{ ...type, fontFamily: type.fontFamily ?? (isCircle ? MONO : undefined) }} fill={labelFill} />
               )}
-              {!maths && !(object.runs && object.textProgress >= 1) && (
+              {!maths && !isFigure && !(object.runs && object.textProgress >= 1) && (
                 <text
                   x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
                   fontSize={type.fontSize}
