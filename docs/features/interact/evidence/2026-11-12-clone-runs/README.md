@@ -97,3 +97,21 @@ refers to the maximum-speed capture as "at the 1.28 m apex". Round 1 accepted. B
 Screenshot `s5-rest-top3-top5-with-readouts.png`: at rest, Top at 3.0 m/s (Height 0.459 m, Velocity 0.00 m/s, Acceleration -9.8 m/s^2) and Top at 5.0 m/s (1.276 m, 0.00, -9.8), with the readouts row.
 (Note: the README rows for run 13/14 above call the failed fix-3 rebuild "run 14"; this one is the next job, folder 15.)
 
+## Update: semantic figures (sdk-8), code and tests only
+
+Commits `8fa6341eb`, `2badf6cce`, `029b09de0`, `58c71e470`, `8dc272de5` add the frame kinds `axis`, `plot` and `diagram` (capability `figures`, tuple `sdk-8` with renderer-5), their scene types, the composed-card renderer
+(`explain-program/FrameFigures.jsx`), the guest helpers `sdk.axis`, `sdk.plot` (with axes) and `sdk.diagram`, and the catalogue and prompt entries. Nothing was deployed or rebuilt; the dev clone stays on Version ID
+`54d9d3e3-476c-46f2-9de0-65d92d0c5f0d`. Runs 10, 11, 13 and 15 still parse, re-seal to the same hashes and run under their own tuples (`sdk-figures.test.mjs`).
+
+### Before this branch goes to review
+
+`render-freshness.test.mjs` fails: the committed `viz-benchmarks/**/generated/latest/static-00.png` files carry a renderer hash older than the current renderer sources. It was already failing at `51fcb4441`
+(the restyle commits changed the renderer files; the hash matched at base `81028bb3f`), and the figures commits change the renderer again. The PNGs must be re-rendered (a browser run) before review.
+
+### Known before acceptance
+
+- `sdk.plot` has two signatures under sdk-8: with an `axes` key it is the semantic plot and returns one `plot` object; without `axes` it is the sdk-2 plot (`xDomain`/`yDomain`, returns an array of frame objects), unchanged.
+- A y-axis title (up to 40 characters) is drawn from the left of its band along the line above the axis, so a long title can run past the right edge of the frame; the contract cannot check text width.
+- A diagram that does not fit the room below its `y` is scaled down with its aspect kept, so its text can fall under the 13 and 14 px floors.
+- No browser has looked at any figure yet; the markup is pinned by hash only. Acceptance is the next rebuild.
+
