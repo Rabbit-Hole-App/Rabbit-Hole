@@ -99,3 +99,14 @@ test('run 15: the velocity label sits on the dashed top line at 5 m/s, touches t
   assert.deepEqual(found(frameOf('run15', 5, 0.306)).filter(([, , kind]) => kind === 'text-text'), [['tossedLabel', 'tossedVL', 'text-text']]);
   assert.ok(found(frameOf('run15', 3, 0)).some(([a, b]) => a === 'heldAL' && b === 'gateB'), 'held a label by the gate leg');
 });
+
+test('a label on a body is a text-body problem with the ids, the reach into the radius and a hint; beside it, over a small mark, or over a hidden body is not', () => {
+  const ball = { kind: 'circle', id: 'ball.toss', x: 100, y: 100, w: 30 };
+  const on = layoutProblems({ objects: [ball, { kind: 'text', id: 'motion', x: 94, y: 100, text: 'Motion' }] });
+  assert.deepEqual(on.map(p => [p.a, p.b, p.kind]), [['motion', 'ball.toss', 'text-body']]);
+  assert.ok(on[0].width > 0 && on[0].width <= 15 && /move "motion" off the body "ball.toss"/.test(on[0].hint));
+  assert.deepEqual(layoutProblems({ objects: [ball, { kind: 'text', id: 'beside', x: 120, y: 100, text: 'Motion' }] }).filter(p => p.kind === 'text-body'), [], 'a label starting at the body edge clears its radius');
+  assert.deepEqual(layoutProblems({ objects: [{ ...ball, w: 8 }, { kind: 'text', id: 'motion', x: 94, y: 100, text: 'Motion' }] }), [], 'a mark under 12 px is not a body');
+  assert.deepEqual(layoutProblems({ objects: [{ ...ball, opacity: 0 }, { kind: 'text', id: 'motion', x: 94, y: 100, text: 'Motion' }] }), []);
+  assert.ok(frameOverlaps({ objects: [ball, { kind: 'text', id: 'motion', x: 94, y: 100, text: 'Motion' }] }).some(p => p.b === 'ball.toss'), 'frameOverlaps reports it once, whichever rule saw it first');
+});
