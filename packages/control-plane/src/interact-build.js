@@ -19,6 +19,7 @@ import { modelEvidence } from './explain-evidence.js';
 import { InteractModelError, callInteractRole } from './interact-models.js';
 import { stripUnknown } from './learn-primitives.js';
 import { literalBreaksDeep } from './literal-breaks.js';
+import { frameIdsOf } from './interact-convention.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const bytes = value => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value)).length;
@@ -94,12 +95,12 @@ function steeredProgram(program, steer) {
 }
 // What the builder reads: the whole approved plan and the trusted derivations of it (the exact native declarations, the exact timeline).
 export function buildInput(job, plan, hash, steer = null) {
-  const { declarations } = controlDeclarations(plan);
+  const { declarations } = controlDeclarations(plan), frameIds = frameIdsOf(plan);
   return {
     approvedPlan: plan, planHash: hash, depth: plan.depth,
     panels: [{ id: 'main', role: 'main', runtime: plan.scene.runtime, readoutIds: plan.scene.readoutIds },
       ...plan.supportingVisuals.map(s => ({ id: s.id, role: 'support', runtime: s.runtime, readoutIds: s.readoutIds, parameterBindings: s.parameterBindings }))],
-    controlBindings: declarations, timeline: timelineBrief(plan),
+    controlBindings: declarations, timeline: timelineBrief(plan), ...(frameIds.length ? { frameIds } : {}), // frameIds: the frame object ids the plan names, each to be used verbatim (interact-convention.js)
     program: steeredProgram(programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful: isStateful(plan) }), steer),
     ...(steer?.sceneKind ? { steer: { sceneKind: steer.sceneKind, objectBudget: steer.objectBudget } } : {}),
     ...(usesSpec(plan) ? { spec: { catalogue: catalogue(), composition: authorComposition(), limits: SPEC_LIMITS } } : {}),

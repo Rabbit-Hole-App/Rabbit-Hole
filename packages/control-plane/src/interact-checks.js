@@ -22,6 +22,7 @@ import { INTERACT_LIMITS, InteractModelError, callInteractRole } from './interac
 import { INTERACT_REPAIR_SYSTEM, INTERACT_REPAIR_TOOL_NAME, interactRepairTool } from './agents/explain-repair.js';
 import { approvedPlanOf, buildInput, callRecord, callWithCorrection, correctable, refusalProblems, schemaOptions, validateBuildOutput } from './interact-build.js';
 import { REPAIR_FORWARD } from './explain-program-stage.js';
+import { conventionProblems } from './interact-convention.js';
 
 // correctionRounds: shared across validation, render and review failures (INT-05-C08). renderRetries: recapture attempts after a render
 // outage, which spend no model call and no correction round (INT-05-C10). maxCases: the rendered reviewer's images per round (the profile's
@@ -194,6 +195,8 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     }
     coverage.cases.push(c.id);
   }
+  // Convention (interact-convention.js): a frame id the plan names, drawn without the SDK helper the renderer's look reads. One precise line per id, at no case in particular.
+  for (const p of conventionProblems(plan, captures.flatMap(c => c.trace?.objects ?? []))) bad('convention', p.id, p.message);
 
   // Numbers from the trusted oracle, against the runtime's own quantities (never the builder's prose).
   for (const e of oracle?.expect ?? []) {

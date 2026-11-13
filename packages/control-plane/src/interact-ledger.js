@@ -16,6 +16,7 @@ export function problemCause(problem) {
   const text = String(problem), coded = /^\[(\w+)\]\s*([\s\S]*)$/.exec(text);
   if (!coded) return `schema:${generic(/^main:\s*([\w.]+):/.exec(text)?.[1] ?? /^([\w.]+):/.exec(text)?.[1] ?? text.slice(0, 40))}`;
   const [, code, rest] = coded;
+  if (code === 'convention') return `convention:${/^"([^"]+)"/.exec(rest)?.[1] ?? 'unknown'}`;
   if (code === 'overlap') return `overlap:${/\(([a-z-]+),/.exec(rest)?.[1] ?? 'overlap'}`;
   if (code === 'program_error') {
     const detail = /^the program failed at "[^"]*" \([a-z_]+\)(?::\s*([\s\S]*))?$/.exec(rest)?.[1] ?? '';
