@@ -211,6 +211,7 @@ export const planProposalFields = job => {
       approval_hash: d.approvalHash, plan_revision: d.rev, board: job.boardId, revision: job.revision, generation_reserve_micros: job.reservation.generationMicros, request: job.prompt.slice(0, 500) } };
 };
 // The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
+// designFixture: the resolved pinned plan (toss-standard), not the family, so the ledger's fixture column names the card.
 const explainDiagnostics = (job, designFixture = null) => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), ...(job.coverage ? { coverage: job.coverage } : {}), ...(job.history ? { history: job.history, historyDropped: job.historyDropped || 0 } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
   calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing,
   ...(job.bench ? { bench: job.bench } : {}),
@@ -375,7 +376,7 @@ export class ExplainJobs {
       // A program's artifact rides on this authorized answer only (never in the identity the card saves): the host-hashed artifact and the
       // server's execution decision, which the card obeys.
       if (block?.program) view.result = { ...view.result, program: (await this.state.storage.get(`result:${job.resultId}`)).artifact, execution: programExecution(this.env) };
-      return json({ job: view, ...(block ? { block } : {}), ...(scenePlan ? { scenePlan } : {}), ...(detail ? { diagnostics: explainDiagnostics(job, pinnedFixtureId(designPinOf(this.env), job.depth)), // the ledger's fixture column names the resolved plan (toss-standard), not the family ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
+      return json({ job: view, ...(block ? { block } : {}), ...(scenePlan ? { scenePlan } : {}), ...(detail ? { diagnostics: explainDiagnostics(job, pinnedFixtureId(designPinOf(this.env), job.depth)), ...(version ? { version: await resolveVersion(job, version, this.state.storage) } : {}) } : {}) });
     }
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
