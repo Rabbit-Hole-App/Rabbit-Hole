@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { canonicalJson, validateVisualBrief } from './explain-contract.js';
-import { CAPABILITIES, CONTRACT_LIMITS } from './explain-program/contract.js';
+import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, KNOWN_CAPABILITIES } from './explain-program/contract.js';
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 
 // ScenePlan v1 (docs/features/interact.md section 5, INT-01): the one pure contract shared by design, review, build and the
@@ -404,7 +404,7 @@ export function validatePlanBindings(plan, capabilities) {
     if (rt.catalogueHash !== capabilities.catalogueHash) bad([...path, 'catalogueHash'], 'catalogue_mismatch', 'the plan was designed against a different control catalogue; revise and review again');
     if (rt.renderer !== 'program') return;
     if (!supportedTuples.has(canonicalJson(rt.programTuple))) bad([...path, 'programTuple'], 'unsupported_tuple', 'programTuple is not one of the supported sealed tuples');
-    for (const need of rt.requiredCapabilities) if (!CAPABILITIES.includes(need)) bad([...path, 'requiredCapabilities'], 'unsupported_capability', `"${need}" is not a program capability`);
+    for (const need of rt.requiredCapabilities) if (!KNOWN_CAPABILITIES.includes(need)) bad([...path, 'requiredCapabilities'], 'unsupported_capability', `"${need}" is not a program capability`);
     if (rt.schemaVersion === 2 && !capabilities.stateful) bad([...path, 'schemaVersion'], 'stateful_unavailable', 'the stateful program schema is not enabled');
   };
   checkRuntime(plan.scene.runtime, ['scene', 'runtime']);
@@ -426,10 +426,11 @@ export function validatePlanBindings(plan, capabilities) {
     if ((c.type === 'index' || c.type === 'multi_select') && c.items.length > (d.limits.maxItems ?? Infinity)) bad(at('items'), 'limit_exceeded', `"${d.id}" offers at most ${d.limits.maxItems} items`);
     used.set(d.id, (used.get(d.id) || 0) + 1);
     if (used.get(d.id) > (d.limits.maxControls ?? Infinity)) bad(at('nativeControlId'), 'limit_exceeded', `"${d.id}" is limited to ${d.limits.maxControls} controls`);
+    if (d.requires.includes(INPUTS_V2_CAPABILITY) && !plan.scene.runtime.requiredCapabilities.includes(INPUTS_V2_CAPABILITY)) bad(at('nativeControlId'), 'capability_missing', `"${d.id}" needs "${INPUTS_V2_CAPABILITY}" in scene.runtime.requiredCapabilities`);
     if (d.requires.includes('stateful') && (!capabilities.stateful || plan.scene.runtime.schemaVersion !== 2)) bad(at('nativeControlId'), 'stateful_unavailable', `"${d.id}" needs the stateful program (schema 2), which this plan's runtime does not select`);
   });
   if (renderer === 'program') {
-    const inputControls = plan.controls.filter(c => c.type === 'number' || c.type === 'select');
+    const inputControls = plan.controls.filter(c => c.type === 'number' || c.type === 'select' || c.type === 'boolean' || c.type === 'index');
     if (inputControls.length > CONTRACT_LIMITS.inputs) bad(['controls'], 'limit_exceeded', `a program declares at most ${CONTRACT_LIMITS.inputs} inputs`);
     const combos = inputControls.filter(c => c.type === 'select').reduce((n, c) => n * c.options.length, 1);
     if (combos > CONTRACT_LIMITS.optionCombinations) bad(['controls'], 'limit_exceeded', `select options combine to ${combos} states (at most ${CONTRACT_LIMITS.optionCombinations})`);

@@ -100,7 +100,8 @@ test('each semantic control type maps to one native declaration, and an unavaila
   assert.deepEqual(nativeDeclaration(select, 'spec').native, { in: 'presentation.experiments', declaration: { id: 'moment', domain: { values: ['before', 'top', 'after'] } } });
   assert.equal(nativeDeclaration({ type: 'action', binding: { kind: 'action', id: 'go' }, label: 'Go' }, 'program').native.in, 'manifest.actions');
   assert.deepEqual(nativeDeclaration({ type: 'target', binding: { kind: 'target', id: 'a' }, label: 'A', interaction: 'drag' }, 'program').native, { in: 'manifest.targets', declaration: { id: 'a', label: 'A', drag: true } });
-  assert.equal(nativeDeclaration({ type: 'boolean', binding: { kind: 'input', id: 'b' }, label: 'B' }, 'program').ok, false, 'no program Boolean switch');
+  assert.deepEqual(nativeDeclaration({ type: 'boolean', binding: { kind: 'input', id: 'b' }, label: 'B', default: false }, 'program').native, { in: 'manifest.inputs', declaration: { type: 'boolean', id: 'b', label: 'B', default: false } }, 'a program Boolean switch (inputs_v2, explain-program/inputs-v2.test.mjs)');
+  assert.equal(nativeDeclaration({ type: 'multi_select', binding: { kind: 'input', id: 'm' }, label: 'M', items: [] }, 'program').ok, false, 'no program multi-select');
   assert.equal(nativeDeclaration({ type: 'number', binding: { kind: 'input', id: 'n' }, label: 'N' }, 'spec').ok, false, 'no spec continuous slider');
 });
 

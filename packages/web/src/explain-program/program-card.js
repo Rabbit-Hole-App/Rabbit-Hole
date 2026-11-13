@@ -186,7 +186,14 @@ function activityText(manifest, event) {
   if (event?.type === 'input') return input ? `set ${input.label} to ${valueText(input, event.value)}` : null;
   return null;
 }
-const valueText = (input, value) => `${input.type === 'select' ? input.options.find(option => option.value === value)?.label ?? value : value}${input.unit ? ` ${input.unit}` : ''}`;
+const valueText = (input, value) => `${input.type === 'select' ? input.options.find(option => option.value === value)?.label ?? value : input.type === 'boolean' ? (value ? 'On' : 'Off') : input.type === 'index' ? input.items[value]?.label ?? value : value}${input.unit ? ` ${input.unit}` : ''}`;
+// The SceneControls widget a manifest select, boolean or index input is drawn with (a number input has its own slider): { declaration, data } for InputWidget. inputs_v2 types reuse the
+// spec scenes' BoolToggle, IndexPicker and IndexSlider; the value is a boolean or the item position.
+export function programInputWidget(input) {
+  if (input.type === 'boolean') return { declaration: { name: input.id, type: 'bool', label: input.label }, data: {} };
+  if (input.type === 'index') return { declaration: { name: input.id, type: 'index', label: input.label, of: 'items', presentation: input.presentation ?? 'picker' }, data: { items: input.items.map(item => item.label) } };
+  return { declaration: { name: input.id, type: 'choice', label: input.label, options: input.options.map(option => ({ id: option.value, label: option.label })) }, data: {} };
+}
 export const PROGRAM_DESCRIPTION = 2000;
 // The composer and tutor context for a program card: what the learner can see and has set, never source. manifest: the resolved
 // artifact's (by default what this page loaded for this exact card). The moment and readouts are the drawn frame's, and only while

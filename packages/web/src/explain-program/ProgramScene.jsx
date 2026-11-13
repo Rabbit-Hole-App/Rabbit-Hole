@@ -17,7 +17,7 @@ import { InteractIntro } from '../InteractSupportPanels.jsx';
 import { focusFixed, focusRoom } from '../interact-card-layout.js';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
-  inputChange, pressPlay, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration,
+  inputChange, pressPlay, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration, programInputWidget,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -392,8 +392,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {rows.map(input => (input.type === 'number'
               ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} />
-              : <InputWidget key={input.id} declaration={{ name: input.id, type: 'choice', label: input.label, options: input.options.map(option => ({ id: option.value, label: option.label })) }}
-                  value={inputs[input.id]} onInput={setInput} />))}
+              : <InputWidget key={input.id} {...programInputWidget(input)} value={inputs[input.id]} onInput={setInput} />))}
             {/* Declared buttons, then the declared selectable objects (also clickable in the drawing): native buttons, so Tab, Enter and
                 Space work. While the transition queue is full they are greyed and keep their names. */}
             {actions.length > 0 && (

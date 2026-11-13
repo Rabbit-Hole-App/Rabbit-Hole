@@ -38,7 +38,13 @@ export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capabi
 // Capabilities a manifest may require. An unknown one is unsupported_capability, never silently ignored.
 export const HEAT_GRID_CAPABILITY = 'heat_grid';
 export const requiresHeatGrid = manifest => Array.isArray(manifest?.capabilities) && manifest.capabilities.includes(HEAT_GRID_CAPABILITY);
+// inputs_v2 (INTERACT_INPUTS_V2): native `boolean` and `index` manifest inputs. A manifest capability, not an SDK helper: the sdk tuple and renderer stamp are unchanged, and a manifest with
+// either input type must declare it, so every saved artifact (number and select inputs only) parses and seals exactly as before.
+export const INPUTS_V2_CAPABILITY = 'inputs_v2';
 export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, RASTER_CAPABILITY, HEAT_GRID_CAPABILITY, PROPS_CAPABILITY, FIGURES_CAPABILITY]);
+// CAPABILITIES is the list /explain tells its author and repairer (explain-program.js PROGRAM_CAPABILITIES; a maximal 16 KiB program has 14 bytes of room in the repair request, explain-program-budget.test.js), so inputs_v2
+// stays out of it while the setting is off; KNOWN_CAPABILITIES is every capability a manifest may name.
+export const KNOWN_CAPABILITIES = Object.freeze([...CAPABILITIES, INPUTS_V2_CAPABILITY]);
 // Frame object kinds: the closed set the trusted renderer draws. Equations are text objects with math runs (hardened path).
 export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image', 'raster', 'heat_grid', 'axis', 'plot', 'diagram']);
 // The semantic figure kinds (capability figures, sdk-8): a frame that draws one needs both (parseGuestResult). Saved frames never carry them, so every older artifact parses unchanged.
@@ -82,7 +88,15 @@ const selectInput = z.object({
   default: z.string(), options: z.array(optionSchema).min(2).max(CONTRACT_LIMITS.options),
 }).strict().refine(input => input.options.some(option => option.value === input.default), { message: 'default must be one of the options', path: ['default'] })
   .refine(input => new Set(input.options.map(option => option.value)).size === input.options.length, { message: 'option values must be unique', path: ['options'] });
-const inputSchema = z.union([numberInput, selectInput]);
+const INDEX_ITEMS_MAX = 12;
+// inputs_v2: a switch (the value is true or false) and a position in 2 to 12 ordered items (the value is the item's index, 0 to items - 1).
+const booleanInput = z.object({ type: z.literal('boolean'), id: name, label: plain(60), default: z.boolean() }).strict();
+const indexInput = z.object({
+  type: z.literal('index'), id: name, label: plain(60), default: z.number().int().min(0), presentation: z.enum(['picker', 'slider']).default('picker'),
+  items: z.array(z.object({ id: name, label: plain(60) }).strict()).min(2).max(INDEX_ITEMS_MAX),
+}).strict().refine(input => input.default < input.items.length, { message: 'default must be the position of an item', path: ['default'] })
+  .refine(input => new Set(input.items.map(item => item.id)).size === input.items.length, { message: 'item ids must be unique', path: ['items'] });
+const inputSchema = z.union([numberInput, selectInput, booleanInput, indexInput]);
 const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2) }).strict();
 
 // interact.md INT-01 mode.timeline, as far as a program card needs it now: shown time = elapsed + displayOffset, a trusted playback rate in simulated
@@ -119,6 +133,9 @@ const manifestChecks = (manifest, context) => {
     if (late.length) context.addIssue({ code: 'custom', message: `timeline marker ${late[0].id} is after the end of the card (${manifest.duration} s)`, path: ['timeline', 'markers'] });
     const ids = (manifest.timeline.markers || []).map(marker => marker.id);
     if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: 'timeline marker ids must be unique', path: ['timeline', 'markers'] });
+  }
+  if (manifest.inputs.some(input => input.type === 'boolean' || input.type === 'index') && !manifest.capabilities.includes(INPUTS_V2_CAPABILITY)) {
+    context.addIssue({ code: 'custom', message: `a boolean or index input needs the ${INPUTS_V2_CAPABILITY} capability in manifest.capabilities`, path: ['capabilities'] });
   }
   const combinations = manifest.inputs.filter(input => input.type === 'select').reduce((total, input) => total * input.options.length, 1);
   if (combinations > CONTRACT_LIMITS.optionCombinations) context.addIssue({ code: 'custom', message: `select options combine to ${combinations} states (at most ${CONTRACT_LIMITS.optionCombinations})`, path: ['inputs'] });
@@ -178,7 +195,7 @@ export const StatefulArtifact = artifactSchema(STATEFUL_SCHEMA_VERSION);
 
 // ---- evaluate request / frame / response ------------------------------------------------------------------------------
 
-const inputValue = z.union([finite(1e9), z.string().max(32)]);
+const inputValue = z.union([finite(1e9), z.string().max(32), z.boolean()]);
 const requestFields = {
   requestId: z.string().min(1).max(64),
   inputs: z.record(name, inputValue).refine(record => Object.keys(record).length <= CONTRACT_LIMITS.inputs, 'too many inputs'),
@@ -381,7 +398,7 @@ function parseWith(schema, raw, code) {
 // A manifest requiring a capability this build lacks is unsupported_capability, not a malformed program. Model output is untrusted: only a
 // list of strings is read here; a field of another type (or a non-string in the list) is a malformed manifest, which the schema reports with its
 // path, the expected type and the observed type, so it can be repaired.
-export const unsupportedCapabilities = manifest => (Array.isArray(manifest?.capabilities) ? manifest.capabilities : []).filter(capability => typeof capability === 'string' && !CAPABILITIES.includes(capability));
+export const unsupportedCapabilities = manifest => (Array.isArray(manifest?.capabilities) ? manifest.capabilities : []).filter(capability => typeof capability === 'string' && !KNOWN_CAPABILITIES.includes(capability));
 export function parseManifest(raw, schemaVersion = SCHEMA_VERSION) {
   const result = parseWith(manifestFor(schemaVersion), raw, 'invalid_program');
   if (!result.ok) return result;
@@ -435,7 +452,9 @@ export function parseEvent(raw, manifest) {
     : event.type === 'select' ? manifest.targets.some(target => target.id === event.target)
       : DRAG_EVENTS.includes(event.type) ? manifest.targets.some(target => target.id === event.target && target.drag === true) && inside()
         : !!input && (input.type === 'number' ? typeof event.value === 'number' && event.value >= input.min && event.value <= input.max
-          : input.options.some(option => option.value === event.value));
+          : input.type === 'boolean' ? typeof event.value === 'boolean'
+            : input.type === 'index' ? Number.isInteger(event.value) && event.value >= 0 && event.value < input.items.length
+              : input.options.some(option => option.value === event.value));
   return declared ? parsed : { ok: false, error: new RuntimeError('invalid_program'), issue: `event: this ${event.type} is not declared by the manifest` };
 }
 export function parseReduceRequest(raw, manifest) {
@@ -488,6 +507,8 @@ export function resolveInputs(manifest, saved = {}) {
   for (const input of manifest.inputs) {
     const value = saved?.[input.id];
     if (input.type === 'number') out[input.id] = Number.isFinite(value) ? Math.min(input.max, Math.max(input.min, value)) : input.default;
+    else if (input.type === 'boolean') out[input.id] = typeof value === 'boolean' ? value : input.default;
+    else if (input.type === 'index') out[input.id] = Number.isInteger(value) && value >= 0 && value < input.items.length ? value : input.default;
     else out[input.id] = input.options.some(option => option.value === value) ? value : input.default;
   }
   return out;

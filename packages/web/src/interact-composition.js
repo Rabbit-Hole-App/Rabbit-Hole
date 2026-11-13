@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { canonicalJson } from './explain-contract.js';
-import { CONTRACT_LIMITS, PROGRAM_KIND, verifyHashes } from './explain-program/contract.js';
+import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, PROGRAM_KIND, verifyHashes } from './explain-program/contract.js';
 import { PLAN_LIMITS, ScalarExprError, contentHash, evalScalar, planHash, scalarExprProblem, scalarInterval } from './interact-plan.js';
 
 // CardComposition v1 (docs/features/interact.md section 5 "Runtime composition envelope", INT-04, INT-06 composition rules): the one
@@ -38,6 +38,9 @@ export function nativeDeclaration(control, renderer) {
   if (renderer === 'program') {
     if (control.type === 'number') return done('manifest.inputs', { type: 'number', id, label: control.label, ...(control.unit ? { unit: control.unit } : {}), default: control.default, min: control.min, max: control.max, step: control.step });
     if (control.type === 'select') return done('manifest.inputs', { type: 'select', id, label: control.label, default: control.default, options: control.options.map(({ value, label }) => ({ value, label })) });
+    // inputs_v2 (the catalogue offers these only when it is on; validateCompositionBindings requires the capability in the manifest).
+    if (control.type === 'boolean') return done('manifest.inputs', { type: 'boolean', id, label: control.label, default: control.default });
+    if (control.type === 'index') return done('manifest.inputs', { type: 'index', id, label: control.label, default: control.default, presentation: control.presentation, items: control.items.map(({ id: itemId, label }) => ({ id: itemId, label })) });
     if (control.type === 'action') return done('manifest.actions', { id, label: control.label });
     if (control.type === 'target') return done('manifest.targets', { id, label: control.label, ...(control.interaction === 'drag' ? { drag: true } : {}) });
     return refuse();
@@ -199,7 +202,10 @@ function mainBindingProblems(plan, artifact, bad) {
       }
       for (const got of have) if (!wanted.some(d => d.declaration.id === got.id)) c(got.id, 'control_extra', `the program declares ${noun} "${got.id}", which is not an approved control`);
     };
-    check(wantInputs, m.inputs || [], 'input', ['type', 'label', 'unit', 'default', 'min', 'max', 'step', 'options']);
+    check(wantInputs, m.inputs || [], 'input', ['type', 'label', 'unit', 'default', 'min', 'max', 'step', 'options', 'items', 'presentation']);
+    if (wantInputs.some(d => d.declaration.type === 'boolean' || d.declaration.type === 'index') && !(m.capabilities || []).includes(INPUTS_V2_CAPABILITY)) {
+      bad(['scene', 'runtime'], 'capability_missing', `the plan has a boolean or index control, so the program must list "${INPUTS_V2_CAPABILITY}" in manifest.capabilities`);
+    }
     check(wantActions, m.actions || [], 'action', ['label']);
     check(wantTargets, m.targets || [], 'target', ['label', 'drag']);
     if ((wantActions.length || wantTargets.length) && artifact.program.schemaVersion !== 2) bad(['scene', 'runtime'], 'tuple_mismatch', 'actions and targets need the stateful program (schema 2)');
@@ -289,7 +295,9 @@ function supportProblems(plan, panel, bad) {
       const from = mainControls.get(binding.fromInputId);
       if (!from) continue;
       const ok = from.type === 'number' ? input.type === 'number' && input.min <= from.min + 1e-9 && input.max >= from.max - 1e-9
-        : from.type === 'select' ? input.type === 'select' && from.options.every(o => input.options.some(x => x.value === o.value)) : false;
+        : from.type === 'select' ? input.type === 'select' && from.options.every(o => input.options.some(x => x.value === o.value))
+          : from.type === 'boolean' ? input.type === 'boolean'
+            : from.type === 'index' ? input.type === 'index' && input.items.length >= from.items.length : false;
       if (!ok) bad(at('parameterBindings'), 'binding_incompatible', `main ${from.type} "${from.id}" does not fit support input "${input.id}" (${input.type} ${input.min ?? ''}${input.max !== undefined ? `..${input.max}` : ''})`);
     }
     for (const b of support.parameterBindings) if (!(m.inputs || []).some(i => i.id === b.toInputId)) bad(at('parameterBindings'), 'binding_incompatible', `support panel "${id}" declares no input "${b.toInputId}"`);
