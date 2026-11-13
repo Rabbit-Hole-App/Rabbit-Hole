@@ -79,15 +79,29 @@ const panelsOf = plan => [{ id: 'main', runtime: plan.scene.runtime }, ...plan.s
 const usesSpec = plan => panelsOf(plan).some(p => p.runtime.renderer === 'spec');
 const isStateful = plan => panelsOf(plan).some(p => p.runtime.renderer === 'program' && p.runtime.schemaVersion === 2);
 
+// The steer (interact-steer.js steerBuild, off unless INTERACT_STEER=jev; null otherwise and then NOTHING changes): the authoring docs list only the helpers it named.
+// shortcut: only the composite groups (props: vector, gate, groundMark; figures: axis, plot, diagram) are filtered; the base helpers stay listed. Upgrade when composites grow.
+const HELPER_GROUPS = { props: ['vector', 'gate', 'groundMark'], figures: ['axis', 'plot', 'diagram'] };
+function steeredProgram(program, steer) {
+  if (!steer) return program;
+  const sdk = { ...program.sdk };
+  for (const [group, names] of Object.entries(HELPER_GROUPS)) {
+    if (!sdk[group]) continue;
+    const keep = names.filter(name => steer.composites?.includes(name));
+    if (keep.length) sdk[group] = { usage: sdk[group].usage, ...Object.fromEntries(keep.map(name => [name, sdk[group][name]])) }; else delete sdk[group];
+  }
+  return { ...program, sdk };
+}
 // What the builder reads: the whole approved plan and the trusted derivations of it (the exact native declarations, the exact timeline).
-export function buildInput(job, plan, hash) {
+export function buildInput(job, plan, hash, steer = null) {
   const { declarations } = controlDeclarations(plan);
   return {
     approvedPlan: plan, planHash: hash, depth: plan.depth,
     panels: [{ id: 'main', role: 'main', runtime: plan.scene.runtime, readoutIds: plan.scene.readoutIds },
       ...plan.supportingVisuals.map(s => ({ id: s.id, role: 'support', runtime: s.runtime, readoutIds: s.readoutIds, parameterBindings: s.parameterBindings }))],
     controlBindings: declarations, timeline: timelineBrief(plan),
-    program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful: isStateful(plan) }),
+    program: steeredProgram(programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful: isStateful(plan) }), steer),
+    ...(steer?.sceneKind ? { steer: { sceneKind: steer.sceneKind, objectBudget: steer.objectBudget } } : {}),
     ...(usesSpec(plan) ? { spec: { catalogue: catalogue(), composition: authorComposition(), limits: SPEC_LIMITS } } : {}),
     ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}),
   };
@@ -177,11 +191,12 @@ export function cleanBuildReply(reply, schema) {
 //   ctx: the interact role context of callInteractRole (env, profile, adapters, admit, settle, signal, fixture ...).
 // Throws InteractBuildError before any call when the plan is not the approved one; a role-call failure propagates as the InteractModelError it is
 // (provider failure, distinct from a build problem). A build problem is returned for the repair loop, never thrown.
+// ctx.steer: the JEV steer or null (TODO(integrator): interact-job.js sets it from steerBuild(env, plan); see interact-steer.js).
 export async function buildScene(job, ctx) {
   const { plan, hash } = await approvedPlanOf(job);
   const before = canonicalJson(plan);
   const schema = buildSchema(plan);
-  const done = await callWithCorrection(ctx, 'build_author', { system: INTERACT_BUILD_SYSTEM, schema, sanitize: reply => cleanBuildReply(reply, schema), input: buildInput(job, plan, hash), name: INTERACT_BUILD_TOOL_NAME, description: 'Build the approved scene plan.' }, { instruction: AUTHOR_CORRECTION });
+  const done = await callWithCorrection(ctx, 'build_author', { system: INTERACT_BUILD_SYSTEM, schema, sanitize: reply => cleanBuildReply(reply, schema), input: buildInput(job, plan, hash, ctx.steer ?? null), name: INTERACT_BUILD_TOOL_NAME, description: 'Build the approved scene plan.' }, { instruction: AUTHOR_CORRECTION });
   const call = callRecord('build_author', done), reply = done.output;
   if (reply.kind === 'capability_gap') {
     if (!Array.isArray(reply.gap?.needs) || !reply.gap.needs.length) throw new InteractBuildError('invalid_turn', 'The builder reported a gap without saying what is needed.', { call });
