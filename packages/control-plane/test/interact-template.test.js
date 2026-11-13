@@ -36,7 +36,7 @@ test('the gate: the setting unset or a plan without a template takes the model b
   assert.match(templateGate({ INTERACT_BUILD_KIND: 'templte' }, plan).reason, /not "template"/);
   const missing = structuredClone(plan); delete missing.scene.slots.velocity;
   assert.deepEqual(templateGate(ON, missing), { ok: false, reason: 'slot "velocity" is missing' });
-  const noFormula = structuredClone(plan); noFormula.scene.slots.height = 'apexHeight';
+  const noFormula = structuredClone(plan); noFormula.scene.slots.height = 'apexHeight'; delete noFormula.scene.quantities.find(q => q.id === 'apexHeight').formula; // the fixtures now give every quantity a formula
   assert.match(templateGate(ON, noFormula).reason, /slot "height" names "apexHeight", which has no formula/);
   const unknown = structuredClone(plan); unknown.scene.template = 'orbit';
   assert.match(templateGate(ON, unknown).reason, /unknown template "orbit"/);
