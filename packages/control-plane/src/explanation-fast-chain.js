@@ -18,7 +18,6 @@ import { spendTransport } from './learn-spend.js';
 import { exclusiveOneOfToAnyOf } from './interact-model-adapters.js';
 import { chainSteps } from './explanation-models.js';
 import { NEW_KINDS, REFERENCE_MARK, bundledAuthorSchema, listForm } from './explanation-references.js';
-import { parseModelJson } from './latex-escapes.js';
 
 export const FALLBACK_SETTING = 'EXPLANATION_FALLBACK';
 export const STREAM_SETTING = 'EXPLANATION_STREAM';
@@ -134,7 +133,7 @@ export function stepRequest(step, effort, body, stream = false) {
 // out of completion_tokens (unverified for Gemini's OpenAI-compatible usage) is still charged for it.
 export function anthropicReply(json, id) {
   const choice = json?.choices?.[0], u = json?.usage;
-  let input = {}; try { input = parseModelJson(choice?.message?.content ?? ''); } catch { /* see above */ }
+  let input = {}; try { input = JSON.parse(choice?.message?.content ?? ''); } catch { /* see above */ }
   const output = Number.isSafeInteger(u?.completion_tokens) ? Math.max(u.completion_tokens, Number.isSafeInteger(u?.total_tokens) && Number.isSafeInteger(u?.prompt_tokens) ? u.total_tokens - u.prompt_tokens : 0) : undefined;
   return { model: json?.model ?? null, stop_reason: choice?.finish_reason === 'length' ? 'max_tokens' : 'tool_use',
     usage: { input_tokens: u?.prompt_tokens, output_tokens: output },
@@ -154,7 +153,7 @@ export function visualScanner(onVisual) {
       else if (c === ':' && depth === 1) { try { key = JSON.parse(lastString); } catch { key = null; } }
       else if (c === '{' || c === '[') { depth++; if (depth === 2 && c === '[' && key === 'visuals') inVisuals = true; else if (inVisuals && depth === 3 && c === '{') itemStart = i; }
       else if (c === '}' || c === ']') {
-        if (inVisuals && depth === 3 && c === '}' && itemStart >= 0) { let item = null; try { item = parseModelJson(text.slice(itemStart, i + 1)); } catch { /* not an object after all */ } itemStart = -1; if (item) onVisual(item, n++); }
+        if (inVisuals && depth === 3 && c === '}' && itemStart >= 0) { let item = null; try { item = JSON.parse(text.slice(itemStart, i + 1)); } catch { /* not an object after all */ } itemStart = -1; if (item) onVisual(item, n++); }
         if (depth === 2 && c === ']') inVisuals = false;
         depth--;
       }
