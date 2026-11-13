@@ -41,6 +41,7 @@ import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
 import { INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
 import { designPinOf, pinnedDesignCall, pinnedFixtureId } from './interact-design-pin.js';
+import { SCRIPTED_PROFILE, scriptedBuildAdapter, scriptedBuildAllowed } from './interact-scripted.js';
 import { DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, approvalHashOf, designCapabilities, designPipeline, designPromptContracts, freshDesign, isBlocking, modeToPresentation, runtimeProblems } from './interact-design.js';
 import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } from '../../web/src/interact-plan.js';
 import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
@@ -439,6 +440,7 @@ export class ExplainJobs {
     // The new flow is chosen per job, once, here: the switch, the model profile and the prompt versions are pinned on the job and never change.
     if (interactFlowEnabled(this.env) && payload.requestClass !== 'edit') {
       let profile; try { profile = interactProfileFor(this.env); } catch { throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured'); }
+      if (profile.id === SCRIPTED_PROFILE && !scriptedBuildAllowed(this.env)) throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured'); // the scripted profile is dev-only
       const priced = interactReservation(profile);
       if (priced.preparationMicros == null || priced.generationMicros == null) throw fail('Scene design is not priced for this model profile yet.', 503, 'flow_unpriced'); // an unknown price is never zero
       Object.assign(job, { flow: { version: 1, switch: 'INTERACT_SCENE_PLAN_ENABLED', profile: { id: profile.id, version: profile.version, hash: await interactProfileHash(profile) }, prompts: await designPromptContracts() },
@@ -797,13 +799,16 @@ export class ExplainJobs {
     const profile = resolveInteractProfile(job.flow.profile.id);
     if (await interactProfileHash(profile) !== job.flow.profile.hash) throw Object.assign(fail('The model settings changed since this request started. Start a new request.', 409, 'profile_changed'), { stopReason: 'profile_changed' });
     reviewMode(this.env); // a misspelled INTERACT_REVIEW stops the build before anything is spent
-    return { env: this.env, profile,
+    const scripted = profile.id === SCRIPTED_PROFILE;
+    if (scripted && !scriptedBuildAllowed(this.env)) throw Object.assign(fail('The scripted build profile is not available here.', 503, 'flow_misconfigured'), { stopReason: 'profile_changed' });
+    const ctx = { env: this.env, profile,
       adapters: { anthropic: { name: 'anthropic', call: args => interactAdapters({ env: this.env, callModel: this.interactTransport(job, args.config.role) }).anthropic.call(args) },
         // The candidate providers of a fast build profile (google, fireworks): the Worker's fetch behind the same spend admission as the Anthropic calls, keyed by the step's provider.
         'openai-compatible': { name: 'openai-compatible', call: args => interactAdapters({ env: this.env, fetch: this.interactFetch(job, args.config) })['openai-compatible'].call(args) } },
       // ponytail: the render service cannot compose the card, so every capture is per-panel (completeCard:false) and the reviewer is told so; see interact-checks.js.
       completeCardUnavailable: true, captureCard: this.deps.captureCard ?? captureCardFor(this.env, { jobId: job.id, ...(this.deps.render || {}) }),
       admit: info => this.admitBuildCall(job, info), settle: info => this.settleBuildCall(job, info) };
+    return scripted ? { ...ctx, adapters: { anthropic: scriptedBuildAdapter(job) } } : ctx; // the scripted profile: no transport, no spend (interact-scripted.js)
   }
   // step: the index of the model step in the role's chain (interact-models.js callInteractRole). Every step has its own ceiling (INTERACT_LIMITS.calls[role], the call and its correction), counted
   // under the role for step 0 and `role#step` after it, so a schema-invalid primary followed by a fallback is not blocked by the primary's ceiling. The call record keeps its step.
@@ -923,7 +928,8 @@ export class ExplainJobs {
     try {
       const b = await this.loadBuild(job), profile = resolveInteractProfile(job.flow.profile.id);
       if (await interactProfileHash(profile) !== job.flow.profile.hash) throw Object.assign(fail('The model settings changed since this request started.', 409, 'profile_changed'), { stopReason: 'profile_changed' });
-      judge = await benchJudge({ id: job.id, plan: job.design.plan, artifacts: b.artifacts, composition: b.composition, captures: b.captures },
+      if (profile.id === SCRIPTED_PROFILE) judge = null; // a scripted job has no model call, so no judge call either
+      else judge = await benchJudge({ id: job.id, plan: job.design.plan, artifacts: b.artifacts, composition: b.composition, captures: b.captures },
         { env: this.env, profile, adapters: { anthropic: { name: 'anthropic', call: args => interactAdapters({ env: this.env, callModel: this.benchTransport(job) }).anthropic.call(args) } } });
     } catch (e) { error = e; } finally { this.benching.delete(job.id); }
     await this.locked(async () => {

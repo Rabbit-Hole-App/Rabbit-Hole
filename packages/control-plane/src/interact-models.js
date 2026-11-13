@@ -93,7 +93,9 @@ export const INTERACT_REGISTRY = deepFreeze({
   defaultProfile: 'opus-baseline',
   providers: { anthropic: { credentialRef: 'ANTHROPIC_API_KEY' }, celeris: { credentialRef: 'CELERIS_API_KEY' }, google: { credentialRef: CHAIN_STEPS.google.credentialRef }, fireworks: { credentialRef: CHAIN_STEPS.fireworks.credentialRef } },
   endpointAllowlist: ['https://inference.celeris.ai', ...['google', 'fireworks'].map(p => new URL(CHAIN_ENDPOINTS[p].url).origin)],
-  profiles: { 'opus-baseline': { version: 1, roles: Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, opusRole(role)])) }, 'google-low': fastProfile('google'), 'fireworks-low': fastProfile('fireworks') },
+  profiles: { 'opus-baseline': { version: 1, roles: Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, opusRole(role)])) }, 'google-low': fastProfile('google'), 'fireworks-low': fastProfile('fireworks'),
+    // DEV-ONLY: opus-baseline's roles, but the build roles are answered by interact-scripted.js with no model call; refused unless scriptedBuildAllowed(env) (never in production).
+    scripted: { version: 1, extends: 'opus-baseline', roles: {} } },
 });
 
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
