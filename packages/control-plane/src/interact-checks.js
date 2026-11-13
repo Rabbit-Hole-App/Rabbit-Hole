@@ -335,6 +335,7 @@ export async function captureAndCheck(job, ctx) {
   if (typeof ctx.captureCard !== 'function') return { status: 'render_unavailable', reason: 'no capture service is wired; a card that was not captured cannot be accepted', coverage };
 
   let captures;
+  const ranAt = Date.now();
   try { captures = await ctx.captureCard({ jobId: job.id, composition, artifacts, cases: [...cases, ...probes] }); }
   catch (error) {
     const kind = classifyFailure(error);
@@ -343,11 +344,13 @@ export async function captureAndCheck(job, ctx) {
     throw error;
   }
   if (cancelled(ctx)) return { status: 'cancelled' };
+  const checkAt = Date.now();
   const det = checkSceneAgainstPlan({ plan, composition, artifacts, captures, cases, probes, oracle: job.oracle ?? null, allowPartialCard: ctx.completeCardUnavailable === true });
+  const ms = { run: checkAt - ranAt, check: Date.now() - checkAt }; // the ledger's msRun and msCheck
   const summary = captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 ?? null, compositionHash: c.compositionHash, synthetic: c.synthetic === true }));
   const pngs = captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 ?? null, bytes: c.png })); // the caller stores pixels by hash; the state keeps hashes only
-  if (det.problems.length) return { status: 'failed', failure: { stage: 'check', problems: det.problems.map(p => `[${p.code}] ${p.message}`), findings: [], details: det.problems }, captures: summary, pngs, check: det.coverage, coverage };
-  return { status: 'captured', cases, probes, captures, coverage, det, summary, pngs };
+  if (det.problems.length) return { status: 'failed', failure: { stage: 'check', problems: det.problems.map(p => `[${p.code}] ${p.message}`), findings: [], details: det.problems }, captures: summary, pngs, check: det.coverage, coverage, ms };
+  return { status: 'captured', cases, probes, captures, coverage, det, summary, pngs, ms };
 }
 
 // reviewCandidate(job, ctx, captured) -> { status:'ready' | 'failed' | 'incomplete', ... } the independent review of captures that passed the deterministic checks.

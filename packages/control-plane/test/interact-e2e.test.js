@@ -670,3 +670,19 @@ test('an Edit of a composed card is refused with the existing honest message: no
   assert.deepEqual([s.model.log.length, s.calls.build.length, s.calls.review.length, s.calls.repair.length, s.state.data.size, s.browser.state.evaluated.length], before, 'nothing was started or stored');
   assert.equal(s.state.data.get(`result:${job.resultId}`).composition.envelopeHash, block.interact.composition.envelopeHash);
 });
+
+test('the owner diagnostics (detail=1) carry the benchmark ledger row: the oracle count, the timed capture and check, the model that authored, one repair', async t => {
+  const { s, id } = await designed(t, { build: n => ({ kind: 'scene', ...(n === 1 ? wrong()(fixtureDraft('standard')) : fixtureDraft('standard')) }) });
+  s.env.EXPLAIN_DIAGNOSTICS = 'true';
+  const { job } = await s.generate(id);
+  assert.equal(job.stage, 'ready');
+  const { ledger } = (await s.route(`/${id}?board=${BOARD.id}&detail=1`)).body.diagnostics;
+  assert.deepEqual([ledger.jobId, ledger.result, ledger.depth, ledger.repairs, ledger.authorModel, ledger.fallbackFired], [id, 'ready', 'balanced', 1, 'claude-opus-5-5', false]);
+  assert.ok(ledger.oracleChecked >= 6 && ledger.oracleFailed >= 1, JSON.stringify(ledger));
+  assert.equal(ledger.oracleId, 'toss-drop-standard');
+  assert.ok(ledger.msRun >= 0 && ledger.msCheck >= 0 && ledger.msAuthor >= 0 && ledger.msTotal >= 0, 'the capture and the check are timed apart');
+  assert.ok(ledger.costUsd > 0);
+  const authoring = (await s.route(`/${id}?board=${BOARD.id}&detail=1`)).body.diagnostics.timing.stages.find(x => x.stage === 'authoring');
+  assert.deepEqual([authoring.model.requested, authoring.fallback, authoring.repairRound], ['claude-opus-5-5', false, 0]);
+  assert.equal((await s.route(`/${id}?board=${BOARD.id}`)).body.diagnostics, undefined, 'without detail=1 nothing of it is shown');
+});

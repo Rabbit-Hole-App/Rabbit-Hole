@@ -57,8 +57,8 @@ export async function renderStage(job, ctx) {
   if (a.status === 'cancelled') return {};
   if (a.status === 'incomplete') return { incomplete: a.reason };
   if (a.status === 'render_unavailable') throw Object.assign(fail('The explanation could not be rendered (render_unavailable). Retry rendering.', 503, 'render_unavailable'), { category: 'renderer' });
-  if (a.status === 'failed') return { problems: a.failure.problems, details: a.failure.details, failure: a.failure, category: 'spec', repairable: true, renders: [], check: a.check ?? null, captures: a.captures ? a.captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 })) : null };
-  return { captured: a.captures.map(slim), check: a.det.coverage, renders: a.captures.map(() => ({ ok: true })) };
+  if (a.status === 'failed') return { problems: a.failure.problems, details: a.failure.details, failure: a.failure, category: 'spec', repairable: true, renders: [], check: a.check ?? null, ms: a.ms, captures: a.captures ? a.captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 })) : null };
+  return { captured: a.captures.map(slim), check: a.det.coverage, ms: a.ms, renders: a.captures.map(() => ({ ok: true })) };
 }
 
 export async function reviewStage(job, ctx) {

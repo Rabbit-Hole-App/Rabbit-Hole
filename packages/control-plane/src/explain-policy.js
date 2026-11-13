@@ -191,10 +191,16 @@ export function beginStage(timing, stage, now = Date.now()) {
   timing.stages.push({ stage, startedAt: now, endedAt: null, calls: 0, inputTokens: 0, outputTokens: 0, images: 0, captures: 0, outcome: null });
   return timing;
 }
-export function countStage(timing, { calls = 0, inputTokens = 0, outputTokens = 0, images = 0, captures = 0 } = {}) {
+// model { requested, served }, costMicros (a number, or null = unknown, never 0), fallback and repairRound describe a model call (the benchmark ledger reads them); a stage
+// that never saw one carries none of them.
+export function countStage(timing, { calls = 0, inputTokens = 0, outputTokens = 0, images = 0, captures = 0, model, costMicros, fallback, repairRound } = {}) {
   const open = timing.stages.at(-1);
   if (!open || open.endedAt != null) return timing;
   open.calls += calls; open.inputTokens += inputTokens || 0; open.outputTokens += outputTokens || 0; open.images += images; open.captures += captures;
+  if (model !== undefined) open.model = model;
+  if (costMicros === null) open.costUnknown = true; else if (typeof costMicros === 'number') open.costMicros = (open.costMicros ?? 0) + costMicros;
+  if (fallback === true) open.fallback = true; else if (fallback === false) open.fallback ??= false;
+  if (repairRound !== undefined) open.repairRound = repairRound;
   return timing;
 }
 export function endStage(timing, outcome, now = Date.now()) {
@@ -206,7 +212,8 @@ export function endStage(timing, outcome, now = Date.now()) {
 export function timingSummary(timing) {
   const { submitted, firstFeedback, proposalReady, generate, result } = timing.marks;
   const ms = (from, to) => (from != null && to != null ? to - from : null);
-  const stages = timing.stages.map(s => ({ stage: s.stage, ms: ms(s.startedAt, s.endedAt), calls: s.calls, inputTokens: s.inputTokens, outputTokens: s.outputTokens, images: s.images, captures: s.captures, outcome: s.outcome }));
+  const stages = timing.stages.map(s => ({ stage: s.stage, ms: ms(s.startedAt, s.endedAt), calls: s.calls, inputTokens: s.inputTokens, outputTokens: s.outputTokens, images: s.images, captures: s.captures, outcome: s.outcome,
+    ...(s.model !== undefined ? { model: s.model, costMicros: s.costUnknown ? null : s.costMicros ?? 0, fallback: s.fallback === true, repairRound: s.repairRound ?? null } : {}) }));
   const waiting = stages.filter(s => s.stage === 'awaiting_approval').reduce((t, s) => t + (s.ms ?? 0), 0);
   const done = stages.filter(s => s.stage !== 'awaiting_approval');
   return {

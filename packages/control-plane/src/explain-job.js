@@ -45,6 +45,7 @@ import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } fro
 import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
 import { verifyComposition } from '../../web/src/interact-composition.js';
 import { captureCardFor, interactBuildPipeline } from './interact-job.js';
+import { ledgerRow } from './interact-ledger.js';
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { capabilityGap } from './explain-author.js';
 import { authorStage, selectExamples, specFacts, validateProgramStage, validateStage } from './explain-author.js';
@@ -209,7 +210,8 @@ export const planProposalFields = job => {
 };
 // The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
 const explainDiagnostics = job => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), ...(job.coverage ? { coverage: job.coverage } : {}), ...(job.history ? { history: job.history, historyDropped: job.historyDropped || 0 } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
-  calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing });
+  calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing,
+  ...(job.flow && job.approval ? { ledger: ledgerRow({ ...job, plan: job.design?.plan, planHash: job.design?.finalHash }) } : {}) });
 
 // Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
 // new_attempt: a paid retry within this job's remaining ceiling. edit_request: always, a new request.
@@ -811,9 +813,11 @@ export class ExplainJobs {
       if (refused) { current.build.counts[s.role]--; current.reservedMicros -= call.boundMicros; }
       const usage = s.usage?.raw ?? null;
       Object.assign(call, { requested: s.requested?.model ?? null, served: s.served?.model ?? null, status: refused ? 'refused' : s.status === 'unknown' ? 'unknown' : s.status === 'settled' ? 'settled' : 'failed',
-        costMicros: refused ? 0 : s.costMicros ?? null, inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: s.error?.code || null });
+        costMicros: refused ? 0 : s.costMicros ?? null, inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: s.error?.code || null,
+        fallback: s.fallbackFired === true }); // TODO(integrator): callInteractRole's settle() (interact-models.js, Agent B) passes the adapter's fallbackFired through
       if (current.inFlight?.key === key) current.inFlight = null;
-      countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images: call.images });
+      countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images: call.images,
+        model: { requested: call.requested, served: call.served }, costMicros: call.costMicros, fallback: call.fallback, repairRound: current.round });
       await this.save(current);
     });
   }
@@ -836,6 +840,7 @@ export class ExplainJobs {
       if (out.problems?.length) return failWith({ stage: 'validate', problems: out.problems, findings: [] });
       next('rendering');
     } else if (stage === 'rendering') {
+      if (out.ms) b.ms = { run: (b.ms?.run ?? 0) + out.ms.run, check: (b.ms?.check ?? 0) + out.ms.check }; // summed over the rounds, the ledger's msRun and msCheck
       if (out.problems?.length) return failWith(out.failure ?? { stage: 'check', problems: out.problems, findings: [] });
       await keep('captures', out.captured); b.check = out.check; b.failure = null;
       job.renders += out.renders.length; countStage(job.timing, { captures: out.captured.length });
