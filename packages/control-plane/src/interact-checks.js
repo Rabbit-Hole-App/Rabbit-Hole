@@ -224,6 +224,13 @@ export const INTERACT_REVIEW_RULES_PARTIAL = `This is NOT the composed card. The
 - A required observation or control effect you cannot judge from what you were shown is a finding, not a pass.`;
 
 // The trusted composed layout as text, for the reviewer of a partial capture: what the learner sees top to bottom, from the composition (never from a model).
+// A timeline whose end, offset or markers are expressions of an input is recomputed by the card for every input state (resolveTimeline); say so, with the range at each bound, so the
+// review judges a capture's scrubber and its Top marker against that capture's own inputs (a live run was refused because the layout text gave only the default range).
+function followsInputs(composition, span) {
+  const moved = composition.main.controls.filter(c => c.type === 'number' && c.binding?.kind === 'input').flatMap(c => [c.min, c.max].map(v => ({ name: c.label, v, s: resolveTimeline(composition, { ...composition.main.inputDefaults, [c.binding.id]: v }) })))
+    .filter(x => x.s.displayStart !== span.displayStart || x.s.displayEnd !== span.displayEnd);
+  return moved.length ? `. The scrubber range, its offset and its markers are recomputed from the inputs, so judge each capture against its own inputs: ${moved.map(x => `${x.name} ${x.v} reads ${round6(x.s.displayStart)} to ${round6(x.s.displayEnd)} s`).join('; ')}` : '';
+}
 export function compositionLayoutText(plan, composition) {
   const t = composition.main.timeline, span = t && resolveTimeline(composition, composition.main.inputDefaults);
   const rows = composition.order.map(row => {
@@ -231,7 +238,7 @@ export function compositionLayoutText(plan, composition) {
     if (row === 'description') return `Description (once, above every scene): ${composition.cardDescription}`;
     if (row === 'supporting') return `Supporting panels, read-only, no controls: ${composition.supporting.map(s => `"${s.title}"`).join(', ')}`;
     if (row === 'main') return 'Main scene (the live animation)';
-    if (row === 'transport') return `Playback directly under the scene: Play/Pause/Replay and a scrubber labelled "${t.label}", reading ${round6(span.displayStart)} to ${round6(span.displayEnd)} s (${t.playbackRate} physics s per wall s)`;
+    if (row === 'transport') return `Playback directly under the scene: Play/Pause/Replay and a scrubber labelled "${t.label}", reading ${round6(span.displayStart)} to ${round6(span.displayEnd)} s at the default inputs (${t.playbackRate} physics s per wall s)${followsInputs(composition, span)}`;
     return `Controls: ${composition.main.controls.filter(c => c.row === 'controls').map(c => c.label).join(', ')}`;
   });
   return `Trusted card layout, top to bottom (nothing follows the last row):\n${rows.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;

@@ -11,7 +11,7 @@ import { RenderError } from '../src/explain-render.js';
 import { InteractModelError } from '../src/interact-models.js';
 import { interactRepairTool } from '../src/agents/explain-repair.js';
 import { validateBuildOutput } from '../src/interact-build.js';
-import { lenientFindingText, CHECK_LIMITS, INTERACT_REVIEW_RULES, buildPlanCaptureCases, checkRound, checkSceneAgainstPlan, classifyFailure, repairRound } from '../src/interact-checks.js';
+import { compositionLayoutText, lenientFindingText, CHECK_LIMITS, INTERACT_REVIEW_RULES, buildPlanCaptureCases, checkRound, checkSceneAgainstPlan, classifyFailure, repairRound } from '../src/interact-checks.js';
 import { fixtureCaptureCard, fixtureContext, fixtureScript } from '../src/interact-fixtures.js';
 
 const { capabilities, plans } = await interactFixtures();
@@ -196,6 +196,13 @@ test('a candidate that fails a deterministic check is never sent to the reviewer
   assert.equal(review.status, 'failed'); assert.equal(review.failure.stage, 'review'); assert.equal(review.failure.findings[0].target.capture, 'cp-top'); assert.equal(review.review.accepted, false);
   const minor = ctxWith(fixtureScript('standard', { build_review: ({ input }) => ({ captures: (String(input).match(/Captures to review: (.*)/)[1].split(', ')).map(id => ({ id, semantic: 'pass', visual: 'pass', findings: id === 'end' ? [{ verdict: 'visual', category: 'spec', severity: 'blocker', message: 'clipped', repairable: true }] : [] })) }) }));
   assert.equal((await checkRound(await candidate('standard'), minor)).status, 'failed', 'a blocker overrides a claimed pass');
+});
+
+test('the layout text says the scrubber follows the inputs when the timeline is an expression of one, with the range at each bound, and says nothing extra when it does not', async () => {
+  const controls = await candidate('standard', d => d, { oracle: null }), experiment = await candidate('deep');
+  assert.doesNotMatch(compositionLayoutText(controls.plan, controls.composition), /recomputed from the inputs/);
+  const text = compositionLayoutText(experiment.plan, experiment.composition);
+  assert.match(text, /at the default inputs/); assert.match(text, /recomputed from the inputs, so judge each capture against its own inputs: Launch speed 3 reads 0 to 0\.612245 s/); assert.doesNotMatch(text, /Launch speed 5 reads/, 'a bound that equals the default range is not repeated');
 });
 
 test('a review that rejects a capture with only minor findings, or none, still hands the repairer a finding to act on (a live run died as no_progress)', async () => {
