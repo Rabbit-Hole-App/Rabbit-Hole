@@ -10,7 +10,7 @@
 // finding contradicts: hashes and diffs are computed here, a blocker or major finding overrides a claimed pass, and a remaining
 // blocker stops the design with its message. Bounds per plan attempt: author 1, reviewer 3, reviser 2 (INTERACT_LIMITS.calls).
 import { canonicalJson } from '../../web/src/explain-contract.js';
-import { DesignReviewSchema, DesignRevisionSchema, PLAN_LIMITS, ScenePlanSchema, contentHash, descriptionFitProblems, parseScenePlan, planHash, revisionProblems } from '../../web/src/interact-plan.js';
+import { DesignReviewSchema, DesignRevisionSchema, PLAN_LIMITS, ScenePlanSchema, captureBudgetProblems, contentHash, descriptionFitProblems, parseScenePlan, planHash, revisionProblems } from '../../web/src/interact-plan.js';
 import { interactCapabilities } from '../../web/src/interact-control-catalogue.js';
 import { CAPABILITIES as PROGRAM_CAPABILITIES } from '../../web/src/explain-program/contract.js';
 import { SUPPORTED_PROGRAM_TUPLES } from '../../web/src/explain-program/stamps.js';
@@ -212,7 +212,7 @@ export async function verifyDesignRevision(previous, revision, review, capabilit
   const problems = [...(parsed.ok ? [] : parsed.problems), ...runtimeProblems(revision.plan, capabilities), ...revisionProblems(previous, revision)];
   const bad = (path, code, message) => problems.push({ path, code, message });
   // The description-fit codes are always answerable: the check runs after closure, so the problem list may not hold it yet when the reviser (rightly) answers it.
-  const ids = new Set([...review.findings.map(finding => finding.id), 'description_fit', 'stale_receipt', 'invalid_receipt', ...deterministic.flatMap(check => [check.code, check.path].filter(Boolean))]);
+  const ids = new Set([...review.findings.map(finding => finding.id), 'description_fit', 'capture_budget', 'stale_receipt', 'invalid_receipt', ...deterministic.flatMap(check => [check.code, check.path].filter(Boolean))]);
   revision.changes.forEach((change, i) => { if (!ids.has(change.findingId)) bad(`changes.${i}.findingId`, 'unknown_finding', `"${change.findingId}" is not a finding of the review`); });
   revision.unresolvedFindingIds.forEach((id, i) => { if (!ids.has(id)) bad(`unresolvedFindingIds.${i}`, 'unknown_finding', `"${id}" is not a finding of the review`); });
   const diff = planDiff(previous, revision.plan);
@@ -255,7 +255,7 @@ export async function verifyDesign(job, ctx) {
 async function close(job, ctx, plan, hash, diff) {
   const d = job.design, capabilities = ctx.capabilities;
   const parsed = parseScenePlan(plan, capabilities);
-  let problems = dedupe([...(parsed.ok ? [] : parsed.problems), ...runtimeProblems(plan, capabilities)]);
+  let problems = dedupe([...(parsed.ok ? [] : parsed.problems), ...runtimeProblems(plan, capabilities), ...(parsed.ok ? captureBudgetProblems(plan) : [])]);
   let fit = null;
   if (!problems.length) {
     if (typeof ctx.descriptionFit !== 'function') return stop('description_fit_unavailable', 'internal', 'The card description cannot be measured yet, so this scene plan cannot be offered.');

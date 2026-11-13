@@ -3,7 +3,7 @@
 // Expected numbers come from the equations of docs/features/interact.md section 7 (packages/web/src/interact-build-fixtures.js), not from the builds.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { planHash } from '../../web/src/interact-plan.js';
+import { CAPTURE_BUDGET, captureBudgetProblems, planHash, requiredCaptureCount } from '../../web/src/interact-plan.js';
 import { resolveTimeline } from '../../web/src/interact-composition.js';
 import { G, fixtureDraft, standardOracle, tossDrop } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
@@ -58,6 +58,28 @@ test('Deep capture cases resolve the endpoint independently for each tested inpu
   assert.deepEqual([cases.length, coverage.required, coverage.omitted], [4, 4, []]);
   assert.ok(cases.find(c => c.id === 'cp-referenceReturn').aliases.includes('bound-speed-min') && cases.find(c => c.id === 'cp-trialReturn').aliases.includes('bound-speed-max'));
   assert.equal(new Set(cases.map(c => JSON.stringify([c.inputs, c.time, c.events]))).size, cases.length, 'identical states are one capture');
+});
+
+test('the design-time capture count agrees with the build-time capture planner on every reference plan, and the budget is the review image cap', async () => {
+  assert.equal(CAPTURE_BUDGET, CHECK_LIMITS.maxCases);
+  let compared = 0;
+  for (const name of Object.keys(plans)) {
+    const plan = plans[name], j = { id: `job-${name}`, plan: clone(plan), planHash: await planHash(plan), capabilities };
+    const built = await validateBuildOutput(j, fixtureDraft(name), fixtureContext()).catch(() => null);
+    if (!built?.artifacts) continue; // a plan with no fixture build (the declarative Overview) has no planner to compare with
+    assert.equal(requiredCaptureCount(plan), buildPlanCaptureCases(plan, built.composition, built.artifacts).coverage.required, name);
+    compared += 1;
+  }
+  assert.ok(compared >= 3, `compared ${compared} plans`);
+});
+
+test('capture_budget: a timed plan may name budget minus two distinct checkpoints; repeated states and the start do not count', async () => {
+  const base = clone(plans.standard), checkpoints = n => ({ ...base, scene: { ...base.scene, checkpoints: Array.from({ length: n }, (_, i) => ({ ...clone(base.scene.checkpoints[0]), id: `c${i}`, time: { op: 'literal', value: 0.05 * (i + 1) } })) } });
+  assert.deepEqual(captureBudgetProblems(checkpoints(4)), []);
+  const refused = captureBudgetProblems(checkpoints(5));
+  assert.equal(refused[0].code, 'capture_budget'); assert.match(refused[0].message, /at most 6 images.*needs 7.*at most 4 checkpoints/);
+  const dup = checkpoints(4); dup.scene.checkpoints.push({ ...clone(dup.scene.checkpoints[0]), id: 'again' }, { ...clone(dup.scene.checkpoints[0]), id: 'atStart', time: { op: 'literal', value: 0 } });
+  assert.deepEqual(captureBudgetProblems(dup), [], 'a repeated state and a checkpoint at the start are one capture');
 });
 
 test('required coverage that does not fit the image budget is incomplete, never silently dropped; the image cap is not raised', async () => {

@@ -9,7 +9,7 @@
 // A candidate is ready only when every step passed on its own composition hash. A failed, exhausted, stale or partly captured candidate
 // never becomes ready. A repair can fix the implementation; it has no field that could change the approved plan.
 import { canonicalJson } from '../../web/src/explain-contract.js';
-import { evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
+import { CAPTURE_BUDGET, evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
 import { resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
 import { REVIEW_LIMITS, ReviewError, reviewCaptures, reviewProblems } from './explain-review.js';
 import { REVIEW_EVENTS, RenderError } from './explain-render.js';
@@ -36,7 +36,7 @@ export function lenientFindingText(schema) {
 // The reviewer's trace block: 6 captures (cases and support panels) x (12 texts of 80 characters + 12 quantities + inputs) is about 10,500 bytes at the worst; the legacy single-scene 6,144 would call a
 // normal card incomplete. The build_review input ceiling (80,000 bytes) has the room.
 const TRACE_BYTES = 12288;
-export const CHECK_LIMITS = Object.freeze({ correctionRounds: INTERACT_LIMITS.correctionRounds, reviewCalls: INTERACT_LIMITS.calls.build_review, renderRetries: 2, maxCases: 6, maxProbes: 8, tolerance: 1e-6, timeTolerance: 1e-9 });
+export const CHECK_LIMITS = Object.freeze({ correctionRounds: INTERACT_LIMITS.correctionRounds, reviewCalls: INTERACT_LIMITS.calls.build_review, renderRetries: 2, maxCases: CAPTURE_BUDGET, maxProbes: 8, tolerance: 1e-6, timeTolerance: 1e-9 });
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const clip = (text, n = REPAIR_FORWARD.text) => String(text ?? '').slice(0, n);

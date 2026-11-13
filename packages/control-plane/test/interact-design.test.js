@@ -28,6 +28,7 @@ test('the Design Author prompt carries the whole narrative, depth and Mode/Contr
   assert.match(DESIGN_AUTHOR_SYSTEM, /Control selection: choose the smallest useful set/);
   assert.match(DESIGN_AUTHOR_SYSTEM, /control-free static panel still needs one/);
   assert.match(DESIGN_AUTHOR_SYSTEM, /New plans never use Steps/);
+  assert.match(DESIGN_AUTHOR_SYSTEM, /reads at most 6 images and always captures the start.*at most 4 other checkpoints/);
 });
 
 test('the Design Reviewer prompt keeps the ordered two-part reviewer prompt and adds the contract, blocking semantics and control review', () => {
@@ -41,7 +42,7 @@ test('the Design Reviewer prompt keeps the ordered two-part reviewer prompt and 
 });
 
 test('the Design Reviser prompt returns the complete plan with a finding-to-change record and explicit control changes', () => {
-  for (const needle of ['COMPLETE updated plan, never a patch', 'Controls: preserve, remove or change each control explicitly', 'unchanged with an empty changes list', 'unresolvedFindingIds', 'the server computes the hash and the diff']) assert.ok(DESIGN_REVISE_SYSTEM.includes(needle), needle);
+  for (const needle of ['COMPLETE updated plan, never a patch', 'Controls: preserve, remove or change each control explicitly', 'unchanged with an empty changes list', 'unresolvedFindingIds', 'the server computes the hash and the diff', 'capture_budget: the rendered review reads at most 6 images']) assert.ok(DESIGN_REVISE_SYSTEM.includes(needle), needle);
 });
 
 test('each role records a version and a content hash, and every schema accepts what its validator accepts', async () => {
@@ -372,6 +373,19 @@ test('the description-fit receipt gates the plan: a description outside 2 to 4 l
   const out = await none.design(b.body.job.id);
   assert.deepEqual([out.job.stage, out.job.stopReason, out.job.failure.category], ['failed', 'description_fit_unavailable', 'internal']);
   assert.equal(postedProposal(none.sqlite, b.body.job.id), null);
+});
+
+test('capture_budget gates the plan: 7 checkpoints go back to the reviser by code, 4 are accepted', async t => {
+  const withCheckpoints = n => ({ ...clone(PLAN.standard), scene: { ...clone(PLAN.standard).scene, checkpoints: Array.from({ length: n }, (_, i) => ({ ...clone(PLAN.standard.scene.checkpoints[0]), id: `c${i}`, time: { op: 'literal', value: 0.05 * (i + 1) } })) } });
+  const s = designStack(t, { script: { author: () => withCheckpoints(7), revise: (n, input) => (n === 1 ? revision(input.plan) : revision(withCheckpoints(4), [change('capture_budget', 'scene.checkpoints')])) } });
+  const { body } = await s.create();
+  const { job } = await s.design(body.job.id);
+  assert.equal(job.stage, 'awaiting_approval', JSON.stringify([job.stopReason, job.failure]));
+  assert.deepEqual(s.model.roles(), ['author', 'review', 'revise', 'revise', 'review']);
+  const refused = s.model.log[3].input.deterministicChecks.find(p => p.code === 'capture_budget');
+  assert.match(refused.message, /needs 9/, 'the message names the count');
+  assert.match(refused.message, /at most 6 images/, 'and the limit');
+  assert.equal(job.design.plan.scene.checkpoints.length, 4);
 });
 
 test('a job records its flow, profile and prompt versions at creation and keeps them; the switch is per job', async t => {

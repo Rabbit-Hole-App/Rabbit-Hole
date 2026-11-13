@@ -506,6 +506,32 @@ export async function descriptionFitProblems(plan, receipt) {
   return out;
 }
 
+// The rendered review reads at most CAPTURE_BUDGET images (interact-checks.js CHECK_LIMITS.maxCases). The start (a timed plan's end as well) and every checkpoint
+// are always captured, so a plan whose DISTINCT required states exceed it cannot be reviewed. requiredCaptureCount keys them the way buildPlanCaptureCases does
+// (inputs, resolved time, events) so the design check and the build check agree; it does not cut an action list at REVIEW_EVENTS, so it can only over-count.
+export const CAPTURE_BUDGET = 6;
+const INPUT_TYPES = ['number', 'select', 'boolean', 'index', 'multi_select'];
+export function requiredCaptureCount(plan) {
+  const controls = plan.controls.filter(c => c.binding.kind === 'input' && INPUT_TYPES.includes(c.type)), defaults = {}, domains = {};
+  for (const c of controls) { defaults[c.binding.id] = c.default; if (c.type === 'number') domains[c.binding.id] = [c.min, c.max]; }
+  const numeric = inputs => Object.fromEntries(controls.filter(c => c.type === 'number').map(c => [c.binding.id, Math.min(c.max, Math.max(c.min, Number.isFinite(inputs[c.binding.id]) ? inputs[c.binding.id] : c.default))]));
+  const at = (expr, inputs) => evalScalar(expr, numeric(inputs), domains), timeline = plan.mode.timeline, keys = new Set();
+  const add = (inputs, time, events) => keys.add(canonicalJson({ inputs, time, events }));
+  add({ ...defaults }, 0, []);
+  for (const cp of plan.scene.checkpoints) {
+    const inputs = { ...defaults, ...cp.inputOverrides };
+    let time = 0;
+    try { time = cp.time ? at(cp.time, inputs) : 0; } catch (error) { if (!(error instanceof ScalarExprError)) throw error; }
+    add(inputs, time, cp.actions.map(id => ({ type: 'action', action: id })));
+  }
+  if (timeline) add({ ...defaults }, at(timeline.end, defaults), []);
+  return keys.size;
+}
+export function captureBudgetProblems(plan, budget = CAPTURE_BUDGET) {
+  const count = requiredCaptureCount(plan), fixed = plan.mode.timeline ? 2 : 1;
+  return count > budget ? [{ path: 'scene.checkpoints', code: 'capture_budget', message: `the rendered review reads at most ${budget} images and this plan needs ${count} (the start${fixed === 2 ? ' and the end are' : ' is'} always captured); name at most ${budget - fixed} checkpoints whose state differs from the start${fixed === 2 ? ' and the end' : ''}` }] : [];
+}
+
 // Fail before sending when an envelope exceeds the configured byte limit. Never truncates the Story, controls or findings.
 export function checkEnvelope(value, maxBytes) {
   const bytes = new TextEncoder().encode(canonicalJson(value)).length;
