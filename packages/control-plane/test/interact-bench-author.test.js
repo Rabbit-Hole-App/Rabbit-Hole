@@ -60,3 +60,13 @@ test('deploy-clone.mjs refuses a bench model as the build profile before it touc
     assert.match(r.stderr, /not a deployable profile/);
   }
 });
+
+test('no Opus (owner 2026-11-13 14:30): the bench context refuses an Opus model and any fallback chain, and its adapters refuse an Opus model at the wire', async () => {
+  assert.throws(() => benchContext({ model: 'claude-opus-5-5', env: {} }), /No bench model/);
+  for (const model of BENCH_MODELS) {
+    const ctx = benchContext({ model, env: {}, scripted: scriptedBuildAdapterByInput() });
+    assert.ok(!ctx.profile.roles.build_author.fallbacks, model);
+    assert.ok(!/opus/i.test(ctx.profile.roles.build_author.model));
+    await assert.rejects(() => ctx.adapters.anthropic.call({ config: { model: 'claude-opus-5-5', role: 'build_author' } }), /never calls an Opus model/);
+  }
+});

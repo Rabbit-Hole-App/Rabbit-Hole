@@ -60,8 +60,12 @@ export const scriptedBuildAdapterByInput = () => scriptedAdapter({ build_author:
 export function benchContext({ model, env, scripted = null, seed = null }) {
   let role = benchRole(model);
   if (seed != null && role.settings?.seed !== undefined) role = { ...role, settings: { ...role.settings, seed } };
+  if (/opus/i.test(role.model) || role.fallbacks?.length) throw new Error(`the bench never reaches an Opus model or a fallback chain (owner 2026-11-13 14:30): ${role.model}`);
   const base = resolveInteractProfile('opus-baseline'), profile = Object.freeze({ ...base, id: 'bench', roles: { ...base.roles, build_author: role } });
-  const adapters = scripted ? { anthropic: scripted, 'openai-compatible': scripted } : { anthropic: interactAdapters({ env, callModel: anthropicCall }).anthropic, 'openai-compatible': interactAdapters({ env, fetch: bareFetch })['openai-compatible'] };
+  // No Opus anywhere (owner 2026-11-13 14:30): only the build_author role is ever called (corrections are the same role, same model, no fallback, no judge), and every adapter refuses an Opus model at the wire.
+  const noOpus = adapter => ({ ...adapter, call: async args => { if (/opus/i.test(args.config?.model ?? '')) throw new InteractModelError('opus_refused', 'The bench never calls an Opus model.', { sent: false }); return adapter.call(args); } });
+  const adapters0 = scripted ? { anthropic: scripted, 'openai-compatible': scripted } : { anthropic: interactAdapters({ env, callModel: anthropicCall }).anthropic, 'openai-compatible': interactAdapters({ env, fetch: bareFetch })['openai-compatible'] };
+  const adapters = Object.fromEntries(Object.entries(adapters0).map(([k, v]) => [k, noOpus(v)]));
   return { ...(scripted ? { fixture: true } : {}), env: { ...env, INTERACT_SCENE_PLAN_ENABLED: 'true', INTERACT_FALLBACK: 'off' }, profile, adapters, admit: () => {}, settle: () => {}, completeCardUnavailable: true, captureCard: headlessCaptureCard({}) };
 }
 
