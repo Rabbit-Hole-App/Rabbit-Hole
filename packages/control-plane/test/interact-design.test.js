@@ -9,6 +9,8 @@ import { DESIGN_REVIEW_SYSTEM, TUTOR_SCENE_REVIEWER_PROMPT, designReviewSchema }
 import { DESIGN_REVISE_SYSTEM, designReviseSchema } from '../src/agents/interact-design-revise.js';
 import { DESIGN_BOUNDS, authorDesign, designPromptContracts, freshDesign, planDiff, reviewDesign, runtimeProblems, verifyDesignRevision } from '../src/interact-design.js';
 import { INTERACT_LIMITS } from '../src/interact-models.js';
+import { planHash } from '../../web/src/interact-plan.js';
+import { pinnedPlan } from '../src/interact-design-pin.js';
 import { OWNER, PLAN, change, clone, designStack, finding, fixtures, postedProposal, review, revision } from './interact-design-fixture.js';
 
 test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(() => { console.log = log; }); });
@@ -387,6 +389,27 @@ test('capture_budget gates the plan: 7 checkpoints go back to the reviser by cod
   assert.match(refused.message, /needs 9/, 'the message names the count');
   assert.match(refused.message, /at most 6 images/, 'and the limit');
   assert.equal(job.design.plan.scene.checkpoints.length, 4);
+});
+
+test('the dev-only design pin: a job with INTERACT_DESIGN_FIXTURE set reaches awaiting_approval on the fixture plan with zero design calls; without the dev gate the pin is ignored', async t => {
+  const pinned = designStack(t);
+  delete pinned.deps.descriptionFit;
+  Object.assign(pinned.env, { INTERACT_DESIGN_FIXTURE: 'toss-drop-standard', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_DESCRIPTION_FIT: 'estimate' });
+  const { body } = await pinned.create();
+  const { job } = await pinned.design(body.job.id);
+  assert.equal(job.stage, 'awaiting_approval');
+  assert.deepEqual(pinned.model.roles(), [], 'no design model call');
+  assert.equal(job.calls.length, 0);
+  assert.equal(job.design.planHash, await planHash(await pinnedPlan('toss-drop-standard', job)), 'the real hash of the fixture plan');
+  assert.equal(job.design.fit.styleVersion, 'card-description-v1:estimate');
+  assert.ok(job.design.finalHash && job.design.approvalHash, 'the real final and approval hashes');
+  const gated = designStack(t);
+  delete gated.deps.descriptionFit;
+  Object.assign(gated.env, { INTERACT_DESIGN_FIXTURE: 'toss-drop-standard', INTERACT_DESCRIPTION_FIT: 'estimate' });
+  delete gated.env.SMALL_ENV; delete gated.env.EXPLAIN_DIAGNOSTICS;
+  const g = await gated.create();
+  await gated.design(g.body.job.id);
+  assert.ok(gated.model.roles().includes('author'), 'neither SMALL_ENV dev/test nor EXPLAIN_DIAGNOSTICS: the real design role ran');
 });
 
 test('a job records its flow, profile and prompt versions at creation and keeps them; the switch is per job', async t => {

@@ -39,6 +39,7 @@ import { blockedBody, referencesKey, resolveReferences } from './generation-revi
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
 import { INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
+import { designPinOf, pinnedDesignCall } from './interact-design-pin.js';
 import { DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, approvalHashOf, designCapabilities, designPipeline, designPromptContracts, freshDesign, isBlocking, modeToPresentation, runtimeProblems } from './interact-design.js';
 import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } from '../../web/src/interact-plan.js';
 import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
@@ -905,8 +906,9 @@ export class ExplainJobs {
     if (job.inFlight) { if (!this.active.has(job.id)) await this.locked(async () => { const current = await this.get(job.id); if (current.inFlight && !this.active.has(job.id)) await this.reconcile(current); }); return; }
     if (Date.now() > job.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${job.stage}.`, 409), { stopReason: 'deadline' });
     if (job.stage === 'queued') return this.move(job, job.flow ? 'design_authoring' : job.prepare && !job.approval ? 'preparing' : 'authoring');
+    // interact: the design roles' model calls; a dev-only pin (interact-design-pin.js, never in production) answers them from the fixture plan.
     const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: EXPLAIN_LIMITS,
-      ...(job.flow ? { interact: (role, args) => this.interactCall(job, role, args), capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene,
+      ...(job.flow ? { interact: async (role, args) => { const pin = designPinOf(this.env); return (pin && await pinnedDesignCall(pin, job, role, args)) || this.interactCall(job, role, args); }, capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene,
         // The description fit is a measurement; only the pure estimate exists in a Worker (no DOM), so it runs only when the server setting says so, labelled estimate in the stored receipt.
         descriptionFit: this.deps.descriptionFit ?? (this.env.INTERACT_DESCRIPTION_FIT === 'estimate' ? estimateDescriptionFit : undefined) } : {}) };
     if (this.buildFlow(job)) Object.assign(ctx, { build: await this.loadBuild(job), role: await this.buildRoleCtx(job) });
