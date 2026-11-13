@@ -13,15 +13,17 @@ import { depthOf } from './chat-depth.js';
 // The family: a Depth -> the plan id that Depth pins. Each id names its fixture plan and the one Depth it answers.
 export const FIXTURE_DEPTHS = Object.freeze({ brief: 'toss-overview', balanced: 'toss-standard', detailed: 'toss-deep' });
 // id -> [the plan's name, its Depth, the fixtures group it lives in]
-const PLAN_OF = Object.freeze({ 'toss-overview': ['tossOverview', 'brief', 'referencePlans'], 'toss-standard': ['tossStandard', 'balanced', 'referencePlans'], 'toss-deep': ['tossDeep', 'detailed', 'referencePlans'], 'toss-drop-standard': ['standard', 'balanced', 'plans'], 'toss-drop-standard-controls': ['standardControls', 'balanced', 'plans'] });
-export const PIN_FIXTURES = Object.freeze(['toss', ...Object.keys(PLAN_OF)]);
+const PLAN_OF = Object.freeze({ 'toss-overview': ['tossOverview', 'brief', 'referencePlans'], 'toss-standard': ['tossStandard', 'balanced', 'referencePlans'], 'toss-deep': ['tossDeep', 'detailed', 'referencePlans'], 'ledge-toss-moon': ['ledgeTossMoon', 'brief', 'referencePlans'], 'toss-drop-standard': ['standard', 'balanced', 'plans'], 'toss-drop-standard-controls': ['standardControls', 'balanced', 'plans'] });
+// The second family (brief 7 section 5): INTERACT_DESIGN_FIXTURE=ledge pins the Moon ledge toss for brief only, to show a template build on a plan no template was written for.
+export const LEDGE_DEPTHS = Object.freeze({ brief: 'ledge-toss-moon' });
+export const PIN_FIXTURES = Object.freeze(['toss', 'ledge', ...Object.keys(PLAN_OF)]);
 const PINNED_DESCRIPTION = 'A ball tossed at 3.0 m/s has zero velocity at its top, yet its acceleration stays -9.8 m/s^2 there and at every instant of the flight.';
 const text = value => value;
 
 export const designPinOf = env => ((env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test' || env.EXPLAIN_DIAGNOSTICS === 'true') && PIN_FIXTURES.includes(env.INTERACT_DESIGN_FIXTURE) ? env.INTERACT_DESIGN_FIXTURE : null);
 
 // The plan id a pin answers for a job's Depth, or null when this Depth is not pinned (the real design runs): `toss` follows the Depth, a plan id answers its own Depth only.
-export const pinnedFixtureId = (pin, depth) => { const d = depthOf(depth), id = pin === 'toss' ? FIXTURE_DEPTHS[d] : pin; return id && PLAN_OF[id]?.[1] === d ? id : null; };
+export const pinnedFixtureId = (pin, depth) => { const d = depthOf(depth), id = pin === 'toss' ? FIXTURE_DEPTHS[d] : pin === 'ledge' ? LEDGE_DEPTHS[d] : pin; return id && PLAN_OF[id]?.[1] === d ? id : null; };
 
 export async function pinnedPlan(fixtureId, job) {
   const id = pinnedFixtureId(fixtureId, job.depth) ?? fixtureId, fixtures = await interactFixtures(), [name, , group] = PLAN_OF[id];
