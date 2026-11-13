@@ -25,7 +25,6 @@ import { BENCH_DIR, PLANS, benchContext, readCredentials } from './bench-author.
 export const OUT = join(BENCH_DIR, 'bench-expressions.jsonl'), REPORT = join(BENCH_DIR, 'bench-expressions.md');
 export const PIECEWISE = new Set(['dropVelocity', 'dropAcceleration', 'dropHeight']);
 const round1 = n => Math.round(n * 10) / 10, now = () => globalThis.performance.now(), clip = (s, n = 300) => String(s).replace(/\s+/g, ' ').slice(0, n);
-const ref = { $ref: '#/$defs/ScalarExpr' };
 
 export const EXPRESSIONS_SYSTEM = [
   'You write equations, not code. Given the approved plan, return the equations of its quantities and its named moments as data.',
@@ -33,7 +32,7 @@ export const EXPRESSIONS_SYSTEM = [
   'There are no other operations: no functions, no powers (multiply the factor out), no conditions. At most 64 nodes and 12 levels deep.',
   'The readable names are `t` (elapsed seconds since launch, 0 at the launch) and the plan\'s `inputs` by id. A value the plan fixes is a literal.',
   'quantities: one expression for every id in the plan\'s `quantities`, in its unit and its sign convention (up is positive), as a function of t and the inputs.',
-  'moments: one expression for every id in the plan\'s `moments`, the elapsed seconds since launch at which that moment happens, as a function of the inputs only (no t).',
+  'moments: one expression for every id in the plan\'s `moments`, the elapsed seconds since launch at which that moment happens, as a function of the inputs only (no t); a moment that lists tInputs is read with those inputs set to those values.',
   'Return expressions only; no prose; use only `t` and the input ids.',
 ].join('\n');
 
@@ -44,23 +43,21 @@ export function expressionsInput(plan) {
     title: plan.title, story: plan.story, scene: plan.scene.description,
     quantities: plan.scene.quantities.map(({ id, label, unit, meaning, reference, relation }) => ({ id, label, unit, meaning, reference, ...(relation ? { relation } : {}) })),
     inputs, fixedValues: plan.mode.fixedValues, time: { symbol: 't', unit: 's', meaning: 'elapsed seconds since launch' },
-    moments: plan.scene.checkpoints.filter(cp => cp.time).map(({ id, label }) => ({ id, label })),
+    moments: plan.scene.checkpoints.filter(cp => cp.time).map(({ id, label, inputOverrides }) => ({ id, label, ...(Object.keys(inputOverrides ?? {}).length ? { atInputs: inputOverrides } : {}) })),
   };
 }
 
+// ScalarExpr on the wire: ONE node type whose children are OPTIONAL and recursive. Gemini refuses a recursive $ref whose children are required ("a ref loop of required fields"), refuses a oneOf that is not
+// provably exclusive (the adapter's own rule) and answers HTTP 500 to an unrolled bounded-depth tree (2026-11-13: tried at 4, 5, 6 and 8 levels), so the schema fixes the node's shape (op, value, id, left, right) and the exact grammar (a literal is exactly
+// {op, value}, an operation exactly {op, left, right}, depth and node limits) is checked afterwards by interact-plan.js scalarExprProblem inside evalScalar: a malformed node is an `unsafe_expression` failure of the model.
+const NODE = { $ref: '#/$defs/Expr' };
 export function expressionsSchema(plan) {
   const ids = plan.scene.quantities.map(q => q.id), moments = plan.scene.checkpoints.filter(cp => cp.time).map(cp => cp.id);
-  const map = keys => ({ type: 'object', properties: Object.fromEntries(keys.map(k => [k, ref])), required: keys, additionalProperties: false });
-  return {
-    type: 'object', properties: { quantities: map(ids), moments: map(moments) }, required: ['quantities', 'moments'], additionalProperties: false,
-    $defs: { ScalarExpr: { description: 'Bounded arithmetic, at most 64 nodes and 12 levels.', oneOf: [
-      { type: 'object', properties: { op: { const: 'literal' }, value: { type: 'number' } }, required: ['op', 'value'], additionalProperties: false },
-      { type: 'object', properties: { op: { const: 'input' }, id: { type: 'string' } }, required: ['op', 'id'], additionalProperties: false },
-      { type: 'object', properties: { op: { enum: ['add', 'subtract', 'multiply', 'divide'] }, left: ref, right: ref }, required: ['op', 'left', 'right'], additionalProperties: false },
-    ] } },
-  };
+  const map = keys => ({ type: 'object', properties: Object.fromEntries(keys.map(k => [k, NODE])), required: keys, additionalProperties: false });
+  return { type: 'object', properties: { quantities: map(ids), moments: map(moments) }, required: ['quantities', 'moments'], additionalProperties: false,
+    $defs: { Expr: { type: 'object', description: 'literal: {op, value}; input: {op, id}; add, subtract, multiply, divide: {op, left, right}.',
+      properties: { op: { enum: ['literal', 'input', 'add', 'subtract', 'multiply', 'divide'] }, value: { type: 'number' }, id: { type: 'string' }, left: NODE, right: NODE }, required: ['op'], additionalProperties: false } } };
 }
-
 // -> { missingIds, unresolved, wrongIds, gapIds, checked }: the reply's expressions evaluated at the oracle's cases. wrongIds: { id, case, got, expected } (a moment is 'moment:<id>').
 export function checkExpressions(plan, reply) {
   const oracle = interactOracle(plan), toss = tossCasesOf(plan);
@@ -85,7 +82,7 @@ export function checkExpressions(plan, reply) {
     if (seen.has(key)) continue;
     seen.add(key);
     for (const cp of plan.scene.checkpoints.filter(c => c.time)) if (m[cp.id] !== undefined) {
-      run(`moment:${cp.id}`, m[cp.id], inputs, toss.domains, caseId, evalScalar(cp.time, inputs, toss.domains), 1e-6); checked++;
+      const at = { ...inputs, ...(cp.inputOverrides ?? {}) }; run(`moment:${cp.id}`, m[cp.id], at, toss.domains, caseId, evalScalar(cp.time, at, toss.domains), 1e-6); checked++;
     }
   }
   return { missingIds, unresolved, wrongIds: wrong, gapIds: [...new Set(gap.map(g => g.id))], checked };
@@ -113,7 +110,10 @@ const costOf = (config, usage, micros) => {
   return folded ? folded.micros / 1e6 : null;
 };
 
-export async function expressionsAttempt({ planName, model, ctx, save = null, ts = new Date().toISOString(), scripted = false }) {
+// A reply is a few hundred tokens: the role's own 16000-token ceiling would let a runaway reply (gemini-3.5-flash cut off at it, 2026-11-13, +$0.17 for one attempt) eat the budget, so the bench caps it.
+export const EXPRESSIONS_MAX_TOKENS = 6000;
+export async function expressionsAttempt({ planName, model, ctx: given, save = null, ts = new Date().toISOString(), scripted = false }) {
+  const ctx = { ...given, profile: { ...given.profile, roles: { ...given.profile.roles, build_author: { ...given.profile.roles.build_author, maxOutputTokens: EXPRESSIONS_MAX_TOKENS } } } };
   const { key, depth } = PLANS[planName], { referencePlans, referenceCapabilities } = await interactFixtures();
   const job = { id: `bench-${planName}`, plan: structuredClone(referencePlans[key]), planHash: await planHash(referencePlans[key]), capabilities: referenceCapabilities };
   const { plan } = await approvedPlanOf(job), schema = expressionsSchema(plan), input = expressionsInput(plan);
