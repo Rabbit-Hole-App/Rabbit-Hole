@@ -150,3 +150,7 @@ export async function sealTossProgram(name) {
   if (!sealed.ok) throw new Error(`toss program ${name} refused: ${sealed.issue}`);
   return sealed.value;
 }
+
+// The same programs as dev-only fixture cards (program-card.js resolveProgram admits fixtures only in a dev build): block.program = { fixtureId: 'toss-overview' | 'toss-standard' | 'toss-deep' }, sealed with the sdk-8
+// stamps they were written for. Hand-authored test data, not generation evidence; the owner's look review puts them on a canvas with scripts/interact/seed-toss-canvas.mjs.
+export const TOSS_FIXTURES = Object.entries(TOSS_PROGRAMS).map(([name, program]) => ({ id: name.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`), manifest: program.manifest, source: program.source, stamps: FIGURES_PROGRAM_STAMPS }));
