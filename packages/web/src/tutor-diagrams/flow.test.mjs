@@ -142,7 +142,7 @@ test('long branch labels never mask an unrelated connector in a nested flow', ()
 test('wrapped decision text fits inside the sloping sides on a narrow tier', () => {
   const diagram = {
     nodes: ['root', 'a', 'b', 'c', 'yes', 'no'].map(id => ({
-      id, label: id === 'a' ? 'M'.repeat(60) : id, role: ['yes', 'no'].includes(id) ? 'outcome' : 'decision',
+      id, label: id === 'a' ? Array(15).fill('MMMM').join(' ') : id, role: ['yes', 'no'].includes(id) ? 'outcome' : 'decision',
     })),
     edges: ['a', 'b', 'c'].flatMap(id => [
       { from: 'root', to: id, label: id }, { from: id, to: 'yes', label: 'Yes' }, { from: id, to: 'no', label: 'No' },
