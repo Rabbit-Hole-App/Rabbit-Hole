@@ -21,7 +21,8 @@ const json = f => JSON.parse(readFileSync(f, 'utf8'));
 // Reference ids: Balanced = <id>, Detailed = <id>-detailed, Brief = <id>-brief; the selector may log either form, so ids are compared by base.
 export const variantId = (id, depth) => (depth === 'deep' ? `${id}-detailed` : depth === 'overview' ? `${id}-brief` : id);
 export const baseId = id => String(id).replace(/--part.*$/, '').replace(/-(brief|detailed)$/, '');
-export const selectorCheck = (ids, want) => (ids ? { hit: ids.some(x => baseId(x) === want), first: ids.length > 0 && baseId(ids[0]) === want } : { hit: null, first: null });
+// First sent = the first worked reference sent; generic shape-* references (always sent first since release 122) are skipped (reviewer 2026-11-12).
+export const selectorCheck = (ids, want) => { if (!ids) return { hit: null, first: null }; const worked = ids.filter(x => !String(x).startsWith('shape-')); return { hit: ids.some(x => baseId(x) === want), first: worked.length > 0 && baseId(worked[0]) === want }; };
 const steerText = (s, short) => (s === null || s === undefined ? 'not logged' : s.length ? s.map(e => Object.entries(e).filter(([k]) => k !== 'ts').map(([k, v]) => `${k} ${v}`).join(', ')).join('; ') : short ? 'no' : 'no (event absent)');
 const yn = v => (v === null || v === undefined ? 'not logged' : v ? 'yes' : 'no');
 
