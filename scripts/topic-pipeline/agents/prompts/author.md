@@ -4,7 +4,7 @@ Apply docs/features/explain/topics/SPEC.md §§2a, 4 stage 03, 6 and 6b and docs
 
 Return only files matching the supplied path schema. Use the topic slug in every new artifact name. Keep registry lessons metadata and prompt origin metadata. For the decision-trees dry run use topic-decision-trees-dryrun modules and ml-dry-trees- ids. Keep shipped lesson-decision-trees modules as the exemplar.
 
-Read every number from the shared toy-data module or a computation. Export derived() and test that each displayed number is present in its results, with recomputed arithmetic. Use at most ten toy rows and two features. Each visual must use at most 300 compact cl100k tokens, including every depth and separate detail visual.
+Read every number from the shared toy-data module or a computation. Export derived() and test that each displayed number is present in its results, with recomputed arithmetic. Use at most ten toy rows and two features. Each visual must use at most 300 compact cl100k tokens, including every depth and separate detail visual. Formula constants in captions (exponents, subscripts, the 1 in 1 − …) need no derivation; every other number shown must come from derived().
 
 Put each assigned question verbatim in prompts. Supply two or three lowercase learner keywords of at most three words each. For REUSE write a topic overlay and registry loading for it, preserving the original reference module. Avoid two selectable worked references of the same kind. Brief has fewer visible elements than Balanced. Detailed adds arithmetic or a formula beyond Balanced. Mark illustrative values in the caption using the library's N1 convention.
 

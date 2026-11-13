@@ -113,6 +113,10 @@ test('rule 6: derived data plus an assertion pass; missing exports/numbers/tests
   assert.equal(ofRule(run(reference(), { authored: true, source: typed }), 6).length, 2);
   const computed = { ...sources, module: 'const count = data.length; export const spec = { caption: `Count ${count}` };' };
   assert.equal(ofRule(run(reference(), { authored: true, source: computed }), 6).length, 0);
+  const formula = { ...sources, module: 'export const spec = { caption: `$G=1-(${p})^2-(${q})^2$ and $\\log_2 p$`, label: "$x_{12}^{3}$" };' };
+  assert.equal(ofRule(run(reference(), { authored: true, source: formula }), 6).length, 0, 'exponents, subscripts and 0/1/2 inside $…$ are formula constants');
+  const typedInFormula = { ...sources, module: 'export const spec = { caption: "$G=0.5$" };' };
+  assert.equal(ofRule(run(reference(), { authored: true, source: typedInFormula }), 6).length, 1, 'other numbers inside $…$ still count');
 });
 
 test('rule 7: a 2-decade logarithmic data series passes; short ranges fail despite wide axis domains', () => {
@@ -147,7 +151,10 @@ test('rule 9: smaller Brief and additional Detailed arithmetic pass; equal Brief
   const ref = reference(); ref.depths.overview.spec = structuredClone(ref.spec); ref.depths.deep.spec = structuredClone(ref.spec);
   assert.deepEqual(ofRule(run(ref), 9).map(issue => issue.depth), ['overview', 'deep']);
   assert.ok(ofRule(run(ref), 9).every(issue => issue.severity === 'warning'));
-  assert.ok(ofRule(run(ref, { authored: true }), 9).every(issue => issue.severity === 'error'));
+  assert.deepEqual(ofRule(run(ref, { authored: true }), 9).map(issue => issue.severity), ['warning', 'error'], 'an equal Brief is an error only above 6 Balanced elements');
+  const big = reference(); big.spec = tree(Array.from({ length: 7 }, (_, i) => ({ id: `n${i}`, label: 'Choose a class' })));
+  big.depths.overview.spec = structuredClone(big.spec);
+  assert.equal(ofRule(run(big, { authored: true }), 9).find(issue => issue.depth === 'overview')?.severity, 'error');
   ref.depths.overview.spec = tree([{ id: 'a', label: 'Choose a class' }]);
   ref.depths.deep.spec.diagram.caption = 'Worked example. $p=1/2$.';
   assert.equal(ofRule(run(ref), 9).length, 0);
