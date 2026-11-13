@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Feature x",
+      "min": 0,
+      "max": 8
+    },
+    "y": {
+      "label": "Feature y",
+      "min": 0,
+      "max": 8
+    },
+    "series": [
+      {
+        "label": "Class 0",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 3,
+            "y": 3
+          },
+          {
+            "x": 5,
+            "y": 1
+          }
+        ]
+      },
+      {
+        "label": "Class 1",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 7,
+            "y": 5
+          }
+        ]
+      }
+    ],
+    "title": "One cut through the points",
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "axis": "x",
+        "value": 4,
+        "label": "x at most 4"
+      }
+    ],
+    "caption": "Worked example. Selected training rows. The cut sends points to either side."
+  }
+}

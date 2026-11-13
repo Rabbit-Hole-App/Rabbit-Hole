@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Test the midpoints on x",
+    "x": {
+      "label": "Threshold on x",
+      "min": 0,
+      "max": 8
+    },
+    "y": {
+      "label": "Weighted Gini in 48ths",
+      "min": 0,
+      "max": 24
+    },
+    "series": [
+      {
+        "label": "Candidate midpoints",
+        "kind": "stem",
+        "points": [
+          {
+            "x": 2,
+            "y": 18,
+            "label": "3 over 8"
+          },
+          {
+            "x": 4,
+            "y": 9,
+            "label": "3 over 16"
+          },
+          {
+            "x": 6,
+            "y": 10,
+            "label": "5 over 24"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "x": 4,
+        "y": 9,
+        "label": "Lowest Gini"
+      }
+    ],
+    "caption": "Worked example. The best y trial gives 3 over 8. The x winner gives 3 over 16."
+  }
+}

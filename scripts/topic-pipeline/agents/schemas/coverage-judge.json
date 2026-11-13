@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sameTeachingPoint"
+  ],
+  "properties": {
+    "sameTeachingPoint": {
+      "type": "boolean"
+    }
+  }
+}

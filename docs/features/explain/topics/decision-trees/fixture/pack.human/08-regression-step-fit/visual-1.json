@@ -1,0 +1,124 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Sine step fits at depth 2 and depth 5",
+  "caption": "Worked example comparing 4 leaves to 16 leaves.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Angle (7.5 degrees)",
+   "min": 0,
+   "max": 48
+  },
+  "y": {
+   "label": "Target",
+   "min": -1,
+   "max": 1
+  },
+  "series": [
+   {
+    "label": "Sine samples",
+    "kind": "line",
+    "samples": {
+     "x": {
+      "start": 0,
+      "step": 2
+     },
+     "y": [
+      0,
+      259,
+      500,
+      707,
+      866,
+      966,
+      1000,
+      966,
+      866,
+      707,
+      500,
+      259,
+      0,
+      -259,
+      -500,
+      -707,
+      -866,
+      -966,
+      -1000,
+      -966,
+      -866,
+      -707,
+      -500,
+      -259,
+      0
+     ],
+     "divisor": 1000
+    }
+   },
+   {
+    "label": "Depth 2",
+    "kind": "step",
+    "samples": {
+     "x": [
+      0,
+      3,
+      23,
+      27,
+      48
+     ],
+     "y": [
+      130,
+      734,
+      -129,
+      -667,
+      -667
+     ],
+     "divisor": 1000
+    }
+   },
+   {
+    "label": "Depth 5",
+    "kind": "step",
+    "samples": {
+     "x": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      17,
+      19,
+      21,
+      23,
+      25,
+      27,
+      31,
+      41,
+      43,
+      45,
+      47,
+      48
+     ],
+     "y": [
+      0,
+      259,
+      500,
+      707,
+      933,
+      707,
+      500,
+      259,
+      0,
+      -259,
+      -603,
+      -933,
+      -707,
+      -500,
+      -259,
+      0,
+      0
+     ],
+     "divisor": 1000
+    }
+   }
+  ]
+ }
+}
