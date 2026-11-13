@@ -3,13 +3,12 @@ import { readJson } from '../state.mjs';
 import { toolPath } from '../tooling.mjs';
 import { artefactTopic, benchSupportsConfig, command, exists, integration, manifest, runBench, scrub, topicSet, withStack } from './operator.mjs';
 
-function assess(rows) {
-  const expected = 12;
+function assess(rows, expected) { // expected = the set's card count (12 for a lesson's prompts, 13 for demo-lesson04)
   const delivered = rows.filter(r => r.delivered).length;
   const sent = rows.filter(r => r.referenceSent === true).length;
   const kinds = rows.filter(r => r.kindMatch === true).length;
   const missingReferences = rows.some(r => !r.referenceAvailable);
-  return { delivered, sent, kinds, passed: rows.length === expected && delivered === expected && sent === expected && kinds >= 11 && !missingReferences };
+  return { expected, delivered, sent, kinds, passed: rows.length === expected && delivered === expected && sent === expected && kinds >= expected - 1 && !missingReferences };
 }
 
 async function exportPack(ctx, packPath, generated, integrated, runs, only = []) {
@@ -53,11 +52,11 @@ export async function run(ctx) {
       });
     }
     artefacts.push(...exported.artefacts);
-    const metrics = assess(exported.rows);
+    const metrics = assess(exported.rows, generated.set.prompts?.length ?? generated.prompts.length);
     const record = { topic: ctx.topic, set: generated.set.name, setFile: generated.file, runs, rows: exported.rows, metrics,
       regenerated: false, pngSkipped: !!ctx.config.bench.noPng || !!fixtureRuns?.length };
     artefacts.push(await manifest(ctx, 'pack.json', record));
-    const notes = `Pack: intended reference sent ${metrics.sent}/12; model kind matches ${metrics.kinds}/12; delivered ${metrics.delivered}/12.${record.pngSkipped ? ' PNG capture skipped for saved/offline fixture export.' : ''}`;
+    const notes = `Pack: intended reference sent ${metrics.sent}/${metrics.expected}; model kind matches ${metrics.kinds}/${metrics.expected}; delivered ${metrics.delivered}/${metrics.expected}.${record.pngSkipped ? ' PNG capture skipped for saved/offline fixture export.' : ''}`;
     if (!metrics.passed) {
       const failing = exported.rows.filter(r => !r.delivered || r.referenceSent !== true || !r.kindMatch || !r.referenceAvailable);
       return { status: 'stop', stop: 'STOP-3', artefacts, notes: `${notes}\n\nFailing pipeline lines:\n${scrub(failing.map(r => `${r.promptId}: ${JSON.stringify(r.pipeline)}`).join('\n'), ctx)}` };
@@ -90,7 +89,7 @@ export async function regenerateCards(ctx, ids) {
       return exportPack(ctx, pack, generated, integrated, saved.runs, only);
     });
     artefacts.push(...exported.artefacts);
-    saved.rows = exported.rows; saved.metrics = assess(saved.rows);
+    saved.rows = exported.rows; saved.metrics = assess(saved.rows, saved.metrics?.expected ?? 12);
     await manifest(ctx, 'pack.json', saved);
     const status = saved.metrics.passed ? 'ok' : 'stop';
     return { status, ...(status === 'stop' ? { stop: 'STOP-3' } : {}), artefacts, notes: status === 'ok' ? 'Selected cards regenerated once with bench --only and the pack re-exported.' : `Regenerated pack is below the delivery/reference/kind thresholds.\n${scrub(saved.rows.filter(r => !r.delivered || r.referenceSent !== true || !r.kindMatch).map(r => JSON.stringify(r.pipeline)).join('\n'), ctx)}` };

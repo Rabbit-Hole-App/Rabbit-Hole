@@ -57,6 +57,16 @@ function numbers(text) {
     .map(match => Number(match[0].replace('−', '-'))).filter(Number.isFinite);
 }
 
+// Rule 6 (reviewer 2026-11-12): inside $…$, exponents, subscripts and the integers 0, 1 and 2 are formula constants;
+// every other number in a title, caption or label must come from derived(). Minus signs inside a formula are operators.
+function displayNumbers(text) {
+  const { plain, formulas, unclosed, pending } = mathParts(String(text));
+  const formulaNumbers = [...formulas, ...(unclosed ? [pending] : [])].flatMap(formula => [...formula
+    .replace(/[\^_](?:\{[^}]*\}|\d+(?:\.\d+)?)/gu, ' ').matchAll(/(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+−-]?\d+)?/gu)].map(match => Number(match[0])))
+    .filter(number => Number.isFinite(number) && ![0, 1, 2].includes(number));
+  return [...numbers(plain), ...formulaNumbers];
+}
+
 function mathParts(text) {
   let plain = '', formula = '', open = false;
   const formulas = [];
@@ -67,7 +77,7 @@ function mathParts(text) {
     } else if (open) formula += text[i];
     else plain += text[i];
   }
-  return { plain, formulas, unclosed: open };
+  return { plain, formulas, unclosed: open, pending: formula };
 }
 
 function specAt(reference, depth) {
@@ -161,8 +171,8 @@ function typedDisplayNumbers(files) {
       if (node?.type !== 'Property' || !DISPLAY_NUMBER_FIELDS.has(node.key?.name ?? node.key?.value)) return;
       walk(node.value, item => {
         const text = item?.type === 'Literal' && typeof item.value === 'string' ? item.value
-          : item?.type === 'TemplateElement' ? item.value.cooked : null;
-        if (text && numbers(text).length) findings.push(`${file.path}:${item.loc.start.line} contains typed display number(s) in ${JSON.stringify(text)}`);
+          : item?.type === 'TemplateLiteral' ? item.quasis.map(quasi => quasi.value.cooked).join('x') : null;
+        if (text && displayNumbers(text).length) findings.push(`${file.path}:${item.loc.start.line} contains typed display number(s) in ${JSON.stringify(text)}`);
       });
     });
   }
@@ -307,7 +317,7 @@ export function lintReferences({ references = [], prompts = [], source, derived,
       else {
         const scoped = computed?.[id]?.[depth] ?? computed?.[id]?.[ALIASES[depth]] ?? computed?.[id] ?? computed;
         const values = numericSet(scoped);
-        const missing = [...new Set(texts.filter(({ trail }) => DISPLAY_NUMBER_FIELDS.has(trail.at(-1)) || Number.isInteger(trail.at(-1))).flatMap(({ value }) => numbers(value)))].filter(number => !values.has(number));
+        const missing = [...new Set(texts.filter(({ trail }) => DISPLAY_NUMBER_FIELDS.has(trail.at(-1)) || Number.isInteger(trail.at(-1))).flatMap(({ value }) => displayNumbers(value)))].filter(number => !values.has(number));
         if (missing.length) flags.push(flag(id, depth, 6, `Display numbers absent from derived(): ${missing.join(', ')}`, severity));
       }
       const relevant = entries.filter(entry => referenceForPrompt(entry) === id || reference.prompts?.includes(entry.prompt));
@@ -318,7 +328,8 @@ export function lintReferences({ references = [], prompts = [], source, derived,
     }
     const overview = specAt(reference, 'overview'), standard = specAt(reference, 'standard'), deep = specAt(reference, 'deep');
     if (overview?.diagram && standard?.diagram && elementCount(overview.diagram) >= elementCount(standard.diagram)) {
-      flags.push(flag(id, 'overview', 9, `Brief must have fewer rendered elements than Balanced (${elementCount(overview.diagram)} versus ${elementCount(standard.diagram)}).`));
+      // Rule 9 (reviewer 2026-11-12): an error only when Balanced has more than 6 elements; a two-bar chart may equal its Brief.
+      flags.push(flag(id, 'overview', 9, `Brief must have fewer rendered elements than Balanced (${elementCount(overview.diagram)} versus ${elementCount(standard.diagram)}).`, elementCount(standard.diagram) > 6 ? 'error' : 'warning'));
     }
     if (deep?.diagram && standard?.diagram) {
       const balanced = depthFacts(standard);
