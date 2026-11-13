@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "A straight separator between clusters",
+    "caption": "Illustrative values; $x_1+x_2-7=0$ gives $p=0.5$ on the line.",
+    "x": {
+      "label": "Study time (hours)",
+      "min": 0,
+      "max": 7
+    },
+    "y": {
+      "label": "Practice time (hours)",
+      "min": 0,
+      "max": 7
+    },
+    "series": [
+      {
+        "label": "Predict $0$ side",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            2,
+            1.5,
+            2
+          ],
+          "y": [
+            2,
+            2,
+            2.5
+          ]
+        }
+      },
+      {
+        "label": "Predict $1$ side",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            5,
+            4.5,
+            5
+          ],
+          "y": [
+            5,
+            5,
+            5.5
+          ]
+        }
+      },
+      {
+        "label": "Boundary",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 7
+          },
+          {
+            "x": 7,
+            "y": 0
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Precision rises as recall falls",
+    "x": {
+      "label": "Threshold probability",
+      "min": 0.3,
+      "max": 0.7
+    },
+    "y": {
+      "label": "Metric share",
+      "min": 0,
+      "max": 1
+    },
+    "series": [
+      {
+        "label": "Precision",
+        "kind": "line",
+        "samples": {
+          "x": [
+            0.3,
+            0.5,
+            0.7
+          ],
+          "y": [
+            0.667,
+            0.75,
+            1
+          ]
+        }
+      },
+      {
+        "label": "Recall",
+        "kind": "line",
+        "samples": {
+          "x": [
+            0.3,
+            0.5,
+            0.7
+          ],
+          "y": [
+            1,
+            0.75,
+            0.5
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "label": "Equal metrics",
+        "x": 0.5,
+        "y": 0.75
+      }
+    ],
+    "caption": "Same 8 cases. Raising the threshold increases precision and reduces recall. Metrics are rounded."
+  }
+}

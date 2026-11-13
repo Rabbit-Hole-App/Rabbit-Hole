@@ -1,0 +1,250 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-logistic-regression-linear-unbounded": {
+      "overview": [
+        {
+          "tokens": 104,
+          "sha256": "f9f7da6ba71bda32304e582bafdf9583469546627c5bb60c838cf042c4bbc860"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 195,
+          "sha256": "cb6432ba2e52780ba7535cf5e94b8e0a0eb0c849bd43f6c82fc2e7e27bd3da21"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 212,
+          "sha256": "4d810ef878b59d3e46b6c558e9d2ee55b32de325b37f438241eb6e7c0eab0c45"
+        }
+      ]
+    },
+    "ml-logistic-regression-outlier-leverage": {
+      "overview": [
+        {
+          "tokens": 104,
+          "sha256": "aa0267eba10ec3a15f25c124a2e2d31cc3e0861950cda773579cf5f9672c0ef5"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 225,
+          "sha256": "097ab988823116a9986b5519482d49eb392a973ea042f7b6176228beb92c7d2f"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 237,
+          "sha256": "d01d4fb7fc2a3e8c3919ba3cf2e7a8a413ec6b3b439fb8d4b21d14319870fb46"
+        }
+      ]
+    },
+    "ml-logistic-regression-sigmoid-shape": {
+      "overview": [
+        {
+          "tokens": 113,
+          "sha256": "7a1f2483c9656c8c51118912606de6653c245f7fd9cb5831395037e60aa9085a"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 206,
+          "sha256": "eb59749a256a6d7f0b19293ae2dc35ff2a75ff0304d76ab6e19350aab1d50a58"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 225,
+          "sha256": "3c3ef5a57050b0ad42165689bb39b76624d5b2480c97319d6e6ecdd1b9335122"
+        }
+      ]
+    },
+    "ml-logistic-regression-sigmoid-derivative": {
+      "overview": [
+        {
+          "tokens": 110,
+          "sha256": "d7cec346948ad8eb00d85e2a794978a67a189af590100eec98869e079ccfd0e2"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 218,
+          "sha256": "e937fff141e09c702e4f3da12e0a0b73c6b533e0aa213363b8572d3b742e2544"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 240,
+          "sha256": "5c957a746776e5cc129148fd99adf8fdc2fe9801d5c05e17a85c93da6f415ab1"
+        }
+      ]
+    },
+    "ml-logistic-regression-model-pipeline": {
+      "overview": [
+        {
+          "tokens": 111,
+          "sha256": "d4c9eed4468e6d614b5f919ce2d9bbcf98d8309dee3379cf1e31f1e7a47afca7"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 198,
+          "sha256": "7ca7d7d371448d31fcc68a16aaf5c0501904daf499639f88c779a1d40d1e761f"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 218,
+          "sha256": "dde36a4fa3f36ee8ea40a8ae3c3148fd73384dd379a6c8ed76467770b454f740"
+        }
+      ]
+    },
+    "ml-logistic-regression-log-loss": {
+      "overview": [
+        {
+          "tokens": 110,
+          "sha256": "6f0a12abdfbfa146398c91264edcad7661a04993f675a51e0da6ebf76a1962fc"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 198,
+          "sha256": "b9f3e975f47b0ef42f9877dca6e36c38868a811751d5e4883085990c4ec43ddc"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 212,
+          "sha256": "bd3152d03d840623f82efc7e115a0520259f07210a6f84e55496f07ad2c0e2b1"
+        }
+      ]
+    },
+    "ml-logistic-regression-gradient-descent": {
+      "overview": [
+        {
+          "tokens": 42,
+          "sha256": "c9701fedcd111042d608828bb7a1466e16e86515551d0f55b34084f0802025b1"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 70,
+          "sha256": "cbef68c08dc3e736a17740cf7daf38f23ac6a9034efa951f8f55a90ddcbfce03"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 135,
+          "sha256": "84bb874daaa5f9feadd14b55a35ba9d46024001997eb4be6f10a14b97fffbd9b"
+        }
+      ]
+    },
+    "ml-logistic-regression-linear-separator": {
+      "overview": [
+        {
+          "tokens": 119,
+          "sha256": "395a75706b0a50ec665d7325e7a6c1560e6c8ac02d633fc2fdeb6881e36d252c"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 170,
+          "sha256": "c395595b7ae2799beb7d38892e0a715a82b1d8378b1221051ba6195eef510452"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 187,
+          "sha256": "b033c24cb318b765d711f94ae4f81fb687b68c19081a77aa131e4299713fdde3"
+        },
+        {
+          "tokens": 199,
+          "sha256": "e9fdf85d9918529f82d1507e040160fb57c996e85d97e55ac8e8037776cd87f1"
+        }
+      ]
+    },
+    "ml-logistic-regression-softmax": {
+      "overview": [
+        {
+          "tokens": 78,
+          "sha256": "ef589d684c5f8cb11cca4dae4a730d4c0fbfd91e21c683472ad4816d88e5f524"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 102,
+          "sha256": "c04dc6d51278f3706d02a0aef4b0df1165039c7bd33d0ca6b1e7ad92e0c89c49"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 136,
+          "sha256": "acbac2b04d0b9e657aa3df19d3aabe85b4c7cf0f5080ef5c47a0c4a1867c2169"
+        }
+      ]
+    },
+    "ml-logistic-regression-accuracy-trap": {
+      "overview": [
+        {
+          "tokens": 58,
+          "sha256": "d19b49500418ae126a5f3ac87b25963a819b51444e34cd56f98825ad5c909d5d"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 85,
+          "sha256": "1d68da7ff89dcb67efda0e4b6bde95bb415da87dbb31c99a71a1bd42b79dfdbf"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 96,
+          "sha256": "797c03f18559413da2d7c0c0b2f1ae7f1af100062f06ec3e3827770aa356bc8d"
+        }
+      ]
+    },
+    "ml-logistic-regression-confusion-matrix": {
+      "overview": [
+        {
+          "tokens": 79,
+          "sha256": "5672725a7f9116438f4dca323c37acecb5cb3505f840366ff27bc51646c374d0"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 95,
+          "sha256": "ab1fffc37aaad9020863ae235c98a0a73a28519d8dde14e838d122cc108f0947"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 119,
+          "sha256": "54ef1aad07e43a2025501943bae398dbe19d1f7838acbc03692e7600449bef4d"
+        }
+      ]
+    },
+    "ml-logistic-regression-threshold-tradeoff": {
+      "overview": [
+        {
+          "tokens": 81,
+          "sha256": "1a25886bceb959c9d845a93784c279fe98164a10e1a731952ed8cabb7d837dd1"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 180,
+          "sha256": "be893be224993d911e0b0f03a1e0104b4548e09c1a480c63b973d7331dcca7bb"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 220,
+          "sha256": "f6e3cb1f19875bec38dc9212feb95ad4d5f3d73c7e22ef945cd893ebc9b332d9"
+        }
+      ]
+    }
+  }
+}

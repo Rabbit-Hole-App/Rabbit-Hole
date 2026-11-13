@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "A distant student flattens the fit",
+    "caption": "Illustrative values. After refitting, cutoff $h=(0.5-b)/m\\approx0.435$ hours.",
+    "x": {
+      "label": "Hours studied",
+      "min": 0,
+      "max": 50
+    },
+    "y": {
+      "label": "Pass/fail output",
+      "min": 0,
+      "max": 1.5
+    },
+    "series": [
+      {
+        "label": "Students",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            50
+          ],
+          "y": [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "label": "Before",
+        "kind": "line",
+        "samples": {
+          "x": [
+            1.375,
+            11.688
+          ],
+          "y": [
+            0,
+            1.5
+          ]
+        }
+      },
+      {
+        "label": "After",
+        "kind": "line",
+        "samples": {
+          "x": [
+            0,
+            50
+          ],
+          "y": [
+            0.493,
+            1.242
+          ]
+        }
+      },
+      {
+        "label": "Half crossings",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            4.813,
+            0.435
+          ],
+          "y": [
+            0.5,
+            0.5
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "A higher cutoff changes the balance",
+    "columns": [
+      "Precision",
+      "Recall"
+    ],
+    "rows": [
+      {
+        "heading": "Threshold 0.3",
+        "cells": [
+          "0.667",
+          "1"
+        ]
+      },
+      {
+        "heading": "Threshold 0.7",
+        "cells": [
+          "1",
+          "0.5"
+        ]
+      }
+    ],
+    "caption": "Same cases; a higher threshold removes positive calls. Metrics are rounded."
+  }
+}

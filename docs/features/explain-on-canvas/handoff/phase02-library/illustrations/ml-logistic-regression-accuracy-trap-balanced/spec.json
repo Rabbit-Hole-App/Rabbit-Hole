@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "variant": "grouped",
+    "title": "Always negative misses the minority",
+    "unit": "cases",
+    "categories": [
+      "Actual negative",
+      "Actual positive"
+    ],
+    "series": [
+      {
+        "label": "Correct",
+        "values": [
+          95,
+          0
+        ]
+      },
+      {
+        "label": "Wrong",
+        "values": [
+          0,
+          5
+        ]
+      }
+    ],
+    "caption": "Illustrative values; accuracy 95%, but positive recall 0%. All positive cases are missed."
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Confidence changes log loss",
+    "caption": "Illustrative values; $L=-y\\ln(p)-(1-y)\\ln(1-p)$.",
+    "x": {
+      "label": "Predicted pass probability",
+      "min": 0,
+      "max": 1
+    },
+    "y": {
+      "label": "Log loss (nats)",
+      "min": 0,
+      "max": 5
+    },
+    "series": [
+      {
+        "label": "$y=1$",
+        "kind": "line",
+        "smooth": true,
+        "samples": {
+          "x": [
+            0.01,
+            0.25,
+            0.5,
+            0.75,
+            0.99
+          ],
+          "y": [
+            4.605,
+            1.386,
+            0.693,
+            0.288,
+            0.01
+          ]
+        }
+      },
+      {
+        "label": "$y=0$",
+        "kind": "line",
+        "smooth": true,
+        "samples": {
+          "x": [
+            0.01,
+            0.25,
+            0.5,
+            0.75,
+            0.99
+          ],
+          "y": [
+            0.01,
+            0.288,
+            0.693,
+            1.386,
+            4.605
+          ]
+        }
+      }
+    ]
+  }
+}
