@@ -16,7 +16,9 @@ const hasErrors = flags => flags.some(flag => flag.severity === 'error');
 const optionalJson = async file => { try { return await readJson(file); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } };
 
 export async function run(ctx) {
-  const rounds = ctx.config.limits?.authorRounds;
+  // --author-answer <author-files.json>: check a saved author answer through the whole stage-03 check set, without an author call (one round).
+  const savedAnswer = ctx.config.run?.authorAnswer ? await readJson(ctx.config.run.authorAnswer) : null;
+  const rounds = savedAnswer ? 1 : ctx.config.limits?.authorRounds;
   const effort = agentSettings(ctx.config, 'author').effort; // recorded in the notes: attempts may override it with --author-effort
   if (!Number.isInteger(rounds) || rounds < 1) throw new Error('limits.authorRounds must be a positive integer.');
   const prompts = await readJson(join(ctx.topicDir, 'prompts.json'));
@@ -84,9 +86,9 @@ ${await prompt('author-batch')}`;
     const warnings = [];
     const saveWarnings = () => warnings.length ? writeFile(join(roundDir, 'warnings.txt'), `${warnings.join('\n')}\n`) : null;
     try {
-      const response = batchedRound ? await batchedRound(feedback, round) : await callAgent(ctx, 'author', { ...inputs, previousFiles: [...accepted.values()], feedback: String(feedback), round }, {
+      const response = savedAnswer ?? (batchedRound ? await batchedRound(feedback, round) : await callAgent(ctx, 'author', { ...inputs, previousFiles: [...accepted.values()], feedback: String(feedback), round }, {
         schema: createAuthorSchema(ctx.topic, { dryRun: ctx.fixture && ctx.dryRun }),
-        validate: value => { for (const path of dedupeAuthorFiles(value)) { const line = `Warning: the author returned ${path} more than once; kept the last entry.`; console.error(line); warnings.push(line); } return validateAuthorFiles(value, { topic: ctx.topic, dryRun: ctx.fixture && ctx.dryRun, repoRoot: target.worktree }); } });
+        validate: value => { for (const path of dedupeAuthorFiles(value)) { const line = `Warning: the author returned ${path} more than once; kept the last entry.`; console.error(line); warnings.push(line); } return validateAuthorFiles(value, { topic: ctx.topic, dryRun: ctx.fixture && ctx.dryRun, repoRoot: target.worktree }); } }));
       await saveWarnings();
       // Validate the full author response as text before any file write/import.
       const flags = lintAuthoredFiles({ files: response.files, repoRoot: target.worktree, topic: target.artifactTopic });
@@ -138,6 +140,8 @@ ${await prompt('author-batch')}`;
       const replay = await isolated(target, 'replay', { ...payload, expected: inspection.expected }, roundDir);
       // The failure names collisions and rows that missed their reference; the passing rows would only bloat the next author input past its ceiling.
       if (!replay.passed) { const { rows, ...rest } = replay; throw new Error(JSON.stringify({ ...rest, failingRows: rows.filter(row => !row.firstPick) }, null, 2)); }
+      // Collisions (two selectable worked references of one kind for a prompt) are warnings, listed here and in the stage notes.
+      const collisionList = replay.collisions.map(row => `prompt ${row.id} ${row.depth}: ${row.references.map(reference => reference.sourceId ?? reference.id).filter(id => !/^(?:shape|general)-/u.test(id)).join(' + ')}`);
       const plans = {};
       for (const row of inspection.replayCases) for (const prompt of row.paraphrases ?? []) {
         plans[prompt] ??= {};
@@ -164,8 +168,9 @@ ${await prompt('author-batch')}`;
         priorPickChanges: replay.changedPriorPicks.length, replayPassed: replay.passed,
         promptDepthCases: replay.rows.length, priorDepthCases: replay.priorCases, previewCount: contact.previewCount };
       manifest.commit = commit;
+      manifest.collisions = collisionList;
       await saveManifest();
-      return { status: 'ok', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds} (effort ${effort}): linter green, ${inspection.expected.length} prompt references first at all depths, ${(paraphrases.firstPickRate * 100).toFixed(1)}% paraphrase first picks, commit ${commit}.` };
+      return { status: 'ok', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds} (${savedAnswer ? 'saved answer, no author call' : `effort ${effort}`}): linter green, ${inspection.expected.length} prompt references first at all depths, ${(paraphrases.firstPickRate * 100).toFixed(1)}% paraphrase first picks, commit ${commit}.${collisionList.length ? ` Collision warnings (${collisionList.length}, fixed by Q3 not the author): ${collisionList.join('; ')}.` : ''}` };
     } catch (error) {
       feedback = error.message;
       await saveWarnings();
