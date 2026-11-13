@@ -258,7 +258,7 @@ test('M3 program: pending -> program artifact -> reload, zero new author calls, 
   assert.equal(new Set(attempts.map(a => a.action_id)).size, 2);
   // The program route plans the brief against the runtime, with no component list (no registered topic component needed).
   const briefBody = s.calls.find(c => c.name === 'explain_brief').body, briefInput = JSON.parse(briefBody.messages[0].content[0].text);
-  assert.deepEqual([briefInput.catalogue, briefInput.runtime.capabilities, 'components' in briefBody.tools[0].input_schema.properties], [undefined, ['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', 'medium_visuals', 'cyclic_networks', 'raster_visuals', 'heat_grid', 'props'], false]);
+  assert.deepEqual([briefInput.catalogue, briefInput.runtime.capabilities, 'components' in briefBody.tools[0].input_schema.properties], [undefined, ['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', 'medium_visuals', 'cyclic_networks', 'raster_visuals', 'heat_grid', 'props', 'figures'], false]);
   // Place the card, save, reload: the reference is back, the artifact still reads, no model call and no new job.
   const placed = await s.read('PUT', `/api/learn/boards/${CANVAS}/main`, { state: { ...EMPTY, blocks: [{ ...block, x: 40, y: 40 }] }, version: saved.body.version });
   assert.equal(placed.status, 200, JSON.stringify(placed.body));

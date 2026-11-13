@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { RASTER_LIMITS, rasterProblem } from '../raster-pixels.js';
 import { ROLES } from '../scene-vocab.js';
 import { IMAGE_FIXTURE_IDS } from './sdk-image.js';
-import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION, PROPS_CAPABILITY, PROPS_SDK_VERSION, RASTER_CAPABILITY, RASTER_SDK_VERSION } from './stamps.js';
+import { parseTutorDiagram } from '../tutor-diagrams/spec.js';
+import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, FIGURES_CAPABILITY, FIGURES_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION, PROPS_CAPABILITY, PROPS_SDK_VERSION, RASTER_CAPABILITY, RASTER_SDK_VERSION } from './stamps.js';
 
 // The frozen artifact and frame contract of the generic /explain sandbox (plan section 5.2, Task 2).
 // Subject-independent on purpose: nothing here names a topic. Every object is strict, every value bounded; the host
@@ -37,9 +38,15 @@ export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capabi
 // Capabilities a manifest may require. An unknown one is unsupported_capability, never silently ignored.
 export const HEAT_GRID_CAPABILITY = 'heat_grid';
 export const requiresHeatGrid = manifest => Array.isArray(manifest?.capabilities) && manifest.capabilities.includes(HEAT_GRID_CAPABILITY);
-export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, RASTER_CAPABILITY, HEAT_GRID_CAPABILITY, PROPS_CAPABILITY]);
+export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, RASTER_CAPABILITY, HEAT_GRID_CAPABILITY, PROPS_CAPABILITY, FIGURES_CAPABILITY]);
 // Frame object kinds: the closed set the trusted renderer draws. Equations are text objects with math runs (hardened path).
-export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image', 'raster', 'heat_grid']);
+export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image', 'raster', 'heat_grid', 'axis', 'plot', 'diagram']);
+// The semantic figure kinds (capability figures, sdk-8): a frame that draws one needs both (parseGuestResult). Saved frames never carry them, so every older artifact parses unchanged.
+export const FIGURE_KINDS = Object.freeze(['axis', 'plot', 'diagram']);
+// What a figure keeps free beside its line, in frame units, so the frame bounds check is the same number the renderer draws with (FrameFigures.jsx): an x axis keeps
+// BAND.x below it for ticks and its title, a y axis keeps BAND.y to its left and titleRoom above its top end.
+export const FIGURE_BAND = Object.freeze({ x: 52, y: 60, titleRoom: 22 });
+export const FIGURE_LIMITS = Object.freeze({ series: 3, points: 24, ticks: 12, specBytes: 16 * 1024, plotMin: Object.freeze({ w: 180, h: 120 }) });
 
 const finite = limit => z.number().min(-limit).max(limit); // z.number() already refuses NaN and Infinity
 const coordinate = finite(CONTRACT_LIMITS.coordinate);
@@ -218,7 +225,26 @@ const size = z.number().positive().max(CONTRACT_LIMITS.size);
 const cropFraction = z.number().positive().max(1);
 const imageCrop = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: cropFraction, h: cropFraction }).strict()
   .refine(({ x, y, w, h }) => x + w <= 1 && y + h <= 1, 'crop must stay within the source');
+const axisRange = z.object({ label: plain(40), min: finite(1e9), max: finite(1e9), unit: maybePlain(16).optional() }).strict().refine(axis => axis.min < axis.max, { message: 'min must be below max', path: ['max'] });
+const plotPoint = z.object({ x: finite(1e9), y: finite(1e9) }).strict();
+const plotSeries = z.object({ label: plain(40), kind: z.enum(['line', 'scatter', 'step']), points: z.array(plotPoint).min(1).max(FIGURE_LIMITS.points) }).strict()
+  .refine(series => series.kind === 'scatter' || series.points.length >= 2, { message: 'a line or step series needs at least two points', path: ['points'] });
+// The spec is the written card's own diagram JSON: parseTutorDiagram is its validator (a bad spec is invalid_output, never drawn), and it counts as one object.
+const diagramSpec = z.unknown().superRefine((spec, context) => {
+  if (spec === null || typeof spec !== 'object' || Array.isArray(spec)) return context.addIssue({ code: 'custom', message: 'a diagram spec is the diagram JSON object' });
+  let text;
+  try { text = JSON.stringify(spec); } catch { return context.addIssue({ code: 'custom', message: 'a diagram spec must be plain JSON' }); }
+  if (utf8(text) > FIGURE_LIMITS.specBytes) return context.addIssue({ code: 'custom', message: `a diagram spec is at most ${FIGURE_LIMITS.specBytes} bytes` });
+  try { parseTutorDiagram(spec); } catch (error) { context.addIssue({ code: 'custom', message: `the diagram spec is not valid: ${String(error?.issues?.[0]?.message ?? error?.message ?? error).slice(0, 160)}` }); }
+  return undefined;
+});
 const frameObject = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('axis'), id, x: coordinate, y: coordinate, length: size, orientation: z.enum(['x', 'y']), min: finite(1e9), max: finite(1e9),
+    ticks: z.array(finite(1e9)).min(1).max(FIGURE_LIMITS.ticks).optional(), label: plain(40), unit: maybePlain(16).optional(), ...style,
+  }).strict(),
+  z.object({ kind: z.literal('plot'), id, x: coordinate, y: coordinate, w: size, h: size, axes: z.object({ x: axisRange, y: axisRange }).strict(), series: z.array(plotSeries).min(1).max(FIGURE_LIMITS.series), ...style }).strict(),
+  z.object({ kind: z.literal('diagram'), id, x: coordinate, y: coordinate, w: size, spec: diagramSpec, ...style }).strict(),
   z.object({ kind: z.literal('box'), id, x: coordinate, y: coordinate, w: size, h: size, ...labelled, ...style, rotation: finite(360).default(0) }).strict(),
   z.object({ kind: z.literal('circle'), id, x: coordinate, y: coordinate, w: size, ...labelled, ...style, rotation: finite(360).default(0) }).strict(), // w is the diameter
   z.object({ kind: z.literal('text'), id, x: coordinate, y: coordinate, ...labelled, align: z.enum(['start', 'middle']).default('start'), ...style }).strict(),
@@ -238,6 +264,28 @@ const frameObject = z.discriminatedUnion('kind', [
     ...style,
   }).strict(),
 ]);
+
+// The first problem with a figure object, or null. Bounds are checked against the frame: an axis with its tick labels and title, a plot's rectangle, a diagram's left edge,
+// width and top (its height is the diagram's own, fitted by the renderer into what the frame leaves below it).
+export function figureProblem(object, frame) {
+  const inside = (left, top, right, bottom) => left >= 0 && top >= 0 && right <= frame.width && bottom <= frame.height;
+  if (object.kind === 'axis') {
+    if (!(object.min < object.max)) return 'an axis needs min below max';
+    if (object.ticks?.some(tick => tick < object.min || tick > object.max)) return 'every axis tick must lie between min and max';
+    const fits = object.orientation === 'x'
+      ? inside(object.x, object.y - 4, object.x + object.length, object.y + FIGURE_BAND.x)
+      : inside(object.x - FIGURE_BAND.y, object.y - object.length - FIGURE_BAND.titleRoom, object.x + 4, object.y + 8);
+    return fits ? null : `the axis, its tick labels and its title must stay inside the ${frame.width} x ${frame.height} frame (an x axis keeps ${FIGURE_BAND.x} below it; a y axis grows up from its start and keeps ${FIGURE_BAND.y} to its left and ${FIGURE_BAND.titleRoom} above its top)`;
+  }
+  if (object.kind === 'plot') {
+    if (object.w < FIGURE_LIMITS.plotMin.w || object.h < FIGURE_LIMITS.plotMin.h) return `a plot is at least ${FIGURE_LIMITS.plotMin.w} x ${FIGURE_LIMITS.plotMin.h}`;
+    if (!inside(object.x, object.y, object.x + object.w, object.y + object.h)) return 'the plot must stay inside the frame';
+    const { x, y } = object.axes;
+    const outside = object.series.find(series => series.points.some(point => point.x < x.min || point.x > x.max || point.y < y.min || point.y > y.max));
+    return outside ? `series "${outside.label}" has a point outside the plot axes` : null;
+  }
+  return object.x >= 0 && object.y >= 0 && object.y < frame.height && object.x + object.w <= frame.width ? null : 'the diagram must start inside the frame and fit its width';
+}
 
 export const Frame = z.object({
   width: z.number().positive().max(4096).default(960), height: z.number().positive().max(4096).default(540),
@@ -273,6 +321,10 @@ export const Frame = z.object({
       if (object.x < 0 || object.y < 0 || object.x + object.cols * object.cell > frame.width || object.y + object.rows * object.cell > frame.height) {
         context.addIssue({ code: 'custom', message: 'the heat grid must fit inside the frame', path: ['objects', index] });
       }
+    }
+    if (FIGURE_KINDS.includes(object.kind)) {
+      const problem = figureProblem(object, frame);
+      if (problem) context.addIssue({ code: 'custom', message: problem, path: ['objects', index] });
     }
     if (object.kind === 'text' && !object.text && !object.runs) context.addIssue({ code: 'custom', message: 'a text object needs text or runs', path: ['objects', index] });
     if ('text' in object && object.text && object.runs) context.addIssue({ code: 'custom', message: 'give text or runs, not both', path: ['objects', index] });
@@ -356,6 +408,9 @@ export const parseArtifact = raw => {
   if (manifest.value.capabilities.includes(PROPS_CAPABILITY) && raw.sdkVersion !== PROPS_SDK_VERSION) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'physical props require their SDK version' };
   }
+  if (manifest.value.capabilities.includes(FIGURES_CAPABILITY) && raw.sdkVersion !== FIGURES_SDK_VERSION) {
+    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'semantic figures require their SDK version' };
+  }
   if (manifest.value.capabilities.includes(RASTER_CAPABILITY) && raw.sdkVersion !== RASTER_SDK_VERSION) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'raster visuals require their SDK version' };
   }
@@ -413,6 +468,9 @@ export function parseGuestResult(raw, manifest = null, sdkVersion = null) {
     return invalid('heat_grid requires a declared capability and a heat-grid SDK');
   }
   if (objects.some(object => object.kind === 'raster') && !manifest?.capabilities?.includes(RASTER_CAPABILITY)) return invalid('frame: raster pixels require raster_visuals');
+  if (objects.some(object => FIGURE_KINDS.includes(object.kind)) && (sdkVersion !== FIGURES_SDK_VERSION || !manifest?.capabilities?.includes(FIGURES_CAPABILITY))) {
+    return invalid(`frame: axis, plot and diagram objects require the ${FIGURES_CAPABILITY} capability and ${FIGURES_SDK_VERSION}`);
+  }
   const viewport = manifest?.viewport;
   if (!viewport) return result;
   if (width !== viewport.width || height !== viewport.height) return invalid(`frame: ${width} x ${height}, but the manifest viewport is ${viewport.width} x ${viewport.height}`);
