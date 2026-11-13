@@ -34,6 +34,9 @@ export const INTERACT_ROLES = deepFreeze({
   build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },
   build_review: { task: 'explain_review', phase: 'generation', kind: 'evaluation', calls: 5, maxInputBytes: 80000, maxImages: 6, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_review },
   build_repair: { task: 'explain_repair', phase: 'generation', kind: 'repair', calls: 4, maxInputBytes: 80000, maxImages: 2, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_repair },
+  // The bench lane's blind judge (interact-bench.js), after a card is delivered with INTERACT_REVIEW=shadow: claude-sonnet-5-5, never Opus; a phase of its own, so it is in neither
+  // reservation (interactReservation) and is paid by the platform (explain-job.js benchTransport), never from the learner's allowance. Text only: maxImages 0.
+  bench_judge: { task: 'interact_bench_judge', phase: 'bench', kind: 'evaluation', calls: 1, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 4000, model: 'claude-sonnet-5-5' },
 });
 export const INTERACT_ROLE_IDS = Object.freeze(Object.keys(INTERACT_ROLES));
 export const INTERACT_LIMITS = deepFreeze({ calls: Object.fromEntries(INTERACT_ROLE_IDS.map(r => [r, INTERACT_ROLES[r].calls])), refinements: 5, correctionRounds: 3,
@@ -49,9 +52,9 @@ function interactRoleSpec(role) {
 const ADAPTERS = ['anthropic', 'openai-compatible'];
 // The all-Opus role config: the existing automatic-tool approach (one tool on auto), no thinking, effort or fallback setting of its own.
 const opusRole = role => ({
-  role, task: INTERACT_ROLES[role].task, provider: 'anthropic', model: 'claude-opus-5-5', adapter: 'anthropic', credentialRef: 'ANTHROPIC_API_KEY',
+  role, task: INTERACT_ROLES[role].task, provider: 'anthropic', model: INTERACT_ROLES[role].model ?? 'claude-opus-5-5', adapter: 'anthropic', credentialRef: 'ANTHROPIC_API_KEY',
   maxOutputTokens: INTERACT_ROLES[role].maxOutputTokens, maxInputBytes: INTERACT_ROLES[role].maxInputBytes, maxImages: INTERACT_ROLES[role].maxImages,
-  timeoutMs: 300000, settings: {}, pricingKey: { provider: 'anthropic', model: 'claude-opus-5-5', tier: 'standard' },
+  timeoutMs: 300000, settings: {}, pricingKey: { provider: 'anthropic', model: INTERACT_ROLES[role].model ?? 'claude-opus-5-5', tier: 'standard' },
   // imageTokens: the per-image reservation of requestSpendBound for Opus (learn-spend.js), so reservation and admission agree.
   capabilities: { vision: true, structuredOutput: 'tool_call', oneOf: 'native', cache: true, settings: [], imageTokens: 4784 },
   // servedMatch 'snapshot': claude-opus-5-5-YYYYMMDD is the same model. servedModelAliases: other approved served ids, exact.
@@ -133,10 +136,10 @@ export function roleBoundMicros(config) {
 // Preparation (design roles) and generation (build roles) reservations at the profile's call ceilings. A phase with any unpriced role is
 // null and names the roles; it is never a smaller number.
 export function interactReservation(profile) {
-  const perRole = Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, { calls: INTERACT_ROLES[role].calls, boundMicros: roleBoundMicros(profile.roles[role]) }]));
+  const perRole = Object.fromEntries(INTERACT_ROLE_IDS.filter(role => INTERACT_ROLES[role].phase !== 'bench').map(role => [role, { calls: INTERACT_ROLES[role].calls, boundMicros: roleBoundMicros(profile.roles[role]) }]));
   const phase = name => { const roles = INTERACT_ROLE_IDS.filter(r => INTERACT_ROLES[r].phase === name); return roles.some(r => perRole[r].boundMicros == null) ? null : roles.reduce((t, r) => t + perRole[r].calls * perRole[r].boundMicros, 0); };
   return { version: INTERACT_POLICY_VERSION, profile: { id: profile.id, version: profile.version }, preparationMicros: phase('preparation'), generationMicros: phase('generation'),
-    unknownRoles: INTERACT_ROLE_IDS.filter(r => perRole[r].boundMicros == null), perRole };
+    unknownRoles: Object.keys(perRole).filter(r => perRole[r].boundMicros == null), perRole };
 }
 // Actual cost in micro-USD from normalized usage (cache read and write as the adapter supplied them), or null when usage or any rate is unknown.
 export function interactCostMicros(config, usage) {

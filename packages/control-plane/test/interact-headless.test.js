@@ -46,8 +46,9 @@ test('INTERACT_RUN: unset or browser keeps the job\'s own capture seam, headless
   const role = { env: {}, captureCard: seam };
   assert.equal(captureRole(role), role);
   assert.equal(captureRole({ ...role, env: { INTERACT_RUN: 'browser' } }).captureCard, seam);
-  const headless = captureRole({ ...role, env: { INTERACT_RUN: 'headless' } });
+  const headless = captureRole({ ...role, env: { INTERACT_RUN: 'headless', INTERACT_REVIEW: 'shadow' } });
   assert.notEqual(headless.captureCard, seam);
   assert.equal(typeof headless.captureCard, 'function');
   assert.throws(() => captureRole({ ...role, env: { INTERACT_RUN: 'Headless' } }), /INTERACT_RUN must be browser or headless/);
+  assert.throws(() => captureRole({ ...role, env: { INTERACT_RUN: 'headless' } }), /needs INTERACT_REVIEW=shadow/, 'no pixels for the gating review');
 });

@@ -18,6 +18,7 @@ import { undeliverable } from '../src/interact-job.js';
 import { checkSceneAgainstPlan, buildPlanCaptureCases } from '../src/interact-checks.js';
 import { deepTossDropOracle, interactOracle, overviewDropOracle, pendulumPeriodOracle, standardTossDropOracle } from '../src/interact-oracle.js';
 import { OWNER, BOARD, PLAN, clone, designStack, postedProposal } from './interact-design-fixture.js';
+import { BENCH_JUDGE_RUBRIC, BENCH_JUDGE_TOOL, BENCH_JUDGE_VERSION } from '../src/agents/interact-bench-judge.js';
 
 test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(() => { console.log = log; }); });
 
@@ -689,7 +690,7 @@ test('the owner diagnostics (detail=1) carry the benchmark ledger row: the oracl
 
 test('INTERACT_RUN=headless: the rendering stage runs the sealed program in-process and the oracle still catches a wrong one; the render service is never reached and no render is booked', async t => {
   const { s, id } = await designed(t, { build: () => ({ kind: 'scene', ...wrong()(fixtureDraft('standard')) }) });
-  s.env.INTERACT_RUN = 'headless';
+  Object.assign(s.env, { INTERACT_RUN: 'headless', INTERACT_REVIEW: 'shadow' }); // a headless run has no pixels, so the gating review cannot read it
   assert.equal((await s.approve(id)).status, 202);
   for (let i = 0; i < 12 && s.jobOf(id).stage !== 'repairing'; i++) await s.actor.alarm();
   const job = s.jobOf(id);
@@ -699,4 +700,108 @@ test('INTERACT_RUN=headless: the rendering stage runs the sealed program in-proc
   assert.equal(job.renders, 0);
   assert.equal(s.calls.review.length, 0);
   assert.ok(job.build.ms.run >= 0 && job.build.ms.check >= 0);
+});
+
+// ---- INTERACT_REVIEW=shadow and the bench judge (build-half sprint item 3) ----------------------------------------------------------------------
+// The judge's calls are recognised by its tool and answered here; everything else goes to the stack's own scripted providers.
+const JUDGE = { verdict: 'pass', findings: [{ capture: 'cp-top', category: 'spec', severity: 'minor', message: 'The top marker label is close to the arrow.' }] };
+function judgeProvider(t, answer = () => reply(BENCH_JUDGE_TOOL.name, JUDGE)) {
+  const next = globalThis.fetch, requests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const body = typeof options.body === 'string' ? JSON.parse(options.body) : null;
+    if (body?.tools?.[0]?.name !== BENCH_JUDGE_TOOL.name) return next(url, options);
+    requests.push(body);
+    return answer(requests.length);
+  };
+  t.after(() => { globalThis.fetch = next; });
+  return requests;
+}
+const judgeReply = () => Response.json({ model: 'claude-sonnet-5-5', content: [{ type: 'tool_use', id: 'tj', name: BENCH_JUDGE_TOOL.name, input: JUDGE }], stop_reason: 'tool_use', usage: { input_tokens: 3000, output_tokens: 300 } });
+const shadowStack = async (t, answer) => {
+  const { s, id, proposal } = await designed(t);
+  Object.assign(s.env, { INTERACT_REVIEW: 'shadow', EXPLAIN_DIAGNOSTICS: 'true' });
+  return { s, id, proposal, requests: judgeProvider(t, answer) };
+};
+
+test('INTERACT_REVIEW=shadow: the card is ready after the checks with zero review calls, then ONE alarm-driven step records a Sonnet judge verdict that the ledger row shows', async t => {
+  const { s, id, proposal, requests } = await shadowStack(t, judgeReply);
+  const { job, seen } = await s.generate(id);
+  assert.deepEqual(seen, ['authoring', 'validating', 'rendering', 'ready'], 'no reviewing stage');
+  assert.deepEqual([job.stage, job.stopReason, job.bench, s.calls.review.length, s.calls.repair.length, requests.length], ['ready', 'accepted', { pending: true }, 0, 0, 0]);
+  const saved = s.state.data.get(`result:${job.resultId}`);
+  assert.equal(saved.composition.envelopeHash, job.result.interact.envelopeHash, 'accepted on its composition hash');
+  assert.equal(job.result.interact.review, 'shadow');
+  assert.equal(job.result.interact.planHash, proposal.input.scene_plan_hash);
+  const before = (await s.route(`/${id}?board=${BOARD.id}`)).body.job, attemptsBefore = ledger(s).attempts.length;
+
+  await s.actor.alarm(); // the benching step
+  const after = s.jobOf(id);
+  assert.equal(requests.length, 1);
+  assert.deepEqual([after.stage, after.stopReason, after.result], ['ready', 'accepted', job.result]);
+  assert.equal(after.bench.pending, false);
+  const judge = after.bench.judge;
+  assert.deepEqual([judge.model, judge.verdict, judge.findings, judge.rubric.version], ['claude-sonnet-5-5', 'pass', JUDGE.findings, BENCH_JUDGE_VERSION]);
+  assert.ok(judge.ms >= 0 && judge.costMicros > 0);
+
+  // The request: Sonnet, the rubric as its system prompt, text only, and blind (no expected text, no model names).
+  const [request] = requests, text = request.messages[0].content.map(b => b.text ?? '').join('');
+  assert.equal(request.model, 'claude-sonnet-5-5');
+  assert.deepEqual(request.messages[0].content.map(b => b.type), ['text'], 'no images');
+  assert.equal(request.system[0].text, BENCH_JUDGE_RUBRIC);
+  for (const c of PLAN.standard.scene.checkpoints) assert.equal(text.includes(c.expected), false);
+  assert.doesNotMatch(text, /opus|sonnet|claude|oracle/i);
+
+  // Platform-paid: nothing of it reaches the learner's credits, the job's own calls or its reservation.
+  const view = (await s.route(`/${id}?board=${BOARD.id}`)).body.job;
+  assert.deepEqual([view.usage, after.calls.length, after.reservedMicros], [before.usage, job.calls.length, job.reservedMicros]);
+  assert.deepEqual(ledger(s).attempts.slice(attemptsBefore).map(a => [a.kind, a.status]), [['evaluation', 'settled']], 'the judge call is one settled evaluation attempt');
+  assert.deepEqual(s.sqlite.prepare("SELECT payer, charge_class FROM usage_actions WHERE payer_reason = 'system'").all().map(r => ({ ...r })), [{ payer: 'platform', charge_class: 'platform' }], 'its action is platform-funded: no payer, no allowance');
+  // The ledger row (detail=1) carries the verdict; later alarms never judge again.
+  const { ledger: row, bench } = (await s.route(`/${id}?board=${BOARD.id}&detail=1`)).body.diagnostics;
+  assert.deepEqual([row.judgeVerdict, row.judgeMajor, row.result, row.msReview], ['pass', 0, 'ready', null]);
+  assert.deepEqual(bench, after.bench);
+  for (let i = 0; i < 3; i++) await s.actor.alarm();
+  assert.equal(requests.length, 1);
+});
+
+test('a judge that fails, is refused or times out never changes the ready card, and is not resent', async t => {
+  for (const [name, answer] of [['http 500', () => new Response('{"error":{"message":"boom"}}', { status: 500, headers: { 'content-type': 'application/json' } })], ['wrong shape', () => reply(BENCH_JUDGE_TOOL.name, { verdict: 'maybe', findings: [] })], ['connection lost', () => { throw new TypeError('network connection lost'); }]]) {
+    const { s, id, requests } = await shadowStack(t, answer);
+    const { job } = await s.generate(id);
+    await s.actor.alarm();
+    for (let i = 0; i < 3; i++) await s.actor.alarm();
+    const after = s.jobOf(id);
+    assert.deepEqual([name, after.stage, after.stopReason, after.result, requests.length], [name, 'ready', 'accepted', job.result, 1]);
+    assert.equal(after.bench.pending, false, name);
+    assert.equal(after.bench.judge, undefined, name);
+    assert.ok(after.bench.error.code, name);
+    assert.ok(s.state.data.get(`result:${job.resultId}`), 'the card is still there');
+    assert.equal((await s.route(`/${id}?board=${BOARD.id}&detail=1`)).body.diagnostics.ledger.judgeVerdict, null);
+  }
+});
+
+test('a restart in the middle of the judge call: the call may have been billed, so a new object marks it interrupted and does not resend; the card stays ready', async t => {
+  const { s, id, requests } = await shadowStack(t, judgeReply);
+  const { job } = await s.generate(id);
+  const record = s.jobOf(id);
+  record.bench = { pending: false, running: true, startedAt: Date.now() }; // what the old object stored when it began, before it was lost
+  await s.state.storage.put(`job:${id}`, record);
+  const fresh = s.object();
+  for (let i = 0; i < 3; i++) await fresh.alarm();
+  const after = s.jobOf(id);
+  assert.deepEqual([after.stage, after.result, after.bench.error.code, requests.length], ['ready', job.result, 'interrupted', 0]);
+});
+
+test('INTERACT_REVIEW gate (the default) is unchanged: the rendered review gates delivery and no bench step exists; a misspelled value stops the build before any model call', async t => {
+  const { s, id } = await designed(t);
+  s.env.EXPLAIN_DIAGNOSTICS = 'true';
+  const { job, seen } = await s.generate(id);
+  assert.deepEqual(seen, ['authoring', 'validating', 'rendering', 'reviewing', 'ready']);
+  assert.deepEqual([job.bench, s.calls.review.length, job.result.interact.review], [undefined, 1, undefined]);
+  assert.equal((await s.route(`/${id}?board=${BOARD.id}&detail=1`)).body.diagnostics.bench, undefined);
+  const bad = await designed(t);
+  bad.s.env.INTERACT_REVIEW = 'Shadow';
+  const { job: stopped } = await bad.s.generate(bad.id);
+  assert.deepEqual([stopped.stage, bad.s.calls.build.length], ['failed', 0]);
+  assert.match(stopped.failure.message, /INTERACT_REVIEW must be gate or shadow/);
 });

@@ -57,7 +57,17 @@ export function captureRole(role) {
   const mode = role.env?.INTERACT_RUN || 'browser';
   if (mode === 'browser') return role;
   if (mode !== 'headless') throw Object.assign(fail(`INTERACT_RUN must be browser or headless (got ${String(mode).slice(0, 40)}).`, 500, 'invalid_setting'), { category: 'internal' });
+  // A headless capture has no pixels, so the rendered review (gate) cannot read it: the pair is refused before a build is spent on it.
+  if (reviewMode(role.env) !== 'shadow') throw Object.assign(fail('INTERACT_RUN=headless needs INTERACT_REVIEW=shadow: the gating review reads pixels, a headless run has none.', 500, 'invalid_setting'), { category: 'internal' });
   return { ...role, captureCard: headlessCaptureCard(role.env) };
+}
+
+// INTERACT_REVIEW picks what the independent review does: 'gate' (the default) is build_review as a gate on delivery; 'shadow' delivers a card that passed the checks and scores it afterwards
+// with the blind bench judge (interact-bench.js), which never changes the card. Anything else fails closed.
+export function reviewMode(env) {
+  const mode = env?.INTERACT_REVIEW || 'gate';
+  if (mode !== 'gate' && mode !== 'shadow') throw Object.assign(fail(`INTERACT_REVIEW must be gate or shadow (got ${String(mode).slice(0, 40)}).`, 500, 'invalid_setting'), { category: 'internal' });
+  return mode;
 }
 
 export async function renderStage(job, ctx) {

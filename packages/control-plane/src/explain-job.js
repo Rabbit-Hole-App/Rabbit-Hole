@@ -31,7 +31,7 @@ import { anthropic } from './ask.js';
 import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
 import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
 import { refusalBody } from './learn-spend-ledger.js';
-import { withUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, finishAction, toMicros } from './learn-usage.js';
+import { withUsage, withSystemUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, finishAction, toMicros } from './learn-usage.js';
 import { allowanceFor } from './learn-entitlement.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRevision, signProposal, verifyProposal } from './generation-proposal.js';
@@ -44,7 +44,8 @@ import { DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, app
 import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } from '../../web/src/interact-plan.js';
 import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
 import { verifyComposition } from '../../web/src/interact-composition.js';
-import { captureCardFor, interactBuildPipeline } from './interact-job.js';
+import { captureCardFor, interactBuildPipeline, reviewMode } from './interact-job.js';
+import { benchJudge } from './interact-bench.js';
 import { ledgerRow } from './interact-ledger.js';
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { capabilityGap } from './explain-author.js';
@@ -211,6 +212,7 @@ export const planProposalFields = job => {
 // The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
 const explainDiagnostics = (job, designFixture = null) => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), ...(job.coverage ? { coverage: job.coverage } : {}), ...(job.history ? { history: job.history, historyDropped: job.historyDropped || 0 } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
   calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing,
+  ...(job.bench ? { bench: job.bench } : {}),
   ...(job.flow && job.approval ? { ledger: ledgerRow({ ...job, plan: job.design?.plan, planHash: job.design?.finalHash, designFixture }) } : {}) });
 
 // Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
@@ -336,7 +338,7 @@ export class ExplainJobs {
   // setting INTERACT_DESCRIPTION_FIT=estimate selects the pure estimate and anything else fails closed); buildScene(job, ctx) -> a legacy-shaped builder (a test seam;
   // absent, the real build of interact-job.js runs).
   // deps.render: renderStates' own deps for the new flow's captures (launch, browser, store); deps.captureCard replaces the capture seam (tests).
-  constructor(state, env, pipeline = explainPipeline, deps = {}) { this.state = state; this.env = env; this.pipeline = pipeline; this.deps = deps; this.active = new Set(); this.building = new Map(); }
+  constructor(state, env, pipeline = explainPipeline, deps = {}) { this.state = state; this.env = env; this.pipeline = pipeline; this.deps = deps; this.active = new Set(); this.building = new Map(); this.benching = new Set(); }
   async locked(fn) {
     // An exception escaping blockConcurrencyWhile resets the object; expected refusals leave the gate first.
     const out = await this.state.blockConcurrencyWhile(async () => { try { return { value: await fn() }; } catch (error) { return { error }; } });
@@ -780,6 +782,7 @@ export class ExplainJobs {
   async buildRoleCtx(job) {
     const profile = resolveInteractProfile(job.flow.profile.id);
     if (await interactProfileHash(profile) !== job.flow.profile.hash) throw Object.assign(fail('The model settings changed since this request started. Start a new request.', 409, 'profile_changed'), { stopReason: 'profile_changed' });
+    reviewMode(this.env); // a misspelled INTERACT_REVIEW stops the build before anything is spent
     return { env: this.env, profile,
       adapters: { anthropic: { name: 'anthropic', call: args => interactAdapters({ env: this.env, callModel: this.interactTransport(job, args.config.role) }).anthropic.call(args) } },
       // ponytail: the render service cannot compose the card, so every capture is per-panel (completeCard:false) and the reviewer is told so; see interact-checks.js.
@@ -845,6 +848,8 @@ export class ExplainJobs {
       await keep('captures', out.captured); b.check = out.check; b.failure = null;
       job.renders += out.renders.length; countStage(job.timing, { captures: out.captured.length });
       await this.recordRenders(job, out.renders);
+      // INTERACT_REVIEW=shadow: a candidate that passed the checks is delivered on its composition hash; the blind judge scores it afterwards (benchStep).
+      if (reviewMode(this.env) === 'shadow') { job.findings.push({ round: job.round, stage: 'reviewing', accepted: true, findings: [], review: 'shadow' }); return this.acceptInteract(job); }
       next('reviewing');
     } else if (stage === 'reviewing') {
       if (out.accepted === true) { job.findings.push({ round: job.round, stage, accepted: true, findings: [] }); return this.acceptInteract(job); }
@@ -870,12 +875,50 @@ export class ExplainJobs {
     job.result = { jobId: job.id, resultId: job.resultId, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: (await sha256Hex(job.prompt)).slice(0, 16),
       revision: job.revision, baseRevision: job.baseRevision, kind: 'program', bundleHash: main.bundleHash, sourceHash: main.sourceHash, manifestHash: main.manifestHash,
       versions: { schema: main.schemaVersion, runtime: main.runtimeVersion, sdk: main.sdkVersion, renderer: main.rendererVersion }, policyVersion: job.policyVersion,
-      interact: { version: 1, planHash: b.composition.planHash, envelopeHash: b.composition.envelopeHash, rounds: job.round, completeCard: false, descriptionFit: job.design.fit?.styleVersion ?? null } };
+      interact: { version: 1, planHash: b.composition.planHash, envelopeHash: b.composition.envelopeHash, rounds: job.round, completeCard: false, descriptionFit: job.design.fit?.styleVersion ?? null, ...(reviewMode(this.env) === 'shadow' ? { review: 'shadow' } : {}) } };
     await this.state.storage.put(`result:${job.resultId}`, { kind: 'interact', artifact: main, supporting, composition: b.composition, planHash: b.composition.planHash, identity: job.result, owner: { org: job.owner.org, email: job.owner.email }, boardId: job.boardId, cardId: job.cardId,
       authoredBy: author ? { requested: author.requested, served: author.served } : null, provenance: { ...provenanceOf(job), request: job.result.promptRef, context: await hashOf(job.context), edited: null } });
     endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
     Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
+    if (reviewMode(this.env) === 'shadow') job.bench = { pending: true }; // durable: the alarm picks a ready job with bench pending up (benchStep), also after a restart
     await this.save(job); await this.finishUsage(job, 'completed');
+  }
+
+  // The bench lane: ONE judge call after delivery, platform-paid (never the learner's allowance, never a reservation of the job). Whatever happens here is kept in job.bench and
+  // the job stays ready: a failure, a refusal or an interruption never reaches the card. A call that was interrupted may have been billed, so it is never resent.
+  async benchStep(job) {
+    if (job.bench?.running) {
+      if (this.benching.has(job.id)) return;
+      return this.locked(async () => {
+        const current = await this.get(job.id);
+        if (current.bench?.running && !this.benching.has(job.id)) { current.bench = { pending: false, error: { code: 'interrupted', message: 'The judge call was interrupted; it is not resent and its cost is unknown.' } }; await this.save(current); }
+      });
+    }
+    const started = await this.locked(async () => {
+      const current = await this.get(job.id);
+      if (!current?.bench?.pending || this.benching.has(job.id)) return false;
+      current.bench = { pending: false, running: true, startedAt: Date.now() }; await this.save(current); this.benching.add(job.id);
+      return true;
+    });
+    if (!started) return;
+    let judge, error;
+    try {
+      const b = await this.loadBuild(job), profile = resolveInteractProfile(job.flow.profile.id);
+      if (await interactProfileHash(profile) !== job.flow.profile.hash) throw Object.assign(fail('The model settings changed since this request started.', 409, 'profile_changed'), { stopReason: 'profile_changed' });
+      judge = await benchJudge({ id: job.id, plan: job.design.plan, artifacts: b.artifacts, composition: b.composition, captures: b.captures },
+        { env: this.env, profile, adapters: { anthropic: { name: 'anthropic', call: args => interactAdapters({ env: this.env, callModel: this.benchTransport(job) }).anthropic.call(args) } } });
+    } catch (e) { error = e; } finally { this.benching.delete(job.id); }
+    await this.locked(async () => {
+      const current = await this.get(job.id);
+      current.bench = error ? { pending: false, error: { code: error.code || 'error', message: String(error.message).slice(0, 200), costMicros: error.costMicros ?? null } } : { pending: false, judge };
+      await this.save(current);
+    });
+  }
+  // The same admitted Anthropic dispatch as interactTransport, but under marked system usage: the platform guard alone (USAGE_PLATFORM_DAY_USD and the operation cap), no payer, so
+  // the learner's monthly allowance is never reserved or charged. The attempt is recorded as an evaluation.
+  benchTransport(job) {
+    return (env, body, model) => spendTransport(withSystemUsage(this.env, 'artifact'), body, model, null, admitted => anthropic(admitted, body, model, null),
+      { userId: job.owner.userId || job.owner.email, category: 'explain', provider: 'anthropic', kind: 'evaluation' });
   }
 
   async alarm() {
@@ -883,7 +926,7 @@ export class ExplainJobs {
     let active = false;
     for (const [, snapshot] of await this.state.storage.list({ prefix: 'job:' })) {
       const job = await this.get(snapshot.id);
-      if (!job || TERMINAL.has(job.stage) && !job.inFlight || job.stage === 'awaiting_approval') continue;
+      if (!job || TERMINAL.has(job.stage) && !job.inFlight && !job.bench?.pending && !job.bench?.running || job.stage === 'awaiting_approval') continue;
       active = true;
       try { await this.advance(job); } catch (error) { await this.failed(job, error); }
     }
@@ -909,6 +952,7 @@ export class ExplainJobs {
 
   async advance(job) {
     if (job.inFlight) { if (!this.active.has(job.id)) await this.locked(async () => { const current = await this.get(job.id); if (current.inFlight && !this.active.has(job.id)) await this.reconcile(current); }); return; }
+    if (TERMINAL.has(job.stage)) return this.benchStep(job); // only a delivered card with a bench step due gets here (alarm)
     if (Date.now() > job.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${job.stage}.`, 409), { stopReason: 'deadline' });
     if (job.stage === 'queued') return this.move(job, job.flow ? 'design_authoring' : job.prepare && !job.approval ? 'preparing' : 'authoring');
     // interact: the design roles' model calls; a dev-only pin (interact-design-pin.js, never in production) answers them from the fixture plan.
