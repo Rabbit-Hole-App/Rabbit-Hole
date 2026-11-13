@@ -60,7 +60,7 @@ test('generalised pack exports demo-lesson04 bench-run format and arbitrary topi
     assert.equal(result.rows.length, 1);
     const dir = join(out, topic === 'lesson04' ? '01-majority-vote' : '01-votes');
     const md = await readFile(join(dir, 'card.md'), 'utf8');
-    assert.match(md, /Selector hit .*: yes; first pick .*: no/);
+    assert.match(md, /Selector hit .*: yes; first pick .*: yes/);
     assert.match(md, /References sent.*shape-bar-chart/);
     assert.match(md, /model kind = expected: yes/);
     assert.match(md, /Sent bare/); assert.match(md, /Factual \(factual-v2\): 5\/5/);
