@@ -46,6 +46,14 @@ export const STATEFUL_PROPS_PROGRAM_STAMPS = Object.freeze({ ...PROPS_PROGRAM_ST
 // Semantic figures (the frame kinds axis, plot and diagram; sdk.axis, sdk.plot with axes, sdk.diagram) are an opt-in extension of sdk-7: the saved sdk-2 and sdk-7 bytes stay unchanged.
 export const FIGURES_CAPABILITY = 'figures';
 export const FIGURES_SDK_VERSION = 'sdk-8';
+const FIGURES_RENDERER_VERSION = 'renderer-5';
+export const FIGURES_PROGRAM_STAMPS = Object.freeze({
+  ...PROPS_PROGRAM_STAMPS,
+  sdkVersion: FIGURES_SDK_VERSION,
+  rendererVersion: FIGURES_RENDERER_VERSION,
+  fingerprints: Object.freeze({ ...PROPS_PROGRAM_STAMPS.fingerprints, sdk: 'a5f834c790e8dff05109b66bebf11891241b9b49dce00fc40da0c597feb0b46b', renderer: FIGURES_RENDERER_VERSION }),
+});
+export const STATEFUL_FIGURES_PROGRAM_STAMPS = Object.freeze({ ...FIGURES_PROGRAM_STAMPS, schemaVersion: 2 });
 
 export const MEDIUM_CAPABILITY = 'medium_visuals';
 export const MEDIUM_SDK_VERSION = 'sdk-4';
@@ -100,4 +108,5 @@ export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([
   tuple(1, RASTER_PROGRAM_STAMPS), tuple(2, STATEFUL_RASTER_PROGRAM_STAMPS),
   tuple(1, HEAT_GRID_PROGRAM_STAMPS), tuple(2, STATEFUL_HEAT_GRID_PROGRAM_STAMPS),
   tuple(1, PROPS_PROGRAM_STAMPS), tuple(2, STATEFUL_PROPS_PROGRAM_STAMPS),
+  tuple(1, FIGURES_PROGRAM_STAMPS), tuple(2, STATEFUL_FIGURES_PROGRAM_STAMPS),
 ]);

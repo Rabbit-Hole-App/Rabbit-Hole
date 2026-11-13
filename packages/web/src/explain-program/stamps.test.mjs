@@ -73,6 +73,20 @@ test('the physical-props SDK (sdk-7) is a new tuple beside sdk-2: its own finger
   assert.equal(stamps.STATEFUL_PROPS_PROGRAM_STAMPS.schemaVersion, 2);
 });
 
+test('the semantic-figures SDK (sdk-8) is a new tuple beside sdk-7: its own fingerprint and renderer, sdk-2 and sdk-7 bytes unchanged, both schemas supported', async () => {
+  const { programSdkSource } = await import('./sdk.js');
+  assert.equal(stamps.FIGURES_SDK_VERSION, 'sdk-8');
+  assert.equal(stamps.FIGURES_CAPABILITY, 'figures');
+  assert.equal(createHash('sha256').update(programSdkSource('sdk-8')).digest('hex'), stamps.FIGURES_PROGRAM_STAMPS.fingerprints.sdk, 'update the FIGURES fingerprint in stamps.js when sdk-figures.js changes');
+  assert.equal(createHash('sha256').update(programSdkSource('sdk-2')).digest('hex'), stamps.VISUAL_PROGRAM_STAMPS.fingerprints.sdk);
+  assert.equal(createHash('sha256').update(programSdkSource('sdk-7')).digest('hex'), stamps.PROPS_PROGRAM_STAMPS.fingerprints.sdk);
+  assert.notEqual(stamps.FIGURES_PROGRAM_STAMPS.fingerprints.sdk, stamps.PROPS_PROGRAM_STAMPS.fingerprints.sdk);
+  assert.equal(stamps.FIGURES_PROGRAM_STAMPS.rendererVersion, 'renderer-5', 'the new frame kinds are a new renderer');
+  assert.equal(stamps.FIGURES_PROGRAM_STAMPS.fingerprints.renderer, 'renderer-5');
+  assert.deepEqual(stamps.SUPPORTED_PROGRAM_TUPLES.filter(t => t.sdkVersion === 'sdk-8').map(t => t.schemaVersion), [1, 2]);
+  assert.equal(stamps.SUPPORTED_PROGRAM_TUPLES.filter(t => t.sdkVersion === 'sdk-7').length, 2, 'sdk-7 is still supported beside it');
+});
+
 test('a sealed program uses the SDK named in its verified stamps', async () => {
   const { programSdkSource } = await import('./sdk.js');
   assert.equal(createHash('sha256').update(programSdkSource('sdk-2')).digest('hex'), stamps.VISUAL_PROGRAM_STAMPS.fingerprints.sdk);

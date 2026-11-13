@@ -405,7 +405,7 @@ export const parseArtifact = raw => {
   if (manifest.value.capabilities.includes(CYCLIC_CAPABILITY) && ![CYCLIC_SDK_VERSION, RASTER_SDK_VERSION].includes(raw.sdkVersion)) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'cyclic networks require their SDK version' };
   }
-  if (manifest.value.capabilities.includes(PROPS_CAPABILITY) && raw.sdkVersion !== PROPS_SDK_VERSION) {
+  if (manifest.value.capabilities.includes(PROPS_CAPABILITY) && ![PROPS_SDK_VERSION, FIGURES_SDK_VERSION].includes(raw.sdkVersion)) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'physical props require their SDK version' };
   }
   if (manifest.value.capabilities.includes(FIGURES_CAPABILITY) && raw.sdkVersion !== FIGURES_SDK_VERSION) {
