@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, writeFile, open, unlink } from 'node:fs/promises';
-import { join, relative, isAbsolute } from 'node:path';
+import { join, relative, isAbsolute, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export async function readJson(path) {
@@ -44,7 +44,9 @@ export async function withTopicLock(topicDir, work) {
   finally { await handle.close(); await unlink(path); }
 }
 
-export async function archiveFrom(topicDir, state, from) {
+// keep: absolute paths that stay where they are (a resumed author attempt keeps its author folder and manifest); their stage entries are still dropped.
+export async function archiveFrom(topicDir, state, from, { keep = [] } = {}) {
+  const kept = keep.map(path => resolve(path));
   const ids = Object.keys(state.stages).filter(id => id >= from);
   if (!ids.length) return;
   const archive = join(topicDir, 'history', `${Date.now()}-${randomUUID().slice(0, 8)}`);
@@ -55,7 +57,7 @@ export async function archiveFrom(topicDir, state, from) {
     for (const path of state.stages[id].artefacts ?? []) {
       const rel = relative(topicDir, path);
       if (!rel || rel.startsWith('..') || isAbsolute(rel)) throw new Error('Stage artefact is outside its topic folder');
-      if (moved.has(path)) continue;
+      if (moved.has(path) || kept.includes(resolve(path))) continue;
       const destination = join(archive, rel);
       await mkdir(join(destination, '..'), { recursive: true });
       try { await rename(path, destination); }

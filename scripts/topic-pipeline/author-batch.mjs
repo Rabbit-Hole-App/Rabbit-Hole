@@ -172,12 +172,18 @@ export const FEEDBACK_LIMIT = 30000;
 export const capFeedback = text => String(text ?? '').length > FEEDBACK_LIMIT ? `${String(text).slice(0, FEEDBACK_LIMIT)}
 [feedback truncated: ${String(text).length - FEEDBACK_LIMIT} more characters]` : String(text ?? '');
 
-export function createBatchedAuthor({ call, base, rows, size, artifactTopic, diagrams, registry, exemplar, log = () => {} }) {
+export function createBatchedAuthor({ call, base, rows, size, artifactTopic, diagrams, registry, exemplar, log = () => {}, seed = null }) {
   const p = paths(artifactTopic, diagrams);
   const state = { foundation: null, parts: planBatches(rows, size).map(group => ({ rows: group, output: null, ok: false })), referenceRanges: [], testRanges: [] };
+  // Resume (reviewer 2026-11-13): a relaunch seeds what the last round left (the foundation, each batch's accepted answer or the answer that was rejected), so the narrow retry works across process restarts.
+  // A seed that does not describe these same batches is ignored.
+  if (seed?.parts?.length === state.parts.length && seed.parts.every((saved, index) => saved.rowIds?.join() === state.parts[index].rows.map(row => String(row.id)).join())) {
+    state.foundation = seed.foundation ?? null;
+    seed.parts.forEach((saved, index) => Object.assign(state.parts[index], { output: saved.output ?? null, ok: Boolean(saved.ok && saved.output && state.foundation), rejected: saved.rejected ?? null }));
+  }
   const exemplarData = exemplar.filter(file => /-data(?:\.test)?\.m?js$/u.test(file.path));
   const exemplarReferences = exemplar.filter(file => /-references(?:\.test)?\.m?js$/u.test(file.path)), exemplarWalkthrough = exemplar.filter(file => file.path.endsWith('.md'));
-  return async function round(feedback, round) {
+  const roundFn = async function round(feedback, round) {
     let redoFoundation = !state.foundation, redo = new Set();
     if (state.foundation && state.parts.every(part => part.ok)) {
       const route = routeFailure(feedback, { artifactTopic, parts: state.parts, referenceRanges: state.referenceRanges, testRanges: state.testRanges }, diagrams);
@@ -192,14 +198,15 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
     const results = await Promise.allSettled([...redo].map(async index => {
       const part = state.parts[index];
       part.ok = false;
-      const before = part.output, last = index === state.parts.length - 1, narrow = retryScope(before, part.rows, feedback);
+      const before = part.output ?? part.rejected ?? null, last = index === state.parts.length - 1, narrow = retryScope(before, part.rows, feedback);
       // Measurement of the narrow retry (reviewer 2026-11-13): what each batch call was sent and what was held back, per round.
       log({ round, batch: index + 1, mode: !before ? 'first' : narrow ? 'narrow' : 'whole', called: (narrow ? narrow.previous.references : before?.references ?? part.rows).map(item => item.id),
         held: narrow ? before.references.filter(reference => !narrow.previous.references.includes(reference)).map(reference => reference.id) : [], feedbackChars: String(narrow ? narrow.feedback : feedback ?? '').length });
       const answer = await call('batch', { ...base, part: 'batch', batch: index + 1, of: state.parts.length, last, assigned: narrow ? narrow.rows : part.rows,
         dataModule: state.foundation, exemplar: last ? [...exemplarReferences, ...exemplarWalkthrough] : exemplarReferences, helperSource: helperSource(artifactTopic).join('\n'),
-        previous: narrow ? narrow.previous : part.output, feedback: capFeedback(narrow ? narrow.feedback : feedback), round }, narrow ? narrow.rows : part.rows, last, narrow ? returned => mergeRetry(returned, before) : null, part.rows);
+        previous: narrow ? narrow.previous : before, feedback: capFeedback(narrow ? narrow.feedback : feedback), round }, narrow ? narrow.rows : part.rows, last, narrow ? returned => mergeRetry(returned, before) : null, part.rows, value => { part.rejected = narrow ? mergeRetry(value, before) : value; });
       part.output = narrow ? mergeRetry(answer, before) : holdUnnamed(answer, before, feedback);
+      part.rejected = null;
       // The model returns ids as strings; the checks compare with the prompt's own id (a number in prompts.json).
       part.output.replay = part.output.replay.map(row => ({ ...row, id: part.rows.find(item => String(item.id) === String(row.id)).id }));
       part.ok = true;
@@ -215,4 +222,6 @@ export function createBatchedAuthor({ call, base, rows, size, artifactTopic, dia
     return { files: [...state.foundation, { path: p.references, content: refs.content }, { path: p.tests, content: tests.content }, { path: p.replay, content: replay },
       { path: p.walkthrough, content: state.parts.at(-1).output.walkthrough }, { path: p.registry, content: wireRegistry(registry, artifactTopic) }] };
   };
+  roundFn.snapshot = () => ({ foundation: state.foundation, parts: state.parts.map(part => ({ rowIds: part.rows.map(row => String(row.id)), output: part.output, ok: part.ok, rejected: part.rejected ?? null })) });
+  return roundFn;
 }

@@ -55,8 +55,9 @@ export async function readStream(response, onId = () => {}) {
   return failed ?? done;
 }
 
-function requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput = ceilings[agent].output, stream = false) {
-  const text = JSON.stringify(inputs) + (feedback ? `\nValidation errors: ${feedback}\nReturn corrected JSON matching the schema.` : '');
+function requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput = ceilings[agent].output, stream = false, previousAnswer = '') {
+  // A re-ask carries the answer that failed (reviewer 2026-11-13): the author repairs what the errors name instead of writing the whole answer again blind.
+  const text = JSON.stringify(inputs) + (feedback ? `\nValidation errors: ${feedback}${previousAnswer ? `\nYour previous answer, which failed (change only what the errors name):\n${previousAnswer}` : ''}\nReturn corrected JSON matching the schema.` : '');
   if (provider === 'openai') return {
     model, instructions: system, input: [{ role: 'user', content: [{ type: 'input_text', text }] }],
     reasoning: { effort }, text: { format: { type: 'json_schema', name: agent, schema, strict: true } },
@@ -146,11 +147,11 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
     let check;
     try { check = ajv.compile(schema); }
     catch { throw new Error('Invalid agent JSON schema'); }
-    let feedback = '', stopReason = 'unknown';
+    let feedback = '', stopReason = 'unknown', previousAnswer = '';
     for (let attempt = 1; attempt <= 2; attempt++) {
       let body;
       try {
-        body = requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput, provider === 'openai' && settings.stream === true);
+        body = requestBody(provider, model, effort, agent, inputs, system, schema, images, feedback, maxOutput, provider === 'openai' && settings.stream === true, previousAnswer);
         if (provider === 'openai' && settings.temperature !== undefined) body.temperature = settings.temperature;
       }
       catch { throw new Error('Cannot serialize the agent input and schema'); }
@@ -178,6 +179,8 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
         }
       } catch { transportFailed = true; }
       const usage = usageFrom(payload, provider);
+      // A call that ends without usage says why in inflight.jsonl (HTTP status, response status, the provider's error type and message, redacted), so an unknown-usage stop can be reconciled and diagnosed.
+      if (!usage) appendFile(join(topicDir, 'inflight.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), agent, attempt, responseId, outcome: 'no usage', http: response?.status, status: payload?.status, error: redact(String(payload?.error?.message ?? payload?.error?.type ?? ''), config).slice(0, 300), transportFailed, ms: Date.now() - started })}\n`).catch(() => {});
       const entry = { agent, model, attempt, inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0,
         reasoningTokens: usage?.reasoningTokens ?? 0, usageKnown: Boolean(usage),
         usd: usage ? callPrice(config, model, usage.inputTokens, usage.outputTokens) : 0, ms: Date.now() - started,
@@ -198,6 +201,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
         return value;
       } catch (error) {
         feedback = redact(error.message, config).slice(0, 4000);
+        previousAnswer = redact(outputText(payload, provider), config).slice(0, 60000);
         // Keep the rejected answer (redacted) so a failed round can be diagnosed; best effort, never fails the call.
         try { await mkdir(join(topicDir, 'rejected'), { recursive: true }); await writeFile(join(topicDir, 'rejected', `${agent}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-attempt${attempt}.txt`), redact(outputText(payload, provider), config)); } catch { /* diagnostics only */ }
       }

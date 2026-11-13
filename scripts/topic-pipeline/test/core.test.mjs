@@ -127,3 +127,29 @@ test('a configured Windows command that starts with a quoted path runs through c
     assert.equal(quoted.stdout.trim(), 'started');
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+test('--from 03 keeps the author folder (resume) unless --author-fresh archives it', async () => {
+  for (const fresh of [false, true]) {
+    const topicDir = await mkdtemp(join(tmpdir(), 'topic-resume-'));
+    await mkdir(join(topicDir, 'author', 'round-1'), { recursive: true });
+    await writeFile(join(topicDir, 'author', 'manifest.json'), JSON.stringify({ roundsUsed: 1, lastFailure: 'flags' }));
+    await writeFile(join(topicDir, 'author.json'), '{}');
+    await writeFile(join(topicDir, 'state.json'), JSON.stringify({ version: 1, topic: 'resume-topic', stages: { '03': { status: 'fail', attempts: 1, artefacts: [join(topicDir, 'author'), join(topicDir, 'author.json')] } }, calls: [], spendUsd: 0, status: 'fail' }));
+    let seen;
+    await runPipeline({ topic: 'resume-topic', topicDir, config: { run: { authorFresh: fresh } }, stages: { '03': async () => { seen = JSON.parse(await readFile(join(topicDir, 'author', 'manifest.json'), 'utf8').catch(() => 'null')); return { status: 'ok', artefacts: [] }; } }, from: '03', to: '03' });
+    assert.equal(seen?.roundsUsed ?? null, fresh ? null : 1, fresh ? 'author-fresh: the folder was archived' : 'resume: the last round is still there');
+    await rm(topicDir, { recursive: true, force: true });
+  }
+});
+
+test('a resumed author attempt takes its feedback from the newest round that failed on the answer, not on the transport', async () => {
+  const { lastContentFailure } = await import('../stages/03-author.mjs');
+  const dir = await mkdtemp(join(tmpdir(), 'topic-lastfail-'));
+  for (const [round, text] of [[1, '[{"id":"ml-a","rule":5}]'], [2, 'Provider transport failed; reconcile unknown usage before retrying'], [3, '']]) {
+    await mkdir(join(dir, `round-${round}`), { recursive: true });
+    if (text) await writeFile(join(dir, `round-${round}`, 'feedback.txt'), `${text}\n`);
+  }
+  assert.equal(await lastContentFailure(dir), '[{"id":"ml-a","rule":5}]');
+  assert.equal(await lastContentFailure(join(dir, 'missing')), null);
+  await rm(dir, { recursive: true, force: true });
+});

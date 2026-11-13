@@ -81,13 +81,13 @@ test('failures route to the batch that owns them', () => {
 
 function mockedAuthor(extra = {}) {
   const calls = [], logs = [];
-  const call = async (kind, payload, assigned, last) => {
-    calls.push({ kind, batch: payload.batch, feedback: payload.feedback, previous: payload.previous });
+  const call = async (kind, payload, assigned, last, merge, all, reject) => {
+    calls.push({ kind, batch: payload.batch, feedback: payload.feedback, previous: payload.previous, assigned: (assigned ?? []).map(row => row.id) });
     const message = extra.fail?.(kind, payload);
-    if (message) throw new Error(message);
+    if (message) { if (kind === 'batch') reject?.(part(all ?? assigned, last)); throw new Error(message); }
     return kind === 'foundation' ? { files: dataModule } : part(assigned, last);
   };
-  const author = createBatchedAuthor({ log: entry => logs.push(entry), call, base: { topic: 'demo' }, rows, size: 4, artifactTopic: A, diagrams: D, registry, exemplar: [{ path: `${D}/lesson-x-data.js`, content: '' }, { path: `${D}/lesson-x-references.js`, content: '' }, { path: 'docs/walk.md', content: '' }] });
+  const author = createBatchedAuthor({ seed: extra.seed, log: entry => logs.push(entry), call, base: { topic: 'demo' }, rows, size: 4, artifactTopic: A, diagrams: D, registry, exemplar: [{ path: `${D}/lesson-x-data.js`, content: '' }, { path: `${D}/lesson-x-references.js`, content: '' }, { path: 'docs/walk.md', content: '' }] });
   return { author, calls, logs };
 }
 
@@ -220,4 +220,31 @@ test('a narrow retry replaces the named references in place and keeps every othe
   assert.equal(retryScope(before, assigned, 'ml-p1 ml-p2 ml-p3 ml-p4'), null, 'every reference named: the whole batch is called');
   assert.equal(retryScope(null, assigned, 'ml-p2'), null, 'first call');
   assert.equal(retryScope(before, assigned, 'ml-p2 plain text failure').feedback, 'ml-p2 plain text failure', 'feedback that is not a verifier report stays whole');
+});
+
+test('a failed batch keeps the answer that was rejected, and a relaunch seeded from the snapshot repairs only the references the flags name', async () => {
+  let failing = true;
+  const first = mockedAuthor({ fail: (kind, payload) => kind === 'batch' && payload.batch === 2 && failing ? '{"flags":[{"id":"ml-p6","rule":5}]}' : null });
+  await assert.rejects(first.author('', 1), /ml-p6/u);
+  const snapshot = JSON.parse(JSON.stringify(first.author.snapshot()));   // what author/batches.json holds after the round
+  assert.equal(snapshot.parts[1].ok, false);
+  assert.deepEqual(snapshot.parts[1].rejected.references.map(reference => reference.id), ['ml-p5', 'ml-p6', 'ml-p7', 'ml-p8'], 'the rejected answer is kept');
+  assert.deepEqual([0, 2].map(index => snapshot.parts[index].ok), [true, true]);
+  failing = false;
+  // A new process: same batches, seeded; the feedback is the last round's flags.
+  const relaunch = mockedAuthor({ seed: snapshot });
+  await relaunch.author('{"flags":[{"id":"ml-p6","rule":5,"detail":"axis"}]}', 2);
+  assert.deepEqual(relaunch.calls.map(call => [call.kind, call.batch]), [['batch', 2]], 'no foundation and no accepted batch is called again');
+  assert.deepEqual(relaunch.calls[0].assigned, ['p6'], 'the batch is called for the named reference only');
+  assert.deepEqual(relaunch.calls[0].previous.references.map(reference => reference.id), ['ml-p6'], 'with its own rejected answer as the previous');
+  assert.equal(relaunch.logs.find(entry => entry.batch === 2).mode, 'narrow');
+  assert.ok(relaunch.logs.every(entry => !entry.foundation), 'the foundation is not asked again');
+  const next = relaunch.author.snapshot();
+  assert.equal(next.parts[1].ok, true);
+  assert.equal(next.parts[1].rejected, null);
+});
+
+test('a seed that does not describe the same batches is ignored', async () => {
+  const { author } = mockedAuthor({ seed: { foundation: dataModule, parts: [{ rowIds: ['other'], output: null, ok: true }] } });
+  assert.equal(author.snapshot().foundation, null);
 });

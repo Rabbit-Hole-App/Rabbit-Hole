@@ -14,6 +14,16 @@ import { readJson, saveState, writeJson } from '../state.mjs';
 
 const DIAGRAMS = 'packages/web/src/tutor-diagrams';
 const hasErrors = flags => flags.some(flag => flag.severity === 'error');
+// The newest round feedback that is about the answer (flags, validation), not about the transport: a round that stopped on unknown provider usage has nothing to repair from.
+export async function lastContentFailure(authorDir) {
+  const rounds = (await readdir(authorDir).catch(() => [])).map(name => /^round-(\d+)$/u.exec(name)?.[1]).filter(Boolean).map(Number).sort((a, b) => b - a);
+  for (const round of rounds) {
+    const text = await readFile(join(authorDir, `round-${round}`, 'feedback.txt'), 'utf8').catch(() => '');
+    if (text.trim() && !/Provider (?:transport|request) failed|provider usage is unknown|reconcile unknown usage/iu.test(text)) return text.trim();
+  }
+  return null;
+}
+
 const optionalJson = async file => { try { return await readJson(file); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } };
 
 export async function run(ctx) {
@@ -54,7 +64,8 @@ export async function run(ctx) {
   await saveManifest();
   const accepted = new Map((previous?.files ?? []).map(file => [file.path, file]));
   const verification = await optionalJson(join(ctx.topicDir, 'verify.json'));
-  let feedback = ctx.authorFeedback ?? verification ?? '';
+  // Resume (reviewer 2026-11-13): an attempt that finds a previous round starts from its answer and its flags (the manifest's last failure), unless the verifier's report was handed in.
+  let feedback = ctx.authorFeedback ?? (previous && previous.status !== 'ok' ? await lastContentFailure(authorDir) : null) ?? verification ?? '';
   if (typeof feedback !== 'string') feedback = JSON.stringify(feedback, null, 2);
   const planner = ctx.planner ?? createPlanner(ctx.config, { state: ctx.state, stage: '03', onUsage: () => saveState(ctx.topicDir, ctx.state) });
   // Batched author (limits.authorBatchSize): a foundation call, then parallel batches of prompts. Not used with REUSE prompts or topic briefs; those keep the single call.
@@ -73,12 +84,16 @@ ${await prompt('author-batch')}`;
       if (flags.length) throw new Error(JSON.stringify(flags, null, 2));
     };
     const dryRun = ctx.fixture && ctx.dryRun, p = batchPaths(target.artifactTopic, DIAGRAMS), options = { topic: ctx.topic, dryRun, repoRoot: target.worktree };
-    batchedRound = createBatchedAuthor({ log: entry => appendFile(join(roundDirNow, 'retries.jsonl'), `${JSON.stringify(entry)}\n`).catch(() => {}), artifactTopic: target.artifactTopic, diagrams: DIAGRAMS, size: batchSize, rows: prompts.prompts, registry: inputs.registry.content, exemplar: inputs.exemplar,
+    batchedRound = createBatchedAuthor({ seed: await optionalJson(join(authorDir, 'batches.json')), log: entry => appendFile(join(roundDirNow, 'retries.jsonl'), `${JSON.stringify(entry)}\n`).catch(() => {}), artifactTopic: target.artifactTopic, diagrams: DIAGRAMS, size: batchSize, rows: prompts.prompts, registry: inputs.registry.content, exemplar: inputs.exemplar,
       base: { topic: inputs.topic, artifactTopic: inputs.artifactTopic, idPrefix: inputs.idPrefix, metadata: inputs.metadata, prompts, coverage, sop: inputs.sop, kindSchema: inputs.kindSchema, rendererConstraints: inputs.rendererConstraints, toyDataTemplate: inputs.toyDataTemplate },
-      call: (kind, payload, assigned, last, merge, all) => kind === 'foundation' ? callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: foundationSchema(ctx.topic, dryRun), validate: value => validateFoundation(value, options, p) })
-        : callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: batchSchema, validate: async value => { validateBatch(value, assigned, last); await prevalidate(merge ? merge(value) : value, all ?? assigned, payload); return value; } }) });
+      call: (kind, payload, assigned, last, merge, all, reject) => kind === 'foundation' ? callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: foundationSchema(ctx.topic, dryRun), validate: value => validateFoundation(value, options, p) })
+        : callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: batchSchema, validate: async value => { try { validateBatch(value, assigned, last); await prevalidate(merge ? merge(value) : value, all ?? assigned, payload); return value; } catch (error) { reject?.(value); throw error; } } }) });
   }
-  for (let round = startingRound + 1; round <= rounds; round++) {
+  // The round budget is per attempt; round numbers (and round-N folders) continue from the previous attempt.
+  // What the batches hold after each round, kept for a relaunch to resume from (author/batches.json).
+  const runBatched = async number => { try { return await batchedRound(feedback, number); } finally { await writeJson(join(authorDir, 'batches.json'), batchedRound.snapshot()); } };
+  for (let attempt = 1; attempt <= rounds; attempt++) {
+    const round = startingRound + attempt;
     const roundDir = join(authorDir, `round-${round}`);
     await mkdir(roundDir, { recursive: true });
     manifest.roundsUsed = round;
@@ -87,7 +102,7 @@ ${await prompt('author-batch')}`;
     const warnings = [];
     const saveWarnings = () => warnings.length ? writeFile(join(roundDir, 'warnings.txt'), `${warnings.join('\n')}\n`) : null;
     try {
-      const response = savedAnswer ?? (batchedRound ? await batchedRound(feedback, round) : await callAgent(ctx, 'author', { ...inputs, previousFiles: [...accepted.values()], feedback: String(feedback), round }, {
+      const response = savedAnswer ?? (batchedRound ? await runBatched(round) : await callAgent(ctx, 'author', { ...inputs, previousFiles: [...accepted.values()], feedback: String(feedback), round }, {
         schema: createAuthorSchema(ctx.topic, { dryRun: ctx.fixture && ctx.dryRun }),
         validate: value => { for (const path of dedupeAuthorFiles(value)) { const line = `Warning: the author returned ${path} more than once; kept the last entry.`; console.error(line); warnings.push(line); } return validateAuthorFiles(value, { topic: ctx.topic, dryRun: ctx.fixture && ctx.dryRun, repoRoot: target.worktree }); } }));
       await saveWarnings();
@@ -175,7 +190,7 @@ ${await prompt('author-batch')}`;
       manifest.commit = commit;
       manifest.collisions = collisionList;
       await saveManifest();
-      return { status: 'ok', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds} (${savedAnswer ? 'saved answer, no author call' : `effort ${effort}`}): linter green, ${inspection.expected.length} prompt references first at all depths, ${(paraphrases.firstPickRate * 100).toFixed(1)}% paraphrase first picks, commit ${commit}.${collisionList.length ? ` Collision warnings (${collisionList.length}, fixed by Q3 not the author): ${collisionList.join('; ')}.` : ''}` };
+      return { status: 'ok', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}, attempt round ${attempt}/${rounds} (${savedAnswer ? 'saved answer, no author call' : `effort ${effort}`}): linter green, ${inspection.expected.length} prompt references first at all depths, ${(paraphrases.firstPickRate * 100).toFixed(1)}% paraphrase first picks, commit ${commit}.${collisionList.length ? ` Collision warnings (${collisionList.length}, fixed by Q3 not the author): ${collisionList.join('; ')}.` : ''}` };
     } catch (error) {
       feedback = error.message;
       await saveWarnings();
@@ -186,7 +201,7 @@ ${await prompt('author-batch')}`;
       if (ctx.state.calls?.some(entry => entry.usageKnown === false)) {
         manifest.status = 'fail';
         await saveManifest();
-        return { status: 'fail', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}/${rounds} (effort ${effort}) stopped: provider usage is unknown. Reconcile it before rerunning; no further round was started.` };
+        return { status: 'fail', artefacts: [authorDir, publishedManifest], notes: `Author round ${round}, attempt round ${attempt}/${rounds} (effort ${effort}) stopped: provider usage is unknown. Reconcile it before rerunning; no further round was started.` };
       }
     }
   }

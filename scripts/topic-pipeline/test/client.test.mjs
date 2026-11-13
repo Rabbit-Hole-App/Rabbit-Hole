@@ -191,6 +191,8 @@ test('working custom validation errors are included in the single reask', async 
   await client.call('prompt-writer', {}, { ...options, validate });
   assert.equal(requests.length, 2);
   assert.match(JSON.stringify(requests[1].messages), /Expected twelve unique teaching points/);
+  assert.match(JSON.stringify(requests[1].messages), /Your previous answer, which failed/, "the re-ask carries the answer that failed");
+  assert.doesNotMatch(JSON.stringify(requests[0].messages), /Your previous answer/, "the first ask does not");
 });
 
 test('Anthropic transport schema drops unsupported constraints while local validation retains them', async t => {
