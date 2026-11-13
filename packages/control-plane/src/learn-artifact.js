@@ -69,6 +69,7 @@ const GATES = {
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 import { celerisExplainRoute } from './explain-celeris-dev.js';
 import { generateWithFallbacks } from './explanation-fast-chain.js';
+import { restoreLatexIn } from './latex-escapes.js';
 import { formulaSamplerEnabled, withFormulaSeries, fillFormulaSeries, FORMULA_SERIES_GUIDANCE } from './explanation-formula-series.js';
 export { ARTIFACT_SYSTEM };
 
@@ -203,7 +204,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
     const result = await response.json();
     const calls = result.content?.filter(part => part.type === 'tool_use') || [];
     if (calls.length !== 1) throw new Error('The model returned no artifact.');
-    return { result, call: calls[0] };
+    return { result, call: { ...calls[0], input: restoreLatexIn(calls[0].input) } }; // \frac written with one backslash arrives as a form feed (latex-escapes.js)
   };
   const verify = block => sceneVerdict(env, callModel, input.args, block);
   let { result, call } = await ask(messages);
