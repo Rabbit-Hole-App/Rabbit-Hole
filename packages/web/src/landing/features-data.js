@@ -39,7 +39,7 @@ export const FEATURES = [
 // entries left out here lose only their place on the page. Production availability (published) is a separate filter.
 export const PAGE_GROUPS = [
   { title: 'Learn from your material.', layout: 'stack', ids: ['01-ai-tutor', '05-pdf-reader', '04-github-code-graph', '07-pin-study'] },
-  { title: 'Explore ideas in action.', layout: 'stack-mirrored', ids: ['06-notebooks', '09-interactive-graphs', '03-animated-explainer-videos', '10-cad-generation', '14-edit-with-ai'] },
+  { title: 'Explore ideas in action.', layout: 'stack-mirrored', ids: ['14-edit-with-ai', '06-notebooks', '09-interactive-graphs', '03-animated-explainer-videos', '10-cad-generation'] },
   { title: 'Follow the next question.', layout: 'wide', ids: ['11-rabbit-holes'] },
   { title: 'Build on what you learn.', layout: 'tiles', ids: ['08-practice', '23-table-of-contents', '24-comments', '16-sharing-forking'] },
 ];

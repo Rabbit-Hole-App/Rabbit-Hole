@@ -47,12 +47,12 @@ test('every entry is framed: Rabbit Hole header, copy before the picture, compos
 
 const PAGE_IDS = PAGE_GROUPS.flatMap(g => g.ids);
 
-test('the page definition: four sections in order, their layouts and entries (owner brief 4-4-1-3, with Ctrl + K added to the second section by the owner on 2026-11-13)', () => {
+test('the page definition: four sections in order, their layouts and entries (owner brief 4-4-1-3, with Ctrl + K added first in the second section by the owner on 2026-11-13)', () => {
   assert.deepEqual(PAGE_GROUPS.map(g => [g.title, g.layout, g.ids.length]), [
     ['Learn from your material.', 'stack', 4], ['Explore ideas in action.', 'stack-mirrored', 5],
     ['Follow the next question.', 'wide', 1], ['Build on what you learn.', 'tiles', 4]]);
-  assert.deepEqual(PAGE_IDS, ['01-ai-tutor', '05-pdf-reader', '04-github-code-graph', '07-pin-study', '06-notebooks', '09-interactive-graphs',
-    '03-animated-explainer-videos', '10-cad-generation', '14-edit-with-ai', '11-rabbit-holes', '08-practice', '23-table-of-contents', '24-comments', '16-sharing-forking']);
+  assert.deepEqual(PAGE_IDS, ['01-ai-tutor', '05-pdf-reader', '04-github-code-graph', '07-pin-study', '14-edit-with-ai', '06-notebooks', '09-interactive-graphs',
+    '03-animated-explainer-videos', '10-cad-generation', '11-rabbit-holes', '08-practice', '23-table-of-contents', '24-comments', '16-sharing-forking']);
   for (const id of PAGE_IDS) assert.ok(FEATURES.some(f => f.id === id), id);
   assert.equal(new Set(PAGE_IDS).size, PAGE_IDS.length);
 });
@@ -72,7 +72,7 @@ test('each stack section is its own walkthrough: its own steps, --features count
     assert.equal((s.match(/is-active/g) || []).length, 1);
   }
   assert.match(html, /<article class="feature is-active" id="ai-tutor"/);
-  assert.match(html, /<article class="feature is-active" id="notebooks"/);
+  assert.match(html, /<article class="feature is-active" id="edit-with-ai"/);
   // Rabbit Holes and the collection stay outside the stack logic.
   const rest = html.slice(html.indexOf('data-layout="wide"'));
   assert.doesNotMatch(rest, /data-feature-step|data-feature-walkthrough|is-active/);
