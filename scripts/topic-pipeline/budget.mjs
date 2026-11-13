@@ -1,7 +1,7 @@
 export const ceilings = Object.freeze({
   'prompt-writer': { input: 30000, output: 20000 }, // output includes thinking at effort high (reviewer 2026-11-12)
   'coverage-judge': { input: 2000, output: 200 },
-  author: { input: 120000, output: 40000 },
+  author: { input: 120000, output: 100000 }, // effort max reasons 33-40k tokens; 40000 truncated every call (reviewer 2026-11-12; model max 128000)
   verifier: { input: 60000, output: 20000 },
   auditor: { input: 60000, output: 20000 },
 });
