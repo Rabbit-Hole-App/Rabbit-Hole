@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { canonicalJson, validateVisualBrief } from './explain-contract.js';
 import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, KNOWN_CAPABILITIES } from './explain-program/contract.js';
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
+import { TEMPLATE_ROLES, formulaScope, parseQuantity } from './interact-formula.js';
 
 // ScenePlan v1 (docs/features/interact.md section 5, INT-01): the one pure contract shared by design, review, build and the
 // saved card. Server-safe: zod and pure helpers only, no model call, network or DOM. Nothing is stripped or truncated: a plan
@@ -13,7 +14,8 @@ export const PLAN_LIMITS = Object.freeze({
   title: 120, story: 12000, cardDescription: 500, instructions: 300, entry: 1200, label: 60,
   entities: 24, quantities: 16, observations: 12, checkpoints: 12, claims: 32, controls: 24, supports: 2,
   markers: 12, // ponytail: the spec bounds markers only as "bounded"; 12 matches checkpoints, raise on a real need
-  items: 256, exprNodes: 32, exprDepth: 8, timeline: CONTRACT_LIMITS.duration,
+  items: 256, exprNodes: 32, exprDepth: 8, formula: 200, // formula: characters in a quantity's formula text (interact-formula.js)
+  timeline: CONTRACT_LIMITS.duration,
   playbackRate: 10, // ponytail: no host transport ceiling is defined yet; 10 physics-seconds per wall-second is a sanity bound
 });
 
@@ -124,7 +126,9 @@ const scalar = z.union([z.number().finite(), z.string().max(PLAN_LIMITS.entry), 
 const idList = max => z.array(id).max(max);
 
 const entity = z.object({ id, label: text(PLAN_LIMITS.label), purpose: text() }).strict();
-const quantity = z.object({ id, label: text(PLAN_LIMITS.label), unit: z.string().max(16), meaning: text(), reference: text(), relation: text().optional() }).strict();
+// `relation` is display text. `formula` (interact-formula.js) is what a template build computes: `formula` while t < `switchAt`, `formulaAfter` from `switchAt` on (the two come together or not at all).
+const formulaText = z.string().min(1).max(PLAN_LIMITS.formula);
+const quantity = z.object({ id, label: text(PLAN_LIMITS.label), unit: z.string().max(16), meaning: text(), reference: text(), relation: text().optional(), formula: formulaText.optional(), switchAt: formulaText.optional(), formulaAfter: formulaText.optional() }).strict();
 const observation = z.object({ id, text: text(), quantityIds: idList(16), readoutIds: idList(16) }).strict();
 const checkpoint = z.object({
   id, label: text(PLAN_LIMITS.label), time: scalarExpr.nullable(), inputOverrides: z.record(id, scalar), actions: idList(8), expected: text(),
@@ -178,6 +182,8 @@ const timeline = z.object({
 const scene = z.object({
   description: text(), runtime, entities: z.array(entity).max(PLAN_LIMITS.entities), quantities: z.array(quantity).max(PLAN_LIMITS.quantities),
   observations: z.array(observation).max(PLAN_LIMITS.observations), checkpoints: z.array(checkpoint).max(PLAN_LIMITS.checkpoints), readoutIds: idList(16),
+  // A build template (interact-formula.js TEMPLATE_ROLES) and its roles mapped to quantity ids; both or neither. two-lane nests one role map per lane name.
+  template: z.enum(['one-body', 'two-lane', 'body-plot']).optional(), slots: z.record(z.string().min(1).max(32), z.union([id, z.record(z.string().min(1).max(32), id)])).optional(),
 }).strict();
 const mode = z.object({
   kind: z.enum(['static', 'time', 'experiment']), initialState: text(), fixedValues: z.record(id, scalar), adjustableIds: idList(8),
@@ -302,6 +308,31 @@ export function planProblems(plan) {
   for (const name of Object.keys(modeBlock.fixedValues)) {
     if (!quantityIds.has(name)) bad(['mode', 'fixedValues', name], 'dangling_reference', `fixed value "${name}" has no quantity recording its unit`);
     if (modeBlock.adjustableIds.includes(name)) bad(['mode', 'fixedValues', name], 'duplicate_id', `"${name}" cannot be both fixed and adjustable`);
+  }
+
+  // Formulas parse against the readable names (t, the number inputs, the fixed numbers); the first problem names its quantity. A template needs its roles mapped to quantities that have a formula.
+  const scope = formulaScope(plan);
+  main.quantities.forEach((q, i) => {
+    if (q.formula === undefined && (q.switchAt !== undefined || q.formulaAfter !== undefined)) bad(['scene', 'quantities', i, 'formula'], 'formula_pair', `quantity "${q.id}" has switchAt or formulaAfter but no formula`);
+    try { parseQuantity(q, scope); } catch (error) { if (!error.code) throw error; bad(['scene', 'quantities', i, error.message.includes(' switchAt:') ? 'switchAt' : error.message.includes(' formulaAfter:') ? 'formulaAfter' : 'formula'], error.code, error.message); }
+  });
+  if ((main.template === undefined) !== (main.slots === undefined)) bad(['scene', main.template === undefined ? 'template' : 'slots'], 'template_pair', 'scene.template and scene.slots come together or not at all');
+  if (main.template && main.slots) {
+    const spec = TEMPLATE_ROLES[main.template], formulaOf = new Map(main.quantities.map(q => [q.id, q.formula !== undefined]));
+    const roleMap = (slots, path, roles) => {
+      if (!slots || typeof slots !== 'object' || Object.values(slots).some(v => typeof v !== 'string')) return bad(path, 'template_slots', `${main.template}: ${roles.join(', ')} each map to a quantity id`);
+      for (const role of roles) if (!(role in slots)) bad([...path, role], 'template_slots', `${main.template} needs the role "${role}"`);
+      for (const [role, qid] of Object.entries(slots)) {
+        if (!roles.includes(role)) bad([...path, role], 'template_slots', `${main.template} has no role "${role}" (roles: ${roles.join(', ')})`);
+        else if (!formulaOf.has(qid)) bad([...path, role], 'dangling_reference', `slot "${role}" names quantity "${qid}", which the scene does not declare`);
+        else if (!formulaOf.get(qid)) bad([...path, role], 'template_slots', `slot "${role}" names quantity "${qid}", which has no formula`);
+      }
+    };
+    if (spec.lanes) {
+      const lanes = Object.keys(main.slots);
+      if (lanes.length !== spec.lanes) bad(['scene', 'slots'], 'template_slots', `${main.template} maps exactly ${spec.lanes} lanes, each to its roles (${spec.roles.join(', ')})`);
+      for (const lane of lanes) roleMap(main.slots[lane], ['scene', 'slots', lane], spec.roles);
+    } else roleMap(main.slots, ['scene', 'slots'], spec.roles);
   }
 
   // Timeline arithmetic over the whole admitted input domain, not only the defaults.
