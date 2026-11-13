@@ -147,3 +147,13 @@ test('the preflight estimate counts one foundation plus ceil(12 / size) batch ca
   // 5 rounds x 4 calls x (120000 in + 40000 out) vs 5 rounds x 1 call x (120000 in + 128000 out) at $2 / $10 per million
   assert.ok(Math.abs((batched - single) - (5 * 4 * (0.24 + 0.4) - 5 * (0.24 + 1.28))) < 1e-9);
 });
+
+test('replay ids go back to the prompts own id type (numbers in prompts.json)', async () => {
+  const numeric = rows.map((row, i) => ({ ...row, id: i + 1 }));
+  const call = async (kind, payload, assigned, last) => kind === 'foundation' ? { files: dataModule }
+    : { ...part(assigned.map(row => ({ ...row, id: `n${row.id}` })), last), replay: assigned.map(row => ({ id: String(row.id), prompt: row.prompt, referenceId: `ml-n${row.id}`, paraphrases: ['a', 'b', 'c', 'd', 'e'] })) };
+  const author = createBatchedAuthor({ call, base: {}, rows: numeric, size: 4, artifactTopic: A, diagrams: D, registry, exemplar: [] });
+  const response = await author('', 1);
+  const replay = JSON.parse(response.files.find(file => file.path === P.replay).content).prompts;
+  assert.deepEqual(replay.map(row => row.id), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+});
