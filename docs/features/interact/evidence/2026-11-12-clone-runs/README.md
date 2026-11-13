@@ -84,3 +84,16 @@ round 0 findings are all reviewer findings). Round 2's only finding was the revi
 the flight, so the repairer returned `none`. `rerender-run12-card/` shows run 12's card re-rendered with the new row: `e4-speed-5.0-at-its-top-card.png` reads Height 1.276 m, Velocity 0.00 m/s,
 Acceleration -9.8 m/s^2.
 
+## Update: boundary capture fix, run 15
+
+`ca47d2955`: a boundary value of a control is captured at the first checkpoint (plan order) whose time references that control's input, evaluated at the boundary inputs
+(the maximum launch speed at its top, 0.51 s, not at the end of the flight, 1.02 s); the case label names it and `coverage.boundaries` records the checkpoint; the review request lists
+the scheduled captures and what each shows; an observation no capture could show within the 6 images is a design-time `capture_budget` problem. The new fixture lists `top` first so the
+first referencing checkpoint is the apex. Deployed Version ID `54d9d3e3-476c-46f2-9de0-65d92d0c5f0d`.
+
+Run 15 (`15-boundary-capture-fix-READY`, job `ej_a7e7bb226e614a02b5a426e30218f615`): pinned `toss-drop-standard-controls`, **ready on repair round 1**, $0.62, 4 Opus calls, 231 s.
+Round 0 had 7 major findings, all label/arrow collisions (Launch mark, Release gate); the `apexMoves` finding that stopped run 14 (the 5 m/s top not shown) is gone, and the reviewer
+refers to the maximum-speed capture as "at the 1.28 m apex". Round 1 accepted. Builder used `sdk.vector` x4, `sdk.gate`, `sdk.groundMark`, no hand-drawn arrow. Card 676 x 755.
+Screenshot `s5-rest-top3-top5-with-readouts.png`: at rest, Top at 3.0 m/s (Height 0.459 m, Velocity 0.00 m/s, Acceleration -9.8 m/s^2) and Top at 5.0 m/s (1.276 m, 0.00, -9.8), with the readouts row.
+(Note: the README rows for run 13/14 above call the failed fix-3 rebuild "run 14"; this one is the next job, folder 15.)
+
