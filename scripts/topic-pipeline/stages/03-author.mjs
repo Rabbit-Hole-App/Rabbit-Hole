@@ -2,7 +2,7 @@ import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { callAgent } from '../agents/call.mjs';
 import { BATCH_OUTPUT_CEILING, agentSettings } from '../budget.mjs';
-import { createBatchedAuthor, batchSchema, foundationSchema, paths as batchPaths, validateBatch, validateFoundation } from '../author-batch.mjs';
+import { createBatchedAuthor, prevalidatePayload, batchSchema, foundationSchema, paths as batchPaths, validateBatch, validateFoundation } from '../author-batch.mjs';
 import { createAuthorSchema, dedupeAuthorFiles, validateAuthorFiles } from '../schemas.mjs';
 import { authorInputs, authorTopic, authorWorktree, commitAuthorRound, git, isolated,
   prepareAuthorRuntime, testAuthored, writeAuthored } from '../author.mjs';
@@ -56,22 +56,30 @@ export async function run(ctx) {
   const planner = ctx.planner ?? createPlanner(ctx.config, { state: ctx.state, stage: '03', onUsage: () => saveState(ctx.topicDir, ctx.state) });
   // Batched author (limits.authorBatchSize): a foundation call, then parallel batches of prompts. Not used with REUSE prompts or topic briefs; those keep the single call.
   const batchSize = ctx.config.limits?.authorBatchSize;
-  let batchedRound = null;
+  let batchedRound = null, roundDirNow = authorDir;
   if (Number.isInteger(batchSize) && batchSize > 0 && !coverage.prompts.some(row => row.decision === 'REUSE') && !inputs.briefs.length) {
     const prompt = name => readFile(new URL(`../agents/prompts/${name}.md`, import.meta.url), 'utf8');
     const system = `${await prompt('author')}
 
 ${await prompt('author-batch')}`;
+    // Pre-round check (reviewer 2026-11-12): a batch's specs must parse and pass the file-free linter rules before its answer counts; one re-ask, no round spent.
+    const prevalidate = async (value, assigned, payload) => {
+      const tag = `-${assigned[0].id}`;
+      const { flags } = await isolated(target, 'prevalidate', prevalidatePayload({ artifactTopic: target.artifactTopic, diagrams: DIAGRAMS, value, dataModule: payload.dataModule, assigned,
+        scratch: `scripts/.topic-pipeline-author/prevalidate${tag}` }), roundDirNow, tag);
+      if (flags.length) throw new Error(JSON.stringify(flags, null, 2));
+    };
     const dryRun = ctx.fixture && ctx.dryRun, p = batchPaths(target.artifactTopic, DIAGRAMS), options = { topic: ctx.topic, dryRun, repoRoot: target.worktree };
     batchedRound = createBatchedAuthor({ artifactTopic: target.artifactTopic, diagrams: DIAGRAMS, size: batchSize, rows: prompts.prompts, registry: inputs.registry.content, exemplar: inputs.exemplar,
-      base: { topic: inputs.topic, artifactTopic: inputs.artifactTopic, idPrefix: inputs.idPrefix, metadata: inputs.metadata, prompts, coverage, sop: inputs.sop, kindSchema: inputs.kindSchema, toyDataTemplate: inputs.toyDataTemplate },
+      base: { topic: inputs.topic, artifactTopic: inputs.artifactTopic, idPrefix: inputs.idPrefix, metadata: inputs.metadata, prompts, coverage, sop: inputs.sop, kindSchema: inputs.kindSchema, rendererConstraints: inputs.rendererConstraints, toyDataTemplate: inputs.toyDataTemplate },
       call: (kind, payload, assigned, last) => kind === 'foundation' ? callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: foundationSchema(ctx.topic, dryRun), validate: value => validateFoundation(value, options, p) })
-        : callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: batchSchema, validate: value => validateBatch(value, assigned, last) }) });
+        : callAgent(ctx, 'author', payload, { system, maxOutput: BATCH_OUTPUT_CEILING, schema: batchSchema, validate: async value => { validateBatch(value, assigned, last); await prevalidate(value, assigned, payload); return value; } }) });
   }
   for (let round = startingRound + 1; round <= rounds; round++) {
     const roundDir = join(authorDir, `round-${round}`);
     await mkdir(roundDir, { recursive: true });
     manifest.roundsUsed = round;
+    roundDirNow = roundDir;
     await saveManifest();
     const warnings = [];
     const saveWarnings = () => warnings.length ? writeFile(join(roundDir, 'warnings.txt'), `${warnings.join('\n')}\n`) : null;

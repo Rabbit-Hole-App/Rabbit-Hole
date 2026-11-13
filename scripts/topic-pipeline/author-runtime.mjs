@@ -1,6 +1,6 @@
 // Trusted child entry point. The orchestrator copies this and the checks into
 // its worktree; no authored module is evaluated in the key-bearing parent.
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -161,6 +161,36 @@ async function paraphrases() {
     } });
 }
 
+// Pre-round check of one author batch (no worktree files, no baseline): its references are written to a scratch folder, imported, every spec
+// is parsed and the file-free linter rules run. All errors are returned together so one re-ask can repair them (reviewer 2026-11-12).
+async function prevalidate() {
+  const scratch = resolve(root, input.scratch);
+  await mkdir(scratch, { recursive: true });
+  for (const file of input.files) await writeFile(join(scratch, file.name), file.content);
+  const module = await import(pathToFileURL(join(scratch, input.entry)).href);
+  const { parseTutorDiagram } = await load('packages/web/src/tutor-diagrams/spec.js');
+  const own = [...(module.references ?? [])], flags = [];
+  for (const reference of own) for (const key of ['overview', 'standard', 'deep']) {
+    const value = reference.depths?.[key];
+    if (!value) { flags.push({ id: reference.id, depth: key, rule: 'spec', severity: 'error', detail: `${reference.id} requires an explicit ${key} depth.` }); continue; }
+    for (const [field, spec] of [['spec', value.spec], ['detailSpec', value.detailSpec]]) {
+      if (field === 'detailSpec' && !spec) continue;
+      try { parseTutorDiagram(spec); }
+      catch (error) { flags.push({ id: reference.id, depth: key, rule: 'spec', severity: 'error', detail: `${field}: ${String(error.message).slice(0, 1500)}` }); }
+    }
+  }
+  const rows = [];
+  for (const row of input.rows) {
+    const reference = own.find(item => item.prompts?.includes(row.prompt));
+    if (!reference) { flags.push({ id: '<author>', depth: '*', rule: 2, severity: 'error', detail: `Prompt ${row.id} has no reference carrying its prompt verbatim.` }); continue; }
+    if (reference.spec?.diagram?.kind !== row.kind) flags.push({ id: '<author>', depth: '*', rule: 2, severity: 'error', detail: `Prompt ${row.id} requires ${row.kind}; ${reference.id} has ${reference.spec?.diagram?.kind}.` });
+    rows.push({ ...row, referenceId: reference.id });
+  }
+  // The linter renders specs; it runs once every spec parses.
+  if (!flags.length) flags.push(...lintReferences({ references: own, prompts: rows, source: input.files.map(file => ({ path: file.path, content: file.content })), derived: module.derived, authored: true }));
+  return { flags: flags.filter(flag => flag.severity === 'error') };
+}
+
 async function previews() {
   const { exportIllustrationPreviews } = await load('packages/web/scripts/.topic-pipeline-illustration-previews.mjs');
   return exportIllustrationPreviews(input.previewDir, { references: input.references });
@@ -173,6 +203,6 @@ async function snapshots() {
   return { entries: Object.keys(result.entries).length };
 }
 
-const commands = { baseline, inspect, replay, paraphrases, previews, snapshots };
+const commands = { baseline, inspect, prevalidate, replay, paraphrases, previews, snapshots };
 if (!commands[process.argv[2]]) throw new Error('Unknown isolated author command.');
 await write(await commands[process.argv[2]]());

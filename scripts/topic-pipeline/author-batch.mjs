@@ -58,6 +58,15 @@ export function wireRegistry(content, artifactTopic) {
   return content.replace(importAnchor, `$1\nimport { references as ${name} } from './topic-${artifactTopic}-references.js';`).replace(spreadAnchor, `$1$2\n$1...${name},`);
 }
 
+// The request for the pre-round check of one batch: its references, tests and replay rows written to a scratch folder next to the data module.
+export function prevalidatePayload({ artifactTopic, diagrams, value, dataModule, assigned, scratch }) {
+  const p = paths(artifactTopic, diagrams), name = path => path.split('/').pop();
+  const replay = { prompts: value.replay.map(row => ({ ...row, id: assigned.find(item => String(item.id) === String(row.id))?.id ?? row.id })) };
+  const files = [...dataModule.filter(file => file.path === p.data), { path: p.references, content: assembleReferences(artifactTopic, [value]).content },
+    { path: p.tests, content: assembleTests(artifactTopic, [value]).content }, { path: p.replay, content: JSON.stringify(replay) }].map(file => ({ ...file, name: name(file.path) }));
+  return { scratch, entry: name(p.references), files, rows: assigned };
+}
+
 export const batchSchema = {
   type: 'object', additionalProperties: false, required: ['references', 'tests', 'replay', 'walkthrough'], properties: {
     references: { type: 'string', maxLength: 90000 }, tests: { type: 'string', maxLength: 90000 }, walkthrough: { type: 'string', maxLength: 60000 },
