@@ -11,8 +11,8 @@ import {
 const FITS = 'A ball at the top of its throw has zero velocity but still accelerates downward at 9.8 m/s^2. Scrub through the top to watch it.';
 const plan = (cardDescription = FITS) => ({ cardDescription });
 
-test('the supported widths are the narrow card, the compact card and the normal Focus text measure', () => {
-  assert.deepEqual([...DESCRIPTION_WIDTHS], [320, 440, 794]);
+test('the supported widths are the compact card, the card at its opening width and the normal Focus text measure', () => {
+  assert.deepEqual([...DESCRIPTION_WIDTHS], [440, 720, 794]);
   assert.equal(columnWidth(320), 286);
   assert.equal(columnWidth(440), 406);
   assert.equal(columnWidth(794), 760, 'wide Focus keeps a bounded reading column');
@@ -35,15 +35,15 @@ test('the receipt is a valid DescriptionFitSchema receipt bound to the final cop
   assert.equal(DescriptionFitSchema.safeParse(receipt).success, true);
   assert.equal(receipt.descriptionHash, await contentHash(FITS));
   assert.equal(receipt.styleVersion, `${STYLE_VERSION}:estimate`);
-  assert.deepEqual(receipt.widths.map(w => w.cardWidth), [320, 440, 794]);
+  assert.deepEqual(receipt.widths.map(w => w.cardWidth), [440, 720, 794]);
   assert.deepEqual(await descriptionFitProblems(plan(), receipt), []);
   assert.equal(isMeasured(receipt), false, 'a pure estimate is never a measured receipt');
 });
 
-test('2 to 4 rendered lines at every width: too long at the narrow card and too short at Focus both fail with the width named', async () => {
+test('2 to 4 rendered lines at every width: too long at the compact card and too short at Focus both fail with the width named', async () => {
   const long = 'A tossed ball passes through zero velocity at its top, yet its acceleration stays at minus nine point eight metres per second squared the whole time, so scrub through the top and watch the velocity change sign while the acceleration does not change.';
   const tooLong = await descriptionFitProblems(plan(long), await measureInteractDescription(plan(long)));
-  assert.ok(tooLong.some(p => p.code === 'description_fit' && /at 320px/.test(p.message)), JSON.stringify(tooLong));
+  assert.ok(tooLong.some(p => p.code === 'description_fit' && /at 440px/.test(p.message)), JSON.stringify(tooLong));
   const short = 'Gravity pulls both balls down.';
   const tooShort = await descriptionFitProblems(plan(short), await measureInteractDescription(plan(short)));
   assert.ok(tooShort.some(p => p.code === 'description_fit' && /renders in 1 lines/.test(p.message) && /794px/.test(p.message)), JSON.stringify(tooShort));
@@ -58,7 +58,7 @@ test('a receipt for other copy is stale: the receipt is hash-bound to the exact 
 test('an injected counter measures the unchanged copy at the real column widths, and its receipt is marked measured', async () => {
   const calls = [];
   const receipt = await measureInteractDescription(plan(), { counter: async (text, column) => { calls.push([text, column]); return 3; } });
-  assert.deepEqual(calls, [[FITS, 286], [FITS, 406], [FITS, 760]], 'no shrinking, clipping or padding to pass');
+  assert.deepEqual(calls, [[FITS, 406], [FITS, 686], [FITS, 760]], 'no shrinking, clipping or padding to pass');
   assert.equal(isMeasured(receipt), true);
   assert.deepEqual(receipt.widths.map(w => w.lines), [3, 3, 3]);
   assert.deepEqual(await descriptionFitProblems(plan(), receipt), []);

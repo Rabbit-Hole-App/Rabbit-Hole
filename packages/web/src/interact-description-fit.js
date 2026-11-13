@@ -12,8 +12,9 @@ export const DESCRIPTION_STYLE = Object.freeze({
   insetPx: 34, // the card's px-4 padding both sides (32) plus its 1 px border both sides (2): text column = card width - insetPx
   focusMeasurePx: 760, // the description keeps a bounded column in wide Focus (focus-host.js READING_MAX), never one long line
 });
-// A card 320 px wide (the narrowest layout, card-layout.js FULL_WIDTH.baseline), 440 px (the compact card, LearningBlocks) and normal Focus.
-export const DESCRIPTION_WIDTHS = Object.freeze([320, 440, DESCRIPTION_STYLE.focusMeasurePx + DESCRIPTION_STYLE.insetPx]);
+// A card 440 px wide (the compact card, LearningBlocks), the width a new card opens at (card-layout.js FULL_WIDTH.preferred, 720) and normal Focus. 320 (FULL_WIDTH.baseline) is not measured: an /interact card
+// carries a program frame, a transport strip and a parameter grid that cannot be drawn in 286 px of text column, and the Codex reference concepts (owner 2026-11-13) are 3 lines at 440 and 2 at 720.
+export const DESCRIPTION_WIDTHS = Object.freeze([440, 720, DESCRIPTION_STYLE.focusMeasurePx + DESCRIPTION_STYLE.insetPx]);
 export const DESCRIPTION_LINES = Object.freeze({ min: 2, max: 4 });
 // 'measured' receipts come from the real styles in a real layout (domLineCounter, run by the render service); 'estimate' receipts come from
 // the pure counter below and exist for tests and offline fixtures. A design is publishable only on a measured receipt.

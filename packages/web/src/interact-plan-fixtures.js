@@ -308,9 +308,9 @@ function tossReferencePlans(h) {
   const g = lit(G), apex = topOf(g);
   const tossOverview = {
     ...tossCommon, depth: 'brief',
-    title: 'The ball stops rising. Gravity does not stop.',
+    title: 'The ball stops rising. Gravity doesn’t stop.',
     story: 'Maya tossed a tennis ball straight up for a serve. It seemed to hang above her. She swung and missed.\n\n"I thought it was waiting up there," she said.\n\nShe tossed it again and watched. The ball rose more slowly, stopped for an instant at the top, and then started down.\n\n"If it stopped, why did it come back down?"\n\nAt the top of the throw, the ball had stopped moving upward. For that instant its velocity was zero. But nothing was holding it up.\n\nGravity was still pulling down. It had slowed the ball on the way up, and now it was speeding it up on the way down.\n\nOn her next toss, Maya started her swing a little earlier. This time she heard the ball pop against the strings.',
-    cardDescription: 'Gravity slows the ball on the way up and speeds it up on the way down. At the top it is still for an instant, and gravity is already pulling it down.',
+    cardDescription: 'Gravity slows the ball on the way up and speeds it up on the way down. At the top, the ball is still for an instant. Gravity is already pulling it downward.',
     instructions: 'Change launch speed, then press Play. At the top, playback pauses so you can inspect the arrows. Press Play again to watch the ball fall, or drag the timeline to inspect any moment.',
     learningGoal: 'Say that gravity still pulls the ball down at the top of its throw, where it is still for an instant.',
     scene: {
@@ -353,9 +353,9 @@ function tossReferencePlans(h) {
   const flight = flightOf(gravityExpr), top = topOf(gravityExpr);
   const tossStandard = {
     ...tossCommon, depth: 'balanced',
-    title: 'Zero velocity is not zero acceleration.',
+    title: 'Zero velocity isn’t zero acceleration.',
     story: 'Maya tossed the ball straight up, waited for it to hang at the top, and swung. By then it had dropped below her racket.\n\n"I don\'t get it," she said. "If it stopped, how was it still accelerating?"\n\nHer friend picked up the ball and held it at shoulder height. "Watch what happens the moment I let go."\n\nHe opened his fingers. The ball began to fall. It started with zero velocity, and gravity immediately began giving it downward speed.\n\nMaya looked up. Her own ball had passed through that same moment. The difference was how it got there. Her hand had sent it upward, and gravity had been slowing its climb from the moment it left her fingers.\n\nShe pictured three instants around the top. A tenth of a second before, it was moving up at about a metre per second. At the top, its velocity was zero. A tenth of a second later, it was moving down at about a metre per second.\n\nVelocity tells you how fast something is moving and which way. Acceleration tells you how quickly that velocity changes. In each tenth of a second, the ball\'s velocity changed by about one metre per second downward. Zero was one of the values it passed through.\n\nMaya took another ball. She began her swing while it was still climbing and met it as it came down. This one cleared the net.',
-    cardDescription: 'At the top, velocity is zero for an instant, but gravity keeps changing it: a = -g. A gate releases a second ball at that moment. No air resistance.',
+    cardDescription: 'At the top, velocity is zero for an instant, but gravity keeps changing it: $a = -g$. The gate releases a second ball at that moment. Both then fall together from rest. No air resistance.',
     instructions: 'Change launch speed or gravity, then press Play. At each pause, compare velocity and acceleration. Press Play again to continue, or drag the timeline. At top jumps to the shared release.',
     learningGoal: 'Explain why the acceleration is not zero at the top, where the velocity is zero, by comparing the tossed ball with a ball released from rest.',
     scene: {
@@ -405,7 +405,7 @@ function tossReferencePlans(h) {
     ...tossCommon, depth: 'detailed',
     title: 'Zero velocity. Nonzero acceleration.',
     story: 'Maya missed her serve again. The ball had looked still for just long enough to persuade her she could wait. She wanted to know how much time her eyes had actually seen.\n\nHer friend gave her a clue by dropping a ball from his hand. At the instant it came free, its velocity was zero. Gravity was already accelerating it downward. Maya wondered if she could use that same starting point to calculate what happened around the top of her throw.\n\nShe took upward as positive and set t = 0 at the highest point. For the calculation, she treated the throw as vertical and ignored air resistance. The ball\'s weight was F = -m g, so Newton\'s second law gave her a = F / m = -g, about -9.8 m/s^2. There was no special case in that calculation for the moment when the ball stopped rising.\n\nWith zero velocity at t = 0, she could write its velocity and height on either side of the top.\n\nv(t) = -g t, y(t) = y_top - g t^2 / 2.\n\nThe velocity told the story she expected. A tenth of a second before the top, it was moving up at about 0.98 m/s. A tenth after, it was moving down at the same speed. The velocity had changed by nearly two metres per second in just a fifth of a second.\n\nThe height surprised her. At both those instants, the ball was only 4.9 centimetres below the top. For that whole fifth of a second, it stayed within a space smaller than the width of the ball itself. That was enough to make it look as if it hung there.\n\nOn the next serve, she saw the same little hesitation in the air. This time she was already swinging.',
-    cardDescription: 'At the top, v = 0, but the velocity-time slope stays a = -g. Gravity force is F = mg: more mass, more force, same acceleration. No air resistance.',
+    cardDescription: 'At the top, $v = 0$, but the velocity–time slope stays $a = -g$. Gravity’s force is $F_g = mg$: more mass means more force, with the same acceleration. No air resistance.',
     instructions: 'Change launch speed or gravity, then press Play. Compare the readings at each pause near the top. Change mass while paused to compare force and acceleration. Press Play again or drag the timeline to continue.',
     learningGoal: 'Explain that the force of gravity is m g and the acceleration is -g at every instant, including the top, so a larger mass changes the force and not the motion.',
     scene: {
