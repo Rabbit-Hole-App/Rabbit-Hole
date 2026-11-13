@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "number-line",
+    "title": "An update along the weight axis",
+    "min": 0,
+    "max": 0.7,
+    "markers": [
+      {
+        "value": 0,
+        "label": "$w=0$"
+      },
+      {
+        "value": 0.264,
+        "label": "$w=0.264$"
+      },
+      {
+        "value": 0.6,
+        "label": "Fitted $w=0.6$"
+      }
+    ],
+    "intervals": [
+      {
+        "from": 0,
+        "to": 0.264,
+        "startClosed": true,
+        "endClosed": true,
+        "label": "Positive update"
+      }
+    ],
+    "caption": "$\\\\Delta w=0.01\\\\times\\\\frac{2}{5}\\\\times66=0.264$. The intercept also becomes $b'=0.08$."
+  }
+}

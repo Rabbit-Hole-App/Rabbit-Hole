@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "sample-set",
+    "title": "Reserve a row before fitting",
+    "samples": [
+      {
+        "id": "A",
+        "label": "$(1,2)$"
+      },
+      {
+        "id": "B",
+        "label": "$(2,4)$"
+      },
+      {
+        "id": "C",
+        "label": "$(3,5)$"
+      },
+      {
+        "id": "D",
+        "label": "$(4,4)$"
+      },
+      {
+        "id": "E",
+        "label": "$(5,5)$"
+      }
+    ],
+    "groups": [
+      {
+        "id": "train",
+        "label": "Training",
+        "members": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ]
+      },
+      {
+        "id": "test",
+        "label": "Test",
+        "members": [
+          "E"
+        ]
+      }
+    ],
+    "caption": "$w=3.5/5=0.7$; $b=3.75-0.7*2.5=2$. Test $MSE=(5-5.5)^2=0.25$."
+  }
+}

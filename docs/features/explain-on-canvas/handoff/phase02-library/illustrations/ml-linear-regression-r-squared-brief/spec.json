@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Error relative to predicting the mean",
+    "unit": "$y^2$",
+    "bars": [
+      {
+        "label": "Total",
+        "value": 6
+      },
+      {
+        "label": "Residual",
+        "value": 2.4
+      }
+    ],
+    "caption": "The line leaves less squared error than the mean baseline."
+  }
+}

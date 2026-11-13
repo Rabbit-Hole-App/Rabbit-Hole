@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "cycle",
+    "title": "Repeat until the stopping test passes",
+    "steps": [
+      "Compute predictions",
+      "Compute squared-error cost",
+      "Compute gradients",
+      "Update weight and intercept",
+      "Check stopping tolerance"
+    ],
+    "caption": "Illustrative loop. Exit when the stopping test passes; otherwise repeat. Low cost alone does not certify optimality."
+  }
+}

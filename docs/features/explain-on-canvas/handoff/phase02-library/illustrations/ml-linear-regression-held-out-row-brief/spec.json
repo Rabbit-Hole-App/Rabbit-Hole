@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "sample-set",
+    "title": "Reserve a row before fitting",
+    "samples": [
+      {
+        "id": "A",
+        "label": "$(1,2)$"
+      },
+      {
+        "id": "C",
+        "label": "$(3,5)$"
+      },
+      {
+        "id": "E",
+        "label": "$(5,5)$"
+      }
+    ],
+    "groups": [
+      {
+        "id": "train",
+        "label": "Training",
+        "members": [
+          "A",
+          "C"
+        ]
+      },
+      {
+        "id": "test",
+        "label": "Test",
+        "members": [
+          "E"
+        ]
+      }
+    ],
+    "caption": "Selected training rows; the test row stays unseen during fitting."
+  }
+}

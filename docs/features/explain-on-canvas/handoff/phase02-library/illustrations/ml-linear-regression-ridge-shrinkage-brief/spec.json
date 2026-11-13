@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "flow",
+    "title": "Penalize weight magnitude",
+    "nodes": [
+      {
+        "id": "penalty",
+        "label": "Add ridge penalty",
+        "role": "process"
+      },
+      {
+        "id": "weight",
+        "label": "Decrease $w$",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "penalty",
+        "to": "weight"
+      }
+    ],
+    "caption": "Penalize the weight, not the intercept."
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "The MSE bowl and its bottom",
+    "x": {
+      "label": "Slope $w$",
+      "min": 0,
+      "max": 1.2
+    },
+    "y": {
+      "label": "Mean squared error",
+      "min": 0,
+      "max": 1.2
+    },
+    "series": [
+      {
+        "label": "Optimized-intercept cost",
+        "kind": "line",
+        "smooth": true,
+        "samples": {
+          "x": [
+            0,
+            0.3,
+            0.6,
+            0.9,
+            1.2
+          ],
+          "y": [
+            1.2,
+            0.66,
+            0.48,
+            0.66,
+            1.2
+          ],
+          "showValues": true
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "label": "Lowest cost",
+        "x": 0.6,
+        "y": 0.48
+      }
+    ],
+    "caption": "Refit the intercept at each slope. The bottom is $w=0.6$ with $\\mathrm{MSE}=0.48$."
+  }
+}

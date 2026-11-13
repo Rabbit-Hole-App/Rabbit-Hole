@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Error relative to predicting the mean",
+    "unit": "$y^2$",
+    "bars": [
+      {
+        "label": "Total",
+        "value": 6
+      },
+      {
+        "label": "Residual",
+        "value": 2.4
+      },
+      {
+        "label": "Removed",
+        "value": 3.6
+      }
+    ],
+    "caption": "Explained fraction $R^2=0.6$, relative to the mean baseline."
+  }
+}

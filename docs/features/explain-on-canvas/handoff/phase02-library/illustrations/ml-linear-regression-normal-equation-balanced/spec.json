@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "title": "Direct solve or iterative updates?",
+    "columns": [
+      {
+        "heading": "Normal equation",
+        "items": [
+          "Solve directly for the least-squares fit.",
+          "Prefer a manageable feature matrix.",
+          "$w=0.6,\\\\ b=2.2$"
+        ]
+      },
+      {
+        "heading": "Gradient descent",
+        "items": [
+          "Repeat updates with a tuned rate.",
+          "Prefer very large or streaming datasets.",
+          "After an update, $w=0.264$."
+        ]
+      }
+    ],
+    "caption": "Choose by feature count, memory and data access, not by an assumption that iterative fitting is a different regression model."
+  }
+}

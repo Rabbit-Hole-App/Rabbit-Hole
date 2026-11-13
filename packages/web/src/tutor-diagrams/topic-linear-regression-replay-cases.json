@@ -1,0 +1,148 @@
+{
+ "prompts": [
+  {
+   "paraphrases": [
+    "show how slope and intercept control the fitted line through the toy points",
+    "where does the fitted toy line cross the vertical axis and what is its rise over run?",
+    "what do w and b represent geometrically on the toy regression line?",
+    "explain the slope triangle and intercept of the best-fit toy line",
+    "how can i read the slope and intercept from the line over the toy scatter?"
+   ],
+   "prompt": "what do the slope w and the intercept b mean on the line y = wx + b through the toy points?",
+   "id": 1,
+   "referenceId": "ml-linear-regression-slope-intercept"
+  },
+  {
+   "paraphrases": [
+    "show how the toy line's residuals are squared and averaged into mse",
+    "how do the vertical prediction gaps become a single mean squared error?",
+    "calculate mse from all the residuals of the fitted toy line",
+    "why do we square the toy residuals before averaging them?",
+    "turn the fitted line's errors into squared errors and then the mean cost"
+   ],
+   "prompt": "how does mean squared error turn five residuals into one cost number?",
+   "id": 2,
+   "referenceId": "ml-linear-regression-residual-mse"
+  },
+  {
+   "paraphrases": [
+    "show the bowl of mse over slope with the intercept optimized and mark its bottom",
+    "why does the toy regression loss have a unique minimum?",
+    "plot the toy mse profile as w varies and locate the best slope",
+    "where is the lowest point of the toy least-squares cost bowl?",
+    "explain the convex quadratic mse curve when b is optimized for each w"
+   ],
+   "prompt": "why is the mse cost surface a bowl and where is its bottom for the toy data?",
+   "id": 3,
+   "referenceId": "ml-linear-regression-cost-bowl"
+  },
+  {
+   "paraphrases": [
+    "show the repeating predict cost gradient update loop and its stopping test",
+    "what stages does gradient descent cycle through during linear regression training?",
+    "how does the regression training loop decide whether to repeat or stop?",
+    "explain the gradient descent cycle from predictions through parameter updates",
+    "what repeats after each weight update until the training stopping condition passes?"
+   ],
+   "prompt": "what loop does gradient descent repeat until the cost is low enough?",
+   "id": 4,
+   "referenceId": "ml-linear-regression-training-loop"
+  },
+  {
+   "paraphrases": [
+    "Show the first gradient step for the toy weight starting from zero.",
+    "How large is the initial weight update on these toy rows?",
+    "Where does the toy weight land after its first epoch at the small learning rate?",
+    "Explain the sign and distance of the first gradient step from zero.",
+    "Calculate the first weight update and compare it with the fitted slope."
+   ],
+   "prompt": "how far does the first gradient descent step move w from zero on the toy data?",
+   "id": 5,
+   "referenceId": "ml-linear-regression-first-step"
+  },
+  {
+   "paraphrases": [
+    "Compare the cost after a single update with learning rates 0.01 and 0.1.",
+    "Why does the larger learning rate overshoot and increase the toy cost immediately?",
+    "Show how a small learning rate lowers cost while the larger first step raises it.",
+    "Starting from zero, which learning rate makes the first update reduce mean squared error?",
+    "Explain the first-step cost increase caused by an oversized learning rate."
+   ],
+   "prompt": "why does a learning rate of 0.1 push the cost up while 0.01 brings it down after one step?",
+   "id": 6,
+   "referenceId": "ml-linear-regression-learning-rate"
+  },
+  {
+   "paraphrases": [
+    "When is a normal equation preferable to iterative gradient descent?",
+    "Compare a closed-form least-squares solve with gradient descent for the toy fit.",
+    "How should feature count influence choosing a normal equation or gradient descent?",
+    "Why choose a direct solve for a manageable regression problem instead of repeated updates?",
+    "Explain the computational tradeoff between the normal equation and gradient descent."
+   ],
+   "prompt": "when should you use the normal equation instead of gradient descent?",
+   "id": 7,
+   "referenceId": "ml-linear-regression-normal-equation"
+  },
+  {
+   "paraphrases": [
+    "Why does feature scaling turn a narrow loss valley into a rounder one?",
+    "Show how standardization reduces zigzagging during gradient descent.",
+    "How do very different feature ranges produce elongated contours and slow updates?",
+    "Compare gradient descent paths before and after feature standardization.",
+    "Explain why scaling a wide-range feature helps gradient descent move more directly."
+   ],
+   "prompt": "why does gradient descent struggle when one feature spans 0 to 1 and another 0 to 1,000,000?",
+   "id": 8,
+   "referenceId": "ml-linear-regression-feature-scaling"
+  },
+  {
+   "paraphrases": [
+    "Why can polynomial regression interpolate the toy observations yet extrapolate poorly?",
+    "Show how an overfitting polynomial matches every training point but misses an unseen target.",
+    "Compare the high-degree polynomial and straight line beyond the toy training range.",
+    "Does a perfect polynomial training fit guarantee good predictions outside the observed inputs?",
+    "How does polynomial degree let the curve fit all toy points while hurting generalization?"
+   ],
+   "prompt": "how can a high-degree polynomial pass through every toy point and still predict badly?",
+   "id": 9,
+   "referenceId": "ml-linear-regression-polynomial-overfit"
+  },
+  {
+   "paraphrases": [
+    "What does the toy line's r-squared tell me relative to the mean baseline?",
+    "How much target variation does the fitted line explain compared with predicting the average?",
+    "Compare total and residual squared error to explain the toy r-squared.",
+    "Why does removing part of the mean baseline error give this fit its r-squared?",
+    "Explain the toy fit's explained variance using its leftover error and the baseline mean."
+   ],
+   "prompt": "what does an r-squared of 0.6 say about the toy fit compared with predicting the mean?",
+   "id": 10,
+   "referenceId": "ml-linear-regression-r-squared"
+  },
+  {
+   "paraphrases": [
+    "How does increasing the ridge penalty change the fitted toy weight?",
+    "Show the toy ridge regression weight as lambda gets larger.",
+    "Why does an l2 penalty pull the toy slope closer to zero?",
+    "Plot weight shrinkage under ridge while leaving the intercept unpenalized.",
+    "What is the relationship between lambda and the ridge solution for the toy slope?"
+   ],
+   "prompt": "how does the ridge penalty lambda shrink the toy weight toward zero?",
+   "id": 11,
+   "referenceId": "ml-linear-regression-ridge-shrinkage"
+  },
+  {
+   "paraphrases": [
+    "Fit the toy training rows without the final row, then score that held-out observation.",
+    "How does holding out a toy row separate fitting from testing?",
+    "Show the train test split and prediction for the unseen toy row.",
+    "What test squared error results when the last toy observation is excluded from fitting?",
+    "How do the training-only slope and intercept predict the reserved toy test point?"
+   ],
+   "prompt": "what happens when one toy row is held out as a test point before fitting?",
+   "id": 12,
+   "referenceId": "ml-linear-regression-held-out-row"
+  }
+ ]
+}
