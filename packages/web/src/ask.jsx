@@ -1272,12 +1272,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
               Graph open from the panel header's one control (owner brief 2026-10-16 item 6), not from here. */}
           {chat && <ModeSelector disabled={voiceOn} />}
           {(dock || chat) && chatControl}
-          {curiousButton}
-          {chatWindowButton}
           {SHOW_VOICE_TOGGLE && (dock || chat) && voice && voice.state === 'off' && (chat ? <span className="contents [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-lg [&>button]:border-0"><VoiceToggle voice={voice} disabled={busy} /></span> : <VoiceToggle voice={voice} disabled={busy} />)}
           </>}
           voice={voiceOn ? <VoiceField voice={voice} /> : null}
-          trailing={dock || chat ? null : chatControl}
+          trailing={stripMode ? <>{curiousButton}{chatWindowButton}</> : dock || chat ? null : chatControl}
         />
       </div>
   );

@@ -94,9 +94,22 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     </div>
   </form>;
   const frame = dock
-    ? `${pill ? 'gap-1.5 rounded-full py-2 pr-2.5 pl-3' : 'gap-2.5 rounded-xl px-3 py-3.5 max-md:px-2.5 max-md:py-2.5'} border border-line-strong bg-white max-md:gap-1.5 ${flat ? 'shadow-[0_1px_2px_rgba(15,15,15,0.05)]' : 'shadow-pop'}`
+    ? `${pill ? 'gap-1.5 rounded-full py-2 pr-2.5 pl-4' : 'gap-2.5 rounded-xl px-3 py-3.5 max-md:px-2.5 max-md:py-2.5'} border border-line-strong bg-white max-md:gap-1.5 ${flat ? 'shadow-[0_1px_2px_rgba(15,15,15,0.05)]' : 'shadow-pop'}`
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
-  return <form data-chat-composer {...(pill ? { 'data-composer-pill': true } : {})} className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
+  // pill (the canvas strip, owner 2026-11-13): the pill holds only the field and Send; the tools are one slim row under it, leading at the left and
+  // trailing at the right, like the owner's reference composer.
+  if (pill) return <div className="flex flex-col gap-1">
+    <form data-chat-composer data-composer-pill className={`flex items-center ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
+      {body}
+      {send}
+    </form>
+    <div data-composer-toolbar className="flex min-w-0 items-center gap-0.5 px-2">
+      {leading}
+      <span className="min-w-0 flex-1" />
+      {trailing}
+    </div>
+  </div>;
+  return <form data-chat-composer className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
     {leading}
     {body}
     {trailing}

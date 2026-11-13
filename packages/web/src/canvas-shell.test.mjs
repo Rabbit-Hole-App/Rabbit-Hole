@@ -76,11 +76,12 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(ask, /data-chat-window-minimize aria-label="Minimize chat"/);
   assert.match(ask, /winState === 'min' && 'hidden'\)\}>/, 'minimized, the window is gone completely');
   assert.match(ask, /data-chat-window-toggle aria-label=\{winState === 'min' \? 'Show chat' : 'Hide chat'\}/, 'the strip\'s chat button brings it back');
-  assert.match(ask, /\{curiousButton\}\n\s+\{chatWindowButton\}/, 'next to the Curious toggle in the toolbar');
+  assert.match(ask, /trailing=\{stripMode \? <>\{curiousButton\}\{chatWindowButton\}<\/> : dock \|\| chat \? null : chatControl\}/, 'the two view buttons at the right end of the tool row under the pill');
+  assert.match(composer, /if \(pill\) return <div className="flex flex-col gap-1">[\s\S]*?\{body\}\n\s+\{send\}\n\s+<\/form>\n\s+<div data-composer-toolbar className="flex min-w-0 items-center gap-0\.5 px-2">\n\s+\{leading\}/, 'the pill holds the field and Send; the tools are one row below it');
   assert.match(ask, /data-chat-window-maximize aria-label=\{winState === 'max' \? 'Restore chat size' : 'Maximize chat'\}/);
   assert.match(page, /chatWindow=\{panelOpen \? null : <div ref=\{setWindowHost\} data-canvas-chat-window className="empty:hidden" \/>\}/);
   assert.match(canvas, /\{chatWindow\}\n\s+\{\/\*[^\n]*\n\s+\{hooks && <div data-hooks-slot/, 'above the suggestions and the composer');
-  assert.match(composer, /rounded-full py-2 pr-2\.5 pl-3/, 'round on both sides');
+  assert.match(composer, /rounded-full py-2 pr-2\.5 pl-4/, 'round on both sides');
   assert.doesNotMatch(read('ChatComposer.jsx'), /data-canvas-strip-composer/, 'never a second composer element');
 });
 
