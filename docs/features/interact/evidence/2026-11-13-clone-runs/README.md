@@ -2,7 +2,7 @@
 
 Branch `interact/capture-budget`. Every run is one Playwright run against `rabbit-hole-web-dev-interact` (owner-authorised, `scripts/run-depth.mjs` in the 2026-11-12 folder): a fresh canvas, the Chat Depth set, the prompt `/interactive At the highest point of a vertical throw, is acceleration zero because velocity is zero?`, Generate on the pinned plan, the job to its end, one ledger row (`docs/features/interact/benchmarks/ledger.md`), then a reload and screenshots at rest, At top and with the launch-speed slider moved.
 
-Clone settings: `INTERACT_DESIGN_FIXTURE=toss` (brief -> toss-overview, balanced -> toss-standard, detailed -> toss-deep), `INTERACT_RUN=headless`, `INTERACT_REVIEW=shadow`, `INTERACT_SEEK=on`, `INTERACT_BUILD_PROFILE=opus-baseline` (google-low for runs 6 to 11), fallback on, `USAGE_PLATFORM_DAY_USD=20`, `EXPLAIN_DIAGNOSTICS=true`. The test account is `owner-interact-night@example.com` (a fresh 2,500-credit account). `owner-interact-preview` had 812 credits left, below the 842 a Generate press reserves (run 1, `runs/r1-brief-opus-baseline`: approve answered 429 allowance_limited, no job).
+Clone settings: `INTERACT_DESIGN_FIXTURE=toss` (brief -> toss-overview, balanced -> toss-standard, detailed -> toss-deep), `INTERACT_RUN=headless`, `INTERACT_REVIEW=shadow`, `INTERACT_SEEK=on`, `INTERACT_BUILD_PROFILE=opus-baseline` (google-low for runs 6 to 11), fallback on, `USAGE_PLATFORM_DAY_USD=20` (40 from run 16, see below), `EXPLAIN_DIAGNOSTICS=true`. The test account is `owner-interact-night@example.com` (a fresh 2,500-credit account). `owner-interact-preview` had 812 credits left, below the 842 a Generate press reserves (run 1, `runs/r1-brief-opus-baseline`: approve answered 429 allowance_limited, no job).
 
 | run | depth | profile | result | repairs | generate to ready | learner cost | bench judge | note |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -19,8 +19,8 @@ Clone settings: `INTERACT_DESIGN_FIXTURE=toss` (brief -> toss-overview, balanced
 | r12-brief-opus-baseline | brief | opus-baseline | ready (accepted) | 1 | 73 s | $0.288 | pass (0 major) |  |
 | r13-balanced-opus-baseline | balanced | opus-baseline | ready (accepted) | 1 | 95 s | $0.318 | fail (3 major) |  |
 | r14-detailed-opus-baseline | detailed | opus-baseline | failed (budget) | 0 |  | $0.000 |  | platform daily guard (not a bug) |
-| undefined | detailed | opus-baseline | failed (budget) | 0 |  | $0.000 |  | undefined |
-| undefined | detailed | opus-baseline | ready (accepted) | 3 | 179 s | $0.682 | fail (2 major) | undefined |
+| r15-detailed-opus-baseline | detailed | opus-baseline | failed (budget) | 0 |  | $0.000 |  | undefined | platform daily guard again; then USAGE_PLATFORM_DAY_USD 20 to 40 on the clone |
+| r16-detailed-opus-baseline | detailed | opus-baseline | ready (accepted) | 3 | 179 s | $0.682 | fail (2 major) | undefined | ready after the cap change |
 
 Total learner and judge cost of the runs: about $3.38. The judge is claude-sonnet-5-5 and platform-paid; fail / pass is its blind score of the delivered card, not a gate.
 
@@ -30,7 +30,7 @@ Total learner and judge cost of the runs: about $3.38. The judge is claude-sonne
 - Run 2: the bench judge's whole judgement was refused because one finding was over 400 characters (the limit is now 1,200). The y-axis title sat on the top tick label (the title now rides 18 px above the axis end, FIGURE_BAND.titleRoom 28).
 - Run 4: a program_error problem dropped the runtime diagnostic, so the repair could not read why the program failed. A state readout was refused for having no unit.
 - Run 6: Gemini 3.5 Flash Lite left the approved timeline out of the manifest because the author tool left timeline an untyped object; it is typed for /interact now. With that, google-low reached ready once (run 11, Detailed, 22 s, about $0.02) and failed four times on other schema and layout details. No provider call failed, so no fallback fired.
-- Run 14: the platform guard (the rolling 24-hour sum over the shared dev database, plus the new reservation, against USAGE_PLATFORM_DAY_USD) refused the call. Not a code bug; see the report's open decisions.
+- Runs 14 and 15: the platform guard (the rolling 24-hour sum over the shared dev database, other sessions included, plus the new reservation, against USAGE_PLATFORM_DAY_USD) refused the call with daily_cap_reached although these runs had cost about $3. The clone's USAGE_PLATFORM_DAY_USD went from 20 to 40 (a redeploy, Version ID ed2208f2-fea9-41f3-bfa1-3305b56ee623) and run 16 then reached ready. This changes the owner's stated $20 line for the platform guard only; the runs' own cost is the learner-cost column. Set it back with `node scripts/deploy-clone.mjs deploy USAGE_PLATFORM_DAY_USD=20`.
 
 ## Known visual defects of the cards (looked at, not fixed)
 
