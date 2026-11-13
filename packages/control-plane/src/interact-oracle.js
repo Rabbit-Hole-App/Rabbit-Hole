@@ -131,6 +131,13 @@ function tossCases(plan, { inputControls, defaults, at, tl }) {
   return cases;
 }
 
+// The toss plan's cases as { caseId: [inputs, elapsedSeconds] } (the ones its oracle's rows are keyed by), or null when the plan is not one of the three toss plans. bench-expressions.mjs evaluates a model's expressions at them.
+export function tossCasesOf(plan) {
+  const options = { brief: { gravity: false, mass: false, offset: 0 }, balanced: { gravity: true, mass: false, offset: -1 }, detailed: { gravity: true, mass: true, offset: 0 } }[plan?.depth];
+  const ref = options && tossReference(plan, plan.depth, options);
+  return ref ? { cases: tossCases(plan, ref), domains: Object.fromEntries(ref.inputControls.map(c => [c.binding.id, [c.min, c.max]])) } : null;
+}
+
 // Arrow directions (y grows downward on the screen; sdk.vector's `direction` names the POSITIVE axis and `value` is signed along it, so a negative acceleration drawn with direction "up" points down).
 // The acceleration and the force always point down. The velocity arrow points up before the top, is absent at it, and points down after; within 0.1 m/s of zero it may be missing (the card hides an arrow
 // under its minimum length).

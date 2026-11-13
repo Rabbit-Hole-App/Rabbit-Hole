@@ -1,0 +1,69 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "op": "input",
+    "id": "launchSpeed"
+   },
+   "gravity": {
+    "op": "input",
+    "id": "gravity"
+   },
+   "apexTime": {
+    "op": "divide",
+    "id": "apexTime"
+   },
+   "apexHeight": {
+    "op": "divide",
+    "id": "apexHeight"
+   },
+   "tossedVelocity": {
+    "op": "subtract",
+    "id": "tossedVelocity"
+   },
+   "tossedAcceleration": {
+    "op": "subtract",
+    "id": "tossedAcceleration"
+   },
+   "tossedHeight": {
+    "op": "subtract",
+    "id": "tossedHeight"
+   },
+   "dropVelocity": {
+    "op": "subtract",
+    "id": "dropVelocity"
+   },
+   "dropAcceleration": {
+    "op": "literal",
+    "value": 0
+   },
+   "dropHeight": {
+    "op": "input",
+    "id": "launchSpeed"
+   }
+  },
+  "moments": {
+   "before": {
+    "op": "subtract",
+    "id": "before"
+   },
+   "top": {
+    "op": "divide",
+    "id": "top"
+   },
+   "after": {
+    "op": "add",
+    "id": "after"
+   },
+   "fastTop": {
+    "op": "divide",
+    "id": "fastTop"
+   }
+  }
+ },
+ "usage": {
+  "completion_tokens": 223,
+  "prompt_tokens": 1501,
+  "total_tokens": 1724
+ }
+}
