@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Sigmoid links score to probability",
+    "caption": "Illustrative values. $\\sigma(z)=1/(1+e^{-z})$; $\\sigma(0)=0.5$.",
+    "x": {
+      "label": "Linear score $z$",
+      "min": -6,
+      "max": 6
+    },
+    "y": {
+      "label": "Pass probability",
+      "min": 0,
+      "max": 1
+    },
+    "series": [
+      {
+        "label": "Sigmoid",
+        "kind": "line",
+        "smooth": true,
+        "samples": {
+          "x": {
+            "start": -6,
+            "step": 2
+          },
+          "y": [
+            0.002,
+            0.018,
+            0.119,
+            0.5,
+            0.881,
+            0.982,
+            0.998
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "axis": "y",
+        "value": 0,
+        "label": "Lower limit"
+      },
+      {
+        "kind": "reference-line",
+        "axis": "y",
+        "value": 1,
+        "label": "Upper limit"
+      },
+      {
+        "kind": "reference-line",
+        "axis": "x",
+        "value": 0,
+        "label": "Zero score"
+      },
+      {
+        "kind": "reference-line",
+        "axis": "y",
+        "value": 0.5,
+        "label": "Half probability"
+      }
+    ]
+  }
+}

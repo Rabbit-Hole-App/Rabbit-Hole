@@ -1,0 +1,148 @@
+{
+ "prompts": [
+  {
+   "paraphrases": [
+    "why can the linear fit to pass fail hours produce probabilities outside the valid range?",
+    "show how the straight least squares line through the hours observations gives unbounded output",
+    "why does the pass fail linear fit predict a negative value for a low study time?",
+    "how can a straight line for passing from hours studied predict more than certainty?",
+    "plot the hours data and explain why the linear fit leaves the probability band"
+   ],
+   "prompt": "why does a straight line fit to the pass/fail hours data go below 0 at low hours and above 1 at high hours?",
+   "id": 1,
+   "referenceId": "ml-logistic-regression-linear-unbounded"
+  },
+  {
+   "paraphrases": [
+    "how does the outlier at fifty study hours flatten the fitted line and move its cutoff?",
+    "compare the original hours line with the shifted line after adding the distant passing student",
+    "why does one outlier studying fifty hours change predictions even for ordinary students?",
+    "show why the cutoff moves when a faraway passing observation is included in the hours fit",
+    "what happens to the slope and half probability crossing when the distant hours outlier is added?"
+   ],
+   "prompt": "how does a single outlier who studied 50 hours drag the whole fitted line and change predictions for everyone?",
+   "id": 2,
+   "referenceId": "ml-logistic-regression-outlier-leverage"
+  },
+  {
+   "paraphrases": [
+    "draw the sigmoid s curve and mark its midpoint at half probability",
+    "where does the sigmoid cross half probability as its score changes?",
+    "what does the sigmoid probability curve look like between its lower and upper limits?",
+    "show the s curve of the sigmoid with its midpoint and limiting probabilities",
+    "why is the sigmoid output one half when the linear score is zero?"
+   ],
+   "prompt": "what shape does sigmoid 1/(1+e^-z) trace and where does it pass through 0.5?",
+   "id": 3,
+   "referenceId": "ml-logistic-regression-sigmoid-shape"
+  },
+  {
+   "paraphrases": [
+    "why does the sigmoid derivative have its peak at zero and flat tails?",
+    "plot sigmoid together with its derivative to explain the largest slope in the middle",
+    "how does the product of sigmoid probability and its complement make the derivative vanish in the tails?",
+    "why is the sigmoid derivative a bell shaped curve centered on a zero score?",
+    "show how the sigmoid derivative reaches a quarter at the midpoint but becomes tiny at either tail"
+   ],
+   "prompt": "why does the sigmoid derivative sigma(z)(1-sigma(z)) peak at z=0 and vanish at the tails?",
+   "id": 4,
+   "referenceId": "ml-logistic-regression-sigmoid-derivative"
+  },
+  {
+   "paraphrases": [
+    "Show the model pipeline from input x through the linear score and sigmoid to the threshold decision.",
+    "How does linear then sigmoid turn study hours into a probability and finally a predicted class?",
+    "Trace the model pipeline and explain which branch the probability threshold selects.",
+    "Why does the threshold decision come after the linear score and sigmoid probability?",
+    "Can you draw the input, score, sigmoid and class decision stages of logistic regression?"
+   ],
+   "prompt": "how does an input x travel through z = wx + b, the sigmoid, and the 0.5 threshold to become a class 0 or 1?",
+   "id": 5,
+   "referenceId": "ml-logistic-regression-model-pipeline"
+  },
+  {
+   "paraphrases": [
+    "Why does log loss become enormous when a binary prediction is confidently wrong?",
+    "Compare the two curves of binary cross-entropy for positive and negative true labels.",
+    "How does log loss change as the predicted probability approaches the correct or incorrect end?",
+    "Why is binary cross-entropy small for confident correct predictions but unbounded for confident wrong ones?",
+    "Draw the two log loss curves against predicted probability and explain their opposite directions."
+   ],
+   "prompt": "why does binary cross-entropy loss stay near 0 when p is close to the true label but explode as p moves to the wrong end?",
+   "id": 6,
+   "referenceId": "ml-logistic-regression-log-loss"
+  },
+  {
+   "paraphrases": [
+    "Show the gradient descent training loop from predictions through loss and gradients to the weight update.",
+    "How do forward pass, log loss, gradients and parameter updates repeat until convergence?",
+    "Draw the training loop for logistic regression and explain when gradient descent stops.",
+    "How does each weight update feed the next forward pass in gradient descent?",
+    "Walk through a gradient descent iteration using the shared study-hours rows, then show the repeating cycle."
+   ],
+   "prompt": "how does gradient descent cycle through forward pass, loss, gradients, and update until the model converges?",
+   "id": 7,
+   "referenceId": "ml-logistic-regression-gradient-descent"
+  },
+  {
+   "paraphrases": [
+    "Where is the linear separator between the class clusters centered at (2,2) and (5,5)?",
+    "Draw the decision boundary between the two clusters and identify the predicted class on each side.",
+    "Why does the zero-score line pass between these two clusters near their midpoint?",
+    "Show where the straight decision boundary crosses the diagonal between the class centers.",
+    "For the two-feature clusters, which side of the linear separator contains each class and what happens on the line?"
+   ],
+   "prompt": "where does the line w1x1 + w2x2 + b = 0 fall between the class 0 cluster at (2,2) and the class 1 cluster at (5,5)?",
+   "id": 8,
+   "referenceId": "ml-logistic-regression-linear-separator"
+  },
+  {
+   "paraphrases": [
+    "How does softmax normalize three class scores into probabilities while keeping the highest score as the winner?",
+    "Show three raw scores before softmax and their probabilities afterward, including the probability total.",
+    "Why do softmax probabilities sum to one and give the largest probability to the largest raw class score?",
+    "Compare the scores and normalized probabilities for three classes and identify the softmax prediction.",
+    "Can you show how exponentiating and normalizing three scores produces a probability distribution with the same winning class?"
+   ],
+   "prompt": "how does softmax turn three raw class scores into probabilities that sum to 1 with the highest score winning?",
+   "id": 9,
+   "referenceId": "ml-logistic-regression-softmax"
+  },
+  {
+   "paraphrases": [
+    "Why is accuracy 95% for an always-negative model when 95% of the cases are negative?",
+    "Show how predicting negative for all cases gets high accuracy but misses the 5% positive minority.",
+    "How can a classifier achieve 95% accuracy and zero positive recall just by always choosing negative?",
+    "Compare correct negatives and missed positives for an always-negative classifier on the 95-to-5 dataset.",
+    "Explain the accuracy trap when a dataset has 95 negatives and 5 positives and the model never predicts positive."
+   ],
+   "prompt": "why does a model that always predicts negative score 95% accuracy on a dataset with 95% negatives and 5% positives?",
+   "id": 10,
+   "referenceId": "ml-logistic-regression-accuracy-trap"
+  },
+  {
+   "paraphrases": [
+    "Put the eight probability predictions into TP, FN, FP and TN cells using a threshold of 0.5.",
+    "How do the actual labels and predictions at 0.5 produce the confusion matrix for these eight cases?",
+    "Show which of the eight cases are true positives, missed positives, false positives and true negatives at threshold 0.5.",
+    "Build the actual-by-predicted table from the eight supplied probabilities at 0.5 and calculate its precision and recall.",
+    "Where do the eight thresholded predictions go in the confusion matrix, and how do its counts give the F-score?"
+   ],
+   "prompt": "how do the eight predictions at threshold 0.5 fill the tp, fn, fp, tn cells of the confusion matrix?",
+   "id": 11,
+   "referenceId": "ml-logistic-regression-confusion-matrix"
+  },
+  {
+   "paraphrases": [
+    "Compare precision and recall at thresholds 0.3, 0.5 and 0.7 for the same eight predictions.",
+    "Why does raising the threshold from 0.3 to 0.7 increase precision but reduce recall on these cases?",
+    "Plot precision and recall against the probability threshold for the eight supplied predictions.",
+    "Show the precision-recall tradeoff when the cutoff changes through 0.3, 0.5 and 0.7 without changing the cases.",
+    "At which threshold do precision and recall match, and how do they change toward the lower and higher cutoffs?"
+   ],
+   "prompt": "how do precision and recall trade off as the threshold moves from 0.3 to 0.7 on the same eight predictions?",
+   "id": 12,
+   "referenceId": "ml-logistic-regression-threshold-tradeoff"
+  }
+ ]
+}

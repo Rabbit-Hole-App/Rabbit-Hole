@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "flow",
+    "title": "Sigmoid rises through its midpoint",
+    "caption": "Illustrative values. The curve rises while remaining between the probability bounds.",
+    "nodes": [
+      {
+        "id": "a",
+        "label": "Approach $0$",
+        "role": "process"
+      },
+      {
+        "id": "b",
+        "label": "$\\sigma(0)=0.5$",
+        "role": "process"
+      },
+      {
+        "id": "c",
+        "label": "Approach $1$",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "a",
+        "to": "b"
+      },
+      {
+        "from": "b",
+        "to": "c"
+      }
+    ]
+  }
+}

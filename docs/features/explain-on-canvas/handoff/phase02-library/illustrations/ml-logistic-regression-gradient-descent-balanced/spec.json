@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "cycle",
+    "title": "The gradient descent training loop",
+    "caption": "Illustrative values; start at $w=b=0$ and stop when converged.",
+    "steps": [
+      "Predict $p=\\sigma(wx+b)$",
+      "Compute mean log loss",
+      "Compute slope and bias gradients",
+      "Subtract learning rate times gradients"
+    ]
+  }
+}

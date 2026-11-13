@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "flow",
+    "title": "From input to predicted class",
+    "caption": "Illustrative values; thresholding turns probability into a class.",
+    "nodes": [
+      {
+        "id": "a",
+        "role": "process",
+        "label": "Input $x$ to linear score"
+      },
+      {
+        "id": "b",
+        "role": "process",
+        "label": "Sigmoid probability"
+      },
+      {
+        "id": "c",
+        "role": "outcome",
+        "label": "Threshold gives a class"
+      }
+    ],
+    "edges": [
+      {
+        "from": "a",
+        "to": "b"
+      },
+      {
+        "from": "b",
+        "to": "c"
+      }
+    ]
+  }
+}
