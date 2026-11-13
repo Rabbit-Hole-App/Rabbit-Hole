@@ -71,3 +71,16 @@ Run 13 (`13-fix2-rebuild-READY`): pinned `toss-drop-standard-controls` with the 
 The builder used `sdk.vector` (4 calls), `sdk.gate` (1) and `sdk.groundMark` (1) and drew no arrow by hand; the program declares 640 x 420 at 14 px text, drawn at scale 1.0
 (card 676 x 685). The overlap check raised no problem in any round; all rejections were reviewer findings. Not built: restyle steps 3 and 4 (`axis`, `plot`, `diagram` frame kinds, sdk-8).
 Screenshot: `s4-rebuilt-card-states-vs-written-100pct.png` (written card, then rest, Top marker, speed 5.0 at its top, arrows off).
+
+## Update: fix-3 (readouts row), run 14
+
+`649f2d300`: the card draws a readouts row itself (label, value, unit, tabular numbers, 14 px, between the scene and its timeline; `readouts` is a new card section), the binding check also
+requires a unit on each readout and every adjustable id in `manifest.inputs`, and the build prompt says to declare readouts instead of drawing their values. Deployed Version ID
+`7f3bfd91-c012-4e03-9d5e-06a5c21455f0`. Correction to the brief: run 12's sealed manifest DID declare all three readouts (see `13-fix2-rebuild-READY/result-artifact.json`) and the
+`readout_missing` check already existed; the readouts were simply never drawn for a composed card.
+
+Run 14 (`14-fix3-rebuild-FAILED-and-readouts-row`): the pinned rebuild `ej_ce984e13cbc741d89a1e2b8b3a123ddb` failed with `no_progress` in repair round 3 ($0.90). The binding check did not fire in round 0 (the
+round 0 findings are all reviewer findings). Round 2's only finding was the reviewer asking for the 5 m/s throw shown at its top; the max-input boundary capture is taken at the end of
+the flight, so the repairer returned `none`. `rerender-run12-card/` shows run 12's card re-rendered with the new row: `e4-speed-5.0-at-its-top-card.png` reads Height 1.276 m, Velocity 0.00 m/s,
+Acceleration -9.8 m/s^2.
+
