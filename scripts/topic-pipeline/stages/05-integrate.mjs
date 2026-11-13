@@ -5,15 +5,18 @@ import { artefactTopic, command, configuredCommand, exists, manifest, runBench, 
 
 const ownReferences = (ctx, author) => (author.references ?? []).filter(r => r.authored === true || r.decision === 'NEW' || (r.authored === undefined && r.decision === undefined && r.id.startsWith(ctx.fixture && ctx.dryRun ? 'ml-dry-trees-' : `ml-${ctx.topic}-`))).map(r => r.id).filter(id => /^[a-z0-9-]+$/.test(id));
 
-function allowed(path, ctx, author) {
+// A reference's preview folders: the base id and every depth and detail variant the preview export writes (stage 03 copies the same set).
+const VARIANTS = ['', '-brief', '-balanced', '-detailed', '-detail', '-brief-detail', '-balanced-detail', '-detailed-detail'];
+
+export function allowed(path, ctx, author) {
   const topic = artefactTopic(ctx), stem = `topic-${topic}`;
   const refs = ownReferences(ctx, author);
   if (['packages/web/src/tutor-diagrams/reference-library.js', 'packages/web/src/tutor-diagrams/svg-snapshots.json'].includes(path)) return true;
   if (path.startsWith(`packages/web/src/tutor-diagrams/${stem}-`) && /\.(?:js|mjs|json)$/.test(path) && !path.slice('packages/web/src/tutor-diagrams/'.length).includes('/')) return true;
   if (path === `docs/features/explain-on-canvas/handoff/phase02-library/topic-walkthroughs/${topic}.md`) return true;
   const preview = 'docs/features/explain-on-canvas/handoff/phase02-library/illustrations/';
-  if (refs.some(id => [id, `${id}-brief`, `${id}-detailed`].some(variant => path.startsWith(`${preview}${variant}/`) && /\/(?:natural|408|960)\.svg$|\/spec\.json$/.test(path)))) return true;
-  if (path.startsWith('packages/web/src/tutor-diagrams/__snapshots__/') && refs.some(id => path.endsWith(`/${id}.svg`) || path.endsWith(`/${id}-brief.svg`) || path.endsWith(`/${id}-detailed.svg`))) return true;
+  if (refs.some(id => VARIANTS.map(suffix => `${id}${suffix}`).some(variant => path.startsWith(`${preview}${variant}/`) && /\/(?:natural|408|960)\.svg$|\/spec\.json$/.test(path)))) return true;
+  if (path.startsWith('packages/web/src/tutor-diagrams/__snapshots__/') && refs.some(id => VARIANTS.some(suffix => path.endsWith(`/${id}${suffix}.svg`)))) return true;
   // Brief paths are lesson metadata, supplied by the topic manifest rather than inferred from a slug.
   return (ctx.metadata?.sources ?? []).some(source => source.kind === 'brief' && source.path === path && path.startsWith('docs/features/explain-on-canvas/handoff/figure-briefs/briefs/') && path.endsWith('.md'));
 }
