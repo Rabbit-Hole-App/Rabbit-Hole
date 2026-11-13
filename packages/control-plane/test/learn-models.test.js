@@ -7,6 +7,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { askStream, planModel } from '../src/ask.js';
+import { requestSpendBound } from '../src/learn-spend.js';
+import { readFileSync } from 'node:fs';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
 import { LEARN_TASKS, MODEL_PRICES, costUsd, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
@@ -242,4 +244,14 @@ test('the /interact design roles are pinned like the explain roles; the legacy e
     assert.deepEqual({ ...LEARN_TASKS[task] }, { provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens }, task);
   }
   assert.deepEqual(['explain_brief', 'explain_author', 'explain_review', 'explain_repair'].map(task => LEARN_TASKS[task].maxTokens), [4000, 10000, 3000, 6000]);
+});
+
+// Owner 2026-11-13: the Curious planner runs on Gemini. Admitted as Anthropic a Gemini model has no spend bound, so spendCallModel refused the call
+// (spend_bound_unavailable, a 502 in about 20 ms: "Could not refresh"); it must admit it as Google, as ask.js geminiChat does inside it.
+test('spendCallModel admits a Gemini model as Google: Anthropic has no bound for it, Google does', () => {
+  const body = { max_tokens: 4000, messages: [{ role: 'user', content: 'x' }] };
+  assert.equal(requestSpendBound(body, 'gemini-3.5-flash-lite', 'anthropic'), null);
+  assert.ok(requestSpendBound(body, 'gemini-3.5-flash-lite', 'google') > 0);
+  const source = readFileSync(new URL('../src/learn-spend.js', import.meta.url), 'utf8');
+  assert.ok(source.includes("model?.startsWith?.('gemini-') ? { provider: 'google' } : {}"));
 });
