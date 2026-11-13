@@ -76,3 +76,4 @@ Never ask which model: run `node scripts/landing-art.mjs blog-hero <slug> "<subj
 
 ## Characters stay the same (owner, 2026-11-13)
 The look of the White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat is saved once in `design/art/characters.md` and pasted word for word into every `blog-hero`/`blog-post` prompt, so subject sentences only name a character and say what it does. Edit the sheet there to change a character everywhere. The default tint sentence is now cool (sage, powder blue, ochre, lavender, plum); dusty rose appears only on the Rabbit's jacket.
+The first hero is also saved as `design/art/characters-reference.jpg` and attached to every blog hero call (an image edit), so the model sees the characters as well as reading the sheet. `--no-ref` turns that off.

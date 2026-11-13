@@ -32,6 +32,7 @@ const sheet = () => {
   const text = fs.readFileSync(path.join(WEB, 'design/art/characters.md'), 'utf8');
   return text.slice(text.indexOf('## Sheet') + '## Sheet'.length).trim().split(/\r?\n/).join(' ');
 };
+const REF_NOTE = `The attached image is the reference plate of this illustration series. Draw a completely NEW scene, but draw the White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat exactly as they look in the reference plate: the same faces, hair, clothes, proportions, colours and engraved manner. Do not copy the reference plate's composition. `;
 const BLOG_HEAD = `Hand-drawn illustration in the style of a 19th-century book engraving, in the spirit of Tenniel's 1865 illustrations for Alice's Adventures in Wonderland and not the Disney designs, loose cross-hatching, slightly faded as if printed decades ago. A full panoramic Wonderland scene that fills the whole canvas edge to edge with no empty margins. In the foreground, grouped within the middle 55% of the width and all on one ground line: `;
 const BLOG_TINTS = `pale sage and moss greens in the foliage and hedges, cream-white roses shaded with pale plum, soft powder blue (#A9BCCB) across the sky and distant hills, warm muted ochre (#D8C08C) on the tea table and the mushroom caps, cream and pale sage on the toadstools, the playing cards drawn in plum ink with at most a faint touch of dusty rose, a faded slate blue-grey for any chalkboard with pale chalk lines; the characters keep exactly the colours of their sheet; no red and no strong pink anywhere except the White Rabbit's dusty-rose jacket`;
 const blogTail = tints => ` Behind them, a rich layered Wonderland receding into the distance, drawn in finer, lighter, fainter hatching so the foreground figures stand clearly forward: an overgrown garden of tall rose hedges and twisting old trees, a mad tea-party table set with teapots and cups, playing-card soldiers standing guard, giant mushrooms and oversized flowers, a grandfather clock among the trees, a tiny locked door at the foot of a great tree, hanging oil lamps, playing cards drifting through the air, and a distant castle with a checkerboard floor, with the dark mouth of a rabbit hole between tree roots near the right edge. Hand-coloured in soft, muted, washed-out watercolour tints laid over the ink line work, like a faded vintage hand-tinted book plate: ${tints}, off-white paper #F4F3EF and deep plum ink #3D2A5C for the line work. Low saturation, low contrast, matte, subtle paper grain, no pure black and no pure white anywhere. No text, no lettering, no numbers anywhere. A very wide panoramic strip, about 2.85 times wider than tall (16:5.6): compose every figure, including the Cheshire Cat on its bough, and the whole scene inside this wide low frame, with nothing cropped.`;
@@ -43,11 +44,18 @@ Palette (warm, NO pink, NO magenta, NO red-pink): ${palette}
 Composition: panoramic, asymmetrical, sophisticated. Detail clusters on the right 45% of the image, richest at the upper right, with a cropped curved plate and a vertical strip touching the far right edge, and a few small ink fragments at the far left edge. The centre-left from 8% to 58% width and 15% to 95% height is almost entirely unprinted pale paper with fine grain, left quiet for a big dark two-word HTML heading. Fragments may crop off the image edges. No outer border.
 Constraints: original artwork only. No words, no headings, no slogans, no logos, no brand, no mascot or rabbit, no people, no buttons, no web interface, no watermark, no 3D gloss, no smooth digital gradients. Only tiny decorative numerals and figure notation. Must remain visibly a print collage, not a plain texture.`;
 
-async function generateFlare(prompt, quality) {
-  const res = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST', headers: { Authorization: `Bearer ${secret('OPENAI_API_KEY')}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'gpt-image-2.5-flare', prompt, n: 1, size: '2048x720', quality, output_format: 'png' }),
-  });
+// ref: the series reference plate (design/art/characters-reference.jpg, the first hero). With it the call is an image edit, so the model sees the
+// characters instead of only reading about them (owner 2026-11-13: replicate the first blog's characters).
+async function generateFlare(prompt, quality, ref) {
+  const key = secret('OPENAI_API_KEY'), fields = { model: 'gpt-image-2.5-flare', prompt, n: 1, size: '2048x720', quality, output_format: 'png' };
+  let init;
+  if (ref) {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(fields)) form.set(k, String(v));
+    form.append('image[]', new Blob([fs.readFileSync(ref)], { type: 'image/jpeg' }), 'reference.jpg');
+    init = { headers: { Authorization: `Bearer ${key}` }, body: form };
+  } else init = { headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(fields) };
+  const res = await fetch(`https://api.openai.com/v1/images/${ref ? 'edits' : 'generations'}`, { method: 'POST', ...init });
   const body = await res.json().catch(() => null);
   if (!res.ok || !body?.data?.[0]?.b64_json) throw Error(`OpenAI image failed: HTTP ${res.status} ${JSON.stringify(body?.error?.message || '').slice(0, 200)}`);
   return Buffer.from(body.data[0].b64_json, 'base64');
@@ -111,7 +119,7 @@ if (kind === 'blog-hero' || kind === 'blog-post') {
   const dest = path.join(WEB, 'public/landing/blog', `${slug}-hero.jpg`);
   let bytes;
   if (from) bytes = fs.readFileSync(from);
-  else { const prompt = BLOG_HEAD + subject + ' Character designs, identical in every illustration of this series, so draw each one exactly like this: ' + sheet() + blogTail(flag('palette', BLOG_TINTS)); bytes = await generateFlare(prompt, flag('quality', 'low')); record(`${slug}-hero`, 'GPT Image 2.5 Flare (gpt-image-2.5-flare, 2048x720)', prompt); }
+  else { const ref = process.argv.includes('--no-ref') ? null : path.join(WEB, 'design/art/characters-reference.jpg'); const prompt = (ref ? REF_NOTE : '') + BLOG_HEAD + subject + ' Character designs, identical in every illustration of this series, so draw each one exactly like this: ' + sheet() + blogTail(flag('palette', BLOG_TINTS)); bytes = await generateFlare(prompt, flag('quality', 'low'), ref); record(`${slug}-hero`, 'GPT Image 2.5 Flare (gpt-image-2.5-flare, 2048x720)', prompt); }
   console.log('saved', dest, toJpeg(bytes, dest));
   if (kind === 'blog-post') addPost(slug);
 } else if (kind === 'page-banner') {
