@@ -136,14 +136,15 @@ test('the last-resort simplified diagram takes the planned kind (flow, cycle or 
 });
 
 test('reference selection filters to the planned kinds before any keyword scoring', () => {
-  // the Codex fit-quality reference now answers 'underfitting and overfitting' alone, so the prompt names both the fit and the tree
-  const prompt = 'What is overfitting and how does pruning a tree fix it?', all = selectDiagramReferences({ prompt });
-  assert.ok(all.length > 1 && new Set(all.map(r => r.spec.diagram.kind)).size > 1, 'unfiltered, more than one kind is offered');
-  // release 118: a qualifying topical reference (an exact documented prompt or a direct score >= 12) is the one exception: it is kept whole and first whatever the planned kind (steer);
-  // every other reference is still filtered to the planned kinds before scoring.
-  const { references: trees, steer } = selectWithSteer({ prompt, plannedKinds: ['tree'] });
-  assert.ok(trees.length && trees.slice(steer ? 1 : 0).every(r => r.spec.diagram.kind === 'tree') && (!steer || trees[0].id === steer.id));
-  assert.deepEqual(selectDiagramReferences({ prompt, plannedKinds: ['sequence'] }).map(r => r.id), steer ? [steer.id] : [], 'nothing of the planned kind matches the topic (the steering reference aside)');
+  // release 118: a qualifying topical reference (an exact documented prompt or a direct score >= 12) is the one exception: it is kept whole and first whatever the planned kind (steer).
+  // release 129: a steered selection is that reference alone; no second reference follows it.
+  const steered = 'What is overfitting and how does pruning a tree fix it?', { references: kept, steer } = selectWithSteer({ prompt: steered, plannedKinds: ['tree'] });
+  assert.ok(steer && kept.length === 1 && kept[0].id === steer.id, 'the steering reference goes alone, whatever the planned kind');
+  // Without a steer every reference is filtered to the planned kinds before scoring.
+  const prompt = 'how does a decision tree split', all = selectDiagramReferences({ prompt });
+  assert.ok(selectWithSteer({ prompt }).steer === null && all.length > 1, 'unfiltered, more than one reference is offered');
+  assert.deepEqual(selectDiagramReferences({ prompt, plannedKinds: ['sequence'] }), [], 'nothing of the planned kind matches the topic');
+  assert.ok(selectDiagramReferences({ prompt, plannedKinds: ['tree'] }).every(r => r.spec.diagram.kind === 'tree'));
   const two = selectDiagramReferences({ prompt, plannedKinds: all.map(r => r.spec.diagram.kind) });
   assert.deepEqual(two.map(r => r.id), all.map(r => r.id), 'every offered kind kept: the same picks');
 });
