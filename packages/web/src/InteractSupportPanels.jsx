@@ -10,6 +10,7 @@ import { createProgramHost, programStamps } from './explain-program/host.js';
 import { fixturesAdmitted, programErrorMessage } from './explain-program/program-card.js';
 import { DESCRIPTION_STYLE } from './interact-description-fit.js';
 import { supportInputs, snapshotKey } from './interact-card-layout.js';
+import { TEACHING } from './tutor-diagrams/teaching-theme.js';
 import { artifactKey, programSnapshot, resolveSupportArtifact, supportSnapshots } from './interact-support-snapshots.js';
 
 // INT-06-C02/C03: the introduction of an /interact card, above its main scene: the card description (2 to 4 lines, the style that
@@ -18,7 +19,9 @@ import { artifactKey, programSnapshot, resolveSupportArtifact, supportSnapshots 
 // (the shared Frame inside the bordered white box the main scene sits in) and the Interact box's small caps label for its title.
 const NOOP = () => {};
 const STILL = { duration: 0 };
-const BOX = 'rounded-lg border border-line bg-white';
+const BOX = 'rounded-lg border border-line';
+// A supporting panel sits on the teaching inset, as the written diagrams' inset panels do.
+const BOX_STYLE = { background: TEACHING.inset };
 
 // A declarative (spec) panel: the scene at its finished frame for the bound inputs. Sync and pure.
 function specFrame(spec, inputs) {
@@ -60,7 +63,7 @@ function SupportPanel({ panel, block, mainInputs }) {
   const { frame, error } = usePanelFrame(panel, block, mainInputs);
   const legible = frame ? legibleFrame(frame.scene) : null;
   return (
-    <div data-interact-support={panel.id} data-interact-support-state={error ? 'failed' : frame ? 'drawn' : 'loading'} className={BOX}>
+    <div data-interact-support={panel.id} data-interact-support-state={error ? 'failed' : frame ? 'drawn' : 'loading'} className={BOX} style={BOX_STYLE}>
       <p className="px-3 pt-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">{panel.title}</p>
       {error
         ? <p role="alert" data-interact-support-error className="grid min-h-16 place-content-center p-3 text-center text-xs text-red-700">{programErrorMessage(error)}</p>

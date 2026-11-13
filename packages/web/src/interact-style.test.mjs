@@ -11,6 +11,7 @@ import { normalizeFrame } from './explain-program/frame.js';
 import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle } from './interact-style.js';
 import { inkOver, selectionStyle, shapeStyle } from './scene-style.js';
 import { PALETTE, PATH } from './tutor-diagrams/primitives.js';
+import { TEACHING_STYLE } from './tutor-diagrams/teaching-theme.js';
 
 const SWATCHES = {
   input: PALETTE.process,
@@ -184,4 +185,16 @@ test('interact mode draws line and arrow as the written connector: INK by defaul
   assert.match(group('watch'), /stroke="color-mix\(in srgb, #F58371 33%/); assert.match(group('watch'), /fill="color-mix\(in srgb, #F58371 33%/);
   assert.doesNotMatch(group('bare'), /data-tutor-arrowhead/, 'a line has no head');
   assert.doesNotMatch(render(false), /data-tutor-arrowhead/, 'the /animation frame keeps its marker arrows');
+});
+
+test('interact mode draws the frame on the teaching surface with the written diagrams outer rect; the /animation frame has neither', () => {
+  const bundle = frameBundle();
+  const result = normalizeFrame({ width: 300, height: 160, objects: [{ kind: 'text', id: 't', x: 20, y: 40, text: 'hi', role: 'neutral' }] });
+  assert.equal(result.ok, true, result.issue);
+  const render = interact => bundle.renderToStaticMarkup(bundle.createElement(bundle.Frame, { scene: result.scene, state: result.state, interact, fixedView: true, pop: { duration: 0 } }));
+  const themed = render(true), standard = render(false);
+  for (const [name, value] of Object.entries(TEACHING_STYLE)) assert.ok(themed.includes(`${name}:${value}`), `${name} comes from TEACHING_STYLE`);
+  assert.match(themed, /<rect x="0\.5" y="0\.5"[^>]*rx="12"[^>]*stroke="var\(--color-line\)"/);
+  assert.doesNotMatch(standard, /--viz-surface:#|rx="12"[^>]*fill="var\(--viz-surface/);
+  assert.match(read('./InteractSupportPanels.jsx'), /background: TEACHING\.inset/);
 });

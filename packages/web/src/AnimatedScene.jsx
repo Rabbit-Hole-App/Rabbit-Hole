@@ -25,7 +25,8 @@ import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, estimateTextBox, labelAt, re
 import { GEOMETRY } from './scene-vocab.js';
 import { cellInk, heatStyle, identityVar, inkOver, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
 import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle, interactStrokeColor } from './interact-style.js';
-import { INK, PATH, connector } from './tutor-diagrams/primitives.js';
+import { INK, PATH, SURFACE, connector } from './tutor-diagrams/primitives.js';
+import { TEACHING_STYLE } from './tutor-diagrams/teaching-theme.js';
 import { escapeYields, withoutSceneHighlight } from './scene-selection.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
@@ -529,8 +530,10 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
         if (area.w < 0.02 || area.h < 0.02) return;
         onRegion(area, find(area));
       }}>
-      <svg viewBox={view} fontFamily={interact ? INTERACT_FONT : undefined} className="h-full w-full" style={{ background: 'var(--viz-surface)' }}
+      <svg viewBox={view} fontFamily={interact ? INTERACT_FONT : undefined} className="h-full w-full" style={interact ? { ...TEACHING_STYLE, background: 'var(--viz-surface)' } : { background: 'var(--viz-surface)' }}
         onClick={event => { if (event.target === event.currentTarget && !selecting && (picked || marked)) onPick(null); }}>
+        {/* A composed card's frame is the written diagrams' own: the teaching surface and the same outer rect (tutor-diagrams/TutorDiagram.js). */}
+        {interact && (() => { const [vx, vy, vw, vh] = view.split(' ').map(Number); return <rect x={vx + 0.5} y={vy + 0.5} width={vw - 1} height={vh - 1} rx={12} fill={SURFACE} stroke="var(--color-line)" pointerEvents="none" />; })()}
         {state.connections.map(connection => {
           const from = state.objects.find(object => object.id === connection.from);
           const to = state.objects.find(object => object.id === connection.to);
