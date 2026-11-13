@@ -21,7 +21,9 @@ test('run 15 headless: the sealed artifact is intact, runs at the plan\'s cases 
   const captures = await headlessCaptureCard({})({ composition, artifacts, cases: [...cases, ...probes] });
   assert.equal(captures.length, cases.length + probes.length);
   const det = checkSceneAgainstPlan({ plan, composition, artifacts, captures, cases, probes, oracle: interactOracle(plan), allowPartialCard: true });
-  assert.deepEqual(det.problems, [], 'the recorded run passed the checks in the same round (a reviewer, not a check, rejected its first candidate)');
+  // Item 6 (label clearance, in frame-overlap.js) now catches what a reviewer, not a check, found in the recorded run: only layout (overlap) problems, with the ids the reviewer named.
+  assert.deepEqual([...new Set(det.problems.map(p => p.code))], ['overlap'], 'nothing but layout problems: every numeric, binding and capture check passed as in the recorded run');
+  assert.ok(det.problems.some(p => /heldAL.*gateB/.test(p.message)), 'the held ball label 3.8 px from the gate leg');
   assert.deepEqual(det.coverage.cases, cases.map(c => c.id));
   assert.deepEqual(det.coverage.effects.untested, []);
   assert.deepEqual(det.coverage.effects.tested, plan.controls.filter(c => c.binding.kind === 'input' && c.affects.length).map(c => c.id));

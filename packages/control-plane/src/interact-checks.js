@@ -11,7 +11,7 @@
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { CAPTURE_BUDGET, evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
 import { createSnapshotResolver, resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
-import { frameOverlaps, traceObjects } from '../../web/src/explain-program/frame-overlap.js';
+import { frameOverlaps, traceFrame, traceObjects } from '../../web/src/explain-program/frame-overlap.js';
 import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
 import { parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { REVIEW_LIMITS, ReviewError, reviewCaptures, reviewProblems } from './explain-review.js';
@@ -176,11 +176,11 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     }
     // Host-computed geometry: a label on a ball, box or arrowhead, an arrowhead on a ball, or two labels on each other (any intersection of the estimated boxes) is a problem the
     // repairer answers with the two object ids; it is not left to the reviewer. A pair is reported once, at the first state it appears in.
-    for (const o of frameOverlaps({ objects: t.objects ?? [] })) {
+    for (const o of frameOverlaps({ objects: t.objects ?? [], ...(t.frame ?? {}) })) { // t.frame (width, height) lets the text-outside-the-frame rule run
       const key = [o.a, o.b].sort().join('|');
       if (overlapSeen.has(key)) continue;
       overlapSeen.add(key);
-      bad('overlap', where, `"${o.a}" overlaps "${o.b}" (${o.kind}, ${o.width} x ${o.height} px) at "${c.label}"`, c.id);
+      bad('overlap', where, `"${o.a}" overlaps "${o.b}" (${o.kind}, ${o.gap != null ? `${o.gap} px apart` : `${o.width} x ${o.height} px`}) at "${c.label}"${o.hint ? ` - ${o.hint}` : ''}`, c.id);
     }
     for (const s of plan.supportingVisuals) {
       const st = cap.supports?.[s.id];
@@ -469,7 +469,7 @@ export function headlessCaptureCard(_env, { limits } = {}) {
       const parsed = parseGuestResult(out.value, program.manifest, program.sdkVersion);
       if (!parsed.ok) return { error: { code: parsed.error.code, diagnostic: parsed.issue } };
       const { frame, quantities } = parsed.value;
-      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), objects: traceObjects(frame.objects), frameHash: await sha256Hex(canonicalJson(frame.objects)), inputs, time };
+      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), objects: traceObjects(frame.objects), frame: traceFrame(frame), frameHash: await sha256Hex(canonicalJson(frame.objects)), inputs, time };
     };
     const supportOf = id => artifacts.supporting.find(s => s.id === id).artifact;
     const resolver = createSnapshotResolver({ evaluate: ({ panelId, inputs, time }) => run(supportOf(panelId), resolveInputs(supportOf(panelId).program.manifest, inputs), time) });

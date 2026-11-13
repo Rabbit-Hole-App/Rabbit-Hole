@@ -16,7 +16,7 @@ import { flushSync } from 'react-dom';
 import { Frame } from '../src/AnimatedScene.jsx';
 import { STATEFUL_SCHEMA_VERSION, canonicalJson, parseArtifact, sha256Hex } from '../src/explain-program/contract.js';
 import { normalizeFrame } from '../src/explain-program/frame.js';
-import { traceObjects } from '../src/explain-program/frame-overlap.js';
+import { traceFrame, traceObjects } from '../src/explain-program/frame-overlap.js';
 import { createProgramHost } from '../src/explain-program/host.js';
 import { evaluateRequestFor } from '../src/explain-program/program-card.js';
 import { replayTransitions } from '../src/explain-program/interaction.js';
@@ -100,7 +100,7 @@ export async function renderProgram(request, { host, root, frames, faces, nextMo
     drawn: { objects: view.scene.objects.length, elements: frame.querySelectorAll('svg *').length, readouts: view.readouts.length },
     trace: { inputs: asked.inputs, time: asked.time, quantities: reply.quantities, metrics: { ms: Math.round(reply.metrics.ms * 100) / 100 },
       // /interact only (a legacy trace is read whole by the reviewer under a byte limit): the frame's readout values and the text it draws, for the plan-bound checks.
-      ...(composition ? { readouts: Object.fromEntries((reply.frame.readouts || []).map(r => [r.id, r.value])), texts: (reply.frame.objects || []).filter(o => o.kind === 'text' && typeof o.text === 'string' && o.text).slice(0, 24).map(o => o.text.slice(0, 160)), objects: traceObjects(reply.frame.objects) } : {}),
+      ...(composition ? { readouts: Object.fromEntries((reply.frame.readouts || []).map(r => [r.id, r.value])), texts: (reply.frame.objects || []).filter(o => o.kind === 'text' && typeof o.text === 'string' && o.text).slice(0, 24).map(o => o.text.slice(0, 160)), objects: traceObjects(reply.frame.objects), frame: traceFrame(reply.frame) } : {}),
       ...(stateful ? await stateTrace(seed, events, state) : {}) },
   };
   return window.__renderDone;
