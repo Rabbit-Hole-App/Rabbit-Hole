@@ -335,3 +335,40 @@ test('a response id named by several stream events is logged once', async t => {
   await new Promise(done => setTimeout(done, 50));
   assert.equal((await readFile(join(dir, 'inflight.jsonl'), 'utf8')).trim().split(NL).length, 1);
 });
+
+// A stream that dies after the provider named the response.
+const dyingStream = id => {
+  let sent = false;
+  return new Response(new ReadableStream({ pull(controller) {
+    if (sent) { controller.error(new Error('terminated')); return; }
+    sent = true; controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'response.created', response: { id, status: 'in_progress' } })}${NL}${NL}`));
+  } }), { status: 200, headers: { 'content-type': 'text/event-stream' } });
+};
+
+test('a stream that dies is read back from the stored response when the provider has it', async t => {
+  const requests = [];
+  const { client, state } = await setup(t, async (url, init) => {
+    requests.push(init.method);
+    return init.method === 'GET' ? response({ id: 'resp_d1', ...openaiBody() }) : dyingStream('resp_d1');
+  }, config => { config.openai.stream = true; config.openai.pollMs = 1; });
+  assert.deepEqual(await client.call('author', { lesson: 'text' }, options), { ok: true });
+  assert.deepEqual(requests, ['POST', 'GET']);
+  assert.equal(state.calls.length, 1);
+  assert.equal(state.calls[0].usageKnown, true);
+});
+
+test('a stream that dies and is not stored is charged at its ceiling and asked once more', async t => {
+  let posts = 0;
+  const { client, state } = await setup(t, async (url, init) => {
+    if (init.method === 'GET') return response({ error: { message: 'not found' } }, 404);
+    posts++;
+    return posts === 1 ? dyingStream('resp_d2') : sse([{ type: 'response.created', response: { id: 'resp_d3' } }, { type: 'response.completed', response: { id: 'resp_d3', ...openaiBody() } }]);
+  }, config => { config.openai.stream = true; config.openai.pollMs = 1; });
+  assert.deepEqual(await client.call('author', { lesson: 'text' }, options), { ok: true });
+  assert.equal(posts, 2);
+  assert.equal(state.calls.length, 2);
+  assert.equal(state.calls[0].estimated, true);
+  assert.equal(state.calls[0].usageKnown, true);
+  assert.ok(state.calls[0].usd > 0 && state.calls[0].inputTokens > 0);
+  assert.equal(state.calls.filter(call => call.usageKnown === false).length, 0);
+});

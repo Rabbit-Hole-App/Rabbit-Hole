@@ -147,7 +147,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
     let check;
     try { check = ajv.compile(schema); }
     catch { throw new Error('Invalid agent JSON schema'); }
-    let feedback = '', stopReason = 'unknown', previousAnswer = '';
+    let feedback = '', stopReason = 'unknown', previousAnswer = '', transportRetries = 0;
     for (let attempt = 1; attempt <= 2; attempt++) {
       let body;
       try {
@@ -161,7 +161,7 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
         : { 'x-api-key': settings.apiKey, 'anthropic-version': settings.apiVersion ?? '2026-10-21' }) };
       const started = Date.now();
       let response, payload;
-      let transportFailed = false, responseId;
+      let transportFailed = false, responseId, failure;
       // The response id is recorded the moment the provider names it (inflight.jsonl), so a call that never returns can still be reconciled from the stored response.
       const note = id => { if (responseId === id) return; responseId = id; appendFile(join(topicDir, 'inflight.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), agent, attempt, responseId: id, mode: body.stream ? 'stream' : 'background' })}\n`).catch(() => {}); };
       try {
@@ -177,17 +177,31 @@ export function createClient({ config, state, topicDir, fetchImpl = globalThis.f
           try { response = await fetchImpl(`${settings.endpoint.replace(/\/+$/, '')}/${encodeURIComponent(responseId)}`, { method: 'GET', headers }); payload = await response.json(); misses = 0; }
           catch (error) { if (++misses >= 5) throw error; }
         }
-      } catch { transportFailed = true; }
-      const usage = usageFrom(payload, provider);
+      } catch (error) { transportFailed = true; failure = error; }
+      // A stream that dies after the provider named the response (reviewer 2026-11-13): read what the provider stored. A completed response is used as if it had streamed through; a response the
+      // provider no longer has (404, failed, cancelled) is charged at a ceiling (the estimated input plus 100 output tokens per second it ran) and asked once more.
+      let estimated = null;
+      if (transportFailed && body.stream === true && responseId) {
+        for (let tries = 0; tries < 3 && transportFailed && !estimated; tries++) {
+          try {
+            const stored = await fetchImpl(`${settings.endpoint.replace(/\/+$/, '')}/${encodeURIComponent(responseId)}`, { method: 'GET', headers }), storedBody = await stored.json();
+            if (storedBody?.status === 'completed' && usageFrom(storedBody, provider)) { response = stored; payload = storedBody; transportFailed = false; }
+            else if (stored.status === 404 || ['failed', 'cancelled', 'incomplete'].includes(storedBody?.status)) estimated = { inputTokens: estimateInput(body, images), outputTokens: Math.min(maxOutput ?? ceilings[agent].output, Math.round((Date.now() - started) / 1000 * 100)), reasoningTokens: 0 };
+          } catch { /* ask again */ }
+          if (transportFailed && !estimated && tries < 2) await new Promise(done => setTimeout(done, settings.pollMs ?? 2000));
+        }
+      }
+      const usage = estimated ?? usageFrom(payload, provider);
       // A call that ends without usage says why in inflight.jsonl (HTTP status, response status, the provider's error type and message, redacted), so an unknown-usage stop can be reconciled and diagnosed.
-      if (!usage) appendFile(join(topicDir, 'inflight.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), agent, attempt, responseId, outcome: 'no usage', http: response?.status, status: payload?.status, error: redact(String(payload?.error?.message ?? payload?.error?.type ?? ''), config).slice(0, 300), transportFailed, ms: Date.now() - started })}\n`).catch(() => {});
+      if (!usage) appendFile(join(topicDir, 'inflight.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), agent, attempt, responseId, outcome: 'no usage', http: response?.status, status: payload?.status, error: redact(String(payload?.error?.message ?? payload?.error?.type ?? failure?.message ?? ''), config).slice(0, 300), transportFailed, ms: Date.now() - started })}\n`).catch(() => {});
       const entry = { agent, model, attempt, inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0,
         reasoningTokens: usage?.reasoningTokens ?? 0, usageKnown: Boolean(usage),
         usd: usage ? callPrice(config, model, usage.inputTokens, usage.outputTokens) : 0, ms: Date.now() - started,
-        ...(responseId ? { responseId } : {}) }; // the id lets unknown usage be reconciled from the stored response
+        ...(estimated ? { estimated: true } : {}), ...(responseId ? { responseId } : {}) }; // the id lets unknown usage be reconciled from the stored response
       // recordSpend mutates before throwing on an overrun. Always save that charge.
       try { recordSpend(state, entry); }
       finally { await persist(); }
+      if (estimated && transportRetries < 1) { transportRetries++; attempt--; continue; }   // the dead stream is charged at its ceiling; the same ask goes out once more
       if (transportFailed) throw new Error('Provider transport failed; reconcile unknown usage before retrying');
       if (!response.ok || payload?.error || payload?.status === 'failed') throw new Error(`Provider request failed: HTTP ${response.status}${/^[a-z_]{1,40}$/.test(payload?.error?.type ?? '') ? ` ${payload.error.type}` : ''}`); // status and error type only: provider message text stays out (it may echo request content)
       if (!usage) throw new Error('Provider returned unknown usage; reconcile it before retrying');
