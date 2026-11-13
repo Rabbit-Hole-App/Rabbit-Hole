@@ -5,9 +5,11 @@ import { interactOracle } from './interact-oracle.js';
 import { timingSummary } from './explain-policy.js';
 
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs',
-  'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msReview', 'msRepair', 'msTotal']);
+  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msReview', 'msRepair', 'msTotal']);
 
-// job: { id, plan, planHash, stage, stopReason, calls, timing (the raw record), findings, build?, bench? }
+// job: { id, plan, planHash, stage, stopReason, calls, timing (the raw record), findings, build?, bench?, flow? (flow.profile.id), designFixture? (the INTERACT_DESIGN_FIXTURE id the design was pinned to, else null) }
+// oracleId is null whenever no oracle matches the plan's controls (interact-oracle.js: standardTossDropOracle needs a plan with no input, the deep oracle needs depth detailed). Run 15's plan has controls and is
+// balanced, so its null is a fact about the plan, not a gap in the saved record: do not "fix" it. profile and fixture are the grouping columns the benchmark groups rows by.
 export function ledgerRow(job) {
   const t = timingSummary(job.timing), calls = job.calls ?? [];
   // The deterministic checks name their problems "[code] message" (interact-checks.js); a failed round keeps them in job.findings.
@@ -23,7 +25,7 @@ export function ledgerRow(job) {
     jobId: job.id, planHash: job.planHash ?? null, depth: job.plan?.depth ?? null, result: job.stage === 'ready' ? 'ready' : ['failed', 'cancelled'].includes(job.stage) ? 'failed' : 'running', stopReason: job.stopReason ?? null,
     oracleId: job.plan ? interactOracle(job.plan)?.id ?? null : null, oracleChecked: job.build?.check?.oracle?.checked ?? null, oracleFailed: count('numeric_mismatch', 'quantity_missing'),
     bindingProblems: count('binding_no_effect', 'control_no_effect') + problems.filter((p, i) => !codes[i] && /\bbinding\b/i.test(p)).length, overlapProblems: count('overlap'),
-    repairs: t.repairs, authorModel: author?.served ?? author?.requested ?? null, fallbackFired: calls.some(c => c.fallback === true),
+    repairs: t.repairs, profile: job.flow?.profile?.id ?? null, fixture: job.designFixture ?? null, authorModel: author?.served ?? author?.requested ?? null, fallbackFired: calls.some(c => c.fallback === true),
     judgeVerdict: judge?.verdict ?? null, judgeMajor: judge ? (judge.findings ?? []).filter(f => f.severity === 'major').length : null,
     costUsd: priced.length && priced.every(m => typeof m === 'number') ? priced.reduce((n, m) => n + m, 0) / 1e6 : null,
     msSteer: job.timing.steerMs ?? null, // TODO(integrator): interact-steer.js (item 5, Agent B) writes the measured JEV steer time to job.timing.steerMs

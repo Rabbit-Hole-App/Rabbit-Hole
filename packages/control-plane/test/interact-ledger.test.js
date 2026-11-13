@@ -17,12 +17,20 @@ const detail = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));
 test('run 15: the row holds the factual columns first, then the stage milliseconds, all read off the record', () => {
   const row = ledgerRow(jobFromDetail(detail()));
   assert.deepEqual(Object.keys(row), [...LEDGER_COLUMNS]);
-  assert.deepEqual(Object.fromEntries(Object.entries(row).slice(0, 16)), {
+  assert.deepEqual(Object.fromEntries(Object.entries(row).slice(0, 18)), {
     jobId: 'ej_a7e7bb226e614a02b5a426e30218f615', planHash: '8f564bdfc1479ad31db521eea57fa45642a45fc606ba5a0acfa4e2a0c9225117', depth: 'balanced', result: 'ready', stopReason: 'accepted',
-    oracleId: null, oracleChecked: null, oracleFailed: 0, bindingProblems: 0, overlapProblems: 0, repairs: 1, authorModel: 'claude-opus-5-5', fallbackFired: false, judgeVerdict: null, judgeMajor: null,
+    oracleId: null, oracleChecked: null, oracleFailed: 0, bindingProblems: 0, overlapProblems: 0, repairs: 1, profile: null, fixture: null, authorModel: 'claude-opus-5-5', fallbackFired: false, judgeVerdict: null, judgeMajor: null,
     costUsd: 0.620628 });
   // Stage times: authoring 65.9 s, validating 25 + 20 ms, rendering 18.4 + 11.7 s, reviewing 37.8 + 38.4 s, repairing 49.2 s, generate to ready 221.4 s.
   assert.deepEqual([row.msSteer, row.msAuthor, row.msValidate, row.msRun, row.msCheck, row.msReview, row.msRepair, row.msTotal], [null, 65910, 45, 30098, null, 76187, 49185, 221425]);
+});
+
+test('profile and fixture are the grouping columns: the flow profile id and the pinned design fixture, null when absent', () => {
+  const job = jobFromDetail(detail());
+  assert.deepEqual([ledgerRow(job).profile, ledgerRow(job).fixture], [null, null]);
+  const row = ledgerRow({ ...job, flow: { version: 1, profile: { id: 'opus-baseline', hash: 'h' } }, designFixture: 'toss-drop-standard-controls' });
+  assert.deepEqual([row.profile, row.fixture], ['opus-baseline', 'toss-drop-standard-controls']);
+  assert.deepEqual(Object.keys(row).slice(11, 14), ['profile', 'fixture', 'authorModel']);
 });
 
 test('the cost is the four settled calls (63 credits on the clone) and an unpriced call makes it unknown, never smaller', () => {
