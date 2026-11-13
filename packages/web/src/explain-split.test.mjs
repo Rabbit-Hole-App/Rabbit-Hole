@@ -3,6 +3,7 @@
 // (Tutor, internal key learn), both previews (the written one drawn by the real Explanation card with a rendered Markdown table), what
 // "Use example" fills (never sends), and that a saved request carrying `explain` still means the interactive flow.
 // Not seen in a browser: the owner checks the picker, Ctrl+K and the Slash Commands window on the deployed build.
+import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';

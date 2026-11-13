@@ -3,6 +3,7 @@
 // the chat route (send -> begin, for a line runLearnCommand answers with { prompt }). answersInChat says which one owns the line.
 // This holds it to runLearnCommand for EVERY Learn command in the builds that offer them (Motion on, image generation offered), which
 // the older agreement test in chat-output-refs.test.mjs does not (it runs the default build, where /motion and /image are not listed).
+import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answersInChat, EXAMPLES, runLearnCommand } from './learn-slash.js';

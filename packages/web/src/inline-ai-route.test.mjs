@@ -1,3 +1,4 @@
+import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { commandsFor } from './agent/slash.js';
