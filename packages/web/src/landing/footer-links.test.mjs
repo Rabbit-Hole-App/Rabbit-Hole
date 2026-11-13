@@ -15,6 +15,14 @@ test('the footer has no Analytics preferences link (owner 2026-11-02): the choic
   assert.equal(footerLinks().includes('Analytics preferences'), false);
 });
 
+test('the X and LinkedIn icons link to the Rabbit Hole profiles in a new tab (owner 2026-11-13)', () => {
+  const icons = [...row().querySelectorAll('a.footer-social-icon')];
+  assert.deepEqual(icons.map(a => [a.getAttribute('aria-label'), a.getAttribute('href'), a.getAttribute('target'), a.getAttribute('rel')]), [
+    ['Rabbit Hole on X', 'https://x.com/digrabbithole', '_blank', 'noopener noreferrer'],
+    ['Rabbit Hole on LinkedIn', 'https://www.linkedin.com/company/dig-rabbit-hole/', '_blank', 'noopener noreferrer'],
+  ]);
+});
+
 test('Book a call opens the onboarding calendar in a new tab, once, in the footer', () => {
   const calls = [...row().querySelectorAll('a')].filter(a => a.textContent.trim() === 'Book a call');
   assert.equal(calls.length, 1);
