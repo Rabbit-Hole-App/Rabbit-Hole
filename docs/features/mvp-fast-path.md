@@ -37,18 +37,6 @@ node scripts/mvp-fast-path.mjs preview --mvp --sha $(git rev-parse HEAD) \
 
 The record (`mvp: true`): `sha`, `tree`, `base`, `build` (hash of `dist-dev`), `targets` (`worker`, `url`, `account`, `env: dev`), `checks` (`build`, `affected-tests`, `smoke`, `preview`, each with `cmd`, `exit`, `result`, and the test files `ran`), `recovery` (`branch`, and the `tip` it had at preview time), `version`, `run`, `at`, `gates`, `broad_ci` and `release_gate` all `bypassed`, and `digest` (sha256 of the rest). The digest detects an edited record. It is not a signature: whoever can rewrite the line can recompute it.
 
-### Record from the release gate run (no preview deploy)
-
-When the candidate already has a passing release gate (the gate report's first line is `GATE: PASS(<tier>) <full sha>`), the record can take that run as its proof instead of a clone deploy (reviewer, 2026-11-13):
-
-```bash
-node scripts/mvp-fast-path.mjs preview --mvp --sha $(git rev-parse HEAD)   --smoke "<focused command>" --recovery <branch> --gate <gate-report-file>
-```
-
-- `--gate` turns the deploy off: no wrangler, no Cloudflare variables, no clone name. Order: build, affected tests, smoke, then the `gate` check, which reads the first line of the report and passes only for `GATE: PASS` of exactly this sha (a FAIL, another sha or an abbreviated sha fails it, and the record is never accepted).
-- The record is the same shape: `targets` is `{ env: gate, report: <file name> }`, `version` is `gate:<12 hex of the report>`, the `gate` check carries the report's first line, and broad CI and the release gate are still recorded as bypassed (this proof is the owner's MVP gate, not the broad one).
-- `mvpVerdict` accepts a record with a `gate` check under `build`, `affected-tests`, `smoke`, `gate` and a gate target; a record with no `gate` check keeps every clone-deploy rule unchanged. The recovery branch is checked the same way.
-
 ## 2. Production
 
 The released commit must be the previewed commit (fast-forward the feature branch to `main`; a merge or squash changes the SHA and the record no longer matches).

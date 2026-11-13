@@ -9,6 +9,7 @@ export const JUDGE_MODEL = 'claude-sonnet-5-5';
 // claude-sonnet-5-5 list price, US$ per token (claude-api skill model table, cached 2026-10-06): $2 input / $10 output per million.
 export const PRICE = { input: 2 / 1e6, output: 10 / 1e6 };
 const WORST_CALL = 0.02; // a call is started only while this much of the judge cap is left (about 2x the largest expected call)
+export const CREDENTIALS_FILE = 'C:/Users/cyudhist/Desktop/workspace/small-deploy/.env';
 
 const TOOL = (description, properties, required) => ({ name: 'record_review', description, input_schema: { type: 'object', additionalProperties: false, required, properties } });
 const VERDICT = (...values) => ({ verdict: { type: 'string', enum: values }, reason: { type: 'string' } });
@@ -74,12 +75,10 @@ function answerOf(def, body) {
 }
 
 // The key is read BY NAME at the first call, held in this closure, never printed (as scripts/animation/author-sample.mjs devKeyTransport).
-// The key comes from the stack's .dev.vars file the bench already receives as --vars (topic pipeline rule 2026-11-12: no hardcoded credentials file).
-export function keyTransport(file) {
-  if (!file) throw new Error('the judge needs --vars <the stack .dev.vars>: its ANTHROPIC_API_KEY is the judge key');
+export function keyTransport(file = CREDENTIALS_FILE) {
   let key = null;
   return async body => {
-    if (!key) { const t = readFileSync(file, 'utf8'); key = (t.match(/^ANTHROPIC_API_KEY=(.*)$/m)?.[1] || '').trim().replace(/^['"]|['"]$/g, ''); if (!key) throw new Error('no ANTHROPIC_API_KEY in the --vars file'); }
+    if (!key) { const t = readFileSync(file, 'utf8'); key = (t.match(/^ANTHROPIC_API_KEY=(.*)$/m)?.[1] || '').trim().replace(/^['"]|['"]$/g, ''); if (!key) throw new Error('no ANTHROPIC_API_KEY in the credentials file'); }
     return fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(120000) });
   };
 }

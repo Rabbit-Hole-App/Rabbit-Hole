@@ -1,8 +1,6 @@
 // The MVP fast path: the owner's standing policy of 2026-11-03 (CLAUDE.md#mvp-fast-path, docs/features/mvp-fast-path.md).
 //   node scripts/mvp-fast-path.mjs preview --mvp --sha <40-hex> --smoke "<command>" [--smoke "<command>" ...]
 //        --recovery <branch> [--worker rabbit-hole-web-dev-<name>] [--base <ref>] [--no-deploy]
-//   node scripts/mvp-fast-path.mjs preview --mvp --sha <40-hex> --smoke "<command>" --recovery <branch> --gate <gate-report-file>
-//        (reviewer 2026-11-13: the record's last check is `gate`, read from the release gate report of this commit; no clone is deployed)
 //   node scripts/mvp-fast-path.mjs verify --sha <40-hex> [--record <file>] [--json] [--fetch]
 // --recovery is required (the owner's MVP minimum, 2026-11-03): a branch already on rabbit-hole, cut by the lane, whose tip is a
 // strict descendant of the release commit (the recovery on top of it). It is checked before anything is built and recorded.
@@ -27,10 +25,6 @@ import { entryScript } from './dev-deploy.mjs';
 export const MVP_BANNER = 'MVP MODE: broad CI and release gate BYPASSED by owner policy';
 // What an accepted record must show passing. `preview` is the deploy of the isolated clone and the check that it serves the build.
 export const REQUIRED = ['build', 'affected-tests', 'smoke', 'preview'];
-// A record whose proof is the release gate run instead of a clone deploy: its last check is `gate`, the first line of the gate report of this commit
-// (`GATE: PASS(<tier>) <sha>`, written by the gate run that passed). Same bypass wording, same recovery branch; no wrangler, no network.
-export const GATE_REQUIRED = ['build', 'affected-tests', 'smoke', 'gate'];
-export const gateLine = sha => new RegExp(`^GATE: PASS(?:\\([a-z-]+\\))? ${sha}(?:\\s|$)`);
 const SHA = /^[0-9a-f]{40}$/;
 const ACCOUNT = 'c08d3dbdc53a3afd3cb09a536ac42318'; // the rabbit-hole Cloudflare account, as in dev-deploy.mjs and prod-release.mjs
 const CLONE = /^rabbit-hole-web-dev-[a-z0-9][a-z0-9-]*$/;
@@ -70,8 +64,7 @@ export function mvpVerdict(text, sha, treeOf = () => null, checkBranch = null) {
   const no = error => ({ error });
   if (!r.digest) return no('the record has no digest');
   if (r.digest !== recordDigest(r)) return no('the record does not match its digest (edited after it was written)');
-  const gated = (r.checks || []).some(c => c.name === 'gate');
-  for (const name of gated ? GATE_REQUIRED : REQUIRED) {
+  for (const name of REQUIRED) {
     const cs = (r.checks || []).filter(c => c.name === name);
     if (!cs.length) return no(`required check ${name} is missing`);
     const bad = cs.find(c => c.exit !== 0 || c.result !== 'pass');
@@ -81,10 +74,7 @@ export function mvpVerdict(text, sha, treeOf = () => null, checkBranch = null) {
   if (!SHA.test(r.tree) || !/^[0-9a-f]{12}$/.test(r.build)) return no('the record\'s tree or build is malformed');
   if (r.tree !== treeOf(sha)) return no('the record names another tree than this commit\'s');
   if (r.gates !== 'bypassed' || r.broad_ci !== 'bypassed' || r.release_gate !== 'bypassed') return no('broad CI and the release gate must be recorded as bypassed, never passed');
-  if (gated) {
-    if (r.targets?.env !== 'gate' || typeof r.targets.report !== 'string' || !r.targets.report) return no('a gate record names the gate report it was read from (targets.env gate)');
-    if (!gateLine(sha).test(String(r.checks.findLast(c => c.name === 'gate').line || ''))) return no('the gate check does not carry this commit\'s GATE: PASS line');
-  } else if (r.targets?.env !== 'dev' || !CLONE.test(r.targets?.worker || '')) return no('the preview target is not a rabbit-hole-web-dev-* clone');
+  if (r.targets?.env !== 'dev' || !CLONE.test(r.targets?.worker || '')) return no('the preview target is not a rabbit-hole-web-dev-* clone');
   if (typeof r.recovery?.branch !== 'string' || !SHA.test(r.recovery.tip || '')) return no('the record names no recovery branch (the owner\'s MVP minimum: preview --mvp ... --recovery <branch>)');
   const live = checkBranch?.(r.recovery.branch);
   if (live?.error) return no(live.error);
@@ -92,7 +82,7 @@ export function mvpVerdict(text, sha, treeOf = () => null, checkBranch = null) {
 }
 
 // What the prepared build and the release receipt carry of the record.
-export const mvpSummary = r => ({ digest: r.digest, worker: r.targets.worker ?? null, ...(r.targets.report && { gate_report: r.targets.report }), checks: r.checks.map(c => `${c.name}:${c.result}`), recovery: r.recovery, broad_ci: r.broad_ci, release_gate: r.release_gate });
+export const mvpSummary = r => ({ digest: r.digest, worker: r.targets.worker, checks: r.checks.map(c => `${c.name}:${c.result}`), recovery: r.recovery, broad_ci: r.broad_ci, release_gate: r.release_gate });
 
 // ---- the affected tests ----
 // A suite owns the changed files under `own`; its tests are the files matching `test`; `all` runs the whole suite.
@@ -125,19 +115,17 @@ export function affectedTests(changed, tests, suites = SUITES) {
 // ---- the preview ----
 // io: build() / tests() / smoke() / deploy() -> { exit, cmd, ... } (a throw is a failed check). Required checks run in order and
 // each stops the run on failure; the clone is deployed only after all three focused checks passed. -> the record.
-export async function runPreview({ sha, tree, base, worker, recovery, gate, deploy: wantDeploy = true, run = 'local', now = () => new Date() }, io) {
+export async function runPreview({ sha, tree, base, worker, recovery, deploy: wantDeploy = true, run = 'local', now = () => new Date() }, io) {
   const checks = [];
   const go = async (name, step) => {
     let r; try { r = await step(); } catch (e) { r = { exit: 1, cmd: name, error: e.message }; }
-    checks.push({ name, cmd: r.cmd, ...(r.ran && { ran: r.ran }), ...(r.uncovered?.length && { uncovered: r.uncovered }), ...(r.error && { error: r.error }), ...(r.line && { line: r.line }), exit: r.exit, result: r.exit === 0 ? 'pass' : 'fail' });
+    checks.push({ name, cmd: r.cmd, ...(r.ran && { ran: r.ran }), ...(r.uncovered?.length && { uncovered: r.uncovered }), ...(r.error && { error: r.error }), exit: r.exit, result: r.exit === 0 ? 'pass' : 'fail' });
     return r;
   };
   const b = await go('build', io.build);
   const ok = b.exit === 0 && (await go('affected-tests', io.tests)).exit === 0 && (await go('smoke', io.smoke)).exit === 0;
-  // The proof of the build is the gate run when one is given (no deploy), else the deploy of the isolated clone.
-  const p = ok && gate && io.gate ? await go('gate', io.gate) : ok && wantDeploy ? await go('preview', io.deploy) : null;
-  const targets = gate ? { env: 'gate', report: gate } : { worker, url: `https://${worker}.tryrabbithole.workers.dev`, account: ACCOUNT, env: 'dev' };
-  return makeRecord({ sha, tree, base, build: b.build, recovery, targets, checks, version: p?.version, run, at: now().toISOString() });
+  const p = ok && wantDeploy ? await go('preview', io.deploy) : null;
+  return makeRecord({ sha, tree, base, build: b.build, recovery, targets: { worker, url: `https://${worker}.tryrabbithole.workers.dev`, account: ACCOUNT, env: 'dev' }, checks, version: p?.version, run, at: now().toISOString() });
 }
 
 export function previewArgs(argv, dir = 'worktree') {
@@ -146,7 +134,6 @@ export function previewArgs(argv, dir = 'worktree') {
     const a = argv[i];
     if (a === '--mvp') o.mvp = true;
     else if (a === '--no-deploy') o.deploy = false;
-    else if (a === '--gate') { o.gate = argv[++i] ?? ''; o.deploy = false; }
     else if (['--sha', '--worker', '--base', '--recovery'].includes(a)) o[a.slice(2)] = argv[++i];
     else if (a === '--smoke') o.smoke.push(argv[++i]);
     else throw new Error(`unknown argument ${a}`);
@@ -155,9 +142,8 @@ export function previewArgs(argv, dir = 'worktree') {
   if (!SHA.test(o.sha || '')) throw new Error('--sha must be a full 40-character commit sha');
   if (!o.smoke.length || o.smoke.some(s => !s)) throw new Error('--smoke "<command>" is required: the focused feature smoke check, which must exit 0');
   if (!o.recovery) throw new Error('--recovery <branch> is required: the owner\'s MVP minimum includes a recovery branch already on rabbit-hole whose tip contains the release commit');
-  if (o.gate !== undefined && !o.gate) throw new Error('--gate needs the gate report file of this commit');
   o.worker ??= `rabbit-hole-web-dev-${dir}`;
-  if (!o.gate && (!CLONE.test(o.worker) || o.worker === STABLE)) throw new Error(`--worker must be your own rabbit-hole-web-dev-<worktree> clone, not ${o.worker} (the stable preview and production are never an MVP target)`);
+  if (!CLONE.test(o.worker) || o.worker === STABLE) throw new Error(`--worker must be your own rabbit-hole-web-dev-<worktree> clone, not ${o.worker} (the stable preview and production are never an MVP target)`);
   return o;
 }
 
@@ -251,11 +237,6 @@ async function preview(o) {
       for (const s of o.smoke) exit ||= status(s, [], { shell: true });
       return { exit, cmd: o.smoke.join('; ') };
     },
-    gate: () => {
-      const text = readFileSync(o.gate, 'utf8'), first = text.split(/\r?\n/)[0];
-      const ok = gateLine(o.sha).test(first);
-      return { exit: ok ? 0 : 1, cmd: `gate report ${basename(o.gate)}: ${first.slice(0, 160)}`, line: first, version: `gate:${createHash('sha256').update(text).digest('hex').slice(0, 12)}`, ...(ok ? {} : { error: `the first line of ${basename(o.gate)} is not GATE: PASS for ${o.sha.slice(0, 8)}` }) };
-    },
     deploy: async () => {
       const wrangler = spawnSync(process.execPath, [tool('wrangler', 'bin/wrangler.js'), 'deploy', '--config', 'wrangler.dev.jsonc', '--name', o.worker, '--message', `mvp ${o.sha} build ${built}`], { cwd: WEB, encoding: 'utf8', env: { ...process.env, CI: 'true' } });
       if (wrangler.status) return { exit: wrangler.status, cmd: `wrangler deploy --name ${o.worker}`, error: wrangler.stderr.split('\n').find(l => /error/i.test(l)) ?? 'wrangler failed' };
@@ -263,18 +244,17 @@ async function preview(o) {
       return { exit: version && await serves(`https://${o.worker}.tryrabbithole.workers.dev`, entry) ? 0 : 1, cmd: `wrangler deploy --name ${o.worker}; GET /library serves ${entry}`, version };
     },
   };
-  const rec = await runPreview({ sha: o.sha, tree: git('rev-parse', `${o.sha}^{tree}`), base, worker: o.worker, recovery: { branch: o.recovery, tip: recovery.tip }, deploy: o.deploy, gate: o.gate ? basename(o.gate) : undefined, run: process.env.GITHUB_RUN_ID ?? 'local' }, io);
+  const rec = await runPreview({ sha: o.sha, tree: git('rev-parse', `${o.sha}^{tree}`), base, worker: o.worker, recovery: { branch: o.recovery, tip: recovery.tip }, deploy: o.deploy, run: process.env.GITHUB_RUN_ID ?? 'local' }, io);
   for (const c of rec.checks) say(`${c.result === 'pass' ? '✓' : '✗'} ${c.name}: ${c.cmd}${c.ran ? ` [${c.ran.length} test file(s)]` : ''}${c.uncovered ? ` (no test imports: ${c.uncovered.join(', ')})` : ''}${c.error ? ` - ${c.error}` : ''}`);
   const line = JSON.stringify(rec);
   appendFileSync(join(git('rev-parse', '--path-format=absolute', '--git-common-dir'), 'rabbit-hole-dev-deploys.jsonl'), `${line}\n`);
   const failed = rec.checks.filter(c => c.result !== 'pass').map(c => c.name);
   if (failed.length) { say(`✗ required check failed: ${failed.join(', ')}; production will not accept this record`); process.exitCode = 1; return; }
-  if (!o.deploy && !o.gate) { say('✓ checks passed. --no-deploy: no preview was deployed, so production will not accept this record'); return; }
+  if (!o.deploy) { say('✓ checks passed. --no-deploy: no preview was deployed, so production will not accept this record'); return; }
   const verdict = mvpVerdict(line, o.sha, () => rec.tree);
   if (verdict.error) { say(`✗ no preview record that production would accept: ${verdict.error}`); process.exitCode = 1; return; }
   try { git('notes', '--ref=dev-deploys', 'append', '-m', line, o.sha); } catch (e) { say(`! could not attach the record as a git note: ${e.message.split('\n')[0]}`); }
-  if (o.gate) say(`✓ MVP record of ${o.sha.slice(0, 8)} from the gate run ${basename(o.gate)} (build ${rec.build}, record ${rec.digest}); no preview was deployed; broad CI and the release gate are recorded as bypassed`);
-  else say(`✓ MVP preview of ${o.sha.slice(0, 8)} at ${rec.targets.url} (build ${rec.build}, record ${rec.digest}); broad CI and the release gate are recorded as bypassed`);
+  say(`✓ MVP preview of ${o.sha.slice(0, 8)} at ${rec.targets.url} (build ${rec.build}, record ${rec.digest}); broad CI and the release gate are recorded as bypassed`);
   say('  To let a push to main release this exact commit: git push rabbit-hole refs/notes/dev-deploys (fetch and merge the remote notes first if it is refused)');
 }
 
@@ -283,6 +263,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const [, , cmd, ...rest] = process.argv;
     if (cmd === 'verify') verify(verifyArgs(rest));
     else if (cmd === 'preview') await preview(previewArgs(rest, basename(ROOT).toLowerCase().replace(/[^a-z0-9]+/g, '-')));
-    else throw new Error('usage: mvp-fast-path.mjs preview --mvp --sha <sha> --smoke "<command>" [--smoke ...] [--worker <clone>] [--base <ref>] [--no-deploy] [--gate <gate-report>] | verify --sha <sha> [--record <file>] [--json]');
+    else throw new Error('usage: mvp-fast-path.mjs preview --mvp --sha <sha> --smoke "<command>" [--smoke ...] [--worker <clone>] [--base <ref>] [--no-deploy] | verify --sha <sha> [--record <file>] [--json]');
   } catch (e) { console.error(`✗ ${e.message}`); process.exitCode = 1; }
 }

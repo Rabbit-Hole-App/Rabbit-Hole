@@ -3,7 +3,6 @@ import { parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import kindGallery from '../../web/src/tutor-diagrams/kind-gallery.json' with { type: 'json' };
 import { singleDiagramReferences } from '../../web/src/tutor-diagrams/reference-single-variants.js';
 import { usesNodeTensors, usesParallelPaths, usesTensorItems } from '../../web/src/tutor-diagrams/illustration-kinds.js';
-import { cardVisuals, visualKinds } from './explanation-planner.js';
 
 const MAX_REFERENCES = 2;
 const MAX_CONTEXT = 14_000;
@@ -89,7 +88,7 @@ export const selectDiagramReferences = options => selectWithSteer(options).refer
 // short learner phrases). It is then kept whole whatever the planner's kind (and goes first), and its kind comes back as steer { kind, source: 'reference', id, referenceKind, score }; a
 // two-panel reference is read through its single-diagram variant (preferSingleVariants), so its kind is that variant's. A learner-named kind (requiredKinds) is never steered: null.
 export const TOPICAL_STEER_MIN = 12;
-export function selectWithSteer({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard', excludeReferencePrefixes = [] } = {}) {
+export function selectWithSteer({ prompt = '', context = '', requiredKinds = [], plannedKinds = [], shapeFallback = true, depth = 'standard' } = {}) {
   const query = normalized(String(prompt).slice(0, 4000));
   // Broad lesson aliases resolve a whole direct topic, including concise requests such as “show me the forest vote”.
   const shortTopic = query.replace(/^(?:please )?(?:(?:can you )?(?:explain|show me|describe|tell me about|help me understand) )?(?:the |an? )?/u, '');
@@ -97,10 +96,9 @@ export function selectWithSteer({ prompt = '', context = '', requiredKinds = [],
   const required = new Set(requiredKinds.filter(kind => typeof kind === 'string'));
   const level = DEPTH_KEYS[depth] ?? depth; // the references' depth variants are keyed overview / standard / deep; the renamed levels (brief / balanced / detailed) map to them
   const wanted = new Set(plannedKinds), atLevel = ref => (ref.depths?.[level] ? { ...ref, ...ref.depths[level] } : ref);
-  const library = excludeReferencePrefixes.length ? diagramReferences.filter(ref => !excludeReferencePrefixes.some(prefix => ref.id.startsWith(prefix))) : diagramReferences;
-  const topical = required.size || !query ? null : library.filter(ref => !/^(?:shape|general)-/.test(ref.id)).map((ref, index) => ({ ref: atLevel(ref), index }))
+  const topical = required.size || !query ? null : diagramReferences.filter(ref => !/^(?:shape|general)-/.test(ref.id)).map((ref, index) => ({ ref: atLevel(ref), index }))
     .map(item => ({ ...item, score: topicScore(query, item.ref, shortTopic) })).filter(item => item.score >= TOPICAL_STEER_MIN).sort((x, y) => (y.score - x.score) || x.index - y.index)[0] ?? null;
-  const candidates = library.flatMap(ref => referenceVariants(atLevel(ref), required)).filter(ref => !wanted.size || ref.id === topical?.ref.id || wanted.has(ref.spec.diagram.kind) || wanted.has(singleByPanel.get(ref.id)?.spec.diagram.kind)); // a two-panel reference also qualifies through its one-diagram variant's kind (Codex set 3), which preferSingleVariants then sends
+  const candidates = diagramReferences.flatMap(ref => referenceVariants(atLevel(ref), required)).filter(ref => !wanted.size || ref.id === topical?.ref.id || wanted.has(ref.spec.diagram.kind) || wanted.has(singleByPanel.get(ref.id)?.spec.diagram.kind)); // a two-panel reference also qualifies through its one-diagram variant's kind (Codex set 3), which preferSingleVariants then sends
   const ranked = candidates.map((ref, index) => ({
     ref, index, direct: topicScore(query, ref, shortTopic), source: topicScore(source, ref),
   }));
@@ -139,17 +137,6 @@ export function preferSingleVariants(references, { plannedKind = null, requiredK
     const single = ref.sourceId ? null : singleByPanel.get(ref.id);
     return !single || requiredKinds.includes(ref.spec.diagram.kind) ? ref : { id: single.id, useWhen: single.useWhen, spec: parseTutorDiagram(single.spec) };
   });
-}
-
-// The live author and the lesson pipeline share the resolved-kind selection call.
-// Planner kinds and learner-required kinds retain their separate live meanings.
-export function selectForAuthor({ prompt, context = '', depth, plan = null, asked = [], planned = false, excludeReferencePrefixes = [] }) {
-  const requiredKinds = asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind);
-  const plannedKinds = visualKinds(cardVisuals(plan, asked));
-  const selection = selectWithSteer({ prompt, context, depth, requiredKinds, plannedKinds,
-    shapeFallback: !!planned && !plan, excludeReferencePrefixes });
-  return { ...selection, references: preferSingleVariants(selection.references, { plannedKind: plan?.kind, requiredKinds }),
-    requiredKinds, plannedKinds };
 }
 
 // The start of the reference block in a system prompt; the fast chain moves the block to the end of its system message (assembledSystem).

@@ -19,12 +19,12 @@ import { convergingFlow, sequenceBoundarySelfMessages, sequenceSelfMessage } fro
 
 const depthNames = { overview: 'brief', standard: 'balanced', deep: 'detailed' };
 
-export function* illustrationSpecs(references) {
-  const catalogue = references ?? [
+export function* illustrationSpecs() {
+  const references = [
     ...illustrationReferences, ...transformerWalkthroughReferences, ...batch1FollowupReferences, ...figureChapterReferences,
     ...lessonDecisionTreesReferences, ...estimationEvaluationReferences,
   ];
-  for (const ref of new Set(catalogue)) {
+  for (const ref of new Set(references)) {
     yield { id: ref.id, spec: ref.spec, ...(ref.detailSpec ? { detail: true } : {}) };
     if (ref.detailSpec) yield { id: `${ref.id}-detail`, spec: ref.detailSpec };
     for (const [key, { spec, detailSpec }] of Object.entries(ref.depths ?? {})) {
@@ -33,8 +33,6 @@ export function* illustrationSpecs(references) {
       if (detailSpec) yield { id: `${id}-detail`, spec: detailSpec };
     }
   }
-  // The topic pipeline supplies its checked references and uses this same renderer.
-  if (references) return;
   for (const [id, { spec }] of Object.entries(figureChapterSingleSpecs)) yield { id: `${id}-single`, spec };
   for (const { kind, ...depths } of kindGalleryDepths) {
     if (!ILLUSTRATION_KINDS.includes(kind)) continue;
@@ -57,8 +55,8 @@ function naturalWidth(diagram, { compact = false } = {}) {
   return layouts[diagram.kind](diagram, 320).width;
 }
 
-export function* illustrationCases(references) {
-  for (const { id, spec, detail } of illustrationSpecs(references)) {
+export function* illustrationCases() {
+  for (const { id, spec, detail } of illustrationSpecs()) {
     const sizes = { 408: 408, natural: Math.max(320, naturalWidth(spec.diagram)), 960: 960 };
     const row = spec.diagram.kind === 'block-stack' && spec.diagram.orientation === 'horizontal';
     if (row || (detail && spec.diagram.callouts?.length)) sizes[320] = 320;
@@ -66,9 +64,9 @@ export function* illustrationCases(references) {
   }
 }
 
-export function exportIllustrationPreviews(out, { references } = {}) {
+export function exportIllustrationPreviews(out) {
   const output = resolve(out), records = {};
-  for (const { id, key, size, spec, available } of illustrationCases(references)) {
+  for (const { id, key, size, spec, available } of illustrationCases()) {
     if (!records[id]) {
       mkdirSync(join(output, id), { recursive: true });
       writeFileSync(join(output, id, 'spec.json'), JSON.stringify(spec, null, 2) + '\n');
