@@ -1,20 +1,22 @@
 import { J, head } from './shared.js';
 
-// Template two-lane: a tossed body and a second body held at the toss's top height until the top, then released, in two lanes on one shared height axis; each body has a velocity arrow, an
-// acceleration arrow (none while held) and a callout of its two readings; a gate holds the second body. roles: scene.slots = { toss: { height, velocity, acceleration, apexTime, apexHeight },
-// drop: { height, velocity, acceleration } } (apexTime and apexHeight may also sit at the top level of slots). The drop's quantities are the plan's piecewise formulas (held, then free fall), so the
-// template never computes the release itself: it reads them. Words are the template's; numbers come from the plan.
-export const roles = Object.freeze(['toss.height', 'toss.velocity', 'toss.acceleration', 'toss.apexTime', 'toss.apexHeight', 'drop.height', 'drop.velocity', 'drop.acceleration']);
+// Template two-lane: a first body that is thrown up and a second body held at the first one's top height until its top, then released, in two lanes on one shared height axis; each body has a
+// velocity arrow, an acceleration arrow (none while the quantity is zero) and a callout of its two readings; a gate holds the second body. scene.slots = { <firstLane>: { height, velocity, acceleration },
+// <secondLane>: {...} } with the plan's own two lane names (for example toss and drop): the lane names make the frame ids (lane.<name>, ball.<name>, vec.v.<name>, callout.<name>, gate.<name>) and, capitalised,
+// the lane headings. The second body's quantities are the plan's piecewise formulas (held, then free fall), so the template never computes the release itself: it reads them. The words are the template's.
+export const roles = Object.freeze(['height', 'velocity', 'acceleration']);
 
 export const words = Object.freeze({
-  toss: { title: 'Toss', where: { launch: 'At launch', top: 'At the top', end: 'At launch height', up: 'Rising', down: 'Falling' } },
-  drop: { title: 'Drop', where: { held: 'Held in place', released: 'Just released', end: 'At launch height', falling: 'Falling together' } },
+  first: { where: { launch: 'At launch', top: 'At the top', end: 'At launch height', up: 'Rising', down: 'Falling' } },
+  second: { where: { held: 'Held in place', released: 'Just released', end: 'At launch height', falling: 'Falling together' } },
   launch: 'Launch height', axis: { label: 'Height' }, v: 'v', a: 'a',
   states: {},
 });
 
-// apexTime and apexHeight may sit at the top level of slots; they are read from the toss body.
-export const normalize = slots => ({ ...slots, toss: { ...slots.toss, apexTime: slots.toss?.apexTime ?? slots.apexTime, apexHeight: slots.toss?.apexHeight ?? slots.apexHeight } });
+// Both lanes, in the plan's order: the first rises, the second is the held body.
+export const normalize = slots => slots;
+export const lanesOf = slots => Object.keys(slots);
+const title = name => name.charAt(0).toUpperCase() + name.slice(1);
 
 const ceilTo = (value, step) => Number((Math.ceil(value / step - 1e-9) * step).toFixed(9));
 // The fewest ticks that stay readable: the smallest step from the list that gives at most six.
@@ -27,12 +29,12 @@ export const geometry = range => {
 };
 
 export function source(ctx) {
-  const { slots, geometry: geo } = ctx, toss = slots.toss, drop = slots.drop;
+  const { slots, geometry: geo } = ctx, [first, second] = lanesOf(slots), toss = slots[first], drop = slots[second];
   return head(ctx, toss) + String.raw`
 const W = ${J(words)};
 const U = ${J(ctx.units)};
 const READOUTS = ${J(ctx.readoutIds)};
-const DROP = ${J(drop)};
+const A = ${J(first)}, B = ${J(second)}, TITLE = ${J({ [first]: title(first), [second]: title(second) })}, DROP = ${J(drop)};
 export function evaluate({ inputs, time }) {
   const m = motion(inputs, time), atTop = Math.abs(m.tau) < EPS, qs = quantities(inputs, time), base = Q[${J(toss.height)}](inputs, 0);
   const FLOOR = 299, S = ${J(geo.scale)}, R = 15, released = m.tau >= -EPS, peakY = FLOOR - m.peak * S;
@@ -42,9 +44,9 @@ export function evaluate({ inputs, time }) {
       sdk.text('label.launch.' + tag, x0 + 196, FLOOR + 27, W.launch), sdk.line('guide.' + tag, x, peakY, x, FLOOR, { opacity: 0.35 })];
     return { x, y, out };
   };
-  const tossWhere = m.launch ? W.toss.where.launch : atTop ? W.toss.where.top : m.ended ? W.toss.where.end : m.v > 0 ? W.toss.where.up : W.toss.where.down;
-  const dropWhere = !released ? W.drop.where.held : atTop ? W.drop.where.released : m.ended ? W.drop.where.end : W.drop.where.falling;
-  const L1 = lane('toss', W.toss.title, 26, tossWhere, { h: m.h }), L2 = lane('drop', W.drop.title, 459, dropWhere, drop);
+  const firstWhere = m.launch ? W.first.where.launch : atTop ? W.first.where.top : m.ended ? W.first.where.end : m.v > 0 ? W.first.where.up : W.first.where.down;
+  const secondWhere = !released ? W.second.where.held : atTop ? W.second.where.released : m.ended ? W.second.where.end : W.second.where.falling;
+  const L1 = lane(A, TITLE[A], 26, firstWhere, { h: m.h }), L2 = lane(B, TITLE[B], 459, secondWhere, drop);
   const ghosts = released && m.tau > EPS;
   const arrows = (tag, x, y, v, a) => {
     const out = Math.abs(v) * 12 < 1 ? [sdk.circle('vec.v.' + tag + '.zero', x - 26, y, 6, { role: 'input' })]
@@ -54,10 +56,10 @@ export function evaluate({ inputs, time }) {
     return out;
   };
   const objects = [sdk.axis('axis.h', { x: 60, y: FLOOR, length: ${J(geo.axisMax)} * S, orientation: 'y', min: 0, max: ${J(geo.axisMax)}, ticks: ${J(geo.ticks)}, label: W.axis.label, unit: U.height }), ...L1.out, ...L2.out];
-  if (ghosts) objects.push(sdk.circle('ghost.toss', L1.x, peakY, 2 * R, { opacity: 0.35 }), sdk.circle('ghost.drop', L2.x, peakY, 2 * R, { opacity: 0.35 }));
-  objects.push(...sdk.gate('gate.drop', L2.x, peakY + R, { w: 46, open: released }));
-  objects.push(sdk.circle('ball.toss', L1.x, L1.y, 2 * R), sdk.circle('ball.drop', L2.x, L2.y, 2 * R));
-  objects.push(...arrows('toss', L1.x, L1.y, m.v, m.a), ...arrows('drop', L2.x, L2.y, drop.v, drop.a));
+  if (ghosts) objects.push(sdk.circle('ghost.' + A, L1.x, peakY, 2 * R, { opacity: 0.35 }), sdk.circle('ghost.' + B, L2.x, peakY, 2 * R, { opacity: 0.35 }));
+  objects.push(...sdk.gate('gate.' + B, L2.x, peakY + R, { w: 46, open: released }));
+  objects.push(sdk.circle('ball.' + A, L1.x, L1.y, 2 * R), sdk.circle('ball.' + B, L2.x, L2.y, 2 * R));
+  objects.push(...arrows(A, L1.x, L1.y, m.v, m.a), ...arrows(B, L2.x, L2.y, drop.v, drop.a));
   return {
     frame: sdk.frame(objects, { width: ${geo.width}, height: ${geo.height}, readouts: READOUTS.map(id => ({ id: id, value: qs[id] })) }),
     quantities: qs,

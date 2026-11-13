@@ -6,7 +6,7 @@
 export const J = value => JSON.stringify(value);
 
 // ctx.q: { quantityId: 'js expression over inputs, t' } already built; ctx.end: 'js expression over inputs'; ctx.slots: role -> quantity id.
-// -> the source head: constants, the quantity table Q, END and motion(inputs, time) for the body described by `slots` ({ height, velocity, acceleration, apexTime, apexHeight }).
+// -> the source head: constants, the quantity table Q, END and motion(inputs, time) for the body described by `slots` ({ height, velocity, acceleration }).
 export function head(ctx, body) {
   const q = Object.entries(ctx.q).map(([id, js]) => `  ${J(id)}: (inputs, t) => { const { ${ctx.inputIds.join(', ')} } = inputs; return ${js}; },`).join('\n');
   return String.raw`
@@ -18,11 +18,19 @@ ${q}
 };
 const quantities = (inputs, time) => { const end = END(inputs), t = Math.min(Math.max(time, 0), end), out = {}; for (const id in Q) out[id] = snap(Q[id](inputs, t)); return out; };
 const END = inputs => { const { ${ctx.inputIds.join(', ')} } = inputs; return ${ctx.end}; };
-// One body: heights are read above its launch height (its height at time 0), time is held inside the timeline.
+// One body: heights are read above its launch height (its height at time 0), time is held inside the timeline. The top is where its velocity crosses zero (found by bisection on the plan's own
+// velocity formula, so no quantity has to name it); a body whose velocity never starts positive has its top at time 0.
+const topOf = (inputs, end) => {
+  const v = Q[${J(body.velocity)}];
+  if (v(inputs, 0) <= 0) return 0;
+  let lo = 0, hi = end;
+  for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (v(inputs, mid) > 0) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+};
 const motion = (inputs, time) => {
-  const end = END(inputs), t = Math.min(Math.max(time, 0), end), top = Q[${J(body.apexTime)}](inputs, t), base = Q[${J(body.height)}](inputs, 0);
+  const end = END(inputs), t = Math.min(Math.max(time, 0), end), top = topOf(inputs, end), base = Q[${J(body.height)}](inputs, 0);
   const v = snap(Q[${J(body.velocity)}](inputs, t));
-  return { top, end, t, peak: Q[${J(body.apexHeight)}](inputs, t) - base, h: snap(Q[${J(body.height)}](inputs, t) - base), v, a: Q[${J(body.acceleration)}](inputs, t), tau: t - top, launch: t < EPS, ended: t >= end - EPS };
+  return { top, end, t, peak: Q[${J(body.height)}](inputs, top) - base, h: snap(Q[${J(body.height)}](inputs, t) - base), v, a: Q[${J(body.acceleration)}](inputs, t), tau: t - top, launch: t < EPS, ended: t >= end - EPS };
 };
 `;
 }

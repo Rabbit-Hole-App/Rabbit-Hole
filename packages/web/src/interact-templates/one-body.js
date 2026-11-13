@@ -1,9 +1,12 @@
 import { J, head } from './shared.js';
 
 // Template one-body: one body moving along a vertical in one lane, a velocity arrow beside it, a constant-length acceleration arrow, a callout naming the motion, and the launch-height guide.
-// roles: the quantities it reads (scene.slots): height, velocity, acceleration, apexTime, apexHeight. The words are the template's (the plan holds no lane or state wording); the program and the plan
+// roles: the quantities it reads (scene.slots): height, velocity, acceleration (the top is found from the velocity formula). The words are the template's (the plan holds no lane or state wording); the program and the plan
 // supply every number. Frame ids follow the renderer's conventions (frame-look.js): lane.toss, ball.toss, vec.v, vec.a, callout.toss.
-export const roles = Object.freeze(['height', 'velocity', 'acceleration', 'apexTime', 'apexHeight']);
+export const roles = Object.freeze(['height', 'velocity', 'acceleration']);
+
+export const normalize = slots => slots;
+export const lanesOf = () => [];
 
 export const words = Object.freeze({
   lane: 'One toss', launch: 'Launch height', gravity: { pulls: 'Gravity pulls down', none: 'No pull' },

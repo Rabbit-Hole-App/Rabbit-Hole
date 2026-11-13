@@ -2,9 +2,12 @@ import { J, head } from './shared.js';
 import { ticksTo } from './two-lane.js';
 
 // Template body-plot: one body on a height ruler (velocity arrow, acceleration arrow, a callout of velocity, acceleration and the downward force) beside the plot of one quantity against time with
-// a marker that moves with the body and a note with the slope. roles: scene.slots = { height, velocity, acceleration, apexTime, apexHeight, force, plotted? } (plotted defaults to velocity).
+// a marker that moves with the body and a note with the slope. roles: scene.slots = { height, velocity, acceleration, force, plotted? } (plotted defaults to velocity).
 // shortcut: the plotted line is drawn through its two end points, exact only while the plotted quantity is linear in time (constant acceleration); upgrade when a plan plots a curve.
-export const roles = Object.freeze(['height', 'velocity', 'acceleration', 'apexTime', 'apexHeight', 'force']);
+export const roles = Object.freeze(['height', 'velocity', 'acceleration', 'force']);
+
+export const normalize = slots => slots;
+export const lanesOf = () => [];
 
 export const words = Object.freeze({
   lane: 'The motion', launch: 'Launch height', axis: { label: 'Height' }, v: 'v', a: 'a', force: 'Fg',
