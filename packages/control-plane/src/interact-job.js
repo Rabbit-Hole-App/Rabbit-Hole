@@ -12,7 +12,7 @@ import { resolveSupportInputs, verifyComposition } from '../../web/src/interact-
 import { capabilityGap } from './explain-author.js';
 import * as explainRender from './explain-render.js';
 import { buildScene } from './interact-build.js';
-import { CHECK_LIMITS, buildPlanCaptureCases, captureAndCheck, repairRound, reviewCandidate } from './interact-checks.js';
+import { CHECK_LIMITS, buildPlanCaptureCases, captureAndCheck, headlessCaptureCard, repairRound, reviewCandidate } from './interact-checks.js';
 import { interactOracle } from './interact-oracle.js';
 import { learnMedia } from './learn-storage.js';
 
@@ -51,14 +51,23 @@ export async function validateStage(job, ctx) {
 const slim = c => ({ caseId: c.caseId, key: c.key ?? null, sha256: c.sha256 ?? null, compositionHash: c.compositionHash, completeCard: c.completeCard === true, bundleHash: c.bundleHash ?? null, trace: c.trace,
   supports: Object.fromEntries(Object.entries(c.supports ?? {}).map(([id, s]) => [id, { key: s.key ?? null, sha256: s.sha256 ?? null, bundleHash: s.bundleHash ?? null, trace: s.trace }])) });
 
+// INTERACT_RUN picks the capture seam of the request path: 'browser' (the default, the render service through captureCardFor) or 'headless' (the sealed programs in-process, no pixels, interact-checks.js
+// headlessCaptureCard). Anything else fails closed; a misspelled setting must not silently run the other path.
+export function captureRole(role) {
+  const mode = role.env?.INTERACT_RUN || 'browser';
+  if (mode === 'browser') return role;
+  if (mode !== 'headless') throw Object.assign(fail(`INTERACT_RUN must be browser or headless (got ${String(mode).slice(0, 40)}).`, 500, 'invalid_setting'), { category: 'internal' });
+  return { ...role, captureCard: headlessCaptureCard(role.env) };
+}
+
 export async function renderStage(job, ctx) {
   const { artifacts, composition } = ctx.build;
-  const a = await captureAndCheck(planJob(job, ctx, { artifacts, composition }), ctx.role);
+  const a = await captureAndCheck(planJob(job, ctx, { artifacts, composition }), captureRole(ctx.role));
   if (a.status === 'cancelled') return {};
   if (a.status === 'incomplete') return { incomplete: a.reason };
   if (a.status === 'render_unavailable') throw Object.assign(fail('The explanation could not be rendered (render_unavailable). Retry rendering.', 503, 'render_unavailable'), { category: 'renderer' });
   if (a.status === 'failed') return { problems: a.failure.problems, details: a.failure.details, failure: a.failure, category: 'spec', repairable: true, renders: [], check: a.check ?? null, ms: a.ms, captures: a.captures ? a.captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 })) : null };
-  return { captured: a.captures.map(slim), check: a.det.coverage, ms: a.ms, renders: a.captures.map(() => ({ ok: true })) };
+  return { captured: a.captures.map(slim), check: a.det.coverage, ms: a.ms, renders: a.captures.map(c => c.synthetic ? null : { ok: true }).filter(Boolean) }; // a headless run used no render service: nothing to record as platform compute
 }
 
 export async function reviewStage(job, ctx) {

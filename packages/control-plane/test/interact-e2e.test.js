@@ -686,3 +686,17 @@ test('the owner diagnostics (detail=1) carry the benchmark ledger row: the oracl
   assert.deepEqual([authoring.model.requested, authoring.fallback, authoring.repairRound], ['claude-opus-5-5', false, 0]);
   assert.equal((await s.route(`/${id}?board=${BOARD.id}`)).body.diagnostics, undefined, 'without detail=1 nothing of it is shown');
 });
+
+test('INTERACT_RUN=headless: the rendering stage runs the sealed program in-process and the oracle still catches a wrong one; the render service is never reached and no render is booked', async t => {
+  const { s, id } = await designed(t, { build: () => ({ kind: 'scene', ...wrong()(fixtureDraft('standard')) }) });
+  s.env.INTERACT_RUN = 'headless';
+  assert.equal((await s.approve(id)).status, 202);
+  for (let i = 0; i < 12 && s.jobOf(id).stage !== 'repairing'; i++) await s.actor.alarm();
+  const job = s.jobOf(id);
+  assert.equal(job.stage, 'repairing', 'the numeric oracle rejected the wrong program from its headless trace');
+  assert.ok(job.findings.find(f => f.stage === 'rendering').problems.some(p => /numeric_mismatch/.test(p)));
+  assert.equal(s.browser.state.evaluated.length, 0, 'the render browser was never used');
+  assert.equal(job.renders, 0);
+  assert.equal(s.calls.review.length, 0);
+  assert.ok(job.build.ms.run >= 0 && job.build.ms.check >= 0);
+});

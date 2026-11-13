@@ -10,8 +10,10 @@
 // never becomes ready. A repair can fix the implementation; it has no field that could change the approved plan.
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { CAPTURE_BUDGET, evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
-import { resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
-import { frameOverlaps } from '../../web/src/explain-program/frame-overlap.js';
+import { createSnapshotResolver, resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
+import { frameOverlaps, traceObjects } from '../../web/src/explain-program/frame-overlap.js';
+import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
+import { parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
 import { REVIEW_LIMITS, ReviewError, reviewCaptures, reviewProblems } from './explain-review.js';
 import { REVIEW_EVENTS, RenderError } from './explain-render.js';
 import { programFacts } from './explain-program.js';
@@ -440,3 +442,40 @@ const normalize = draft => ({ main: draft?.main, supporting: [...panelsOf(draft)
 // What the repair role reads of the current candidate: manifests and sources (untrusted text) or specs, never hashes it could copy.
 const draftView = draft => ({ main: viewOf(draft?.main), supporting: panelsOf(draft).map(s => ({ id: s?.id, artifact: viewOf(s?.artifact) })) });
 const viewOf = a => (a?.kind === 'program' ? { kind: 'program', manifest: a.program.manifest, source: a.program.source } : a);
+
+// ---- the headless run: the capture seam without a browser (INTERACT_RUN=headless; interact-job.js picks it) --------------------------------------------------------------
+// headlessCaptureCard(env, { limits }) -> the same seam as captureCardFor(env): ({ composition, artifacts, cases }) -> one capture per case, { caseId, compositionHash, completeCard, bundleHash, trace, supports }.
+// The sealed programs run in the pinned QuickJS engine in this process (runtime.js, the engine the card and the review browser use): the main program at each case's elapsed
+// time and inputs through the card's own request builder, each supporting panel's read-only snapshot through the player's snapshot resolver. The trace is what the checks read
+// (quantities, readouts, drawn texts, the objects the overlap check measures, a hash of the frame). There are NO pixels: synthetic: true, no png, no key, sha256 null, and
+// completeCard false (nothing composed the card), so a review that needs pixels cannot run on these captures. env is not read yet (captureCardFor takes it for the render bindings).
+// A Worker cannot fetch the engine's .wasm by URL: its entry imports it ('@jitl/quickjs-wasmfile-release-sync/wasm', a compiled WebAssembly.Module under wrangler) and hands it over
+// here once. Node (the tests, the scripts) loads the engine itself and needs nothing. TODO(integrator): call provideEngineWasm(wasm) from dev-worker.js and app-worker.js.
+let engine = null, engineWasm;
+export const provideEngineWasm = wasmModule => { engineWasm = wasmModule; };
+export function headlessCaptureCard(_env, { limits } = {}) {
+  return async ({ composition, artifacts, cases }) => {
+    const [{ loadEngine, runProgram }, { LIMITS }] = await Promise.all([import('../../web/src/explain-program/runtime.js'), import('../../web/src/explain-program/limits.js')]);
+    engine ??= await loadEngine(undefined, engineWasm);
+    const run = async (artifact, inputs, time) => {
+      const program = artifact.program, request = { requestId: '1', inputs, time, seed: 0, state: null };
+      const out = runProgram(engine, { source: program.source, request, sdkVersion: program.sdkVersion }, limits ?? LIMITS);
+      if (!out.ok) return { error: { code: out.code, diagnostic: out.detail } };
+      const parsed = parseGuestResult(out.value, program.manifest, program.sdkVersion);
+      if (!parsed.ok) return { error: { code: parsed.error.code, diagnostic: parsed.issue } };
+      const { frame, quantities } = parsed.value;
+      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), objects: traceObjects(frame.objects), frameHash: await sha256Hex(canonicalJson(frame.objects)), inputs, time };
+    };
+    const supportOf = id => artifacts.supporting.find(s => s.id === id).artifact;
+    const resolver = createSnapshotResolver({ evaluate: ({ panelId, inputs, time }) => run(supportOf(panelId), resolveInputs(supportOf(panelId).program.manifest, inputs), time) });
+    const captures = [];
+    for (const c of cases) {
+      const request = evaluateRequestFor(artifacts.main.program.manifest, { inputs: c.inputs }, c.time, 1, null, composition);
+      const trace = await run(artifacts.main, request.inputs, request.time);
+      const snapshots = await resolver.resolve(composition, c.inputs);
+      const supports = Object.fromEntries(snapshots.snapshots.map(s => [s.id, { bundleHash: supportOf(s.id).program.bundleHash, trace: s.frame, synthetic: true }]));
+      captures.push({ caseId: c.id, sha256: null, compositionHash: composition.envelopeHash, completeCard: false, synthetic: true, bundleHash: artifacts.main.program.bundleHash, trace: trace.error ? { error: trace.error } : trace, supports });
+    }
+    return captures;
+  };
+}

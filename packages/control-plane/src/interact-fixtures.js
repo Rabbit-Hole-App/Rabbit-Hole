@@ -3,10 +3,8 @@
 // limits and call records are the real ones), and the capture seam runs the sealed programs in the pinned QuickJS engine, in this process.
 // Fixture data, never product logic: nothing in the pipeline reads this file to decide what is correct. The fixture program text lives in
 // packages/web/src/interact-build-fixtures.js; its expected numbers are computed there from the equations of section 7.
-import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
-import { canonicalJson, parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
-import { createSnapshotResolver } from '../../web/src/interact-composition.js';
-import { traceObjects } from '../../web/src/explain-program/frame-overlap.js';
+import { sha256Hex } from '../../web/src/explain-program/contract.js';
+import { headlessCaptureCard } from './interact-checks.js';
 import { depthOf } from './chat-depth.js';
 import { deepOracle, fixtureDraft, overviewOracle, pendulumOracle, standardOracle } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
@@ -60,38 +58,13 @@ export function fixtureContext({ script = fixtureScript(), adapter = scriptedAda
 
 // A 1 x 1 PNG: the pixels of a fixture capture are not a rendering, and the capture says so (synthetic: true).
 const PNG = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
-let engine = null;
-
-// The capture seam, in-process: evaluates the main program at each case and each support panel's read-only snapshot (one at a time, through the
-// same snapshot resolver the player uses) and returns what the render entry would: complete-card captures bound to the composition hash, each
-// with a runtime trace. The card request is the card's own builder (evaluateRequestFor with the composition), so the clock is the card's clock.
+// The capture seam, in-process: interact-checks.js's headlessCaptureCard (the sealed programs in the pinned QuickJS engine, the card's own request builder and the player's
+// snapshot resolver), here as the complete card with the one synthetic pixel a scripted reviewer needs. Timing is not under test, so the watchdog's interrupt is relaxed.
 export function fixtureCaptureCard({ limits } = {}) {
-  return async ({ composition, artifacts, cases }) => {
-    const [{ loadEngine, runProgram }, { LIMITS }] = await Promise.all([import('../../web/src/explain-program/runtime.js'), import('../../web/src/explain-program/limits.js')]);
-    engine ??= await loadEngine();
-    const relaxed = limits ?? { ...LIMITS, interruptMs: LIMITS.watchdogMs }; // timing is not under test here; the outcome is
-    const run = async (artifact, inputs, time) => {
-      const program = artifact.program, request = { requestId: '1', inputs, time, seed: 0, state: null };
-      const out = runProgram(engine, { source: program.source, request, sdkVersion: program.sdkVersion }, relaxed);
-      if (!out.ok) return { error: { code: out.code, diagnostic: out.detail } };
-      const parsed = parseGuestResult(out.value, program.manifest, program.sdkVersion);
-      if (!parsed.ok) return { error: { code: parsed.error.code, diagnostic: parsed.issue } };
-      const { frame, quantities } = parsed.value;
-      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), objects: traceObjects(frame.objects), frameHash: await sha256Hex(canonicalJson(frame.objects)), inputs, time };
-    };
-    const supportOf = id => artifacts.supporting.find(s => s.id === id).artifact;
-    const resolver = createSnapshotResolver({ evaluate: ({ panelId, inputs, time }) => run(supportOf(panelId), resolveInputs(supportOf(panelId).program.manifest, inputs), time) });
-    const captures = [];
-    for (const c of cases) {
-      const manifest = artifacts.main.program.manifest;
-      const request = evaluateRequestFor(manifest, { inputs: c.inputs }, c.time, 1, null, composition);
-      const trace = await run(artifacts.main, request.inputs, request.time);
-      const snapshots = await resolver.resolve(composition, c.inputs);
-      const supports = Object.fromEntries(snapshots.snapshots.map(s => [s.id, { bundleHash: supportOf(s.id).program.bundleHash, trace: s.frame }]));
-      captures.push({ caseId: c.id, png: PNG, sha256: await sha256Hex(PNG), compositionHash: composition.envelopeHash, completeCard: true, synthetic: true,
-        bundleHash: artifacts.main.program.bundleHash, trace: trace.error ? { error: trace.error } : trace, supports });
-    }
-    return captures;
+  return async args => {
+    const { LIMITS } = await import('../../web/src/explain-program/limits.js');
+    const captures = await headlessCaptureCard({}, { limits: limits ?? { ...LIMITS, interruptMs: LIMITS.watchdogMs } })(args);
+    return Promise.all(captures.map(async c => ({ ...c, png: PNG, sha256: await sha256Hex(PNG), completeCard: true })));
   };
 }
 
