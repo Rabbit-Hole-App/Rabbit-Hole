@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { buildProgramArtifact, programStampsFor } from '../../../control-plane/src/explain-program.js';
 import { parseArtifact, parseGuestResult, resolveInputs, sealProgram, verifyHashes } from './contract.js';
 import { normalizeFrame } from './frame.js';
+import { frameOverlaps, layoutProblems } from './frame-overlap.js';
 import { LIMITS as DEFAULT_LIMITS } from './limits.js';
 import { loadEngine, runProgram as runWithDefaultLimits } from './runtime.js';
 import { programSdkSource } from './sdk.js';
@@ -129,3 +130,54 @@ for (const run of RUNS) {
     }
   });
 }
+
+// ---- sdk.callout and sdk.panel (sprint 2): existing frame object kinds only, no new kind ----------------------------------------------------------------------------------------
+test('sdk.callout stacks one box per line (at most four), equally wide, each with its own text and the given role', () => {
+  const out = sdk.callout(300, 40, ['Height 4.50 m', 'Velocity 0.00 m/s'], { id: 'tossed', role: 'output' });
+  assert.deepEqual(out.map(object => [object.kind, object.id, object.x, object.y, object.h, object.text, object.role]), [['box', 'tossed.l0', 300, 40, 28, 'Height 4.50 m', 'output'], ['box', 'tossed.l1', 300, 68, 28, 'Velocity 0.00 m/s', 'output']]);
+  assert.equal(new Set(out.map(object => object.w)).size, 1, 'equally wide');
+  assert.equal(sdk.callout(0, 0, ['a', 'b', 'c', 'd']).length, 4);
+  assert.equal(sdk.callout(0, 0, ['a'])[0].id, 'callout.l0');
+  assert.equal('role' in sdk.callout(0, 0, ['a'])[0], false, 'no role unless given');
+  assert.throws(() => sdk.callout(0, 0, []), /sdk\.callout: lines is one to four strings/);
+  assert.throws(() => sdk.callout(0, 0, ['a', 'b', 'c', 'd', 'e']), /one to four/);
+  assert.throws(() => sdk.callout(0, 0, ['x'.repeat(41)]), /sdk\.callout: text is 1 to 40 characters/);
+  assert.throws(() => sdk.callout(0, 0, ['a'], { role: 'rainbow' }), /sdk\.callout: invalid role/);
+});
+
+test('sdk.panel returns exactly three frame objects: the lane box tinted by role, its title and its state beside it', () => {
+  const out = sdk.panel({ id: 'toss', x: 40, y: 60, w: 420, h: 300, title: 'Toss', state: 'Moving up', role: 'input' });
+  assert.deepEqual(out.map(object => [object.kind, object.id, object.role]), [['box', 'toss', 'input'], ['text', 'toss.title', 'neutral'], ['text', 'toss.state', 'neutral']]);
+  assert.deepEqual([out[0].x, out[0].y, out[0].w, out[0].h], [40, 60, 420, 300]);
+  assert.ok(out[1].y < 60 && out[2].y === out[1].y, 'the heading line is above the lane, one line');
+  assert.ok(out[2].x > out[1].x, 'the state follows the title');
+  assert.equal(sdk.panel({ x: 0, y: 30, w: 300, h: 100, title: 'Drop', state: 'Held' })[0].role, 'neutral');
+  assert.throws(() => sdk.panel({ x: 0, y: 30, w: 100, h: 100, title: 'Toss', state: 'Still for an instant' }), /too narrow/);
+  assert.throws(() => sdk.panel({ x: 0, y: 30, w: 300, h: 100, title: 'Toss' }), /sdk\.panel: state is required/);
+  assert.throws(() => sdk.panel(), /sdk\.panel: options are required/);
+});
+
+test('a frame of two panels and a callout, built in the guest, is a valid frame, draws, and has no layout overlap', async () => {
+  const source = `export function evaluate() {
+    const objects = [...sdk.panel({ id: 'toss', x: 40, y: 50, w: 420, h: 300, title: 'Toss', state: 'Moving up' }), ...sdk.panel({ id: 'drop', x: 500, y: 50, w: 420, h: 300, title: 'Drop', state: 'Gravity pulls down', role: 'output' }),
+      sdk.circle('ball', 230, 200, 30, { role: 'input' }), ...sdk.callout(270, 150, ['Height 4.50 m', 'Velocity 0.00 m/s'], { id: 'tossedReadout', role: 'output' })];
+    return { frame: { width: 960, height: 400, objects, readouts: [] }, quantities: {} };
+  }`;
+  const artifact = await buildProgramArtifact({ manifest: { ...MANIFEST, capabilities: ['time_playback', 'figures'] }, source });
+  const out = runProgram({ source: artifact.source, sdkVersion: artifact.sdkVersion, operation: 'evaluate', request: { requestId: 'p', inputs: {}, time: 0, seed: 1, state: null } });
+  assert.equal(out.ok, true, out.detail);
+  assert.equal(parseGuestResult(out.value, artifact.manifest, artifact.sdkVersion).ok, true);
+  assert.equal(normalizeFrame(out.value.frame, artifact.manifest).ok, true);
+  assert.equal(out.value.frame.objects.length, 3 + 3 + 1 + 2, 'two panels (3 each), the ball and a two-line callout');
+  assert.deepEqual(frameOverlaps(out.value.frame), []);
+  assert.deepEqual(layoutProblems(out.value.frame), []);
+});
+
+test('the guest has the new helpers under sdk-8 only; sdk-7 does not define them', () => {
+  assert.equal(typeof sdk.callout, 'function');
+  assert.equal(typeof sdk.panel, 'function');
+  const old = new Function(`${programSdkSource('sdk-7')}
+return sdk;`)();
+  assert.equal(old.callout, undefined);
+  assert.equal(old.panel, undefined);
+});

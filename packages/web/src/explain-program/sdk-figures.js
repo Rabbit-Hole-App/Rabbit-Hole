@@ -7,6 +7,8 @@ import { ROLES } from '../scene-vocab.js';
 //   sdk.plot(id, { x, y, w, h, axes: { x: { label, min, max, unit? }, y: {...} }, series: [{ label, kind: 'line' | 'scatter' | 'step', points: [{ x, y }] }], role? })
 //     (a call WITHOUT axes is the earlier sdk.plot(id, { xDomain, yDomain, ... }), unchanged, and returns an array of objects)
 //   sdk.diagram(spec, { x, y, w, id?, role? })   spec is the written diagram JSON; id defaults to 'diagram'
+//   sdk.callout(x, y, lines, { id?, role? })   a readout box of one to four lines beside an object: an array of boxes, one per line
+//   sdk.panel({ x, y, w, h, title, state, id?, role? })   a lane: [box, title text, state text]; the heading line sits 14 px above y
 export const FIGURES_SOURCE = String.raw`
 (function () {
   var roles = ${JSON.stringify(ROLES)};
@@ -36,6 +38,36 @@ export const FIGURES_SOURCE = String.raw`
   sdk.diagram = function (spec, opts) {
     need('diagram', opts, ['x', 'y', 'w']);
     return withRole('diagram', opts.id === undefined ? 'diagram' : opts.id, { x: opts.x, y: opts.y, w: opts.w, spec: spec }, opts);
+  };
+  // A label's width, generous on purpose: a layout rule that measures the real glyphs must never find the estimate short.
+  var wide = function (text) { return text.length * 10 + 16; };
+  var words = function (name, value, max) {
+    if (typeof value !== 'string' || !value.trim() || value.length > max) throw new RangeError('sdk.' + name + ': text is 1 to ' + max + ' characters');
+    return value;
+  };
+  var roleOf = function (name, opts) {
+    var role = opts && opts.role !== undefined ? opts.role : undefined;
+    if (role !== undefined && roles.indexOf(role) === -1) throw new RangeError('sdk.' + name + ': invalid role');
+    return role === undefined ? {} : { role: role };
+  };
+  // sdk.callout(x, y, lines, { id?, role? }): a readout box beside an object, one to four lines, its top left at (x, y). Returns one box per line, stacked with no gap and equally wide,
+  // each carrying its own text (a text object laid over a box would be a layout overlap).
+  sdk.callout = function (x, y, lines, opts) {
+    if (!Array.isArray(lines) || lines.length < 1 || lines.length > 4) throw new RangeError('sdk.callout: lines is one to four strings');
+    var id = opts && opts.id !== undefined ? opts.id : 'callout', role = roleOf('callout', opts), w = 0, out = [];
+    lines.forEach(function (line) { w = Math.max(w, wide(words('callout', line, 40))); });
+    lines.forEach(function (line, i) { var o = { text: line }; if (role.role !== undefined) o.role = role.role; out.push(sdk.box(id + '.l' + i, x, y + i * 28, w, 28, o)); });
+    return out;
+  };
+  // sdk.panel({ x, y, w, h, title, state, id?, role? }): a lane. The box (tinted by role) is the lane; its heading and state text sit in one line above it, the title at the left and
+  // the state after it, so the caller keeps 28 px free above y. Returns [box, title, state], three frame objects.
+  sdk.panel = function (opts) {
+    need('panel', opts, ['x', 'y', 'w', 'h', 'title', 'state']);
+    var id = opts.id !== undefined ? opts.id : 'panel', title = words('panel', opts.title, 24), state = words('panel', opts.state, 32), role = roleOf('panel', opts);
+    var gap = 24, room = opts.w - wide(title) - gap;
+    if (room < wide(state)) throw new RangeError('sdk.panel: the lane is too narrow for its title and state');
+    var lane = { role: role.role === undefined ? 'neutral' : role.role }, heading = { role: 'neutral' }, line = opts.y - 14;
+    return [sdk.box(id, opts.x, opts.y, opts.w, opts.h, lane), sdk.text(id + '.title', opts.x, line, title, heading), sdk.text(id + '.state', opts.x + wide(title) + gap, line, state, heading)];
   };
 })();
 `;
