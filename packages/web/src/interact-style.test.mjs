@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { buildSync } from 'esbuild';
 import { normalizeFrame } from './explain-program/frame.js';
 import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle } from './interact-style.js';
@@ -134,4 +135,34 @@ test('the real frame renders the Tutor palette, legible on-fill text and the sam
   assert.match(themed, /fill:#32211c"[^>]*>Label</);
   assert.doesNotMatch(standard, new RegExp(`font-family="Inter, Liberation Sans, Arial, sans-serif"|font-family="Arial, Liberation Sans, sans-serif"|fill:${PALETTE.process}`));
   for (const svg of [themed, standard]) assert.match(svg, /--viz-selection-outer/);
+});
+
+// The real Frame bundled once for the tests that render it.
+function frameBundle() {
+  const dir = mkdtempSync(join(tmpdir(), 'interact-frame-'));
+  const outfile = join(dir, 'frame.cjs');
+  try {
+    buildSync({
+      stdin: { contents: "export { Frame } from './AnimatedScene.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)) },
+      bundle: true, outfile, platform: 'node', format: 'cjs', jsx: 'automatic', loader: { '.css': 'empty' },
+    });
+    return createRequire(import.meta.url)(outfile);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+const LEGACY_FRAME = { width: 480, height: 260, objects: [
+  { kind: 'box', id: 'b', x: 20, y: 20, w: 120, h: 40, role: 'input', text: 'Entry' },
+  { kind: 'circle', id: 'c', x: 200, y: 40, w: 40, role: 'output', text: 'v' },
+  { kind: 'arrow', id: 'a', from: { x: 60, y: 120 }, to: { x: 160, y: 120 }, role: 'warning' },
+  { kind: 'line', id: 'l', from: { x: 60, y: 160 }, to: { x: 160, y: 200 }, role: 'neutral' },
+  { kind: 'polyline', id: 'p', points: [[220, 200], [260, 150], [320, 190]], role: 'learner' },
+  { kind: 'text', id: 't', x: 300, y: 60, text: 'Label', role: 'neutral' },
+] };
+
+test('a legacy (non-interact) frame renders byte for byte as before the interactive restyle: a pinned hash of its markup', () => {
+  const bundle = frameBundle();
+  const result = normalizeFrame(LEGACY_FRAME);
+  assert.equal(result.ok, true, result.issue);
+  const markup = bundle.renderToStaticMarkup(bundle.createElement(bundle.Frame, { scene: result.scene, state: result.state, interact: false, fixedView: true, picked: 'b', pop: { duration: 0 } }));
+  const hash = createHash('sha256').update(markup).digest('hex');
+  assert.equal(hash, 'a8bf78ff4ecb1b46f4ac8b1e6b6c281876a03f039c990c4e49bb74a7e71e176d', 'update only with an owner decision to restyle /animation');
 });
