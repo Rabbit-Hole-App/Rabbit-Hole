@@ -79,6 +79,9 @@ test('Brief, Balanced and Detailed each reach ready on the scripted programs wit
     assert.deepEqual([ledger.profile, ledger.fixture, ledger.result, ledger.stopReason, ledger.repairs, ledger.judgeVerdict], ['scripted', fixture, 'ready', 'accepted', 0, null], depth);
     assert.ok(ledger.oracleChecked >= 18 && ledger.oracleFailed === 0, `${depth}: oracle ${ledger.oracleChecked} checked, ${ledger.oracleFailed} failed (${planKey})`);
     assert.ok(ledger.msTotal >= 0);
+    assert.equal(ledger.timing, 'v2', 'a new job is timing v2');
+    assert.ok(ledger.msCompose >= 0 && ledger.msCheck >= 0 && ledger.msRun >= 0 && ledger.msAuthor !== null, 'every stage of a delivered job is measured, none left empty');
+    assert.equal(ledger.repairCauses, '');
     assert.equal(s.jobOf(id).bench.judge, null, 'a scripted job is never judged');
     assert.deepEqual([ledger.costUsd ?? 0], [0], 'no spend');
   }

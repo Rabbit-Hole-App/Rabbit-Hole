@@ -47,6 +47,7 @@ import { descriptionFitProblems, parseScenePlan, planHash as scenePlanHash } fro
 import { descriptionFit as estimateDescriptionFit } from '../../web/src/interact-description-fit.js';
 import { verifyComposition } from '../../web/src/interact-composition.js';
 import { captureCardFor, interactBuildPipeline, reviewMode } from './interact-job.js';
+import { clockMs, round1 } from './interact-checks.js';
 import { benchJudge } from './interact-bench.js';
 import { ledgerRow } from './interact-ledger.js';
 import { canonicalJson } from '../../web/src/explain-contract.js';
@@ -866,7 +867,7 @@ export class ExplainJobs {
       if (out.problems?.length) return failWith({ stage: 'validate', problems: out.problems, findings: [] });
       next('rendering');
     } else if (stage === 'rendering') {
-      if (out.ms) b.ms = { run: (b.ms?.run ?? 0) + out.ms.run, check: (b.ms?.check ?? 0) + out.ms.check }; // summed over the rounds, the ledger's msRun and msCheck
+      if (out.ms) b.ms = { ...b.ms, run: round1((b.ms?.run ?? 0) + out.ms.run), check: round1((b.ms?.check ?? 0) + out.ms.check) }; // summed over the rounds, the ledger's msRun and msCheck
       if (out.problems?.length) return failWith(out.failure ?? { stage: 'check', problems: out.problems, findings: [] });
       await keep('captures', out.captured); b.check = out.check; b.failure = null;
       job.renders += out.renders.length; countStage(job.timing, { captures: out.captured.length });
@@ -892,7 +893,7 @@ export class ExplainJobs {
   // The accepted /interact card: the main program, every supporting program and the compiled CardComposition (its envelope hash names each artifact), stored together behind this
   // canvas's ownership. The result says honestly that the checks looked at each panel and not at one image of the whole card (interact-checks.js, the ponytail above INTERACT_REVIEW_RULES).
   async acceptInteract(job) {
-    const b = await this.loadBuild(job), author = job.calls.filter(c => c.role === 'build_author' && c.status === 'settled').at(-1);
+    const acceptAt = clockMs(), b = await this.loadBuild(job), author = job.calls.filter(c => c.role === 'build_author' && c.status === 'settled').at(-1);
     const main = b.artifacts.main.program, supporting = b.artifacts.supporting.map(s => ({ id: s.id, artifact: s.artifact.program }));
     const hashOf = async value => (await sha256Hex(JSON.stringify(value ?? null))).slice(0, 16);
     job.result = { jobId: job.id, resultId: job.resultId, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: (await sha256Hex(job.prompt)).slice(0, 16),
@@ -901,6 +902,7 @@ export class ExplainJobs {
       interact: { version: 1, planHash: b.composition.planHash, envelopeHash: b.composition.envelopeHash, rounds: job.round, completeCard: false, descriptionFit: job.design.fit?.styleVersion ?? null, ...(reviewMode(this.env) === 'shadow' ? { review: 'shadow' } : {}) } };
     await this.state.storage.put(`result:${job.resultId}`, { kind: 'interact', artifact: main, supporting, composition: b.composition, planHash: b.composition.planHash, identity: job.result, owner: { org: job.owner.org, email: job.owner.email }, boardId: job.boardId, cardId: job.cardId,
       authoredBy: author ? { requested: author.requested, served: author.served } : null, provenance: { ...provenanceOf(job), request: job.result.promptRef, context: await hashOf(job.context), edited: null } });
+    job.build.ms = { ...job.build.ms, compose: round1(clockMs() - acceptAt) }; // the ledger's msCompose adds this to the authoring stage's own seal and compose time
     endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
     Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
     if (reviewMode(this.env) === 'shadow') job.bench = { pending: true }; // durable: the alarm picks a ready job with bench pending up (benchStep), also after a restart
