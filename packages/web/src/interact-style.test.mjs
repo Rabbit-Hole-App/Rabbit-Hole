@@ -8,19 +8,20 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { buildSync } from 'esbuild';
 import { normalizeFrame } from './explain-program/frame.js';
-import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle } from './interact-style.js';
-import { inkOver, selectionStyle, shapeStyle } from './scene-style.js';
-import { PALETTE, PATH } from './tutor-diagrams/primitives.js';
-import { TEACHING_STYLE } from './tutor-diagrams/teaching-theme.js';
+import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle, interactStrokeColor, interactTextStyle } from './interact-style.js';
+import { LEGIBILITY_FLOORS } from './scene-layout.js';
+import { inkOver, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
+import { INK, PALETTE, PATH, SURFACE } from './tutor-diagrams/primitives.js';
+import { TEACHING_FONT, TEACHING_STYLE } from './tutor-diagrams/teaching-theme.js';
 
 const SWATCHES = {
   input: PALETTE.process,
   output: PALETTE.outcome,
-  prediction: '#B9A4E8',
+  prediction: PALETTE.lavender,
   observed: PALETTE.olive,
   learner: PALETTE.decision,
-  tutor: '#E8A3B7',
-  code: '#A8BBD0',
+  tutor: PALETTE.rose,
+  code: PALETTE.slate,
   warning: PALETTE.coral,
   success: PALETTE.outcome,
 };
@@ -51,7 +52,8 @@ test('filled interactive shapes share the written palette and geometry while ord
   assert.equal(interactShapeStyle('input', {}, undefined, 'identity-2').fill, PALETTE.olive);
   assert.equal(interactShapeStyle('input', {}, undefined, 'identity-3').fill, PALETTE.coral);
   assert.equal(INTERACT_BOX_RADIUS, 7);
-  assert.match(read('./tutor-diagrams/TutorDiagram.js'), new RegExp(INTERACT_FONT));
+  assert.equal(INTERACT_FONT, TEACHING_FONT, 'one font constant, shared with the written diagrams');
+  assert.match(read('./tutor-diagrams/TutorDiagram.js'), /teaching \? TEACHING_FONT/);
 });
 
 test('line and data cues keep contrast and preserve selection while interactive styling is scoped', () => {
@@ -197,4 +199,22 @@ test('interact mode draws the frame on the teaching surface with the written dia
   assert.match(themed, /<rect x="0\.5" y="0\.5"[^>]*rx="12"[^>]*stroke="var\(--color-line\)"/);
   assert.doesNotMatch(standard, /--viz-surface:#|rx="12"[^>]*fill="var\(--viz-surface/);
   assert.match(read('./InteractSupportPanels.jsx'), /background: TEACHING\.inset/);
+});
+
+test('interact text classes follow the written diagrams where no legibility floor is crossed: caption weight 400, mono code, sizes untouched; /animation text is as before', () => {
+  assert.deepEqual(interactTextStyle('caption'), { ...textStyle('caption'), fontWeight: 400 });
+  assert.equal(interactTextStyle('code').fontFamily, 'var(--font-mono)');
+  for (const role of ['display', 'heading', 'body', 'annotation', 'equation']) assert.deepEqual(interactTextStyle(role), textStyle(role), `${role} is unchanged`);
+  for (const role of ['display', 'heading', 'body', 'caption', 'annotation', 'code', 'equation']) assert.ok(interactTextStyle(role).fontSize >= LEGIBILITY_FLOORS[role], `${role} stays at or above its legibility floor`);
+});
+
+test('R2 drift pin: interact-style.js and the interact branches of AnimatedScene.jsx hold no literal colour or font, and every resolved role style is a written-card export', () => {
+  const hex = /#[0-9a-fA-F]{3,8}\b/, font = /\b(Arial|Inter|Liberation|Helvetica|sans-serif)\b/;
+  const style = read('./interact-style.js').split('\n').filter(line => !line.trim().startsWith('//'));
+  for (const line of style) { assert.doesNotMatch(line, hex, `interact-style.js has a literal colour: ${line.trim()}`); assert.doesNotMatch(line, font, `interact-style.js has a literal font: ${line.trim()}`); }
+  const scene = read('./AnimatedScene.jsx').split('\n').filter(line => /interact|Interact/.test(line) && !line.trim().startsWith('//') && !line.trim().startsWith('{/*'));
+  for (const line of scene) { assert.doesNotMatch(line, hex, `an interact line of AnimatedScene.jsx has a literal colour: ${line.trim()}`); assert.doesNotMatch(line, font, `an interact line of AnimatedScene.jsx has a literal font: ${line.trim()}`); }
+  for (const [role, swatch] of Object.entries(SWATCHES)) assert.equal(interactShapeStyle(role).fill, swatch, `${role} resolves to a PALETTE colour`);
+  assert.equal(interactShapeStyle('neutral').fill, SURFACE); assert.equal(interactStrokeColor('input'), INK); assert.equal(interactStrokeColor('input', null, { chosen: true }), PATH);
+  assert.equal(INTERACT_FONT, TEACHING_FONT);
 });

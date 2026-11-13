@@ -9,6 +9,7 @@ export const TEACHING = Object.freeze({
   ink: '#202723', muted: '#5d675f', blue: '#426db2', blueSoft: '#eaf1fb',
   warm: '#b86232', warmSoft: '#f8ece3', green: '#267657', greenSoft: '#e7f3ed',
 });
+export const TEACHING_FONT = 'Inter, Liberation Sans, Arial, sans-serif';
 export const TEACHING_SERIES = Object.freeze([TEACHING.blue, TEACHING.warm, TEACHING.green]);
 export const TEACHING_STYLE = Object.freeze({
   '--color-ink': TEACHING.ink, '--color-ink-2': TEACHING.muted,

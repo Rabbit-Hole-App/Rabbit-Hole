@@ -24,7 +24,7 @@ import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-s
 import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, estimateTextBox, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { cellInk, heatStyle, identityVar, inkOver, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
-import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle, interactStrokeColor } from './interact-style.js';
+import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle, interactStrokeColor, interactTextStyle } from './interact-style.js';
 import { INK, PATH, SURFACE, connector } from './tutor-diagrams/primitives.js';
 import { TEACHING_STYLE } from './tutor-diagrams/teaching-theme.js';
 import { escapeYields, withoutSceneHighlight } from './scene-selection.js';
@@ -588,11 +588,12 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           // text object carries its own typography, every other kind draws a
           // caption on the shape beside it. Circle labels borrow the equation
           // scale because it is the only role sized for a short symbol.
-          const type = isData ? textStyle('caption')
-            : isCode ? textStyle('code')
-            : isEquation ? textStyle('equation')
-            : object.type === 'text' ? textStyle(object.typography)
-            : textStyle('body');
+          const styleOf = interact ? interactTextStyle : textStyle;
+          const type = isData ? styleOf('caption')
+            : isCode ? styleOf('code')
+            : isEquation ? styleOf('equation')
+            : object.type === 'text' ? styleOf(object.typography)
+            : styleOf('body');
           // Colour comes from role alone (scene-style.js): a text object with a
           // real role keeps that role's colour (its text-safe variant), and
           // only a neutral one falls back to its typography's ink. A label

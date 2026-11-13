@@ -1,5 +1,6 @@
-import { shapeStyle } from './scene-style.js';
+import { shapeStyle, textStyle } from './scene-style.js';
 import { FILLED_INK, INK, PALETTE, PATH, SURFACE } from './tutor-diagrams/primitives.js';
+import { TEACHING_FONT } from './tutor-diagrams/teaching-theme.js';
 
 // Every colour comes from the written card's own exports (tutor-diagrams/primitives.js): no literal colour lives here (the drift test pins that).
 const COLORS = PALETTE;
@@ -9,7 +10,7 @@ const ROLES = {
 };
 const IDENTITIES = { 'identity-1': 'process', 'identity-2': 'olive', 'identity-3': 'coral' };
 // The teaching font, as TutorDiagram draws a teaching diagram (tutor-diagrams/TutorDiagram.js), so a composed /interactive card reads like the written /explain card.
-export const INTERACT_FONT = 'Inter, Liberation Sans, Arial, sans-serif';
+export const INTERACT_FONT = TEACHING_FONT;
 export const INTERACT_BOX_RADIUS = 7;
 
 const hueFor = (role, identity) => COLORS[IDENTITIES[identity] ?? ROLES[role]];
@@ -29,6 +30,12 @@ export function interactStrokeColor(role, identity = null, state = {}) {
   if (state.highlighted || state.chosen || state.active) return PATH;
   return WATCHED_ROLES.has(role) ? interactMarkColor(role, identity) : INK;
 }
+
+// The scene's text classes in a composed card, taken toward the written diagrams' (tutor-diagrams/TutorDiagram.js: a 700 title, 600 headings, 400 body and
+// captions, mono code). The SIZES are deliberately not changed: the written card's 17/14/14/13 px sit under this scene's legibility floors (20/17/15/14,
+// scene-layout.js LEGIBILITY_FLOORS) and a floor is never relaxed; a caption's weight and the code family are the parts that do not conflict.
+const INTERACT_TEXT = Object.freeze({ caption: { fontWeight: 400 }, code: { fontFamily: 'var(--font-mono)' } });
+export const interactTextStyle = typographyRole => ({ ...textStyle(typographyRole), ...INTERACT_TEXT[typographyRole] });
 
 export function interactShapeStyle(role, state = {}, tier, identity = null) {
   const { strokeWidth } = shapeStyle(role, state, tier, identity);
