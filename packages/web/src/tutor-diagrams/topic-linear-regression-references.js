@@ -99,6 +99,7 @@ reference({ id: 'ml-linear-regression-training-loop', keywords: ['training loop'
 const lrB2 = data.derived();
 const lrB2Small = lrB2.gradient.steps[0];
 const lrB2Large = lrB2.gradient.steps[1];
+const lrB2ScalingBriefRadiusY = Number(lrB2.scaling.contours.at(-1).rawRadiusY.toFixed(2));
 const lrB2Axes = (bounds, horizontal, vertical) => ({ x: { label: horizontal, min: bounds.xMin, max: bounds.xMax }, y: { label: vertical, min: bounds.yMin, max: bounds.yMax } });
 function lrB2First(level) {
   const initial = { x: lrB2.gradient.initial.w, y: lrB2.gradient.initial.b };
@@ -165,24 +166,24 @@ function lrB2Scaling(level, standardized) {
   const brief = level === 'overview';
   const count = brief && standardized ? lrB2.constants.two : lrB2.counts.rows - lrB2.constants.two;
   const path = (standardized ? s.scaledPath : s.rawPath).slice(lrB2.constants.zero, count);
-  const contours = brief ? s.contours.slice(-1) : s.contours;
+  const contours = brief ? s.contours.slice(-1) : standardized ? [...s.contours].reverse() : s.contours;
   const bounds = standardized ? { ...lrB2.axes.scaling, yMin: lrB2.axes.scaling.xMin, yMax: lrB2.axes.scaling.xMax } : lrB2.axes.scaling;
   return {
     kind: 'coordinate-plot', title: standardized ? 'After standardization' : 'Unscaled feature weights',
     caption: level === 'deep' ? (standardized ? 'Illustrative. $z=(x-\\mu)/\\sigma$; the idealized scaled bowl is $J=(w_1^2+w_2^2)/2$.' : `Illustrative. $J=(w_1^2+${s.curvature}w_2^2)/2$ models unequal curvature.`) : (standardized ? 'Illustrative. Round contours allow a direct path.' : 'Illustrative. A narrow valley creates zigzags.'),
     ...lrB2Axes(bounds, 'Weight $w_1$', 'Weight $w_2$'),
     series: [{ label: 'Descent', kind: 'line', samples: { x: path.map(point => point.x), y: path.map(point => point.y) } }],
-    annotations: contours.map((contour, i) => ({
-      kind: standardized ? 'circle' : 'ellipse', label: brief || i === contours.length - 1 ? 'Outer cost' : 'Inner cost',
+    annotations: contours.map(contour => ({
+      kind: standardized ? 'circle' : 'ellipse', label: contour.radius === s.contours.at(-1).radius ? 'Outer cost' : 'Inner cost',
       center: { x: lrB2.constants.zero, y: lrB2.constants.zero },
-      ...(standardized ? { radius: contour.radius } : { radiusX: contour.rawRadiusX, radiusY: contour.rawRadiusY }),
+      ...(standardized ? { radius: contour.radius } : { radiusX: contour.rawRadiusX, radiusY: brief ? lrB2ScalingBriefRadiusY : contour.rawRadiusY }),
     })),
   };
 }
 return { references: [reference({ id: 'ml-linear-regression-first-gradient-step', keywords: ['gradient step', 'weight update', 'first epoch'], useWhen: 'Show the first simultaneous weight and intercept update from zero on the shared toy rows, not a generic descent trajectory.', overview: { spec: spec(lrB2First('overview')) }, standard: { spec: spec(lrB2First('standard')) }, deep: { spec: spec(lrB2First('deep')), detailSpec: spec(lrB2FirstArithmetic()) } }),
 reference({ id: 'ml-linear-regression-rate-comparison', keywords: ['learning rate', 'overshoot', 'divergence'], useWhen: 'Compare the costs after a single simultaneous update at the two supplied learning rates from identical zero initialization; do not substitute rate schedules.', overview: { spec: spec(lrB2Rates('overview')) }, standard: { spec: spec(lrB2Rates('standard')) }, deep: { spec: spec(lrB2Rates('deep')), detailSpec: spec(lrB2RateArithmetic()) } }),
 reference({ id: 'ml-linear-regression-normal-equation', keywords: ['normal equation', 'closed form', 'complexity'], useWhen: 'Contrast a direct least-squares solution with iterative gradient descent, including dense feature-count complexity, sparsity and numerical conditioning.', overview: { spec: spec(lrB2Normal('overview')) }, standard: { spec: spec(lrB2Normal('standard')) }, deep: { spec: spec(lrB2Normal('deep')) } }),
-reference({ id: 'ml-linear-regression-feature-scaling-overlay', keywords: ['feature scaling', 'standardization', 'elongated contours'], useWhen: 'Topic overlay for gradient-descent-contours: explain unequal feature scales with a narrow illustrative valley and a separate standardized contour plot. Preserve the original generic reference module.', overview: { spec: spec(lrB2Scaling('overview', false)), detailSpec: spec(lrB2Scaling('overview', true)) }, standard: { spec: spec(lrB2Scaling('standard', false)), detailSpec: spec(lrB2Scaling('standard', true)) }, deep: { spec: spec(lrB2Scaling('deep', false)), detailSpec: spec(lrB2Scaling('deep', true)) } })], derived: () => ({}) };
+reference({ id: 'ml-linear-regression-feature-scaling-overlay', keywords: ['feature scaling', 'standardization', 'elongated contours'], useWhen: 'Topic overlay for gradient-descent-contours: explain unequal feature scales with a narrow illustrative valley and a separate standardized contour plot. Preserve the original generic reference module.', overview: { spec: spec(lrB2Scaling('overview', false)), detailSpec: spec(lrB2Scaling('overview', true)) }, standard: { spec: spec(lrB2Scaling('standard', false)), detailSpec: spec(lrB2Scaling('standard', true)) }, deep: { spec: spec(lrB2Scaling('deep', false)), detailSpec: spec(lrB2Scaling('deep', true)) } })], derived: () => ({ scalingBriefRadiusY: Number(data.derived().scaling.contours.at(-1).rawRadiusY.toFixed(2)) }) };
 })(),
 (() => {
 const lrFinalData = data.derived();
@@ -233,12 +234,13 @@ function lrFinalRSquared(depth) {
 function lrFinalRSquaredLimits() {
   const r = lrFinalData.rSquared;
   return {
-    kind: 'comparison', title: 'Interpret the reference cases',
-    columns: [
-      { heading: 'Perfect fit', items: [`Squared residual sum $${r.perfect.sse}$`, `$R^2=${r.perfect.value}$`] },
-      { heading: 'Mean baseline', items: [`Squared residual sum $${r.baseline.sse}$`, `$R^2=${r.baseline.value}$`] },
+    kind: 'bar-chart', title: 'Read the toy fit between the reference cases', unit: '$y^2$',
+    bars: [
+      { label: `Mean baseline $R^2=${r.baseline.value}$`, value: r.baseline.sse },
+      { label: `Toy fit $R^2=${r.value}$`, value: r.residual },
+      { label: `Perfect fit $R^2=${r.perfect.value}$`, value: r.perfect.sse },
     ],
-    caption: 'A model worse than the mean baseline can have negative explained variance.',
+    caption: `$R^2=1-${r.residual}/${r.total}=${r.value}$. The line removes baseline squared error; a worse-than-mean fit can have negative $R^2$.`,
   };
 }
 function lrFinalRidge(depth) {

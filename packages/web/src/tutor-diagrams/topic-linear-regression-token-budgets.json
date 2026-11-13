@@ -165,8 +165,8 @@
     "ml-linear-regression-feature-scaling-overlay": {
       "overview": [
         {
-          "tokens": 148,
-          "sha256": "19751ca75ea5f1bcb4fd2fb3ba30957681573c429754a1d7ef9082a7685dde0b"
+          "tokens": 145,
+          "sha256": "a7136d8389a59eb754ff51a29377ffa9caea29d109fd10951075151d500d779a"
         },
         {
           "tokens": 127,
@@ -180,7 +180,7 @@
         },
         {
           "tokens": 158,
-          "sha256": "8b45e1187b007cfe5833c1ea47e9549a714c9bfc43c1f1ce1bba5aa756d54c8d"
+          "sha256": "83b7d4eea8ed2e91dc9354fac20928d14a909b5c05ae935261c120ec2ed84e97"
         }
       ],
       "deep": [
@@ -190,7 +190,7 @@
         },
         {
           "tokens": 186,
-          "sha256": "74317659740af18c8bb83f5858cbb0765f32b0966bd30e6e46170a3425f918a7"
+          "sha256": "a31f8f407d1c60b6eab9c096f0d6ffbf1b5046aea1f34af0a505d9123f330315"
         }
       ]
     },
@@ -237,8 +237,8 @@
           "sha256": "35b5e6ea44efcef0b3ea618e66ab01d7a4fdcff192f7a5494fd7fd4d73fc3410"
         },
         {
-          "tokens": 84,
-          "sha256": "c2e43cb26f75b7f5a0de181a45f0137b316a9ad3a727de6bbdbbf56f34a567e7"
+          "tokens": 128,
+          "sha256": "4f9fe69c78e4fe65a4447146335baa7e1acccc5f0b585ab994d7637d367c3a02"
         }
       ]
     },

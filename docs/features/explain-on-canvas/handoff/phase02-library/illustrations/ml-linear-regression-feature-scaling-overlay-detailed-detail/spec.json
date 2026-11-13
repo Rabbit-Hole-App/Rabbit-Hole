@@ -35,21 +35,21 @@
     "annotations": [
       {
         "kind": "circle",
-        "label": "Inner cost",
-        "center": {
-          "x": 0,
-          "y": 0
-        },
-        "radius": 1
-      },
-      {
-        "kind": "circle",
         "label": "Outer cost",
         "center": {
           "x": 0,
           "y": 0
         },
         "radius": 2
+      },
+      {
+        "kind": "circle",
+        "label": "Inner cost",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 1
       }
     ]
   }

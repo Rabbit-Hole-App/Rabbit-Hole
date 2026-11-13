@@ -132,7 +132,7 @@ The degree-$4$ interpolant passes through every training point and has training 
 
 - **Brief** — Compare mean-baseline and residual squared-error totals.
 - **Balanced** — Add the explained reduction and identify the fitted coefficient of determination.
-- **Detailed** — Show the ratio arithmetic and separate perfect-fit and baseline reference cases.
+- **Detailed** — Show the ratio arithmetic and add a squared-error bar chart with the toy fit between the mean-baseline and perfect-fit reference cases.
 
 Predicting the target mean $4$ gives squared deviations $4,0,1,0,1$, totaling $SS_{tot}=6$. The fitted line leaves $SS_{res}=2.4$. Thus $R^2=1-2.4/6=0.6$ and the explained reduction is $6-2.4=3.6$. This is a fraction of baseline squared error removed, not a fraction of predictions that are correct. A perfect fit has squared residual sum zero and $R^2=1$; the mean baseline has squared residual sum $6$ and $R^2=0$. The unsquared residuals around the mean sum to zero; they are not the error total in the bars or reference cases. A model worse than that baseline can have negative $R^2$.
 

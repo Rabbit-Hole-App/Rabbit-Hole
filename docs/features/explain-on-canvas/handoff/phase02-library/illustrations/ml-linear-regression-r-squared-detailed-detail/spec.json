@@ -1,24 +1,23 @@
 {
   "version": 1,
   "diagram": {
-    "kind": "comparison",
-    "title": "Interpret the reference cases",
-    "columns": [
+    "kind": "bar-chart",
+    "title": "Read the toy fit between the reference cases",
+    "unit": "$y^2$",
+    "bars": [
       {
-        "heading": "Perfect fit",
-        "items": [
-          "Squared residual sum $0$",
-          "$R^2=1$"
-        ]
+        "label": "Mean baseline $R^2=0$",
+        "value": 6
       },
       {
-        "heading": "Mean baseline",
-        "items": [
-          "Squared residual sum $6$",
-          "$R^2=0$"
-        ]
+        "label": "Toy fit $R^2=0.6$",
+        "value": 2.4
+      },
+      {
+        "label": "Perfect fit $R^2=1$",
+        "value": 0
       }
     ],
-    "caption": "A model worse than the mean baseline can have negative explained variance."
+    "caption": "$R^2=1-2.4/6=0.6$. The line removes baseline squared error; a worse-than-mean fit can have negative $R^2$."
   }
 }

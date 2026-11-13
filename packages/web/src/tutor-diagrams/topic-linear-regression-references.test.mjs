@@ -414,6 +414,33 @@ test('scaling repair shows a bounce and equal-span circular contours', () => {
   assert.ok(!updateRule.includes('_'));
   assert.ok(updateRule.includes('\\eta'));
 });
+test('scaling brief rounds its radius and nested circles paint outside first', () => {
+  const rows = data.toyData.rows;
+  const meanX = lrB2Add(rows.map(([x]) => x)) / rows.length;
+  const curvature = 2 ** meanX;
+  const outerRadius = 2;
+  const roundedRadiusY = Math.round(100 * outerRadius / Math.sqrt(curvature)) / 100;
+  const batch = derived();
+  lrB2Check(batch.scalingBriefRadiusY, roundedRadiusY);
+  const overlay = references.find(ref => ref.id === 'ml-linear-regression-feature-scaling-overlay');
+  const briefContour = overlay.depths.overview.spec.diagram.annotations[0];
+  lrB2Check(briefContour.radiusY, roundedRadiusY);
+  lrB2Check(briefContour.radiusX, outerRadius);
+  assert.strictEqual(briefContour.radiusY, batch.scalingBriefRadiusY);
+  assert.ok(String(briefContour.radiusY).length <= String(roundedRadiusY).length);
+  for (const level of ['standard', 'deep']) {
+    const contours = overlay.depths[level].detailSpec.diagram.annotations;
+    assert.strictEqual(contours.length, 2);
+    assert.strictEqual(contours[0].label, 'Outer cost');
+    assert.strictEqual(contours[1].label, 'Inner cost');
+    lrB2Check(contours[0].radius, outerRadius);
+    lrB2Check(contours[1].radius, outerRadius / 2);
+    assert.ok(contours[0].radius > contours[1].radius);
+    lrB2Check(contours[0].center, contours[1].center);
+    const rawContours = overlay.depths[level].spec.diagram.annotations;
+    rawContours.forEach(contour => lrB2Check(contour.radiusY, contour.radiusX / Math.sqrt(curvature)));
+  }
+});
 }
 {
 const finalReferenceIds = ['ml-linear-regression-polynomial-overfit', 'ml-linear-regression-r-squared', 'ml-linear-regression-ridge-shrinkage', 'ml-linear-regression-held-out-row'];
@@ -532,10 +559,18 @@ test('explained variance bars and reference cases follow the mean baseline arith
   assert.deepStrictEqual(ref.spec.diagram.bars.map(bar => bar.value), [d.rSquared.total, d.rSquared.residual, d.rSquared.explained]);
   assert.ok(ref.depths.overview.spec.diagram.bars.length < ref.spec.diagram.bars.length);
   assert.notStrictEqual(ref.depths.deep.spec.diagram.caption, ref.spec.diagram.caption);
-  assert.deepStrictEqual(ref.depths.deep.detailSpec.diagram.columns.map(column => column.items), [
-    [`Squared residual sum $${d.rSquared.perfect.sse}$`, `$R^2=${d.rSquared.perfect.value}$`],
-    [`Squared residual sum $${d.rSquared.baseline.sse}$`, `$R^2=${d.rSquared.baseline.value}$`],
+  const detail = ref.depths.deep.detailSpec.diagram;
+  assert.strictEqual(detail.kind, 'bar-chart');
+  assert.strictEqual(detail.unit, '$y^2$');
+  assert.deepStrictEqual(detail.bars, [
+    { label: `Mean baseline $R^2=${d.rSquared.baseline.value}$`, value: d.rSquared.baseline.sse },
+    { label: `Toy fit $R^2=${d.rSquared.value}$`, value: d.rSquared.residual },
+    { label: `Perfect fit $R^2=${d.rSquared.perfect.value}$`, value: d.rSquared.perfect.sse },
   ]);
+  finalNear(detail.bars[0].value, total);
+  finalNear(detail.bars[1].value, residual);
+  finalNear(detail.bars[2].value, finalSum(rows.map(([, y]) => (y - y) ** 2)));
+  assert.strictEqual(detail.caption, `$R^2=1-${d.rSquared.residual}/${d.rSquared.total}=${d.rSquared.value}$. The line removes baseline squared error; a worse-than-mean fit can have negative $R^2$.`);
 });
 
 test('ridge plotted solutions use mean squared error and an unpenalized intercept', () => {
