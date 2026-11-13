@@ -81,7 +81,7 @@ test('author serializes Responses structured JSON and charges reasoning within o
   assert.deepEqual(request.body.reasoning, { effort: 'max' });
   assert.deepEqual(request.body.text.format, { type: 'json_schema', name: 'author', schema, strict: true });
   assert.equal(request.body.instructions, system);
-  assert.equal(request.body.max_output_tokens, 40000);
+  assert.equal(request.body.max_output_tokens, 100000);
   assert.deepEqual(request.body.tools, []);
   assert.equal(request.body.tool_choice, 'none');
   assert.equal(request.body.temperature, undefined);
@@ -127,7 +127,7 @@ test('judge uses the smaller configured model and each agent keeps its output ce
   });
   for (const agent of ['prompt-writer', 'coverage-judge', 'author', 'verifier', 'auditor']) await client.call(agent, {}, options);
   assert.deepEqual(requests.map(body => [body.model, body.max_tokens ?? body.max_output_tokens]), [
-    ['claude-fable-5-1', 20000], ['claude-sonnet-5-5', 200], ['gpt-6.1-sol', 40000],
+    ['claude-fable-5-1', 20000], ['claude-sonnet-5-5', 200], ['gpt-6.1-sol', 100000],
     ['claude-fable-5-1', 20000], ['claude-fable-5-1', 20000],
   ]);
 });
