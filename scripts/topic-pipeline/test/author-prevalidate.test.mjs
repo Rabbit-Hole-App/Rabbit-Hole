@@ -105,3 +105,13 @@ test('every relative import of author-runtime.mjs is copied into the topic workt
   assert.ok(imports.length >= 2);
   for (const file of imports) assert.ok(author.includes(`'${file.split('/').pop()}'`), `${file} is imported by author-runtime.mjs but not copied by author.mjs`);
 });
+
+test('a math-delimiters flag carries the arrow hint, with a real backslash and no tab, and the constraints sheet says the same', async () => {
+  const { contractFlags } = await import('../checks/content-contract.mjs');
+  const [flag] = contractFlags(() => [{ rule: 'math-delimiters', path: ['diagram', 'x'], message: 'Put it in $…$.', value: 'a → b' }], { id: 'r', depth: 'overview', field: 'spec', spec: {} });
+  assert.ok(flag.detail.includes(String.raw`($J=17.2 \to J=10.49$)`), flag.detail);
+  assert.ok(!/\t/u.test(flag.detail));
+  const sheet = await buildConstraints();
+  assert.ok(sheet.includes(String.raw`(`+'`$a \to b$`'+`)`) || sheet.includes(String.raw`$a \to b$`), 'the sheet names the one-span form');
+  assert.ok(!/\t/u.test(sheet));
+});

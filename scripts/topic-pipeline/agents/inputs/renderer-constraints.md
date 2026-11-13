@@ -259,6 +259,8 @@ A reference that breaks one fails `reference-content-contract.test.mjs` in the w
 - placeholder-edge-label: Name the condition, transition, or message. Omit optional labels when the arrow already conveys the order.
 - redundant-comparison: a two-panel comparison whose panels hold the same content, or could be one plot or one grouped bar chart, is refused: draw the shared content once (one plot with a named series per panel, or one grouped bar chart) and keep the panel context in the labels or caption.
 
+Mathematics in a label includes the operators and arrows between formulas: `$a$ → $b$` and `$a$ = $b$` fail because the arrow or sign stands outside the delimiters. Write one span (`$a \to b$`) or use words (`from $a$ to $b$`). A superscript, subscript or Greek letter in a unit or axis name needs its own `$…$` too.
+
 Node labels must be unique within one node list after trimming and collapsing spaces: give each node its own words (two "Update weights" nodes fail).
 
 Flow node labels start with an action: the first word (lower-cased, hyphens allowed) must be one of these base verbs or auxiliaries (244 words), and a label that is only a noun phrase matching /^(?:bootstrap draws|model (?:output|results|training|weights)|record (?:accepted|rejected))[.!?]?$/iu fails. "Compute prediction" passes; "Prediction" and "Model output" fail.
