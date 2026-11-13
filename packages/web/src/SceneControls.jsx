@@ -14,11 +14,12 @@ import { describeInputForLearner } from './scene-inputs.js';
 
 // Reset (owner 2026-11-12): one icon, the app's RotateCcw (LearningBlocks.jsx), named "Reset experiment" for a screen reader and on hover, right-aligned in the controls row. The row it sits in
 // flexes, so ml-auto puts it at the end. A disabled one (nothing differs from the starting values) keeps its place, greyed. Shared by the spec scenes and the program card.
-export function ResetButton({ onReset, disabled = false }) {
+// corner (a program card's experiment box, ProgramScene.jsx; owner brief 2026-11-13 codex match): the same button drawn as the box's one top-right icon (index.css .xp-reset), nowhere else.
+export function ResetButton({ onReset, disabled = false, corner = false }) {
   return (
     <button type="button" data-scene-reset aria-label="Reset experiment" title="Reset experiment" disabled={disabled} onClick={disabled ? undefined : onReset}
-      className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-2">
-      <RotateCcw size={14} />
+      className={corner ? 'xp-reset' : 'ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-2'}>
+      <RotateCcw size={corner ? 17 : 14} />
     </button>
   );
 }

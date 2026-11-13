@@ -547,7 +547,7 @@ a {
 
 /* A view-only canvas (shared link): the card layer takes no pointer (hand tool), except the controls a viewer may operate.
    Same list as VIEW_ONLY_CONTROLS in card-open.js (view-only-controls.test.mjs keeps them equal). */
-[data-view-only-cards] [data-block] :is([data-animation-transport], [data-scene-controls], [data-card-pager], [data-program-restart], [data-program-notes], [data-focus-host] [data-program-viewport]) {
+[data-view-only-cards] [data-block] :is([data-animation-transport], [data-scene-controls], [data-scene-reset], [data-card-pager], [data-program-restart], [data-program-notes], [data-focus-host] [data-program-viewport]) {
   pointer-events: auto;
 }
 
@@ -1071,6 +1071,33 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
   :is([data-focus-host], [data-slash-card]) [data-program-card] [data-scene-controls] > p { margin: 0; }
   :is([data-focus-host], [data-slash-card]) [data-program-card] [data-program-notes-toggle] { min-height: 2rem; }
 }
+
+/* The /interactive card's experiment box (owner brief 2026-11-13 codex match; docs/features/interact/references/*.html): ONE rounded box holds the scene, its
+   readouts, the transport and the controls, with Reset as its one corner icon. ProgramScene.jsx draws it for a composed card only. The light values come from the
+   teaching theme (InteractSupportPanels.jsx EXPERIMENT_STYLE sets --xpt-*), so no literal colour lives here; in the dark theme the app's own tokens take over. */
+[data-interact-experiment] {
+  --xp-card: var(--xpt-card); --xp-panel: var(--xpt-panel); --xp-border: var(--xpt-border); --xp-ink: var(--xpt-ink); --xp-muted: var(--xpt-muted);
+  --xp-blue: var(--xpt-blue); --xp-blue-soft: var(--xpt-blue-soft); --xp-blue-border: var(--xpt-blue-border); --xp-blue-ink: var(--xpt-blue-ink);
+  --xp-blue-hover: var(--xpt-blue-hover); --xp-blue-pressed: var(--xpt-blue-pressed);
+  position: relative; overflow: hidden; border: 1px solid var(--xp-border); border-radius: 12px; background: var(--xp-card); color: var(--xp-ink);
+}
+.dark [data-interact-experiment] {
+  --xp-card: var(--color-white); --xp-panel: var(--color-code); --xp-border: var(--color-line); --xp-ink: var(--color-ink); --xp-muted: var(--color-ink-2);
+  --xp-blue: var(--color-accent); --xp-blue-ink: var(--color-accent);
+  --xp-blue-soft: color-mix(in srgb, var(--color-accent) 14%, var(--color-white)); --xp-blue-border: color-mix(in srgb, var(--color-accent) 45%, var(--color-white));
+  --xp-blue-hover: color-mix(in srgb, var(--color-accent) 22%, var(--color-white)); --xp-blue-pressed: color-mix(in srgb, var(--color-accent) 30%, var(--color-white));
+}
+[data-interact-heading] { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 14px; padding: 17px 60px 13px 19px; }
+[data-interact-heading] h2 { margin: 0; font-size: 17px; line-height: 1.4; font-weight: 650; }
+[data-interact-heading] > span { font-size: 13px; color: var(--xp-muted); }
+.xp-reset { position: absolute; top: 12px; right: 12px; z-index: 2; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0;
+  border: 1px solid var(--xp-border); border-radius: 8px; background: var(--xp-card); color: var(--xp-muted); }
+.xp-reset:hover:not(:disabled) { background: var(--xp-blue-hover); }
+.xp-reset:active:not(:disabled) { background: var(--xp-blue-pressed); }
+.xp-reset:disabled { cursor: default; opacity: 0.5; }
+.xp-controls { padding: 14px 20px 16px; border-top: 1px solid var(--xp-border); }
+[data-interact-experiment] [data-interact-readouts] { margin: 0; padding: 6px 19px 12px; list-style: none; font-size: 13px; line-height: 1.4; color: var(--xp-muted); }
+[data-interact-experiment] [data-interact-readout] > span { color: var(--xp-ink); font-variant-numeric: tabular-nums; }
 
 /* Explain-back (plan docs/superpowers/plans/2026-10-30-explain-back.md section 3): while its Sketch panel is open, the
    owning question carries a subtle selection outline instead of a connector to the panel. */

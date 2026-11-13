@@ -12,7 +12,7 @@ import { fixturesAdmitted, programErrorMessage } from './explain-program/program
 import { MdInline } from './Md.jsx';
 import { DESCRIPTION_STYLE } from './interact-description-fit.js';
 import { supportInputs, snapshotKey } from './interact-card-layout.js';
-import { TEACHING } from './tutor-diagrams/teaching-theme.js';
+import { TEACHING, TEACHING_CHROME } from './tutor-diagrams/teaching-theme.js';
 import { artifactKey, programSnapshot, resolveSupportArtifact, supportSnapshots } from './interact-support-snapshots.js';
 
 // INT-06-C02/C03: the introduction of an /interact card, above its main scene: the card description (2 to 4 lines, the style that
@@ -24,6 +24,12 @@ const STILL = { duration: 0 };
 const BOX = 'rounded-lg border border-line';
 // A supporting panel sits on the teaching inset, as the written diagrams' inset panels do.
 const BOX_STYLE = { background: TEACHING.inset };
+// The experiment box's light colours (index.css [data-interact-experiment] reads them as --xpt-*, and takes the app's own tokens in the dark theme): the teaching theme's, never a literal.
+export const EXPERIMENT_STYLE = Object.freeze({
+  '--xpt-card': TEACHING.surface, '--xpt-panel': TEACHING.inset, '--xpt-border': TEACHING.line, '--xpt-ink': TEACHING.ink, '--xpt-muted': TEACHING.muted,
+  '--xpt-blue': TEACHING.blue, '--xpt-blue-soft': TEACHING.blueSoft, '--xpt-blue-border': TEACHING_CHROME.blueBorder, '--xpt-blue-ink': TEACHING_CHROME.blueInk,
+  '--xpt-blue-hover': TEACHING_CHROME.blueHover, '--xpt-blue-pressed': TEACHING_CHROME.bluePressed,
+});
 
 // A declarative (spec) panel: the scene at its finished frame for the bound inputs. Sync and pure.
 function specFrame(spec, inputs) {

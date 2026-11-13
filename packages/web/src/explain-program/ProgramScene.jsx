@@ -1,4 +1,4 @@
-import { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { Pause, Play } from 'lucide-react';
 import { api } from '../api.js';
@@ -13,7 +13,7 @@ import { createFrameScheduler, frameKey, watchSeen } from './playback.js';
 import { useProgramState } from './use-program-state.js';
 import ProgramNotes from './ProgramNotes.jsx';
 import SourcesDisclosure from '../SourcesDisclosure.jsx';
-import { InteractIntro } from '../InteractSupportPanels.jsx';
+import { EXPERIMENT_STYLE, InteractIntro } from '../InteractSupportPanels.jsx';
 import { focusFixed, focusRoom } from '../interact-card-layout.js';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
@@ -208,10 +208,12 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useLayoutEffect(() => {
     if (!onControlsHeight || !controls.current) return undefined;
     // A composed card also reports its introduction (description and supporting panels), so the card grows by their measured height.
-    const intro = composed ? root.current?.querySelector('[data-interact-intro]') : null;
-    const observer = new ResizeObserver(() => onControlsHeight((controls.current ? controls.current.offsetHeight + 8 : 0) + (intro ? intro.offsetHeight + 8 : 0)));
+    // The experiment box adds its own heading row and 1 px borders (2 px) to the chrome, so the card grows by those too.
+    const intro = composed ? root.current?.querySelector('[data-interact-intro]') : null, heading = composed ? root.current?.querySelector('[data-interact-heading]') : null;
+    const observer = new ResizeObserver(() => onControlsHeight((controls.current ? controls.current.offsetHeight + 8 : 0) + (intro ? intro.offsetHeight + 8 : 0) + (heading ? heading.offsetHeight + 2 : 0)));
     observer.observe(controls.current);
     if (intro) observer.observe(intro);
+    if (heading) observer.observe(heading);
     return () => { observer.disconnect(); onControlsHeight(0); };
   }, [onControlsHeight, drawn, composed]);
   // Focus (focus-adapter-explanation.js gives the card the whole pane): the drawing takes the room the pane leaves after the
@@ -231,7 +233,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       const notes = rowsEl.querySelector('[data-program-notes] > ul:not([hidden])');
       const rowsHeight = rowsEl.offsetHeight - (notes?.offsetHeight ?? 0);
       // A composed card's description and supporting panels are measured live (they load late and rewrap), not folded into the fixed part.
-      const introH = (composed && root.current?.querySelector('[data-interact-intro]')?.offsetHeight) || 0, cardW = card.clientWidth, cardH = card.clientHeight;
+      const introH = (composed && ((root.current?.querySelector('[data-interact-intro]')?.offsetHeight ?? 0) + (root.current?.querySelector('[data-interact-heading]')?.offsetHeight ?? 0))) || 0, cardW = card.clientWidth, cardH = card.clientHeight;
       if (fixed === null) fixed = focusFixed({ cardW, cardH, viewportW: viewport.clientWidth, viewportH: viewport.clientHeight, rowsH: rowsHeight, introH });
       const next = focusFrameBox(box, focusRoom({ cardW, cardH, fixed, rowsH: rowsHeight, introH }), example ? 0 : box.minScale);
       setFocusBox(prev => (prev && prev.w === next.w && prev.h === next.h && prev.scroll === next.scroll ? prev : next));
@@ -241,6 +243,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
     if (controls.current) observer.observe(controls.current);
     const introEl = composed ? root.current?.querySelector('[data-interact-intro]') : null;
     if (introEl) observer.observe(introEl);
+    const headingEl = composed ? root.current?.querySelector('[data-interact-heading]') : null;
+    if (headingEl) observer.observe(headingEl);
     const marks = new MutationObserver(measure); // Focus sets data-focus-host on the card itself
     marks.observe(card, { attributes: true, attributeFilter: ['data-focus-host'] });
     return () => { observer.disconnect(); marks.disconnect(); };
@@ -361,6 +365,11 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
   const legible = box ?? legibleFrame(view.scene, composition ? INTERACT_LOOK : null);
   const readoutRows = composed ? (view.readouts || []).filter(r => composition.main.readoutIds.includes(r.id)) : [];
+  // A composed card draws the scene, its readouts, the transport and the controls in ONE experiment box (owner brief 2026-11-13 codex match; index.css [data-interact-experiment]),
+  // headed by the program's own title (the plan has no subtitle field, so none is drawn) with Reset as its one top-right icon; every other card draws them as before.
+  const heading = composed ? manifest.title || composition.title : null;
+  const Wrap = composed ? 'section' : Fragment;
+  const wrapProps = composed ? { 'data-interact-experiment': '', 'aria-label': heading, style: EXPERIMENT_STYLE, className: 'flex min-h-0 flex-1 flex-col' } : {};
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
@@ -370,7 +379,14 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           {manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
           {manifest.instructions && <p data-card-instructions className="shrink-0 text-sm leading-snug text-ink-2">{manifest.instructions}</p>}
         </>}
-      <div data-program-viewport {...(composed ? { 'data-interact-scene': '' } : {})} className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
+      <Wrap {...wrapProps}>
+      {composed && (
+        <>
+          <ResetButton corner onReset={reset} disabled={!changed} />
+          <div data-interact-heading><h2>{heading}</h2></div>
+        </>
+      )}
+      <div data-program-viewport {...(composed ? { 'data-interact-scene': '' } : {})} className={`flex min-h-0 flex-1 overflow-auto ${composed ? 'border border-transparent bg-(--xp-card)' : 'rounded-lg border border-line bg-white'}`}
         style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
         <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" {...(dragIds.length ? pointerDrag : {})}
           style={{ ...(focusBox ? { flex: 'none', width: focusBox.w, height: focusBox.h, margin: '0 auto' } : { minWidth: legible.w, minHeight: legible.h }), ...(dragIds.length ? { touchAction: 'none' } : {}) }}>{picture}</div>
@@ -379,8 +395,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       <div ref={controls} className="flex shrink-0 flex-col gap-2">
       {/* The card draws the plan's readouts (the program reports them; it does not draw them as text): one entry per declared readout, label, value and unit, tabular numbers. */}
       {composed && readoutRows.length > 0 && (
-        <ul data-interact-readouts className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-sm text-ink-2">
-          {readoutRows.map(value => <li key={value.id} data-interact-readout={value.id}>{value.label}: <span className="text-ink tabular-nums">{value.text}</span></li>)}
+        <ul data-interact-readouts>
+          {readoutRows.map(value => <li key={value.id} data-interact-readout={value.id}>{value.label}: <span>{value.text}</span></li>)}
         </ul>
       )}
       {duration > 0 && (
@@ -393,9 +409,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2">{timeLabel(manifest, shownTime, composition, inputs)}</span>
         </div>
       )}
-      {(rows.length > 0 || actions.length > 0 || targets.length > 0 || composed) && (
-        <div data-scene-controls className="rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
-          <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
+      {(composed ? rows.length > 0 || seeks.length > 0 || actions.length > 0 || targets.length > 0 : rows.length > 0 || actions.length > 0 || targets.length > 0) && (
+        <div data-scene-controls className={composed ? 'xp-controls' : 'rounded-lg border border-line bg-white px-3 pt-1.5 pb-2'}>
+          {!composed && <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {rows.map(input => (input.type === 'number'
               ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} />
@@ -430,8 +446,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
                 ))}
               </div>
             )}
-            {/* Reset: the icon at the end of the row (SceneControls.jsx ResetButton). A composed /interact card always has it, greyed while nothing differs from the start. */}
-            {(changed || composed) && <ResetButton onReset={reset} disabled={!changed} />}
+            {/* Reset: the icon at the end of the row (SceneControls.jsx ResetButton), shown while something differs. A composed /interact card draws it in its experiment box's corner instead (above), always, greyed while nothing differs. */}
+            {!composed && changed && <ResetButton onReset={reset} />}
           </div>
         </div>
       )}
@@ -440,6 +456,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       {!composed && <ProgramNotes id={notesId} notes={manifest.assumptions} values={view.readouts} open={notesOpen} onToggle={() => setNotesOpen(value => !value)} />}
       {sources?.length > 0 && <SourcesDisclosure sources={sources} onFile={onFile} />}
       </div>
+      </Wrap>
     </div>
   );
 }

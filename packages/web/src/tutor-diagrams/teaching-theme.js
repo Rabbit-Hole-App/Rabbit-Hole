@@ -9,6 +9,9 @@ export const TEACHING = Object.freeze({
   ink: '#202723', muted: '#5d675f', blue: '#426db2', blueSoft: '#eaf1fb',
   warm: '#b86232', warmSoft: '#f8ece3', green: '#267657', greenSoft: '#e7f3ed',
 });
+// The /interactive card's experiment box chrome (owner brief 2026-11-13 codex match; docs/features/interact/references/*.html): the blue ink and border of its
+// buttons and values, and their hover and pressed fills. Additive: the teaching diagrams do not use them.
+export const TEACHING_CHROME = Object.freeze({ blueInk: '#375d92', blueBorder: '#adc4e5', blueHover: '#dde9f8', bluePressed: '#d0e0f4' });
 export const TEACHING_FONT = 'Inter, Liberation Sans, Arial, sans-serif';
 // The written card's text classes (tutor-diagrams/TutorDiagram.js and primitives.js: a 17 px / 700 title, 14 px labels, 13 px captions). A composed /interactive
 // card takes these sizes and floors (interact-style.js); the legacy scene floors (scene-layout.js LEGIBILITY_FLOORS) are not touched.

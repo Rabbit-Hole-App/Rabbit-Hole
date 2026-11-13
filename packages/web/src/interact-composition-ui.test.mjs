@@ -15,6 +15,7 @@ import { COMPOSITION_VERSION, compositionOf, experimentControls, normalizeCompos
 import { MAX_SUPPORTS, SECTION_ORDER, cardLayout, focusFixed, focusRoom, layoutProblems, snapshotKey, supportInputs } from './interact-card-layout.js';
 import { artifactKey, createSnapshotService, programSnapshot } from './interact-support-snapshots.js';
 import { DESCRIPTION_STYLE } from './interact-description-fit.js';
+import { TEACHING } from './tutor-diagrams/teaching-theme.js';
 import { FIXTURES } from './explain-program/fixtures.js';
 import { SDK_SOURCE } from './explain-program/sdk.js';
 import { parseManifest } from './explain-program/contract.js';
@@ -22,7 +23,7 @@ import { programDuration } from './explain-program/program-card.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'interact-ui-')), outfile = join(dir, 'ui.cjs');
 await esbuild.build({
-  stdin: { contents: "export { InteractIntro } from './InteractSupportPanels.jsx'; export { default as Content } from './InteractCardContent.jsx'; export { default as SceneControls, ShowPurposes, ResetButton } from './SceneControls.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { EXPERIMENT_STYLE, InteractIntro } from './InteractSupportPanels.jsx'; export { default as Content } from './InteractCardContent.jsx'; export { default as SceneControls, ShowPurposes, ResetButton } from './SceneControls.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'assets', setup(build) {
     build.onResolve({ filter: /\?(url|raw|worker)$/ }, args => ({ path: args.path, namespace: 'asset' }));
@@ -240,12 +241,40 @@ test('every composed card draws Reset as the same icon button at the end of its 
   assert.match(B.renderToStaticMarkup(B.createElement(B.SceneControls, { declarations: choice, inputs: { k: 'a' }, data: {}, onInput: () => {}, onReset: () => {} })), /data-scene-reset="true"[^>]*aria-label="Reset experiment"/);
 });
 
-test('the program card draws the same Reset: always on a composed card (greyed while unchanged), only while changed on another, through the one ResetButton', async () => {
+test('the program card draws the same Reset through the one ResetButton: on a composed card ONLY as the corner icon of the experiment box, top-right corner icon (always, greyed while unchanged), on another card at the end of its controls row while changed (owner brief 2026-11-13 codex match)', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
-  assert.match(src, /\(changed \|\| composed\) && <ResetButton onReset=\{reset\} disabled=\{!changed\} \/>/);
-  assert.match(src, /rows\.length > 0 \|\| actions\.length > 0 \|\| targets\.length > 0 \|\| composed/, 'the controls block exists on every composed card');
+  assert.equal((src.match(/<ResetButton /g) || []).length, 2, 'two draws of the one component: the corner and the legacy row');
+  assert.match(src, /<ResetButton corner onReset=\{reset\} disabled=\{!changed\} \/>/, 'the corner Reset of the experiment box');
+  assert.match(src, /\{!composed && changed && <ResetButton onReset=\{reset\} \/>\}/, 'a composed card has no Reset in its controls row');
+  assert.match(src, /composed \? rows\.length > 0 \|\| seeks\.length > 0 \|\| actions\.length > 0 \|\| targets\.length > 0 :/, 'a composed card with only Reset draws no controls row');
   assert.doesNotMatch(src, />Reset experiment<\/button>/, 'no text button any more');
+  assert.match(src, /\{!composed && <p className="mb-1\.5[^"]*">Interact<\/p>\}/, 'the Interact label stays on the legacy card only');
+  const button = B.renderToStaticMarkup(B.createElement(B.ResetButton, { onReset: () => {}, corner: true }));
+  assert.match(button, /^<button type="button" data-scene-reset="true" aria-label="Reset experiment" title="Reset experiment" class="xp-reset"/);
+  assert.match(button, /width="17" height="17"/, 'the corner icon is 17 px');
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(css, /\.xp-reset \{ position: absolute; top: 12px; right: 12px;[^}]*width: 34px; height: 34px;[^}]*border-radius: 8px;/, 'a 34 px secondary button, 12 px from the corner');
+  assert.doesNotMatch(css.slice(css.indexOf('[data-interact-experiment] {'), css.indexOf('/* Explain-back')), /#[0-9a-fA-F]{3,8}\b/, 'the experiment box holds no literal colour: the teaching theme and the app tokens give them');
+});
+
+test('the experiment box: one 12 px bordered box holds the heading row, the scene, the readouts, the transport and the controls; its colours are the teaching theme\'s', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
+  assert.match(src, /const Wrap = composed \? 'section' : Fragment;/);
+  assert.match(src, /'data-interact-experiment': '', 'aria-label': heading, style: EXPERIMENT_STYLE/);
+  assert.match(src, /const heading = composed \? manifest\.title \|\| composition\.title : null;/, 'the heading is the program\'s title, never a subtitle the plan has no field for');
+  assert.match(src, /<div data-interact-heading><h2>\{heading\}<\/h2><\/div>/);
+  assert.ok(src.indexOf('<Wrap {...wrapProps}>') < src.indexOf('<div data-program-viewport') && src.indexOf('</Wrap>') > src.indexOf('<div ref={controls}'), 'the scene and every row sit inside the box');
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(css, /\[data-interact-experiment\] \{[^}]*overflow: hidden; border: 1px solid var\(--xp-border\); border-radius: 12px; background: var\(--xp-card\)/);
+  assert.match(css, /\[data-interact-heading\] h2 \{ margin: 0; font-size: 17px; line-height: 1\.4; font-weight: 650; \}/);
+  assert.match(css, /\[data-interact-heading\] > span \{ font-size: 13px; color: var\(--xp-muted\); \}/);
+  assert.match(css, /\.dark \[data-interact-experiment\] \{[^}]*--xp-card: var\(--color-white\)/, 'the dark theme takes the app\'s tokens');
+  for (const [token, value] of Object.entries({ '--xpt-card': TEACHING.surface, '--xpt-panel': TEACHING.inset, '--xpt-border': TEACHING.line, '--xpt-ink': TEACHING.ink, '--xpt-muted': TEACHING.muted, '--xpt-blue': TEACHING.blue, '--xpt-blue-soft': TEACHING.blueSoft,
+    '--xpt-blue-border': '#adc4e5', '--xpt-blue-ink': '#375d92' })) assert.equal(B.EXPERIMENT_STYLE[token], value, token);
+  const panels = readFileSync(new URL('./InteractSupportPanels.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(panels.split('\n').filter(line => !line.trim().startsWith('//')).join('\n'), /#[0-9a-fA-F]{3,8}\b/, 'no literal colour in the support panels file');
 });
 
 // ---- time and focus ----------------------------------------------------------------------------------------------------------
@@ -282,11 +311,14 @@ test('the readouts row: one section after the scene when the plan has readouts, 
   assert.deepEqual(layoutProblems([{ kind: 'title' }, { kind: 'description' }, { kind: 'scene' }, { kind: 'controls', ids: ['reset', 'speed'], reset: 'reset' }]).map(p => p.code), ['reset_last'], 'Reset must be last');
 });
 
-test('the card draws the readouts row itself: label, value and unit as tabular numbers at 14 px, filtered to the plan readouts, only for a composed card', async () => {
+test('the card draws the readouts row itself: one muted 13 px line directly under the scene inside the experiment box, label, value and unit as tabular numbers, filtered to the plan readouts, only for a composed card (owner brief 2026-11-13 codex match)', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
   assert.match(src, /composed && readoutRows\.length > 0/);
-  assert.match(src, /data-interact-readouts className="flex flex-wrap items-baseline gap-x-4 gap-y-0\.5 text-sm text-ink-2"/);
-  assert.match(src, /data-interact-readout=\{value\.id\}>\{value\.label\}: <span className="text-ink tabular-nums">\{value\.text\}<\/span>/);
+  assert.match(src, /<ul data-interact-readouts>/);
+  assert.match(src, /data-interact-readout=\{value\.id\}>\{value\.label\}: <span>\{value\.text\}<\/span>/);
   assert.match(src, /composition\.main\.readoutIds\.includes\(r\.id\)/);
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  assert.match(css, /\[data-interact-experiment\] \[data-interact-readouts\] \{[^}]*font-size: 13px;[^}]*color: var\(--xp-muted\);/);
+  assert.match(css, /\[data-interact-experiment\] \[data-interact-readout\] > span \{ color: var\(--xp-ink\); font-variant-numeric: tabular-nums; \}/);
 });
