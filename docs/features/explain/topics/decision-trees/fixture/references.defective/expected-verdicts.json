@@ -1,6 +1,6 @@
 {
  "topic": "decision-trees",
- "note": "id@sha -> expected verifier verdict. 'ship' rows are negative controls: the 06721c8b defects seen on 2026-11-09 (role-word labels on card 11, raw LaTeX on card 02) were card-level, not in the reference source.",
+ "note": "id@sha -> expected verifier verdict. 'ship' rows are negative controls: the 06721c8b defects seen on 2026-11-09 (role-word labels on card 11, raw LaTeX on card 02) were card-level, not in the reference source. 2026-11-12: three pilot figures and the gini-vs-entropy control moved to fix after verifier calibration; the three remaining pilot ships added explicitly.",
  "verdicts": {
   "ml-trees-threshold-search@c3e40994": {
    "verdict": "fix",
@@ -31,8 +31,33 @@
    "reason": "Negative control: role words appeared on the card, not in the reference."
   },
   "ml-trees-gini-vs-entropy@06721c8b": {
+   "verdict": "fix",
+   "layer": "label",
+   "reason": "The caption's $H(p)=\u2026$ is emitted as raw TeX in the 408 preview and was shown raw on the 11-09 card too: caption maths is not typeset by the renderer anywhere. Corrected 2026-11-12 from 'ship' (negative control) after the verifier flagged it; renderer item in the backlog."
+  },
+  "ml-trees-gini-split@c3e40994": {
+   "verdict": "fix",
+   "reason": "Prompt 03 asks for 'the information gain'; the figure shows the two child Ginis (0, 0.375) and the weighted Gini (0.1875), all correct, but neither the parent Gini (0.46875) nor the gain (0.28125). Teaching point incomplete. Corrected 2026-11-12 from the reviewer's 11-09 'ship' after the verifier flagged it."
+  },
+  "ml-trees-grown-tree@c3e40994": {
+   "verdict": "fix",
+   "reason": "Prompt 05 asks to 'trace a new point from the root to a prediction'; the tree has split tests and class counts but no new point and no highlighted path. Corrected 2026-11-12 from 'ship' after the verifier flagged it."
+  },
+  "ml-trees-decision-regions@c3e40994": {
+   "verdict": "fix",
+   "reason": "Regions are coloured per rectangle rather than per predicted class: the two 'Predict 0' regions differ in colour and one uses the class-1 colour, which misreads the prediction. Corrected 2026-11-12 from 'ship' after the verifier flagged it (the reviewer checked thresholds and points, not the colour mapping)."
+  },
+  "ml-trees-candidate-split@c3e40994": {
    "verdict": "ship",
-   "reason": "Negative control: caption maths is inside $...$; the raw LaTeX was a card-rendering issue."
+   "reason": "Pilot figure accepted on 2026-11-09; arithmetic exact; shows the prompt's teaching point."
+  },
+  "ml-trees-bootstrap-roots@c3e40994": {
+   "verdict": "ship",
+   "reason": "Pilot figure accepted on 2026-11-09; arithmetic exact; shows the prompt's teaching point."
+  },
+  "ml-trees-feature-subsets@c3e40994": {
+   "verdict": "ship",
+   "reason": "Pilot figure accepted on 2026-11-09; arithmetic exact; shows the prompt's teaching point."
   }
  }
 }

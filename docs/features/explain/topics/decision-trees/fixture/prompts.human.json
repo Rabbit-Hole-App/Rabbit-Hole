@@ -84,7 +84,7 @@
    "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
    "kind": "sample-set",
    "referenceId": "ml-trees-bootstrap-roots",
-   "content": "Several bootstrap draws of the 8 rows with repeats visible and omitted rows marked; the root split each draw produces"
+   "content": "Several bootstrap draws of the 8 rows with repeated rows visible (the question asks which rows repeat); the root split each draw produces"
   },
   {
    "id": "10",
