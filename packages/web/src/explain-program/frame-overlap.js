@@ -7,7 +7,8 @@ import { estimateTextBox } from '../scene-layout.js';
 import { textStyle } from '../scene-style.js';
 import { textWidthPx } from '../interact-description-fit.js';
 import { BODY_MIN } from './contract.js';
-import { lanesOf } from './frame-look.js';
+import { LANE_INSET, lanesOf } from './frame-look.js';
+import { FIGURES_SDK_VERSION } from './stamps.js';
 
 // Characters a run is worth at the body size: a math run's TeX length scaled by the equation rule above.
 const runLength = run => (run.kind === 'math' ? Math.ceil(run.tex.length * (textStyle('equation').fontSize * 0.5) / (textStyle('body').fontSize * 0.6)) : run.text.length);
@@ -194,4 +195,37 @@ export function textOverlaps(frame, limit = 8) {
     }
   }
   return out;
+}
+
+// ---- the label fit (owner 2026-11-13, 14:20 brief section 3): a text over a body is MOVED, not flagged. For an sdk-8 program a text whose estimated box meets a body (a circle of BODY_MIN or more) moves to the
+// nearest free side of it (right, left, above, below), CLEAR px from the body's box, inside its lane (or the frame when it was not inside one); it stays where it is, and the overlap check reports it, only when no
+// side is free. -> the parseGuestResult result with the objects moved and `fitted` carrying 'fitted:label-off-body'. Older SDKs are untouched (an older card may put a label on a circle on purpose).
+// shortcut: a moved label is kept clear of circles only, not of arrow shafts or other texts; those layout rules still report. Upgrade by testing every candidate with layoutProblems.
+const CLEAR = 6;
+const within = (box, area) => box.xMin >= area.xMin && box.xMax <= area.xMax && box.yMin >= area.yMin && box.yMax <= area.yMax;
+const meets = (box, circle) => { const s = shared(box, shapeBox(circle)); return s.width > 0 && s.height > 0; };
+export function fitGuestLabels(result, sdkVersion) {
+  if (!result?.ok || sdkVersion !== FIGURES_SDK_VERSION) return result;
+  const { frame } = result.value, circles = frame.objects.filter(o => o.kind === 'circle' && o.opacity !== 0), bodies = circles.filter(o => o.w >= BODY_MIN);
+  if (!bodies.length) return result;
+  const lanes = lanesOf(frame.objects);
+  let moved = false;
+  const objects = frame.objects.map(object => {
+    if (object.kind !== 'text' || !(object.text || object.runs)) return object;
+    const box = textBoxes({ objects: [object] })[0].box, hit = bodies.find(body => meets(box, body));
+    if (!hit) return object;
+    const home = lanes.find(lane => object.x >= lane.x && object.x <= lane.x + lane.w && object.y >= lane.y && object.y <= lane.y + lane.h);
+    const laneArea = home ? { xMin: home.x + LANE_INSET, xMax: home.x + home.w - LANE_INSET, yMin: home.y + LANE_INSET, yMax: home.y + home.h - LANE_INSET } : null;
+    const area = laneArea && within(box, laneArea) ? laneArea : { xMin: 0, xMax: frame.width, yMin: 0, yMax: frame.height };
+    const r = hit.w / 2, best = [
+      { dx: hit.x + r + CLEAR - box.xMin, dy: 0 }, { dx: hit.x - r - CLEAR - box.xMax, dy: 0 },
+      { dx: 0, dy: hit.y - r - CLEAR - box.yMax }, { dx: 0, dy: hit.y + r + CLEAR - box.yMin },
+    ].map(move => ({ ...move, box: { xMin: box.xMin + move.dx, xMax: box.xMax + move.dx, yMin: box.yMin + move.dy, yMax: box.yMax + move.dy } }))
+      .filter(move => within(move.box, area) && !circles.some(circle => meets(move.box, circle)))
+      .sort((a, b) => Math.hypot(a.dx, a.dy) - Math.hypot(b.dx, b.dy))[0];
+    if (!best) return object;
+    moved = true;
+    return { ...object, x: Math.round((object.x + best.dx) * 100) / 100, y: Math.round((object.y + best.dy) * 100) / 100 };
+  });
+  return moved ? { ...result, value: { ...result.value, frame: { ...frame, objects } }, fitted: [...(result.fitted ?? []), 'fitted:label-off-body'] } : result;
 }

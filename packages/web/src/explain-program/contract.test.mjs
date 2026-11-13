@@ -89,7 +89,7 @@ test('a valid frame normalises defaults; wrong frames are invalid_output', () =>
     [{ kind: 'box', id: 'b', x: Number.NaN, y: 0, w: 1, h: 1 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, onclick: 'x' }],
     [{ kind: 'image', id: 'i', src: 'https://example.com/a.png', x: 0, y: 0 }], [{ kind: 'text', id: 't', x: 0, y: 0 }],
     [{ kind: 'text', id: 't', x: 0, y: 0, text: 'a', runs: [{ kind: 'text', text: 'a' }] }], [{ kind: 'box', id: 'b b', x: 0, y: 0, w: 1, h: 1 }],
-    [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1 }, { kind: 'circle', id: 'b', x: 0, y: 0, w: 1 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, fn: () => 1 }],
+    [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, fn: () => 1 }], // a repeated id is no longer here: it is fitted (b, b-2), frame-fit.test.mjs
     [{ kind: 'box', id: 'b', x: 1e9, y: 0, w: 1, h: 1 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, role: 'rainbow' }],
   ];
   for (const objects of bad) {
