@@ -272,6 +272,9 @@ export function interactBuildSchema({ catalogue = [], stateful = false, specPane
   // /interact only (the legacy request has no room for more schema bytes): the 300-character instructions limit, and state readouts (kind, labels) for the card's text states.
   const program = programToolSchema({ stateful }), readouts = program.properties.manifest.properties.readouts;
   const withLimit = { ...program, properties: { ...program.properties, manifest: { ...program.properties.manifest, properties: { ...program.properties.manifest.properties, instructions: { type: 'string', maxLength: INSTRUCTIONS_MAX, description: 'Only if needed: how to use the controls.' },
+    // Typed for /interact (the legacy schema leaves it a free object): a fast author that is not told the shape leaves the approved timeline out (run 6, google-low, 2026-11-13).
+    timeline: { type: 'object', additionalProperties: false, description: 'The approved timeline, copied from the plan: label, playbackRate (simulated seconds per second), displayOffset and the markers with their times.', properties: { label: { type: 'string', maxLength: 40 }, displayOffset: { type: 'number' }, playbackRate: { type: 'number' },
+      markers: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['id', 'label', 'time'], properties: { id: NAME, label: { type: 'string', maxLength: 40 }, time: { type: 'number' } } } } } },
     readouts: { ...readouts, items: { ...readouts.items, properties: { ...readouts.items.properties, kind: { type: 'string', enum: ['number', 'state'], description: 'number (the default) or state: a state readout reports one of its labels as text.' }, labels: { type: 'array', minItems: 2, maxItems: 6, items: { type: 'string', maxLength: 40 }, description: 'state readouts only: the allowed texts; the frame reports exactly one of them.' } } } } } } } };
   const panel = {
     type: 'object', additionalProperties: false, required: ['kind'],
