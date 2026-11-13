@@ -1,4 +1,5 @@
 import { parseArgs } from 'node:util';
+import { readFile } from 'node:fs/promises';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { loadConfig, getTopicPaths, redact } from './config.mjs';
@@ -70,7 +71,7 @@ export async function main(argv = process.argv.slice(2)) {
     config: { type: 'string', default: join(dirname(fileURLToPath(import.meta.url)), 'config.local.json') },
     from: { type: 'string' }, to: { type: 'string' },
     'approve-prompts': { type: 'boolean' }, go: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, fixture: { type: 'boolean' },
-    'author-fresh': { type: 'boolean' }, 'verify-resume': { type: 'boolean' }, 'author-answer': { type: 'string' }, 'author-model': { type: 'string' }, 'author-effort': { type: 'string' }, 'reviewer-model': { type: 'string' }, 'reviewer-effort': { type: 'string' }, 'judge-model': { type: 'string' },
+    'author-fresh': { type: 'boolean' }, 'verify-resume': { type: 'boolean' }, 'author-feedback': { type: 'string' }, 'author-answer': { type: 'string' }, 'author-model': { type: 'string' }, 'author-effort': { type: 'string' }, 'reviewer-model': { type: 'string' }, 'reviewer-effort': { type: 'string' }, 'judge-model': { type: 'string' },
   } });
   const topic = positionals[0];
   if (positionals.length !== 1 || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(topic)) throw new Error('Usage: node scripts/topic-pipeline/run.mjs <topic> [--from 01] [--to 08] [--fixture]');
@@ -84,6 +85,8 @@ export async function main(argv = process.argv.slice(2)) {
   const result = await runPipeline({ topic, ...getTopicPaths(config, topic), config, stages,
     from: values.from, to: values.to ?? (values['dry-run'] ? '07' : undefined), approvePrompts: values['approve-prompts'], go: values.go,
     dryRun: values['dry-run'], fixture: values.fixture,
+    // --author-feedback <file> (reviewer 2026-11-13): the text the author is repaired from, for a repair started by hand (a STOP-2 report, whole or the fix verdicts only).
+    authorFeedback: values['author-feedback'] ? await readFile(resolve(values['author-feedback']), 'utf8') : undefined,
     preflight: !(values.from === '02' && values.to === '02' && config.planner?.fixtureFile),
     onStage: (id, output) => console.log(JSON.stringify({ stage: id, status: output.status, stop: output.stop, notes: redact(output.notes, config) })),
   });
