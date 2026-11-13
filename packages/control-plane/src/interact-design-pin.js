@@ -6,7 +6,7 @@
 // accepts (the canonical 209 characters render in 6 lines at 320 px by the estimate), and claim evidence ids that the job did not supply are dropped.
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
 
-export const PIN_FIXTURES = Object.freeze(['toss-drop-standard']);
+export const PIN_FIXTURES = Object.freeze(['toss-drop-standard', 'toss-drop-standard-controls']);
 const PINNED_DESCRIPTION = 'A ball tossed at 3.0 m/s has zero velocity at its top, yet its acceleration stays -9.8 m/s^2 there and at every instant of the flight.';
 const text = value => value;
 
@@ -14,8 +14,9 @@ export const designPinOf = env => ((env.SMALL_ENV === 'dev' || env.SMALL_ENV ===
 
 export async function pinnedPlan(fixtureId, job) {
   const { plans } = await interactFixtures();
-  const plan = structuredClone(plans.standard), supplied = new Set((job.evidence || []).map(record => record.id));
-  plan.cardDescription = PINNED_DESCRIPTION;
+  // toss-drop-standard-controls already carries a description the estimated fit accepts; the original Standard needs the short copy.
+  const plan = structuredClone(fixtureId === 'toss-drop-standard-controls' ? plans.standardControls : plans.standard), supplied = new Set((job.evidence || []).map(record => record.id));
+  if (fixtureId === 'toss-drop-standard') plan.cardDescription = PINNED_DESCRIPTION;
   for (const claim of plan.claims) claim.evidenceIds = claim.evidenceIds.filter(id => supplied.has(id));
   return plan;
 }

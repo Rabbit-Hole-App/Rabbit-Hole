@@ -11,6 +11,7 @@ import { DESIGN_BOUNDS, authorDesign, designPromptContracts, freshDesign, planDi
 import { INTERACT_LIMITS } from '../src/interact-models.js';
 import { planHash } from '../../web/src/interact-plan.js';
 import { pinnedPlan } from '../src/interact-design-pin.js';
+import { interactOracle } from '../src/interact-oracle.js';
 import { OWNER, PLAN, change, clone, designStack, finding, fixtures, postedProposal, review, revision } from './interact-design-fixture.js';
 
 test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(() => { console.log = log; }); });
@@ -410,6 +411,20 @@ test('the dev-only design pin: a job with INTERACT_DESIGN_FIXTURE set reaches aw
   const g = await gated.create();
   await gated.design(g.body.job.id);
   assert.ok(gated.model.roles().includes('author'), 'neither SMALL_ENV dev/test nor EXPLAIN_DIAGNOSTICS: the real design role ran');
+});
+
+test('the dev-only design pin also pins toss-drop-standard-controls: the Experiment plan reaches awaiting_approval with zero design calls and its real hash; the oracle says no match', async t => {
+  const s = designStack(t);
+  delete s.deps.descriptionFit;
+  Object.assign(s.env, { INTERACT_DESIGN_FIXTURE: 'toss-drop-standard-controls', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_DESCRIPTION_FIT: 'estimate' });
+  const { body } = await s.create();
+  const { job } = await s.design(body.job.id);
+  assert.equal(job.stage, 'awaiting_approval', JSON.stringify([job.stopReason, job.failure]));
+  assert.deepEqual(s.model.roles(), []); assert.equal(job.calls.length, 0);
+  const plan = await pinnedPlan('toss-drop-standard-controls', job);
+  assert.equal(job.design.planHash, await planHash(plan));
+  assert.deepEqual([plan.mode.kind, plan.supportingVisuals.length, plan.controls.length], ['experiment', 0, 4]);
+  assert.equal(interactOracle(plan), null, 'neither oracle matches: Standard needs a fixed 3.0 m/s with no input, Deep needs depth detailed and the reference speed');
 });
 
 test('a job records its flow, profile and prompt versions at creation and keeps them; the switch is per job', async t => {

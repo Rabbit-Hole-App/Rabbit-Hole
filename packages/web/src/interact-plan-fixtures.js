@@ -224,5 +224,46 @@ export async function interactFixtures() {
     claims: [],
   };
 
-  return { capabilities, plans: { overview, overviewProgram, standard, deep, untimedExperiment, staticAdjustable, pendulum } };
+  // The Standard toss-and-drop as one Experiment card (owner 2026-11-12, design-pin fixture "toss-drop-standard-controls"): the main scene only, with the launch speed and the arrows as
+  // controls. Derived from `standard`, which stays untouched. The Show arrows switch is a two-option select because the program renderer has no native Boolean switch (section 4).
+  const liveApex = bin('divide', inp('launchSpeed'), lit(G)), liveEnd = bin('divide', bin('multiply', lit(2), inp('launchSpeed')), lit(G));
+  const standardControls = {
+    ...standard,
+    title: 'Zero velocity at the top is not zero acceleration',
+    story: 'Maya tossed the ball up, waited for it to hang at the top, and swung. It had already dropped below her racket. If it stopped, how was it still accelerating? Her friend held a ball at shoulder height and let go. It began at zero velocity, and gravity immediately gave it downward speed. Her own ball had passed through the same moment. She tossed it faster, from 3.0 up to 5.0 m/s: the top came later and higher, but at the top the velocity was always zero and the acceleration was still 9.8 m/s^2 downward. Zero was one of the values the velocity passed through; the acceleration never changed.',
+    cardDescription: 'Toss a ball up at 3.0 to 5.0 m/s. At its top the velocity is zero, yet the acceleration stays -9.8 m/s^2 at every launch speed. No air resistance.',
+    learningGoal: 'Explain why acceleration is not zero when velocity is zero at the top of a throw, at any launch speed.',
+    supportingVisuals: [],
+    scene: {
+      ...standard.scene,
+      description: 'A tossed ball rises from a launch mark and falls; a second ball is held by a release gate until the apex instant. Up is positive and both share one height scale. A velocity arrow and an acceleration arrow sit on each ball and update with the scrubber; the launch speed moves the apex.',
+      entities: [...standard.scene.entities, entity('velocityArrow', 'Velocity arrow', 'Shows the signed velocity of each ball; shrinks to a dot at the top.'), entity('accelerationArrow', 'Acceleration arrow', 'Shows the constant -9.8 m/s^2 on each ball.')],
+      quantities: [...standard.scene.quantities, quantity('height', 'Height of the tossed ball', 'm', 'Height of the tossed ball above the launch mark.', 'Measured from the launch mark, up is positive.', 'height = launchSpeed * t - gravity * t^2 / 2')],
+      observations: [...standard.scene.observations, { id: 'apexMoves', text: 'A faster throw reaches its top later and higher; at the top the velocity reads zero and the acceleration still reads -9.8 m/s^2.', quantityIds: ['apexTime', 'velocity'], readoutIds: ['tossedVelocity', 'tossedHeight'] }],
+      checkpoints: [
+        { id: 'before', label: '0.10 s before the top', time: bin('subtract', liveApex, lit(0.1)), inputOverrides: {}, actions: [], expected: 'Velocity +0.98 m/s, acceleration -9.8 m/s^2, 0.049 m below the peak.' },
+        { id: 'top', label: 'At the top', time: liveApex, inputOverrides: {}, actions: [], expected: 'Velocity 0, acceleration -9.8 m/s^2; the gate releases the held ball.' },
+        { id: 'after', label: '0.10 s after the top', time: bin('add', liveApex, lit(0.1)), inputOverrides: {}, actions: [], expected: 'Velocity -0.98 m/s, acceleration -9.8 m/s^2, 0.049 m below the peak.' },
+      ],
+      readoutIds: ['tossedHeight', 'tossedVelocity', 'tossedAcceleration'],
+    },
+    mode: {
+      kind: 'experiment', initialState: 'Launch speed 3.0 m/s, arrows on; both balls at launch height at elapsed time 0, paused; the scrubber reads -0.306 s.', fixedValues: { gravity: G }, adjustableIds: ['launchSpeed', 'showArrows'],
+      timeline: {
+        label: 'Time from the top', unit: 's', start: 0, end: liveEnd, displayOffset: bin('multiply', lit(-1), liveApex),
+        markers: [{ id: 'before', label: '-0.10 s', time: bin('subtract', liveApex, lit(0.1)) }, { id: 'top', label: 'Top', time: liveApex }, { id: 'after', label: '+0.10 s', time: bin('add', liveApex, lit(0.1)) }],
+        initialTime: 0, initialPlayback: 'paused', playbackRate: 0.1, // engineering pacing default: about 6.1 wall seconds at 3.0 m/s, 10.2 s at 5.0 m/s
+      },
+      onInputChange: 'reset_pause',
+    },
+    controls: [
+      playback({ affects: affects(['main', 'entity', 'tossedBall'], ['main', 'entity', 'heldBall']) }),
+      scrubber('Time from the top', { affects: affects(['main', 'entity', 'tossedBall'], ['main', 'readout', 'tossedVelocity']) }),
+      { id: 'speed', label: 'Launch speed', type: 'number', purpose: 'Test whether the acceleration at the top depends on how fast the ball was thrown.', selectionReason: 'The speed varies continuously and intermediate speeds show that the top moves while the acceleration does not; two named cases would hide that.', nativeControlId: 'program.number', binding: { kind: 'input', id: 'launchSpeed' }, unit: 'm/s', default: 3.0, min: 3.0, max: 5.0, step: 0.1, affects: affects(['main', 'entity', 'tossedBall'], ['main', 'quantity', 'apexTime'], ['main', 'readout', 'tossedHeight'], ['main', 'readout', 'tossedVelocity']) },
+      { id: 'arrows', label: 'Show arrows', type: 'select', purpose: 'Hide the velocity and acceleration arrows to read the motion from the balls and the readouts alone.', selectionReason: 'Two named states, on and off, are clearer as choice buttons than a slider; the program renderer has no native Boolean switch, so the planned two-option select is used (section 4).', nativeControlId: 'program.select', binding: { kind: 'input', id: 'showArrows' }, default: 'on', options: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], affects: affects(['main', 'entity', 'velocityArrow'], ['main', 'entity', 'accelerationArrow']) },
+    ],
+    claims: [...standard.claims, { id: 'accelerationAnySpeed', text: 'The acceleration readout stays -9.8 m/s^2 at every launch speed from 3.0 to 5.0 m/s, including at the top.', evidenceIds: ['kinematics_note'], check: 'v = u - g t has slope -g for every u, so a = -g whatever the launch speed.' }],
+  };
+
+  return { capabilities, plans: { overview, overviewProgram, standard, standardControls, deep, untimedExperiment, staticAdjustable, pendulum } };
 }

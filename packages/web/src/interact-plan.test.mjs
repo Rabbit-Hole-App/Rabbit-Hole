@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   PLAN_LIMITS, ScenePlanSchema, DesignReviewSchema, DesignRevisionSchema, DescriptionFitSchema, parseScenePlan, validatePlanBindings, scenePlanJsonSchema,
-  evalScalar, scalarInterval, ScalarExprError, planHash, contentHash, descriptionFitProblems, checkEnvelope, legacyBriefToDraft, revisionProblems,
+  evalScalar, scalarInterval, ScalarExprError, planHash, contentHash, descriptionFitProblems, checkEnvelope, legacyBriefToDraft, revisionProblems, requiredCaptureCount, captureBudgetProblems,
 } from './interact-plan.js';
+import { descriptionFit } from './interact-description-fit.js';
 import { interactFixtures } from './interact-plan-fixtures.js';
 import { interactCapabilities } from './interact-control-catalogue.js';
 
@@ -25,6 +26,27 @@ test('every fixture is a valid plan', () => {
     assert.equal(result.ok, true, `${name}: ${codes(result).join(', ')}`);
     assert.deepEqual(result.value, plan, 'nothing is stripped or rewritten');
   }
+});
+
+test('the Standard Experiment fixture (toss-drop-standard-controls): the main scene only, launch speed and a two-option Show arrows select, parsed whole, within the capture budget and the estimated fit', async () => {
+  const p = plans.standardControls;
+  assert.equal(parse(p).ok, true, codes(parse(p)).join(', '));
+  assert.deepEqual([p.depth, p.mode.kind, p.mode.onInputChange, p.supportingVisuals.length], ['balanced', 'experiment', 'reset_pause', 0]);
+  assert.deepEqual(p.mode.adjustableIds, ['launchSpeed', 'showArrows']); assert.deepEqual(p.mode.fixedValues, { gravity: G });
+  assert.deepEqual(p.controls.map(c => [c.type, c.label]), [['playback', 'Play'], ['scrubber', 'Time from the top'], ['number', 'Launch speed'], ['select', 'Show arrows']]);
+  const speed = p.controls[2], arrows = p.controls[3];
+  assert.deepEqual([speed.unit, speed.default, speed.min, speed.max, speed.step], ['m/s', 3.0, 3.0, 5.0, 0.1]);
+  assert.deepEqual([arrows.default, arrows.options.map(o => o.value)], ['on', ['on', 'off']]);
+  for (const c of p.controls) assert.ok(c.purpose && c.selectionReason && !/https?:/.test(`${c.purpose} ${c.selectionReason}`), `${c.id} has a real purpose and selection reason`);
+  // the timeline is relative to the top and moves with the launch speed: apex u/g, end 2u/g, displayOffset -u/g, over the whole range
+  const at = (expr, u) => evalScalar(expr, { launchSpeed: u }, { launchSpeed: [3, 5] });
+  for (const u of [3, 4.1, 5]) { assert.ok(Math.abs(at(p.mode.timeline.end, u) - 2 * u / G) < 1e-12); assert.ok(Math.abs(at(p.mode.timeline.displayOffset, u) + u / G) < 1e-12); assert.ok(Math.abs(at(p.mode.timeline.markers[1].time, u) - u / G) < 1e-12); }
+  assert.deepEqual(p.scene.checkpoints.map(c => c.id), ['before', 'top', 'after']);
+  assert.equal(requiredCaptureCount(p), 5, 'start, three checkpoints and the end; the 6th slot is the launch speed maximum'); assert.deepEqual(captureBudgetProblems(p), []);
+  assert.ok(p.cardDescription.length <= 150); assert.ok((await descriptionFit(p)).widths.every(w => w.lines >= 2 && w.lines <= 4), 'the estimated fit accepts the copy');
+  assert.ok(p.claims.some(c => /every launch speed/.test(c.text)));
+  // the shipped Standard is untouched: still the strip, still fixed at 3.0 m/s, no input controls
+  assert.deepEqual([plans.standard.supportingVisuals.length, plans.standard.mode.kind, plans.standard.controls.length, plans.standard.mode.adjustableIds.length], [1, 'time', 2, 0]);
 });
 
 test('all depth/mode combinations remain independent', () => {
