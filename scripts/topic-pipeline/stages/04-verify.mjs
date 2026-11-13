@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readJson, writeJson } from '../state.mjs';
 import { verifySchema } from '../schemas.mjs';
@@ -85,12 +86,16 @@ export async function run(ctx) {
   const verifyAuthored = !ctx.fixture || (ctx.dryRun && await fileExists(authorPath));
   if (verifyAuthored) {
     const rounds = ctx.config.limits.verifyRounds;
-    for (let round = 1; round <= rounds; round++) {
+    // --verify-resume (reviewer 2026-11-13): the rounds already recorded stay, numbering continues, and the first round of this attempt reuses the verdicts of the last one for every unchanged reference.
+    const recorded = ctx.config.run?.verifyResume ? (await readdir(ctx.topicDir)).map(name => /^verify\.round-(\d+)\.json$/u.exec(name)?.[1]).filter(Boolean).map(Number) : [];
+    const first = recorded.length ? Math.max(...recorded) + 1 : 1;
+    for (let attempt = 1; attempt <= rounds; attempt++) {
+      const round = first + attempt - 1;
       const author = await readJson(authorPath);
       const batch = await verifyBatch(ctx, [author.previewDir], await readJson(join(ctx.topicDir, 'prompts.json')), `round-${round}`, await previousRound(ctx, round - 1));
       last = batch.result; artefacts.push(...batch.artefacts);
       const fixes = last.figures.filter(row => row.verdict === 'fix');
-      if (!fixes.length || round === rounds) break;
+      if (!fixes.length || attempt === rounds) break;
       ctx.authorFeedback = JSON.stringify(last, null, 2);
       const repair = await (await import('./03-author.mjs')).run(ctx);
       artefacts.push(...repair.artefacts);

@@ -18,7 +18,13 @@ export async function runPipeline(options) {
     if (options.preflight) state.estimateUsd = estimateTopic(options.config);
     if (go && state.stages['08']?.stop !== 'STOP-4') throw new Error('Release requires STOP-4 READY');
     // Relaunch = resume (reviewer 2026-11-13): --from 03 keeps the author folder and its last round, so the attempt starts from that answer and its flags; --author-fresh archives it and starts clean.
-    if (from) await archiveFrom(topicDir, state, from, { keep: from === '03' && !options.config?.run?.authorFresh ? [join(topicDir, 'author'), join(topicDir, 'author.json')] : [] });
+    const keep = from === '03' && !options.config?.run?.authorFresh ? [join(topicDir, 'author'), join(topicDir, 'author.json')] : [];
+    if (from === '04' && options.config?.run?.verifyResume) {   // the recorded verifier rounds and their hashes stay: the next round verifies only what changed
+      const { readdir } = await import('node:fs/promises');
+      keep.push(...(await readdir(topicDir).catch(() => [])).filter(name => /^verify\.round-\d+\.json$/u.test(name)).map(name => join(topicDir, name)),
+        ...(await readdir(join(topicDir, 'verify-input')).catch(() => [])).filter(name => /\.hashes\.json$/u.test(name)).map(name => join(topicDir, 'verify-input', name)));
+    }
+    if (from) await archiveFrom(topicDir, state, from, { keep });
     const ctx = { ...options, state, config: options.config ?? {} };
     const start = go ? '09' : from ?? '01';
     const end = go ? '09' : to;
@@ -64,13 +70,13 @@ export async function main(argv = process.argv.slice(2)) {
     config: { type: 'string', default: join(dirname(fileURLToPath(import.meta.url)), 'config.local.json') },
     from: { type: 'string' }, to: { type: 'string' },
     'approve-prompts': { type: 'boolean' }, go: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, fixture: { type: 'boolean' },
-    'author-fresh': { type: 'boolean' }, 'author-answer': { type: 'string' }, 'author-model': { type: 'string' }, 'author-effort': { type: 'string' }, 'reviewer-model': { type: 'string' }, 'reviewer-effort': { type: 'string' }, 'judge-model': { type: 'string' },
+    'author-fresh': { type: 'boolean' }, 'verify-resume': { type: 'boolean' }, 'author-answer': { type: 'string' }, 'author-model': { type: 'string' }, 'author-effort': { type: 'string' }, 'reviewer-model': { type: 'string' }, 'reviewer-effort': { type: 'string' }, 'judge-model': { type: 'string' },
   } });
   const topic = positionals[0];
   if (positionals.length !== 1 || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(topic)) throw new Error('Usage: node scripts/topic-pipeline/run.mjs <topic> [--from 01] [--to 08] [--fixture]');
   const config = await loadConfig(values.config);
   config.overrides = Object.fromEntries(Object.entries(values).filter(([key]) => /model|effort/.test(key)));
-  config.run = { authorFresh: !!values['author-fresh'], fixture: !!values.fixture, dryRun: !!values['dry-run'], authorAnswer: values['author-answer'] ? resolve(values['author-answer']) : undefined };
+  config.run = { authorFresh: !!values['author-fresh'], verifyResume: !!values['verify-resume'], fixture: !!values.fixture, dryRun: !!values['dry-run'], authorAnswer: values['author-answer'] ? resolve(values['author-answer']) : undefined };
   const stages = {};
   for (const name of stageNames) {
     stages[name.slice(0, 2)] = async ctx => (await import(`./stages/${name}.mjs`)).run(ctx);
