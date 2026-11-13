@@ -234,4 +234,18 @@ export const singleSpecs = {
       caption: 'Masks are random during training. At inference, classical dropout keeps all units and scales activations by keep rate $p$ ($h_i\\mapsto ph_i$).',
     } },
   },
+  'ml-linear-regression-normal-equation': {
+    useWhen: 'Contrast a direct least-squares solution with iterative gradient descent on one matrix: what each returns on the toy fit, the tuning it needs, how its cost grows with the feature count, and when to prefer it.',
+    spec: { version: 1, diagram: {
+      kind: 'matrix', layout: 'teaching', title: 'Direct solving versus iterative fitting',
+      columns: ['Normal equation', 'Gradient descent'],
+      rows: [
+        { id: 'result', heading: 'Toy fit', cells: ['$w=0.6, b=2.2$ in one solve', 'First update: $w=0.264$'] },
+        { id: 'tuning', heading: 'Tuning', cells: ['No learning rate to tune', 'Tune rate and stopping rule'] },
+        { id: 'cost', heading: 'Cost as features grow', cells: ['Dense solve costs $O(p^3)$', 'Repeated data passes'] },
+        { id: 'prefer', heading: 'Prefer it for', cells: ['Few, dense features', 'Many or sparse features'] },
+      ],
+      caption: 'Here $p$ counts features. Dense direct solving becomes expensive as the feature count grows.',
+    } },
+  },
 };

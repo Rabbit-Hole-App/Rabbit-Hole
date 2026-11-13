@@ -13,7 +13,7 @@ const parents = diagramReferences.filter(({ id, spec: { diagram } }) =>
 );
 
 test('all two-panel references have exactly one linked single-diagram variant', () => {
-  assert.equal(parents.length, 31); // 23 release references plus eight figure chapters.
+  assert.equal(parents.length, 32); // 23 release references, eight figure chapters and the linear-regression normal-equation comparison.
   assert.deepEqual(singleDiagramReferences.map(r => r.panelReferenceId).sort(), parents.map(r => r.id).sort());
   for (const single of singleDiagramReferences) {
     const panel = parents.find(r => r.id === single.panelReferenceId);
