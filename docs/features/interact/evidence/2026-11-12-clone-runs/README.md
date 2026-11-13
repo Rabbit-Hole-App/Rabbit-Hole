@@ -54,9 +54,18 @@ source. Findings in `diagnostics.findings` are the deterministic problems and th
 ## Scripts
 
 `scripts/`: `drive.mjs` (fresh canvas, Depth Balanced, send the row-110 prompt, click Generate, wait), `poll-job.mjs`, `deploy-clone.mjs` (build, deploy with the clone vars and
-secrets by name), `driveB/C/E/W.mjs` (retry, screenshots, controls and the written card), `diag-size.mjs`, `shot-fit.mjs`, `prodvars.mjs` (read-only check of prod binding names),
+secrets by name), `shot-fit.mjs`, `prodvars.mjs` (read-only check of prod binding names),
 `open-preview.mjs` and `.cmd` (the signed-in launcher, `--canvas <name>`). They need `RABBIT_HOLE_DEV_TEST_BYPASS` and the Cloudflare token in `small-deploy/.env` and run against the
-dev clone only.
+dev clone only. The one-off drivers `driveB/C/E/W.mjs` (retry, screenshots, controls, the written card) and `diag-size.mjs` were removed on 2026-11-12;
+they stay in git history before the cleanup commit.
+
+### How to run one pinned build
+
+1. Deploy the clone with `node scripts/deploy-clone.mjs build`, then `secrets`, then `deploy` (clone vars, secrets by name; never a bare `wrangler deploy`).
+2. Start the pinned run: `node scripts/drive.mjs <out-dir>` (fresh canvas, Depth Balanced, the fixed prompt, Generate); it writes `stageA.json` and `C:/s/spec/interact-real/current.json`.
+3. Follow it with `node scripts/poll-job.mjs <out-dir> [jobId]` (one line per 10 s to `poll.log`, `plan.json`, `job-<id>-final.json` at the end).
+4. Look at the card with `scripts/open-preview.cmd --canvas <name>` (the signed-in launcher).
+5. Copy the logs, `plan.json` and the last `?detail=1` JSON into a new `runs/<n>/` folder and add a README row.
 
 ## Update: fix-2 steps 4 to 6 and items 7, 8 (run 13)
 
