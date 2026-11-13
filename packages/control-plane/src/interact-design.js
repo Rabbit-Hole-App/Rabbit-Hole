@@ -57,7 +57,7 @@ const COMPONENT_CONTROLS = ['choice', 'bool', 'index', 'indices'];
 export const designCapabilities = (env, job) => interactCapabilities({ renderers: ['spec', ...(programEnabled(env) ? ['program'] : [])], stateful: statefulEnabled(env), componentControls: COMPONENT_CONTROLS, evidenceIds: (job.evidence || []).map(record => record.id) });
 
 const sdkHelpers = sdkVersion => new Set([...(programSdkSource(sdkVersion) || '').matchAll(/\bsdk\.([A-Za-z_]\w*)\s*=/g)].map(match => match[1]));
-const EXTENSIONS = [[[], 'default visual helpers'], [['medium_visuals'], 'medium visuals'], [['cyclic_networks'], 'cyclic networks'], [['raster_visuals'], 'raster visuals'], [['heat_grid'], 'heat grid'], [['props'], 'physical props (sdk.vector, sdk.gate, sdk.groundMark)']];
+const EXTENSIONS = [[[], 'default visual helpers'], [['medium_visuals'], 'medium visuals'], [['cyclic_networks'], 'cyclic networks'], [['raster_visuals'], 'raster visuals'], [['heat_grid'], 'heat grid'], [['props'], 'physical props (sdk.vector, sdk.gate, sdk.groundMark)'], [['figures'], 'semantic figures (sdk.axis, sdk.plot with axes, sdk.diagram)']];
 // The exact runtime records a plan may carry, as the server would seal them. A model copies one; the server re-derives it (runtimeProblems).
 export function runtimeChoices(capabilities) {
   const renderers = new Set(capabilities.catalogue.map(entry => entry.renderer)), choices = [];

@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 import { planHash } from '../../web/src/interact-plan.js';
 import { fixtureDraft } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
-import { INTERACT_BUILD_SYSTEM, MANIFEST_LIMITS_TEXT, programToolSchema, STATEFUL_MANIFEST_PROPERTIES } from '../src/agents/explain-author.js';
+import { INTERACT_BUILD_SYSTEM, MANIFEST_LIMITS_TEXT, programContext, programToolSchema, STATEFUL_MANIFEST_PROPERTIES } from '../src/agents/explain-author.js';
 import { INTERACT_REPAIR_SYSTEM, interactRepairTool } from '../src/agents/explain-repair.js';
+import { designCapabilities, runtimeChoices } from '../src/interact-design.js';
 import { InteractModelError, INTERACT_LIMITS, INTERACT_ROLES } from '../src/interact-models.js';
 import { normalizeStructured } from '../src/interact-model-adapters.js';
 import { buildScene, buildSchema, schemaOptions, validateBuildOutput } from '../src/interact-build.js';
@@ -224,4 +225,23 @@ test('both build prompts state the sentence ranges and the byte limits next to t
   assert.ok((await buildScene(await job(), ctx)).artifacts);
   const named = ctx.adapter.log[1].input.correction.problems.find(p => /manifest\.description/.test(p));
   assert.match(named, /longer than 600 characters; it must be 2 to 4 short sentences, at most 600 characters/);
+});
+
+test('semantic figures: the build and repair prompts name sdk.axis, sdk.plot and sdk.diagram, the helpers are catalogued under their own tuple and documented for authoring only', async () => {
+  for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) {
+    assert.match(system, /figures capability \(sdk-8\), draw every axis and plot with sdk\.axis and sdk\.plot, never with hand-drawn lines, and a static structure \(parts, a flow, a comparison\) with sdk\.diagram/);
+    assert.match(system, /props capability \(sdk-7\)/, 'the earlier props sentence stays');
+  }
+  const choices = runtimeChoices(await designCapabilities({ EXPLAIN_PROGRAM_ENABLED: 'true' }, {}));
+  const figures = choices.filter(choice => choice.runtime.requiredCapabilities.includes('figures'));
+  assert.deepEqual(figures.map(choice => [choice.runtime.schemaVersion, choice.runtime.sdkVersion, choice.runtime.programTuple.rendererVersion]), [[1, 'sdk-8', 'renderer-5']]);
+  for (const helper of ['axis', 'plot', 'diagram', 'vector', 'gate', 'groundMark']) assert.ok(figures[0].availableHelpers.includes(helper), `${helper} is offered`);
+  const props = choices.find(choice => choice.runtime.requiredCapabilities.includes('props'));
+  assert.equal(props.runtime.sdkVersion, 'sdk-7', 'a props plan still names the saved sdk-7');
+  assert.ok(!props.availableHelpers.includes('axis'), 'sdk-7 has no figure helpers');
+  const docs = programContext({}, ['time_playback', 'figures'], {});
+  assert.deepEqual(Object.keys(docs.sdk.figures ?? {}).sort(), ['axis', 'diagram', 'plot', 'usage']);
+  assert.match(docs.sdk.figures.usage, /ONE frame object/);
+  assert.equal(programContext({}, ['time_playback', 'figures'], { repair: true }).sdk.figures, undefined, 'the repair request keeps its small size budget');
+  assert.equal(programContext({}, ['time_playback'], {}).sdk.figures, undefined);
 });
