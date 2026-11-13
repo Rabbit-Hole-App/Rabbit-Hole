@@ -66,8 +66,7 @@ const PROGRAM_MANIFEST = {
     cardDescription: { type: 'string' },
     instructions: { type: 'string' }, // the 300-character limit is added for /interact only (interactProgramSchema): the legacy request has no room for more schema bytes
     timeline: { type: 'object' },
-    readouts: { type: 'array', maxItems: 8, description: 'Named numbers the frame reports (frame.readouts [{id, value}]) and the card labels.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: NAME, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 },
-      kind: { type: 'string', enum: ['number', 'state'], description: 'number (the default) or state: a state readout reports one of its labels as text.' }, labels: { type: 'array', minItems: 2, maxItems: 6, items: { type: 'string', maxLength: 40 }, description: 'state readouts only: the allowed texts; the frame reports exactly one of them.' } } } },
+    readouts: { type: 'array', maxItems: 8, description: 'Named numbers the frame reports (frame.readouts [{id, value}]) and the card labels.', items: { type: 'object', additionalProperties: false, required: ['id', 'label'], properties: { id: NAME, label: { type: 'string', maxLength: 60 }, unit: { type: 'string', maxLength: 16 }, decimals: { type: 'integer', minimum: 0, maximum: 6 } } } },
     capabilities: { type: 'array', maxItems: 16, items: { type: 'string' }, description: 'Only names listed under program.capabilities in the input.' },
   },
 };
@@ -234,9 +233,9 @@ export function programContext(limits, capabilities, { stateful = false, repair 
         axis: 'sdk.axis(id, {x,y,length,orientation:"x"|"y",min,max,ticks?,label,unit?,role?}): an x axis runs right from (x,y), a y axis runs UP from (x,y); keep 52 px free below an x axis, and 60 px to the left of a y axis and 22 px above it, for tick labels and its title.',
         plot: 'sdk.plot(id, {x,y,w,h,axes:{x:{label,min,max,unit?},y:{...}},series:[{label,kind:"line"|"scatter"|"step",points:[{x,y}]}]}) at least 200 x 160, at most 3 series of 24 points, every point inside the axes. (Without axes it is the earlier sdk.plot.)',
         diagram: 'sdk.diagram(spec, {x,y,w,id?}) draws a written diagram (spec is the diagram JSON) at width w; it is scaled down to fit the room below y.',
-        callout: 'sdk.callout(x, y, lines, {id?,role?}): a readout box of one to four text lines beside an object; returns the stacked boxes (spread them into frame.objects). Keep 8 px clear of other labels and lines.',
-        panel: 'sdk.panel({x,y,w,h,title,state,id?,role?}): a lane with a heading and a state text, tinted by role; returns [lane box, title text, state text] (spread them). The heading sits 14 px above y, keep about 28 px free above the lane.',
-        stateReadouts: 'manifest.readouts[] may have kind: "state" with labels [2 to 6 texts]; the frame then reports exactly one of those texts as the readout value (for example Moving up, Still for an instant, Moving down).',
+        callout: 'sdk.callout(x,y,lines,{id?,role?}): 1 to 4 text lines in stacked boxes beside an object; spread the result into frame.objects.',
+        panel: 'sdk.panel({x,y,w,h,title,state,id?,role?}): a lane with a heading and state text; returns [lane box, title, state] (spread them); keep 28 px free above y.',
+        stateReadouts: 'A manifest readout may be kind "state" with labels (2 to 6 texts); the frame reports one label as its value.',
       } } : {}), ...(!repair && capabilities?.includes('inputs_v2') ? { inputs_v2: { usage: INPUT_TYPES_PROMPT_SENTENCE } } : {}), // authoring only; the plan declares inputs_v2 only behind INTERACT_INPUTS_V2=on
       ...(!repair && capabilities?.includes(MEDIUM_CAPABILITY) ? { medium: {
         usage: 'Declare medium_visuals in manifest.capabilities when using one of these helpers. Use existing controls or state and spread the returned objects into frame.objects.',
@@ -270,7 +269,10 @@ export const INTERACT_BUILD_TOOL_NAME = 'build_scene';
 // catalogue: the declarative catalogue, offered only when a panel was approved as renderer spec (specPanels).
 export function interactBuildSchema({ catalogue = [], stateful = false, specPanels = false } = {}) {
   const spec = authorTool(catalogue, { program: true, stateful }).input_schema.properties.spec;
-  const program = programToolSchema({ stateful }), withLimit = { ...program, properties: { ...program.properties, manifest: { ...program.properties.manifest, properties: { ...program.properties.manifest.properties, instructions: { type: 'string', maxLength: INSTRUCTIONS_MAX, description: 'Only if needed: how to use the controls.' } } } } };
+  // /interact only (the legacy request has no room for more schema bytes): the 300-character instructions limit, and state readouts (kind, labels) for the card's text states.
+  const program = programToolSchema({ stateful }), readouts = program.properties.manifest.properties.readouts;
+  const withLimit = { ...program, properties: { ...program.properties, manifest: { ...program.properties.manifest, properties: { ...program.properties.manifest.properties, instructions: { type: 'string', maxLength: INSTRUCTIONS_MAX, description: 'Only if needed: how to use the controls.' },
+    readouts: { ...readouts, items: { ...readouts.items, properties: { ...readouts.items.properties, kind: { type: 'string', enum: ['number', 'state'], description: 'number (the default) or state: a state readout reports one of its labels as text.' }, labels: { type: 'array', minItems: 2, maxItems: 6, items: { type: 'string', maxLength: 40 }, description: 'state readouts only: the allowed texts; the frame reports exactly one of them.' } } } } } } } };
   const panel = {
     type: 'object', additionalProperties: false, required: ['kind'],
     description: 'Exactly the renderer this panel was approved with (plan runtime.renderer): spec for the declarative catalogue, program for a JavaScript program.',
