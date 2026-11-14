@@ -5,7 +5,8 @@ import { interactOracle } from './interact-oracle.js';
 import { TOSS_MVP_META } from '../../web/src/interact-toss-mvp-plans.js';
 import { timingSummary } from './explain-policy.js';
 const round1 = n => Math.round(n * 10) / 10;
-const mvpDesign = fixture => { const meta = typeof fixture === 'string' && fixture.startsWith('toss-mvp-') ? TOSS_MVP_META[fixture.slice('toss-mvp-'.length)] : null; return { designModel: meta?.designModel ?? null, designKind: meta ? 'brief-mvp' : null, msFill: meta?.msFill ?? null }; };
+// A job pinned to toss-mvp-<depth> is a brief-mvp design; the model and the fill time come from the data file's meta of that depth (null when it has none).
+const mvpDesign = fixture => { const depth = typeof fixture === 'string' ? /^toss-mvp-(brief|balanced|detailed)$/.exec(fixture)?.[1] : null, meta = depth ? TOSS_MVP_META[depth] : null; return { designModel: meta?.designModel ?? null, designKind: depth ? 'brief-mvp' : null, msFill: meta?.msFill ?? null }; };
 
 // timing: 'v2' is a job whose stage columns are the contiguous wall-clock slices ledgerRow explains (they add up to msTotal); 'v1' is every older row, kept as it was recorded.
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs', 'repairCauses',

@@ -16,6 +16,7 @@ test('a job pinned to a toss-mvp-<depth> fixture carries designModel, designKind
   const base = jobFromDetail(detail());
   const mvp = ledgerRow({ ...base, designFixture: 'toss-mvp-balanced' });
   assert.deepEqual([mvp.fixture, mvp.designModel, mvp.designKind, mvp.msFill], ['toss-mvp-balanced', TOSS_MVP_META.balanced.designModel, 'brief-mvp', TOSS_MVP_META.balanced.msFill ?? null]);
+  assert.deepEqual([ledgerRow({ ...base, designFixture: 'toss-mvp-detailed' }).designKind, ledgerRow({ ...base, designFixture: 'toss-mvp-detailed' }).designModel], ['brief-mvp', TOSS_MVP_META.detailed?.designModel ?? null], 'a depth with no meta still says brief-mvp');
   for (const fixture of [null, 'toss', 'toss-overview', 'ledge-toss-moon', 'toss-mvp-unknown']) assert.deepEqual([ledgerRow({ ...base, designFixture: fixture }).designModel, ledgerRow({ ...base, designFixture: fixture }).designKind, ledgerRow({ ...base, designFixture: fixture }).msFill], [null, null, null], String(fixture));
   assert.deepEqual(LEDGER_COLUMNS.slice(-3), ['designModel', 'designKind', 'msFill'], 'the new columns are the last three');
   assert.match(ledgerMarkdown([mvp]).split('\n')[0], /\| designModel \| designKind \| msFill \|$/, 'the markdown header ends with them');

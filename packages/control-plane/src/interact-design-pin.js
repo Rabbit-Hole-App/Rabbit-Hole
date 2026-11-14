@@ -18,6 +18,8 @@ const PLAN_OF = Object.freeze({ 'toss-overview': ['tossOverview', 'brief', 'refe
   'toss-mvp-brief': ['brief', 'brief', 'mvp'], 'toss-mvp-balanced': ['balanced', 'balanced', 'mvp'], 'toss-mvp-detailed': ['detailed', 'detailed', 'mvp'] });
 // The third family (brief 11 section 5): INTERACT_DESIGN_FIXTURE=toss-mvp pins by the job's Depth to the plans a model wrote as a plan brief and the code expanded (interact-plan-brief.js), taken from the data file
 // interact-toss-mvp-plans.js ({ brief, balanced, detailed }; a depth with no plan there is not pinned). Each plan has its own oracle (interact-oracle.js verticalThrowOracle, id toss-mvp-<depth>).
+// The plans map the toss-mvp family answers from: the data file's by default; a test sets `mvpPlans.current` (and puts the default back) so it does not depend on which plans the picker last wrote.
+export const mvpPlans = { current: TOSS_MVP_PLANS };
 export const MVP_DEPTHS = Object.freeze({ brief: 'toss-mvp-brief', balanced: 'toss-mvp-balanced', detailed: 'toss-mvp-detailed' });
 // The second family (brief 7 section 5): INTERACT_DESIGN_FIXTURE=ledge pins the Moon ledge toss for brief only, to show a template build on a plan no template was written for.
 export const LEDGE_DEPTHS = Object.freeze({ brief: 'ledge-toss-moon' });
@@ -28,10 +30,10 @@ const text = value => value;
 export const designPinOf = env => ((env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test' || env.EXPLAIN_DIAGNOSTICS === 'true') && PIN_FIXTURES.includes(env.INTERACT_DESIGN_FIXTURE) ? env.INTERACT_DESIGN_FIXTURE : null);
 
 // The plan id a pin answers for a job's Depth, or null when this Depth is not pinned (the real design runs): `toss` follows the Depth, a plan id answers its own Depth only.
-export const pinnedFixtureId = (pin, depth) => { const d = depthOf(depth), id = pin === 'toss' ? FIXTURE_DEPTHS[d] : pin === 'ledge' ? LEDGE_DEPTHS[d] : pin === 'toss-mvp' ? MVP_DEPTHS[d] : pin; return id && PLAN_OF[id]?.[1] === d && (PLAN_OF[id][2] !== 'mvp' || TOSS_MVP_PLANS[d]) ? id : null; };
+export const pinnedFixtureId = (pin, depth) => { const d = depthOf(depth), id = pin === 'toss' ? FIXTURE_DEPTHS[d] : pin === 'ledge' ? LEDGE_DEPTHS[d] : pin === 'toss-mvp' ? MVP_DEPTHS[d] : pin; return id && PLAN_OF[id]?.[1] === d && (PLAN_OF[id][2] !== 'mvp' || mvpPlans.current[d]) ? id : null; };
 
 export async function pinnedPlan(fixtureId, job) {
-  const id = pinnedFixtureId(fixtureId, job.depth) ?? fixtureId, fixtures = { ...await interactFixtures(), mvp: TOSS_MVP_PLANS }, [name, , group] = PLAN_OF[id];
+  const id = pinnedFixtureId(fixtureId, job.depth) ?? fixtureId, fixtures = { ...await interactFixtures(), mvp: mvpPlans.current }, [name, , group] = PLAN_OF[id];
   // toss-drop-standard-controls and the three reference plans already carry a description the estimated fit accepts; the original Standard needs the short copy.
   const plan = structuredClone(fixtures[group][name]), supplied = new Set((job.evidence || []).map(record => record.id));
   if (id === 'toss-drop-standard') plan.cardDescription = PINNED_DESCRIPTION;

@@ -6,12 +6,12 @@ import assert from 'node:assert/strict';
 import { explainRoute } from '../src/explain-job.js';
 import { planHash, planProblems } from '../../web/src/interact-plan.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
-import { TOSS_MVP_PLANS } from '../../web/src/interact-toss-mvp-plans.js';
+import { TOSS_MVP_META, TOSS_MVP_PLANS } from '../../web/src/interact-toss-mvp-plans.js';
 import { expandBrief, extractBrief } from '../../web/src/interact-plan-brief.js';
 import { generateProgram } from '../../web/src/interact-templates/generate.js';
 import { frameOverlaps } from '../../web/src/explain-program/frame-overlap.js';
 import { OWNER, BOARD, designStack } from './interact-design-fixture.js';
-import { MVP_DEPTHS, PIN_FIXTURES, designPinOf, pinnedFixtureId, pinnedPlan } from '../src/interact-design-pin.js';
+import { MVP_DEPTHS, PIN_FIXTURES, designPinOf, mvpPlans, pinnedFixtureId, pinnedPlan } from '../src/interact-design-pin.js';
 import { buildInput, validateBuildOutput } from '../src/interact-build.js';
 import { buildPlanCaptureCases, checkSceneAgainstPlan, headlessCaptureCard } from '../src/interact-checks.js';
 import { fixtureContext } from '../src/interact-fixtures.js';
@@ -23,7 +23,13 @@ test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(
 const { referencePlans, referenceCapabilities } = await interactFixtures();
 const DEPTHS = ['brief', 'balanced', 'detailed'], PINNED = { brief: 'tossOverview', balanced: 'tossStandard', detailed: 'tossDeep' };
 
-test('the toss-mvp family pins by the job\'s Depth, to the data file\'s plan; a depth with no plan there is not pinned; production never takes it', async () => {
+// The stand-in plans, built here: extractBrief -> expandBrief of the three pinned toss plans. The tests below do not depend on which plans the picker last wrote to the data file; they set the pin's plans map to
+// these (the seam: interact-design-pin.js mvpPlans.current, default the data file's TOSS_MVP_PLANS) and put it back.
+const STAND_INS = Object.fromEntries(DEPTHS.map(d => [d, expandBrief(extractBrief(referencePlans[PINNED[d]]), d, { catalogueHash: referenceCapabilities.catalogueHash })]));
+const usePlans = (t, plans) => { const before = mvpPlans.current; mvpPlans.current = plans; t.after(() => { mvpPlans.current = before; }); };
+
+test('the toss-mvp family pins by the job\'s Depth, to the plans map\'s plan; a depth with no plan there is not pinned; production never takes it', async t => {
+  usePlans(t, STAND_INS);
   assert.ok(PIN_FIXTURES.includes('toss-mvp') && Object.values(MVP_DEPTHS).every(id => PIN_FIXTURES.includes(id)));
   assert.deepEqual(DEPTHS.map(d => pinnedFixtureId('toss-mvp', d)), ['toss-mvp-brief', 'toss-mvp-balanced', 'toss-mvp-detailed']);
   assert.deepEqual(['brief', 'balanced'].map(d => pinnedFixtureId('toss-mvp-balanced', d)), [null, 'toss-mvp-balanced'], 'a plan id answers its own Depth only');
@@ -34,13 +40,14 @@ test('the toss-mvp family pins by the job\'s Depth, to the data file\'s plan; a 
     const plan = await pinnedPlan('toss-mvp', { depth, evidence: [] });
     assert.equal(plan.depth, depth); assert.deepEqual(planProblems(plan), [], depth);
     assert.deepEqual(plan.claims.flatMap(c => c.evidenceIds), [], 'evidence the job did not supply is dropped');
-    assert.deepEqual(Object.keys(TOSS_MVP_PLANS).sort(), [...DEPTHS].sort());
   }
+  mvpPlans.current = { brief: STAND_INS.brief, balanced: STAND_INS.balanced };
+  assert.deepEqual(DEPTHS.map(d => pinnedFixtureId('toss-mvp', d)), ['toss-mvp-brief', 'toss-mvp-balanced', null], 'a depth with no plan is not pinned: the real design runs');
 });
 
 test('the oracle of a family plan is the reference physics at its own ranges plus the arrow rule, with its own id; the stand-in plans give the pinned cards\' expected values', () => {
   for (const depth of DEPTHS) {
-    const plan = TOSS_MVP_PLANS[depth], own = verticalThrowOracle(plan), pinned = interactOracle(referencePlans[PINNED[depth]]);
+    const plan = STAND_INS[depth], own = verticalThrowOracle(plan), pinned = interactOracle(referencePlans[PINNED[depth]]);
     assert.equal(own.id, `toss-mvp-${depth}`); assert.ok(own.expect.length >= 18 && own.arrows.length > 0, depth);
     const key = r => `${r.case}|${r.name}`, ours = new Map(own.expect.map(r => [key(r), r.expected]));
     for (const r of pinned.expect) assert.ok(Math.abs(ours.get(key(r)) - r.expected) < 1e-9, `${depth} ${key(r)}: ${ours.get(key(r))} vs ${r.expected}`);
@@ -106,21 +113,40 @@ function stack(t) {
   return { ...s, sent, route, jobOf: id => s.state.data.get(`job:${id}`) };
 }
 
-test('Brief, Balanced and Detailed toss-mvp jobs reach ready on the template build with ZERO model calls; the ledger row names the pinned card and the real oracle ran', async t => {
-  for (const depth of DEPTHS) {
-    const s = stack(t), { body } = await s.create({ depth }), id = body.job.id;
-    assert.equal((await s.design(id)).job.stage, 'awaiting_approval');
-    assert.equal((await s.approve(id)).status, 202);
-    for (let i = 0; i < 30; i++) { await s.actor.alarm(); const job = s.jobOf(id); if (['ready', 'failed', 'cancelled'].includes(job.stage) && !job.inFlight) break; }
-    const job = s.jobOf(id);
-    assert.equal(job.stage, 'ready', `${depth}: ${JSON.stringify([job.stopReason, job.failure, job.findings])}`);
-    assert.equal(job.build.kind, 'template');
-    assert.deepEqual(job.build.counts, { build_author: 0, build_review: 0, build_repair: 0 });
-    assert.deepEqual(s.sent, [], `${depth}: no outbound call at all`);
-    await s.actor.alarm();
-    const { ledger } = (await s.route(`/${id}?board=${BOARD.id}&detail=1`)).body.diagnostics;
-    assert.deepEqual([ledger.fixture, ledger.authorModel, ledger.buildKind, ledger.repairs, ledger.result, ledger.oracleFailed], [`toss-mvp-${depth}`, 'template', 'template', 0, 'ready', 0], depth);
-    assert.ok(ledger.oracleChecked > 0);
+async function runJob(t, depth) {
+  const s = stack(t), { body } = await s.create({ depth }), id = body.job.id;
+  assert.equal((await s.design(id)).job.stage, 'awaiting_approval');
+  assert.equal((await s.approve(id)).status, 202);
+  for (let i = 0; i < 30; i++) { await s.actor.alarm(); const job = s.jobOf(id); if (['ready', 'failed', 'cancelled'].includes(job.stage) && !job.inFlight) break; }
+  const job = s.jobOf(id);
+  assert.equal(job.stage, 'ready', `${depth}: ${JSON.stringify([job.stopReason, job.failure, job.findings])}`);
+  assert.equal(job.build.kind, 'template');
+  assert.deepEqual(job.build.counts, { build_author: 0, build_review: 0, build_repair: 0 });
+  assert.deepEqual(s.sent, [], `${depth}: no outbound call at all`);
+  await s.actor.alarm();
+  const { ledger } = (await s.route(`/${id}?board=${BOARD.id}&detail=1`)).body.diagnostics;
+  assert.deepEqual([ledger.fixture, ledger.authorModel, ledger.buildKind, ledger.repairs, ledger.result, ledger.oracleFailed, ledger.designKind], [`toss-mvp-${depth}`, 'template', 'template', 0, 'ready', 0, 'brief-mvp'], depth);
+  assert.ok(ledger.oracleChecked > 0, `${depth}: the real oracle ran`);
+  return ledger;
+}
+
+test('Brief, Balanced and Detailed toss-mvp jobs (stand-in plans) reach ready on the template build with ZERO model calls; the ledger row names the pinned card and the real oracle ran', async t => {
+  usePlans(t, STAND_INS);
+  for (const depth of DEPTHS) await runJob(t, depth);
+});
+
+// The one test that reads the data file as the picker last wrote it: every plan present passes planProblems, has its own toss-mvp oracle and builds to ready with zero model calls (a depth with no passing plan is
+// not in the file and not pinned: nothing to check for it).
+test('the data file\'s plans (the best of the bench): each passes planProblems, has its own toss-mvp oracle and reaches ready with zero model calls; each depth with a plan has its meta', async t => {
+  const depths = Object.keys(TOSS_MVP_PLANS);
+  assert.ok(depths.length >= 1 && depths.every(d => DEPTHS.includes(d)), `the data file holds plans for ${depths.join(', ') || 'no depth'}`);
+  for (const depth of depths) {
+    const plan = TOSS_MVP_PLANS[depth];
+    assert.deepEqual(planProblems(plan), [], depth);
+    assert.equal(verticalThrowOracle(plan)?.id, `toss-mvp-${depth}`, `${depth}: its own oracle`);
+    assert.ok(TOSS_MVP_META[depth]?.designModel, `${depth}: its meta names the model`);
+    const ledger = await runJob(t, depth);
+    assert.equal(ledger.designModel, TOSS_MVP_META[depth].designModel); assert.equal(ledger.msFill, TOSS_MVP_META[depth].msFill ?? null);
   }
 });
 
