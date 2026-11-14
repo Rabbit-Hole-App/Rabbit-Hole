@@ -2,6 +2,7 @@
 // rules (owner corrections 1, 9, 10 and the twelfth message; rulings F1, F2, F7, F13, F14), through the routes the app worker serves
 // (shared-canvas-fixture.js, node:sqlite), the planner on its keyless fixture (JOURNEY_MODEL_STUB=fixtures) and
 // caches.default as a Map. No model call for hooks.
+import '../../web/src/agent/slash-flags-test-on.mjs'; // every slash command on: these tests are about routing, not which commands ship (web SLASH_FLAGS); first, so every later import sees the flags
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, BOARD, scriptModel } from './shared-canvas-fixture.js';
