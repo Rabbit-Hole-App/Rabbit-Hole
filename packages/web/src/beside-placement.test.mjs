@@ -62,6 +62,12 @@ test('wiring: Ask in a new card and Explore ask for a card beside the source wit
   assert.match(canvas, /moves\.set\(id, \{ dx: Math\.round\(at\.x - \(box\.x - \(owner\.dx \|\| 0\)\)\), dy: Math\.round\(at\.y - \(box\.y - \(owner\.dy \|\| 0\)\)\) \}\)/);
 });
 
+// CV-4 (film): with nothing selected and no explanation card yet, the first typed /explain follows the markdown card on the board, not the column.
+test('wiring: followAnchor falls back to the markdown file card when there is no explanation card yet', () => {
+  const canvas = src('./AdaptiveCanvas.jsx');
+  assert.match(canvas, /explainCard\(block\) && drawn\(block\.id\)\)\?\.id\s*\n\s*\?\? blocksRef\.current\.find\(block => block\.type === 'file' && block\.kind === 'markdown' && drawn\(block\.id\)\)\?\.id \?\? null/);
+});
+
 // canvas-cards BUG 4: a typed /explain lands to the right of the previous card, loosely scattered, never overlapping; a full row starts a new one under it, never the column.
 import { followPlace, scatterOf, SCATTER_MAX_DY } from './beside-placement.js';
 test('the scatter is deterministic per request, inside 0..0.35 of the source height, and alternates one and two gutters', () => {
