@@ -1,4 +1,5 @@
 import { curveRoles } from '../interact-curve-data.js';
+import { textWidth } from '../tutor-diagrams/primitives.js';
 export const roles = curveRoles;
 export const normalize = slots => slots;
 export const lanesOf = () => [];
@@ -9,7 +10,9 @@ export const states = W => ({
 // Native 640 px scene. Both tangent depths use the same plot and legend area.
 // The extra top band contains the heading and live subtitle.
 export const geometry = (range, tangent = false) => ({
-  width: 640, height: 328, left: 56, right: 414, top: 68, bottom: 274,
+  width: 640, height: 328,
+  left: 16 + Math.max(40, Math.ceil(Math.max(...range.axisY.map(v => textWidth(String(v), 13)))) + 18),
+  right: 414, top: 68, bottom: 274,
   plot: { x: 16, y: tangent ? 24 : 44, w: 414, h: 274 - (tangent ? 24 : 44) + 49 },
   x: range.x, y: range.axisY, kDefault: range.kDefault,
 });

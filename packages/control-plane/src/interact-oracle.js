@@ -9,6 +9,7 @@
 import { evalScalar } from '../../web/src/interact-plan.js';
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { FAMILY, expandBrief, extractBrief, referenceValue } from '../../web/src/interact-plan-brief.js';
+import { curveLogisticOracle } from './interact-curve-oracle.js';
 
 const G = 9.8, U = 3, TOL = 1e-6;
 const SUPPORT_MOMENTS = { velocityBefore: -0.1, velocityTop: 0, velocityAfter: 0.1 }; // seconds from the apex
@@ -249,4 +250,4 @@ export function verticalThrowOracle(plan) {
 }
 
 // The trusted expected values for this plan, or null when no oracle exists for it (the checks then say so).
-export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan) ?? overviewDropOracle(plan) ?? pendulumPeriodOracle(plan) ?? tossOverviewOracle(plan) ?? tossStandardOracle(plan) ?? tossDeepOracle(plan) ?? ledgeMoonOracle(plan) ?? verticalThrowOracle(plan);
+export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan) ?? overviewDropOracle(plan) ?? pendulumPeriodOracle(plan) ?? tossOverviewOracle(plan) ?? tossStandardOracle(plan) ?? tossDeepOracle(plan) ?? ledgeMoonOracle(plan) ?? verticalThrowOracle(plan) ?? curveLogisticOracle(plan);

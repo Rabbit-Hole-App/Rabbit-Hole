@@ -13,6 +13,7 @@ import { briefSchema } from '../../web/src/interact-plan-brief.js';
 import { loadEngine, runProgram } from '../../web/src/explain-program/runtime.js';
 import { parseGuestResult } from '../../web/src/explain-program/contract.js';
 import { frameOverlaps } from '../../web/src/explain-program/frame-overlap.js';
+import { textWidth } from '../../web/src/tutor-diagrams/primitives.js';
 
 const { referenceCapabilities: capabilities } = await interactFixtures();
 const engine = await loadEngine();
@@ -73,6 +74,11 @@ test('curve axes come from the formula interval, including for a polynomial rath
   const axis = result.value.frame.objects.find(o => o.id === 'plot.curve').axes.y;
   assert.ok(axis.min <= -2 && axis.max >= 3 * 6 ** 2 + 2);
   assert.equal(result.value.quantities.yAtMarker, 3 * 1 ** 2 + 2);
+  const plot = result.value.frame.objects.find(o => o.id === 'plot.curve');
+  const left = plot.x + Math.max(40, Math.ceil(Math.max(textWidth(String(axis.min), 13), textWidth(String(axis.max), 13))) + 18);
+  const right = plot.x + plot.w - 16;
+  const marker = result.value.frame.objects.find(o => o.id === 'ball.marker');
+  assert.ok(Math.abs(marker.x - (left + (1 + 6) / 12 * (right - left))) < 1e-12, 'wide tick labels change the plot interior; the marker must use that same mapping');
 });
 const near = (a, b, path = '') => {
   if (typeof a === 'number' && typeof b === 'number') return assert.ok(Math.abs(a - b) <= 1e-6, path + ': ' + a + ' vs ' + b);
