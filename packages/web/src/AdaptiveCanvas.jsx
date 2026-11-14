@@ -76,7 +76,6 @@ import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.j
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { besideSpot, followPlace } from './beside-placement.js';
-import { fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
@@ -2065,9 +2064,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Frame everything on the canvas. An infinite surface you can pan forever needs
   // a way back to your own work.
-  // Notes and text boxes count too - a board of only stickies has to fit; with cards on the board only the cards frame it (canvas-view.js, CV-7).
+  // Notes and text boxes count too - a board of only stickies has to fit.
   // Group frames count too: a Rabbit Hole group's footer sits below its members (owner 2026-10-29).
-  const zoomFit = () => frame(fitBoxes(Object.values(boundsRef.current), inlineScreenBoxes('[data-group-box]'), boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id))));
+  const zoomFit = () => frame([...Object.values(boundsRef.current), ...boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id)), ...inlineScreenBoxes('[data-group-box]')]);
   // Stepping frames one section at a time; nothing re-renders, the camera just
   // lands somewhere else, so ink and notes drawn over a section come with it.
   const stepsRef = useRef([]);
@@ -3603,19 +3602,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const openOnLeadRef = useRef(openOnLead);
   openOnLeadRef.current = openOnLead;
   useEffect(() => { openOnLeadRef.current(); }, [bounds]);
-  // CV-6 (canvas-view.js): a board whose cards were moved off the top of the column (laid out far to the right and down) must not open on an empty surface: once, at the first
-  // measure, if the opening camera frames no card and the learner has not moved the camera, open on the top of the first file card (else the first card).
-  const firstViewDone = useRef(false);
-  useEffect(() => {
-    const boxes = Object.values(bounds);
-    if (firstViewDone.current || !boxes.length || !surface.current) return;
-    firstViewDone.current = true;
-    if (manualMoves.current !== openedAt.current || focusRef.current || (opening.current && blocksRef.current[0]?.program)) return;
-    const area = visibleArea();
-    if (framesAnyBlock(viewRef.current, area, boxes)) return;
-    const target = firstViewTarget(blocksRef.current, bounds);
-    if (target) setView(autoView.current = topView(target, area));
-  }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!opening.current || !surface.current || typeof ResizeObserver === 'undefined') return undefined;
     let frame = 0;
