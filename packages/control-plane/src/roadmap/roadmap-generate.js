@@ -3,12 +3,12 @@
 // set is a server constant (ROADMAP_FORMATS) passed as a trusted option; it is never read from a body, a client-writable job or the
 // model. Typed and Quick Edit /explain are untouched (startExplain first). This module never writes a board, a job or a URL.
 import { generateArtifact, prepareArtifactAuthorRequest } from '../learn-artifact.js';
-import { MODEL, autoModel, loggedModel, planUsesOpenAI } from '../learn-models.js';
+import { CHAT_GEMINI, MODEL, autoModel, loggedModel, planUsesOpenAI } from '../learn-models.js';
 import { planModel } from '../ask.js';
 import { requestSpendBound } from '../learn-spend.js';
 import { toMicros } from '../learn-usage.js';
 import { sha256 } from './roadmap-source.js';
-import { explanationProfileBinding, resolveExplanationProfile } from '../explanation-models.js';
+import { ROADMAP_CARD_PROFILE, explanationProfileBinding, resolveExplanationProfile } from '../explanation-models.js';
 import { roadmapCardSuffix } from '../agents/roadmap-card.js';
 import { deriveVisualRequirements, requirementText } from '../explanation-visuals.js';
 import { ROADMAP_LIMITS } from './roadmap-policy.js';
@@ -23,7 +23,8 @@ const ARGS_CAP = 1000; // learn-artifact.js route cap on args
 /// The provider and model the author call is routed to: the same choice planModel/anthropic make (the artifact task passes no org, so no org row).
 // shortcut: org-level Bedrock/OpenAI routing is not read because the artifact path never passes an org; read aiSettings if it ever does.
 export const authorRoute = (env, model) => (env.SUBSCRIPTION_ONLY === 'true' ? { provider: 'subscription', model: model || MODEL }
-  : planUsesOpenAI(env) ? { provider: 'openai', model: env.LEARN_PLAN_MODEL } : { provider: 'anthropic', model: model || autoModel(env) || MODEL });
+  : model === CHAT_GEMINI ? { provider: 'google', model } // priced and held as Google, as ask.js geminiChat settles it
+    : planUsesOpenAI(env) ? { provider: 'openai', model: env.LEARN_PLAN_MODEL } : { provider: 'anthropic', model: model || autoModel(env) || MODEL });
 export const requestFingerprint = (body, route) => sha256(JSON.stringify([route.provider, route.model, body]));
 const boundOf = (body, route) => toMicros(requestSpendBound(body, route.model, route.provider === 'subscription' ? 'anthropic' : route.provider));
 
@@ -52,7 +53,7 @@ export function authorInput(rec, limits = ROADMAP_LIMITS) {
   if (visuals?.unsupported) return { failed: fail('unsupported_capability', 'required_visual_unsupported', { error: visuals.unsupported }) };
   // CORE.09: the frozen Depth rides as the request's Depth, so the roadmap gets the same Explanation target and budget as a direct question.
   return { input: { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && depthOf(rec.depth) !== 'balanced' ? { depth: depthOf(rec.depth) } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
-    options: { only: [rec.format], systemSuffix: roadmapCardSuffix(rec), repairs: 0, title: rec.stepTitle } };
+    options: { only: [rec.format], systemSuffix: roadmapCardSuffix(rec), repairs: 0, title: rec.stepTitle, profile: resolveExplanationProfile(ROADMAP_CARD_PROFILE) } };
 }
 
 // CORE.05: the quote of the actual full first author request of an accepted record. Zero model calls.

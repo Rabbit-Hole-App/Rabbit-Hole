@@ -11,6 +11,7 @@ import { canvasesFetch, canvasRoute } from '../src/canvases.js';
 import { chatMessageFetch, chatMessageRoute } from '../src/chat-message-routes.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
 import { spendTransport } from '../src/learn-spend.js';
+import { CHAT_GEMINI } from '../src/learn-models.js';
 import { usageTotals, periodOf } from '../src/learn-usage.js';
 import { routes } from '../../web/src/roadmap-client.js';
 import { world } from './roadmap-fixture.js';
@@ -116,7 +117,7 @@ export async function workflow(t, { plans = [PLAN], script = [], classifier = as
     const next = h.script.shift();
     if (!next) throw new Error('unexpected author call');
     return next(model, body);
-  }, { userId: 'roadmap-author', category: 'roadmap' });
+  }, { userId: 'roadmap-author', category: 'roadmap', ...(model === CHAT_GEMINI ? { provider: 'google' } : {}) }); // a roadmap card is authored on Gemini Flash (owner 2026-11-14), settled as Google like ask.js geminiChat
   registerRoadmapHandlers({ callModel: planner, checkCallModel: checker, classify, base });
   for (const kind of ['plan_requested', 'step_accepted', 'settings_changed', ...AUTO_KINDS]) {
     const fn = roadmapHandler(kind);

@@ -4,6 +4,7 @@
 import { roadmapRoute } from '../src/roadmap/roadmap-routes.js';
 import { roadmapDeps, registerRoadmapHandlers } from '../src/roadmap/roadmap-wire.js';
 import { spendTransport } from '../src/learn-spend.js';
+import { CHAT_GEMINI } from '../src/learn-models.js';
 import { usageTotals, periodOf } from '../src/learn-usage.js';
 import { readFileSync } from 'node:fs';
 import { world, MODEL } from './roadmap-fixture.js';
@@ -67,7 +68,7 @@ export const GOOD = answer('make_explanation', { title: 'The gradient', body: wi
 export const TABLE = answer('make_table', { title: 'Rates', caption: '', columns: ['rate', 'effect'], rows: [['small', 'slow'], ['large', 'overshoots']] });
 export const BAD = answer('make_explanation', { title: 'No body' }); // fails the schema: the one repair
 export const FAIL = async () => new Response('{"error":"overloaded"}', { status: 500, headers: { 'content-type': 'application/json' } });
-export const provider = script => { const used = [], bodies = [], models = []; return { used, bodies, models, base: (e, body, model, org) => spendTransport(e, body, model, org, async () => { used.push(1); bodies.push(body); models.push(model); return script.shift()(model); }, { userId: 'u-alice', category: 'roadmap' }) }; };
+export const provider = script => { const used = [], bodies = [], models = []; return { used, bodies, models, base: (e, body, model, org) => spendTransport(e, body, model, org, async () => { used.push(1); bodies.push(body); models.push(model); return script.shift()(model); }, { userId: 'u-alice', category: 'roadmap', ...(model === CHAT_GEMINI ? { provider: 'google' } : {}) }) }; };
 
 export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 'true', md = MD, settings, classifier = classify, envExtra } = {}) {
   const w = world(t, allowanceMicros ? { allowanceMicros } : {});
