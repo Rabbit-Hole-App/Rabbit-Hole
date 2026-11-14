@@ -81,7 +81,7 @@ import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { BESIDE_ASSUMED_H, BESIDE_ASSUMED_W, followPlace } from './beside-placement.js';
 import { placeSourced } from './place-sourced.js';
 import { ARROW, arrowhead, connectorsOf, drawConnector } from './connector.js';
-import { centerOnBox, clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, passageZoom, topView } from './canvas-view.js';
+import { centerOnBox, clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
 import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
@@ -3207,12 +3207,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // CK-4: a focus move (a card just made, Go to card, View passage) puts the card in the middle of the visible area; never the zoom.
   const bringIntoView = id => showBox(boundsRef.current[id], false, true);
   // zoom: a new zoom to show the box at (revealOnCanvas zooming out to fit); otherwise the zoom stays.
-  const showBox = (box, smooth = false, centre = false, zoom = null, focus = null) => {
+  const showBox = (box, smooth = false, centre = false, zoom = null) => {
     if (!box || !surface.current) return false;
     // Both axes: after a sideways pan the column is off to one side, and a
     // card inserted into it landed off screen.
     // centre: CK-4's rule (canvas-view.js centerOnBox: the middle of the area on both axes, even a box already in view); not centre: the keep-in-view nudge (a card resizing, a control revealed).
-    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), reach = within => (centre ? centerOnBox(box, current, within, focus) : panInto(box, current, within, false)), first = reach(area);
+    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), reach = within => (centre ? centerOnBox(box, current, within) : panInto(box, current, within, false)), first = reach(area);
     // The floating bottom chrome over the card's span is a floor too (24: freeArea's margin).
     const floor = chromeTop(first.x + box.x * current.z, first.x + (box.x + box.w) * current.z) - 24;
     const next = floor < area.bottom ? reach({ ...area, bottom: Math.max(area.top + 1, floor) }) : first;
@@ -3372,13 +3372,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const cameraRef = useRef(null);
   // A passage's View explanation can name a Tutor slot (source-refs.js publishPending): the camera goes to it; it is not a block, so nothing is selected.
   const [, nudgeSlotCamera] = useState(0);
-  useSourceRefIndex(blocks, (id, options) => {
-    if (String(id).startsWith('roadmap:')) { cameraRef.current = { id, smooth: true, centre: true }; nudgeSlotCamera(count => count + 1); return; }
-    setSelection([id]);
-    // HL-148 (View passage, Go to highlight): the passage's world box is centred at a readable zoom (canvas-view.js passageZoom); no passage: the card is framed as before.
-    const box = options?.passage && surface.current ? toWorld(options.passage, surface.current.getBoundingClientRect(), viewRef.current) : null;
-    cameraRef.current = box ? { id, smooth: true, centre: true, focus: box, zoom: passageZoom(viewRef.current.z) } : { id, frame: true };
-  });
+  useSourceRefIndex(blocks, id => { if (String(id).startsWith('roadmap:')) { cameraRef.current = { id, smooth: true, centre: true }; nudgeSlotCamera(count => count + 1); return; } setSelection([id]); cameraRef.current = { id, frame: true }; });
   const slotPassages = JSON.stringify(slots.filter(slot => slot.roadmap?.sourceRef?.id && slot.roadmap.passage).map(slot => ({ slotId: slot.id, ref: slot.roadmap.sourceRef, start: slot.roadmap.passage.start, end: slot.roadmap.passage.end })));
   useEffect(() => { publishPending(JSON.parse(slotPassages)); }, [slotPassages]);
   useEffect(() => () => publishPending([]), []);
@@ -3417,7 +3411,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (want.moves != null && want.moves !== manualMoves.current) return; // the learner moved the camera since
     const box = { x: element.offsetLeft + (owner?.dx || 0), y: element.offsetTop + (owner?.dy || 0), w: element.offsetWidth, h: element.offsetHeight };
     // A slot or a Tutor card glides there at the learner's zoom; a Files-panel card, a chip's or Locate's card is framed, gliding too (glideTo).
-    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre ?? true, want.zoom ?? null, want.focus ?? null); // CK-4: centred unless a caller says otherwise; HL-148: a passage focus box and its zoom
+    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre ?? true); // CK-4: centred unless a caller says otherwise
   });
   // Search changes only camera, selection and transient DOM scroll/paint. It never commits text or card dimensions.
   const focusSearchTarget = async target => {

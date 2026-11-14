@@ -146,9 +146,9 @@ test('CK-4: a box bigger than the area starts at the area edge, or centres the p
 test('CK-4: the canvas routes every focus move through centerOnBox; only the keep-in-view nudges stay panInto', () => {
   const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(source, /import \{ centerOnBox,[^}]*\} from '\.\/canvas-view\.js'/);
-  assert.match(source, /reach = within => \(centre \? centerOnBox\(box, current, within, focus\) : panInto\(box, current, within, false\)\)/);
+  assert.match(source, /reach = within => \(centre \? centerOnBox\(box, current, within\) : panInto\(box, current, within, false\)\)/);
   assert.match(source, /const bringIntoView = id => showBox\(boundsRef\.current\[id\], false, true\);/);
-  assert.match(source, /showBox\(box, want\.smooth, want\.centre \?\? true, want\.zoom \?\? null, want\.focus \?\? null\)/); // HL-148: the passage focus box and its zoom ride along
+  assert.match(source, /showBox\(box, want\.smooth, want\.centre \?\? true\)/);
   assert.match(source, /showBox\(box, true, true, z === viewRef\.current\.z \? null : z\)/);
   assert.match(source, /reveal: box => showBox\(box, true, true\)/);
   assert.match(source, /keepRef\.current = id => showBox\(boundsRef\.current\[id\], true\);/, 'a card resizing is kept in view, not a focus move');

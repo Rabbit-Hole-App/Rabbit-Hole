@@ -62,7 +62,7 @@ export function publishPending(pending) {
 }
 
 // The one place the camera is sent to a card for "Go to highlight" and "Go to card" (HL-3): CK-4's centring helper (canvas-view.js) replaces this one line at the sprint merge.
-const goTo = (focus, cardId, options) => focus?.(cardId, options);
+const goTo = (focus, cardId) => focus?.(cardId);
 
 // Card to passage. A PDF opens the companion reader at the page with the passage emphasized (the existing
 // 'small:excerpt-source' event, ExcerptCard.jsx); a Markdown passage focuses its file card, which then emphasizes the quote.
@@ -70,15 +70,12 @@ const goTo = (focus, cardId, options) => focus?.(cardId, options);
 // not on this canvas).
 // raw: the card is a roadmap card (stepId), so its Markdown quote is raw Markdown and may be matched folded once the whole file is drawn (source-ref.js resolveRawPassage).
 // range: a Tutor slot's step, which has no quote yet: the plan's raw offsets, read from the file card's own text there.
-export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout, raw = false, range = null, measure = measurePassage } = {}) {
+export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout, raw = false, range = null } = {}) {
   if (!navigable(ref)) return 'unavailable';
   if (ref.kind === 'pdf') { emit(new CustomEvent('small:excerpt-source', { detail: { ref: readerRef(ref) } })); return 'opened'; }
   const cardId = markdownCardOf(blocks, ref);
   if (!cardId) return 'no-card';
-  // HL-148: where the passage is drawn now (the card measures its own resolved quote), so the camera can centre THAT at a readable zoom instead of framing the whole card (a 10,000 px file card is 20% when framed).
-  // No rect (a quote that does not resolve, a roadmap raw quote, a card that scrolls inside itself): the card is focused as it always was and the card says what it found.
-  const rect = !raw && !range && ref.anchor?.quote ? measure(cardId, { quote: ref.anchor.quote, rev: ref.source.rev }) : null;
-  goTo(focus, cardId, rect ? { passage: rect } : undefined);
+  goTo(focus, cardId);
   // The camera moves first; the card paints its emphasis once it is on screen.
   wait(() => emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, quote: ref.anchor?.quote, ...(raw ? { raw: true } : {}), ...(range ? { range } : {}) } })), 250);
   return 'opened';

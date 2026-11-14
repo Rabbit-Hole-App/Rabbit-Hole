@@ -43,8 +43,6 @@ export function topView(box, area, { pad = 48, minZoom = 0.5 } = {}) {
 // CK-4: the one camera for every FOCUS move (a card just made, Go to card, View passage or explanation, Focus): the thing goes to the middle of the visible `area` on both axes, at the
 // learner's zoom (z never changes). A box already inside the area is centred too (panInto left it where it was). On an axis where the box is bigger than the area it starts at the area's
 // edge (top / left), or, when `focus` (a box in the same world pixels: the passage) is given, that part is centred, so a tall card opens on the words and not on its top.
-// HL-148: the zoom a passage is read at when the camera is sent to it (Go to highlight, View passage): the learner's own zoom when it is readable (0.6 or more), else 1. centerOnBox never changes z; the caller applies this.
-export const passageZoom = z => (Number.isFinite(z) && z >= 0.6 ? z : 1);
 export function centerOnBox(box, view, area, focus = null) {
   const axis = (start, size, offset, lo, hi, part) => {
     const length = size * view.z;

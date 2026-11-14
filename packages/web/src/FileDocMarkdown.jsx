@@ -162,16 +162,8 @@ export function MarkdownText({ block, text, children }) {
   // UI.06: the canvas asks where a step's raw range is drawn, to place its slot beside it. Only a resolved range on this revision that is inside the visible
   // scroller answers; anything else is null (the canvas then uses this card's box). Never scrolls, expands or paints.
   const measureRef = useRef(null);
-  measureRef.current = ({ range: raw, rev: wanted, quote: asked }) => {
+  measureRef.current = ({ range: raw, rev: wanted }) => {
     const node = root.current;
-    // HL-148: a resolved quote (View passage, Go to highlight) is measured wherever it is drawn in the card, in view or not, so the canvas can centre it. A card that scrolls inside itself moves the passage after the
-    // camera does (passageView scrolls it to the middle of that scroller), so it is not measured: the card is focused as before. Exact text only, the rule the emphasis paints with.
-    if (asked) {
-      const s = scroller.current;
-      if (!node || wanted !== rev || (s && s.scrollHeight > s.clientHeight + 2)) return null;
-      const found = resolveQuote(node.textContent, asked), range = found.status === 'resolved' && rangeFromOffsets(node, found.start, found.end);
-      return range ? range.getBoundingClientRect() : null;
-    }
     if (!node || wanted !== rev || !raw || raw.end > text.length) return null;
     const quote = rawQuote(raw);
     let found = resolveQuote(node.textContent, quote);
