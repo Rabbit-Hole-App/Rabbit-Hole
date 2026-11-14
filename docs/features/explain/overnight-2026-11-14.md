@@ -15,7 +15,7 @@ Nine candidates, each stacked on the previous one. Release them in this order; e
 | 137 | 40a77cecb0a8d9cf6836bc0e9aabc5124179c5a1 | 136b | UX-1, UX-2, UX-3, markdown anchor 46109a502 | 4bee4b8b0c6a / 1c907117cc5c5ddc |
 | 138 | 03fc4642f53806bc86317b4e3a4ffe2201b75c5a | 137 | CV-6, CV-7 | d7045a21ad1c / e3d3240061aed4b7 |
 | 139 | 4ec260c089631e662809ac382b00aabe14fc905d | 138 | CV-3 | 3428ae176b84 / 9616c65369896504 |
-| 140 | 4204cd37b3accafb988cc1c8567563d43daac574 | 139 | AR-2 (+ one test fix, see caveats) | not reported by the fork, see section 5 |
+| 140 | 4204cd37b3accafb988cc1c8567563d43daac574 | 139 | AR-2 (+ one test fix, see caveats) | 3428ae176b84 / 3c6fec4501e47738 |
 | 141 | 24294b113128fcf1162fc218b53cb8ae3c032ea1 | 140 | CC-1, CF-1 | 3428ae176b84 / 090881654db8ad6a |
 
 Each release has `release/explain-<n>` and `release/explain-<n>-rollback-<first 8 of its SHA>` on the remote (verified by fetch for 134 through 141; 136b: `release/explain-136b`). Chain verified: each candidate descends from the previous one.
@@ -101,7 +101,6 @@ Screenshots for CV-6/CV-7/CV-3 use boards DERIVED from the v60 export (each meas
 ## 5. Not finished, and why
 
 - Film and kit: both done, see section 6.
-- The 140 MVP record: the fork says it is made on the dev clone but did not report the build and record ids, and the pins file has none. The ids are in the dev-clone log (`C:/s/spec/logs/preview-140-explain-*.log`).
 - 8878 update: after the releases, not before.
 - Lock time lost: about 20 minutes to two orphaned lock holders (a film script's child and a leftover acquire loop). I killed the recorded PIDs and replaced `heavy-lock.sh` with a version that exits when the parent shell is dead.
 - Worktrees kept for the pins (remove after the releases; `rmdir` each `node_modules` junction first): `C:/s/explain-canvas-2`, `C:/s/explain-canvas-3`, `C:/s/explain-base-40a77c`, `C:/s/explain-140`, `C:/s/explain-140-base`, `C:/s/explain-141`, `C:/s/explain-141-base`, `C:/s/explain-smoke` (do not remove).
