@@ -370,14 +370,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           {manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
           {manifest.instructions && <p data-card-instructions className="shrink-0 text-sm leading-snug text-ink-2">{manifest.instructions}</p>}
         </>}
-      {/* A composed card's experiment heading (Codex .experiment-heading): the plan's title at the left, Reset as the one icon at the right, one row above the scene. The plan has no scene title or
-          subtitle field, so the heading is the plan's title with no subtitle. ponytail: a scene subtitle (Codex "Upward is positive") waits for a plan field. */}
-      {composed && (
-        <div data-interact-heading className="flex shrink-0 items-center gap-3.5">
-          <h2 className="min-w-0 text-[17px] font-[650] leading-snug text-ink">{composition.title}</h2>
-          <ResetButton onReset={reset} disabled={!changed} />
-        </div>
-      )}
+      {/* A composed card's experiment heading row (Codex .experiment-heading): Reset as the one icon at its right, one row above the scene. The card's title is the block header's, so the row repeats no title
+          (owner 2026-11-13 16:50). ponytail: Codex's scene title and subtitle ("Upward is positive") wait for a plan field. */}
+      {composed && (<div data-interact-heading className="flex shrink-0 items-center"><ResetButton onReset={reset} disabled={!changed} /></div>)}
       <div data-program-viewport {...(composed ? { 'data-interact-scene': '' } : {})} className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
         style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
         <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" {...(dragIds.length ? pointerDrag : {})}
