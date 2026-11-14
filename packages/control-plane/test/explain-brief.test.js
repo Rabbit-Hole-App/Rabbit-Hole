@@ -267,7 +267,7 @@ test('a generic program topic is briefed against the program runtime, with no re
   assert.equal(waiting.stage, 'awaiting_approval', JSON.stringify(waiting.failure));
   assert.deepEqual([waiting.brief.components, waiting.brief.presentation, waiting.brief.assumptions], [[], 'experiment', ['Air resistance is ignored.']], 'no component name is checked or kept');
   const sent = model.calls[0].body, input = JSON.parse(sent.messages[0].content[0].text);
-  assert.deepEqual([input.catalogue, input.supported, input.runtime.capabilities, input.runtime.limits.inputs, input.runtime.limits.duration], [undefined, undefined, ['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', 'medium_visuals', 'cyclic_networks', 'raster_visuals', 'heat_grid'], 4, 120]);
+  assert.deepEqual([input.catalogue, input.supported, input.runtime.capabilities, input.runtime.limits.inputs, input.runtime.limits.duration], [undefined, undefined, ['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', 'medium_visuals', 'cyclic_networks', 'raster_visuals', 'heat_grid', 'props', 'figures'], 4, 120]);
   assert.deepEqual(['components' in sent.tools[0].input_schema.properties, sent.tools[0].input_schema.required.includes('components')], [false, false]);
   assert.match(sent.system[0].text, /for each control, button or selectable part, what using it lets the learner test/); // FX-60 replaced "what the learner can adjust"
   const [meta] = posted(s);

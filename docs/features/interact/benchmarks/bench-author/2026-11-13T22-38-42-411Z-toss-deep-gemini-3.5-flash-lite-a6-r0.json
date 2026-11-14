@@ -1,0 +1,121 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time }) { const u = inputs.launchSpeed; const g = inputs.gravity; const m = inputs.mass; const t = Math.max(0, Math.min(time, 2 * u / g)); const y = u * t - 0.5 * g * t * g; const v = u - g * t; const a = -g; const F = m * g; const apexTime = u / g; const apexHeight = (u * u) / (2 * g); let motionState = \"Ready to toss\"; if (t > 0 && t < apexTime) motionState = \"Rising\"; else if (Math.abs(t - apexTime) <= 0.02) motionState = \"At the top\"; else if (t > apexTime && y > 0) motionState = \"Falling\"; else if (y <= 0 && t > 0) motionState = \"Back at launch height\"; const objects = []; objects.push(...sdk.panel({ x: 20, y: 30, w: 280, h: 330, title: \"Motion\", state: motionState })); objects.push(sdk.axis(\"axis.y\", { x: 80, y: 320, length: 240, orientation: \"y\", min: 0, max: 2.2, ticks: [0, 0.5, 1.0, 1.5, 2.0], label: \"Height\", unit: \"m\" })); const ballY = 320 - (y / 2.2) * 240; objects.push(sdk.circle(\"ball.toss\", 160, ballY, 26, { role: \"output\" })); objects.push(...sdk.vector(\"vec.v\", { x: 190, y: ballY }, { value: v, direction: \"up\" }, { scale: 12, minLength: 12, label: \"v\" })); objects.push(...sdk.vector(\"vec.a\", { x: 220, y: ballY }, { value: a, direction: \"up\" }, { scale: 12, minLength: 12, label: \"a\" })); objects.push(...sdk.callout(245, ballY - 20, [`v: ${v.toFixed(2)} m/s`, `a: ${a.toFixed(1)} m/s^2`, `Fg: ${F.toFixed(1)} N`], { id: \"callout.toss\" })); const seriesPoints = sdk.sample((ti) => u - g * ti, 0, Math.min(t, 1.666), 20).map(([ti, vi]) => ({ x: ti, y: vi })); objects.push(sdk.plot(\"plot.vt\", { x: 320, y: 30, w: 300, h: 330, axes: { x: { label: \"Time\", min: 0, max: 1.66, unit: \"s\" }, y: { label: \"Velocity\", min: -5.5, max: 5.5, unit: \"m/s\" } }, series: [{ label: \"v(t)\", kind: \"line\", points: seriesPoints }] })); objects.push(sdk.text(\"plot.vt.note\", 340, 350, \"Slope a = -g\")); return { frame: { width: 640, height: 420, objects, readouts: [{ id: \"velocity\", value: v }, { id: \"acceleration\", value: a }, { id: \"force\", value: F }, { id: \"motionState\", value: motionState }] }, quantities: { launchSpeed: u, gravity: g, mass: m, apexTime, apexHeight, height: y, velocity: v, acceleration: a, force: F } }; }",
+    "manifest": {
+     "title": "Zero velocity. Nonzero acceleration.",
+     "summary": "At the top, velocity is zero, but acceleration and force remain constant.",
+     "description": "A ball tossed vertically on a height ruler next to a velocity-time graph. Controls allow adjusting launch speed, gravity, and mass.",
+     "assumptions": [
+      "No air resistance, up is positive."
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "gravity",
+       "label": "Gravity",
+       "unit": "m/s^2",
+       "default": 9.8,
+       "min": 6,
+       "max": 12,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "mass",
+       "label": "Mass",
+       "unit": "kg",
+       "default": 1,
+       "min": 0.2,
+       "max": 3,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.6666666666666667,
+     "instructions": "Change launch speed or gravity, then press Play. Compare readings at the top.",
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "before",
+        "label": "Top -0.10 s",
+        "time": 0.30816326530612237
+       },
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       },
+       {
+        "id": "after",
+        "label": "Top +0.10 s",
+        "time": 0.5081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "velocity",
+       "label": "Velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "acceleration",
+       "label": "Acceleration",
+       "unit": "m/s^2",
+       "decimals": 1
+      },
+      {
+       "id": "force",
+       "label": "Force",
+       "unit": "N",
+       "decimals": 1
+      },
+      {
+       "id": "motionState",
+       "label": "State",
+       "kind": "state",
+       "labels": [
+        "Ready to toss",
+        "Rising",
+        "At the top",
+        "Falling",
+        "Back at launch height"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  }
+ },
+ "usage": {
+  "completion_tokens": 1760,
+  "prompt_tokens": 9687,
+  "prompt_tokens_details": {
+   "cached_tokens": 7394
+  },
+  "total_tokens": 11447
+ }
+}

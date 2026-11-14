@@ -1,0 +1,105 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time, seed, state }) {\n  const launchSpeed = inputs.launchSpeed;\n  const gravity = inputs.gravity;\n  const apexTime = launchSpeed / gravity;\n  const apexHeight = (launchSpeed * launchSpeed) / (2 * gravity);\n  const t = time;\n  const tossedHeight = launchSpeed * t - 0.5 * gravity * t * t;\n  const tossedVelocity = launchSpeed - gravity * t;\n  const tossedAcceleration = -gravity;\n\n  let dropHeight = apexHeight;\n  let dropVelocity = 0;\n  let dropAcceleration = 0;\n  if (t >= apexTime) {\n    const dt = t - apexTime;\n    dropHeight = apexHeight - 0.5 * gravity * dt * dt;\n    dropVelocity = -gravity * dt;\n    dropAcceleration = -gravity;\n  }\n\n  let stateToss = \"At launch\";\n  if (t > 0 && t < apexTime) stateToss = \"Rising\";\n  else if (Math.abs(t - apexTime) < 0.05) stateToss = \"At the top\";\n  else if (t > apexTime && tossedHeight > 0) stateToss = \"Falling\";\n  else if (t >= apexTime && tossedHeight <= 0) stateToss = \"At launch height\";\n\n  let stateDrop = \"Held in place\";\n  if (Math.abs(t - apexTime) < 0.05) stateDrop = \"Just released\";\n  else if (t > apexTime && dropHeight > 0) stateDrop = \"Falling together\";\n  else if (t >= apexTime && dropHeight <= 0) stateDrop = \"At launch height\";\n\n  const hScale = 120 / 2.2;\n  const baseY = 360;\n  const tossX = 200;\n  const dropX = 440;\n\n  const yToss = baseY - tossedHeight * hScale;\n  const yDrop = baseY - dropHeight * hScale;\n\n  const objects = [];\n  objects.push(...sdk.panel({ x: 60, y: 50, w: 260, h: 350, title: \"Toss lane\", state: stateToss, id: \"lane.toss\" }));\n  objects.push(...sdk.panel({ x: 340, y: 50, w: 260, h: 350, title: \"Drop lane\", state: stateDrop, id: \"lane.drop\" }));\n\n  objects.push(sdk.circle(\"ball.toss\", tossX, yToss, 28, { role: \"output\" }));\n  objects.push(sdk.circle(\"ball.drop\", dropX, yDrop, 28, { role: \"output\" }));\n\n  objects.push(...sdk.vector(\"vec.v.toss\", { x: tossX - 20, y: yToss }, { value: tossedVelocity, direction: \"up\" }, { scale: 15, label: \"v\" }));\n  objects.push(...sdk.vector(\"vec.a.toss\", { x: tossX + 20, y: yToss }, { value: tossedAcceleration, direction: \"up\" }, { scale: 15, label: \"a\" }));\n\n  objects.push(...sdk.vector(\"vec.v.drop\", { x: dropX - 20, y: yDrop }, { value: dropVelocity, direction: \"up\" }, { scale: 15, label: \"v\" }));\n  objects.push(...sdk.vector(\"vec.a.drop\", { x: dropX + 20, y: yDrop }, { value: dropAcceleration, direction: \"up\" }, { scale: 15, label: \"a\" }));\n\n  objects.push(...sdk.callout(tossX + 45, yToss - 20, [`v: ${sdk.format(tossedVelocity)} m/s`, `a: ${sdk.format(tossedAcceleration)} m/s^2`], { id: \"callout.toss\" }));\n  objects.push(...sdk.callout(dropX + 45, yDrop - 20, [`v: ${sdk.format(dropVelocity)} m/s`, `a: ${sdk.format(dropAcceleration)} m/s^2`], { id: \"callout.drop\" }));\n\n  if (t >= apexTime) {\n    objects.push(sdk.gate(\"gate\", dropX, baseY - apexHeight * hScale, { open: true, label: \"Apex gate\" }));\n  } else {\n    objects.push(sdk.gate(\"gate\", dropX, baseY - apexHeight * hScale, { open: false, label: \"Apex gate\" }));\n  }\n\n  return {\n    frame: {\n      width: 640,\n      height: 420,\n      objects,\n      readouts: [\n        { id: \"tossedVelocity\", value: tossedVelocity },\n        { id: \"tossedAcceleration\", value: tossedAcceleration },\n        { id: \"dropVelocity\", value: dropVelocity },\n        { id: \"dropAcceleration\", value: dropAcceleration }\n      ]\n    },\n    quantities: {\n      launchSpeed,\n      gravity,\n      apexTime,\n      apexHeight,\n      tossedVelocity,\n      tossedAcceleration,\n      tossedHeight,\n      dropVelocity,\n      dropAcceleration,\n      dropHeight\n    }\n  };\n}",
+    "manifest": {
+     "title": "Zero velocity isn’t zero acceleration.",
+     "summary": "At the top, velocity is zero for an instant, but gravity keeps changing it: a = -g. The gate releases a second ball at that moment. Both then fall together from rest.",
+     "description": "Two vertical lanes show a tossed ball and a dropped ball side by side, with velocity and acceleration vectors and readouts.",
+     "assumptions": [
+      "No air resistance, the same gravity for both balls, up is positive."
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "gravity",
+       "label": "Gravity",
+       "unit": "m/s^2",
+       "default": 9.8,
+       "min": 6,
+       "max": 12,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.6666666666666667,
+     "timeline": {
+      "label": "Time from the top",
+      "displayOffset": -0.4081632653061224,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "before",
+        "label": "-0.10 s",
+        "time": 0.30816326530612237
+       },
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       },
+       {
+        "id": "after",
+        "label": "+0.10 s",
+        "time": 0.5081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "tossedVelocity",
+       "label": "Toss velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "tossedAcceleration",
+       "label": "Toss acceleration",
+       "unit": "m/s^2",
+       "decimals": 2
+      },
+      {
+       "id": "dropVelocity",
+       "label": "Drop velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "dropAcceleration",
+       "label": "Drop acceleration",
+       "unit": "m/s^2",
+       "decimals": 2
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 2126,
+  "prompt_tokens": 9653,
+  "prompt_tokens_details": {
+   "cached_tokens": 7387
+  },
+  "total_tokens": 11779
+ }
+}

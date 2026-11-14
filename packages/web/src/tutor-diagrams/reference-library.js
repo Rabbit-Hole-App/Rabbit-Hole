@@ -38,6 +38,7 @@ import { transformerEncoderReference } from './transformer-encoder-reference.js'
 import { transformerDecoderReferences } from './transformer-decoder-references.js';
 import { figureChapterReferences } from './figure-chapter-references.js';
 import { lessonDecisionTreesReferences } from './lesson-decision-trees-references.js';
+import { references as topicLinearRegressionReferences } from './topic-linear-regression-references.js';
 import { references as topicLogisticRegressionReferences } from './topic-logistic-regression-references.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
@@ -79,6 +80,8 @@ export const diagramReferences = Object.freeze([
   ...batch1FollowupReferences,
   ...figureChapterReferences,
   ...lessonDecisionTreesReferences,
+
+  ...topicLinearRegressionReferences,
 
   ...topicLogisticRegressionReferences,
   ...estimationEvaluationReferences,

@@ -1,0 +1,65 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "op": "input",
+    "id": "launchSpeed"
+   },
+   "gravity": {
+    "op": "input",
+    "id": "gravity"
+   },
+   "mass": {
+    "op": "input",
+    "id": "mass"
+   },
+   "apexTime": {
+    "op": "divide",
+    "id": "launchSpeed/gravity left-right split missing in standard thinking, but valid object format applies logic correctly: divide launchSpeed by gravity."
+   },
+   "apexHeight": {
+    "op": "divide",
+    "id": "launchSpeed*launchSpeed / 2g placeholder"
+   },
+   "height": {
+    "op": "subtract",
+    "id": "placeholder for validation correction - proper structure below"
+   },
+   "velocity": {
+    "op": "subtract",
+    "id": "placeholder"
+   },
+   "acceleration": {
+    "op": "subtract",
+    "id": "placeholder"
+   },
+   "force": {
+    "op": "multiply",
+    "id": "placeholder"
+   }
+  },
+  "moments": {
+   "before": {
+    "op": "subtract",
+    "id": "placeholder"
+   },
+   "top": {
+    "op": "divide",
+    "id": "placeholder"
+   },
+   "heavyTop": {
+    "op": "divide",
+    "id": "placeholder"
+   },
+   "fastTop": {
+    "op": "divide",
+    "id": "placeholder"
+   }
+  }
+ },
+ "usage": {
+  "completion_tokens": 395,
+  "prompt_tokens": 1493,
+  "total_tokens": 1888
+ }
+}

@@ -1,0 +1,79 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time }) {\n  const launchSpeed = inputs.launchSpeed ?? 4.0;\n  const g = 9.8;\n  const apexTime = launchSpeed / g;\n  const apexHeight = (launchSpeed * launchSpeed) / (2 * g);\n  const duration = (2 * launchSpeed) / g;\n  const t = Math.max(0, Math.min(time, duration));\n  const v = launchSpeed - g * t;\n  const h = Math.max(0, launchSpeed * t - 0.5 * g * t * t);\n  const y0 = 360;\n  const scale = 140;\n  const ballY = y0 - h * scale;\n  const ballX = 320;\n  let motionLabel = \"Moving up\";\n  if (Math.abs(v) < 0.05) {\n    motionLabel = \"Still for an instant\";\n  } else if (v < 0) {\n    motionLabel = \"Moving down\";\n  }\n  const lane = sdk.panel({\n    id: \"lane.main\",\n    x: 40,\n    y: 20,\n    w: 560,\n    h: 380,\n    title: \"Toss Motion\",\n    state: motionLabel\n  });\n  const axis = sdk.axis(\"axis.height\", {\n    x: 100,\n    y: y0,\n    length: 300,\n    orientation: \"y\",\n    min: 0,\n    max: 1.5,\n    ticks: [0, 0.5, 1.0, 1.5],\n    label: \"Height\",\n    unit: \"m\"\n  });\n  const guide = sdk.line(\"guide.launch\", 100, y0, 500, y0, {\n    role: \"neutral\",\n    opacity: 0.5\n  });\n  const ball = sdk.circle(\"ball.toss\", ballX, ballY, 24, {\n    role: \"observed\"\n  });\n  const vecV = sdk.vector(\"vec.v\", { x: ballX + 24, y: ballY }, {\n    value: Math.abs(v),\n    direction: v >= 0 ? \"up\" : \"down\",\n    scale: 25,\n    minLength: 12,\n    label: \"v\",\n    role: \"observed\"\n  });\n  const vecA = sdk.vector(\"vec.a\", { x: ballX - 24, y: ballY }, {\n    value: g,\n    direction: \"down\",\n    scale: 4,\n    minLength: 12,\n    label: \"a\",\n    role: \"warning\"\n  });\n  const callout = sdk.callout(ballX + 60, ballY - 20, [\n    motionLabel,\n    \"Gravity pulls down\"\n  ], {\n    id: \"callout.toss\",\n    role: \"neutral\"\n  });\n  const objects = [...lane, axis, guide, ball, ...vecV, ...vecA, ...callout];\n  return {\n    frame: {\n      width: 640,\n      height: 420,\n      objects,\n      readouts: [\n        { id: \"motionState\", value: motionLabel },\n        { id: \"gravityState\", value: \"Gravity pulls down\" }\n      ]\n    },\n    quantities: {\n      launchSpeed,\n      gravity: g,\n      apexTime,\n      apexHeight,\n      velocity: v,\n      height: h\n    }\n  };\n}\n",
+    "manifest": {
+     "title": "The ball stops rising. Gravity doesn’t stop.",
+     "summary": "Shows a tossed ball moving upward, pausing briefly at its peak, and falling, while gravity constantly pulls down.",
+     "description": "A ball is tossed vertically. A blue arrow shows vertical velocity which decreases to zero at the peak and reverses. A dashed vector shows constant downward gravitational acceleration.",
+     "assumptions": [
+      "Gravity fixed at 9.8 m/s^2, no air resistance, up is positive."
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.0204081632653061,
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "motionState",
+       "label": "Motion",
+       "kind": "state",
+       "labels": [
+        "Moving up",
+        "Still for an instant",
+        "Moving down"
+       ]
+      },
+      {
+       "id": "gravityState",
+       "label": "Gravity",
+       "kind": "state",
+       "labels": [
+        "Gravity pulls down"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 1432,
+  "prompt_tokens": 8330,
+  "prompt_tokens_details": {
+   "cached_tokens": 6910
+  },
+  "total_tokens": 9762
+ }
+}

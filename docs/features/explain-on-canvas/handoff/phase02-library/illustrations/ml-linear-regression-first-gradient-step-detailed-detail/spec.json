@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "title": "Compute the simultaneous update",
+    "caption": "Prediction errors are predictions minus targets. Both gradients use the initial parameters.",
+    "columns": [
+      {
+        "heading": "Weight",
+        "items": [
+          "Errors: $-2, -4, -5, -4, -5$",
+          "$g_w=(2/5)(-66)=-26.4$",
+          "$w'=0-0.01(-26.4)=0.264$"
+        ]
+      },
+      {
+        "heading": "Intercept",
+        "items": [
+          "$g_b=(2/5)(-20)=-8$",
+          "$b'=0-0.01(-8)=0.08$"
+        ]
+      }
+    ]
+  }
+}

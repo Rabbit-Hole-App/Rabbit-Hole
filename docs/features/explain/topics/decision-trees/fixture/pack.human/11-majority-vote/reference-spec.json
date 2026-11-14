@@ -1,0 +1,100 @@
+{
+ "version": 1,
+ "diagram": {
+  "kind": "flow",
+  "title": "Forest vote for row J",
+  "nodes": [
+   {
+    "id": "s",
+    "label": "Use training rows A to H",
+    "role": "fork"
+   },
+   {
+    "id": "a",
+    "label": "Draw bootstrap 1",
+    "role": "process"
+   },
+   {
+    "id": "d",
+    "label": "Fit tree 1 · x at most 4",
+    "role": "process"
+   },
+   {
+    "id": "b",
+    "label": "Draw bootstrap 2",
+    "role": "process"
+   },
+   {
+    "id": "e",
+    "label": "Fit tree 2 · y at most 4",
+    "role": "process"
+   },
+   {
+    "id": "c",
+    "label": "Draw bootstrap 3",
+    "role": "process"
+   },
+   {
+    "id": "f",
+    "label": "Fit tree 3 · x at most 5",
+    "role": "process"
+   },
+   {
+    "id": "v",
+    "label": "Take a majority vote",
+    "role": "merge"
+   },
+   {
+    "id": "w",
+    "label": "Predict class 1",
+    "role": "outcome"
+   }
+  ],
+  "edges": [
+   {
+    "from": "s",
+    "to": "a"
+   },
+   {
+    "from": "a",
+    "to": "d"
+   },
+   {
+    "from": "d",
+    "to": "v",
+    "label": "0"
+   },
+   {
+    "from": "s",
+    "to": "b"
+   },
+   {
+    "from": "b",
+    "to": "e"
+   },
+   {
+    "from": "e",
+    "to": "v",
+    "label": "1"
+   },
+   {
+    "from": "s",
+    "to": "c"
+   },
+   {
+    "from": "c",
+    "to": "f"
+   },
+   {
+    "from": "f",
+    "to": "v",
+    "label": "1"
+   },
+   {
+    "from": "v",
+    "to": "w"
+   }
+  ],
+  "caption": "Worked example. Draw with replacement. Every tree predicts the same held-out row."
+ }
+}

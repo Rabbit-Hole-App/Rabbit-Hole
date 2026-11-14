@@ -96,6 +96,7 @@ const SIGMOID_FIGURE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy
 // gap-2 above it, which a static scene does not draw (AnimatedScene).
 const FRAME_CHROME = { w: 36, h: 140 };
 const TRANSPORT = 40;
+const HEADING = 40; // a composed /interact card's experiment heading row above the frame (h-8) and the gap-2 under it (ProgramScene data-interact-heading)
 // A card waiting for its /explain job: compact, its height its content's (about 220 with a one-line title).
 export const EXPLAIN_PENDING_SIZE = { width: 440, height: undefined };
 
@@ -524,7 +525,7 @@ export const BLOCK_TYPES = {
       // A temporary default, never saved as w/h: once the result attaches (explainResultBlock keeps only a learner's own
       // resize) the card takes its scene's or frame's size below.
       if (block.explainJob && !block.scene && !block.program) return EXPLAIN_PENDING_SIZE;
-      if (block.program) return programFrame ? programCardSize(programFrame, { chrome: { w: FRAME_CHROME.w, h: FRAME_CHROME.h - TRANSPORT }, minWidth: 560 }) : null;
+      if (block.program) return programFrame ? programCardSize(programFrame, { chrome: { w: FRAME_CHROME.w, h: FRAME_CHROME.h - TRANSPORT + (compositionOf(block) ? HEADING : 0) }, minWidth: compositionOf(block) ? EXPLAIN_PENDING_SIZE.width : 560 }) : null; // a composed /interactive card starts as wide as the written card (440); the frame still sets the width above that
       const report = block.scene ? sceneLegibility(block.scene) : null;
       if (!report) return null;
       // The INTERACT zone below the frame and transport is not reserved here:

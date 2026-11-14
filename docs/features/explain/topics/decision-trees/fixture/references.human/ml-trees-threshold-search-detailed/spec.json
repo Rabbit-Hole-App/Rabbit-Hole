@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Test the midpoints on x",
+    "x": {
+      "label": "Threshold on x",
+      "min": 0,
+      "max": 8
+    },
+    "y": {
+      "label": "Weighted Gini",
+      "min": 0,
+      "max": 0.4
+    },
+    "series": [
+      {
+        "label": "Candidate midpoints",
+        "kind": "stem",
+        "points": [
+          {
+            "x": 2,
+            "y": 0.375,
+            "label": "0.375"
+          },
+          {
+            "x": 4,
+            "y": 0.1875,
+            "label": "0.1875"
+          },
+          {
+            "x": 6,
+            "y": 0.2083,
+            "label": "0.2083"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "x": 4,
+        "y": 0.1875,
+        "label": "Lowest Gini"
+      }
+    ],
+    "caption": "Worked example. Exact x scores are 3 over 8, 3 over 16, 5 over 24. Best y score is 3 over 8."
+  }
+}

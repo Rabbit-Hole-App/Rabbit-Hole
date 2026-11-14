@@ -49,7 +49,7 @@ const flowDecisions = cs => { const f = cs.flatMap(c => (c.diagrams || []).filte
 const batchCard = (dir, nn) => { const d = dir && existsSync(dir) ? readdirSync(dir).find(x => x.startsWith(nn + '-')) : null; const f = d && join(dir, d, 'visual-1.json'); return f && existsSync(f) ? { title: (json(f).diagram || json(f)).title || '', spec: JSON.stringify(json(f).diagram || json(f)).slice(0, 3500), prompt: (readFileSync(join(dir, d, 'card.md'), 'utf8').match(/^- Prompt: (.*)$/m) || [])[1] || d } : null; };
 const STEP = 'Does the visual contain the step or quantity the question is about: the action that produces the result (decrypt with the private key; the veto override; the frame popped at the base case), or the derived values (precision and recall from the four cells)? A visual that shows only the setup is no. Answer by calling record_step with answer yes or no and a one-line reason.';
 async function decisive(card) {
-  const call = keyTransport(), tool = { name: 'record_step', description: 'Record the verdict.', input_schema: { type: 'object', additionalProperties: false, required: ['answer', 'reason'], properties: { answer: { type: 'string', enum: ['yes', 'no'] }, reason: { type: 'string' } } } };
+  const call = keyTransport(VARS), tool = { name: 'record_step', description: 'Record the verdict.', input_schema: { type: 'object', additionalProperties: false, required: ['answer', 'reason'], properties: { answer: { type: 'string', enum: ['yes', 'no'] }, reason: { type: 'string' } } } };
   const res = await call({ model: JUDGE_MODEL, max_tokens: 1000, output_config: { effort: 'low' }, system: `decisive-step-v1. ${STEP}`, tools: [tool], tool_choice: { type: 'auto', disable_parallel_tool_use: true }, messages: [{ role: 'user', content: `Question: ${card.prompt}\nVisual title: ${card.title}\nVisual spec: ${card.spec}` }] });
   const body = await res.json(), u = body.usage || {};
   return { ...(body.content || []).find(b => b.type === 'tool_use')?.input, cost: (u.input_tokens || 0) * PRICE.input + (u.output_tokens || 0) * PRICE.output };
@@ -124,6 +124,7 @@ function commits(o) {
   return regressed.map(l => `Regressed layer ${l}: revert these one at a time before 117:\n${log.filter(x => LAYERS[l].test(x)).map(x => `  - ${x}`).join('\n') || '  (no commit matched)'}`).join('\n');
 }
 
+let VARS; // the --vars file: its ANTHROPIC_API_KEY is the judge key
 export async function layerReport(o) {
   const old = cardsOf(o.old), nw = cardsOf(o.new);
   if (!old) throw new Error('--old <run dir> with a results.json is required');
@@ -135,7 +136,8 @@ export async function layerReport(o) {
 }
 
 async function main() {
-  const { values: a } = parseArgs({ options: { new: { type: 'string' }, old: { type: 'string' }, base: { type: 'string' }, 'batch-before': { type: 'string' }, 'batch-after': { type: 'string' }, 'prose-new': { type: 'string' }, 'prose-old': { type: 'string' }, 'log-new': { type: 'string' }, 'log-old': { type: 'string' }, repo: { type: 'string', default: 'C:/s/explain-117' }, ref: { type: 'string', default: 'release/explain-117' }, since: { type: 'string', default: '76d4486c6' }, judge: { type: 'boolean' }, out: { type: 'string' } } });
+  const { values: a } = parseArgs({ options: { new: { type: 'string' }, old: { type: 'string' }, base: { type: 'string' }, 'batch-before': { type: 'string' }, 'batch-after': { type: 'string' }, 'prose-new': { type: 'string' }, 'prose-old': { type: 'string' }, 'log-new': { type: 'string' }, 'log-old': { type: 'string' }, repo: { type: 'string', default: 'C:/s/explain-117' }, ref: { type: 'string', default: 'release/explain-117' }, since: { type: 'string', default: '76d4486c6' }, judge: { type: 'boolean' }, out: { type: 'string' }, vars: { type: 'string' } } });
+  VARS = a.vars;
   const text = await layerReport({ ...a, new: a.new || 'none', 'batch-before': a['batch-before'] || 'docs/features/explain/review/batch-01' });
   if (a.out) writeFileSync(resolve(a.out), text); else console.log(text);
 }

@@ -1,0 +1,479 @@
+{
+  "artifact": {
+    "kind": "explain_program",
+    "schemaVersion": 1,
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "sdkVersion": "sdk-7",
+    "rendererVersion": "renderer-1",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+      "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+      "sdk": "6206b4735e853dc4d6d25707fdaf084ada83a98754b414b72309915abe71e58c",
+      "renderer": "renderer-1"
+    },
+    "dependencies": [],
+    "manifest": {
+      "title": "Zero velocity at the top is not zero acceleration",
+      "summary": "A tossed ball rises and falls while a held ball waits on a release gate until the tossed ball reaches its top. Velocity and acceleration arrows on both balls show that the velocity passes through zero while the acceleration stays -9.8 m/s^2.",
+      "assumptions": [
+        "Constant downward acceleration of 9.8 m/s^2, no air resistance, up is positive.",
+        "An idealized vertical throw; real balls feel drag.",
+        "While the gate holds it, the held ball is supported and has zero acceleration."
+      ],
+      "description": "On the left, a tossed ball rises from a launch mark to a marked top and falls back; on the right, a held ball rests on a release gate at launch height. The gate opens at the instant the tossed ball reaches its top, and the held ball then falls from rest. Each ball carries a velocity arrow and a downward acceleration arrow; a velocity arrow shrinks to a dot when the velocity is zero. A height axis in metres, up positive, is shared by both balls.",
+      "inputs": [
+        {
+          "type": "number",
+          "id": "launchSpeed",
+          "label": "Launch speed",
+          "unit": "m/s",
+          "default": 3,
+          "min": 3,
+          "max": 5,
+          "step": 0.1
+        },
+        {
+          "type": "select",
+          "id": "showArrows",
+          "label": "Show arrows",
+          "default": "on",
+          "options": [
+            {
+              "value": "on",
+              "label": "On"
+            },
+            {
+              "value": "off",
+              "label": "Off"
+            }
+          ]
+        }
+      ],
+      "duration": 1.0204081632653061,
+      "timeline": {
+        "label": "Time from the top",
+        "displayOffset": -0.3061224489795918,
+        "playbackRate": 0.1,
+        "markers": [
+          {
+            "id": "before",
+            "label": "-0.10 s",
+            "time": 0.20612244897959178
+          },
+          {
+            "id": "top",
+            "label": "Top",
+            "time": 0.3061224489795918
+          },
+          {
+            "id": "after",
+            "label": "+0.10 s",
+            "time": 0.4061224489795918
+          }
+        ]
+      },
+      "readouts": [
+        {
+          "id": "tossedHeight",
+          "label": "Height of tossed ball",
+          "unit": "m",
+          "decimals": 3
+        },
+        {
+          "id": "tossedVelocity",
+          "label": "Velocity of tossed ball",
+          "unit": "m/s",
+          "decimals": 2
+        },
+        {
+          "id": "tossedAcceleration",
+          "label": "Acceleration of tossed ball",
+          "unit": "m/s^2",
+          "decimals": 1
+        }
+      ],
+      "capabilities": [
+        "time_playback",
+        "props"
+      ]
+    },
+    "source": "export function evaluate({ inputs, time }) {\n  const g = 9.8;\n  let u = Number(inputs && inputs.launchSpeed);\n  if (!isFinite(u)) u = 3;\n  u = sdk.clamp(u, 3, 5);\n  const show = !(inputs && inputs.showArrows === \"off\");\n  const tTop = u / g;\n  const tEnd = 2 * u / g;\n  let t = Number(time);\n  if (!isFinite(t)) t = 0;\n  t = sdk.clamp(t, 0, tEnd);\n\n  let v = u - g * t;\n  if (Math.abs(v) < 1e-9) v = 0;\n  let h = u * t - g * t * t / 2;\n  if (Math.abs(h) < 1e-12) h = 0;\n  const a = -g;\n  const apexHeight = u * u / (2 * g);\n\n  const released = t >= tTop - 1e-9;\n  const tr = released ? Math.max(0, t - tTop) : 0;\n  let hv = released ? -g * tr : 0;\n  if (Math.abs(hv) < 1e-9) hv = 0;\n  const hh = -g * tr * tr / 2;\n  const ha = released ? -g : 0;\n\n  const launchY = 190, ppm = 95;\n  const Y = (m) => launchY - m * ppm;\n  const xT = 250, xH = 450;\n  const vScale = 16, aScale = 7;\n\n  const objs = [];\n  objs.push(sdk.line(\"axis\", 100, Y(1.4), 100, Y(-1.4), { role: \"neutral\" }));\n  objs.push(sdk.text(\"axisLabel\", 100, 22, \"Height (m), up +\", { align: \"middle\" }));\n  objs.push(sdk.text(\"tickP1\", 58, Y(1) + 5, \"+1 m\"));\n  objs.push(sdk.text(\"tick0\", 62, Y(0) + 5, \"0 m\"));\n  objs.push(sdk.text(\"tickM1\", 58, Y(-1) + 5, \"-1 m\"));\n  objs.push(sdk.line(\"level\", 110, launchY, 600, launchY, { role: \"neutral\", opacity: 0.25 }));\n  objs.push(sdk.line(\"topLine\", 205, Y(apexHeight), 345, Y(apexHeight), { role: \"neutral\", opacity: 0.45 }));\n  objs.push(sdk.text(\"topText\", 352, Y(apexHeight) + 5, \"Top\"));\n\n  objs.push(...sdk.groundMark(\"launchMark\", xT, launchY + 13, 30));\n  objs.push(sdk.text(\"launchMarkLabel\", 110, launchY + 24, \"Launch mark\"));\n  objs.push(...sdk.gate(\"gate\", xH, launchY + 13, { open: released, w: 40 }));\n  objs.push(sdk.text(\"gateLabel\", 500, launchY + 24, \"Release gate\"));\n\n  objs.push(sdk.text(\"tossedLabel\", xT, 22, \"Tossed ball\", { align: \"middle\" }));\n  objs.push(sdk.text(\"heldLabel\", xH, 22, \"Held ball\", { align: \"middle\" }));\n\n  const yT = Y(h), yH = Y(hh);\n  objs.push(sdk.circle(\"tossedBall\", xT, yT, 24, { role: \"output\" }));\n  objs.push(sdk.circle(\"heldBall\", xH, yH, 24, { role: \"observed\" }));\n\n  if (show) {\n    objs.push(sdk.circle(\"tvDot\", xT - 28, yT, 6, { role: \"output\" }));\n    objs.push(...sdk.vector(\"tossedV\", { x: xT - 28, y: yT }, { value: Math.abs(v), direction: v >= 0 ? \"up\" : \"down\" }, { scale: vScale, label: \"v\", role: \"output\" }));\n    objs.push(...sdk.vector(\"tossedA\", { x: xT + 28, y: yT }, { value: Math.abs(a), direction: \"down\" }, { scale: aScale, label: \"a\", role: \"warning\" }));\n    objs.push(sdk.circle(\"hvDot\", xH - 28, yH, 6, { role: \"observed\" }));\n    objs.push(...sdk.vector(\"heldV\", { x: xH - 28, y: yH }, { value: Math.abs(hv), direction: hv >= 0 ? \"up\" : \"down\" }, { scale: vScale, label: \"v\", role: \"observed\" }));\n    objs.push(...sdk.vector(\"heldA\", { x: xH + 28, y: yH }, { value: Math.abs(ha), direction: \"down\" }, { scale: aScale, label: \"a\", role: \"warning\" }));\n  }\n\n  const readouts = [\n    { id: \"tossedHeight\", value: h },\n    { id: \"tossedVelocity\", value: v },\n    { id: \"tossedAcceleration\", value: a }\n  ];\n  const frame = sdk.frame(objs, { width: 640, height: 440, readouts });\n  return {\n    frame,\n    quantities: {\n      launchSpeed: u,\n      gravity: g,\n      velocity: v,\n      acceleration: a,\n      apexTime: tTop,\n      height: h,\n      tossedHeight: h,\n      tossedVelocity: v,\n      tossedAcceleration: a,\n      heldHeight: hh,\n      heldVelocity: hv,\n      heldAcceleration: ha\n    }\n  };\n}\n",
+    "sourceHash": "fc19049424747007518e94540282107525bcfe7a8feb162acf414ac133a8246f",
+    "manifestHash": "3aeecf3fcc6ffd3272582c82657b76104d602207f3a0dbbb7c0638a328e133f2",
+    "bundleHash": "469b3fc869f03a30c5c79fd7ad09743dd0454a15350a73e6a8bf0562ce14f37f"
+  },
+  "panel": "main",
+  "identity": {
+    "jobId": "ej_a7e7bb226e614a02b5a426e30218f615",
+    "resultId": "er_30060ba6446847a98e45ed196fed0a89",
+    "cardId": "306bdc05-2730-42c2-b08a-0b6168f47684",
+    "canvas": {
+      "boardId": "a9f05eae-6e05-41e5-96b3-7228d346d171"
+    },
+    "promptRef": "16a4c5f3d8ac9c7d",
+    "revision": "xr_237fbcb3bd344beea57e19e58dd1304b",
+    "baseRevision": null,
+    "kind": "program",
+    "bundleHash": "469b3fc869f03a30c5c79fd7ad09743dd0454a15350a73e6a8bf0562ce14f37f",
+    "sourceHash": "fc19049424747007518e94540282107525bcfe7a8feb162acf414ac133a8246f",
+    "manifestHash": "3aeecf3fcc6ffd3272582c82657b76104d602207f3a0dbbb7c0638a328e133f2",
+    "versions": {
+      "schema": 1,
+      "runtime": "quickjs-release-sync@0.32.0",
+      "sdk": "sdk-7",
+      "renderer": "renderer-1"
+    },
+    "policyVersion": 1,
+    "interact": {
+      "version": 1,
+      "planHash": "8f564bdfc1479ad31db521eea57fa45642a45fc606ba5a0acfa4e2a0c9225117",
+      "envelopeHash": "9c8253b20e3351e43c3f79032b7509baf0bdba0de1ab52dca72916a6ffcc3ebd",
+      "rounds": 1,
+      "completeCard": false,
+      "descriptionFit": "card-description-v1:estimate"
+    }
+  },
+  "execution": {
+    "allowed": true
+  },
+  "composition": {
+    "version": 1,
+    "planHash": "8f564bdfc1479ad31db521eea57fa45642a45fc606ba5a0acfa4e2a0c9225117",
+    "depth": "balanced",
+    "title": "Zero velocity at the top is not zero acceleration",
+    "cardDescription": "Toss a ball up at 3.0 to 5.0 m/s. At its top the velocity is zero, yet the acceleration stays -9.8 m/s^2 at every launch speed. No air resistance.",
+    "order": [
+      "title",
+      "description",
+      "main",
+      "transport",
+      "controls"
+    ],
+    "supporting": [],
+    "main": {
+      "artifact": {
+        "kind": "program",
+        "hash": "469b3fc869f03a30c5c79fd7ad09743dd0454a15350a73e6a8bf0562ce14f37f"
+      },
+      "runtime": {
+        "renderer": "program",
+        "schemaVersion": 1,
+        "sdkVersion": "sdk-7",
+        "programTuple": {
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-7",
+          "rendererVersion": "renderer-1",
+          "runtimeVersion": "quickjs-release-sync@0.32.0",
+          "runtimePolicyVersion": "policy-1",
+          "permissionProfileVersion": "perm-1",
+          "fingerprints": {
+            "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+            "sdk": "6206b4735e853dc4d6d25707fdaf084ada83a98754b414b72309915abe71e58c",
+            "renderer": "renderer-1"
+          }
+        },
+        "requiredHelpers": [],
+        "requiredCapabilities": [
+          "time_playback",
+          "props"
+        ],
+        "catalogueHash": "ef8353b4de6669c367490ba4d80f549036930884ffea081624247d51e0bdc3cb"
+      },
+      "mode": "experiment",
+      "readoutIds": [
+        "tossedHeight",
+        "tossedVelocity",
+        "tossedAcceleration"
+      ],
+      "inputDefaults": {
+        "launchSpeed": 3,
+        "showArrows": "on"
+      },
+      "controls": [
+        {
+          "id": "play",
+          "type": "playback",
+          "label": "Play",
+          "nativeControlId": "program.playback",
+          "binding": {
+            "kind": "timeline"
+          },
+          "row": "transport",
+          "native": {
+            "in": "timeline",
+            "declaration": {
+              "part": "playback",
+              "labels": {
+                "paused": "Play",
+                "playing": "Pause",
+                "ended": "Replay"
+              }
+            }
+          },
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "tossedBall"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "heldBall"
+            }
+          ],
+          "labels": {
+            "paused": "Play",
+            "playing": "Pause",
+            "ended": "Replay"
+          }
+        },
+        {
+          "id": "scrub",
+          "type": "scrubber",
+          "label": "Time from the top",
+          "nativeControlId": "program.scrubber",
+          "binding": {
+            "kind": "timeline"
+          },
+          "row": "transport",
+          "native": {
+            "in": "timeline",
+            "declaration": {
+              "part": "scrubber",
+              "unit": "s",
+              "step": 0.01
+            }
+          },
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "tossedBall"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "tossedVelocity"
+            }
+          ],
+          "unit": "s",
+          "step": 0.01
+        },
+        {
+          "id": "speed",
+          "type": "number",
+          "label": "Launch speed",
+          "nativeControlId": "program.number",
+          "binding": {
+            "kind": "input",
+            "id": "launchSpeed"
+          },
+          "row": "controls",
+          "native": {
+            "in": "manifest.inputs",
+            "declaration": {
+              "type": "number",
+              "id": "launchSpeed",
+              "label": "Launch speed",
+              "unit": "m/s",
+              "default": 3,
+              "min": 3,
+              "max": 5,
+              "step": 0.1
+            }
+          },
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "tossedBall"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "apexTime"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "tossedHeight"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "tossedVelocity"
+            }
+          ],
+          "unit": "m/s",
+          "default": 3,
+          "min": 3,
+          "max": 5,
+          "step": 0.1
+        },
+        {
+          "id": "arrows",
+          "type": "select",
+          "label": "Show arrows",
+          "nativeControlId": "program.select",
+          "binding": {
+            "kind": "input",
+            "id": "showArrows"
+          },
+          "row": "controls",
+          "native": {
+            "in": "manifest.inputs",
+            "declaration": {
+              "type": "select",
+              "id": "showArrows",
+              "label": "Show arrows",
+              "default": "on",
+              "options": [
+                {
+                  "value": "on",
+                  "label": "On"
+                },
+                {
+                  "value": "off",
+                  "label": "Off"
+                }
+              ]
+            }
+          },
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "velocityArrow"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "accelerationArrow"
+            }
+          ],
+          "default": "on",
+          "options": [
+            {
+              "value": "on",
+              "label": "On"
+            },
+            {
+              "value": "off",
+              "label": "Off"
+            }
+          ]
+        }
+      ],
+      "timeline": {
+        "label": "Time from the top",
+        "unit": "s",
+        "end": {
+          "op": "divide",
+          "left": {
+            "op": "multiply",
+            "left": {
+              "op": "literal",
+              "value": 2
+            },
+            "right": {
+              "op": "input",
+              "id": "launchSpeed"
+            }
+          },
+          "right": {
+            "op": "literal",
+            "value": 9.8
+          }
+        },
+        "displayOffset": {
+          "op": "multiply",
+          "left": {
+            "op": "literal",
+            "value": -1
+          },
+          "right": {
+            "op": "divide",
+            "left": {
+              "op": "input",
+              "id": "launchSpeed"
+            },
+            "right": {
+              "op": "literal",
+              "value": 9.8
+            }
+          }
+        },
+        "markers": [
+          {
+            "id": "before",
+            "label": "-0.10 s",
+            "time": {
+              "op": "subtract",
+              "left": {
+                "op": "divide",
+                "left": {
+                  "op": "input",
+                  "id": "launchSpeed"
+                },
+                "right": {
+                  "op": "literal",
+                  "value": 9.8
+                }
+              },
+              "right": {
+                "op": "literal",
+                "value": 0.1
+              }
+            }
+          },
+          {
+            "id": "top",
+            "label": "Top",
+            "time": {
+              "op": "divide",
+              "left": {
+                "op": "input",
+                "id": "launchSpeed"
+              },
+              "right": {
+                "op": "literal",
+                "value": 9.8
+              }
+            }
+          },
+          {
+            "id": "after",
+            "label": "+0.10 s",
+            "time": {
+              "op": "add",
+              "left": {
+                "op": "divide",
+                "left": {
+                  "op": "input",
+                  "id": "launchSpeed"
+                },
+                "right": {
+                  "op": "literal",
+                  "value": 9.8
+                }
+              },
+              "right": {
+                "op": "literal",
+                "value": 0.1
+              }
+            }
+          }
+        ],
+        "playbackRate": 0.1,
+        "initialTime": 0,
+        "initialPlayback": "paused",
+        "step": 0.01
+      },
+      "onInputChange": "reset_pause"
+    },
+    "envelopeHash": "9c8253b20e3351e43c3f79032b7509baf0bdba0de1ab52dca72916a6ffcc3ebd"
+  },
+  "sources": []
+}

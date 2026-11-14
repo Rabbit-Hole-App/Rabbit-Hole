@@ -88,5 +88,117 @@ export function pendulumPeriodOracle(plan) {
   return expect.length ? { id: 'pendulum-period', expect } : null;
 }
 
+// ---- The three reference toss-and-drop cards (owner 2026-11-13): toss-overview, toss-standard, toss-deep -------------------------------------------------------
+// Interact cards with one program frame and launch speed u (2.0-5.0, default 4.0), plus gravity g (6.0-12.0, default 9.8; fixed 9.8 on the Overview) and mass m (0.2-3.0,
+// default 1.0, Deep). t is elapsed time from launch: y = u t - g t^2 / 2, v = u - g t, a = -g, top at u / g, return at 2 u / g, F = m g.
+// Standard: the second ball is held at the top height until the top (tau = t - u / g), then equals the tossed ball: v = -g tau, a = -g. Its acceleration AT tau = 0 is
+// left out (a builder may switch the gate at tau = 0 or just after); every other instant is exact. State readouts (Moving up, Held in place, ...) are text, judged by the
+// rendered review, never here. Case ids and their input states mirror buildPlanCaptureCases: start, cp-<id>, end, bound-<control>-min|max (a boundary is captured at the first
+// checkpoint whose time references that input, else at the end). An oracle exists only for a plan that IS the reference card: its controls, ranges, timeline arithmetic and
+// pause markers are checked against the equations first, and any difference returns null (never matched by guessing).
+const REF = { speed: [2, 5, 4], gravity: [6, 12, 9.8], mass: [0.2, 3, 1] };
+const NEAR = 1e-9;
+
+function tossReference(plan, depth, { gravity, mass, offset }) {
+  if (plan?.depth !== depth || plan.mode.kind !== 'experiment' || plan.scene.runtime.renderer !== 'program' || !plan.mode.timeline || plan.supportingVisuals.length) return null;
+  const numbers = plan.controls.filter(c => c.type === 'number' && c.binding.kind === 'input'), tl = plan.mode.timeline;
+  const control = (name, [min, max, def]) => numbers.find(c => c.binding.id === name && c.min === min && c.max === max && c.default === def && Math.abs(c.step - 0.1) < 1e-9);
+  const speed = control('launchSpeed', REF.speed), g = gravity && control('gravity', REF.gravity), m = mass && control('mass', REF.mass);
+  if (!speed || (gravity && !g) || (mass && !m) || numbers.length !== 1 + !!gravity + !!mass) return null;
+  if (!gravity && plan.mode.fixedValues.gravity !== G) return null;
+  const inputControls = [speed, g, m].filter(Boolean), defaults = Object.fromEntries(inputControls.map(c => [c.binding.id, c.default])), domains = Object.fromEntries(inputControls.map(c => [c.binding.id, [c.min, c.max]]));
+  const at = (expr, inputs) => evalScalar(expr, inputs, domains), gOf = inputs => (gravity ? inputs.gravity : G);
+  try {
+    for (const inputs of [defaults, { ...defaults, launchSpeed: 5, ...(gravity ? { gravity: 6 } : {}) }, { ...defaults, launchSpeed: 2, ...(gravity ? { gravity: 12 } : {}) }]) {
+      const u = inputs.launchSpeed, top = u / gOf(inputs);
+      if (Math.abs(at(tl.end, inputs) - 2 * top) > NEAR || Math.abs(at(tl.displayOffset, inputs) - offset * top) > NEAR || Math.abs(tl.playbackRate - 0.2) > NEAR) return null;
+      const pauses = tl.markers.filter(k => k.pause).map(k => at(k.time, inputs)).sort((a, b) => a - b), want = depth === 'brief' ? [top] : [top - 0.1, top, top + 0.1];
+      if (pauses.length !== want.length || pauses.some((t, i) => Math.abs(t - want[i]) > NEAR)) return null;
+    }
+  } catch { return null; }
+  return { inputControls, defaults, at, gOf, tl };
+}
+
+// The plan's case ids with their inputs and elapsed time, as buildPlanCaptureCases keys them.
+function tossCases(plan, { inputControls, defaults, at, tl }) {
+  const refs = (e, id) => !!e && (e.op === 'input' ? e.id === id : e.op !== 'literal' && (refs(e.left, id) || refs(e.right, id)));
+  const cases = { start: [defaults, 0], end: [defaults, at(tl.end, defaults)] };
+  for (const cp of plan.scene.checkpoints) { const inputs = { ...defaults, ...cp.inputOverrides }; cases[`cp-${cp.id}`] = [inputs, cp.time ? at(cp.time, inputs) : 0]; }
+  for (const c of inputControls) {
+    const anchor = plan.scene.checkpoints.find(cp => refs(cp.time, c.binding.id));
+    for (const [tag, v] of [['min', c.min], ['max', c.max]]) { const inputs = { ...defaults, ...(anchor?.inputOverrides ?? {}), [c.binding.id]: v }; cases[`bound-${c.id}-${tag}`] = [inputs, anchor ? at(anchor.time, inputs) : at(tl.end, inputs)]; }
+  }
+  return cases;
+}
+
+// The toss plan's cases as { caseId: [inputs, elapsedSeconds] } (the ones its oracle's rows are keyed by), or null when the plan is not one of the three toss plans. bench-expressions.mjs evaluates a model's expressions at them.
+export function tossCasesOf(plan) {
+  const options = { brief: { gravity: false, mass: false, offset: 0 }, balanced: { gravity: true, mass: false, offset: -1 }, detailed: { gravity: true, mass: true, offset: 0 } }[plan?.depth];
+  const ref = (options && tossReference(plan, plan.depth, options)) || ledgeReference(plan);
+  return ref ? { cases: tossCases(plan, ref), domains: Object.fromEntries(ref.inputControls.map(c => [c.binding.id, [c.min, c.max]])) } : null;
+}
+
+// Arrow directions (y grows downward on the screen; sdk.vector's `direction` names the POSITIVE axis and `value` is signed along it, so a negative acceleration drawn with direction "up" points down).
+// The acceleration and the force always point down. The velocity arrow points up before the top, is absent at it, and points down after; within 0.1 m/s of zero it may be missing (the card hides an arrow
+// under its minimum length).
+const WHY = { v: 'velocity points up before the top, is zero at the top and points down after it', a: 'the acceleration is -g, so its arrow always points down (direction names the positive axis, value is signed along it)', F: 'the force is m g downward, so its arrow always points down' };
+const velocityDir = v => Math.abs(v) < NEAR ? 'none' : Math.abs(v) < 0.1 ? `${v > 0 ? 'up' : 'down'}-or-none` : v > 0 ? 'up' : 'down';
+
+function tossOracle(plan, id, ref, values, arrows = () => []) {
+  const required = new Set([...plan.scene.observations.flatMap(o => o.quantityIds).filter(q => !(q in plan.mode.fixedValues)), ...plan.scene.readoutIds]);
+  const expect = [], directions = [];
+  for (const [caseId, [inputs, t]] of Object.entries(tossCases(plan, ref))) {
+    const g = ref.gOf(inputs), u = inputs.launchSpeed, top = u / g, tau = t - top;
+    for (const [objectId, dir, quantity] of arrows({ velocity: u - g * t, tau, g })) directions.push({ case: caseId, id: objectId, dir, why: WHY[quantity] });
+    for (const [name, expected] of Object.entries(values({ u, g, m: inputs.mass ?? 1, t, tau, top, peak: u * u / (2 * g), height: Math.max(0, u * t - g * t * t / 2), velocity: u - g * t }))) if (required.has(name) && expected !== undefined) expect.push({ case: caseId, panel: 'main', name, expected, tol: TOL });
+  }
+  return expect.length ? { id, expect, arrows: directions } : null;
+}
+
+export function tossOverviewOracle(plan) {
+  const ref = tossReference(plan, 'brief', { gravity: false, mass: false, offset: 0 });
+  return ref && tossOracle(plan, 'toss-overview', ref, v => ({ velocity: v.velocity, height: v.height, apexTime: v.top, apexHeight: v.peak, launchSpeed: v.u }), v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a']]);
+}
+
+export function tossStandardOracle(plan) {
+  const ref = tossReference(plan, 'balanced', { gravity: true, mass: false, offset: -1 });
+  const released = v => v.tau >= -NEAR;
+  return ref && tossOracle(plan, 'toss-standard', ref, v => ({
+    tossedVelocity: v.velocity, tossedAcceleration: -v.g, tossedHeight: v.height, apexTime: v.top, apexHeight: v.peak, launchSpeed: v.u, gravity: v.g,
+    dropVelocity: released(v) ? -v.g * Math.max(0, v.tau) : 0, dropHeight: released(v) ? v.height : v.peak,
+    dropAcceleration: Math.abs(v.tau) < NEAR ? undefined : v.tau > 0 ? -v.g : 0,
+  }), v => [['vec.v.toss', velocityDir(v.velocity), 'v'], ['vec.a.toss', 'down', 'a'], ['vec.v.drop', velocityDir(v.tau > 0 ? -v.g * v.tau : 0), 'v'], ['vec.a.drop', 'down-or-none', 'a']]);
+}
+
+export function tossDeepOracle(plan) {
+  const ref = tossReference(plan, 'detailed', { gravity: true, mass: true, offset: 0 });
+  return ref && tossOracle(plan, 'toss-deep', ref, v => ({ height: v.height, velocity: v.velocity, acceleration: -v.g, force: v.m * v.g, apexTime: v.top, apexHeight: v.peak, launchSpeed: v.u, gravity: v.g, mass: v.m }), v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a'], ['vec.F', 'down-or-none', 'F']]);
+}
+
+// ---- The fourth plan, ledge-toss-moon (brief 7 section 5): a ball thrown up from a 1.0 m ledge on the Moon -------------------------------------------------------------------------
+// Height is measured from the ground, so the ledge is at 1.0 m: y = 1 + u t - g t^2 / 2, v = u - g t, a = -g with g = 1.62 fixed, launch speed u in 1.0..3.0 (default 2.0, step 0.1), the top at
+// u / g and the flight ends back at ledge height at 2 u / g; one pause marker, at the top. Like the toss references it exists only for a plan that IS this one (never by guessing).
+const MOON = 1.62, LEDGE = 1;
+
+function ledgeReference(plan) {
+  if (plan?.depth !== 'brief' || plan.mode.kind !== 'experiment' || plan.scene.runtime.renderer !== 'program' || !plan.mode.timeline || plan.supportingVisuals.length) return null;
+  const numbers = plan.controls.filter(c => c.type === 'number' && c.binding.kind === 'input'), tl = plan.mode.timeline;
+  const speed = numbers.find(c => c.binding.id === 'launchSpeed' && c.min === 1 && c.max === 3 && c.default === 2 && Math.abs(c.step - 0.1) < 1e-9);
+  if (!speed || numbers.length !== 1 || plan.mode.fixedValues.gravity !== MOON) return null;
+  const defaults = { launchSpeed: speed.default }, domains = { launchSpeed: [speed.min, speed.max] }, at = (expr, inputs) => evalScalar(expr, inputs, domains);
+  try {
+    for (const u of [2, 1, 3]) {
+      const inputs = { launchSpeed: u }, top = u / MOON, pauses = tl.markers.filter(k => k.pause).map(k => at(k.time, inputs));
+      if (Math.abs(at(tl.end, inputs) - 2 * top) > NEAR || Math.abs(at(tl.displayOffset, inputs)) > NEAR || pauses.length !== 1 || Math.abs(pauses[0] - top) > NEAR) return null;
+    }
+  } catch { return null; }
+  return { inputControls: [speed], defaults, at, gOf: () => MOON, tl };
+}
+
+export function ledgeMoonOracle(plan) {
+  const ref = ledgeReference(plan);
+  return ref && tossOracle(plan, 'ledge-toss-moon', ref, v => ({ velocity: v.velocity, height: LEDGE + v.u * v.t - v.g * v.t * v.t / 2, acceleration: -v.g, apexTime: v.top, apexHeight: LEDGE + v.peak, launchSpeed: v.u, gravity: v.g }), v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a']]);
+}
+
 // The trusted expected values for this plan, or null when no oracle exists for it (the checks then say so).
-export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan) ?? overviewDropOracle(plan) ?? pendulumPeriodOracle(plan);
+export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan) ?? overviewDropOracle(plan) ?? pendulumPeriodOracle(plan) ?? tossOverviewOracle(plan) ?? tossStandardOracle(plan) ?? tossDeepOracle(plan) ?? ledgeMoonOracle(plan);

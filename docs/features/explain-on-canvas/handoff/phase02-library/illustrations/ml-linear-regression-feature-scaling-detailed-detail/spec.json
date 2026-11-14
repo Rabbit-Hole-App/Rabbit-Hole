@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Standardization makes the path direct",
+    "x": {
+      "label": "Weight $w_1$",
+      "min": -2,
+      "max": 2,
+      "unit": "y per SD"
+    },
+    "y": {
+      "label": "Weight $w_2$",
+      "min": -2,
+      "max": 2,
+      "unit": "y per SD"
+    },
+    "series": [
+      {
+        "label": "Direct path",
+        "kind": "line",
+        "samples": {
+          "x": [
+            -1.5,
+            -0.15,
+            -0.015,
+            -0.0015
+          ],
+          "y": [
+            0.4,
+            0.04,
+            0.004,
+            0.0004
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "ellipse",
+        "label": "Round valley",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radiusX": 2,
+        "radiusY": 2
+      }
+    ],
+    "caption": "Illustrative values; $z=(x-\\\\mu)/\\\\sigma$ centers each feature and gives it unit population variance."
+  }
+}

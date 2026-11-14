@@ -185,7 +185,11 @@ export function validate(diagram, issue) {
   else if (diagram.kind === 'bar-chart') checkBars(diagram, issue);
 }
 
-export const axisName = axis => `${axis.label}${axis.unit ? ` (${axis.unit})` : ''}${axis.scale === 'log' ? ' · log scale' : ''}`;
+export const axisName = axis => {
+  const name = `${axis.label}${axis.unit ? ` (${axis.unit})` : ''}`;
+  // The suffix is added once: a label that already says "log scale" is left as the author wrote it.
+  return axis.scale === 'log' && !/log scale/iu.test(name) ? `${name} · log scale` : name;
+};
 const xy = p => `(${p.x}, ${p.y})`;
 export function annotationDescription(a) {
   switch (a.kind) {

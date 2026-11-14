@@ -1,0 +1,383 @@
+{
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
+ "plan": {
+  "planner": "jev",
+  "ms": 94,
+  "kind": "coordinate-plot",
+  "fixed": true,
+  "offered": null,
+  "treatment": "mechanism",
+  "confidence": 0.97,
+  "physical": 0.09,
+  "pictures": 0,
+  "diagrams": 1,
+  "physicalOverride": null
+ },
+ "raw": [
+  {
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "coordinate-plot"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "coordinate-plot",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.97,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.96,
+     "isPhysical": 0.09,
+     "needsWorkedExample": 0.61
+    },
+    "ms": 94
+   },
+   "references": [
+    "shape-coordinate-plot",
+    "ml-trees-depth-overfit"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Training and held-out error by depth",
+       "caption": "Illustrative run. Held-out error is lowest at depth 3, then rises as training error falls.",
+       "kind": "coordinate-plot",
+       "x": {
+        "label": "Max depth",
+        "min": 1,
+        "max": 8,
+        "integerTicks": true
+       },
+       "y": {
+        "label": "Error rate",
+        "min": 0,
+        "max": 50,
+        "unit": "%"
+       },
+       "series": [
+        {
+         "label": "Training",
+         "kind": "line",
+         "points": [
+          {
+           "x": 1,
+           "y": 38
+          },
+          {
+           "x": 2,
+           "y": 28
+          },
+          {
+           "x": 3,
+           "y": 20
+          },
+          {
+           "x": 4,
+           "y": 13
+          },
+          {
+           "x": 5,
+           "y": 8
+          },
+          {
+           "x": 6,
+           "y": 4
+          },
+          {
+           "x": 7,
+           "y": 2
+          },
+          {
+           "x": 8,
+           "y": 0
+          }
+         ]
+        },
+        {
+         "label": "Held out",
+         "kind": "line",
+         "points": [
+          {
+           "x": 1,
+           "y": 40
+          },
+          {
+           "x": 2,
+           "y": 31
+          },
+          {
+           "x": 3,
+           "y": 23
+          },
+          {
+           "x": 4,
+           "y": 26
+          },
+          {
+           "x": 5,
+           "y": 29
+          },
+          {
+           "x": 6,
+           "y": 33
+          },
+          {
+           "x": 7,
+           "y": 37
+          },
+          {
+           "x": 8,
+           "y": 43
+          }
+         ]
+        }
+       ],
+       "annotations": [
+        {
+         "kind": "point",
+         "label": "Lowest held-out error",
+         "x": 3,
+         "y": 23
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "coordinate-plot"
+   ]
+  }
+ ],
+ "row": {
+  "id": "ml-trees-depth-overfit",
+  "set": "demo-lesson04",
+  "run": 1,
+  "depth": "standard",
+  "prompt": "how does held-out error change as a decision tree grows deeper?",
+  "canvas": "canvas-e5fe0ffd",
+  "startedAt": "2026-11-09T19:48:46.762Z",
+  "http": 200,
+  "totalMs": 3550,
+  "delivered": true,
+  "failure": null,
+  "authoredBy": {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite"
+  },
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "repaired": false,
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "authorCalls": 1,
+  "pictures": 0,
+  "ledgerUsd": 0.003181,
+  "estUsd": 0.008,
+  "costUsd": 0.003181,
+  "costSource": "ledger",
+  "steer": [],
+  "repairCauses": [],
+  "corrected": [],
+  "diagramCorrections": null,
+  "visualFallback": null,
+  "proseLists": 0,
+  "unknownKeysStripped": {
+   "events": 0,
+   "keys": 0
+  },
+  "picturesDropped": [],
+  "raw": [
+   {
+    "attempt": 0,
+    "plan": {
+     "visuals": [
+      {
+       "type": "diagram",
+       "kind": "coordinate-plot"
+      }
+     ],
+     "depthTreatment": "mechanism",
+     "kind": "coordinate-plot",
+     "fixed": true,
+     "confidence": {
+      "kind": 0.97,
+      "visualType": 1
+     },
+     "flags": {
+      "needsPlot": 0.96,
+      "isPhysical": 0.09,
+      "needsWorkedExample": 0.61
+     },
+     "ms": 94
+    },
+    "references": [
+     "shape-coordinate-plot",
+     "ml-trees-depth-overfit"
+    ],
+    "visuals": [
+     {
+      "k": "diagram",
+      "spec": {
+       "version": 1,
+       "diagram": {
+        "title": "Training and held-out error by depth",
+        "caption": "Illustrative run. Held-out error is lowest at depth 3, then rises as training error falls.",
+        "kind": "coordinate-plot",
+        "x": {
+         "label": "Max depth",
+         "min": 1,
+         "max": 8,
+         "integerTicks": true
+        },
+        "y": {
+         "label": "Error rate",
+         "min": 0,
+         "max": 50,
+         "unit": "%"
+        },
+        "series": [
+         {
+          "label": "Training",
+          "kind": "line",
+          "points": [
+           {
+            "x": 1,
+            "y": 38
+           },
+           {
+            "x": 2,
+            "y": 28
+           },
+           {
+            "x": 3,
+            "y": 20
+           },
+           {
+            "x": 4,
+            "y": 13
+           },
+           {
+            "x": 5,
+            "y": 8
+           },
+           {
+            "x": 6,
+            "y": 4
+           },
+           {
+            "x": 7,
+            "y": 2
+           },
+           {
+            "x": 8,
+            "y": 0
+           }
+          ]
+         },
+         {
+          "label": "Held out",
+          "kind": "line",
+          "points": [
+           {
+            "x": 1,
+            "y": 40
+           },
+           {
+            "x": 2,
+            "y": 31
+           },
+           {
+            "x": 3,
+            "y": 23
+           },
+           {
+            "x": 4,
+            "y": 26
+           },
+           {
+            "x": 5,
+            "y": 29
+           },
+           {
+            "x": 6,
+            "y": 33
+           },
+           {
+            "x": 7,
+            "y": 37
+           },
+           {
+            "x": 8,
+            "y": 43
+           }
+          ]
+         }
+        ],
+        "annotations": [
+         {
+          "kind": "point",
+          "label": "Lowest held-out error",
+          "x": 3,
+          "y": 23
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "kinds": [
+     "coordinate-plot"
+    ]
+   }
+  ],
+  "modelCalls": [
+   {
+    "served": "gemini-3.5-flash-lite",
+    "status": 200,
+    "outcome": "completed",
+    "error": null,
+    "ms": 3307
+   }
+  ]
+ },
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "tokens": {
+  "input": 3935,
+  "output": 800,
+  "authorUsd": 0.003181,
+  "pictureUsd": 0
+ },
+ "totalMs": 3550,
+ "costUsd": 0.003181
+}

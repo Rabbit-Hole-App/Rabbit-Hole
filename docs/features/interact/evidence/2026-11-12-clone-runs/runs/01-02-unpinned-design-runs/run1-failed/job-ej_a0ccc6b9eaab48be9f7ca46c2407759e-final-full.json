@@ -1,0 +1,264 @@
+{
+  "job": {
+    "id": "ej_a0ccc6b9eaab48be9f7ca46c2407759e",
+    "version": 1,
+    "boardId": "6e29809c-e21c-44f1-8d80-27f176e3a335",
+    "cardId": "a0f2066d-5e6b-4159-bfd6-3942b96cfe19",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "description_fit_unavailable",
+    "failure": {
+      "stage": "design_verifying",
+      "category": "internal",
+      "message": "The card description cannot be measured yet, so this scene plan cannot be offered.",
+      "retryable": true
+    },
+    "recovery": [
+      "new_attempt",
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 95,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 147,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 253794,
+      "approvalWaitMs": 0,
+      "calls": 4,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 77902,
+          "calls": 1,
+          "inputTokens": 6544,
+          "outputTokens": 8510,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "ms": 60516,
+          "calls": 1,
+          "inputTokens": 8600,
+          "outputTokens": 6505,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "ms": 69467,
+          "calls": 1,
+          "inputTokens": 16598,
+          "outputTokens": 10103,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "ms": 46,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "ms": 45821,
+          "calls": 1,
+          "inputTokens": 11284,
+          "outputTokens": 4689,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "ms": 42,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "description_fit_unavailable"
+        }
+      ]
+    },
+    "createdAt": 1794537719714,
+    "updatedAt": 1794537973655,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [
+      {
+        "key": "ej_a0ccc6b9eaab48be9f7ca46c2407759e-design_author-1",
+        "role": "design_author",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 635680,
+        "images": 0,
+        "costMicros": 282111,
+        "inputTokens": 6544,
+        "outputTokens": 8510,
+        "startedAt": 1794537720861,
+        "endedAt": 1794537797763,
+        "error": null
+      },
+      {
+        "key": "ej_a0ccc6b9eaab48be9f7ca46c2407759e-design_review-2",
+        "role": "design_review",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 595680,
+        "images": 0,
+        "costMicros": 186195,
+        "inputTokens": 8600,
+        "outputTokens": 6505,
+        "startedAt": 1794537797801,
+        "endedAt": 1794537858279,
+        "error": null
+      },
+      {
+        "key": "ej_a0ccc6b9eaab48be9f7ca46c2407759e-design_revise-3",
+        "role": "design_revise",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 675680,
+        "images": 0,
+        "costMicros": 338497,
+        "inputTokens": 16598,
+        "outputTokens": 10103,
+        "startedAt": 1794537858316,
+        "endedAt": 1794537927746,
+        "error": null
+      },
+      {
+        "key": "ej_a0ccc6b9eaab48be9f7ca46c2407759e-design_review-4",
+        "role": "design_review",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 595680,
+        "images": 0,
+        "costMicros": 139784,
+        "inputTokens": 11284,
+        "outputTokens": 4689,
+        "startedAt": 1794537928792,
+        "endedAt": 1794537973613,
+        "error": null
+      }
+    ],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794537719714,
+        "firstFeedback": 1794537719861
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794537719861,
+          "endedAt": 1794537797763,
+          "calls": 1,
+          "inputTokens": 6544,
+          "outputTokens": 8510,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "startedAt": 1794537797763,
+          "endedAt": 1794537858279,
+          "calls": 1,
+          "inputTokens": 8600,
+          "outputTokens": 6505,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "startedAt": 1794537858279,
+          "endedAt": 1794537927746,
+          "calls": 1,
+          "inputTokens": 16598,
+          "outputTokens": 10103,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "startedAt": 1794537927746,
+          "endedAt": 1794537927792,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "startedAt": 1794537927792,
+          "endedAt": 1794537973613,
+          "calls": 1,
+          "inputTokens": 11284,
+          "outputTokens": 4689,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "startedAt": 1794537973613,
+          "endedAt": 1794537973655,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "description_fit_unavailable"
+        }
+      ]
+    }
+  }
+}

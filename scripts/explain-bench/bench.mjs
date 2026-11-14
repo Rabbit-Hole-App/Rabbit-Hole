@@ -165,7 +165,7 @@ outer: for (let r = 1; r <= Math.max(...plan.map(p => p.runs)); r++) for (const 
 }
 if (a.persist) console.log(await tokensFromPersist(resolve(a.persist), email, rawDir).catch(e => `token counts skipped: ${e.message}`));
 writeFileSync(join(runDir, 'provenance.json'), JSON.stringify({ ...prov, ...(a.note ? { note: a.note } : {}), invocation: { base: BASE, sets: plan.map(p => ({ set: p.name, prompts: p.prompts.length, runs: p.runs, depths: p.depths })), cap, spentUsd: +spent.toFixed(4), cards: sent, stoppedByCap: stopped, user: email } }, null, 1));
-const r = await report({ raw: rawDir, runId, out, label: a.label, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge, carryFrom: a['carry-from'], judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges, judgeCap: Math.min(judgeCap, Math.max(0, +(cap - spent).toFixed(4))), richnessChange: a['richness-change'] });
+const r = await report({ raw: rawDir, runId, out, label: a.label, against: a.against, baseline: a.baseline, tagBaseline: a['tag-baseline'], judge: a.judge, carryFrom: a['carry-from'], judgeOnly: (a['judge-only'] || '').split(',').filter(Boolean), judges, judgeCap: Math.min(judgeCap, Math.max(0, +(cap - spent).toFixed(4))), richnessChange: a['richness-change'], vars: a.vars });
 for (const c of r.results.criteria) console.log(`${c.ok ? '✓' : '✗'} ${c.set}: ${c.rule}: ${c.detail}`);
 if (r.results.judge) console.log(`judge: ${r.results.judge.calls} calls, ${r.results.judge.cached} cached, US$${r.results.judge.spent} of US$${judgeCap.toFixed(2)}`);
 if (invalid) { console.log(`RESULT INVALID cards=${sent} spent=US$${spent.toFixed(4)} report=${join(r.runDir, 'report.md')}`); process.exit(4); }

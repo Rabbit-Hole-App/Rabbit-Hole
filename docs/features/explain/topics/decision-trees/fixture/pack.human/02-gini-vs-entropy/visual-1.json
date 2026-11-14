@@ -1,0 +1,90 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Gini impurity and entropy",
+  "caption": "Worked example comparing Gini impurity $G(p)=2p(1-p)$ and entropy $H(p)=-p\\log_2 p-(1-p)\\log_2(1-p)$.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Class fraction p",
+   "min": 0,
+   "max": 1
+  },
+  "y": {
+   "label": "Impurity score",
+   "min": 0,
+   "max": 1
+  },
+  "series": [
+   {
+    "label": "Gini impurity",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0
+     },
+     {
+      "x": 0.2,
+      "y": 0.32
+     },
+     {
+      "x": 0.4,
+      "y": 0.48
+     },
+     {
+      "x": 0.5,
+      "y": 0.5,
+      "label": "Gini peak"
+     },
+     {
+      "x": 0.6,
+      "y": 0.48
+     },
+     {
+      "x": 0.8,
+      "y": 0.32
+     },
+     {
+      "x": 1,
+      "y": 0
+     }
+    ]
+   },
+   {
+    "label": "Entropy",
+    "kind": "line",
+    "points": [
+     {
+      "x": 0,
+      "y": 0
+     },
+     {
+      "x": 0.2,
+      "y": 0.722
+     },
+     {
+      "x": 0.4,
+      "y": 0.971
+     },
+     {
+      "x": 0.5,
+      "y": 1,
+      "label": "Entropy peak"
+     },
+     {
+      "x": 0.6,
+      "y": 0.971
+     },
+     {
+      "x": 0.8,
+      "y": 0.722
+     },
+     {
+      "x": 1,
+      "y": 0
+     }
+    ]
+   }
+  ]
+ }
+}

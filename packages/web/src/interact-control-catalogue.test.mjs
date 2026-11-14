@@ -113,6 +113,6 @@ test('the catalogue matches the widgets the source actually wires', () => {
   assert.deepEqual([...registry.matchAll(/(\w+):/g)].map(m => m[1]).sort(), ['bool', 'choice', 'index', 'indices']);
   assert.match(controls, /declaration\.presentation === 'slider' \? IndexSlider/);
   const program = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
-  for (const marker of ['function NumberInput', 'data-program-action', 'data-program-target', 'data-scene-reset', 'data-animation-play']) assert.ok(program.includes(marker), marker);
-  assert.equal(/BoolToggle|IndexPicker|IndicesMarks/.test(program), false, 'ProgramScene wires no Boolean, index or multi-select widget');
+  for (const marker of ['function NumberInput', 'data-program-action', 'data-program-target', 'ResetButton', 'data-animation-play', 'programInputWidget']) assert.ok(program.includes(marker), marker);
+  assert.equal(/BoolToggle|IndexPicker|IndicesMarks/.test(program), false, 'ProgramScene names no widget itself: boolean and index inputs (inputs_v2, off in the default catalogue) go through programInputWidget to the same SceneControls widgets; there is no multi-select');
 });

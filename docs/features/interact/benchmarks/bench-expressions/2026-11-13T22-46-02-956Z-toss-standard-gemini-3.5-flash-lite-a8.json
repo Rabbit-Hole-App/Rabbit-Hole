@@ -1,0 +1,69 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "op": "input",
+    "id": "launchSpeed"
+   },
+   "gravity": {
+    "op": "input",
+    "id": "gravity"
+   },
+   "apexTime": {
+    "op": "divide",
+    "id": "launchSpeed"
+   },
+   "apexHeight": {
+    "op": "divide",
+    "id": "launchSpeed"
+   },
+   "tossedVelocity": {
+    "op": "subtract",
+    "id": "launchSpeed"
+   },
+   "tossedAcceleration": {
+    "op": "multiply",
+    "id": "gravity"
+   },
+   "tossedHeight": {
+    "op": "subtract",
+    "id": "launchSpeed"
+   },
+   "dropVelocity": {
+    "op": "literal",
+    "value": 0
+   },
+   "dropAcceleration": {
+    "op": "literal",
+    "value": 0
+   },
+   "dropHeight": {
+    "op": "input",
+    "id": "launchSpeed"
+   }
+  },
+  "moments": {
+   "before": {
+    "op": "subtract",
+    "id": "launchSpeed"
+   },
+   "top": {
+    "op": "divide",
+    "id": "launchSpeed"
+   },
+   "after": {
+    "op": "add",
+    "id": "launchSpeed"
+   },
+   "fastTop": {
+    "op": "literal",
+    "value": 0.8333333333333334
+   }
+  }
+ },
+ "usage": {
+  "completion_tokens": 409,
+  "prompt_tokens": 1501,
+  "total_tokens": 1910
+ }
+}

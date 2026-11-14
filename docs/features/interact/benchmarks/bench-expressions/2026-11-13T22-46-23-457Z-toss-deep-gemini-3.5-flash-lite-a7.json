@@ -1,0 +1,65 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "op": "input",
+    "id": "launchSpeed"
+   },
+   "gravity": {
+    "op": "input",
+    "id": "gravity"
+   },
+   "mass": {
+    "op": "input",
+    "id": "mass"
+   },
+   "apexTime": {
+    "op": "divide",
+    "id": "apexTime_div_01_id_placeholder_unused_wait_no_let_me_use_correct_nodes_here_launchSpeed_over_gravity_is_launchSpeed_divide_gravity"
+   },
+   "apexHeight": {
+    "op": "divide",
+    "id": "apexHeight_placeholder_unused"
+   },
+   "height": {
+    "op": "subtract",
+    "id": "height_placeholder"
+   },
+   "velocity": {
+    "op": "subtract",
+    "id": "velocity_placeholder"
+   },
+   "acceleration": {
+    "op": "subtract",
+    "id": "accel_placeholder"
+   },
+   "force": {
+    "op": "multiply",
+    "id": "force_placeholder"
+   }
+  },
+  "moments": {
+   "before": {
+    "op": "subtract",
+    "id": "before_placeholder"
+   },
+   "top": {
+    "op": "divide",
+    "id": "top_placeholder"
+   },
+   "heavyTop": {
+    "op": "divide",
+    "id": "heavyTop_placeholder"
+   },
+   "fastTop": {
+    "op": "divide",
+    "id": "fastTop_placeholder"
+   }
+  }
+ },
+ "usage": {
+  "completion_tokens": 422,
+  "prompt_tokens": 1493,
+  "total_tokens": 1915
+ }
+}

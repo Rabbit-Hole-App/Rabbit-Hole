@@ -1,0 +1,37 @@
+{
+  "jobId": "ej_f1f8bd2dd724484fba2bb43c0a3dd454",
+  "plan": "toss-deep",
+  "depth": "detailed",
+  "profile": "opus-baseline",
+  "buildKind": "model",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 31058,
+  "ms": 6589,
+  "findings": [
+    {
+      "capture": "cp-before",
+      "category": "spec",
+      "severity": "major",
+      "message": "The plan's velocitySamples observation says the velocity is +0.98 m/s at 0.10 s before the top. The trace agrees: velocity 0.98 at t=0.308. The velocity arrow is too short for that. Its length is 9.8 px, but the scale in the start frame is 10 px per m/s (4 m/s gives 40 px). That is consistent, so the arrow is not the problem. The velocity arrow here is drawn as kind 'line' rather than 'arrow'. At the start and end it is an 'arrow'. That makes the arrowhead inconsistent and possibly missing."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The velocity arrow is correctly absent at v=0. The info-box text lines and readout text are not shown in the frame, so the callout contents (velocity, acceleration, force in N) cannot be judged from frames and traces."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "message": "At launch speed 5 and gravity 6, the apex height is 2.083 m, which fits the 0–2.2 m ruler. The info box at y=100–184 and the slope label at y=128 may overlap, but that cannot be judged without pixels. The slope label sits at a fixed position (448,128) away from the orange segment. In the fast capture the segment is at about y=214–255, so the label is not attached to it. The 'labelled with the slope' claim is weakly supported."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "minor",
+      "message": "Default launch speed is 4 m/s, and the card shows 0 to 0.816 s. The plan's observation text about the top is only partly checkable: the topMoves observation has no readout, so its effect on the fixed scales must be inferred from the ball position. The ball is later and higher in cp-fastTop, which supports it."
+    }
+  ]
+}

@@ -26,7 +26,7 @@ export function openTarget(block, { portal = null, dive = false, readers = false
 // Interact controls, its sub-card pager, Restart, its Notes (open and scroll) and, in Focus, its drawing's scrolling viewport. They only change what this viewer sees (never saved: a view-only
 // board has no save) and call no route. index.css re-enables them under [data-view-only-cards] with this same list, and the
 // surface leaves a press on them to the control (AdaptiveCanvas down).
-export const VIEW_ONLY_CONTROLS = '[data-animation-transport], [data-scene-controls], [data-card-pager], [data-program-restart], [data-program-notes], [data-focus-host] [data-program-viewport]';
+export const VIEW_ONLY_CONTROLS = '[data-animation-transport], [data-scene-controls], [data-scene-reset], [data-card-pager], [data-program-restart], [data-program-notes], [data-focus-host] [data-program-viewport]';
 
 // A double-click on one of the card's own controls belongs to that control, never to Open: form fields,
 // buttons, links, players, drawing surfaces and anything that sets its own pointer cursor (a draggable point,

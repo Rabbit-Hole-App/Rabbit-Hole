@@ -1,0 +1,262 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "op": "input",
+    "id": "launchSpeed"
+   },
+   "gravity": {
+    "op": "input",
+    "id": "gravity"
+   },
+   "apexTime": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "apexHeight": {
+    "op": "divide",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "launchSpeed"
+     }
+    },
+    "right": {
+     "op": "multiply",
+     "left": {
+      "op": "literal",
+      "value": 2
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    }
+   },
+   "tossedVelocity": {
+    "op": "subtract",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "gravity"
+     },
+     "right": {
+      "op": "input",
+      "id": "t"
+     }
+    }
+   },
+   "tossedAcceleration": {
+    "op": "subtract",
+    "left": {
+     "op": "literal",
+     "value": 0
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "tossedHeight": {
+    "op": "subtract",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "t"
+     }
+    },
+    "right": {
+     "op": "divide",
+     "left": {
+      "op": "multiply",
+      "left": {
+       "op": "input",
+       "id": "gravity"
+      },
+      "right": {
+       "op": "multiply",
+       "left": {
+        "op": "input",
+        "id": "t"
+       },
+       "right": {
+        "op": "input",
+        "id": "t"
+       }
+      }
+     },
+     "right": {
+      "op": "literal",
+      "value": 2
+     }
+    }
+   },
+   "dropVelocity": {
+    "op": "subtract",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "gravity"
+     },
+     "right": {
+      "op": "input",
+      "id": "t"
+     }
+    }
+   },
+   "dropAcceleration": {
+    "op": "subtract",
+    "left": {
+     "op": "literal",
+     "value": 0
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "dropHeight": {
+    "op": "subtract",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "t"
+     }
+    },
+    "right": {
+     "op": "divide",
+     "left": {
+      "op": "multiply",
+      "left": {
+       "op": "input",
+       "id": "gravity"
+      },
+      "right": {
+       "op": "multiply",
+       "left": {
+        "op": "input",
+        "id": "t"
+       },
+       "right": {
+        "op": "input",
+        "id": "t"
+       }
+      }
+     },
+     "right": {
+      "op": "literal",
+      "value": 2
+     }
+    }
+   }
+  },
+  "moments": {
+   "before": {
+    "op": "subtract",
+    "left": {
+     "op": "divide",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    },
+    "right": {
+     "op": "literal",
+     "value": 0.1
+    }
+   },
+   "top": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "after": {
+    "op": "add",
+    "left": {
+     "op": "divide",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    },
+    "right": {
+     "op": "literal",
+     "value": 0.1
+    }
+   },
+   "fastTop": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   }
+  }
+ },
+ "usage": {
+  "input_tokens": 1976,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 1384,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 1624,
+  "output_tokens_details": {
+   "thinking_tokens": 473
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ }
+}

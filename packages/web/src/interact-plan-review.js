@@ -35,6 +35,7 @@ export function controlDetail(control) {
     case 'multi_select': return { ...base, detail: `${list(control.items.map(i => i.label))}; starts with ${control.default.length ? list(control.default.map(i => control.items[i]?.label ?? i)) : 'none selected'}` };
     case 'action': return { ...base, detail: control.effect };
     case 'target': return { ...base, detail: `${control.interaction === 'drag' ? 'select or drag' : 'select'}; ${control.effect}` };
+    case 'seek': return { ...base, detail: control.effect };
     case 'reset': return { ...base, detail: control.effect };
     default: return { ...base, detail: '' };
   }

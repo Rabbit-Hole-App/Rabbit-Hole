@@ -1,0 +1,41 @@
+{
+  "jobId": "ej_7e1e09ed8c8a42209b46cb9c72a1142e",
+  "plan": "toss-standard",
+  "depth": "balanced",
+  "profile": "opus-baseline",
+  "buildKind": "model",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 29772,
+  "ms": 7173,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "dropBall",
+      "message": "At launch the drop ball is held at apex height 0.816 m, but the drawn y is 240.9 with scale 240px/2.2m from baseline 330. That gives about 89 px of height, so it is drawn correctly. The problem is the tossed ball's velocity arrow at t=0. It runs from 330 to 274, which is 56 px for 4 m/s, or 14 px per m/s. At cp-before, 0.98 m/s gives 13.7 px, so the scale is consistent. Even so, the toss lane has no 'Held' state at the start, and the Toss lane state line at the top is the same as the plan says, so this is not an error."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "major",
+      "object": "dropAcc",
+      "message": "At the top the drop ball's acceleration reads -9.8 while its state says 'Just released'. Before the top it reads 0 while held. This matches the plan. But the drop ball's acceleration jumps from 0 to -g at the instant the velocity is zero, and the card gives no explanation. The card's claim is that both balls share acceleration at every instant after release. Drop acceleration at cp-before is 0, so the claim 'toss acceleration is -gravity throughout' holds, but the readouts for cp-before show the pair disagreeing. This is acceptable only if the scene says why."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "object": "hAxis",
+      "message": "The fast-toss apex height is 2.083 m. The drawn y is 102.7 on a 240 px / 2.2 m scale, which gives 330-227=103, so it is consistent. However, the time reading cannot be verified: the scrubber range and the 'Time from the top' offset are not shown in the frames. The scrubber and the control effects (At top seek, reset, speed and gravity) cannot be judged from these frames and traces."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "minor",
+      "object": "tossLane.state",
+      "message": "The lane title and state text share y=16, with the state at x=160 and the title at x=80. Whether they overlap cannot be judged without pixels."
+    }
+  ]
+}

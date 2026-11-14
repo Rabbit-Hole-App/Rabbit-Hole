@@ -1,0 +1,351 @@
+{
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
+ "plan": {
+  "planner": "jev",
+  "ms": 92,
+  "kind": "coordinate-plot",
+  "fixed": true,
+  "offered": null,
+  "treatment": "mechanism",
+  "confidence": 0.91,
+  "physical": 0.05,
+  "pictures": 0,
+  "diagrams": 1,
+  "physicalOverride": null
+ },
+ "raw": [
+  {
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "coordinate-plot"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "coordinate-plot",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.91,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.96,
+     "isPhysical": 0.05,
+     "needsWorkedExample": 0.85
+    },
+    "ms": 92
+   },
+   "references": [
+    "shape-coordinate-plot",
+    "ml-trees-gini-vs-entropy"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Gini impurity and entropy",
+       "caption": "Worked example comparing Gini impurity $G(p)=2p(1-p)$ and entropy $H(p)=-p\\log_2 p-(1-p)\\log_2(1-p)$.",
+       "kind": "coordinate-plot",
+       "x": {
+        "label": "Class fraction p",
+        "min": 0,
+        "max": 1
+       },
+       "y": {
+        "label": "Impurity score",
+        "min": 0,
+        "max": 1
+       },
+       "series": [
+        {
+         "label": "Gini impurity",
+         "kind": "line",
+         "points": [
+          {
+           "x": 0,
+           "y": 0
+          },
+          {
+           "x": 0.2,
+           "y": 0.32
+          },
+          {
+           "x": 0.4,
+           "y": 0.48
+          },
+          {
+           "x": 0.5,
+           "y": 0.5,
+           "label": "Gini peak"
+          },
+          {
+           "x": 0.6,
+           "y": 0.48
+          },
+          {
+           "x": 0.8,
+           "y": 0.32
+          },
+          {
+           "x": 1,
+           "y": 0
+          }
+         ]
+        },
+        {
+         "label": "Entropy",
+         "kind": "line",
+         "points": [
+          {
+           "x": 0,
+           "y": 0
+          },
+          {
+           "x": 0.2,
+           "y": 0.722
+          },
+          {
+           "x": 0.4,
+           "y": 0.971
+          },
+          {
+           "x": 0.5,
+           "y": 1,
+           "label": "Entropy peak"
+          },
+          {
+           "x": 0.6,
+           "y": 0.971
+          },
+          {
+           "x": 0.8,
+           "y": 0.722
+          },
+          {
+           "x": 1,
+           "y": 0
+          }
+         ]
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "coordinate-plot"
+   ]
+  }
+ ],
+ "row": {
+  "id": "ml-trees-gini-vs-entropy",
+  "set": "demo-lesson04",
+  "run": 1,
+  "depth": "standard",
+  "prompt": "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?",
+  "canvas": "canvas-bfea5b28",
+  "startedAt": "2026-11-09T19:48:20.693Z",
+  "http": 200,
+  "totalMs": 5135,
+  "delivered": true,
+  "failure": null,
+  "authoredBy": {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite"
+  },
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "repaired": false,
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "authorCalls": 1,
+  "pictures": 0,
+  "ledgerUsd": 0.00379,
+  "estUsd": 0.008,
+  "costUsd": 0.00379,
+  "costSource": "ledger",
+  "steer": [],
+  "repairCauses": [],
+  "corrected": [],
+  "diagramCorrections": null,
+  "visualFallback": null,
+  "proseLists": 0,
+  "unknownKeysStripped": {
+   "events": 0,
+   "keys": 0
+  },
+  "picturesDropped": [],
+  "raw": [
+   {
+    "attempt": 0,
+    "plan": {
+     "visuals": [
+      {
+       "type": "diagram",
+       "kind": "coordinate-plot"
+      }
+     ],
+     "depthTreatment": "mechanism",
+     "kind": "coordinate-plot",
+     "fixed": true,
+     "confidence": {
+      "kind": 0.91,
+      "visualType": 1
+     },
+     "flags": {
+      "needsPlot": 0.96,
+      "isPhysical": 0.05,
+      "needsWorkedExample": 0.85
+     },
+     "ms": 92
+    },
+    "references": [
+     "shape-coordinate-plot",
+     "ml-trees-gini-vs-entropy"
+    ],
+    "visuals": [
+     {
+      "k": "diagram",
+      "spec": {
+       "version": 1,
+       "diagram": {
+        "title": "Gini impurity and entropy",
+        "caption": "Worked example comparing Gini impurity $G(p)=2p(1-p)$ and entropy $H(p)=-p\\log_2 p-(1-p)\\log_2(1-p)$.",
+        "kind": "coordinate-plot",
+        "x": {
+         "label": "Class fraction p",
+         "min": 0,
+         "max": 1
+        },
+        "y": {
+         "label": "Impurity score",
+         "min": 0,
+         "max": 1
+        },
+        "series": [
+         {
+          "label": "Gini impurity",
+          "kind": "line",
+          "points": [
+           {
+            "x": 0,
+            "y": 0
+           },
+           {
+            "x": 0.2,
+            "y": 0.32
+           },
+           {
+            "x": 0.4,
+            "y": 0.48
+           },
+           {
+            "x": 0.5,
+            "y": 0.5,
+            "label": "Gini peak"
+           },
+           {
+            "x": 0.6,
+            "y": 0.48
+           },
+           {
+            "x": 0.8,
+            "y": 0.32
+           },
+           {
+            "x": 1,
+            "y": 0
+           }
+          ]
+         },
+         {
+          "label": "Entropy",
+          "kind": "line",
+          "points": [
+           {
+            "x": 0,
+            "y": 0
+           },
+           {
+            "x": 0.2,
+            "y": 0.722
+           },
+           {
+            "x": 0.4,
+            "y": 0.971
+           },
+           {
+            "x": 0.5,
+            "y": 1,
+            "label": "Entropy peak"
+           },
+           {
+            "x": 0.6,
+            "y": 0.971
+           },
+           {
+            "x": 0.8,
+            "y": 0.722
+           },
+           {
+            "x": 1,
+            "y": 0
+           }
+          ]
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "kinds": [
+     "coordinate-plot"
+    ]
+   }
+  ],
+  "modelCalls": [
+   {
+    "served": "gemini-3.5-flash-lite",
+    "status": 200,
+    "outcome": "completed",
+    "error": null,
+    "ms": 4126
+   }
+  ]
+ },
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "tokens": {
+  "input": 3983,
+  "output": 1038,
+  "authorUsd": 0.00379,
+  "pictureUsd": 0
+ },
+ "totalMs": 5135,
+ "costUsd": 0.00379
+}
