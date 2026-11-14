@@ -966,13 +966,15 @@ export class ExplainJobs {
 
   async alarm() {
     await this.state.storage.setAlarm(Date.now() + 30000); // re-armed first: a terminated isolate still gets a recovery turn
-    let active = false; const started = Date.now();
+    let active = false; const started = Date.now(), trace = this.env.INTERACT_CHAIN === 'on' ? [] : null; // trace: one log line per alarm while chaining is on, to find a lost wake (stall-analysis.md)
     for (const [, snapshot] of await this.state.storage.list({ prefix: 'job:' })) {
       const job = await this.get(snapshot.id);
       if (!job || TERMINAL.has(job.stage) && !job.inFlight && !job.bench?.pending && !job.bench?.running || job.stage === 'awaiting_approval') continue;
-      active = true;
+      active = true; const from = job.stage;
       try { await this.advance(job); await this.chain(job, started); } catch (error) { await this.failed(job, error); }
+      trace?.push([job.id.slice(-6), from, (await this.get(job.id))?.stage, Date.now() - started]);
     }
+    if (trace) console.log(JSON.stringify({ event: 'interact_alarm', ms: Date.now() - started, active, jobs: trace, armed: (await this.state.storage.getAlarm?.()) ?? null, now: Date.now() }));
     if (active) await this.wake(1000); else await this.state.storage.deleteAlarm?.();
   }
 
