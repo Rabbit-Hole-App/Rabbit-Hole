@@ -41,19 +41,23 @@ const GRAMMAR = [
   'The readable names are `t` (elapsed seconds since launch, 0 at the launch), the scene\'s numeric inputs by id (launchSpeed, gravity, mass where the scene has them) and, where the scene fixes gravity, `gravity`. Up is positive; a force is a magnitude. A quantity that changes rule at one moment is piecewise: `formula` applies while t < switchAt, `formulaAfter` from switchAt on; switchAt is a formula over the inputs only (no t). Give switchAt and formulaAfter as null when the quantity has one rule at every time.',
 ].join('\n');
 
-// What the schema says about each key, read off the jsonSchema itself (a key, its description, its limits): the roles with their unit and sign convention and the word keys with their limits come from the one source.
-function keyLines(node, prefix = '') {
-  const lines = [];
-  for (const [key, child] of Object.entries(node?.properties ?? {})) {
-    const path = `${prefix}${key}`, limit = [child.maxLength != null ? `at most ${child.maxLength} characters` : null, child.minimum != null ? `min ${child.minimum}` : null].filter(Boolean).join(', ');
-    if (child.type === 'object' && child.properties) lines.push(...keyLines(child, `${path}.`));
-    else lines.push(`- ${path}${child.description ? `: ${child.description}` : ''}${limit ? ` (${limit})` : ''}`);
-  }
-  return lines;
+// The keys of the brief with what each one is, from briefSchema(depth).keys (one source for the schema and the prompt): the text keys, the launch height, the inputs, the formula roles with unit, meaning and sign
+// convention, and the word keys with their length limits.
+function keyLines(keys) {
+  const piece = role => (role.piecewise ? ' Piecewise: formula applies before switchAt, formulaAfter from switchAt on.' : '');
+  return [
+    ...keys.text.map(k => `- ${k.key}: ${k.what} (at most ${k.max} characters)`),
+    `- launchHeight: ${keys.launchHeight}`,
+    ...keys.inputs.map(i => `- ${i.id}: ${i.label}, ${i.unit}. ${i.meaning}${i.reference ? ` ${i.reference}` : ''} (${i.kind})`),
+    // A formula role's `reference` IS the answer (its reference formula): never sent. The role keeps its label, unit and meaning (the sign convention).
+    // (a role's meaning may spell out its switch moment, "(switchAt = ...)": that is the formula the model is asked to write, so it is cut)
+    ...keys.formulas.map(f => `- formulas.${f.id}: ${f.label}, ${f.unit}. ${f.meaning.replace(/ \(switchAt = [^)]*\)/, '')}${piece(f)}`),
+    ...keys.words.map(w => `- words.${w.key}: ${w.what} (at most ${w.max} characters)`),
+  ];
 }
 
 export function fillSystem(depth, schemaInfo) {
-  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.jsonSchema), '', '## Formulas', GRAMMAR, '', 'Return the brief only: no prose.'].join('\n');
+  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Formulas', GRAMMAR, '', 'Return the brief only: no prose.'].join('\n');
 }
 
 const costOf = (config, usage, micros) => {
@@ -81,11 +85,8 @@ export function matchProblems(plan, pinned) {
   return out;
 }
 
-// A formula-check result as problem lines: A's referenceFormulaCheck returns problems as strings or as { role, point, got, expected } records.
-const formulaProblems = result => {
-  const list = result?.problems ?? result?.wrong ?? [];
-  return list.map(p => (typeof p === 'string' ? p : p.message ?? `formula ${p.role ?? p.id}${p.point != null ? ` at ${typeof p.point === 'object' ? JSON.stringify(p.point) : p.point}` : p.case ? ` at ${p.case}` : ''}: got ${p.got}, expected ${p.expected}`));
-};
+// referenceFormulaCheck's failures as problem lines: the role, the point (a parse failure has none), got and expected.
+const formulaProblems = result => (result?.failures ?? []).map(f => `formula ${f.role}${f.point ? ` at ${JSON.stringify(f.point)}` : ''}: got ${f.got}, expected ${f.expected}`);
 
 const slug = s => s.replace(/[^\w.-]+/g, '_');
 
@@ -116,7 +117,7 @@ export async function designAttempt({ depth, model, ctx, save = null, ts = new D
   if (parsed && parsed.ok === false) return finish((parsed.problems ?? ['brief: refused']).map(p => (typeof p === 'string' ? p : `${p.path ?? ''} ${p.message ?? ''}`.trim())), { step: 'schema', msExpand: 0, msChecks: 0, msBuild: 0 });
   const t1 = now();
   let plan;
-  try { plan = await expandBrief(parsed?.value ?? brief, depth); } catch (error) { row.msExpand = round1(now() - t1); return finish([`expand: ${clip(error.message, 300)}`], { step: 'expand', msChecks: 0, msBuild: 0 }); }
+  try { plan = expandBrief(parsed?.value ?? brief, depth, { catalogueHash: referenceCapabilities.catalogueHash }); } catch (error) { row.msExpand = round1(now() - t1); return finish([`expand: ${clip(error.message, 300)}`], { step: 'expand', msChecks: 0, msBuild: 0 }); }
   row.msExpand = round1(now() - t1); row.expandedPlanPath = save?.('plan', plan) ?? null;
   // The plan checks (the design stage's own close), the formula check, then the build and its checks.
   const t2 = now();
@@ -128,7 +129,7 @@ export async function designAttempt({ depth, model, ctx, save = null, ts = new D
   if (planIssues.length) return fail('plan', planIssues);
   const fitIssues = await descriptionFitProblems(plan, await descriptionFit(plan));
   if (fitIssues.length) return fail('plan', fitIssues.map(p => (typeof p === 'string' ? p : `${p.path ?? ''} ${p.message ?? ''}`.trim())));
-  const wrong = formulaProblems(await referenceFormulaCheck(parsed?.value ?? brief, depth));
+  const wrong = formulaProblems(referenceFormulaCheck(parsed?.value ?? brief, depth));
   if (wrong.length) return fail('formulas', wrong);
   const t3 = now();
   row.msChecks = round1(t3 - t2);

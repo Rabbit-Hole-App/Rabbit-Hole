@@ -68,6 +68,7 @@ test('the fill system text carries the teaching guide verbatim, the family descr
   const system = fillSystem('balanced', briefSchema('balanced'));
   assert.ok(system.startsWith(SCENE_TEACHING_GUIDE), 'the guide first, unedited');
   assert.match(system, /Return the brief only/);
+  for (const depth of DEPTHS) assert.ok(!/ = (launchHeight|launchSpeed|-gravity|mass \*)/.test(fillSystem(depth, briefSchema(depth))), `${depth}: a role's reference formula must never reach the model`);
   assert.ok(!/for example [^t]/i.test(system.replace(SCENE_TEACHING_GUIDE, '').replace('for example t^2', '')), 'no examples outside the grammar line');
 });
 
