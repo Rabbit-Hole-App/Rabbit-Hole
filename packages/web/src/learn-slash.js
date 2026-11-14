@@ -326,6 +326,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   if (name === 'explain' && canvas.startExplain && explainWords) {
     // EXP-T21: the Tutor's chosen tool (internal) is the same job, recorded as its source; no intent call is made for it.
     const started = await canvas.startExplain(explainWords, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed, ...(sourceRef ? { sourceRef } : {}), ...(internal ? { source: 'tutor' } : {}) });
+    if (started?.blockId && target?.passage) canvas.linkPassage?.(started.blockId, target.passage); // HL-146: a passage of an Explanation card is saved on that card, pink, once the new card exists (passage-link.js)
     if (started) return { notice: { tone: 'done', text: 'Making the explanation on the canvas.', ...(started.blockId ? { blockId: started.blockId } : {}) } };
   }
   const slot = mayConfirmPaid(name) ? null : hold();
@@ -336,7 +337,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // fit: a new written Explanation opens at its full length and the camera frames it (AdaptiveCanvas insertBlock, owner 2026-11-08).
   // The notice names the new card and can take the learner to it. target.parentLink: an Explanation card's Ask in a new card (explanation-host.js) joins the child to its parent.
   // A written /explain says nothing on success (owner 2026-11-08): its card on the canvas and its chip under the line are the answer.
-  if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot, ...(result.block?.type === 'explanation' ? { fit: true } : {}), ...(target?.parentLink && target.id ? { parent: { id: target.id, ...target.parentLink } } : target?.beside && target.id ? { parent: { id: target.id, ...(Number.isFinite(target.alignY) ? { dy: Math.round(target.alignY) } : {}) } } : {}), ...(target?.beside ? { link: false } : {}) }); return { notice: name === 'explanation' ? null : { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
+  if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot, ...(result.block?.type === 'explanation' ? { fit: true } : {}), ...(target?.parentLink && target.id ? { parent: { id: target.id, ...target.parentLink } } : target?.beside && target.id ? { parent: { id: target.id, ...(Number.isFinite(target.alignY) ? { dy: Math.round(target.alignY) } : {}) } } : {}), ...(target?.beside ? { link: false } : {}) }); if (blockId && target?.passage) canvas.linkPassage?.(blockId, target.passage); return { notice: name === 'explanation' ? null : { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
   // Generate inserts the card already confirmed, so it starts once (useConfirmedStart). Confirming commits it:
   // its place is held at once (the camera glides there), and the card - which shows its own progress while the
   // paid job runs - takes that slot as soon as the skeleton has been drawn. Cancel holds nothing.
