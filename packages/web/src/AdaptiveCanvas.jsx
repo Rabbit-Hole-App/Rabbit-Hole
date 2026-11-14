@@ -76,7 +76,7 @@ import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.j
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { besideSpot, followPlace } from './beside-placement.js';
-import { clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
+import { centerOnBox, clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
 import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
@@ -3088,17 +3088,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   boundsRef.current = bounds;
-  // Move the camera only if the card is not in the visible area - one in view stays put - and never the zoom.
-  const bringIntoView = id => showBox(boundsRef.current[id]);
+  // CK-4: a focus move (a card just made, Go to card, View passage) puts the card in the middle of the visible area; never the zoom.
+  const bringIntoView = id => showBox(boundsRef.current[id], false, true);
   // zoom: a new zoom to show the box at (revealOnCanvas zooming out to fit); otherwise the zoom stays.
   const showBox = (box, smooth = false, centre = false, zoom = null) => {
     if (!box || !surface.current) return false;
     // Both axes: after a sideways pan the column is off to one side, and a
     // card inserted into it landed off screen.
-    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), first = panInto(box, current, area, centre);
+    // centre: CK-4's rule (canvas-view.js centerOnBox: the middle of the area on both axes, even a box already in view); not centre: the keep-in-view nudge (a card resizing, a control revealed).
+    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), reach = within => (centre ? centerOnBox(box, current, within) : panInto(box, current, within, false)), first = reach(area);
     // The floating bottom chrome over the card's span is a floor too (24: freeArea's margin).
     const floor = chromeTop(first.x + box.x * current.z, first.x + (box.x + box.w) * current.z) - 24;
-    const next = floor < area.bottom ? panInto(box, current, { ...area, bottom: Math.max(area.top + 1, floor) }, centre) : first;
+    const next = floor < area.bottom ? reach({ ...area, bottom: Math.max(area.top + 1, floor) }) : first;
     if (next.x === was.x && next.y === was.y && next.z === was.z) return true;
     glideTo(next, true); // every reveal glides now (owner 2026-11-08); `smooth` is kept by its callers
     return true;
@@ -3294,7 +3295,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (want.moves != null && want.moves !== manualMoves.current) return; // the learner moved the camera since
     const box = { x: element.offsetLeft + (owner?.dx || 0), y: element.offsetTop + (owner?.dy || 0), w: element.offsetWidth, h: element.offsetHeight };
     // A slot or a Tutor card glides there at the learner's zoom; a Files-panel card, a chip's or Locate's card is framed, gliding too (glideTo).
-    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre);
+    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre ?? true); // CK-4: centred unless a caller says otherwise
   });
   // Search changes only camera, selection and transient DOM scroll/paint. It never commits text or card dimensions.
   const focusSearchTarget = async target => {
@@ -3871,7 +3872,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // comment pins, in world units.
     obstacles: exclude => boardObstacles(exclude).map(({ id: _id, ...box }) => box),
     // The camera moves to show a world box (a ghost placed off-screen), the way an inserted card is shown.
-    reveal: box => showBox(box, true),
+    reveal: box => showBox(box, true, true), // CK-4: where a result will land, centred
     placementChrome,
     visibleWorld: () => { const area = visibleArea(), v = viewRef.current; return { x: (area.left - v.x) / v.z, y: (area.top - v.y) / v.z, w: (area.right - area.left) / v.z, h: (area.bottom - area.top) / v.z }; },
     // The part of the surface on screen: a phone's keyboard shrinks the visual viewport, not the surface.
@@ -5173,7 +5174,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const box = target();
       if (!box || !surface.current) return;
       const z = fitZoom(box, visibleArea(), viewRef.current.z);
-      showBox(box, true, false, z === viewRef.current.z ? null : z);
+      showBox(box, true, true, z === viewRef.current.z ? null : z); // CK-4: centred
     }));
     return !!target();
   };
