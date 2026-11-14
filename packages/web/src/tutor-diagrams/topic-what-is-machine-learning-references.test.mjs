@@ -110,29 +110,34 @@ test('hidden groups use inputs alone and recompute every position, radius and co
   });
   assert.strictEqual(introSum(partitions.map(part => part.length)), rows.length);
   const brief = introRef(2).depths.overview.spec.diagram;
-  assert.strictEqual(brief.kind, 'sample-set');
-  assert.ok(brief.samples.every(sample => !Object.hasOwn(sample, 'class')));
-  assert.ok(brief.samples.length + brief.groups.length < rows.length + diagram.annotations.length);
-  const selectedCount = data.toyData.features.length;
-  assert.strictEqual(d.featureCount, selectedCount);
-  const selected = [partitions[0].slice(0, selectedCount), partitions[1].slice(0, 1)];
-  const expectedLabels = selected.flat().map(row => `$(${row[0]},${row[1]})$`);
-  assert.deepStrictEqual(brief.samples.map(sample => sample.label), expectedLabels);
-  assert.strictEqual(brief.samples.length, introSum(selected.map(part => part.length)));
-  assert.ok(d.displayNumbers.includes(brief.samples.length));
-  assert.strictEqual(brief.groups.length, selected[1].length);
-  const members = brief.samples.slice(0, selectedCount).map(sample => sample.id);
-  assert.deepStrictEqual(brief.groups[0].members, members);
-  assert.strictEqual(brief.groups[0].members.length, selected[0].length);
-  assert.ok(brief.groups[0].members.length > 1);
-  assert.strictEqual(new Set(brief.groups[0].members).size, selected[0].length);
-  assert.ok(d.displayNumbers.includes(brief.groups[0].members.length));
-  assert.ok(!brief.groups[0].members.includes(brief.samples.at(-1).id));
-  assert.match(brief.caption, /Selected toy inputs/);
-  const distance = (left, right) => Math.hypot(left[0] - right[0], left[1] - right[1]);
-  const withinDistances = selected[0].flatMap((point, index) => selected[0].slice(index + 1).map(other => distance(point, other)));
-  const betweenDistances = selected[0].flatMap(point => selected[1].map(other => distance(point, other)));
+  assert.strictEqual(brief.kind, 'coordinate-plot');
+  assert.deepStrictEqual(brief.x, diagram.x);
+  assert.deepStrictEqual(brief.y, diagram.y);
+  assert.strictEqual(brief.series.length, 1);
+  assert.strictEqual(brief.series[0].kind, 'scatter');
+  assert.strictEqual(brief.series[0].label, 'Unlabelled inputs');
+  assert.deepStrictEqual(brief.series[0].samples, { x: rows.map(row => row[0]), y: rows.map(row => row[1]) });
+  assert.strictEqual(brief.series[0].samples.x.length, rows.length);
+  assert.strictEqual(brief.series[0].samples.y.length, rows.length);
+  assert.strictEqual((brief.annotations || []).length, 0);
+  const briefElements = brief.series.reduce((count, series) => count + series.samples.x.length, 0) + (brief.annotations || []).length;
+  const balancedElements = diagram.series.reduce((count, series) => count + series.samples.x.length, 0) + diagram.annotations.length;
+  assert.ok(briefElements < balancedElements);
+  assert.match(brief.caption, /targets hidden/);
+  assert.match(brief.caption, /Proximity suggests groups/);
+  const withinDistances = partitions.flatMap(part => part.flatMap((point, index) => part.slice(index + 1).map(other => Math.hypot(point[0] - other[0], point[1] - other[1]))));
+  const betweenDistances = partitions[0].flatMap(point => partitions[1].map(other => Math.hypot(point[0] - other[0], point[1] - other[1])));
   assert.ok(Math.max(...withinDistances) < Math.min(...betweenDistances));
+  const deep = introRef(2).depths.deep.spec.diagram;
+  assert.deepStrictEqual(deep.series, diagram.series);
+  assert.deepStrictEqual(deep.annotations, diagram.annotations);
+  assert.notStrictEqual(deep.caption, diagram.caption);
+  assert.ok(deep.caption.includes(`$${partitions[0].length}+${partitions[1].length}=${rows.length}$`));
+  partitions.forEach(part => {
+    const meanX = introSum(part.map(row => row[0])) / part.length;
+    const meanY = introSum(part.map(row => row[1])) / part.length;
+    assert.ok(deep.caption.includes(`$(${meanX},${meanY})$`));
+  });
 });
 test('output comparison recomputes category geometry and regression arithmetic', () => {
   const rows = data.toyData.rows;
@@ -217,7 +222,7 @@ test('batch questions, learner keywords and lesson origin remain attached to the
     ['overview', 'standard', 'deep'].forEach(depth => assert.ok(ref.depths[depth].spec.diagram));
   });
 });
-test('workflow and split labels follow recomputed counts and arithmetic', () => {
+test('workflow counts match rendered cards and split labels follow recomputed arithmetic', () => {
   const d = data.derived(), w = d.workflow, ref = b2Ref(b2Ids[0]);
   const stageCount = w.stages.reduce(n => n + 1, 0), transitions = w.stages.slice(1).length;
   assert.strictEqual(w.stageCount, stageCount);
@@ -226,9 +231,15 @@ test('workflow and split labels follow recomputed counts and arithmetic', () => 
   assert.strictEqual(w.returnCount, w.feedback.length);
   const cleanRange = [6 / 10, 8 / 10].map(f => f * 10 ** 2);
   assert.deepStrictEqual(w.cleanPercentRange, cleanRange);
-  assert.deepStrictEqual(ref.spec.diagram.steps, [...w.stages.slice(0, -2).map((s, i) => i === 1 ? `${s} · ${cleanRange.join('–')}% time` : s), w.stages.slice(-2).join(' / ')]);
+  const renderedSteps = [...w.stages.slice(0, -2).map((s, i) => i === 1 ? `${s} · ${cleanRange.join('–')}% time` : s), w.stages.slice(-2).join(' / ')];
+  assert.deepStrictEqual(ref.spec.diagram.steps, renderedSteps);
   assert.ok(ref.depths.overview.spec.diagram.steps.length < ref.spec.diagram.steps.length);
-  assert.ok(ref.depths.deep.spec.diagram.caption.includes(`$${stageCount}-1=${transitions}$`));
+  const renderedCount = renderedSteps.length;
+  const forwardCount = renderedSteps.slice(1).length;
+  b2Close(derived().workflowCounts, { renderedSteps: renderedCount, forwardLinks: forwardCount });
+  assert.strictEqual(renderedCount - 1, forwardCount);
+  assert.deepStrictEqual(ref.depths.deep.spec.diagram.steps, renderedSteps);
+  assert.ok(ref.depths.deep.spec.diagram.caption.includes(`$${renderedCount}-1=${forwardCount}$`));
   w.feedback.forEach(e => [e.from, e.to, e.condition].forEach(s => assert.ok(ref.spec.diagram.caption.includes(s))));
   const split = b2Ref(b2Ids[1]), percentages = d.split.weights.map(v => 10 ** 2 * v / b2Sum(d.split.weights));
   assert.deepStrictEqual(d.split.percentages, percentages);
@@ -241,7 +252,7 @@ test('workflow and split labels follow recomputed counts and arithmetic', () => 
   assert.ok(split.depths.deep.spec.diagram.caption.includes(`$${percentages.join('+')}=${b2Sum(percentages)}$`));
   assert.ok(split.spec.diagram.caption.includes('not block widths'));
 });
-test('fit curves, displayed window, residual and error bars are independently reconstructed', () => {
+test('fit curves and subset errors are independently reconstructed and observations render last', () => {
   const d = data.derived(), rows = data.toyData.rows;
   const labels = [...new Set(rows.map(r => r.at(-1)))];
   const count = rows.filter(r => r.at(-1) === labels[0]).length;
@@ -276,21 +287,34 @@ test('fit curves, displayed window, residual and error bars are independently re
   ['standard', 'deep'].forEach(depth => {
     const plot = ref.depths[depth].spec.diagram;
     b2Close([plot.x.min, plot.x.max, plot.y.min, plot.y.max], Object.values(window.bounds));
-    ['observed', 'underfit', 'goodFit', 'overfit'].forEach((key, i) => {
+    ['underfit', 'goodFit', 'overfit', 'observed'].forEach((key, i) => {
       b2Close(plot.series[i].samples, { x: window[key].map(p => p.x), y: window[key].map(p => p.y) });
     });
+    assert.deepStrictEqual(plot.series.map(s => s.label), ['Underfit', 'Good fit', 'Overfit', 'Observed']);
+    assert.strictEqual(plot.series.at(-1).kind, 'scatter');
+    assert.ok(plot.series.slice(0, -1).every(s => s.kind === 'line'));
   });
-  const heldX = b2Sum(centers.map(c => c[0])) / centers.length, heldY = trend(heldX);
-  const errors = Object.entries({ underfit: chord, goodFit: trend, overfit: interpolate }).map(([key, predict]) => {
-    const train = b2Sum(observed.map(p => (p.y - predict(p.x)) ** 2)) / observed.length;
-    const held = (heldY - predict(heldX)) ** 2;
-    b2Close(d.fits.trainingMse[key], train);
-    b2Close(d.fits.heldOut.squaredErrors[key], held);
-    return [train, held];
+  const subsetCount = window.observed.length;
+  const squaredErrorSums = {}, means = {};
+  Object.entries({ underfit: chord, goodFit: trend, overfit: interpolate }).forEach(([key, predict]) => {
+    squaredErrorSums[key] = b2Sum(window.observed.map(p => (p.y - predict(p.x)) ** 2));
+    means[key] = squaredErrorSums[key] / subsetCount;
   });
-  b2Close(ref.depths.deep.detailSpec.diagram.series.map(s => s.values), errors);
+  b2Close(derived().fitSubset, { count: subsetCount, squaredErrorSums, means });
+  const detail = ref.depths.deep.detailSpec.diagram;
+  assert.strictEqual(detail.kind, 'matrix');
+  assert.deepStrictEqual(detail.columns, ['Squared error sum', 'Mean squared error']);
+  ['underfit', 'goodFit', 'overfit'].forEach((key, i) => {
+    assert.strictEqual(detail.rows[i].cells[0], String(squaredErrorSums[key]));
+    assert.strictEqual(detail.rows[i].cells[1], `$\\frac{${squaredErrorSums[key]}}{${subsetCount}}$`);
+    b2Close(derived().fitSubset.means[key] * subsetCount, squaredErrorSums[key]);
+  });
+  assert.deepStrictEqual(detail.rows.map(r => r.heading), ['Underfit', 'Good fit', 'Overfit']);
+  assert.ok(detail.caption.includes('plotted training count'));
+  assert.ok(!b2Strings(detail).some(text => /held.out|full generated/i.test(text)));
   const residualSquared = (observed[0].y - trend(observed[0].x)) ** 2;
   b2Close(d.fits.trainingMse.goodFit, residualSquared);
+  b2Close(means.goodFit, residualSquared);
   assert.ok(ref.depths.deep.spec.diagram.caption.includes(`$(${observed[0].y}-${trend(observed[0].x)})^2=${residualSquared}$`));
 });
 test('bias, variance, noise, totals, axes and minimum are recomputed from toy geometry', () => {

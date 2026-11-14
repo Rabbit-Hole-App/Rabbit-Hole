@@ -15,22 +15,6 @@
     },
     "series": [
       {
-        "label": "Observed",
-        "kind": "scatter",
-        "samples": {
-          "x": [
-            0,
-            1,
-            2
-          ],
-          "y": [
-            1.25,
-            2,
-            4.25
-          ]
-        }
-      },
-      {
         "label": "Underfit",
         "kind": "line",
         "samples": {
@@ -77,6 +61,22 @@
             3.625,
             2,
             1.125,
+            4.25
+          ]
+        }
+      },
+      {
+        "label": "Observed",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            0,
+            1,
+            2
+          ],
+          "y": [
+            1.25,
+            2,
             4.25
           ]
         }

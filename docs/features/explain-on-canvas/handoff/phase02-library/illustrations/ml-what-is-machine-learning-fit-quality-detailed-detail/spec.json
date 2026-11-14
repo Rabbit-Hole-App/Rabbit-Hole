@@ -1,37 +1,35 @@
 {
   "version": 1,
   "diagram": {
-    "title": "Training fit is not generalization",
-    "kind": "bar-chart",
-    "variant": "grouped",
-    "unit": "sq. error",
-    "categories": [
-      "Training mean",
-      "Held-out point"
+    "title": "Errors on the plotted training subset",
+    "kind": "matrix",
+    "columns": [
+      "Squared error sum",
+      "Mean squared error"
     ],
-    "series": [
+    "rows": [
       {
-        "label": "Underfit",
-        "values": [
-          1.9166666666666667,
-          5.0625
+        "heading": "Underfit",
+        "cells": [
+          "5.375",
+          "$\\frac{5.375}{3}$"
         ]
       },
       {
-        "label": "Good fit",
-        "values": [
-          0.0625,
-          0
+        "heading": "Good fit",
+        "cells": [
+          "0.1875",
+          "$\\frac{0.1875}{3}$"
         ]
       },
       {
-        "label": "Overfit",
-        "values": [
-          0,
-          5.0625
+        "heading": "Overfit",
+        "cells": [
+          "0",
+          "$\\frac{0}{3}$"
         ]
       }
     ],
-    "caption": "Illustrative. Errors use the full generated training set and a held-out point, not measured project performance."
+    "caption": "Illustrative subset. Each mean divides the squared-error sum by the plotted training count. Training fit alone cannot prove generalization."
   }
 }

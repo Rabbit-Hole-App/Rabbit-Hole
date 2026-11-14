@@ -36,13 +36,12 @@ function mlIntroHidden(depth) {
   const d = mlIntroData;
   const groups = d.clustering.groups;
   if (depth === 'overview') {
-    const ids = ['a', 'b', 'c'];
-    const selected = [...groups[0].points.slice(0, d.featureCount), groups[1].points[0]];
     return {
-      kind: 'sample-set', title: 'Nearby inputs suggest a group',
-      caption: 'Selected toy inputs; a nearby pair is grouped, while a distant input stays apart. Targets are hidden.',
-      samples: selected.map((point, index) => ({ id: ids[index], label: `$(${point.x},${point.y})$` })),
-      groups: [{ id: 'low', label: 'Nearby pair', members: ids.slice(0, d.featureCount) }]
+      kind: 'coordinate-plot', title: 'Nearby inputs form separate blobs',
+      x: { label: 'First feature', min: d.axis.min, max: d.axis.max },
+      y: { label: 'Second feature', min: d.axis.min, max: d.axis.max },
+      series: [{ label: 'Unlabelled inputs', kind: 'scatter', samples: { x: d.points.map(point => point.x), y: d.points.map(point => point.y) } }],
+      caption: 'All toy inputs, with targets hidden. Proximity suggests groups without known classes.'
     };
   }
   return {
@@ -107,6 +106,26 @@ const b2Window = {
   overfit: b2Data.fits.overfit.filter(p => p.x <= b2WindowMax),
   bounds: { minX: b2Data.fits.bounds.minX, maxX: b2WindowMax, minY: b2Data.fits.bounds.minY, maxY: b2Data.axis.max }
 };
+const b2WorkflowCounts = {
+  renderedSteps: b2Data.workflow.stages.slice(0, -2).length + 1,
+  forwardLinks: b2Data.workflow.stages.slice(0, -2).length
+};
+function b2PredictSample(points, x) {
+  const exact = points.find(p => p.x === x);
+  if (exact) return exact.y;
+  const index = points.findIndex(p => p.x > x);
+  const left = points[index - 1], right = points[index];
+  return left.y + (right.y - left.y) * (x - left.x) / (right.x - left.x);
+}
+const b2SubsetCount = b2Window.observed.length;
+const b2SubsetSums = Object.fromEntries(['underfit', 'goodFit', 'overfit'].map(key => [key,
+  b2Window.observed.reduce((sum, point) => sum + (point.y - b2PredictSample(b2Window[key], point.x)) ** 2, 0)
+]));
+const b2FitSubset = {
+  count: b2SubsetCount,
+  squaredErrorSums: b2SubsetSums,
+  means: Object.fromEntries(Object.entries(b2SubsetSums).map(([key, sum]) => [key, sum / b2SubsetCount]))
+};
 function b2Workflow(depth) {
   const w = b2Data.workflow;
   const steps = depth === 'overview'
@@ -115,7 +134,7 @@ function b2Workflow(depth) {
   const caption = depth === 'overview'
     ? 'Illustrative. Improve features after weak evaluation; collect fresh data when monitoring shows drift.'
     : depth === 'deep'
-      ? `Illustrative. $${w.stageCount}-1=${w.forwardTransitions}$ forward links. Evaluate revisits features if weak; Monitor revisits data if performance drops.`
+      ? `Illustrative. $${b2WorkflowCounts.renderedSteps}-1=${b2WorkflowCounts.forwardLinks}$ forward links. Evaluate revisits features if weak; Monitor revisits data if performance drops.`
       : 'Illustrative. Evaluate returns to Feature Engineering if not good enough; Monitor returns to Collect Data if performance drops.';
   return { title: 'The ML workflow repeats', kind: 'cycle', steps, caption };
 }
@@ -152,7 +171,7 @@ function b2FitPlot(depth) {
     title: 'Fits on the same training points', kind: 'coordinate-plot',
     x: { label: 'Input feature', min: w.bounds.minX, max: w.bounds.maxX },
     y: { label: 'Response', min: w.bounds.minY, max: w.bounds.maxY },
-    series: [['Observed', 'observed', 'scatter'], ['Underfit', 'underfit', 'line'], ['Good fit', 'goodFit', 'line'], ['Overfit', 'overfit', 'line']].map(([label, key, kind]) => ({
+    series: [['Underfit', 'underfit', 'line'], ['Good fit', 'goodFit', 'line'], ['Overfit', 'overfit', 'line'], ['Observed', 'observed', 'scatter']].map(([label, key, kind]) => ({
       label, kind, ...(key === 'goodFit' ? { smooth: true } : {}),
       samples: { x: w[key].map(p => p.x), y: w[key].map(p => p.y) }
     })),
@@ -162,12 +181,14 @@ function b2FitPlot(depth) {
   };
 }
 function b2FitErrors() {
-  const f = b2Data.fits;
+  const f = b2FitSubset;
   return {
-    title: 'Training fit is not generalization', kind: 'bar-chart', variant: 'grouped', unit: 'sq. error',
-    categories: ['Training mean', 'Held-out point'],
-    series: [['Underfit', 'underfit'], ['Good fit', 'goodFit'], ['Overfit', 'overfit']].map(([label, key]) => ({ label, values: [f.trainingMse[key], f.heldOut.squaredErrors[key]] })),
-    caption: 'Illustrative. Errors use the full generated training set and a held-out point, not measured project performance.'
+    title: 'Errors on the plotted training subset', kind: 'matrix',
+    columns: ['Squared error sum', 'Mean squared error'],
+    rows: [['Underfit', 'underfit'], ['Good fit', 'goodFit'], ['Overfit', 'overfit']].map(([heading, key]) => ({
+      heading, cells: [String(f.squaredErrorSums[key]), `$\\frac{${f.squaredErrorSums[key]}}{${f.count}}$`]
+    })),
+    caption: 'Illustrative subset. Each mean divides the squared-error sum by the plotted training count. Training fit alone cannot prove generalization.'
   };
 }
 function b2Tradeoff(depth) {
@@ -187,7 +208,7 @@ function b2Tradeoff(depth) {
 return { references: [reference({ id: 'ml-what-is-machine-learning-workflow', keywords: ['ml workflow', 'retrain loop', 'data drift'], useWhen: 'Show the ordered ML workflow and its evaluation and monitoring returns. Deploy and Monitor share a cycle card.', overview: { spec: spec(b2Workflow('overview')) }, standard: { spec: spec(b2Workflow('standard')) }, deep: { spec: spec(b2Workflow('deep')) } }),
 reference({ id: 'ml-what-is-machine-learning-dataset-split', keywords: ['train split', 'validation set', 'test set'], useWhen: 'Explain training, validation and test responsibilities, illustrative split percentages and the untouched final test.', overview: { spec: spec({ title: 'Learn separately from checking', kind: 'flow', nodes: [{ id: 'train', label: 'Fit on training data', role: 'process' }, { id: 'reserve', label: 'Keep validation and test separate', role: 'outcome' }], edges: [{ from: 'train', to: 'reserve' }], caption: 'Illustrative. Reserve both checking slices before fitting; validation guides tuning, while test is saved for the final check.' }) }, standard: { spec: spec(b2Split('standard')), detailSpec: spec(b2SplitFlow()) }, deep: { spec: spec(b2Split('deep')), detailSpec: spec(b2SplitFlow()) } }),
 reference({ id: 'ml-what-is-machine-learning-fit-quality', keywords: ['overfitting', 'underfitting', 'generalization'], useWhen: 'Compare underfit, good and overfit predictions on identical observations, then distinguish training error from unseen error.', overview: { spec: spec({ title: 'Compare fit quality', kind: 'comparison', columns: [{ heading: 'Underfitting', items: ['Too rigid; misses the bend'] }, { heading: 'Good fit', items: ['Follows the trend, not every fluctuation'] }, { heading: 'Overfitting', items: ['Chases samples; may miss unseen points'] }], caption: 'Illustrative. Training fit alone cannot establish generalization.' }) }, standard: { spec: spec(b2FitPlot('standard')) }, deep: { spec: spec(b2FitPlot('deep')), detailSpec: spec(b2FitErrors()) } }),
-reference({ id: 'ml-what-is-machine-learning-bias-variance', keywords: ['bias variance', 'total error', 'model complexity'], useWhen: 'Show falling squared bias, rising variance, fixed noise and their summed error minimum as complexity increases.', overview: { spec: spec({ title: 'Complexity trades bias for variance', kind: 'flow', nodes: [{ id: 'complexity', label: 'Increase complexity', role: 'process' }, { id: 'trade', label: 'Reduce bias; increase variance', role: 'process' }, { id: 'balance', label: 'Balance total error', role: 'outcome' }], edges: [{ from: 'complexity', to: 'trade' }, { from: 'trade', to: 'balance' }], caption: 'Illustrative. Seek a balance rather than the most complex model; irreducible noise remains.' }) }, standard: { spec: spec(b2Tradeoff('standard')) }, deep: { spec: spec(b2Tradeoff('deep')) } })], derived: () => ({ fitWindow: b2Window }) };
+reference({ id: 'ml-what-is-machine-learning-bias-variance', keywords: ['bias variance', 'total error', 'model complexity'], useWhen: 'Show falling squared bias, rising variance, fixed noise and their summed error minimum as complexity increases.', overview: { spec: spec({ title: 'Complexity trades bias for variance', kind: 'flow', nodes: [{ id: 'complexity', label: 'Increase complexity', role: 'process' }, { id: 'trade', label: 'Reduce bias; increase variance', role: 'process' }, { id: 'balance', label: 'Balance total error', role: 'outcome' }], edges: [{ from: 'complexity', to: 'trade' }, { from: 'trade', to: 'balance' }], caption: 'Illustrative. Seek a balance rather than the most complex model; irreducible noise remains.' }) }, standard: { spec: spec(b2Tradeoff('standard')) }, deep: { spec: spec(b2Tradeoff('deep')) } })], derived: () => ({ fitWindow: b2Window, workflowCounts: b2WorkflowCounts, fitSubset: b2FitSubset }) };
 })(),
 (() => {
 const wmlTailD = data.derived();
