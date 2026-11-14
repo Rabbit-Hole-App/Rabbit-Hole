@@ -780,7 +780,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         // The learner's own words; the card, group or region they asked about rides beside them,
         // its text resolved at send (targetText) so a live card sends the state the learner sees.
         message,
-        ...(target ? { canvas_target: canvasTargetField({ ...target, text: targetText }) } : about?.selection?.explanation && about.selection.id ? { canvas_target: canvasTargetField({ kind: 'card', ...about.selection }) } : {}), // an Explanation card's Ask here (explanation-host.js): the card, captured when the question was pressed
+        ...(target ? { canvas_target: canvasTargetField({ ...target, text: targetText }) } : about?.selection?.explanation && about.selection.id ? { canvas_target: canvasTargetField({ kind: 'card', ...about.selection }) } : {}), // an Explanation card's Ask in chat (explanation-host.js): the card, captured when the question was pressed
         thread_id: threadId.current,
         ...(regenerate ? { regenerate } : {}),
         // A Continue convo's first request also carries the card its answer was linked from.
