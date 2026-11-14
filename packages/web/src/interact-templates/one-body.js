@@ -1,4 +1,4 @@
-import { J, head } from './shared.js';
+import { J, head, velocityDraw } from './shared.js';
 
 // Template one-body: one body moving along a vertical in one lane, a velocity arrow beside it, a constant-length acceleration arrow, a callout naming the motion, and the launch-height guide.
 // roles: the quantities it reads (scene.slots): height, velocity, acceleration (the top is found from the velocity formula). The plan supplies every word (scene.words) and every number. Frame ids follow the renderer's conventions (frame-look.js): lane.toss, ball.toss, vec.v, vec.a, callout.toss.
@@ -16,7 +16,7 @@ export const states = W => ({
 // Geometry: a 640 x 280 frame (the contract's own card size, text drawn 1:1 at the legibility floors, never scaled up), one lane across it, 150 px per metre unless the plan's highest rise needs less so
 // the body's whole rise (ctx.range.rise, the largest height above launch over the input domain) fits in ROOM px above the ground line. Ground line at FLOOR, the body's column at X.
 const ROOM = 170;
-export const geometry = range => ({ width: 640, height: 280, scale: Math.min(150, Math.round(ROOM / range.rise * 1e6) / 1e6), floor: 230, x: 200, lane: { x: 12, y: 34, w: 616, h: 232 } });
+export const geometry = range => ({ ...velocityDraw(range), width: 640, height: 280, scale: Math.min(150, Math.round(ROOM / range.rise * 1e6) / 1e6), floor: 230, x: 200, lane: { x: 12, y: 34, w: 616, h: 232 } });
 
 export function source(ctx) {
   const { slots, geometry: geo } = ctx;
@@ -38,7 +38,7 @@ export function evaluate({ inputs, time }) {
   objects.push(sdk.circle('ball.toss', X, y, 2 * R));
   // A letter keeps 14 px off the ground line (the 8 px label clearance plus half its height): it moves along its arrow, beside it, never onto the line.
   const clear = parts => { const letter = parts.find(o => o.kind === 'text'); if (letter && Math.abs(letter.y - FLOOR) < 14) letter.y = FLOOR + (letter.y < FLOOR ? -14 : 14); return parts; };
-  if (!atTop) objects.push(...clear(sdk.vector('vec.v', { x: X - 31, y: y }, { value: Math.abs(m.v), direction: m.v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3, label: 'v', side: m.v > 0 ? 'left' : 'right' })));
+  if (!atTop) objects.push(...clear(sdk.vector('vec.v', { x: X - 31, y: y }, { value: Math.abs(m.v), direction: m.v > 0 ? 'up' : 'down' }, { scale: ${J(geo.vScale)}, minLength: ${J(geo.vMin)}, label: 'v', side: m.v > 0 ? 'left' : 'right' })));
   if (Math.abs(m.a) > 1e-9) objects.push(...clear(sdk.vector('vec.a', { x: X + 31, y: y }, { value: Math.abs(m.a), direction: pulls ? 'down' : 'up' }, { scale: 48 / Math.abs(m.a), label: 'a', side: 'left' })));
   objects.push(...sdk.callout(X + 61, sdk.clamp(y - 24, 40, FLOOR - 43), [word, pulls ? W.gravity.pulls : W.gravity.none], { id: 'callout.toss' }));
   const states = { motionState: word, gravityState: pulls ? W.gravity.pulls : W.gravity.none };

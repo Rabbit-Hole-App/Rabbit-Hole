@@ -1,4 +1,4 @@
-import { J, head, arrowScale } from './shared.js';
+import { J, head, arrowScale, velocityDraw } from './shared.js';
 
 // Template two-lane: a first body that is thrown up and a second body held at the first one's top height until its top, then released, in two lanes on one shared height axis; each body has a
 // velocity arrow, an acceleration arrow (none while the quantity is zero) and a callout of its two readings; a gate holds the second body. scene.slots = { <firstLane>: { height, velocity, acceleration },
@@ -21,7 +21,7 @@ export const ticksTo = max => { const step = [0.1, 0.2, 0.5, 1, 2, 5, 10].find(s
 const AXIS = 175;
 export const geometry = range => {
   const max = ceilTo(range.rise * 1.05, 0.1), floor = 34 + 34 + AXIS;
-  return { width: 640, height: floor + 36 + 12, scale: Math.min(105, Math.round(AXIS / max * 1e6) / 1e6), aScale: arrowScale(range), axisMax: max, ticks: ticksTo(max), floor, laneW: 302, laneX: [12, 326], offset: 98, axisX: 60 };
+  return { width: 640, height: floor + 36 + 12, scale: Math.min(105, Math.round(AXIS / max * 1e6) / 1e6), aScale: arrowScale(range), ...velocityDraw(range), axisMax: max, ticks: ticksTo(max), floor, laneW: 302, laneX: [12, 326], offset: 98, axisX: 60 };
 };
 
 export function source(ctx) {
@@ -45,8 +45,8 @@ export function evaluate({ inputs, time }) {
   const L1 = lane(A, TITLE[A], LANE_X[0], firstWhere, { h: m.h }), L2 = lane(B, TITLE[B], LANE_X[1], secondWhere, drop);
   const ghosts = released && m.tau > EPS;
   const arrows = (tag, x, y, v, a) => {
-    const out = Math.abs(v) * 12 < 1 ? [sdk.circle('vec.v.' + tag + '.zero', x - 26, y, 6, { role: 'input' })]
-      : sdk.vector('vec.v.' + tag, { x: x - 26, y: y }, { value: Math.abs(v), direction: v > 0 ? 'up' : 'down' }, { scale: 12, minLength: 3, label: W.v, side: v > 0 ? 'left' : 'right' });
+    const out = Math.abs(v) * ${J(geo.vScale)} < 1 ? [sdk.circle('vec.v.' + tag + '.zero', x - 26, y, 6, { role: 'input' })]
+      : sdk.vector('vec.v.' + tag, { x: x - 26, y: y }, { value: Math.abs(v), direction: v > 0 ? 'up' : 'down' }, { scale: ${J(geo.vScale)}, minLength: ${J(geo.vMin)}, label: W.v, side: v > 0 ? 'left' : 'right' });
     if (Math.abs(a) > 1e-9) out.push(...sdk.vector('vec.a.' + tag, { x: x + 25, y: y }, { value: Math.abs(a), direction: a < 0 ? 'down' : 'up' }, { scale: ${J(geo.aScale)}, label: W.a, side: 'left' }));
     out.push(...sdk.callout(x + 52, sdk.clamp(y - 29, 40, FLOOR - 51), [W.v + ' = ' + sg(v, 2) + ' ' + U.velocity, W.a + ' = ' + sg(a, 1) + ' ' + U.acceleration], { id: 'callout.' + tag }));
     return out;
