@@ -1447,7 +1447,11 @@
     "packages/web/src/interact-templates/curve-shared.js": ["packages/control-plane/test/interact-curve-templates.test.js","packages/control-plane/test/interact-curve-pins.test.js"],
     "packages/control-plane/src/interact-family-curve-check.js": ["packages/control-plane/test/interact-family-curve-check.test.js","packages/control-plane/test/interact-curve-pins.test.js"],
     "packages/control-plane/src/interact-curve-oracle.js": ["packages/control-plane/test/interact-curve-pins.test.js"],
-    "packages/web/src/interact-toss-mvp-plans.js": ["packages/control-plane/test/interact-toss-mvp.test.js"]
+    "packages/web/src/interact-toss-mvp-plans.js": ["packages/control-plane/test/interact-toss-mvp.test.js"],
+    "packages/web/src/interact-family-registry.js": ["packages/control-plane/test/interact-family-registry.test.js","packages/web/src/interact-formula.test.mjs","packages/web/src/interact-plan-brief.test.mjs"],
+    "packages/web/src/interact-family-index.js": ["packages/control-plane/test/interact-family-registry.test.js","packages/web/src/interact-formula.test.mjs","packages/web/src/interact-plan-brief.test.mjs"],
+    "packages/web/src/interact-family-data-index.js": ["packages/control-plane/test/interact-family-registry.test.js","packages/web/src/interact-formula.test.mjs","packages/web/src/interact-plan-brief.test.mjs"],
+    "packages/web/src/interact-family-vertical-throw-data.js": ["packages/web/src/interact-plan-brief.test.mjs","packages/web/src/interact-formula.test.mjs","packages/control-plane/test/interact-family-registry.test.js"]
   },
   "previewTier": {
     "packages/control-plane/file-jobs-demo.mjs": {"tier":"preview","why":"only windows-only checks (file-converter-ui-check.mjs, file-step-retry-check.mjs), which no workflow runs (coverage hole, ruling G), and no unit test that run.sh test:unit runs imports it"},

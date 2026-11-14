@@ -1,20 +1,17 @@
 import { TEMPLATE_WORDS, exprToJs, formulaScope, nestWords, parseQuantity } from '../interact-formula.js';
-import * as oneBody from './one-body.js';
-import * as twoLane from './two-lane.js';
-import * as bodyPlot from './body-plot.js';
-import { verticalThrow } from '../interact-family-vertical-throw.js';
-import { curveSliders } from '../interact-family-curve-sliders.js';
-import * as curveOne from './curve-one.js';
-import * as curveCompare from './curve-compare.js';
-import * as curveReadouts from './curve-readouts.js';
+import { TEMPLATES, registeredFamilies } from '../interact-family-registry.js';
+import { registerBuiltinFamilies } from '../interact-family-index.js';
+
+registerBuiltinFamilies(); // the generator builds from the full family modules
 
 // generateProgram(plan, buildInput) -> { source, manifest }: the program for a plan that names a template, written by trusted code and no model. The plan carries the physics (each quantity's
 // formula, piecewise through switchAt / formulaAfter), the controls, the ranges and the timeline; buildInput carries the exact control declarations and timeline (interact-build.js buildInput). A
 // template (./one-body.js, ./two-lane.js, ./body-plot.js) owns the drawing and the geometry; the plan holds every word (scene.words). A plan the template cannot build is a TemplateError (our bug or a plan
 // that names slots it does not have), never a model call or a repair.
-export const TEMPLATES = Object.freeze({ 'one-body': oneBody, 'two-lane': twoLane, 'body-plot': bodyPlot, 'curve-one': curveOne, 'curve-compare': curveCompare, 'curve-readouts': curveReadouts });
-// The families whose templates this generator builds (a family names its templates; its context() gives the geometry the template draws from, and it may declare `independent: { id, domain }` in place of a timeline).
-export const FAMILIES = Object.freeze([verticalThrow, curveSliders]);
+// The template table and the families that draw them are derived from the registered families (interact-family-registry.js): a new family is one registerFamily, never an edit here.
+export { TEMPLATES };
+// A family names its templates; its context() gives the geometry the template draws from, and it may declare `independent: { id, domain }` in place of a timeline.
+export const FAMILIES = () => registeredFamilies();
 
 export class TemplateError extends Error {
   constructor(code, message) { super(message); this.name = 'TemplateError'; this.code = code; }
@@ -34,7 +31,7 @@ const sentences = (text, max) => {
   return end > 0 ? cut.slice(0, end + 1) : cut.trim();
 };
 // `registry` is a test seam for a family and a template the product does not register yet: { templates, families }.
-export function generateProgram(plan, buildInput, registry = { templates: TEMPLATES, families: FAMILIES }) {
+export function generateProgram(plan, buildInput, registry = { templates: TEMPLATES, families: registeredFamilies() }) {
   const scene = plan.scene, name = scene.template, template = registry.templates[name];
   if (!template) throw new TemplateError('no_template', `the plan names no known template (${name ?? 'none'})`);
   const family = registry.families.find(f => f.templates.includes(name));
