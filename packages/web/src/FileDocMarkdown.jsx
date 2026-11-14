@@ -1,9 +1,8 @@
-import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, ScanText, Trash2, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { BookOpen, Highlighter, Lightbulb, MessageSquarePlus, ScanText, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
-import { ExplanationHost } from './explanation-host.js';
 import { Md } from './Md.jsx';
-import { SelectionToolbar, placeNear } from './selection-toolbar.jsx';
+import { ToolButton, placeNear } from './selection-toolbar.jsx';
 import { EXCERPT_LIMIT } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
 import { canWrite, fileScope } from './file-source-client.js';
@@ -264,12 +263,6 @@ export function MarkdownText({ block, text, children }) {
   // Add to chat: the highlighted passage joins the right-hand Chat composer as a context pill (the webpage card's Ask about selection, the canvas bar's
   // Add to chat): nothing is sent, no highlight or proposal is made, the draft is untouched, and the same passage is not added twice (chat context).
   const chat = useChatWorkspace();
-  // Create note: the canvas's sticky note beside the selection, quoting it (the same host.note the explanation card's toolbar calls).
-  const host = useContext(ExplanationHost);
-  const createNote = quote => {
-    if (!host?.note || !quote?.exact) return;
-    if (host.note({ id: block.id, quote: quote.exact })) { window.getSelection?.()?.removeAllRanges(); setBar(null); }
-  };
   const addToChat = quote => {
     if (quote.exact.length > EXCERPT_LIMIT) { setMessage({ text: `Select up to ${EXCERPT_LIMIT.toLocaleString('en-US')} characters to add to chat.` }); return; }
     const name = String(block.fileRef?.meta?.name || block.label || block.title || 'Markdown').slice(0, 120);
@@ -302,8 +295,11 @@ export function MarkdownText({ block, text, children }) {
       </div>
       {children}
     </div>
-    {bar && <SelectionToolbar barRef={barEl} data-file-doc-selection-toolbar onQuickAsk={() => explain(bar.quote)} onAddToChat={() => addToChat(bar.quote)} chatDisabled={!chat}
-      onHighlight={() => highlight(bar.quote)} onNote={() => createNote(bar.quote)} noteDisabled={!host?.note} />}
+    {bar && <div ref={barEl} data-file-doc-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
+      <ToolButton label="Highlight" icon={Highlighter} onClick={() => highlight(bar.quote)} />
+      <ToolButton label="Explain" icon={Lightbulb} onClick={() => explain(bar.quote)} />
+      {chat && <ToolButton label="Add to chat" icon={MessageSquarePlus} onClick={() => addToChat(bar.quote)} />}
+    </div>}
     {menu && <div ref={menuEl} data-file-doc-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
       {menu.cardId && <button type="button" role="menuitem" data-file-doc-view-explanation autoFocus onClick={() => { const id = menu.cardId; setMenu(null); focusExplanation(id); }} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><BookOpen size={14} className="shrink-0 text-ink-2" />View explanation</button>}
       {menu.h && <button type="button" role="menuitem" autoFocus={!menu.cardId} onClick={() => remove(menu.h)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>}
