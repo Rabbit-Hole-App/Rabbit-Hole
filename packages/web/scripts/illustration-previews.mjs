@@ -54,6 +54,7 @@ function naturalWidth(diagram, { compact = false } = {}) {
   if (diagram.kind === 'comparison' && diagram.variant === 'panels') {
     return Math.min(960, panelsNaturalWidth(diagram.panels.map(panel => naturalWidth(panel.diagram, { compact: true }))));
   }
+  if (diagram.kind === 'panels') return layouts.panels(diagram, 680).width; // panels fill the 680 text column; they have no natural width of their own
   return layouts[diagram.kind](diagram, 320).width;
 }
 

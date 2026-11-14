@@ -63,6 +63,7 @@ This batch added four kinds to the original 17. Nine original kinds have additiv
 | `matrix` | `layout: teaching`, stable row IDs, emphasis and missing/changed cell states | `ml-data-*` |
 | `comparison` | `variant: panels`, two or three real leaf diagrams; declared shared axes must match | `ml-composition-*` |
 | `transformation` | `variant: visual`, before/after leaf diagrams, operation and preserved/mapped sample identity | `ml-composition-*` |
+| `panels` | Two or three leaf diagrams left to right (optional `label` each), up to two `links` (`from`, `to` = the next panel, `operation` text of 24 characters), `shared`: `classes` / `colours` (bar charts; one colour per matching label) or `axis` (matching plots). Panels share the 680 px text column; a link draws an arrow with its operation above. Not nestable. Not in the author's tool schema yet (tier 2); the reference library holds it as data, sent to the author as its `-single` variant. | `ml-composition-*` |
 
 `spec.js` combines strict schemas, base checks and each domain's numeric/topology validation. Nested children are validated with the same rules. Compositions cannot contain other compositions. The whole JSON stays within the existing 16,384-character cap whether supplied as an object or string. Runtime validation remains stronger than JSON Schema: a provider accepting the schema does not prove mathematical correctness.
 
