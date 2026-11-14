@@ -387,8 +387,9 @@ test('RD-2: the gap below a two-way decision row takes no lanes for its two bran
 });
 
 test('RD-2: a three-branch decision and a decision whose targets share one side route exactly as before', () => {
-  assert.deepEqual([408, 720].map(width => digest(layoutFlow(triage, width))), ['cf111dc3876bc01d', 'cc84f530bafafc25']);
-  assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['ec722199f3c665de', '3c0070cc4f645a6c']);
+  assert.deepEqual([408, 720].map(width => digest(layoutFlow(triage, width))), ['713a9b0ec863121c', '0375c15d75a71a98']);
+  // RD-4a: the three-branch decision's labels now share one height (they moved from their own lanes to the lane above the targets); the same-side decision below has its Yes and No labels on one lane above the targets too.
+  assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['43a2ad3084b48105', 'f4a1391e12a3b428']);
 });
 
 test('RD-2b: where the targets sit under the side vertices (the swallow card at card widths) each wire drops straight from its vertex and its label stands outside it', () => {
@@ -412,8 +413,8 @@ test('RD-2b: where the targets sit under the side vertices (the swallow card at 
 });
 
 test('RD-2b: at the natural width of the swallow card, where the drop would miss the capsule, the old routing is kept byte for byte', () => {
-  assert.deepEqual([layoutFlow(swallow, 0).width, digest(layoutFlow(swallow, 0)), digest(layoutFlow(swallow, 300))], [283, 'c9b025dcb7214720', '89c1dcd99629e9cd']);
-  // RD-4c changed only the corner radius of the two outcome capsules (their text left the pill); every wire point is as before.
+  assert.deepEqual([layoutFlow(swallow, 0).width, digest(layoutFlow(swallow, 0)), digest(layoutFlow(swallow, 300))], [283, '4efc8861c41c41fa', 'cfdf62dc8f81d3e7']);
+  // RD-4c changed the corner radius of the two outcome capsules (their text left the pill); RD-4a moved the Yes and No labels onto one lane. The wires' routes are as before.
 });
 
 test('RD-2: the highlight path style applies to the routed branch', () => {

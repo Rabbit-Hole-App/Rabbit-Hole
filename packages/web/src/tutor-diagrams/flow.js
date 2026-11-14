@@ -125,13 +125,17 @@ function nudgeFor(side, other, routed, placements, outgoing, incoming, moves) {
   return Math.abs(offset) <= node.width / 2 - 12 ? { edge, end, move } : null;
 }
 
-function labelBounds(route, others, width) {
-  const { words, side, dir, lift = 0, points: [[from, fromY], turn, end] } = route;
-  const [to, y] = side ? [turn[0], fromY] : end;
+const apart = (a, b) => a.x + a.width + 2 <= b.x || b.x + b.width + 2 <= a.x || a.y + a.height + 2 <= b.y || b.y + b.height + 2 <= a.y;
+
+// `placed`: boxes of labels already standing, which a label of a shared label lane (RD-4a) must also keep clear of.
+function labelBounds(route, others, width, placed = []) {
+  const { words, side, dir, lift = 0, labelLane, points: [[from, fromY], turn, end] } = route;
+  const [to, runY] = side ? [turn[0], fromY] : end;
+  const y = labelLane ? labelLane.y : runY;
   const w = Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12);
   const h = words.length * lineHeight(EDGE_TEXT) + 4;
-  const center = (from + to) / 2;
-  const straight = !side && Math.abs(from - to) < 35;
+  const center = labelLane ? to : (from + to) / 2; // RD-4a: on the wire's last vertical leg, in the lane the node's branches share
+  const straight = !side && !labelLane && Math.abs(from - to) < 35;
   // RD-2b: beside a short drop the label stands outside the vertex; on a run it is centred on it.
   const anchor = side === 'drop' ? from + dir * (4 + w / 2) : center;
   const offset = straight ? w / 2 + 7 : 0;
@@ -140,12 +144,22 @@ function labelBounds(route, others, width) {
   for (const shift of offsets) {
     const x = clamped(anchor + shift - w / 2);
     const bounds = { x, y: side ? y - h - 4 - lift : y - h / 2, width: w, height: h };
-    if (others.every(other => other === route || !crosses(other.points, bounds))) return bounds;
+    if (others.every(other => other === route || !crosses(other.points, bounds)) && placed.every(box => apart(box, bounds))) return bounds;
   }
   return null;
 }
 
-export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, paintNode) {
+// RD-4a: a node whose shared label lane finds no room (a label would touch a wire that passes through the lane) is laid out again with its branches on their own lanes, as before.
+export function layoutFlow(diagram, requestedWidth, paintNode) {
+  const unshared = new Set();
+  for (;;) {
+    const { failed, ...layout } = layoutPass(diagram, requestedWidth, paintNode, unshared);
+    if (!failed.length) return layout;
+    for (const id of failed) unshared.add(id);
+  }
+}
+
+function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, unshared) {
   const paths = flowPaths(highlightPath);
   const onPath = new Set(paths.flat());
   const pathEdge = ({ from, to }) => paths.some(path => path.some((id, index) => id === from && path[index + 1] === to));
@@ -290,6 +304,49 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
     }
   }
 
+  // RD-4a: two or more labelled branches that leave a node by lanes stand at one height. (1) When their runs and labels are side by side without touching (opposite directions, or short runs
+  // apart), the branches share one lane and each label stands on its run. (2) Otherwise the wires keep their own 12 px lanes and the labels share one more lane below them, each label on its
+  // wire's last vertical leg; the labels must fit side by side (the default wrap, else a narrower one), and if they do not, none of the node's branches is labelled inline (the key under the graph).
+  const labelGroups = [];
+  const labelWidth = words => Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12);
+  const apartX = (a, b, margin) => a[1] + margin <= b[0] || b[1] + margin <= a[0];
+  for (const node of placements.values()) {
+    const group = outgoing.get(node.id).map(edge => routeByEdge.get(edge)).filter(route => !sideEdges.has(route.edge) && !route.arrive && route.words.length);
+    if (group.length < 2 || unshared.has(node.id)) continue;
+    const anchors = group.map(({ edge }) => placements.get(edge.to).cx + portOffset(placements.get(edge.to), incoming.get(edge.to), edge));
+    const starts = group.map(({ edge }) => node.cx + portOffset(node, outgoing.get(node.id), edge));
+    const runs = group.map((_, index) => [Math.min(starts[index], anchors[index]), Math.max(starts[index], anchors[index])]);
+    const boxes = group.map((route, index) => {
+      const w = labelWidth(route.words), x = Math.max(PAD, Math.min(width - PAD - w, (starts[index] + anchors[index]) / 2 - w / 2));
+      return [x, x + w];
+    });
+    const slots = group.map(route => gaps[ranks.get(node.id)].indexOf(route.depart)).sort((a, b) => a - b);
+    const sideBySide = slots.every((slot, index) => slot === slots[0] + index) && runs.every((run, i) => run[1] - run[0] >= 35 && runs.every((other, j) => j === i || (apartX(run, other, 6) && apartX(boxes[i], other, 2) && apartX(boxes[i], boxes[j], 2))));
+    if (sideBySide) {
+      const [lead, ...rest] = group;
+      lead.depart.height = Math.max(...group.map(route => route.depart.height));
+      for (const route of rest) { gaps[ranks.get(node.id)].splice(gaps[ranks.get(node.id)].indexOf(route.depart), 1); route.depart = lead.depart; }
+      continue;
+    }
+    const fits = lists => {
+      let right = -Infinity;
+      return group.map((_, index) => index).sort((a, b) => anchors[a] - anchors[b]).every(index => {
+        const w = labelWidth(lists[index]);
+        const x = Math.max(PAD, Math.min(width - PAD - w, anchors[index] - w / 2));
+        const ok = x >= right + 2;
+        right = x + w;
+        return ok;
+      });
+    };
+    const narrow = Math.floor((width - 2 * PAD) / group.length) - 16;
+    const lists = [group.map(route => route.words), ...(narrow < EDGE_WRAP ? [group.map(route => wrap(route.edge.label, narrow, EDGE_TEXT))] : [])].find(fits);
+    if (!lists) continue;
+    const lane = { height: Math.max(...lists.map(words => words.length)) * lineHeight(EDGE_TEXT) + 4 + 8 };
+    group.forEach((route, index) => { route.words = lists[index]; route.depart.height = 12; route.labelLane = lane; });
+    gaps[ranks.get(node.id)].push(lane);
+    labelGroups.push({ id: node.id, group });
+  }
+
   let y = PAD;
   placedRows.forEach((row, rank) => {
     const height = Math.max(...row.map(node => node.height));
@@ -339,9 +396,23 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
   const annotations = [];
   const labelBoxes = new Map(); // geometry only (geometry-lint.js): where each inline edge label was placed
   let bottom = y;
+  // A node's shared-lane labels are all placed, or the node is laid out again without the shared lane.
+  const shared = new Map(), failed = [];
+  for (const { id, group } of labelGroups) {
+    const standing = [], boxes = new Map();
+    for (const { edge } of group) {
+      const bounds = labelBounds(routed.find(candidate => candidate.edge === edge), routed, width, standing);
+      if (!bounds) break;
+      standing.push(bounds);
+      boxes.set(edge, bounds);
+    }
+    if (boxes.size === group.length) for (const [edge, bounds] of boxes) shared.set(edge, bounds);
+    else failed.push(id);
+  }
+  if (failed.length) return { failed };
   for (const route of routed.filter(route => route.words.length)) {
     const { edge, words } = route;
-    const bounds = labelBounds(route, routed, width);
+    const bounds = route.labelLane ? shared.get(edge) : labelBounds(route, routed, width);
     if (bounds) {
       labelBoxes.set(edge, bounds);
       annotations.push(h('g', null,
@@ -378,7 +449,7 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
       ...(labelHeight ? [label(lines, cx, top + labelHeight / 2, { tone: 'onFill' })] : []),
       h('g', { 'data-tutor-node-tensor': '', transform: `translate(${cx - strip.width / 2} ${top + stripOffset})` }, ...strip.elements));
   });
-  return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes], geometry: flowGeometry(width, bottom + PAD, placements, routed, labelBoxes) };
+  return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes], geometry: flowGeometry(width, bottom + PAD, placements, routed, labelBoxes), failed: [] };
 }
 
 // The layout as numbers, for geometry-lint.js (RD-3): node shapes with their text boxes, routed wires, inline edge-label boxes. Read-only; nothing here is drawn.
