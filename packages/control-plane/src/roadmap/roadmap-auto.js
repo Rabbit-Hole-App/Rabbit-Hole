@@ -64,7 +64,8 @@ export async function ensureNextProposal(env, access, { roadmapId, triggerEventI
 export async function autoProposalHandler(env, event, { now = nowSeconds() } = {}, deps = {}) {
   const db = env.LEARN_DB;
   // A running course (roadmap-course.js, owner 2026-11-14) goes on after every delivery or failed card by itself, whatever Auto-suggest or the flag say: the learner asked for the whole course.
-  if (event.kind === 'card_delivered' || event.kind === 'card_failed') {
+  // Every kind, not only a delivery or a failure: a mode or Auto-suggest change must not run the per-card offer on a course either (it completed a stopped course that was waiting for Try again; found live).
+  {
     const running = await accessForRoadmap(db, event);
     const roadmap = running && await readRoadmap(db, running, event.roadmap_id);
     // Once a course has run, the per-card automatic offer is retired for that roadmap (owner 2026-11-14): a stopped course offers nothing by itself.
