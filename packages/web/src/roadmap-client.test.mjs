@@ -72,9 +72,9 @@ test('invitation: two exact choices and the drop sentence; never deferred for ty
   const iv = view('invitation-offered').invitation;
   let state = reduce(initialState(), { type: 'invitation', invitation: iv });
   const shown = invitationOf(state);
-  assert.deepEqual(shown.choices.map(c => c.label), ['Explain on canvas', 'Just keep it here']);
+  assert.deepEqual(shown.choices.map(c => c.label), ['Create a course', 'Cancel']);
   assert.deepEqual(shown.sourceKeys, iv.sourceKeys);
-  assert.equal(shown.text, `You’ve added **${iv.title}**. Would you like me to explain it on the canvas?`);
+  assert.equal(shown.text, `You’ve added **${iv.title}**. Would you like me to create a course from it?`);
   assert.equal(invitationOf(state, { typing: true })?.id, iv.id, 'no indefinite typing deferral (UI.01)');
   state = reduce(state, { type: 'dismissed', id: iv.id });
   assert.equal(invitationOf(state), null);
@@ -335,4 +335,11 @@ test('pillOf: first offer Accept, a later one Next card, one gesture and route f
   assert.equal(pill.gesture, `accept:${later.view.proposal.id}:${later.view.proposal.version}`);
   assert.deepEqual(routes.acceptProposal(later.view, 'ak_x').body, { boardId: later.view.roadmap.boardId, revision: later.view.roadmap.revision, proposalVersion: later.view.proposal.version, actionKey: 'ak_x' });
   assert.equal(tabAccepts({ event: { key: 'Tab' }, pill }), true, 'eligible Tab accepts the same Next card offer');
+});
+
+test('a dropped Markdown file waits for its invitation (owner 2026-11-14): waiting turns on, and the invitation, a failure or the timeout turn it off', () => {
+  const waiting = reduce(initialState(), { type: 'waiting', on: true });
+  assert.equal(waiting.waiting, true);
+  assert.equal(reduce(waiting, { type: 'invitation', invitation: null, suppressed: { reason: 'unfinished_roadmap' } }).waiting, false, 'any invitation answer ends the wait');
+  assert.equal(reduce(waiting, { type: 'waiting', on: false }).waiting, false);
 });

@@ -217,9 +217,11 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
   const run = runner(roadmap, chat, choose);
   const shown = entries.filter(e => !have.has(e.clientId) && (() => { const t = targetOf(e, where); return !t || !thread.id || t === thread.id; })());
   const notes = chatOf(roadmap.state).filter(line => line.kind === 'notice' || line.kind === 'coverage'); // transient, never saved
-  if (!shown.length && !notes.length) return null;
+  const waiting = !!roadmap.state.waiting && !iv && !roadmap.state.view; // a Markdown file was just dropped: its invitation is on its way (owner 2026-11-14)
+  if (!shown.length && !notes.length && !waiting) return null;
   return (
     <div data-roadmap-chat>
+      {waiting && <span role="status" data-roadmap-preparing className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{STRINGS.preparing}</span></span>}
       {notes.map(line => {
         const m = { role: 'assistant', content: line.kind === 'coverage' && line.notes?.length ? `${line.text}\n\n${line.notes.join('\n\n')}` : line.text, status: 'done', meta: { roadmap: line.id } };
         return <div key={line.id} data-roadmap-item={line.id}><ChatMessage m={m} i={0} msgs={[m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />

@@ -53,9 +53,9 @@ try {
     const { server, page } = await open({ invitation: true });
     const card = page.locator('[data-roadmap-invitation]');
     await card.waitFor();
-    assert.deepEqual(await card.getByRole('button').allInnerTexts(), ['Explain on canvas', 'Just keep it here']);
+    assert.deepEqual(await card.getByRole('button').allInnerTexts(), ['Create a course', 'Cancel']);
     await page.screenshot({ path: `${SHOTS}/1-invitation.png` });
-    await card.getByRole('button', { name: 'Just keep it here' }).click();
+    await card.getByRole('button', { name: 'Cancel' }).click();
     await until(async () => (await card.count()) === 0, 'invitation gone');
     assert.equal(server.count('/dismiss'), 1);
     await page.reload();

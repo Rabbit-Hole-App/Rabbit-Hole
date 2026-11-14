@@ -56,7 +56,7 @@ export function actionKeys(random = () => globalThis.crypto.randomUUID()) {
 }
 
 // --- state ----------------------------------------------------------------------------------------------------------------
-export const initialState = () => ({ flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, boundary: null, notice: null, busy: [], mode: 'auto', draft: null, editing: false, limitation: null });
+export const initialState = () => ({ waiting: false, flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, boundary: null, notice: null, busy: [], mode: 'auto', draft: null, editing: false, limitation: null });
 
 const sameRoadmap = (a, b) => a?.roadmap?.id === b?.roadmap?.id;
 // A view older than the one held (same roadmap) is ignored: a slow poll never rolls the screen back.
@@ -76,7 +76,9 @@ export function reduce(state, event) {
     case 'draft': return { ...state, draft: event.draft };
     // Anything else refused (credits, source changed): the sentence comes from the response; the proposal stays as the server has it.
     case 'refused': return { ...state, view: event.current && newer(state.view, event.current) ? event.current : state.view, notice: event.message || null, limitation: event.limitation || null };
-    case 'invitation': return { ...state, flag: 'on', invitation: event.invitation && !state.dismissed.includes(event.invitation.id) ? event.invitation : null, suppressed: event.suppressed || null };
+    // A dropped Markdown file is on its way to an invitation (owner 2026-11-14): Chat shows a shimmer until the invitation, a refusal or a failure arrives.
+    case 'waiting': return { ...state, waiting: !!event.on };
+    case 'invitation': return { ...state, waiting: false, flag: 'on', invitation: event.invitation && !state.dismissed.includes(event.invitation.id) ? event.invitation : null, suppressed: event.suppressed || null };
     // Dismissal scopes to this invitation id only: the id is remembered, nothing global changes.
     case 'dismissed': return { ...state, invitation: state.invitation?.id === event.id ? null : state.invitation, dismissed: [...state.dismissed, event.id] };
     case 'boundary': return { ...state, boundary: event.boundary };

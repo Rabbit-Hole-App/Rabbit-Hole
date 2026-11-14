@@ -75,9 +75,9 @@ test('the invitation offers exactly the two choices; no other control', () => {
   const state = reduce(initialState(), { type: 'invitation', invitation: JSON.parse(readFileSync(DIR + 'invitation-offered.json', 'utf8')).response.body.invitation });
   const markup = html(lib.RoadmapInvitation, { invitation: invitationOf(state), lines: [], onExplain: noop, onKeep: noop, onAnswer: noop, onOffer: noop });
   assert.equal((markup.match(/<button/g) || []).length, 2);
-  assert.match(markup, />Explain on canvas</);
-  assert.match(markup, />Just keep it here</);
-  assert.match(markup, /You’ve added \*\*Gradient descent notes\.md\*\*\. Would you like me to explain it on the canvas\?/);
+  assert.match(markup, />Create a course</);
+  assert.match(markup, />Cancel</);
+  assert.match(markup, /You’ve added \*\*Gradient descent notes\.md\*\*\. Would you like me to create a course from it\?/);
   assert.equal(html(lib.RoadmapInvitation, { invitation: null, lines: [] }), '');
 });
 

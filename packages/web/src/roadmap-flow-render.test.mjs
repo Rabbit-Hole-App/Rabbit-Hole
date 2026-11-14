@@ -149,8 +149,8 @@ test('the draft actions sit 12 px under the preview and 8 px apart, outside it, 
     assert.doesNotMatch(wrapper[1], /\b(pt-1|gap-1\.5|-mt-|mt-)/);
     const plan = markup.indexOf('data-roadmap-steps'), actions = markup.indexOf('data-roadmap-actions');
     assert.ok(plan > 0 && actions > plan, 'the buttons follow the preview, outside it');
-    assert.ok(markup.slice(markup.indexOf('data-roadmap-actions')).split('</div>')[0].includes('Accept roadmap'));
-    assert.ok(!markup.slice(plan, actions).includes('Accept roadmap'), 'not inside the preview');
+    assert.ok(markup.slice(markup.indexOf('data-roadmap-actions')).split('</div>')[0].includes('Accept'));
+    assert.ok(!markup.slice(plan, actions).includes('Accept'), 'not inside the preview');
   }
 });
 

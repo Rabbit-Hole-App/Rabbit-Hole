@@ -173,10 +173,11 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     const idleKey = `drop-${key}`.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 120);
     return call(routes.invite(boardId, [key], idleKey)).then(body => {
       dispatch({ type: 'invitation', invitation: body.invitation, suppressed: body.suppressed });
+      dispatch({ type: 'waiting', on: false });
       markEnd('drop:' + key); // drop_to_invite_ms (LearnPage.jsx starts it at the drop)
       if (body.suppressed?.reason === 'unfinished_roadmap') dispatch({ type: 'boundary', boundary: { key, name: host.sourceName?.(key) || '' } });
       return body;
-    }, error => { reported.delete(key); markEnd('drop:' + key, 'failed'); refuse(error); return null; });
+    }, error => { reported.delete(key); dispatch({ type: 'waiting', on: false }); markEnd('drop:' + key, 'failed'); refuse(error); return null; });
   };
 
   // Fix B (T5): the Depth and instruction the learner confirmed for THIS source in Chat (explain); a part chosen later (R7a) keeps them.
@@ -198,6 +199,12 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     refresh,
     // A supported source finished importing: reported, grouped, once the learner is idle.
     sourceReady: key => report(key), idleTick: () => false,
+    // A Markdown file was just dropped: show the waiting shimmer until its invitation arrives (cleared by it, by a failure, or after a minute so it never sticks).
+    expectInvitation() {
+      if (stopped || host.readOnly?.() || state.view) return;
+      dispatch({ type: 'waiting', on: true });
+      const id = schedule(() => { followUps.delete(id); dispatch({ type: 'waiting', on: false }); }, 60000); followUps.add(id);
+    },
     setMode(mode) {
       if (mode === state.mode) return;
       dispatch({ type: 'mode', mode });
