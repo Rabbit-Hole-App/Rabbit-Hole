@@ -1,14 +1,16 @@
-import { evalScalar } from '../interact-plan.js';
 import { TEMPLATE_WORDS, exprToJs, formulaScope, nestWords, parseQuantity } from '../interact-formula.js';
 import * as oneBody from './one-body.js';
 import * as twoLane from './two-lane.js';
 import * as bodyPlot from './body-plot.js';
+import { verticalThrow } from '../interact-family-vertical-throw.js';
 
 // generateProgram(plan, buildInput) -> { source, manifest }: the program for a plan that names a template, written by trusted code and no model. The plan carries the physics (each quantity's
 // formula, piecewise through switchAt / formulaAfter), the controls, the ranges and the timeline; buildInput carries the exact control declarations and timeline (interact-build.js buildInput). A
 // template (./one-body.js, ./two-lane.js, ./body-plot.js) owns the drawing and the geometry; the plan holds every word (scene.words). A plan the template cannot build is a TemplateError (our bug or a plan
 // that names slots it does not have), never a model call or a repair.
 export const TEMPLATES = Object.freeze({ 'one-body': oneBody, 'two-lane': twoLane, 'body-plot': bodyPlot });
+// The families whose templates this generator builds (a family names its templates; its context() gives the geometry the template draws from, and it may declare `independent: { id, domain }` in place of a timeline).
+export const FAMILIES = Object.freeze([verticalThrow]);
 
 export class TemplateError extends Error {
   constructor(code, message) { super(message); this.name = 'TemplateError'; this.code = code; }
@@ -27,11 +29,12 @@ const sentences = (text, max) => {
   const cut = plain.slice(0, max), end = cut.lastIndexOf('.');
   return end > 0 ? cut.slice(0, end + 1) : cut.trim();
 };
-const superscripts = unit => String(unit ?? '').replace('^2', '²').replace('^3', '³');
-
-export function generateProgram(plan, buildInput) {
-  const scene = plan.scene, name = scene.template, template = TEMPLATES[name];
+// `registry` is a test seam for a family and a template the product does not register yet: { templates, families }.
+export function generateProgram(plan, buildInput, registry = { templates: TEMPLATES, families: FAMILIES }) {
+  const scene = plan.scene, name = scene.template, template = registry.templates[name];
   if (!template) throw new TemplateError('no_template', `the plan names no known template (${name ?? 'none'})`);
+  const family = registry.families.find(f => f.templates.includes(name));
+  if (!family) throw new TemplateError('no_family', `no family draws the template ${name}`);
   const slots = template.normalize(scene.slots ?? {}), quantities = new Map(scene.quantities.map(q => [q.id, q]));
   // The bodies the template draws: one for one-body and body-plot, two lanes (in the plan's order) for two-lane.
   const bodies = name === 'two-lane' ? template.lanesOf(slots).map(lane => slots[lane]) : [slots];
@@ -51,35 +54,17 @@ export function generateProgram(plan, buildInput) {
     parsed[quantity.id] = trees;
     js[quantity.id] = trees.formulaAfter ? `(t < ${exprToJs(trees.switchAt)} ? ${exprToJs(trees.formula)} : ${exprToJs(trees.formulaAfter)})` : exprToJs(trees.formula);
   }
+  // A timed scene has the plan's timeline; a still scene has none and its family declares the independent variable instead.
   const timeline = plan.mode.timeline;
-  if (!timeline) throw new TemplateError('no_timeline', 'a template build needs the plan\'s timeline');
-  const endExpr = fixLiterals(timeline.end, fixed);
+  if (!timeline && !family.independent) throw new TemplateError('no_timeline', 'a template build needs the plan\'s timeline');
+  const endExpr = timeline ? fixLiterals(timeline.end, fixed) : null;
 
-  // The range the geometry must fit: the largest rise above the launch height, the longest timeline end and the plotted quantity's largest size, over the corners and middle of every input range.
-  const body = bodies[0], plotted = slots.plotted ?? body.velocity;
-  const evalQ = (id, values, t) => { const q = parsed[id], at = { ...values, t }; return q.formulaAfter && t >= evalScalar(q.switchAt, values) ? evalScalar(q.formulaAfter, at) : evalScalar(q.formula, at); };
-  const topAt = (values, end) => { // the body's velocity crosses zero (bisection), as the program finds it
-    if (evalQ(body.velocity, values, 0) <= 0) return 0;
-    let lo = 0, hi = end;
-    for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (evalQ(body.velocity, values, mid) > 0) lo = mid; else hi = mid; }
-    return (lo + hi) / 2;
-  };
-  let grid = [{}];
-  for (const input of numberInputs) grid = grid.flatMap(values => [input.min, (input.min + input.max) / 2, input.max].map(value => ({ ...values, [input.id]: value })));
-  const range = { rise: 0, end: 0, plotted: 0 };
-  for (const values of grid) {
-    const end = evalScalar(endExpr, { ...values, t: 0 });
-    range.rise = Math.max(range.rise, evalQ(body.height, values, topAt(values, end)) - evalQ(body.height, values, 0));
-    range.end = Math.max(range.end, end);
-    range.plotted = Math.max(range.plotted, Math.abs(evalQ(plotted, values, 0)), Math.abs(evalQ(plotted, values, end)));
-  }
-
-  const unitOf = id => superscripts(quantities.get(id)?.unit);
-  const units = { height: unitOf(body.height), velocity: unitOf(body.velocity), acceleration: unitOf(body.acceleration), ...(slots.force ? { force: unitOf(slots.force) } : {}) };
+  // The geometry the template draws from (the family's: for a timed body the rise above the launch height, the longest end and the plotted size, and the units).
+  const { range, units } = family.context({ scene, bodies, slots, parsed, numberInputs, endExpr, quantities });
   const geometry = template.geometry(range), readoutIds = scene.readoutIds;
-  const wordProblems = TEMPLATE_WORDS[name].filter(({ key, max }) => typeof scene.words?.[key] !== 'string' || !scene.words[key].trim() || scene.words[key].length > max).map(({ key }) => key);
+  const wordProblems = (TEMPLATE_WORDS[name] ?? []).filter(({ key, max }) => typeof scene.words?.[key] !== 'string' || !scene.words[key].trim() || scene.words[key].length > max).map(({ key }) => key);
   if (wordProblems.length) throw new TemplateError('words_missing', `template ${name} needs scene.words for ${wordProblems.join(', ')}`);
-  const ctx = { words: nestWords(name, scene.words), slots, q: js, end: exprToJs(endExpr), inputIds, readoutIds, units, geometry, timeline: { label: timeline.label, unit: timeline.unit ?? 's' } };
+  const ctx = { words: nestWords(name, scene.words), slots, q: js, end: endExpr && exprToJs(endExpr), inputIds, readoutIds, units, geometry, timeline: timeline ? { label: timeline.label, unit: timeline.unit ?? 's' } : null, ...(timeline ? {} : { independent: family.independent }) };
   const source = template.source(ctx);
 
   // The manifest: every value the plan or buildInput holds, copied; the state readouts' definitions are the template's (the plan names only their ids).
@@ -91,11 +76,11 @@ export function generateProgram(plan, buildInput) {
     if (!quantity) throw new TemplateError('readout_unknown', `the readout "${id}" is neither one of the plan's quantities nor a state this template reports`);
     return { id, label: quantity.label, unit: quantity.unit, decimals: decimalsOf(id) };
   });
-  const atDefault = buildInput.timeline.atDefaultInputs;
+  const atDefault = timeline && buildInput.timeline.atDefaultInputs;
   const manifest = {
     title: plan.title, summary: sentences(plan.cardDescription, 400), assumptions: plan.assumptions ?? [], description: sentences(plan.cardDescription, 600),
-    inputs: declarations, duration: buildInput.timeline.durationSeconds,
-    timeline: { label: buildInput.timeline.label, displayOffset: atDefault.displayOffset, playbackRate: buildInput.timeline.playbackRate, markers: atDefault.markers.map(({ id, label, time }) => ({ id, label, time })) },
+    inputs: declarations, ...(timeline ? { duration: buildInput.timeline.durationSeconds } : {}),
+    ...(timeline ? { timeline: { label: buildInput.timeline.label, displayOffset: atDefault.displayOffset, playbackRate: buildInput.timeline.playbackRate, markers: atDefault.markers.map(({ id, label, time }) => ({ id, label, time })) } } : {}),
     readouts, capabilities: scene.runtime.requiredCapabilities,
   };
   return { source, manifest };
