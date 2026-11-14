@@ -4,7 +4,7 @@
 // The server setting EXPLANATION_MODEL_PROFILE picks one; unset or empty is the registry default. The default profile pins today's transport
 // (LEARN_TASKS.artifact through the plan transport) so the request it builds is byte-identical to the one sent before profiles existed.
 // Only the SERVER registry chooses a model; a request, prompt or tool result cannot. A leaf: no provider call is made here.
-import { CHAT_GEMINI, LEARN_TASKS } from './learn-models.js';
+import { LEARN_TASKS } from './learn-models.js';
 import { sha256Hex } from './learn-grade-jev.js';
 
 export const EXPLANATION_POLICY_VERSION = 1;
@@ -35,10 +35,10 @@ const stable = v => (Array.isArray(v) ? `[${v.map(stable).join(',')}]` : v && ty
 const planRole = role => ({ role, task: 'artifact', provider: 'plan', model: LEARN_TASKS.artifact.model, adapter: 'plan', credentialRef: 'ANTHROPIC_API_KEY',
   maxOutputTokens: LEARN_TASKS.artifact.maxTokens, toolChoice: LEARN_TASKS.artifact.toolChoice, settings: {} });
 
-// Owner 2026-11-14: a roadmap or course card is authored on Gemini Flash through the SAME metered plan transport as every other roadmap call (tools body, one dispatch, held and
-// priced as Google), never the fast chain: the chain calls its providers itself, so a hold, a quote and one-dispatch accounting cannot see it (roadmap-generate.js).
-export const ROADMAP_CARD_PROFILE = 'plan-gemini';
-const geminiRole = role => ({ ...planRole(role), model: CHAT_GEMINI, credentialRef: 'GEMINI_API_KEY', maxOutputTokens: 8000 }); // Gemini's thinking counts inside the cap
+// Owner 2026-11-14: a roadmap or course card is authored on Gemini Flash by the fast chain (the only path Gemini accepts the explanation schema on: json_schema, not tools), on that
+// provider ALONE: the quote, the hold and the one-dispatch rule are bound to one request, so a fallback provider would be a request nobody quoted. Each step call is metered by the
+// roadmap's hold through `meterStep` (roadmap-generate.js), so the learner is charged exactly as for any other roadmap call.
+export const ROADMAP_CARD_PROFILE = 'roadmap-gemini';
 
 export const CEREBRAS_MODEL = 'gpt-oss-120b';
 export const REASONING_EFFORTS = Object.freeze(['low', 'medium', 'high']);
@@ -72,7 +72,7 @@ export const EXPLANATION_REGISTRY = deepFreeze({
   defaultProfile: 'plan-default',
   profiles: {
     'plan-default': { version: 1, roles: { author: planRole('author') } },
-    [ROADMAP_CARD_PROFILE]: { version: 1, roles: { author: geminiRole('author'), repair: geminiRole('repair') } },
+    [ROADMAP_CARD_PROFILE]: { version: 1, roles: { author: { ...chainRole('google', 'low'), fallbacks: [] } } },
     ...Object.fromEntries(['fireworks', 'cerebras', 'google'].flatMap(primary => REASONING_EFFORTS.map(effort => [`${primary}-${effort}`, { version: 1, roles: { author: chainRole(primary, effort) } }]))),
   },
 });

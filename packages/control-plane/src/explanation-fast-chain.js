@@ -239,7 +239,7 @@ export async function generateWithFallbacks(env, input, options, generate) {
     if (!env[step.credentialRef]) { note('skipped'); continue; }
     const seen = {};
     let out = null;
-    try { out = await generate(env, input, { ...options, early, callModel: loggedModel('artifact', stepCall(step, role.settings.reasoning_effort, seen, onVisual)) }); }
+    try { const call = stepCall(step, role.settings.reasoning_effort, seen, onVisual); const { meterStep, ...inner } = options; out = await generate(env, input, { ...inner, early, callModel: loggedModel('artifact', meterStep ? meterStep(call) : call) }); } // the step takes the chain's transport once: meterStep is not passed on, or it would re-enter the chain // meterStep: the roadmap's hold wraps each provider call (roadmap-generate.js)
     catch (error) {
       last = Object.assign(error, { code: error.code || 'provider_error' });
       note(last.code);

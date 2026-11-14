@@ -270,6 +270,11 @@ test('a roadmap card is quoted and priced on Gemini Flash even when EXPLANATION_
     assert.equal(quote.outcome, 'quoted', `${profile}: ${quote.code}`);
     assert.deepEqual([quote.provider, quote.model], ['google', 'gemini-3.5-flash-lite'], String(profile));
     assert.ok(quote.boundMicros > 0);
-    assert.equal(quote.profile.id, 'plan-gemini', 'the accepted request binds the roadmap card profile');
+    assert.equal(quote.profile.id, 'roadmap-gemini', 'the accepted request binds the roadmap card profile');
+  }
+  {
+    const plain = await quoteRoadmapCard({}, rec);
+    assert.equal(plain.outcome, 'quoted');
+    assert.equal(plain.provider, 'anthropic', 'no Gemini key on this server: the plan model, never a provider without a credential');
   }
 });

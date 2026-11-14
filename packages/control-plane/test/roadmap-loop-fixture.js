@@ -81,7 +81,7 @@ export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 
   }
   const rev = await sha(md);
   w.sqlite.prepare('UPDATE file_sources SET sha256 = ?').run(rev);
-  const env = { ...w.env, ROADMAP_ENABLED: flag, ...envExtra, LEARN_MEDIA: { get: async key => (key in objects ? { text: async () => objects[key] } : null) } };
+  const env = { ...w.env, ROADMAP_CARD_PROFILE: 'plan-default', ROADMAP_ENABLED: flag, ...envExtra, LEARN_MEDIA: { get: async key => (key in objects ? { text: async () => objects[key] } : null) } };
   const m = models({ plans }), p = provider(script);
   registerRoadmapHandlers({ callModel: m.callModel, checkCallModel: m.callModel, classify: classifier, base: p.base });
   const deps = { identity: async () => ({ org: 'team', email: 'u-alice@example.test', userId: 'u-alice' }), ...roadmapDeps(env, null, { settings, readSourceOptions: { minWords: 0 } }) }; // the fixtures' Markdown is a few lines: the 100-word check is tested in roadmap-course.test.js
