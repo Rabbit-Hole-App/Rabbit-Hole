@@ -31,9 +31,25 @@ export const getAnswerAlternative = messageId => api(`/api/learn/chat/messages/$
 const icon = 'flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50';
 const quiet = 'flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-ink-3 opacity-60 hover:bg-hover hover:text-ink hover:opacity-100 focus-visible:opacity-100 group-hover/answer:opacity-100 aria-pressed:text-ink aria-pressed:opacity-100';
 
-export default function AnswerFooter({ message, latest = false, onCreateExplainCard = null, onAddAsCard = null, onLocateCard = null, cardExists = null, onRegenerate = null, onSelectAlternative = null, putFeedback = putAnswerFeedback, copyText = copyAnswer }) {
+export default function AnswerFooter({ message, latest = false, onCreateExplainCard = null, checkKeep = null, onAddAsCard = null, onLocateCard = null, cardExists = null, onRegenerate = null, onSelectAlternative = null, putFeedback = putAnswerFeedback, copyText = copyAnswer }) {
   const root = useRef(null);
   const [justAdded, setJustAdded] = useState(false), [created, setCreated] = useState(false);
+  // Create as card is offered only for a reply JEV says is worth keeping (checkKeep, chat-keep.js). It is asked once per reply, for the latest one at once and for an older one
+  // the first time the pointer or a key reaches it, so opening a long chat makes no calls. A failed or slow check offers nothing.
+  const [keepIt, setKeepIt] = useState(false), [asked, setAsked] = useState(!!latest);
+  useEffect(() => {
+    const box = root.current?.closest('[data-answer]');
+    if (!box || asked || !checkKeep) return undefined;
+    const ask = () => setAsked(true);
+    box.addEventListener('pointerenter', ask, { once: true }); box.addEventListener('focusin', ask, { once: true });
+    return () => { box.removeEventListener('pointerenter', ask); box.removeEventListener('focusin', ask); };
+  }, [asked, !!checkKeep, footerShown(message)]);
+  useEffect(() => {
+    if (!asked || !checkKeep || !onCreateExplainCard || !footerShown(message)) return undefined;
+    let live = true;
+    Promise.resolve(checkKeep()).then(ok => { if (live) setKeepIt(!!ok); }).catch(() => {});
+    return () => { live = false; };
+  }, [asked, message.messageId, !!checkKeep, footerShown(message)]);
   const [copied, setCopied] = useState(null);
   const [rating, setRating] = useState(message.meta?.feedback?.rating ?? null);
   const [reason, setReason] = useState(null); // null = the reason field is closed
@@ -74,7 +90,7 @@ export default function AnswerFooter({ message, latest = false, onCreateExplainC
         {onAddAsCard && (added
           ? <button type="button" data-add-to-canvas data-added title="Show the card on the canvas" className={cn(icon, 'text-green-700 hover:text-green-800')} onClick={() => onLocateCard?.(cardId)}><Check size={13} />Added</button>
           : <button type="button" data-add-to-canvas title="Save this answer as a card on the canvas" className={icon} onClick={() => { onAddAsCard({ id: cardId, answer: message.content, sources: message.meta?.contextRefs ?? null }); setJustAdded(true); }}><Plus size={13} />Add as card</button>)}
-        {onCreateExplainCard && <button type="button" data-create-explain-card disabled={created} title="Make a written explanation card from this question, with /explain" className={icon} onClick={() => { onCreateExplainCard(); setCreated(true); }}>{created ? <Check size={13} /> : <FileText size={13} />}{created ? 'Creating' : 'Create as card'}</button>}
+        {onCreateExplainCard && keepIt && <button type="button" data-create-explain-card disabled={created} title="Make a written explanation card from this question, with /explain" className={icon} onClick={() => { onCreateExplainCard(); setCreated(true); }}>{created ? <Check size={13} /> : <FileText size={13} />}{created ? 'Creating' : 'Create as card'}</button>}
         <span className="relative flex items-center">
           <button type="button" aria-label="Copy answer" title="Copy answer" className={icon} onClick={copy}><Copy size={13} /></button>
           {copied && <span role="status" className={cn('ml-1 text-xs', copied === 'Copied' ? 'text-ink-2' : 'text-danger')}>{copied}</span>}

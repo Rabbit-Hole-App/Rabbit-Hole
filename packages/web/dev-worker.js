@@ -74,6 +74,7 @@ import { runCleanup } from '../control-plane/src/publication-analytics-purge.js'
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { explanationSummaryRoute } from '../control-plane/src/explanation-summary.js';
 import { chatRouteFetch } from '../control-plane/src/chat-capability-route.js';
+import { chatKeepFetch } from '../control-plane/src/chat-keep-route.js';
 import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
@@ -375,6 +376,8 @@ const routes = {
     if (path === '/api/learn/inline/decide') return inlineDecideFetch(req, env);
     // CR-1: the chat line's capability route decision, before the turn is sent (chat-capability-route.js).
     if (path === '/api/learn/chat/route') return chatRouteFetch(req, env);
+    // Create as card (owner 2026-11-13): whether a finished reply is worth offering as a written /explain card (chat-keep-route.js).
+    if (path === '/api/learn/chat/keep') return chatKeepFetch(req, env);
     if (path === '/api/learn/inline/evidence') return inlineEvidenceFetch(req, env);
     if (path === '/api/learn/inline/generate') return inlineGenerateFetch(req, env);
     if (path === '/api/learn/inline/telemetry') return inlineTelemetryFetch(req, env);

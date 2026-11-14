@@ -104,6 +104,116 @@
     {
       "text": "Make me a quick quiz on how attention works.",
       "expect": "quiz"
+    },
+    {
+      "text": "ok so i dont get how transformers actually work like the attention part esp",
+      "expect": "explanation",
+      "persona": "Priya, CS undergrad typing fast at 2am"
+    },
+    {
+      "text": "why does my llm keep making stuff up lol",
+      "expect": "explanation",
+      "persona": "Priya, CS undergrad typing fast at 2am",
+      "ambiguous": true
+    },
+    {
+      "text": "whats the diff between bert and gpt",
+      "expect": "explanation",
+      "persona": "Priya, CS undergrad typing fast at 2am"
+    },
+    {
+      "text": "RAG vs fine-tuning, when and why. need to understand before the meeting",
+      "expect": "explanation",
+      "persona": "Marcus, senior backend engineer, impatient"
+    },
+    {
+      "text": "kv cache. how does it work",
+      "expect": "explanation",
+      "persona": "Marcus, senior backend engineer, impatient"
+    },
+    {
+      "text": "i want understand how language model learn the next word, please teach me",
+      "expect": "explanation",
+      "persona": "Yuki, non-native English speaker"
+    },
+    {
+      "text": "How is working the tokenization? I am confuse",
+      "expect": "explanation",
+      "persona": "Yuki, non-native English speaker"
+    },
+    {
+      "text": "how does chatgpt even know stuff",
+      "expect": "explanation",
+      "persona": "Sam, high school student"
+    },
+    {
+      "text": "bro what is a neural network",
+      "expect": "explanation",
+      "persona": "Sam, high school student"
+    },
+    {
+      "text": "can u break down how gradient descent works, i have a test tmrw",
+      "expect": "explanation",
+      "persona": "Sam, high school student"
+    },
+    {
+      "text": "why did the roman empire fall",
+      "expect": "explanation",
+      "persona": "Sam, high school student"
+    },
+    {
+      "text": "Walk me through how mixture-of-experts routing avoids expert collapse.",
+      "expect": "explanation",
+      "persona": "Dr Okafor, ML researcher, precise"
+    },
+    {
+      "text": "Contrast DPO with PPO-based RLHF in terms of stability.",
+      "expect": "explanation",
+      "persona": "Dr Okafor, ML researcher, precise"
+    },
+    {
+      "text": "I need to understand what a vector database is and why we'd need one, for a stakeholder doc",
+      "expect": "explanation",
+      "persona": "Lena, product manager, non-technical"
+    },
+    {
+      "text": "How do embeddings work, in plain English?",
+      "expect": "explanation",
+      "persona": "Lena, product manager, non-technical"
+    },
+    {
+      "text": "hows diffusion models make pictures from noise",
+      "expect": "explanation",
+      "persona": "Tom, hobbyist on his phone"
+    },
+    {
+      "text": "whys the sky blue",
+      "expect": "explanation",
+      "persona": "Tom, hobbyist on his phone",
+      "ambiguous": true
+    },
+    {
+      "text": "n what about audio",
+      "expect": "explanation",
+      "persona": "Tom, hobbyist on his phone",
+      "history": [
+        {
+          "user": "hows diffusion models make pictures from noise",
+          "reply": "They start from pure noise and learn to remove it a little at a time, guided by the prompt, until an image appears.",
+          "command": "explanation"
+        }
+      ],
+      "ambiguous": true
+    },
+    {
+      "text": "I'm putting together a lesson on how LLMs are trained. Something I can reuse in class would be great",
+      "expect": "explanation",
+      "persona": "Ana, teacher preparing a lesson"
+    },
+    {
+      "text": "Need something on the history of neural networks I can keep",
+      "expect": "explanation",
+      "persona": "Ana, teacher preparing a lesson"
     }
   ]
 }
