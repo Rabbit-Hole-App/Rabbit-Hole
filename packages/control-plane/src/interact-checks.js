@@ -487,7 +487,7 @@ export function headlessCaptureCard(_env, { limits } = {}) {
       const parsed = fitGuestLabels(parseGuestResult(out.value, program.manifest, program.sdkVersion), program.sdkVersion);
       if (!parsed.ok) return { error: { code: parsed.error.code, diagnostic: parsed.issue } };
       const { frame, quantities } = parsed.value;
-      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), objects: traceObjects(frame.objects), frame: traceFrame(frame), frameHash: await sha256Hex(canonicalJson(frame.objects)), ...(parsed.fitted?.length ? { fitted: parsed.fitted } : {}), inputs, time };
+      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), labels: frame.objects.filter(o => (o.kind === 'text' || o.kind === 'box') && o.text).map(o => ({ id: o.id, text: String(o.text).slice(0, 160) })), objects: traceObjects(frame.objects), frame: traceFrame(frame), frameHash: await sha256Hex(canonicalJson(frame.objects)), ...(parsed.fitted?.length ? { fitted: parsed.fitted } : {}), inputs, time };
     };
     const supportOf = id => artifacts.supporting.find(s => s.id === id).artifact;
     const resolver = createSnapshotResolver({ evaluate: ({ panelId, inputs, time }) => run(supportOf(panelId), resolveInputs(supportOf(panelId).program.manifest, inputs), time) });

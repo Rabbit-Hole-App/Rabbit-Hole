@@ -1,0 +1,41 @@
+{
+ "jobId": "ej_a8376a99464f40e1bf32bcbcf5d3bb76",
+ "label": "fast-balanced-1",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 31558,
+ "verdict": "fail",
+ "costUsd": 0.041546,
+ "findings": [
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "The lane.toss.state and lane.drop.state labels read 'Starting', 'Held at', 'Rising', 'At the apex' and 'Back at'. Several of these are truncated phrases, for example 'Held at' with no object and 'Back at' with no object. The state words are incomplete, so the learner reads unfinished text."
+  },
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "At the default inputs the first frame shows the tossed ball at launch (height 0) with v = +5 m/s, but the scrubber reads -0.51 s, the time from the top. That is consistent. However, the drop-lane label 'Ground Level' sits at the bottom while the held ball is drawn at the apex height. Its gate lines (y=236.7) are drawn about 15 px below the ball center (221.7), not at the ball. The gate geometry looks inconsistent with the 'gate at apex height' description."
+  },
+  {
+   "capture": "cp-top",
+   "category": "spec",
+   "severity": "major",
+   "message": "At the top the released ball is labelled 'Released' and a = -9.8 on the instant of release. This is piecewise at the switch, so it is acceptable. However, the gate lines are drawn open and slanted at the same instant, and the drop-lane state flips before any motion. The gate open at exactly t=0 is a minor ambiguity."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The fast-toss capture is correct: apex 10 m, t=2 s, a=-5 and v=0 for both balls, and the scrubber range is ±2. The observation that the top moves later and higher cannot be fully judged from this single frame, because the apex height is near the axis maximum of 10.5."
+  },
+  {
+   "capture": "end",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The 'end' capture has elapsed 1.020408 s, and the velocity arrows have length 60 px for 5 m/s. Both balls are back at the ground with v = -5. This is consistent."
+  }
+ ]
+}

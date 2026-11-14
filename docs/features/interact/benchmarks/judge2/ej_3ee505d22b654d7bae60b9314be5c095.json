@@ -1,0 +1,10 @@
+{
+ "jobId": "ej_3ee505d22b654d7bae60b9314be5c095",
+ "label": "template-standard",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 32027,
+ "verdict": "pass",
+ "costUsd": 0.035098,
+ "findings": []
+}
