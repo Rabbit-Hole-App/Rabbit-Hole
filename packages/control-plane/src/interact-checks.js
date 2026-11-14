@@ -9,7 +9,7 @@
 // A candidate is ready only when every step passed on its own composition hash. A failed, exhausted, stale or partly captured candidate
 // never becomes ready. A repair can fix the implementation; it has no field that could change the approved plan.
 import { canonicalJson } from '../../web/src/explain-contract.js';
-import { CAPTURE_BUDGET, evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
+import { CAPTURE_BUDGET, evalScalar, indexLists, ScalarExprError } from '../../web/src/interact-plan.js';
 import { createSnapshotResolver, resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
 import { fitGuestLabels, frameOverlaps, traceFrame, traceObjects } from '../../web/src/explain-program/frame-overlap.js';
 import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
@@ -99,7 +99,7 @@ export function buildPlanCaptureCases(plan, composition, artifacts, { limit = CH
     if (c.type === 'number') { bounded('min', c.min); bounded('max', c.max); }
     else if (c.type === 'select') for (const o of c.options.slice(0, 4)) if (o.value !== c.default) bounded(o.value, o.value);
     else if (c.type === 'boolean') bounded(c.default ? 'off' : 'on', !c.default);
-    else if (c.type === 'index') { bounded('first', 0); bounded('last', c.items.length - 1); }
+    else if (c.type === 'index') { bounded('first', 0); bounded('last', Math.min(...indexLists(c).map(l => l.length)) - 1); }
     if (c.type === 'action') add(optional, { id: `action-${c.binding.id}`, kind: 'action', label: `press ${c.label}`, inputs: { ...defaults }, time: 0, events: [press(c.binding.id)] });
     if (c.type === 'target') add(optional, { id: `target-${c.binding.id}`, kind: 'action', label: `select ${c.label}`, inputs: { ...defaults }, time: 0, events: [{ type: 'select', target: c.binding.id }] });
   }
@@ -113,7 +113,7 @@ export function buildPlanCaptureCases(plan, composition, artifacts, { limit = CH
     if (c.type === 'number') { const lo = withValue(c.min), hi = withValue(c.max), t = mid(lo, hi); probe(c, 'min', lo, t); probe(c, 'max', hi, t); }
     else if (c.type === 'select') { const alt = c.options.find(o => o.value !== c.default); if (alt) { const t = mid(defaults, withValue(alt.value)); probe(c, 'base', defaults, t); probe(c, 'alt', withValue(alt.value), t); } }
     else if (c.type === 'boolean') { const t = mid(defaults, withValue(!c.default)); probe(c, 'base', defaults, t); probe(c, 'alt', withValue(!c.default), t); }
-    else if (c.type === 'index') { const alt = c.default === 0 ? c.items.length - 1 : 0, t = mid(defaults, withValue(alt)); probe(c, 'base', defaults, t); probe(c, 'alt', withValue(alt), t); }
+    else if (c.type === 'index') { const alt = c.default === 0 ? Math.min(...indexLists(c).map(l => l.length)) - 1 : 0, t = mid(defaults, withValue(alt)); probe(c, 'base', defaults, t); probe(c, 'alt', withValue(alt), t); }
   }
   const incomplete = required.length > limit, room = Math.max(0, limit - required.length);
   const cases = incomplete ? required.slice(0, limit) : [...required, ...optional.slice(0, room)];

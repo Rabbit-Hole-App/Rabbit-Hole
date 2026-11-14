@@ -192,6 +192,11 @@ const controlBase = {
   nativeControlId: z.string().regex(/^[a-z][a-z0-9_.]{0,63}$/, 'not a catalogue id'), affects: z.array(affect).min(1).max(16),
 };
 const items = z.array(z.object({ id, label: controlText(PLAN_LIMITS.label) }).strict()).min(2).max(PLAN_LIMITS.items);
+// A step list that follows a select input (host `items: { by, options }`, behind inputs_v2): `by` is the select input's id, one list of 2 to 12 items per option value.
+const itemList = z.array(z.object({ id, label: controlText(PLAN_LIMITS.label) }).strict()).min(2).max(12);
+const dynamicItems = z.object({ by: id, options: z.record(z.string().regex(/^[A-Za-z0-9_.-]{1,32}$/), itemList) }).strict();
+export const indexLists = c => (Array.isArray(c.items) ? [c.items] : Object.values(c.items.options)); // every list a control's `items` can resolve to
+const shortestLength = c => Math.min(...indexLists(c).map(l => l.length)), longestLength = c => Math.max(...indexLists(c).map(l => l.length));
 const control = z.discriminatedUnion('type', [
   z.object({ ...controlBase, type: z.literal('playback'), binding: timelineBinding, labels: z.object({ paused: z.literal('Play'), playing: z.literal('Pause'), ended: z.literal('Replay') }).strict() }).strict(),
   z.object({ ...controlBase, type: z.literal('scrubber'), binding: timelineBinding, unit: z.literal('s'), step: z.number().positive().finite() }).strict(),
@@ -199,7 +204,7 @@ const control = z.discriminatedUnion('type', [
   z.object({ ...controlBase, type: z.literal('number'), binding: inputBinding, unit: z.string().max(16), default: z.number().finite(), min: z.number().finite(), max: z.number().finite(), step: z.number().positive().finite(), onChange: z.enum(['recompute_still', 'reset_pause']).optional() }).strict(),
   z.object({ ...controlBase, type: z.literal('select'), binding: inputBinding, default: z.string(), options: z.array(z.object({ value: z.string().regex(/^[A-Za-z0-9_.-]{1,32}$/), label: controlText(PLAN_LIMITS.label) }).strict()).min(2).max(CONTRACT_LIMITS.options) }).strict(),
   z.object({ ...controlBase, type: z.literal('boolean'), binding: inputBinding, default: z.boolean() }).strict(),
-  z.object({ ...controlBase, type: z.literal('index'), binding: inputBinding, default: z.number().int().min(0), dataRef: id, items, presentation: z.enum(['picker', 'slider']) }).strict(),
+  z.object({ ...controlBase, type: z.literal('index'), binding: inputBinding, default: z.number().int().min(0), dataRef: id, items: z.union([items, dynamicItems]), presentation: z.enum(['picker', 'slider']) }).strict(),
   z.object({ ...controlBase, type: z.literal('multi_select'), binding: inputBinding, default: z.array(z.number().int().min(0)).max(PLAN_LIMITS.items), dataRef: id, items }).strict(),
   z.object({ ...controlBase, type: z.literal('action'), binding: z.object({ kind: z.literal('action'), id }).strict(), effect: controlText(PLAN_LIMITS.entry) }).strict(),
   z.object({ ...controlBase, type: z.literal('target'), binding: z.object({ kind: z.literal('target'), id }).strict(), interaction: z.enum(['select', 'drag']), effect: controlText(PLAN_LIMITS.entry) }).strict(),
@@ -314,8 +319,19 @@ export function planProblems(plan) {
       dupes(['controls', i, 'options'], c.options, o => o.value);
       if (!c.options.some(o => o.value === c.default)) bad(at('default'), 'default_not_an_option', 'default must be one of the options');
     } else if (c.type === 'index' || c.type === 'multi_select') {
-      dupes(['controls', i, 'items'], c.items);
-      const n = c.items.length, inside = v => Number.isInteger(v) && v >= 0 && v < n;
+      if (Array.isArray(c.items)) dupes(['controls', i, 'items'], c.items);
+      else {
+        // Dynamic items: `by` names a select control's input of this plan, one list per option value (exactly), ids unique inside each list.
+        const sel = controls.find(x => x.type === 'select' && x.binding.kind === 'input' && x.binding.id === c.items.by);
+        if (!sel) bad(['controls', i, 'items', 'by'], 'dangling_reference', `"${c.items.by}" is not a select input of this plan`);
+        else {
+          const want = sel.options.map(o => o.value), have = Object.keys(c.items.options);
+          for (const v of want) if (!have.includes(v)) bad(['controls', i, 'items', 'options', v], 'options_incomplete', `no item list for the option "${v}" of "${c.items.by}"`);
+          for (const v of have) if (!want.includes(v)) bad(['controls', i, 'items', 'options', v], 'options_unknown', `"${v}" is not an option of "${c.items.by}"`);
+        }
+        for (const [v, list] of Object.entries(c.items.options)) dupes(['controls', i, 'items', 'options', v], list);
+      }
+      const n = shortestLength(c), inside = v => Number.isInteger(v) && v >= 0 && v < n;
       if (c.type === 'index' && !inside(c.default)) bad(at('default'), 'default_out_of_range', `default must be an item position 0..${n - 1}`);
       if (c.type === 'multi_select' && !(c.default.every(inside) && c.default.every((v, k) => k === 0 || v > c.default[k - 1]))) bad(at('default'), 'default_out_of_range', `default must be a sorted unique list of positions 0..${n - 1}`);
     }
@@ -413,7 +429,7 @@ export function planProblems(plan) {
       else if (c.type === 'number' ? !(typeof value === 'number' && value >= c.min && value <= c.max)
         : c.type === 'select' ? !c.options.some(o => o.value === value)
           : c.type === 'boolean' ? typeof value !== 'boolean'
-            : !(Number.isInteger(value) && value >= 0 && value < c.items.length)) bad(at, 'out_of_domain', `${JSON.stringify(value)} is outside the declared domain of "${name}"`);
+            : !(Number.isInteger(value) && value >= 0 && value < shortestLength(c))) bad(at, 'out_of_domain', `${JSON.stringify(value)} is outside the declared domain of "${name}"`);
     }
   });
 
@@ -515,6 +531,7 @@ export function validatePlanBindings(plan, capabilities) {
   const used = new Map();
   plan.controls.forEach((c, i) => {
     const at = key => ['controls', i, key];
+    if (c.items && !Array.isArray(c.items) && !catalogue.some(entry => entry.requires?.includes(INPUTS_V2_CAPABILITY))) return bad(at('items'), 'capability_missing', `dynamic items need the "${INPUTS_V2_CAPABILITY}" capability`);
     const offered = catalogue.filter(d => d.renderer === renderer && d.semanticType === c.type);
     if (!offered.length) return bad(at('type'), 'unsupported_control', `the ${renderer} renderer offers no ${c.type} control${c.type === 'boolean' && renderer === 'program' ? '; plan a two-option select such as Off/On' : ''}`);
     const d = catalogue.find(entry => entry.id === c.nativeControlId);
@@ -523,7 +540,7 @@ export function validatePlanBindings(plan, capabilities) {
     if (c.type === 'index' && d.presentation !== c.presentation) bad(at('presentation'), 'incompatible_control', `"${d.id}" presents as ${d.presentation}`);
     if (c.type === 'target' && c.interaction === 'drag' && !d.limits.drag) bad(at('interaction'), 'incompatible_control', `"${d.id}" cannot drag`);
     if (c.type === 'select' && c.options.length > (d.limits.maxOptions ?? Infinity)) bad(at('options'), 'limit_exceeded', `"${d.id}" offers at most ${d.limits.maxOptions} options`);
-    if ((c.type === 'index' || c.type === 'multi_select') && c.items.length > (d.limits.maxItems ?? Infinity)) bad(at('items'), 'limit_exceeded', `"${d.id}" offers at most ${d.limits.maxItems} items`);
+    if ((c.type === 'index' || c.type === 'multi_select') && longestLength(c) > (d.limits.maxItems ?? Infinity)) bad(at('items'), 'limit_exceeded', `"${d.id}" offers at most ${d.limits.maxItems} items`);
     used.set(d.id, (used.get(d.id) || 0) + 1);
     if (used.get(d.id) > (d.limits.maxControls ?? Infinity)) bad(at('nativeControlId'), 'limit_exceeded', `"${d.id}" is limited to ${d.limits.maxControls} controls`);
     if (d.requires.includes(INPUTS_V2_CAPABILITY) && !plan.scene.runtime.requiredCapabilities.includes(INPUTS_V2_CAPABILITY)) bad(at('nativeControlId'), 'capability_missing', `"${d.id}" needs "${INPUTS_V2_CAPABILITY}" in scene.runtime.requiredCapabilities`);
