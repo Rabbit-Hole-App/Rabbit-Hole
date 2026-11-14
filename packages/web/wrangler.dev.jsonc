@@ -184,6 +184,14 @@
     "WHITEBOARD_RENDERER_URL": "https://rabbit-hole-whiteboard-renderer.fly.dev",
     // /interact description-fit gate (owner 2026-11-13, release 130; 8878 and clones behave like prod): the gate fails closed when this is unset, so /interactive stopped at design_verifying; "estimate" selects the pure line estimate the clone has run on since 2026-11-13.
     "INTERACT_DESCRIPTION_FIT": "estimate",
+    // /interact fast design and template build (release 131, owner 2026-11-14): DEV ONLY, so the owner's local stack (8878) and clones run the fast path: a pick names the family, one Flash Lite call fills a plan brief that code expands, the card is built from the plan with no model call, headless, and a shadow judge scores it afterwards. A fill that fails twice goes to one Opus brief, never to the old full design. The production config sets none of these: unset, every one of them keeps today's behaviour.
+    "INTERACT_SCENE_PLAN_ENABLED": "true",
+    "INTERACT_SEEK": "on",
+    "INTERACT_DESIGN_KIND": "fast",
+    "INTERACT_BUILD_KIND": "template",
+    "INTERACT_RUN": "headless",
+    "INTERACT_REVIEW": "shadow",
+    "INTERACT_FAST_OPUS_BRIEF": "on",
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
     // Generated interactive programs (docs/superpowers/plans/2026-10-28-explain-sandbox.md, Task 5): DEV ONLY. The production config does not set it, so production generation stays off.
