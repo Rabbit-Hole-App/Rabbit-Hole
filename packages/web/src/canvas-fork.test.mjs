@@ -74,6 +74,13 @@ test('the shared canvas page shows the product title top left, in the landing fo
   assert.equal(display, '"Space Grotesk","Inter",sans-serif');
   const mine = css.match(/--font-display:\s*([^;]+);/)[1];
   assert.ok(mine.startsWith("'Space Grotesk'"), 'Space Grotesk first, as the footer');
+  // The family is shipped, not fetched: one @font-face, weight 500 (the footer's), swap, from a file beside JetBrains Mono's, with its OFL text; no CDN link.
+  assert.match(css, /@font-face \{ font-family: 'Space Grotesk'; src: url\('\.\/fonts\/SpaceGrotesk-Medium\.woff2'\) format\('woff2'\); font-weight: 500; font-style: normal; font-display: swap; \}/);
+  const bytes = readFileSync(new URL('./fonts/SpaceGrotesk-Medium.woff2', import.meta.url));
+  assert.equal(bytes.subarray(0, 4).toString('latin1'), 'wOF2');
+  assert.match(read('./fonts/SpaceGrotesk-OFL.txt'), /SIL OPEN FONT LICENSE Version 1\.1/);
+  assert.doesNotMatch(css + read('../index.html'), /fonts\.googleapis|fonts\.gstatic/, 'no external font CDN');
+  assert.equal([...loading.matchAll(/className="[^"]*font-display/g)].length, 1, 'font-display is used by SharedBrand alone');
 });
 
 // The shared header (owner, 2026-10-06): one GitHub-style control, [fork icon  Fork  N], with the same lucide GitFork the
