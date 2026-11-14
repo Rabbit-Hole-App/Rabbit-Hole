@@ -8,7 +8,7 @@ test('both read-only viewers expose scoped Search while preserving their comment
     const source = read(name);
     assert.match(source, /<SearchContentProvider key=\{search.scopeKey\} registry=\{search.registry\}>/);
     // SHARE-01: both mount the one shared shell's right panel (SharedCanvasShell.jsx), which holds Search and Comments.
-    assert.match(source, /<SharedPanel panel=\{panel\} permissions=\{permissions\} search=\{search\}[^\n]*comments=\{comments\}/);
+    assert.match(source, /<SharedPanel (?:keepMounted )?panel=\{panel\} permissions=\{permissions\} search=\{search\}[^\n]*comments=\{comments\}/);
     assert.match(source, /comments.openPin\(result.target.id\)/);
     assert.match(source, /readOnly/);
     assert.doesNotMatch(source, /setSearchOpen.*resolveThread/);

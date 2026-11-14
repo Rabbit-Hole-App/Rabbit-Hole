@@ -124,6 +124,8 @@ function SharedBoard({ token, embed = null }) {
   const startFromCard = useCallback(cardId => rabbitAsk.current?.(cardId), []);
   // The normal canvas's right panel (SharedCanvasShell.jsx): Chat first, then Find, Table of contents and Comments.
   const panel = useSharedPanel('chat');
+  // While the panel is closed the canvas's bottom strip holds the Chat composer (owner 2026-11-14, as on the owner's canvas).
+  const [stripHost, setStripHost] = useState(null);
   const { show } = panel;
   // Comments (docs/features/canvas-comments.md): the public family answers for an Explore token and a share-link token alike. An
   // Explore token follows the owner's public setting; a share link follows its own Hidden / View only / Allow comments
@@ -291,6 +293,7 @@ function SharedBoard({ token, embed = null }) {
     <Suspense fallback={<CanvasChromeLoading tools={localCopy} />}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
       <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={hasDoc ? docView : 'canvas'} onState={onCanvasState} onStartRabbitHole={embed ? undefined : startFromCard}
         {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: saveGuest } : { readOnly: true, boardState: board })}
+        composer={embed || panel.open ? null : <div ref={setStripHost} data-canvas-chat-strip />}
         gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
         hooks={embed ? undefined : <SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} analytics={analytics} />}
         onAskTarget={setTarget} askTargetId={target?.id ?? null} />
@@ -383,9 +386,9 @@ function SharedBoard({ token, embed = null }) {
         {canvasEl}
       </div>
       </section>
-      <SharedPanel panel={panel} permissions={permissions} search={search} onOpenAction={openSearchAction} comments={comments} commentsAttr="data-shared-comments"
+      <SharedPanel keepMounted panel={panel} permissions={permissions} search={search} onOpenAction={openSearchAction} comments={comments} commentsAttr="data-shared-comments"
         outline={canvasState.outline} activeSection={canvasState.activeSection ?? null} canvasApi={canvasApi}
-        chat={<SharedChat token={token} viewer={shared.viewer} context={shared.context} draft={askBack?.draft ?? null} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} onAllowance={setGuestRemaining} />} />
+        chat={<SharedChat token={token} viewer={shared.viewer} context={shared.context} draft={askBack?.draft ?? null} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} onAllowance={setGuestRemaining} stripHost={panel.open ? null : stripHost} onOpenPanel={() => panel.show('chat')} />} />
       {shortcutsOpen && <ShortcutsSheet omit={SHARED_OMIT} onClose={() => setShortcutsOpen(false)} />}
     </main>
   );

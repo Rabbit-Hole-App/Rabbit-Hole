@@ -35,12 +35,12 @@ export function useSharedPanel(initial) {
 // permissions: the contract's ctx. chat: the Chat tab's content, or null where this canvas has no Chat. search: useCanvasSearch;
 // comments: useCanvasComments; commentsAttr: the page's data attribute on the shown Comments ('data-shared-comments').
 // outline / activeSection: AdaptiveCanvas onState; canvasApi: its api (showSection only - navigation, no request).
-export function SharedPanel({ panel, permissions, chat = null, search, onOpenAction, comments, commentsAttr, outline = [], activeSection = null, canvasApi }) {
+export function SharedPanel({ panel, permissions, chat = null, search, onOpenAction, comments, commentsAttr, outline = [], activeSection = null, canvasApi, keepMounted = false }) {
   const tabs = sharedPanelTabs(permissions, { chat: !!chat });
   const label = { chat: 'Chat', find: 'Search', toc: 'Table of contents', comments: 'Comments' }[panel.tab];
   const commentsShown = panel.open && panel.tab === 'comments' && comments.active;
   return (
-    <ResizableSidePanel collapsed={!panel.open} {...SHARED_PANEL} aria-label={label}>
+    <ResizableSidePanel collapsed={!panel.open} keepMounted={keepMounted} {...SHARED_PANEL} aria-label={label}>
       <PanelHeader tab={panel.tab} tabs={tabs} commentsOn={comments.active} commentsUnread={comments.unread} onClose={() => panel.setOpen(false)}
         onTab={(id, clicked) => { panel.show(id); if (clicked) panel.setReturnToSearch(false); }} />
       {chat && <div role="tabpanel" aria-label="Chat" data-shared-chat-panel className={`${panel.tab === 'chat' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>{chat}</div>}

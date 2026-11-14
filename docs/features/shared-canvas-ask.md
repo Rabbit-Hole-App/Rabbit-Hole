@@ -22,6 +22,9 @@ Supersedes the signed-out and placement lines below. Contract: C:/s/spec/share/c
   sent by itself.
 - Platform-sponsored (`learn-usage.js` `PUBLIC_FEATURES`: payer platform, `anonymous_public`), never the owner; signed
   in, the viewer's own caps and monthly allowance. Platform day caps and the bounded research loop still apply.
+- **Bottom strip (owner 2026-11-14, as on the owner's canvas).** While the right panel is closed the canvas draws a strip at its bottom and the one Chat composer
+  (with the selected-card pill) is drawn there; opening the panel moves it back into Chat without remounting, so the draft and the conversation stay. Send from the
+  strip opens the panel on Chat, where the answer streams. Not in an embed (its Chat has its own button). The guest's free-messages line shows in the panel only.
 - Chat only: a `/explain` or "make a card" message is a plain question; this route offers no generation tool.
 - `GET` the same path: `{ guest: { limit, used, remaining } }` signed out, `{ guest: null }` signed in.
 
