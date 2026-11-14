@@ -21,7 +21,7 @@ function edge(t) {
   t.after(() => { if (had) globalThis.caches = original; else delete globalThis.caches; });
   return store;
 }
-const world = (t, vars = {}) => ({ ...setup(t, { vars: { SMALL_ENV: 'test', JOURNEY_MODEL_STUB: 'fixtures', ...vars } }), store: edge(t) });
+const world = (t, vars = {}) => ({ ...setup(t, { vars: { SMALL_ENV: 'test', JOURNEY_MODEL_STUB: 'fixtures', GEMINI_API_KEY: 'test-key', ...vars } }), store: edge(t) });
 // Owner R3 decision (2026-10-16, rel-a.md A2 item 4): no AI generation for signed-out viewers, so the content-only set is
 // a signed-in viewer's without evidence (cara here); a signed-out request is asked to sign in.
 // generate: the viewer's explicit ask; a view alone never generates (owner priority 1, 2026-10-21; learn-usage.test.js).
@@ -35,10 +35,19 @@ function plannerInputs(t) {
   t.mock.method(console, 'log', () => {});
   const original = globalThis.fetch, inputs = [];
   globalThis.fetch = async (url, options) => {
-    assert.equal(new URL(url).host, 'api.anthropic.com', `unexpected fetch ${url}`);
-    const body = JSON.parse(options.body), text = body.messages[0].content;
+    const host = new URL(url).host;
+    assert.ok(['api.anthropic.com', 'generativelanguage.googleapis.com'].includes(host), `unexpected fetch ${url}`);
+    const body = JSON.parse(options.body);
+    if (host === 'api.anthropic.com') {
+      const text = body.messages[0].content;
+      inputs.push(JSON.parse(text.slice(text.indexOf('input = ') + 'input = '.length)));
+      return fixtureModel(null, body);
+    }
+    // The planner runs on Gemini Flash Lite (owner 2026-11-13; OpenAI-shaped request and reply, ask.js geminiChat).
+    const text = body.messages.find(message => message.role === 'user').content;
     inputs.push(JSON.parse(text.slice(text.indexOf('input = ') + 'input = '.length)));
-    return fixtureModel(null, body);
+    const call = (await (await fixtureModel(null, { tools: [{ name: body.tools[0].function.name }], messages: [{ content: text }] })).json()).content[0];
+    return Response.json({ model: 'gemini-3.5-flash-lite', choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{ id: 't1', type: 'function', function: { name: call.name, arguments: JSON.stringify(call.input) } }] } }], usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 } });
   };
   t.after(() => { globalThis.fetch = original; });
   return inputs;
