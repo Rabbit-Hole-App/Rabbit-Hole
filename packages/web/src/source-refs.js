@@ -3,7 +3,6 @@
 // (resolveSourceRef) whenever it is shown: an immutable revision means "current" is a fact the server checked, not a guess.
 // `post` is the page's api POST (learn-slash.js's, LearnPage's): { data, status } errors as api() throws them. Pure: no React.
 import { startTiming } from './client-timing.js';
-import { PASSAGE_EVENT, hasExplained } from './passage-link.js';
 import { CREATE_REFUSED, SOURCE_REF_EVENT, explanationsFor, markdownCardOf, navigable, readerRef, sourceRefOf } from './source-ref.js';
 
 export const SOURCE_REFS = '/api/learn/source-refs';
@@ -44,8 +43,7 @@ export function resolveSourceRef(post, app, id, { delay = 0, schedule = setTimeo
 let state = { blocks: [], focus: null, pending: [] };
 const listeners = new Set();
 export const published = () => state;
-// HL-146: a card made from a passage of an Explanation card (fromPassage) and a card holding such a passage (an explained highlight) are published too, so each end can find the other.
-const relevant = block => navigable(sourceRefOf(block)) || (block?.kind === 'markdown' && !!block.fileRef?.source?.id) || !!block?.fromPassage || hasExplained(block);
+const relevant = block => navigable(sourceRefOf(block)) || (block?.kind === 'markdown' && !!block.fileRef?.source?.id);
 export function publishBlocks(blocks, focus = null) {
   const next = (Array.isArray(blocks) ? blocks : []).filter(relevant);
   if (focus === state.focus && next.length === state.blocks.length && next.every((block, i) => block === state.blocks[i])) return;
@@ -83,12 +81,6 @@ export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, e
 
 // The camera to one explanation card (a reader's "View explanation" on a passage that has several).
 export const focusExplanation = (cardId, { focus = state.focus } = {}) => goTo(focus, cardId);
-
-// HL-146 Go to highlight: a card made from a passage of an Explanation card focuses that card, then asks it to bring the pink passage into view (ExplanationInteractions listens for PASSAGE_EVENT).
-export function goToPassage({ cardId, highlightId }, { focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout } = {}) {
-  goTo(focus, cardId);
-  wait(() => emit(new CustomEvent(PASSAGE_EVENT, { detail: { cardId, highlightId } })), 250);
-}
 
 // Passage to explanation: the camera to the first explanation card for this source (at this revision, for a PDF on this page).
 // Returns how many there are.

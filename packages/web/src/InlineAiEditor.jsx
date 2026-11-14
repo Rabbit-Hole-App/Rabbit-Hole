@@ -26,7 +26,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { CHIP } from './ContextChips.jsx';
-import { placeSourced } from './place-sourced.js';
 import { cardContext, contextMessage, firstWords, mergeRects, placeBesideWords, scrimPath, settleRects } from './inline-highlight.js';
 import { explainedRects, markClear, markSet, useMark } from './inline-highlight-mark.js';
 import { markdownDraft } from './source-ref.js';
@@ -354,7 +353,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // HL-1: over words of a Markdown file card the request carries the draft its source reference is minted from (learn-slash.js mints it before /explain makes anything and stops, with a line to fix, if the file changed),
     // so the card that comes back opens the passage and the passage shows the pink mark; any other card has no draft.
     const sourceDraft = source && highlight.quote ? markdownDraft({ block: source, quote: highlight.quote, app: canWrite() ? fileScope()?.app : null }) : null;
-    return { id: highlight.id, kind: 'card', title: card?.title || '', text: card ? contextMessage(card) : highlight.text.slice(0, 8000), ...(card ? { card } : {}), ...(sourceDraft ? { sourceDraft } : {}), ...(highlight.passage ? { passage: { cardId: highlight.id, ...highlight.passage } } : {}), ...(source ? { beside: true, alignY: highlight.alignY } : {}) };
+    return { id: highlight.id, kind: 'card', title: card?.title || '', text: card ? contextMessage(card) : highlight.text.slice(0, 8000), ...(card ? { card } : {}), ...(sourceDraft ? { sourceDraft } : {}), ...(source ? { beside: true, alignY: highlight.alignY } : {}) };
   };
   const submit = (text, how = mode) => {
     if (readOnly || busy(state.status)) return;
@@ -481,10 +480,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // grow into, is in the way too, so the result never lands under it where its ghost could not be seen. A selection's
   // composer is placed clear of the selection already, and the result goes beside the selection.
   const obstaclesNow = ids => [...canvas.obstacles(ids), ...canvas.placementChrome(), ...(target.creation ? [{ x: (place.left - view.x) / view.z, y: (place.top - view.y) / view.z, w: place.width / view.z, h: height / view.z }] : [])];
-  // The highlighted passage this request is about: its card and the passage line's offset from the card's top (the card's own box is the source); null for anything else.
-  const passage = highlight && target.ids?.length === 1 && highlight.id === target.ids[0] && Number.isFinite(highlight.alignY) ? { id: highlight.id, dy: Math.round(highlight.alignY) } : null;
-  const childrenOf = id => (board().blocks || []).filter(block => block.parentCard?.id === id && canvas.boxOf(block.id)).map(block => { const box = canvas.boxOf(block.id); return { box, anchorY: box.y + box.h / 2 }; });
-  const placeFor = (size, forCard = null) => {
+  const placeFor = size => {
     // A creation: the whole result near the anchor (inline-placement.js placeResult), never beside a selection it lacks.
     if (target.creation) {
       const spot = placeResult({ x: 0, y: 0, ...size }, target.anchor, obstaclesNow([]), canvas.visibleWorld());
@@ -493,14 +489,6 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     }
     const targetBox = unionBox(target.ids.map(boxOfTarget));
     if (!targetBox) return null;
-    // CK-5 (release 146): a CARD made from highlighted words (the inline fallback, no Chat to hand to) goes through the shared placeSourced, on the right or left of the source card level with the passage line,
-    // never over or moving a card; anything else (notes, diagrams, a card from a selection of objects) keeps placeNote.
-    if (forCard && passage) {
-      const placed = placeSourced({ source: targetBox, anchorY: targetBox.y + passage.dy, size, boxes: obstaclesNow(target.ids), siblings: childrenOf(passage.id), id: forCard, sourceId: passage.id, area: null });
-      const vis = canvas.visibleWorld(), offscreen = !(placed.x < vis.x + vis.w && placed.x + size.w > vis.x && placed.y < vis.y + vis.h && placed.y + size.h > vis.y);
-      if (offscreen) canvas.reveal?.({ x: placed.x, y: placed.y, ...size });
-      return { x: placed.x, y: placed.y, side: placed.side, offscreen, size, target: targetBox };
-    }
     const spot = placeNote(targetBox, size, obstaclesNow(target.ids), canvas.visibleWorld());
     if (spot.offscreen) canvas.reveal?.({ x: spot.x, y: spot.y, ...size });
     return { ...spot, size, target: targetBox };
@@ -552,7 +540,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       const steady = box && last && Math.abs(box.w - last.w) < 0.5 && Math.abs(box.h - last.h) < 0.5;
       if (!steady && frames < 60) { last = box; requestAnimationFrame(settle); return; }
       if (!box) { canvas.cardGhost.clear(); return; }
-      const size = { w: box.w, h: box.h }, spot = placeFor(size, cardId(preview.requestId));
+      const size = { w: box.w, h: box.h }, spot = placeFor(size);
       if (!spot) { canvas.cardGhost.clear(); return; }
       const placed = { ...spot, final: true, dx: spot.x - box.x, dy: spot.y - box.y };
       keep(preview.requestId, placed);
@@ -568,7 +556,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // ghost shown; Accept is pressed again. It never lands somewhere the learner did not see.
     const shown = (preview?.kind === 'note' || preview?.kind === 'diagram' || isCard(preview)) && placements[preview.requestId];
     if (shown?.size && !freeSpot({ x: shown.x, y: shown.y, ...shown.size }, canvas.obstacles(target.ids), unionBox(target.ids.map(boxOfTarget)))) {
-      const again = preview.kind === 'diagram' ? placeDiagram(preview.spec) : placeFor(shown.size, isCard(preview) ? cardId(preview.requestId) : null);
+      const again = preview.kind === 'diagram' ? placeDiagram(preview.spec) : placeFor(shown.size);
       if (again) {
         // A card's offset is from its slot at the end of the column: the slot is where its ghost is drawn less its offset.
         const drawn = isCard(preview) && canvas.cardGhost.measure();
@@ -672,7 +660,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         // The ghost's spot, from the slot the card will take at the end of the column (where its ghost is drawn now).
         const spot = placements[preview.requestId], drawn = spot?.size && canvas.cardGhost?.measure();
         const place = drawn ? { side: spot.side, dx: spot.x - (drawn.x - spot.dx), dy: spot.y - (drawn.y - spot.dy) } : null;
-        tx = cardTx({ requestId: preview.requestId, block, frozen, board: now, route: preview.route, place, parent: place && passage ? passage : null });
+        tx = cardTx({ requestId: preview.requestId, block, frozen, board: now, route: preview.route, place });
         if(computed)tx=stampComputation(tx,computed.preview,frozen);
       }
       if(verifiedExtraction&&preview.kind!=='image_replacement')tx=withExtraction(tx,{...verifiedExtraction,provenance:inlineProvenance({requestId:preview.requestId,mode:'explain',route:preview.route,frozen})});
@@ -687,7 +675,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const reject = () => { session.reject(); onClose(true); };
   // CK-3: Explain selection makes its card without a preview step. Where the card is made here (no Chat to hand to), a finished card preview in Explain is accepted as soon as its place is known (its ghost measured,
   // up to 1.5 s), and once more if its place had to move; Edit modes, notes, diagrams and the paid proposal keep their preview and Accept / Reject.
-  const autoCard = mode === 'explain' && state.preview?.kind === 'card' && !state.preview.extraction && !state.preview.sourceReadings; // a card read from an image or from PDF pages keeps its review (uncertainties, readings) and Accept
+  const autoCard = mode === 'explain' && state.preview?.kind === 'card';
   const autoAccepted = useRef({ id: null, n: 0 });
   useEffect(() => {
     const done = state.preview;

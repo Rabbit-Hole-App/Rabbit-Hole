@@ -9,7 +9,6 @@ import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, freshFitStep, cornerSlot } from './card-layout.js';
 import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
 import { nameKey, positionHint, titleTaken, uniquifyBlocks } from './unique-title.js';
-import { linkPassage } from './passage-link.js';
 import CardCustomTitle from './CardCustomTitle.jsx';
 import CardHeader, { CardRename } from './CardHeader.jsx';
 import './card-layout.css';
@@ -2382,13 +2381,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // A screen rect (a selection's) in world units, for a card to be placed beside it.
       worldRect: rect => (rect && surface.current ? toWorld(rect, surface.current.getBoundingClientRect(), viewRef.current) : null),
-      // HL-146 (passage-link.js): the card a Ctrl+K explanation was made from saves the explained passage as a pink highlight naming the new card, and the new card names its source. No undo step of its own:
-      // undoing the new card's insertion restores the blocks as they were before both.
-      linkPassage: (cardId, passage) => {
-        if (!alive.current || readOnlyRef.current || !cardId || !passage) return false;
-        setBlocks(previous => linkPassage(previous, passage, cardId));
-        return true;
-      },
       // An /explain v2 job's card (EXP-T20): placed once under the job's own card id, so a resent press or a reload finds it
       // instead of adding a second card; the result attaches to it later (ExplainPending).
       // /animation (AN-05): its pending card (storage.js withJob) placed where the learner looks, once per card id.
@@ -6529,7 +6521,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {arrows.map(arrow => (
               <g key={arrow.id} data-card-arrow={arrow.id} data-arrow-kind={arrow.kind} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth={ARROW.width / view.z} className="[stroke:var(--arc-l)] dark:[stroke:var(--arc-d)]" style={{ '--arc-l': arrow.colors.light, '--arc-d': arrow.colors.dark }}>
                 <path d={arrow.geometry.d} strokeDasharray={arrow.kind === 'explain' ? ARROW.dash.split(' ').map(n => Number(n) / view.z).join(' ') : undefined} />
-                <path d={arrowhead(arrow.geometry, 1 / view.z)} />
+                <path d={arrowhead(arrow.geometry, Math.max(1, 0.7 / view.z))} />
               </g>
             ))}
           </svg>

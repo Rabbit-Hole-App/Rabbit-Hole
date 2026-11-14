@@ -8,7 +8,7 @@ import { hashOf } from './place-sourced.js';
 import { markdownCardOf } from './source-ref.js';
 
 // One block to tune: the line, the arrowhead, the S-curve and the guards.
-export const ARROW = Object.freeze({ width: 1.4, dash: '6 5', head: 9, headSpread: 0.44, minRun: 48, maxRun: 240, edgeInset: 8, bow: 0.1, maxBow: 24, samples: 48 });
+export const ARROW = Object.freeze({ width: 1.4, dash: '6 5', head: 7, headSpread: 0.44, minRun: 48, maxRun: 240, edgeInset: 8, bow: 0.1, maxBow: 24, samples: 48 });
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
@@ -48,7 +48,7 @@ export function samplePath(geometry, n = ARROW.samples) {
 
 // The small open arrowhead at the head, pointing along the end tangent: two short strokes from the tip.
 export function arrowhead(geometry, scale = 1) {
-  const { head, angle } = geometry, size = ARROW.head * scale; // ARROW.head is screen pixels: the canvas passes scale = 1 / zoom, so the head is the same size at every zoom (live canvas: 7 world units were 3 px at 34%)
+  const { head, angle } = geometry, size = ARROW.head * scale; // scale: the head keeps a readable size when the canvas is zoomed out
   const wing = sign => ({ x: head.x - size * Math.cos(angle + sign * ARROW.headSpread), y: head.y - size * Math.sin(angle + sign * ARROW.headSpread) });
   const a = wing(1), b = wing(-1);
   return `M ${a.x} ${a.y} L ${head.x} ${head.y} L ${b.x} ${b.y}`;

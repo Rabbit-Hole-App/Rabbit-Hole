@@ -151,11 +151,3 @@ test('wiring: the layer sits before the cards column and the links, has no z-ind
   assert.match(canvas, /const arrows = useMemo\(\(\) => connectorsOf\(blocks\)/);
   assert.match(slash, /target\?\.beside && target\.id \? \{ parent: \{ id: target\.id, \.\.\.\(Number\.isFinite\(target\.alignY\) \? \{ dy: Math\.round\(target\.alignY\) \} : \{\}\) \} \}/);
 });
-
-test('the arrowhead is the same size on screen at every zoom (scale = 1 / zoom), ARROW.head pixels', () => {
-  const g = connectorGeometry({ source: SRC, target: box(1800, 200, 440, 300), anchorY: 300 });
-  for (const zoom of [0.2, 0.34, 1, 3]) {
-    const [ax, ay, hx, hy] = arrowhead(g, 1 / zoom).match(/-?\d+(\.\d+)?/g).map(Number);
-    assert.ok(Math.abs(Math.hypot(ax - hx, ay - hy) * zoom - ARROW.head) < 1e-6, `zoom ${zoom}`);
-  }
-});
