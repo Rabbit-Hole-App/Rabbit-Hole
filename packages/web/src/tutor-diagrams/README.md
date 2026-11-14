@@ -58,7 +58,7 @@ This batch added four kinds to the original 17. Nine original kinds have additiv
 | `relationship` | `layout: graph`, each node drawn once, separate directed/reciprocal routes and labelled ledger | `ml-topology-*` |
 | `flow` | `fork` and `merge` for simultaneous branches. Arrivals from three or more edges use distinct top ports and staggered approaches. | `ml-topology-*` |
 | `coordinate-plot` | Linear/log axes, up to five series, step/stem series, low/high uncertainty, bounded annotations in data coordinates. Use `endLabel: true` for an open line ending at the x-axis maximum. A line with `closed: true` uses periodic cubic interpolation by default and joins its last vertex to its first. Provide at least three distinct vertices in order, or use `samples: { radius, count }` for evenly spaced samples on a circle centered at the origin. | `ml-plot-*` |
-| `bar-chart` | `variant: grouped/stacked`, categories, series; signed stacks calculated separately around zero | `ml-plot-*` |
+| `bar-chart` | `variant: grouped/stacked`, categories, series; signed stacks calculated separately around zero. `variant: stacked` with `bars` (no categories or series) is one bar split into 2-8 positive parts in order, with an optional `total` the parts must add up to within rounding; the bar is that total tall. `total` is not in the author's schema bundle yet (tier 2). | `ml-plot-*` |
 | `timeline` | `layout: scaled-lanes`, numeric domain/unit, lanes with intervals/events and cutoffs | `ml-data-*` |
 | `matrix` | `layout: teaching`, stable row IDs, emphasis and missing/changed cell states | `ml-data-*` |
 | `comparison` | `variant: panels`, two or three real leaf diagrams; declared shared axes must match | `ml-composition-*` |

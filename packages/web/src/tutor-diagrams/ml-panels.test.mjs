@@ -82,6 +82,17 @@ test('shared classes give the same colour to the same label in every panel; unsh
   assert.equal(colourOf(plain, '2'), colourOf(plain, '1'), 'without sharing the legacy single bar colour stays');
 });
 
+test('shared classes also colour the parts of a stacked bar like the plain bars of the other panel', () => {
+  const stacked = { ...probs, variant: 'stacked', total: 1 };
+  const markup = svg(panels({ shared: ['classes'], panels: [{ label: 'Scores', diagram: logits }, { label: 'Probabilities', diagram: stacked }] }));
+  const bar = value => markup.match(new RegExp(`fill="([^"]+)"[^>]*data-tutor-bar="${value}"`))?.[1];
+  const part = value => markup.match(new RegExp(`fill="([^"]+)"[^>]*data-tutor-stacked-part="${value}"`))?.[1];
+  assert.ok(bar('2') && part('0.66'));
+  assert.equal(bar('2'), part('0.66'), 'Class 0');
+  assert.equal(bar('1'), part('0.24'), 'Class 1');
+  assert.notEqual(part('0.66'), part('0.24'));
+});
+
 test('panels describe and count their own words once', () => {
   const spec = parseTutorDiagram(panels({ shared: ['classes'] }));
   const text = describeTutorDiagram(spec);
