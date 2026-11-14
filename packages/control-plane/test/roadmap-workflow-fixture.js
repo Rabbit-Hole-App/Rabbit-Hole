@@ -98,7 +98,7 @@ export async function workflow(t, { plans = [PLAN], script = [], classifier = as
   }
   h.objects = objects;
   const identity = req => { const who = USERS[req.headers.get('x-test-user')]; return who ? Response.json({ org: 'team', email: who.email, orgName: 'Team', user_id: who.userId, apps: [] }) : Response.json({ error: 'Sign in' }, { status: 401 }); };
-  h.env = { ...w.env, ROADMAP_ENABLED: 'true', ROADMAP_AUTO_ENABLED: auto ? 'true' : 'false', ROADMAP_EDIT_ENABLED: 'true', ROADMAP_LONG_MARKDOWN_ENABLED: 'true',
+  h.env = { ...w.env, ROADMAP_CARD_PROFILE: 'plan-default', ROADMAP_ENABLED: 'true', ROADMAP_AUTO_ENABLED: auto ? 'true' : 'false', ROADMAP_EDIT_ENABLED: 'true', ROADMAP_LONG_MARKDOWN_ENABLED: 'true',
     LEARN_MEDIA: { get: async key => { h.r2Reads.push(key); return key in objects ? { text: async () => objects[key] } : null; } },
     CONTROL_PLANE: { fetch: async req => identity(req) }, DB: { prepare() { throw new Error('live D1 touched'); } } };
   // Planner / checker transport double: every serialized request captured.

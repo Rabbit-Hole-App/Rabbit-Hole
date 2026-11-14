@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
-import { CHAT_GEMINI, LEARN_TASKS } from '../src/learn-models.js';
+import { LEARN_TASKS } from '../src/learn-models.js';
 import { requestSpendBound } from '../src/learn-spend.js';
 import { toMicros } from '../src/learn-usage.js';
 import { routes, tabAccepts, pillOf, planDelivery } from '../../web/src/roadmap-client.js';
@@ -53,8 +53,8 @@ test('BE.00 one reproducible local fixture: Node 24, candidate SHA, bounded synt
   const view = await started(h);
   assert.equal((await acceptCard(h, view, 'accept')).status, 202);
   assert.equal(h.authorCalls.length, 1);
-  assert.equal(h.authorCalls[0].model, CHAT_GEMINI, 'the author request is Gemini Flash (owner 2026-11-14: roadmap and course cards, whatever EXPLANATION_MODEL_PROFILE says)');
-  assert.ok(h.authorCalls[0].body.max_tokens >= LEARN_TASKS.artifact.maxTokens, 'with room for its thinking inside the cap');
+  assert.equal(h.authorCalls[0].model, LEARN_TASKS.artifact.model, 'the author request uses the configured artifact model (the fixture pins ROADMAP_CARD_PROFILE to plan-default; production defaults to Gemini Flash, roadmap-course.test.js)');
+  assert.equal(h.authorCalls[0].body.max_tokens, LEARN_TASKS.artifact.maxTokens, 'with the configured output cap');
   assert.deepEqual(h.network, [], 'no network call escaped');
   assert.deepEqual(h.handlerErrors, [], 'no outbox handler threw');
   await receipt('fixture', h, { node: process.version, candidate: sha1 });
@@ -432,10 +432,10 @@ test('BE.07 real reservation, debit and settlement (CORE.04-06)', async t => {
     const [auth] = authorizations(h), [call] = h.authorCalls;
     assert.equal(authorizations(h).length, 1, 'one hold/authorization per accepted card');
     assert.equal(learnerActions(h).length, 1, 'one learner action identity');
-    assert.ok(auth.per_card_bound_micros >= toMicros(requestSpendBound(call.body, call.model, 'google')), 'the reserved bound covers the actual serialized request');
+    assert.ok(auth.per_card_bound_micros >= toMicros(requestSpendBound(call.body, call.model)), 'the reserved bound covers the actual serialized request');
     const calls = h.rows("SELECT * FROM learn_roadmap_calls WHERE stage = 'generate'");
     assert.equal(calls.length, 1);
-    assert.deepEqual([calls[0].provider, calls[0].model], ['google', call.model], 'the call row names the actual provider and model');
+    assert.deepEqual([calls[0].provider, calls[0].model], ['anthropic', call.model], 'the call row names the actual provider and model');
     // be: request_fingerprint = sha256(JSON.stringify([provider, model, outgoing body])) (roadmap-generate.js requestFingerprint).
     assert.equal(calls[0].request_fingerprint, await sha(JSON.stringify([calls[0].provider, call.model, call.body])), 'the call is bound to the actual outgoing body');
   });
