@@ -16,7 +16,7 @@
       },
       {
         "id": "c",
-        "label": "Create Features",
+        "label": "Run Feature Engineering",
         "role": "process"
       },
       {
@@ -32,16 +32,26 @@
       {
         "id": "f",
         "label": "Evaluate",
-        "role": "process"
+        "role": "decision"
       },
       {
         "id": "g",
-        "label": "Publish Model",
+        "label": "Run Deploy",
         "role": "process"
       },
       {
         "id": "h",
-        "label": "Check Performance",
+        "label": "Run Monitor",
+        "role": "process"
+      },
+      {
+        "id": "i",
+        "label": "Repeat Feature Engineering",
+        "role": "outcome"
+      },
+      {
+        "id": "j",
+        "label": "Repeat Collect Data",
         "role": "outcome"
       }
     ],
@@ -68,13 +78,24 @@
       },
       {
         "from": "f",
-        "to": "g"
+        "to": "g",
+        "label": "good enough"
       },
       {
         "from": "g",
         "to": "h"
+      },
+      {
+        "from": "f",
+        "to": "i",
+        "label": "not good enough"
+      },
+      {
+        "from": "h",
+        "to": "j",
+        "label": "performance drops"
       }
     ],
-    "caption": "Illustrative. Clean and Explore: 60–80% of time. $8-1=7$ forward links; see feedback inset."
+    "caption": "Illustrative. Clean and Explore: 60–80% time. Forward links $8-1=7$. Returns unrolled."
   }
 }

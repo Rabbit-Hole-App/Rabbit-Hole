@@ -222,7 +222,7 @@ test('batch questions, learner keywords and lesson origin remain attached to the
     ['overview', 'standard', 'deep'].forEach(depth => assert.ok(ref.depths[depth].spec.diagram));
   });
 });
-test('workflow preserves separate detailed stages and both labelled feedback returns; split arithmetic is recomputed', () => {
+test('workflow preserves stage terminology and unrolls both returns in a rooted acyclic primary flow; split arithmetic is recomputed', () => {
   const d = data.derived(), w = d.workflow, ref = b2Ref(b2Ids[0]);
   const stages = 'Collect Data|Clean and Explore|Feature Engineering|Split Data|Train Model|Evaluate|Deploy|Monitor'.split('|');
   assert.deepStrictEqual(w.stages, stages);
@@ -250,13 +250,38 @@ test('workflow preserves separate detailed stages and both labelled feedback ret
   expectedFeedback.forEach(e => [e.from, e.to, e.condition].forEach(s => assert.ok(ref.spec.diagram.caption.includes(s))));
   const deep = ref.depths.deep.spec.diagram;
   assert.strictEqual(deep.kind, 'flow');
-  assert.strictEqual(deep.nodes.length, stageCount);
-  assert.deepStrictEqual(deep.nodes.map(node => node.label), ['Collect Data', 'Clean and Explore', 'Create Features', 'Split Data', 'Train Model', 'Evaluate', 'Publish Model', 'Check Performance']);
-  assert.strictEqual(deep.edges.length, transitions);
-  assert.deepStrictEqual(deep.edges, deep.nodes.slice(1).map((node, index) => ({ from: deep.nodes[index].id, to: node.id })));
-  assert.ok(deep.nodes.slice(0, -1).every(node => node.role === 'process'));
-  assert.strictEqual(deep.nodes.at(-1).role, 'outcome');
-  assert.strictEqual(deep.caption, `Illustrative. Clean and Explore: ${cleanRange.join('–')}% of time. $${stageCount}-1=${transitions}$ forward links; see feedback inset.`);
+  const primaryStages = deep.nodes.slice(0, stageCount);
+  const repeatStages = deep.nodes.slice(stageCount);
+  assert.strictEqual(deep.nodes.length, stageCount + expectedFeedback.length);
+  assert.deepStrictEqual(primaryStages.map(node => node.label), ['Collect Data', 'Clean and Explore', 'Run Feature Engineering', 'Split Data', 'Train Model', 'Evaluate', 'Run Deploy', 'Run Monitor']);
+  assert.deepStrictEqual(primaryStages.map(node => node.label.replace(/^Run /, '')), stages);
+  assert.deepStrictEqual(repeatStages.map(node => node.label), ['Repeat Feature Engineering', 'Repeat Collect Data']);
+  assert.strictEqual(new Set(deep.nodes.map(node => node.label)).size, deep.nodes.length);
+  const primaryByStage = Object.fromEntries(stages.map((stage, index) => [stage, primaryStages[index]]));
+  const expectedForward = stages.slice(1).map((stage, index) => ({
+    from: primaryByStage[stages[index]].id,
+    to: primaryByStage[stage].id,
+    ...(stages[index] === 'Evaluate' ? { label: 'good enough' } : {})
+  }));
+  const expectedReturns = expectedFeedback.map((edge, index) => ({
+    from: primaryByStage[edge.from].id,
+    to: repeatStages[index].id,
+    label: edge.condition
+  }));
+  assert.deepStrictEqual(deep.edges, [...expectedForward, ...expectedReturns]);
+  assert.strictEqual(deep.edges.length, transitions + expectedFeedback.length);
+  expectedFeedback.forEach((edge, index) => {
+    const route = expectedReturns[index];
+    assert.ok(deep.edges.some(actual => actual.from === route.from && actual.to === route.to && actual.label === edge.condition));
+    assert.strictEqual(repeatStages[index].label, `Repeat ${edge.to}`);
+    assert.strictEqual(repeatStages[index].role, 'outcome');
+  });
+  assert.strictEqual(primaryByStage.Evaluate.role, 'decision');
+  assert.strictEqual(primaryByStage.Monitor.role, 'process');
+  assert.ok(primaryStages.filter(node => node.label !== 'Evaluate').every(node => node.role === 'process'));
+  assert.ok(!primaryStages.some(node => node.role === 'outcome'));
+  assert.strictEqual(deep.caption, `Illustrative. Clean and Explore: ${cleanRange.join('–')}% time. Forward links $${stageCount}-1=${transitions}$. Returns unrolled.`);
+  assert.ok(!deep.caption.includes('see feedback inset'));
   const detail = ref.depths.deep.detailSpec.diagram;
   assert.strictEqual(detail.kind, 'flow');
   const byId = Object.fromEntries(detail.nodes.map(node => [node.id, node]));
@@ -276,19 +301,24 @@ test('workflow preserves separate detailed stages and both labelled feedback ret
   assert.ok(detail.caption.includes('Feedback is unrolled'));
   for (const flow of [deep, detail]) {
     const ids = new Set(flow.nodes.map(node => node.id));
+    assert.strictEqual(ids.size, flow.nodes.length);
+    assert.strictEqual(new Set(flow.edges.map(edge => `${edge.from}:${edge.to}`)).size, flow.edges.length);
+    flow.edges.forEach(edge => { assert.ok(ids.has(edge.from)); assert.ok(ids.has(edge.to)); assert.notStrictEqual(edge.from, edge.to); });
     const roots = flow.nodes.filter(node => !flow.edges.some(edge => edge.to === node.id));
     assert.strictEqual(roots.length, 1);
+    assert.strictEqual(roots[0].id, flow.nodes[0].id);
     const visited = new Set();
     const visit = (id, ancestors) => {
-      assert.ok(!ancestors.has(id), 'Feedback must be unrolled, not a flow cycle');
+      assert.ok(!ancestors.has(id), 'Unrolled feedback must not create a flow cycle');
       visited.add(id);
       const path = new Set([...ancestors, id]);
-      flow.edges.filter(edge => edge.from === id).forEach(edge => { assert.ok(ids.has(edge.to)); visit(edge.to, path); });
+      flow.edges.filter(edge => edge.from === id).forEach(edge => visit(edge.to, path));
     };
     visit(roots[0].id, new Set());
     assert.strictEqual(visited.size, ids.size);
     flow.nodes.forEach(node => {
       const outgoing = flow.edges.filter(edge => edge.from === node.id);
+      const incoming = flow.edges.filter(edge => edge.to === node.id);
       if (node.role === 'decision') {
         assert.ok(outgoing.length >= 2 && outgoing.length <= 3);
         assert.ok(outgoing.every(edge => edge.label));
@@ -296,7 +326,8 @@ test('workflow preserves separate detailed stages and both labelled feedback ret
       }
       if (node.role === 'process') assert.ok(outgoing.length <= 1);
       if (node.role === 'outcome') assert.strictEqual(outgoing.length, 0);
-      assert.match(node.label, /^(Collect|Clean|Create|Split|Train|Evaluate|Publish|Check|Keep)\b/);
+      if (node.role === 'merge') { assert.ok(incoming.length >= 2); assert.strictEqual(outgoing.length, 1); }
+      assert.match(node.label, /^(Collect|Clean|Run|Split|Train|Evaluate|Repeat|Create|Publish|Check|Keep)\b/);
     });
   }
   const split = b2Ref(b2Ids[1]), percentages = d.split.weights.map(v => 10 ** 2 * v / b2Sum(d.split.weights));
