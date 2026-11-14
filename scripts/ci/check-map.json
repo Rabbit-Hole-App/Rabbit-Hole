@@ -1411,6 +1411,8 @@
     "packages/control-plane/src/interact-bench.js": ["packages/control-plane/test/interact-bench.test.js"],
     "packages/control-plane/src/interact-convention.js": ["packages/control-plane/test/interact-convention.test.js"],
     "packages/control-plane/src/interact-design-pin.js": ["packages/control-plane/test/interact-design.test.js","packages/control-plane/test/interact-plan-formulas.test.js","packages/control-plane/test/interact-toss-reference.test.js"],
+    "packages/control-plane/src/interact-design-pick.js": ["packages/control-plane/test/interact-design-pick.test.js"],
+    "packages/control-plane/src/interact-families.js": ["packages/control-plane/test/interact-design-pick.test.js"],
     "packages/control-plane/src/interact-design-fill.js": ["packages/control-plane/test/interact-fast-design.test.js","packages/control-plane/test/interact-bench-design-mvp.test.js"],
     "packages/control-plane/src/interact-formula-check.js": ["packages/control-plane/test/interact-formula-check.test.js","packages/control-plane/test/interact-bench-formulas.test.js"],
     "packages/control-plane/src/interact-ledger.js": ["packages/control-plane/test/interact-ledger.test.js","packages/control-plane/test/interact-template.test.js","packages/control-plane/test/interact-convention.test.js"],

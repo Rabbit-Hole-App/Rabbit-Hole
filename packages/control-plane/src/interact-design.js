@@ -175,6 +175,9 @@ async function fillProblems(raw, depth, info, ctx) {
   if (!parsed.ok) return { problems: parsed.problems };
   let plan;
   try { plan = expandBrief(parsed.value, depth, { catalogueHash: ctx.capabilities.catalogueHash }); } catch (error) { return { problems: [`expand: ${String(error.message).slice(0, 300)}`] }; }
+  // The family's claims cite the reference note (kinematics_note); a job supplies only its own evidence, and a claim with none is checked as a fact, as the Opus plans are.
+  const supplied = new Set(ctx.capabilities.evidenceIds || []);
+  plan = { ...plan, claims: plan.claims.map(c => ({ ...c, evidenceIds: c.evidenceIds.filter(id => supplied.has(id)) })) };
   const checked = parseScenePlan(plan, ctx.capabilities);
   if (!checked.ok) return { problems: checked.problems.map(line) };
   const issues = [...runtimeProblems(checked.value, ctx.capabilities), ...captureBudgetProblems(checked.value)];

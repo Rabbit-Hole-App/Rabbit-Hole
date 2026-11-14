@@ -18,8 +18,8 @@ const GOOD = extractBrief(referencePlans.tossOverview); // a brief the checks ac
 const completion = (content, model) => ({ id: 'c1', model, choices: [{ index: 0, message: { role: 'assistant', content: JSON.stringify(content) }, finish_reason: 'stop' }], usage: { prompt_tokens: 9000, completion_tokens: 900, total_tokens: 9900 } });
 
 // answers: one per fill call, in order (the last repeats): a brief, or a function (n, request body) -> a brief. Anthropic calls still go to the scripted provider's own fetch.
-function fastStack(t, { answers, script, env = {} } = {}) {
-  const s = designStack(t, { script });
+function fastStack(t, { answers, script, env = {}, evidence } = {}) {
+  const s = designStack(t, { script, ...(evidence ? { evidence } : {}) });
   Object.assign(s.env, { INTERACT_DESIGN_KIND: 'fast', GEMINI_API_KEY: 'g-test', ...env });
   const inner = globalThis.fetch, fills = [];
   globalThis.fetch = async (url, init) => {
@@ -117,4 +117,12 @@ test('the fill system text is the teaching guide verbatim plus the family, the k
   assert.ok(text.startsWith(SCENE_TEACHING_GUIDE));
   for (const line of ['launchHeight is a number: write it as a literal, never as a name in a formula.', 'A formula has at most 32 nodes.', 'The detailed timeline counts time from the launch, and a marker is never before 0.']) assert.ok(text.includes(line), line);
   assert.equal(INTERACT_ROLES.design_fill.calls, 2);
+});
+
+test('a job with no evidence still passes: the family claims drop the reference note they cite (a real job supplies none)', async t => {
+  const s = fastStack(t, { answers: [GOOD], env: SEEK, evidence: [] });
+  const { body } = await s.create({ depth: 'brief' });
+  const { job } = await s.design(body.job.id);
+  assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure)); assert.equal(s.fills.length, 1);
+  assert.ok(job.design.plan.claims.every(c => c.evidenceIds.length === 0));
 });
