@@ -1,0 +1,5 @@
+LABEL="Release 135: PL-1 plot point notes. A plot point label that only restates its point (its x or y, alone or as (x, y)) gets no badge or list line, and a plot keeps at most 6 point notes; every data mark stays. Web renderer only; the two shipped figures that printed their own y values (regression step fit, threshold search, detailed depth) lose those notes. No migrations, no config change. Stacked on release 134."
+SHA=2a31d4d7bb38d1ef0a981b92a03a2dfae90f3c97
+MAIN_PREV="bbd2c581b00be9689b6712c4f68ac52ab7e82208"
+W=C:/s/explain-plot-notes-r3
+RECOVERY=release/explain-135-rollback-2a31d4d7

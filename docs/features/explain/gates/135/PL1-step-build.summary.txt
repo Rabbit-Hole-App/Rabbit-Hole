@@ -1,0 +1,7 @@
+dist/render/scene.html                                              0.93 kB │ gzip:   0.37 kB
+dist/render/animation3d.html                                        1.22 kB │ gzip:   0.47 kB
+dist/static/file-workbook-CT9DqtUa.js                               2.45 kB
+dist/design/rabbit-hole-support.html                                2.52 kB │ gzip:   1.00 kB
+dist/design/rabbit-hole-auth.html                                   2.63 kB │ gzip:   1.14 kB
+dist/design/rabbit-hole-blog.html                                   3.12 kB │ gzip:   1.21 kB
+(web build exit 0, see PL1-gate-run.log)

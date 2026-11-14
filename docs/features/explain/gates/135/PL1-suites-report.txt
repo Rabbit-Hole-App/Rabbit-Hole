@@ -1,0 +1,12 @@
+SUITES: GREEN 2a31d4d7bb38d1ef0a981b92a03a2dfae90f3c97
+Release 135 = PL-1 plot point notes (renderer only), STACKED on release 134's candidate bbd2c581b00be9689b6712c4f68ac52ab7e82208 (explain/canvas-cards-r5, base main a8ef11d64). Candidate: explain/plot-point-notes-r3-stacked 2a31d4d7bb38d1ef0a981b92a03a2dfae90f3c97 = the renderer commit 75a6376330b9b05bda4096a119431c3be38b156d of explain/plot-point-notes-r2 rebased onto the 134 candidate. Gate script gate-PL1.sh; each step's own output in PL1-step-<name>.out; every heavy step ran under heavy-lock (acquire pl1 / release pl1).
+1. scripts/ci (check-map applies to any file change): 95 tests, 94 pass, 0 fail, 1 skipped
+2. tutor-diagrams suite (includes the svg snapshots test and the 3 PL-1 ml-plot tests): 1217/1217, 0 fail
+3. snapshots vs BASE: exactly the 6 PL-1 entries changed, 0 added, 0 removed (ml-trees-regression-step-fit-detailed and ml-trees-threshold-search-detailed at 408/960/natural; heights 635->539 and 596->524). Release 134's TutorDiagram.js change moved no other row.
+4. figure-briefs: 7/7
+5. web unit: 6856 tests, 6828 pass, 0 fail, 27 skipped
+6. web build: exit 0
+7. property count: max 358 <= 362 (GATE PASS; mixed-bundle max 358, over 362: 0)
+8. planner-kind replay vs the 134 candidate: 474 rows, 0 moved (first 0, steer 0, kind 0, refs 0)
+SKIPPED on purpose: the control-plane and scripts suites (no server or script file changes: the diff against BASE touches only packages/web/src/tutor-diagrams/{ml-plot-spec.js, ml-plot-layouts.js, ml-plot.test.mjs, svg-snapshots.json}); smoke (no card bytes change except the two shipped figures above, which printed their own y values).
+Caveats: no first-run failure and no timing-test rerun in this gate. One rebase conflict, in the import line of ml-plot-layouts.js (133's isStackedBar kept together with PL-1's plotNotedPoints); svg-snapshots.json auto-merged keeping both sides' rows.
