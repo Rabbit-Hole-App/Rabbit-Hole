@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Each context enters its own next update",
+    "nodes": [
+      {
+        "id": "enc",
+        "label": "Encoder source"
+      },
+      {
+        "id": "s0",
+        "label": "Initial state"
+      },
+      {
+        "id": "read1",
+        "label": "Attention A"
+      },
+      {
+        "id": "c1",
+        "label": "Context A"
+      },
+      {
+        "id": "s1",
+        "label": "Update A"
+      },
+      {
+        "id": "read2",
+        "label": "Attention B"
+      },
+      {
+        "id": "c2",
+        "label": "Context B"
+      },
+      {
+        "id": "s2",
+        "label": "Update B"
+      }
+    ],
+    "edges": [
+      {
+        "from": "enc",
+        "to": "read1",
+        "label": "source"
+      },
+      {
+        "from": "s0",
+        "to": "read1",
+        "label": "query"
+      },
+      {
+        "from": "read1",
+        "to": "c1",
+        "label": "weighted sum"
+      },
+      {
+        "from": "c1",
+        "to": "s1",
+        "label": "context"
+      },
+      {
+        "from": "s0",
+        "to": "s1",
+        "label": "prior"
+      },
+      {
+        "from": "enc",
+        "to": "read2",
+        "label": "source"
+      },
+      {
+        "from": "s1",
+        "to": "read2",
+        "label": "query"
+      },
+      {
+        "from": "read2",
+        "to": "c2",
+        "label": "weighted sum"
+      },
+      {
+        "from": "c2",
+        "to": "s2",
+        "label": "context"
+      },
+      {
+        "from": "s1",
+        "to": "s2",
+        "label": "prior"
+      }
+    ],
+    "caption": "Toy $c=softmax(s_{prev}E)E$; $s=0.5s_{prev}+x+c$. The second query is the actual first update, not a supplied state."
+  }
+}

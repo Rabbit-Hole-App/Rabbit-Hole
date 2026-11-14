@@ -936,6 +936,126 @@
       "width": 720,
       "height": 524
     },
+    "ml-attention-additive-attention/320": {
+      "sha256": "00897d53bd60df2478484e95350b45cc970693eea5b896c4631a0b68ebfbdd0d",
+      "width": 364,
+      "height": 1000
+    },
+    "ml-attention-additive-attention/408": {
+      "sha256": "9a7266eea4b0c20d85ecb643c833af75a45f9b8dec1257d703dcfeec1f7cb3fa",
+      "width": 408,
+      "height": 949
+    },
+    "ml-attention-additive-attention/720": {
+      "sha256": "201508a3898bbbb82d941a65f1fb6ef0d57803ab80d1393fa88763441d141010",
+      "width": 720,
+      "height": 859
+    },
+    "ml-attention-all-query-attention/320": {
+      "sha256": "ea649e3d0318faa7587f25d191ff3c002c15164dff53379814d14739a34280db",
+      "width": 415,
+      "height": 624
+    },
+    "ml-attention-all-query-attention/408": {
+      "sha256": "d08d2c502c92b5260d61db5d7aabc7b86a0f891f7741822b2f0fa9bd38119b47",
+      "width": 415,
+      "height": 624
+    },
+    "ml-attention-all-query-attention/720": {
+      "sha256": "3b77670b2eb6eccfecfeedf16a60439552316a6d4c389ff67675ee7982e74878",
+      "width": 720,
+      "height": 585
+    },
+    "ml-attention-causal-mask-and-weights/320": {
+      "sha256": "34488830f36e8763eb98797acdda81bb2f8afb65b41d8c7548cf3b332fffbca1",
+      "width": 364,
+      "height": 416
+    },
+    "ml-attention-causal-mask-and-weights/408": {
+      "sha256": "2e3093eaf2a50489fbae87ace3e822862bec02c20bae29baa3dbfb700e726d44",
+      "width": 408,
+      "height": 399
+    },
+    "ml-attention-causal-mask-and-weights/720": {
+      "sha256": "9615dbd3872f2b667743ea602bad0624b46aa9b61ac685a702e84e3e84bc6c23",
+      "width": 720,
+      "height": 360
+    },
+    "ml-attention-connectivity-and-path-length/320": {
+      "sha256": "ced460b63f98386317d7b5831a1bea0cab26e331b62a62b70f40ec629f0280e4",
+      "width": 320,
+      "height": 445
+    },
+    "ml-attention-connectivity-and-path-length/408": {
+      "sha256": "7f0b88c00da25eca91a3b846aaf9c4285c86b0e67486abb1d4e11ff97af186e2",
+      "width": 408,
+      "height": 408
+    },
+    "ml-attention-connectivity-and-path-length/720": {
+      "sha256": "8832ccb7906a44470c7ac40c46a02a1db1101e1806dc1d4eeeaea59bc6420abc",
+      "width": 720,
+      "height": 369
+    },
+    "ml-attention-packed-query-key-value-projections/320": {
+      "sha256": "6ece107c7f7994181deab50039d2bae3e7938f0b9ebedaf7e3910218d25b0752",
+      "width": 343,
+      "height": 565
+    },
+    "ml-attention-packed-query-key-value-projections/408": {
+      "sha256": "59dd88a37dae9fa3d5ab383d1a53cb3c02e81154eb55a0cf5391f70963f19420",
+      "width": 408,
+      "height": 565
+    },
+    "ml-attention-packed-query-key-value-projections/720": {
+      "sha256": "7dcc5672f2a9a078af6bd551fb0c57a7071ac85dd584251728cbf13b60b75305",
+      "width": 720,
+      "height": 509
+    },
+    "ml-attention-pooling-kernel-weight-concentration/320": {
+      "sha256": "7fdbb9aae9a6c5fa7c0bbf731831aa28b83dcfa15dabe2eb82f056d4735191b4",
+      "width": 320,
+      "height": 469
+    },
+    "ml-attention-pooling-kernel-weight-concentration/408": {
+      "sha256": "02f121310eb8792d132dc88685aaa1d77bdbd522295db40186e38dd9af1ff348",
+      "width": 408,
+      "height": 452
+    },
+    "ml-attention-pooling-kernel-weight-concentration/720": {
+      "sha256": "76fc1988a528f0a8765271dbde8734b875adf260be8e38228675faa39550e12a",
+      "width": 720,
+      "height": 435
+    },
+    "ml-attention-query-key-dot-products/320": {
+      "sha256": "472ebb0107f8806437839b0fad8d1954607ae620f59c10ff4b2decf195d512cc",
+      "width": 393,
+      "height": 506
+    },
+    "ml-attention-query-key-dot-products/408": {
+      "sha256": "8985cea433da8fba4b421ca8002711542b6adfff5937540443c8472408bed88c",
+      "width": 408,
+      "height": 506
+    },
+    "ml-attention-query-key-dot-products/720": {
+      "sha256": "54330f30829f088518dfeab18869d3a2ce52f62bc29dc47b97a7793732da4b96",
+      "width": 720,
+      "height": 467
+    },
+    "ml-attention-query-key-value-roles/320": {
+      "sha256": "ab9e507b950c6ef77d5954b540ede54e450a97c98c515ceeb091f6453a795585",
+      "width": 320,
+      "height": 1019
+    },
+    "ml-attention-query-key-value-roles/408": {
+      "sha256": "560dcf4c9d8849939396dbe08133466250e26f88523c93fda29e93f8f8646947",
+      "width": 408,
+      "height": 1002
+    },
+    "ml-attention-query-key-value-roles/720": {
+      "sha256": "200554924db95ea0b5e4416a9d4b1e57c9fa62daa7cf7c236b75d15a0e006eb7",
+      "width": 720,
+      "height": 963
+    },
     "ml-attention-scaled-score-normalization/320": {
       "sha256": "54529cadc144bb1ad94f0755cb84de34779bfe0c9d88af06276d8ff470bc2900",
       "width": 621,
@@ -950,6 +1070,21 @@
       "sha256": "8bf3c8ebdaa8fad72ab22f7a1f37bdca415287dc40bbc37c1e8178501ea0d69c",
       "width": 720,
       "height": 354
+    },
+    "ml-attention-weighted-vector-pooling/320": {
+      "sha256": "59f0231e20eead6759e4051251bb1811cbc181f6bb0d493d019d12b338ed2efe",
+      "width": 320,
+      "height": 882
+    },
+    "ml-attention-weighted-vector-pooling/408": {
+      "sha256": "094eaf2978b401b8aa9109e5ed04eed2072b29d2727875f57ea397ca83f99dc5",
+      "width": 408,
+      "height": 848
+    },
+    "ml-attention-weighted-vector-pooling/720": {
+      "sha256": "18d80bc09f0fe9b8938f119764f75ed6708e571ba898494096c19983cb85ffe1",
+      "width": 720,
+      "height": 792
     },
     "ml-backpropagation/320": {
       "sha256": "52251608b0fc17817e3e5dff31e4991a1256fabd76292826f997f8c33cc200cf",
@@ -2180,6 +2315,21 @@
       "sha256": "380f0c2418456986e1b63e3a19f5418eed0f07a5d145f71900567c7aa766c762",
       "width": 720,
       "height": 1481
+    },
+    "ml-recurrent-attention-decoder-context/320": {
+      "sha256": "703701eb298e4aaa1e556146f7ce4bfe1afd10b667ab2788dfb87c451a44d7b1",
+      "width": 424,
+      "height": 1026
+    },
+    "ml-recurrent-attention-decoder-context/408": {
+      "sha256": "703701eb298e4aaa1e556146f7ce4bfe1afd10b667ab2788dfb87c451a44d7b1",
+      "width": 424,
+      "height": 1026
+    },
+    "ml-recurrent-attention-decoder-context/720": {
+      "sha256": "9c4517388b3bcb7c9cc716bf4b91dd333ae7eb84a9e770cd3cf5d273723dee7d",
+      "width": 720,
+      "height": 987
     },
     "ml-recurrent-networks-recurrent-next-token-training/320": {
       "sha256": "506557671b4215ffaf3df9f7d58715eca3d8b33e625568e0ed87337be98d7baf",

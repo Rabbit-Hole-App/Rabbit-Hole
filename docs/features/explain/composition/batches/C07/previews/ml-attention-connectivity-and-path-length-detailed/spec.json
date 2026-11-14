@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Widen only the convolution neighborhood",
+    "unit": "Hops",
+    "bars": [
+      {
+        "label": "Conv base",
+        "value": 2
+      },
+      {
+        "label": "RNN base",
+        "value": 2
+      },
+      {
+        "label": "Attention base",
+        "value": 1
+      },
+      {
+        "label": "Conv wider",
+        "value": 1
+      },
+      {
+        "label": "RNN wider",
+        "value": 2
+      },
+      {
+        "label": "Attention wider",
+        "value": 1
+      }
+    ],
+    "caption": "Same 1 to 3 pair. Only Conv radius changes $1\\to 2$; $A_{ij}=1[|i-j|\\le r]$. Other rules fixed."
+  }
+}

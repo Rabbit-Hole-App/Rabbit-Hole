@@ -1,0 +1,2067 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 3363,
+  "changedPriorPicks": [],
+  "sourceHeadings": 36,
+  "uniqueSourcePrompts": 27,
+  "sourceCases": 108,
+  "sourceHits": 108,
+  "actualPlannedAuthorSchemaChecks": 108,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-09",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-09",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-09",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-10",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-10",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-10",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-11",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-11",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-11",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-12",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-12",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-12",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-17",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-17",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-17",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-18",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-18",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-18",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-19",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-19",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-19",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-20",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-20",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "expectedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-20",
+      "prompt": "A narrower bandwidth concentrates normalized weight nearer each query and a broader one spreads it farther.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "rawAuthorReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedId": "ml-attention-pooling-kernel-weight-concentration",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-attention-decoder-context",
+      "expectedFamily": "ml-recurrent-attention-decoder-context",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bahdanau-attention/briefs.md#figure-02",
+      "prompt": "The decoder can retrieve a different context at each step by querying the encoder states with its previous state.",
+      "depth": "brief",
+      "firstFamily": "ml-recurrent-attention-decoder-context",
+      "rawAuthorReferenceId": "ml-recurrent-attention-decoder-context",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-attention-decoder-context",
+      "preparedId": "ml-recurrent-attention-decoder-context",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-attention-decoder-context",
+      "expectedFamily": "ml-recurrent-attention-decoder-context",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bahdanau-attention/briefs.md#figure-02",
+      "prompt": "The decoder can retrieve a different context at each step by querying the encoder states with its previous state.",
+      "depth": "balanced",
+      "firstFamily": "ml-recurrent-attention-decoder-context",
+      "rawAuthorReferenceId": "ml-recurrent-attention-decoder-context",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-attention-decoder-context",
+      "preparedId": "ml-recurrent-attention-decoder-context",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-attention-decoder-context",
+      "expectedFamily": "ml-recurrent-attention-decoder-context",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bahdanau-attention/briefs.md#figure-02",
+      "prompt": "The decoder can retrieve a different context at each step by querying the encoder states with its previous state.",
+      "depth": "detailed",
+      "firstFamily": "ml-recurrent-attention-decoder-context",
+      "rawAuthorReferenceId": "ml-recurrent-attention-decoder-context",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-attention-decoder-context",
+      "preparedId": "ml-recurrent-attention-decoder-context",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-06",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-06",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-06",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-07",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-07",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-07",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-08",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-08",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-08",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-09",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-09",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "expectedFamily": "ml-attention-additive-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-09",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-additive-attention",
+      "rawAuthorReferenceId": "ml-attention-additive-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-additive-attention",
+      "preparedId": "ml-attention-additive-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "expectedFamily": "ml-attention-query-key-value-roles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-queries-keys-values/briefs.md#figure-01",
+      "prompt": "A query uses keys to determine how strongly each associated value contributes to the result.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-query-key-value-roles",
+      "rawAuthorReferenceId": "ml-attention-query-key-value-roles",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-value-roles",
+      "preparedId": "ml-attention-query-key-value-roles",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "expectedFamily": "ml-attention-query-key-value-roles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-queries-keys-values/briefs.md#figure-01",
+      "prompt": "A query uses keys to determine how strongly each associated value contributes to the result.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-query-key-value-roles",
+      "rawAuthorReferenceId": "ml-attention-query-key-value-roles",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-value-roles",
+      "preparedId": "ml-attention-query-key-value-roles",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "expectedFamily": "ml-attention-query-key-value-roles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-queries-keys-values/briefs.md#figure-01",
+      "prompt": "A query uses keys to determine how strongly each associated value contributes to the result.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-query-key-value-roles",
+      "rawAuthorReferenceId": "ml-attention-query-key-value-roles",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-value-roles",
+      "preparedId": "ml-attention-query-key-value-roles",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "expectedFamily": "ml-attention-query-key-value-roles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-01",
+      "prompt": "Attention converts query-to-key scores into weights and then uses those weights to combine values.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-query-key-value-roles",
+      "rawAuthorReferenceId": "ml-attention-query-key-value-roles",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-value-roles",
+      "preparedId": "ml-attention-query-key-value-roles",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "expectedFamily": "ml-attention-query-key-value-roles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-01",
+      "prompt": "Attention converts query-to-key scores into weights and then uses those weights to combine values.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-query-key-value-roles",
+      "rawAuthorReferenceId": "ml-attention-query-key-value-roles",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-value-roles",
+      "preparedId": "ml-attention-query-key-value-roles",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "expectedFamily": "ml-attention-query-key-value-roles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-01",
+      "prompt": "Attention converts query-to-key scores into weights and then uses those weights to combine values.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-query-key-value-roles",
+      "rawAuthorReferenceId": "ml-attention-query-key-value-roles",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-value-roles",
+      "preparedId": "ml-attention-query-key-value-roles",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "expectedFamily": "ml-attention-query-key-value-roles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-22",
+      "prompt": "A query is matched against keys and the associated values are the material returned.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-query-key-value-roles",
+      "rawAuthorReferenceId": "ml-attention-query-key-value-roles",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-value-roles",
+      "preparedId": "ml-attention-query-key-value-roles",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "expectedFamily": "ml-attention-query-key-value-roles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-22",
+      "prompt": "A query is matched against keys and the associated values are the material returned.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-query-key-value-roles",
+      "rawAuthorReferenceId": "ml-attention-query-key-value-roles",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-value-roles",
+      "preparedId": "ml-attention-query-key-value-roles",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "expectedFamily": "ml-attention-query-key-value-roles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-22",
+      "prompt": "A query is matched against keys and the associated values are the material returned.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-query-key-value-roles",
+      "rawAuthorReferenceId": "ml-attention-query-key-value-roles",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-value-roles",
+      "preparedId": "ml-attention-query-key-value-roles",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-connectivity-and-path-length",
+      "expectedFamily": "ml-attention-connectivity-and-path-length",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-self-attention-and-positional-encoding/briefs.md#figure-01",
+      "prompt": "The communication path between distant positions is different in a local convolution, recurrence and global self-attention.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-connectivity-and-path-length",
+      "rawAuthorReferenceId": "ml-attention-connectivity-and-path-length",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-connectivity-and-path-length",
+      "preparedId": "ml-attention-connectivity-and-path-length",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-connectivity-and-path-length",
+      "expectedFamily": "ml-attention-connectivity-and-path-length",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-self-attention-and-positional-encoding/briefs.md#figure-01",
+      "prompt": "The communication path between distant positions is different in a local convolution, recurrence and global self-attention.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-connectivity-and-path-length",
+      "rawAuthorReferenceId": "ml-attention-connectivity-and-path-length",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-connectivity-and-path-length",
+      "preparedId": "ml-attention-connectivity-and-path-length",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-connectivity-and-path-length",
+      "expectedFamily": "ml-attention-connectivity-and-path-length",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-self-attention-and-positional-encoding/briefs.md#figure-01",
+      "prompt": "The communication path between distant positions is different in a local convolution, recurrence and global self-attention.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-connectivity-and-path-length",
+      "rawAuthorReferenceId": "ml-attention-connectivity-and-path-length",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-connectivity-and-path-length",
+      "preparedId": "ml-attention-connectivity-and-path-length",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "expectedFamily": "ml-attention-causal-mask-and-weights",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-11",
+      "prompt": "Causal self-attention makes a position depend only on itself and positions to its left.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-causal-mask-and-weights",
+      "rawAuthorReferenceId": "ml-attention-causal-mask-and-weights",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-causal-mask-and-weights",
+      "preparedId": "ml-attention-causal-mask-and-weights",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "expectedFamily": "ml-attention-causal-mask-and-weights",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-11",
+      "prompt": "Causal self-attention makes a position depend only on itself and positions to its left.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-causal-mask-and-weights",
+      "rawAuthorReferenceId": "ml-attention-causal-mask-and-weights",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-causal-mask-and-weights",
+      "preparedId": "ml-attention-causal-mask-and-weights",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "expectedFamily": "ml-attention-causal-mask-and-weights",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-11",
+      "prompt": "Causal self-attention makes a position depend only on itself and positions to its left.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-causal-mask-and-weights",
+      "rawAuthorReferenceId": "ml-attention-causal-mask-and-weights",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-causal-mask-and-weights",
+      "preparedId": "ml-attention-causal-mask-and-weights",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "expectedFamily": "ml-attention-causal-mask-and-weights",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-29",
+      "prompt": "Masked attention lets a token collect context from allowed positions inside a single decoder layer.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-causal-mask-and-weights",
+      "rawAuthorReferenceId": "ml-attention-causal-mask-and-weights",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-causal-mask-and-weights",
+      "preparedId": "ml-attention-causal-mask-and-weights",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "expectedFamily": "ml-attention-causal-mask-and-weights",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-29",
+      "prompt": "Masked attention lets a token collect context from allowed positions inside a single decoder layer.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-causal-mask-and-weights",
+      "rawAuthorReferenceId": "ml-attention-causal-mask-and-weights",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-causal-mask-and-weights",
+      "preparedId": "ml-attention-causal-mask-and-weights",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "expectedFamily": "ml-attention-causal-mask-and-weights",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-29",
+      "prompt": "Masked attention lets a token collect context from allowed positions inside a single decoder layer.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-causal-mask-and-weights",
+      "rawAuthorReferenceId": "ml-attention-causal-mask-and-weights",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-causal-mask-and-weights",
+      "preparedId": "ml-attention-causal-mask-and-weights",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "expectedFamily": "ml-attention-causal-mask-and-weights",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-35",
+      "prompt": "Masking future positions leaves their weights at zero without changing how scores for eligible positions are computed.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-causal-mask-and-weights",
+      "rawAuthorReferenceId": "ml-attention-causal-mask-and-weights",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-causal-mask-and-weights",
+      "preparedId": "ml-attention-causal-mask-and-weights",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "expectedFamily": "ml-attention-causal-mask-and-weights",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-35",
+      "prompt": "Masking future positions leaves their weights at zero without changing how scores for eligible positions are computed.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-causal-mask-and-weights",
+      "rawAuthorReferenceId": "ml-attention-causal-mask-and-weights",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-causal-mask-and-weights",
+      "preparedId": "ml-attention-causal-mask-and-weights",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "expectedFamily": "ml-attention-causal-mask-and-weights",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-35",
+      "prompt": "Masking future positions leaves their weights at zero without changing how scores for eligible positions are computed.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-causal-mask-and-weights",
+      "rawAuthorReferenceId": "ml-attention-causal-mask-and-weights",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-causal-mask-and-weights",
+      "preparedId": "ml-attention-causal-mask-and-weights",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-10",
+      "prompt": "A token's hidden vector is projected separately into a query, key, and value.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-10",
+      "prompt": "A token's hidden vector is projected separately into a query, key, and value.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-10",
+      "prompt": "A token's hidden vector is projected separately into a query, key, and value.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-14",
+      "prompt": "Packing token vectors into rows computes all query, key, and value rows with three matrix products.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-14",
+      "prompt": "Packing token vectors into rows computes all query, key, and value rows with three matrix products.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-14",
+      "prompt": "Packing token vectors into rows computes all query, key, and value rows with three matrix products.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-31",
+      "prompt": "Each token's hidden representation has separate query, key and value projections.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-31",
+      "prompt": "Each token's hidden representation has separate query, key and value projections.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-31",
+      "prompt": "Each token's hidden representation has separate query, key and value projections.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-40",
+      "prompt": "GPT-2 computes a separate query, key and value for the current token at every decoder layer.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-40",
+      "prompt": "GPT-2 computes a separate query, key and value for the current token at every decoder layer.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-40",
+      "prompt": "GPT-2 computes a separate query, key and value for the current token at every decoder layer.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-44",
+      "prompt": "A combined learned matrix can project one input into the components for queries, keys, and values.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-44",
+      "prompt": "A combined learned matrix can project one input into the components for queries, keys, and values.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-44",
+      "prompt": "A combined learned matrix can project one input into the components for queries, keys, and values.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-45",
+      "prompt": "The joint projection result is sliced into the separate vectors used by attention.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-45",
+      "prompt": "The joint projection result is sliced into the separate vectors used by attention.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "expectedFamily": "ml-attention-packed-query-key-value-projections",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-45",
+      "prompt": "The joint projection result is sliced into the separate vectors used by attention.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-packed-query-key-value-projections",
+      "rawAuthorReferenceId": "ml-attention-packed-query-key-value-projections",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-packed-query-key-value-projections",
+      "preparedId": "ml-attention-packed-query-key-value-projections",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-dot-products",
+      "expectedFamily": "ml-attention-query-key-dot-products",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-11",
+      "prompt": "A query scores each candidate key by multiplying corresponding components and summing them.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-query-key-dot-products",
+      "rawAuthorReferenceId": "ml-attention-query-key-dot-products",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-dot-products",
+      "preparedId": "ml-attention-query-key-dot-products",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-dot-products",
+      "expectedFamily": "ml-attention-query-key-dot-products",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-11",
+      "prompt": "A query scores each candidate key by multiplying corresponding components and summing them.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-query-key-dot-products",
+      "rawAuthorReferenceId": "ml-attention-query-key-dot-products",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-dot-products",
+      "preparedId": "ml-attention-query-key-dot-products",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-dot-products",
+      "expectedFamily": "ml-attention-query-key-dot-products",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-11",
+      "prompt": "A query scores each candidate key by multiplying corresponding components and summing them.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-query-key-dot-products",
+      "rawAuthorReferenceId": "ml-attention-query-key-dot-products",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-dot-products",
+      "preparedId": "ml-attention-query-key-dot-products",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-dot-products",
+      "expectedFamily": "ml-attention-query-key-dot-products",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-32",
+      "prompt": "Each query compares with all eligible keys before weights are computed.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-query-key-dot-products",
+      "rawAuthorReferenceId": "ml-attention-query-key-dot-products",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-dot-products",
+      "preparedId": "ml-attention-query-key-dot-products",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-dot-products",
+      "expectedFamily": "ml-attention-query-key-dot-products",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-32",
+      "prompt": "Each query compares with all eligible keys before weights are computed.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-query-key-dot-products",
+      "rawAuthorReferenceId": "ml-attention-query-key-dot-products",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-dot-products",
+      "preparedId": "ml-attention-query-key-dot-products",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-query-key-dot-products",
+      "expectedFamily": "ml-attention-query-key-dot-products",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-32",
+      "prompt": "Each query compares with all eligible keys before weights are computed.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-query-key-dot-products",
+      "rawAuthorReferenceId": "ml-attention-query-key-dot-products",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-query-key-dot-products",
+      "preparedId": "ml-attention-query-key-dot-products",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-13",
+      "prompt": "Attention forms the output for one token by weighting every value vector and adding corresponding entries.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-13",
+      "prompt": "Attention forms the output for one token by weighting every value vector and adding corresponding entries.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-13",
+      "prompt": "Attention forms the output for one token by weighting every value vector and adding corresponding entries.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-24",
+      "prompt": "A weighted sum of values creates the new context for one token position.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-24",
+      "prompt": "A weighted sum of values creates the new context for one token position.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-24",
+      "prompt": "A weighted sum of values creates the new context for one token position.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-33",
+      "prompt": "Values contribute to the result in proportion to their attention weights.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-33",
+      "prompt": "Values contribute to the result in proportion to their attention weights.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-33",
+      "prompt": "Values contribute to the result in proportion to their attention weights.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-50",
+      "prompt": "A head mixes its values using the corresponding normalized weights.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-50",
+      "prompt": "A head mixes its values using the corresponding normalized weights.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "ml-attention-weighted-vector-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-50",
+      "prompt": "A head mixes its values using the corresponding normalized weights.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-weighted-vector-pooling",
+      "rawAuthorReferenceId": "ml-attention-weighted-vector-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-weighted-vector-pooling",
+      "preparedId": "ml-attention-weighted-vector-pooling",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "figure-retro-chunk-embedding",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-retrieval-transformer/briefs.md#figure-07",
+      "prompt": "Averaging contextual token vectors gives one fixed-length representation for an input chunk.",
+      "depth": "brief",
+      "firstFamily": "figure-retro-chunk-embedding",
+      "rawAuthorReferenceId": "figure-retro-chunk-embedding",
+      "firstPick": true,
+      "preparedFamily": "figure-retro-chunk-embedding",
+      "preparedId": "figure-retro-chunk-embedding",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "figure-retro-chunk-embedding",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-retrieval-transformer/briefs.md#figure-07",
+      "prompt": "Averaging contextual token vectors gives one fixed-length representation for an input chunk.",
+      "depth": "balanced",
+      "firstFamily": "figure-retro-chunk-embedding",
+      "rawAuthorReferenceId": "figure-retro-chunk-embedding",
+      "firstPick": true,
+      "preparedFamily": "figure-retro-chunk-embedding",
+      "preparedId": "figure-retro-chunk-embedding",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "expectedFamily": "figure-retro-chunk-embedding",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-retrieval-transformer/briefs.md#figure-07",
+      "prompt": "Averaging contextual token vectors gives one fixed-length representation for an input chunk.",
+      "depth": "detailed",
+      "firstFamily": "figure-retro-chunk-embedding",
+      "rawAuthorReferenceId": "figure-retro-chunk-embedding",
+      "firstPick": true,
+      "preparedFamily": "figure-retro-chunk-embedding",
+      "preparedId": "figure-retro-chunk-embedding",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "expectedFamily": "ml-attention-all-query-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-15",
+      "prompt": "The same attention calculation processes all query positions by scoring a query-by-key matrix and normalizing each query row before mixing values.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-all-query-attention",
+      "rawAuthorReferenceId": "ml-attention-all-query-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-all-query-attention",
+      "preparedId": "ml-attention-all-query-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "expectedFamily": "ml-attention-all-query-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-15",
+      "prompt": "The same attention calculation processes all query positions by scoring a query-by-key matrix and normalizing each query row before mixing values.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-all-query-attention",
+      "rawAuthorReferenceId": "ml-attention-all-query-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-all-query-attention",
+      "preparedId": "ml-attention-all-query-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "expectedFamily": "ml-attention-all-query-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-15",
+      "prompt": "The same attention calculation processes all query positions by scoring a query-by-key matrix and normalizing each query row before mixing values.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-all-query-attention",
+      "rawAuthorReferenceId": "ml-attention-all-query-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-all-query-attention",
+      "preparedId": "ml-attention-all-query-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "expectedFamily": "ml-attention-all-query-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-34",
+      "prompt": "Repeating the same attention stages for each query gives one contextual vector per position.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-all-query-attention",
+      "rawAuthorReferenceId": "ml-attention-all-query-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-all-query-attention",
+      "preparedId": "ml-attention-all-query-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "expectedFamily": "ml-attention-all-query-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-34",
+      "prompt": "Repeating the same attention stages for each query gives one contextual vector per position.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-all-query-attention",
+      "rawAuthorReferenceId": "ml-attention-all-query-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-all-query-attention",
+      "preparedId": "ml-attention-all-query-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "expectedFamily": "ml-attention-all-query-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-34",
+      "prompt": "Repeating the same attention stages for each query gives one contextual vector per position.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-all-query-attention",
+      "rawAuthorReferenceId": "ml-attention-all-query-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-all-query-attention",
+      "preparedId": "ml-attention-all-query-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "expectedFamily": "ml-attention-all-query-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-37",
+      "prompt": "Packing queries and keys lets the model compute every pairwise score in one matrix operation.",
+      "depth": "brief",
+      "firstFamily": "ml-attention-all-query-attention",
+      "rawAuthorReferenceId": "ml-attention-all-query-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-all-query-attention",
+      "preparedId": "ml-attention-all-query-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "expectedFamily": "ml-attention-all-query-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-37",
+      "prompt": "Packing queries and keys lets the model compute every pairwise score in one matrix operation.",
+      "depth": "balanced",
+      "firstFamily": "ml-attention-all-query-attention",
+      "rawAuthorReferenceId": "ml-attention-all-query-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-all-query-attention",
+      "preparedId": "ml-attention-all-query-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "expectedFamily": "ml-attention-all-query-attention",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-37",
+      "prompt": "Packing queries and keys lets the model compute every pairwise score in one matrix operation.",
+      "depth": "detailed",
+      "firstFamily": "ml-attention-all-query-attention",
+      "rawAuthorReferenceId": "ml-attention-all-query-attention",
+      "firstPick": true,
+      "preparedFamily": "ml-attention-all-query-attention",
+      "preparedId": "ml-attention-all-query-attention",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

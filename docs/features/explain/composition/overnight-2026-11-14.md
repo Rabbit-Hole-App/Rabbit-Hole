@@ -1,6 +1,6 @@
 # Composition overnight report — 14 November 2026
 
-The latest verified boundary is C06. C07 content planning is underway; subsequent batches remain subject to the same tests, prior-pick replay, token, linter and visual-sheet gates. All branches retain release133 `a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36`. No force-push, branch rename, renderer/schema/tooling/author-prompt change, provider call or deployment.
+The latest verified boundary is C07. C08 content planning is underway; subsequent batches remain subject to the same tests, prior-pick replay, token, linter and visual-sheet gates. All branches retain release133 `a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36`. No force-push, branch rename, renderer/schema/tooling/author-prompt change, provider call or deployment.
 
 | Batch | Branch | Pushed SHA | NEW / REUSE | Affected tests passed | Exact prior replay / moved | Maximum tokens | Snapshots added / changed / removed | Sheets Overview / Standard / Deep |
 |---|---|---|---:|---:|---:|---:|---:|---:|
@@ -9,7 +9,8 @@ The latest verified boundary is C06. C07 content planning is underway; subsequen
 | [C03](batches/C03/REPORT.md) | `explain/composition-c03` | `b6346aacfa85dc789f1e31f3ecc4336d892791b9` | 3 / 3 | 1,361 | 3,048 / 0 | 234 | 9 / 0 / 0 | 6 / 6 / 9 |
 | [C04](batches/C04/REPORT.md) | `explain/composition-c04` | `744d3103f20f2871539d228b0fb3d213fc82cf36` | 3 / 4 | 1,371 | 3,135 / 0 | 164 | 9 / 0 / 0 | 7 / 7 / 11 |
 | [C05](batches/C05/REPORT.md) | `explain/composition-c05` | `cb53d5dce47115dfd9900b50d939cdd67d6e3a2f` | 4 / 0 | 1,390 | 3,204 / 0 | 295 | 12 / 0 / 0 | 5 / 5 / 8 |
-| [C06](batches/C06/REPORT.md) | `explain/composition-c06` | [branch head](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/explain/composition-c06) | 4 / 0 | 1,406 | 3,279 / 0 | 166 | 12 / 0 / 0 | 4 / 4 / 6 |
+| [C06](batches/C06/REPORT.md) | `explain/composition-c06` | `8f152b490c8be5d7f7f507db00249f809b093d6c` | 4 / 0 | 1,406 | 3,279 / 0 | 166 | 12 / 0 / 0 | 4 / 4 / 6 |
+| [C07](batches/C07/REPORT.md) | `explain/composition-c07` | [branch head](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/explain/composition-c07) | 10 / 1 | 1,445 | 3,363 / 0 | 300 | 30 / 0 / 0 | 18 / 18 / 18 |
 
 C02's six refreshed keys comprise its own three attention entries and three inherited C01 objective entries. No outside-id snapshot changed. C03 adds exactly three new ids at three widths; reused visuals are unchanged. Every reported affected test run has zero failures/skips; these totals cover all tutor-diagram tests and all reference-author suites, not the unrelated whole application. Original C02 push also landed at `07371644349e7d82a515707a0155ffc96998de6e` with the exact local `66cfd0288` tree and parent `343d91f8a`.
 
@@ -21,6 +22,7 @@ C02's six refreshed keys comprise its own three attention entries and three inhe
 | C04 | 24 / 24 | 45 / 45 | 324 primary + 84 detail, including planned paths | 44 / 44 | 0 / 0 | 2 |
 | C05 | 15 / 15 | 60 / 60 | 300 primary + 148 detail, including planned paths | 44 / 44 | 0 / 0 | 2 |
 | C06 | 24 / 24 | 60 / 60 | 336 primary + 60 detail, including planned paths | 44 / 44 | 0 / 0 | 2 |
+| C07 | 108 / 108 | 150 / 150 | 936 primary + 624 detail, including planned paths | 44 / 44 | 0 / 0 | 3 |
 
 The ten required C01/C02 author singles now use the point-carrying existing leaf, the same computed data and inherited prompts/keywords/lessons. The strict parent-id set equality is unchanged. All token receipts include canonical compact cl100k_base counts and SHA-256 hashes. The raw composition-filename exceptions are preserved in reports; Claude Code owns their pipeline allowlist additions and release gating. No tooling exception was hidden by source changes.
 
@@ -40,6 +42,10 @@ The ten required C01/C02 author singles now use the point-carrying existing leaf
 - **C05 dense masks:** six state columns exceeded readable contact width. The same mask transposed to six rows/two sample columns fits native 408 px, retaining every cell.
 
 - **C06 native widths/units:** grouped bars have a 420 px minimum, readable at the 408 px sheet scale. Probability and loss use separate figures. Observed-prefix tables retain the required causal boundary without an optional 444 px grid. Complete short raw body/lead fields preserve text and identity before formatting.
+
+- **C07 compact sources:** legacy pooling/causal/QKV native widths524/604/686 exceed the intended contact layout. Full new bounded cases use four-key/two-query transposed grids, three causal positions and tiny declared QKV projectors; old payloads remain frozen.
+- **C07 complete forks/grids:** keep all six joint values and three real named slices at native460, readable at408. A simultaneous local/recurrent/global three-grid panel would shrink cells, so native details span depths and every main retains the three-method computed hop comparison. No fabricated edge or discarded component.
+- **C07 conditional scope:** recurrent state updates are an explicit scalar toy; packed layer inputs/projectors are supplied independently, with no computed inter-layer transition. Value-product details stay on the matching role route and use its actual base/probe values. Deep pair labels follow the B,A data permutation.
 
 ## Failure disposition
 

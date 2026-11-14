@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Project independently, combine, score and mask",
+    "nodes": [
+      {
+        "id": "q",
+        "label": "Query width 2"
+      },
+      {
+        "id": "k",
+        "label": "Key width 3"
+      },
+      {
+        "id": "pq",
+        "label": "Query projection width 2"
+      },
+      {
+        "id": "pk",
+        "label": "Key projection width 2"
+      },
+      {
+        "id": "sum",
+        "label": "Add projections"
+      },
+      {
+        "id": "tanh",
+        "label": "Tanh features"
+      },
+      {
+        "id": "score",
+        "label": "Learned score / masked weights"
+      }
+    ],
+    "edges": [
+      {
+        "from": "q",
+        "to": "pq",
+        "label": "Wq"
+      },
+      {
+        "from": "k",
+        "to": "pk",
+        "label": "Wk"
+      },
+      {
+        "from": "pq",
+        "to": "sum",
+        "label": "query branch"
+      },
+      {
+        "from": "pk",
+        "to": "sum",
+        "label": "key branch"
+      },
+      {
+        "from": "sum",
+        "to": "tanh",
+        "label": "activate"
+      },
+      {
+        "from": "tanh",
+        "to": "score",
+        "label": "v then softmax"
+      }
+    ],
+    "caption": "Toy $e_j=tanh(qW_q+k_jW_k)v^T$. Mask padded keys before normalization; q and k project independently."
+  }
+}

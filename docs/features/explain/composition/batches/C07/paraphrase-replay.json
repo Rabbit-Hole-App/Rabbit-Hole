@@ -1,0 +1,3482 @@
+{
+  "version": 1,
+  "topic": "attention",
+  "fixture": false,
+  "threshold": 0.8,
+  "hits": 150,
+  "total": 150,
+  "firstPickRate": 1,
+  "passed": true,
+  "byDepth": [
+    {
+      "depth": "brief",
+      "hits": 50,
+      "total": 50,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "balanced",
+      "hits": 50,
+      "total": 50,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "detailed",
+      "hits": 50,
+      "total": 50,
+      "firstPickRate": 1
+    }
+  ],
+  "prompts": [
+    {
+      "id": "ml-attention-pooling-kernel-weight-concentration",
+      "prompt": "The weight grid reveals whether predictions rely on nearby examples or spread weight over the whole training set.",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Compare kernel control grids without changing key coordinates.",
+          "depth": "brief",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare kernel control grids without changing key coordinates.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare kernel control grids without changing key coordinates.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do bandwidth concentration rows differ from a uniform control?",
+          "depth": "brief",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do bandwidth concentration rows differ from a uniform control?",
+          "depth": "balanced",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do bandwidth concentration rows differ from a uniform control?",
+          "depth": "detailed",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show local and uniform kernel control grids on the same keys.",
+          "depth": "brief",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show local and uniform kernel control grids on the same keys.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show local and uniform kernel control grids on the same keys.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep query normalization fixed in bandwidth concentration rows.",
+          "depth": "brief",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep query normalization fixed in bandwidth concentration rows.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep query normalization fixed in bandwidth concentration rows.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare narrow and broad kernel control grids without an infinite-bandwidth claim.",
+          "depth": "brief",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare narrow and broad kernel control grids without an infinite-bandwidth claim.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare narrow and broad kernel control grids without an infinite-bandwidth claim.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-pooling-kernel-weight-concentration",
+          "firstReferenceId": "ml-attention-pooling-kernel-weight-concentration",
+          "firstPick": true,
+          "references": [
+            "ml-attention-pooling-kernel-weight-concentration"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-pooling-kernel-weight-concentration",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-recurrent-attention-decoder-context",
+      "prompt": "The decoder can retrieve a different context at each step by querying the encoder states with its previous state.",
+      "referenceId": "ml-recurrent-attention-decoder-context",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show recurrent context handoff into both decoder updates.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show recurrent context handoff into both decoder updates.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show recurrent context handoff into both decoder updates.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace decoder context recurrence from the actual previous state.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace decoder context recurrence from the actual previous state.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace decoder context recurrence from the actual previous state.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why does recurrent context handoff change with the decoder state?",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why does recurrent context handoff change with the decoder state?",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why does recurrent context handoff change with the decoder state?",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep encoder values fixed during decoder context recurrence.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep encoder values fixed during decoder context recurrence.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep encoder values fixed during decoder context recurrence.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute both steps of recurrent context handoff after an initial-state change.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute both steps of recurrent context handoff after an initial-state change.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute both steps of recurrent context handoff after an initial-state change.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-attention-decoder-context",
+          "firstReferenceId": "ml-recurrent-attention-decoder-context",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-attention-decoder-context"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-attention-decoder-context",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-attention-additive-attention",
+      "prompt": "Additive attention can compare unlike input widths by projecting queries and keys into the same hidden space.",
+      "referenceId": "ml-attention-additive-attention",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain additive projection branches using the displayed toy operands.",
+          "depth": "brief",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain additive projection branches using the displayed toy operands.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain additive projection branches using the displayed toy operands.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show unlike width matching without changing the example.",
+          "depth": "brief",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show unlike width matching without changing the example.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show unlike width matching without changing the example.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for additive projection branches.",
+          "depth": "brief",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for additive projection branches.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for additive projection branches.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in unlike width matching.",
+          "depth": "brief",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in unlike width matching.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in unlike width matching.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for additive projection branches.",
+          "depth": "brief",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for additive projection branches.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for additive projection branches.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-additive-attention",
+          "firstReferenceId": "ml-attention-additive-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-additive-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-additive-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-attention-query-key-value-roles",
+      "prompt": "A query uses keys to determine how strongly each associated value contributes to the result.",
+      "referenceId": "ml-attention-query-key-value-roles",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain matching retrieved content using the displayed toy operands.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain matching retrieved content using the displayed toy operands.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain matching retrieved content using the displayed toy operands.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show paired value retrieval without changing the example.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show paired value retrieval without changing the example.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show paired value retrieval without changing the example.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for matching retrieved content.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for matching retrieved content.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for matching retrieved content.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in paired value retrieval.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in paired value retrieval.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in paired value retrieval.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for matching retrieved content.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for matching retrieved content.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for matching retrieved content.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-value-roles",
+          "firstReferenceId": "ml-attention-query-key-value-roles",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-value-roles"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-query-key-value-roles",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-attention-connectivity-and-path-length",
+      "prompt": "The communication path between distant positions is different in a local convolution, recurrence and global self-attention.",
+      "referenceId": "ml-attention-connectivity-and-path-length",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain position communication hops using the displayed toy operands.",
+          "depth": "brief",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain position communication hops using the displayed toy operands.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain position communication hops using the displayed toy operands.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show local global hops without changing the example.",
+          "depth": "brief",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show local global hops without changing the example.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show local global hops without changing the example.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for position communication hops.",
+          "depth": "brief",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for position communication hops.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for position communication hops.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in local global hops.",
+          "depth": "brief",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in local global hops.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in local global hops.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for position communication hops.",
+          "depth": "brief",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for position communication hops.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for position communication hops.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-connectivity-and-path-length",
+          "firstReferenceId": "ml-attention-connectivity-and-path-length",
+          "firstPick": true,
+          "references": [
+            "ml-attention-connectivity-and-path-length"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-attention-connectivity-and-path-length",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-attention-causal-mask-and-weights",
+      "prompt": "Causal self-attention makes a position depend only on itself and positions to its left.",
+      "referenceId": "ml-attention-causal-mask-and-weights",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain masked row normalization using the displayed toy operands.",
+          "depth": "brief",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain masked row normalization using the displayed toy operands.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain masked row normalization using the displayed toy operands.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show interior causal query without changing the example.",
+          "depth": "brief",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show interior causal query without changing the example.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show interior causal query without changing the example.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for masked row normalization.",
+          "depth": "brief",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for masked row normalization.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for masked row normalization.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in interior causal query.",
+          "depth": "brief",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in interior causal query.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in interior causal query.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for masked row normalization.",
+          "depth": "brief",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for masked row normalization.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for masked row normalization.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-causal-mask-and-weights",
+          "firstReferenceId": "ml-attention-causal-mask-and-weights",
+          "firstPick": true,
+          "references": [
+            "ml-attention-causal-mask-and-weights"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-causal-mask-and-weights",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-attention-packed-query-key-value-projections",
+      "prompt": "A token's hidden vector is projected separately into a query, key, and value.",
+      "referenceId": "ml-attention-packed-query-key-value-projections",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain packed projection identity using the displayed toy operands.",
+          "depth": "brief",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain packed projection identity using the displayed toy operands.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain packed projection identity using the displayed toy operands.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show joint slice boundaries without changing the example.",
+          "depth": "brief",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show joint slice boundaries without changing the example.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show joint slice boundaries without changing the example.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for packed projection identity.",
+          "depth": "brief",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for packed projection identity.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for packed projection identity.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in joint slice boundaries.",
+          "depth": "brief",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in joint slice boundaries.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in joint slice boundaries.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for packed projection identity.",
+          "depth": "brief",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for packed projection identity.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for packed projection identity.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-packed-query-key-value-projections",
+          "firstReferenceId": "ml-attention-packed-query-key-value-projections",
+          "firstPick": true,
+          "references": [
+            "ml-attention-packed-query-key-value-projections"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-packed-query-key-value-projections",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-attention-query-key-dot-products",
+      "prompt": "A query scores each candidate key by multiplying corresponding components and summing them.",
+      "referenceId": "ml-attention-query-key-dot-products",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain component match products using the displayed toy operands.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain component match products using the displayed toy operands.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain component match products using the displayed toy operands.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show unnormalized key sums without changing the example.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show unnormalized key sums without changing the example.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show unnormalized key sums without changing the example.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for component match products.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for component match products.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for component match products.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in unnormalized key sums.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in unnormalized key sums.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in unnormalized key sums.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for component match products.",
+          "depth": "brief",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for component match products.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for component match products.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-query-key-dot-products",
+          "firstReferenceId": "ml-attention-query-key-dot-products",
+          "firstPick": true,
+          "references": [
+            "ml-attention-query-key-dot-products"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-attention-query-key-dot-products",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-attention-weighted-vector-pooling",
+      "prompt": "Attention forms the output for one token by weighting every value vector and adding corresponding entries.",
+      "referenceId": "ml-attention-weighted-vector-pooling",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain value contribution products using the displayed toy operands.",
+          "depth": "brief",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain value contribution products using the displayed toy operands.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain value contribution products using the displayed toy operands.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show coordinate weighted pooling without changing the example.",
+          "depth": "brief",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show coordinate weighted pooling without changing the example.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show coordinate weighted pooling without changing the example.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for value contribution products.",
+          "depth": "brief",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for value contribution products.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for value contribution products.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in coordinate weighted pooling.",
+          "depth": "brief",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in coordinate weighted pooling.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in coordinate weighted pooling.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for value contribution products.",
+          "depth": "brief",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for value contribution products.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for value contribution products.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-weighted-vector-pooling",
+          "firstReferenceId": "ml-attention-weighted-vector-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-attention-weighted-vector-pooling"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-attention-weighted-vector-pooling",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-attention-all-query-attention",
+      "prompt": "The same attention calculation processes all query positions by scoring a query-by-key matrix and normalizing each query row before mixing values.",
+      "referenceId": "ml-attention-all-query-attention",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain query row normalization using the displayed toy operands.",
+          "depth": "brief",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain query row normalization using the displayed toy operands.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain query row normalization using the displayed toy operands.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show position aligned outputs without changing the example.",
+          "depth": "brief",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show position aligned outputs without changing the example.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show position aligned outputs without changing the example.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for query row normalization.",
+          "depth": "brief",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for query row normalization.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the implicit probe for query row normalization.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in position aligned outputs.",
+          "depth": "brief",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in position aligned outputs.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep row and position identities clear in position aligned outputs.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for query row normalization.",
+          "depth": "brief",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for query row normalization.",
+          "depth": "balanced",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the actual mechanism for query row normalization.",
+          "depth": "detailed",
+          "firstReference": "ml-attention-all-query-attention",
+          "firstReferenceId": "ml-attention-all-query-attention",
+          "firstPick": true,
+          "references": [
+            "ml-attention-all-query-attention"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-attention-all-query-attention",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Padding receives no attention weight",
+    "rowLabel": "Query",
+    "columnLabel": "Key",
+    "columns": [
+      "A",
+      "B",
+      "Pad"
+    ],
+    "rows": [
+      {
+        "label": "Query",
+        "cells": [
+          0.865,
+          0.135,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Toy additive scores; Pad is blocked before softmax. Eligible weights sum to one."
+  }
+}

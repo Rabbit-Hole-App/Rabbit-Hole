@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "transformation",
+    "title": "Slice one joint output into named ranges",
+    "before": {
+      "label": "Joint P2",
+      "items": [
+        {
+          "label": "Q | K | V",
+          "tensor": {
+            "rows": 1,
+            "columns": 6,
+            "dimensions": "1 × 6",
+            "values": [
+              2,
+              0,
+              0,
+              2,
+              2,
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    "after": {
+      "label": "Same channel values",
+      "items": [
+        {
+          "label": "Q",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              2,
+              0
+            ]
+          }
+        },
+        {
+          "label": "K",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              0,
+              2
+            ]
+          }
+        },
+        {
+          "label": "V",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              2,
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    "operation": "Slice Q[0:2], K[2:4], V[4:6]",
+    "links": [
+      {
+        "from": 0,
+        "to": 0
+      },
+      {
+        "from": 0,
+        "to": 1
+      },
+      {
+        "from": 0,
+        "to": 2
+      }
+    ],
+    "caption": "Half-open ranges preserve exact joint-output values. Each named toy vector has the same width; slicing is not a score operation."
+  }
+}

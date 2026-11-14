@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "variant": "grouped",
+    "title": "Computed contexts enter successive states",
+    "categories": [
+      "Step 1",
+      "Step 2"
+    ],
+    "series": [
+      {
+        "label": "Context",
+        "values": [
+          1.303,
+          1.848
+        ]
+      },
+      {
+        "label": "Next state",
+        "values": [
+          1.803,
+          2.249
+        ]
+      }
+    ],
+    "caption": "Toy $s=0.5s_{prev}+x+c$; $s_0=0.5$, $x=(0.25,-0.5)$. Both contexts and states are recomputed in order."
+  }
+}

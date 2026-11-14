@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "One additive score from projected operands",
+    "blocks": [
+      {
+        "id": "operands",
+        "label": "Rows: projected query, projected key A",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              1,
+              -1,
+              2,
+              -1
+            ]
+          }
+        }
+      },
+      {
+        "id": "sum",
+        "label": "Add projected operands",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              3,
+              -2
+            ]
+          }
+        }
+      },
+      {
+        "id": "tanh",
+        "label": "Apply tanh",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              0.995,
+              -0.964
+            ]
+          }
+        }
+      },
+      {
+        "id": "score",
+        "label": "Dot with learned v",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "1 × 1",
+            "values": [
+              1.477
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Toy $q=(1,-1)$, $k_A=(1,0,1)$; $W_q=((1,0),(0,1))$, $W_k=((1,0),(0,1),(1,-1))$, $v=(1,-0.5)$. Project rows, add, tanh, score."
+  }
+}

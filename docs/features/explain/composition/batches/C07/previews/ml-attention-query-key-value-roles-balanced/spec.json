@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Match keys, retrieve associated values",
+    "nodes": [
+      {
+        "id": "q",
+        "label": "Query",
+        "tensor": {
+          "rows": 1,
+          "columns": 2,
+          "dimensions": "1 × 2",
+          "values": [
+            1,
+            -1
+          ]
+        }
+      },
+      {
+        "id": "k",
+        "label": "Keys A,B",
+        "tensor": {
+          "rows": 2,
+          "columns": 2,
+          "dimensions": "2 × 2",
+          "values": [
+            2,
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "v",
+        "label": "Values A,B",
+        "tensor": {
+          "rows": 2,
+          "columns": 2,
+          "dimensions": "2 × 2",
+          "values": [
+            2,
+            -1,
+            0,
+            3
+          ]
+        }
+      },
+      {
+        "id": "a",
+        "label": "Weights A,B",
+        "tensor": {
+          "rows": 1,
+          "columns": 2,
+          "dimensions": "1 × 2",
+          "values": [
+            0.731,
+            0.269
+          ]
+        }
+      },
+      {
+        "id": "c",
+        "label": "Context",
+        "tensor": {
+          "rows": 1,
+          "columns": 2,
+          "dimensions": "1 × 2",
+          "values": [
+            1.462,
+            0.076
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "q",
+        "to": "a",
+        "label": "match"
+      },
+      {
+        "from": "k",
+        "to": "a",
+        "label": "match"
+      },
+      {
+        "from": "a",
+        "to": "c",
+        "label": "shares"
+      },
+      {
+        "from": "v",
+        "to": "c",
+        "label": "content"
+      }
+    ],
+    "caption": "Unscaled generic toy: $a=softmax(qK^T)$, $c=aV$. Keys match; values provide content. Rounded tensors."
+  }
+}

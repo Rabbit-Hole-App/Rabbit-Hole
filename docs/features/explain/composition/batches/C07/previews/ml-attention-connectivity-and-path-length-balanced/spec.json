@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Compare distant and nearby position pairs",
+    "unit": "Hops",
+    "bars": [
+      {
+        "label": "Conv 1 to 3",
+        "value": 2
+      },
+      {
+        "label": "RNN 1 to 3",
+        "value": 2
+      },
+      {
+        "label": "Attention 1 to 3",
+        "value": 1
+      },
+      {
+        "label": "Conv 1 to 2",
+        "value": 1
+      },
+      {
+        "label": "RNN 1 to 2",
+        "value": 1
+      },
+      {
+        "label": "Attention 1 to 2",
+        "value": 1
+      }
+    ],
+    "caption": "Same rules: Conv radius $1$, RNN forward handoffs, attention all-to-all. Bars are shortest path lengths."
+  }
+}

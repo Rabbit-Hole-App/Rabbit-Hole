@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "transformation",
+    "title": "One token row, three distinct toy projections",
+    "before": {
+      "label": "Input P2",
+      "items": [
+        {
+          "label": "h",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "1 × 1",
+            "values": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    "after": {
+      "label": "Projected rows",
+      "items": [
+        {
+          "label": "Q",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              2,
+              0
+            ]
+          }
+        },
+        {
+          "label": "K",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              0,
+              2
+            ]
+          }
+        },
+        {
+          "label": "V",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              2,
+              -2
+            ]
+          }
+        }
+      ]
+    },
+    "operation": "Apply the three learned toy maps",
+    "links": [
+      {
+        "from": 0,
+        "to": 0,
+        "label": "Wq"
+      },
+      {
+        "from": 0,
+        "to": 1,
+        "label": "Wk"
+      },
+      {
+        "from": 0,
+        "to": 2,
+        "label": "Wv"
+      }
+    ],
+    "caption": "Toy $W_q=(1,0)$, $W_k=(0,1)$, $W_v=(1,-1)$. Same selected row as the batched calculation; not literal model widths."
+  }
+}

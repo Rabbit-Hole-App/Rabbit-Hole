@@ -1,0 +1,287 @@
+{
+  "passed": true,
+  "batch": "C07",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "queueFamilies": 10,
+  "actualAssociations": 11,
+  "sourceHeadings": 36,
+  "newHeadings": 35,
+  "reuseHeadings": 1,
+  "originalFamilyRecordsPreserved": true,
+  "routes": [
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-09",
+      "lessons": [
+        "06"
+      ]
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-10",
+      "lessons": [
+        "06"
+      ]
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-11",
+      "lessons": [
+        "06"
+      ]
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-12",
+      "lessons": [
+        "06"
+      ]
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-17",
+      "lessons": [
+        "06",
+        "12"
+      ]
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-18",
+      "lessons": [
+        "06",
+        "12"
+      ]
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-19",
+      "lessons": [
+        "06",
+        "12"
+      ]
+    },
+    {
+      "queueId": "ml-attention-pooling-kernel-weight-concentration",
+      "referenceId": "ml-attention-pooling-kernel-weight-concentration",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-pooling/briefs.md#figure-20",
+      "lessons": [
+        "06",
+        "12"
+      ]
+    },
+    {
+      "queueId": "ml-recurrent-attention-decoder-context",
+      "referenceId": "ml-recurrent-attention-decoder-context",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bahdanau-attention/briefs.md#figure-02",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "referenceId": "ml-attention-additive-attention",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-06",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "referenceId": "ml-attention-additive-attention",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-07",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "referenceId": "ml-attention-additive-attention",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-08",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-additive-attention",
+      "referenceId": "ml-attention-additive-attention",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-09",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "referenceId": "ml-attention-query-key-value-roles",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-queries-keys-values/briefs.md#figure-01",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "referenceId": "ml-attention-query-key-value-roles",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-attention-scoring-functions/briefs.md#figure-01",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-query-key-value-roles",
+      "referenceId": "ml-attention-query-key-value-roles",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-22",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-connectivity-and-path-length",
+      "referenceId": "ml-attention-connectivity-and-path-length",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-self-attention-and-positional-encoding/briefs.md#figure-01",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "referenceId": "ml-attention-causal-mask-and-weights",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-11",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "referenceId": "ml-attention-causal-mask-and-weights",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-29",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-causal-mask-and-weights",
+      "referenceId": "ml-attention-causal-mask-and-weights",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-35",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "referenceId": "ml-attention-packed-query-key-value-projections",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-10",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "referenceId": "ml-attention-packed-query-key-value-projections",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-14",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "referenceId": "ml-attention-packed-query-key-value-projections",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-31",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "referenceId": "ml-attention-packed-query-key-value-projections",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-40",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "referenceId": "ml-attention-packed-query-key-value-projections",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-44",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-packed-query-key-value-projections",
+      "referenceId": "ml-attention-packed-query-key-value-projections",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-45",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-query-key-dot-products",
+      "referenceId": "ml-attention-query-key-dot-products",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-11",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-query-key-dot-products",
+      "referenceId": "ml-attention-query-key-dot-products",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-32",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "referenceId": "ml-attention-weighted-vector-pooling",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-13",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "referenceId": "ml-attention-weighted-vector-pooling",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-24",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "referenceId": "ml-attention-weighted-vector-pooling",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-33",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "referenceId": "ml-attention-weighted-vector-pooling",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-50",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-weighted-vector-pooling",
+      "referenceId": "figure-retro-chunk-embedding",
+      "mode": "REUSE",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-retrieval-transformer/briefs.md#figure-07",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "referenceId": "ml-attention-all-query-attention",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-15",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "referenceId": "ml-attention-all-query-attention",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-34",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-attention-all-query-attention",
+      "referenceId": "ml-attention-all-query-attention",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-37",
+      "lessons": []
+    }
+  ]
+}

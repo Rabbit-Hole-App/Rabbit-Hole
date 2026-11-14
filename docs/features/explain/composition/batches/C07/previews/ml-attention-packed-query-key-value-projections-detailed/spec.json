@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Toy layers at P2",
+    "nodes": [
+      {
+        "id": "p",
+        "label": "P2"
+      },
+      {
+        "id": "h0",
+        "label": "A input",
+        "tensor": {
+          "rows": 1,
+          "columns": 1,
+          "dimensions": "1 × 1",
+          "values": [
+            2
+          ]
+        }
+      },
+      {
+        "id": "h1",
+        "label": "B input",
+        "tensor": {
+          "rows": 1,
+          "columns": 1,
+          "dimensions": "1 × 1",
+          "values": [
+            3
+          ]
+        }
+      },
+      {
+        "id": "o0",
+        "label": "A QKV",
+        "tensor": {
+          "rows": 1,
+          "columns": 6,
+          "dimensions": "1 × 6",
+          "values": [
+            2,
+            0,
+            0,
+            2,
+            2,
+            -2
+          ]
+        }
+      },
+      {
+        "id": "o1",
+        "label": "B QKV",
+        "tensor": {
+          "rows": 1,
+          "columns": 6,
+          "dimensions": "1 × 6",
+          "values": [
+            -3,
+            3,
+            3,
+            3,
+            0,
+            6
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "p",
+        "to": "h0",
+        "label": "given"
+      },
+      {
+        "from": "p",
+        "to": "h1",
+        "label": "given"
+      },
+      {
+        "from": "h0",
+        "to": "o0",
+        "label": "project"
+      },
+      {
+        "from": "h1",
+        "to": "o1",
+        "label": "project"
+      }
+    ],
+    "caption": "Provided; $[W_q|W_k|W_v]$: $A=(1,0|0,1|1,-1),B=(-1,1|1,1|0,2)$. Keep K/V; no layer update."
+  }
+}

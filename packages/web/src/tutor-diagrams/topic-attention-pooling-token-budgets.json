@@ -1,0 +1,39 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-attention-pooling-kernel-weight-concentration": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 122,
+          "sha256": "1518a5207b56f253d59a370d2cfe2262c6ccee761ac986dd505b9f3126d47b89"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 142,
+          "sha256": "22d87fb762dd3ca0cb9b83a059dac6a67c63feb8f10ef2dca93cf453896b5302"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 143,
+          "sha256": "8ccda034a7d5273df056d04647cdef0580e33ce8843585a9edae301184e6486e"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 141,
+          "sha256": "22c394aa360ad2046e82c060675477de6ed17bcdba70ae835d1fb5a3cc701cd8"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 142,
+          "sha256": "009f5305c3abf1185c6455591650fac597566eb1e18b23e187be16454a63caf7"
+        }
+      ]
+    }
+  }
+}

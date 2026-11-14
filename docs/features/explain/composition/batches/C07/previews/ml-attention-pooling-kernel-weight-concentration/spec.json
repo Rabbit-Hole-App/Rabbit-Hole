@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Local kernel weights",
+    "rowLabel": "Source key",
+    "columnLabel": "Query",
+    "columns": [
+      "-0.5",
+      "1.5"
+    ],
+    "rows": [
+      {
+        "label": "-1",
+        "cells": [
+          0.413,
+          0.021
+        ]
+      },
+      {
+        "label": "0",
+        "cells": [
+          0.414,
+          0.152
+        ]
+      },
+      {
+        "label": "1",
+        "cells": [
+          0.152,
+          0.413
+        ]
+      },
+      {
+        "label": "2",
+        "cells": [
+          0.021,
+          0.414
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Toy Gaussian width $h=1$. Each query column normalizes over the same keys. Rounded nonuniform shares sum to one."
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Forward recurrent handoffs and the path",
+    "rowLabel": "Reader",
+    "columnLabel": "Source",
+    "columns": [
+      "1",
+      "2",
+      "3"
+    ],
+    "rows": [
+      {
+        "label": "1",
+        "cells": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "label": "2",
+        "cells": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "label": "3",
+        "cells": [
+          0,
+          1,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Rows receive from column positions. Marked cells follow the selected source-to-destination path.",
+    "highlights": [
+      {
+        "row": 1,
+        "column": 0
+      },
+      {
+        "row": 2,
+        "column": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Multiply matching values, then sum coordinates",
+    "nodes": [
+      {
+        "id": "a",
+        "label": "Weights A,B",
+        "tensor": {
+          "rows": 1,
+          "columns": 2,
+          "dimensions": "1 × 2",
+          "values": [
+            0.731,
+            0.269
+          ]
+        }
+      },
+      {
+        "id": "v",
+        "label": "Values A,B",
+        "tensor": {
+          "rows": 2,
+          "columns": 2,
+          "dimensions": "2 × 2",
+          "values": [
+            2,
+            -1,
+            1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "t",
+        "label": "Weighted terms A,B",
+        "tensor": {
+          "rows": 2,
+          "columns": 2,
+          "dimensions": "2 × 2",
+          "values": [
+            1.462,
+            -0.731,
+            0.269,
+            0.269
+          ]
+        }
+      },
+      {
+        "id": "c",
+        "label": "Context",
+        "tensor": {
+          "rows": 1,
+          "columns": 2,
+          "dimensions": "1 × 2",
+          "values": [
+            1.731,
+            -0.462
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "a",
+        "to": "t",
+        "label": "coefficients"
+      },
+      {
+        "from": "v",
+        "to": "t",
+        "label": "values"
+      },
+      {
+        "from": "t",
+        "to": "c",
+        "label": "sum"
+      }
+    ],
+    "caption": "Unscaled generic toy: $a=softmax(qK^T)$, $T_j=a_jV_j$, $c=\\sum_jT_j$. Rounded values preserve the shown sum."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Zero future contribution keeps context unchanged",
+    "unit": "Context",
+    "bars": [
+      {
+        "label": "Original",
+        "value": 1.731
+      },
+      {
+        "label": "Future edited",
+        "value": 1.731
+      }
+    ],
+    "caption": "The future key and value change, but their weight is zero. The same allowed values give the same interior context."
+  }
+}

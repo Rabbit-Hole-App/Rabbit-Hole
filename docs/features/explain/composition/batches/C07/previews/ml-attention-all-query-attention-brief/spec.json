@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Normalize each query row independently",
+    "blocks": [
+      {
+        "id": "scores",
+        "label": "Scores: query rows / key columns",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              0,
+              1,
+              0,
+              -1
+            ]
+          }
+        }
+      },
+      {
+        "id": "weights",
+        "label": "Softmax separately within each query row",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              0.269,
+              0.731,
+              0.731,
+              0.269
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Toy $Q=(1,-1)^T,K=(0,1)^T,V=((2,-1),(0,3))$; $S=QK^T/\\sqrt{1}$, $A=softmax_{row}(S)$, $O=AV$."
+  }
+}

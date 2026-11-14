@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Eligible row weights sum to one",
+    "rowLabel": "Query",
+    "columnLabel": "Key",
+    "columns": [
+      "P1",
+      "P2",
+      "P3"
+    ],
+    "rows": [
+      {
+        "label": "P1",
+        "cells": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "label": "P2",
+        "cells": [
+          0.269,
+          0.731,
+          0
+        ]
+      },
+      {
+        "label": "P3",
+        "cells": [
+          0.665,
+          0.245,
+          0.09
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Toy $V=(1,2,-1)$; $c_i=\\sum_j a_{ij}V_j$. Future weights are zero; each query row sums to one."
+  }
+}

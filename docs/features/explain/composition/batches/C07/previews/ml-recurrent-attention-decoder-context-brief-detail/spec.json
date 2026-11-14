@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Two target steps read the same source",
+    "rowLabel": "Decoder query",
+    "columnLabel": "Encoder key",
+    "columns": [
+      "E1",
+      "E2",
+      "E3"
+    ],
+    "rows": [
+      {
+        "label": "Step 1",
+        "cells": [
+          0.331,
+          0.122,
+          0.547
+        ]
+      },
+      {
+        "label": "Step 2",
+        "cells": [
+          0.141,
+          0.004,
+          0.855
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Toy $E=(1,-1,2)$, $s_0=0.5$, $x=(0.25,-0.5)$. Scores use the previous state; normalize over encoder keys."
+  }
+}

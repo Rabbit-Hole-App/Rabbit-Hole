@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Same endpoints, different communication paths",
+    "unit": "Hops",
+    "bars": [
+      {
+        "label": "Conv",
+        "value": 2
+      },
+      {
+        "label": "RNN",
+        "value": 2
+      },
+      {
+        "label": "Attention",
+        "value": 1
+      }
+    ],
+    "caption": "Toy positions $(1,2,3)$; 1 to 3. Conv radius $1$; RNN forward handoffs; attention all-to-all."
+  }
+}

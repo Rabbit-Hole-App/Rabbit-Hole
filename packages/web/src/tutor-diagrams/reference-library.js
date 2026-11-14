@@ -44,6 +44,9 @@ import { references as topicLogisticRegressionReferences } from './topic-logisti
 import { references as compositionNeuralNetworks } from './composition-neural-networks-references.js';
 import { references as compositionRegularization } from './composition-regularization-references.js';
 import { references as compositionAttention } from './composition-attention-references.js';
+import { references as compositionAttentionPooling } from './composition-attention-pooling-references.js';
+import { references as compositionRecurrentAttention } from './composition-recurrent-attention-references.js';
+import { overlays as attentionOverlays } from './topic-attention-overlays.js';
 import { references as compositionModelEvaluation } from './composition-model-evaluation-references.js';
 import { references as compositionTimeSeries } from './composition-time-series-references.js';
 import { references as compositionDistributionShift } from './composition-distribution-shift-references.js';
@@ -103,7 +106,7 @@ export const diagramReferences = Object.freeze([
 
   ...topicLogisticRegressionReferences,
   ...compositionNeuralNetworks, ...compositionRegularization,
-  ...compositionAttention, ...compositionModelEvaluation,
+  ...compositionAttention, ...compositionAttentionPooling, ...compositionRecurrentAttention, ...compositionModelEvaluation,
   ...compositionTimeSeries, ...compositionDistributionShift,
   ...compositionTransformer,
   ...compositionBert, ...compositionTransferLearning,
@@ -111,7 +114,7 @@ export const diagramReferences = Object.freeze([
   ...compositionLanguageTraining, ...compositionSummarization,
   ...estimationEvaluationReferences,
 ].map(ref => {
-  const overlay = transformerOverlays[ref.id] ?? bertOverlays[ref.id];
+  const overlay = transformerOverlays[ref.id] ?? bertOverlays[ref.id] ?? attentionOverlays[ref.id];
   if (overlay) ref = { ...ref, prompts: [...new Set([...ref.prompts, ...overlay.prompts])], keywords: [...new Set([...ref.keywords, ...overlay.keywords])] };
   // C03 owner ruling: retain the source's lesson 01 outside the prompt/keyword-only REUSE overlay. Visuals and data stay unchanged.
   if (ref.id === 'ml-transformer-encoder-decoder-memory') ref = { ...ref, lessons: [...new Set([...ref.lessons, '01'])] };

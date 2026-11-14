@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Two projections meet in one hidden space",
+    "nodes": [
+      {
+        "id": "pq",
+        "label": "Project query 2 to 2"
+      },
+      {
+        "id": "pk",
+        "label": "Project key 3 to 2"
+      },
+      {
+        "id": "sum",
+        "label": "Add hidden features"
+      },
+      {
+        "id": "score",
+        "label": "Tanh and learned score"
+      },
+      {
+        "id": "w",
+        "label": "Masked softmax"
+      }
+    ],
+    "edges": [
+      {
+        "from": "pq",
+        "to": "sum",
+        "label": "query branch"
+      },
+      {
+        "from": "pk",
+        "to": "sum",
+        "label": "key branch"
+      },
+      {
+        "from": "sum",
+        "to": "score",
+        "label": "nonlinear match"
+      },
+      {
+        "from": "score",
+        "to": "w",
+        "label": "eligible keys"
+      }
+    ],
+    "caption": "Toy independent branches project unlike widths before addition, tanh and learned scoring."
+  }
+}

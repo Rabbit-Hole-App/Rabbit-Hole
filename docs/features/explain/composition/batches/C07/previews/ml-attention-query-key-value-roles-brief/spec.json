@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Keys match; paired values supply content",
+    "nodes": [
+      {
+        "id": "q",
+        "label": "Independent query"
+      },
+      {
+        "id": "pairs",
+        "label": "Paired keys / values"
+      },
+      {
+        "id": "a",
+        "label": "Matching weights"
+      },
+      {
+        "id": "c",
+        "label": "Retrieved context"
+      }
+    ],
+    "edges": [
+      {
+        "from": "q",
+        "to": "a",
+        "label": "match"
+      },
+      {
+        "from": "pairs",
+        "to": "a",
+        "label": "keys"
+      },
+      {
+        "from": "pairs",
+        "to": "c",
+        "label": "values"
+      },
+      {
+        "from": "a",
+        "to": "c",
+        "label": "weighted sum"
+      }
+    ],
+    "caption": "Generic toy: keys determine matching shares; associated values supply the returned content."
+  }
+}

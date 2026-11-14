@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Two reads enter two recurrent updates",
+    "nodes": [
+      {
+        "id": "enc",
+        "label": "Shared encoder"
+      },
+      {
+        "id": "s0",
+        "label": "Initial state"
+      },
+      {
+        "id": "c1",
+        "label": "Read context A"
+      },
+      {
+        "id": "s1",
+        "label": "Update A"
+      },
+      {
+        "id": "c2",
+        "label": "Read context B"
+      },
+      {
+        "id": "s2",
+        "label": "Update B"
+      }
+    ],
+    "edges": [
+      {
+        "from": "enc",
+        "to": "c1",
+        "label": "source"
+      },
+      {
+        "from": "s0",
+        "to": "c1",
+        "label": "query"
+      },
+      {
+        "from": "c1",
+        "to": "s1",
+        "label": "context"
+      },
+      {
+        "from": "s0",
+        "to": "s1",
+        "label": "prior state"
+      },
+      {
+        "from": "enc",
+        "to": "c2",
+        "label": "source"
+      },
+      {
+        "from": "s1",
+        "to": "c2",
+        "label": "query"
+      },
+      {
+        "from": "c2",
+        "to": "s2",
+        "label": "context"
+      },
+      {
+        "from": "s1",
+        "to": "s2",
+        "label": "prior state"
+      }
+    ],
+    "caption": "Toy recurrence: each updated state queries the same encoder source for the following read."
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "One row supplies three projected roles",
+    "blocks": [
+      {
+        "id": "input",
+        "label": "Active input P2",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "1 × 1",
+            "values": [
+              2
+            ]
+          }
+        }
+      },
+      {
+        "id": "roles",
+        "label": "Ordered Q / K / V toy channels",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 6,
+            "dimensions": "1 × 6",
+            "values": [
+              2,
+              0,
+              0,
+              2,
+              2,
+              -2
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Toy separate projections can be concatenated in Q,K,V order; packing changes no row identity."
+  }
+}

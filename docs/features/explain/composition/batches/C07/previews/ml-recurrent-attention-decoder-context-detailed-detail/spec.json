@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Change the initial query, keep the source",
+    "rowLabel": "Decoder query",
+    "columnLabel": "Encoder key",
+    "columns": [
+      "E1",
+      "E2",
+      "E3"
+    ],
+    "rows": [
+      {
+        "label": "Original query",
+        "cells": [
+          0.331,
+          0.122,
+          0.547
+        ]
+      },
+      {
+        "label": "Shifted query",
+        "cells": [
+          0.181,
+          0.009,
+          0.81
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Same encoder; initial query shifts by $1$. Recompute softmax and context; then recompute each next state."
+  }
+}

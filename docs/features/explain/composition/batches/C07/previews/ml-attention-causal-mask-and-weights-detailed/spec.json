@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Future edits cannot enter the interior context",
+    "rowLabel": "Query",
+    "columnLabel": "Key",
+    "columns": [
+      "P1",
+      "P2",
+      "P3"
+    ],
+    "rows": [
+      {
+        "label": "Original",
+        "cells": [
+          0.269,
+          0.731,
+          0
+        ]
+      },
+      {
+        "label": "Future edited",
+        "cells": [
+          0.269,
+          0.731,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Same interior query; future key/value become $100,999$. Mask before softmax; eligible weights stay fixed."
+  }
+}

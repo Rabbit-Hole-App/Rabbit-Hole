@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "transformation",
+    "title": "Multiply matching components, then sum",
+    "before": {
+      "label": "Independent operands",
+      "items": [
+        {
+          "label": "q",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              2,
+              -2
+            ]
+          }
+        },
+        {
+          "label": "Keys A,B",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              2,
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    "after": {
+      "label": "Unnormalized matches",
+      "items": [
+        {
+          "label": "Products by key",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              4,
+              -2,
+              2,
+              -2
+            ]
+          }
+        },
+        {
+          "label": "Raw sums",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              2,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    "operation": "$T_{ji}=q_iK_{ji},s_j=\\sum_iT_{ji}$",
+    "links": [
+      {
+        "from": 0,
+        "to": 0,
+        "label": "terms"
+      },
+      {
+        "from": 1,
+        "to": 0,
+        "label": "terms"
+      },
+      {
+        "from": 0,
+        "to": 1,
+        "label": "sum"
+      },
+      {
+        "from": 1,
+        "to": 1,
+        "label": "sum"
+      }
+    ],
+    "caption": "Only query changes: $q'=2q$, fixed keys. Thus $s'=2s$ before normalization; order is preserved."
+  }
+}
