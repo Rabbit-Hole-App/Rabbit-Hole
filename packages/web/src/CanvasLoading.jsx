@@ -8,8 +8,6 @@ import { effectiveWidgets } from './widget-visibility.js';
 import { savedStudy } from './study-loading.js';
 import { browserStorage } from './home/canvas-local.js';
 import { PRODUCT } from './flags.js';
-import logoBlack from './assets/rabbit-hole-black.png';
-import logoWhite from './assets/rabbit-hole-white.png';
 
 // The canvas loading skeleton (owner brief 2026-10-23): while a canvas loads, each surface shows ITS OWN shell - the owner's
 // canvas (LearnPage), a share link or Explore canvas (SharedBoardPage), a member's canvas (MemberBoardPage) and an embed - with
@@ -60,12 +58,13 @@ export function phoneCanvasHeight(frame) {
   return Math.round(Math.max(screen * 0.45, screen - top));
 }
 
-// The shared canvas's logo, home (SharedBoardPage header, left area).
+// The shared canvas's product title, home (SharedBoardPage header, left area; SH-1, owner: the title in the landing footer's font, not the logo). 44px tall to touch on a phone, 32px beside
+// the header controls at @5xl. font-display is the landing's --display (index.css), weight 500, ink in both themes; -0.03em is the landing's own tracking at this size (its 21px h4), the
+// footer's -0.065em is for a 180px wordmark.
 export function SharedBrand(props) {
   return (
-    <a href="/" {...props} className="flex shrink-0 items-center rounded-lg no-underline outline-none focus-visible:ring-2 focus-visible:ring-accent/60 h-11 w-11 justify-center @5xl:h-8 @5xl:w-8 @5xl:justify-start" aria-label={`${PRODUCT} home`}>
-      <img src={logoBlack} alt="" width="32" height="32" className="h-8 w-8 dark:hidden" />
-      <img src={logoWhite} alt="" width="32" height="32" className="hidden h-8 w-8 dark:block" />
+    <a href="/" {...props} className="flex h-11 shrink-0 items-center rounded-lg px-1 text-ink no-underline outline-none focus-visible:ring-2 focus-visible:ring-accent/60 @5xl:h-8" aria-label={`${PRODUCT} home`}>
+      <span className="font-display text-[17px] font-medium leading-none tracking-[-0.03em] @5xl:text-xl">{PRODUCT}</span>
     </a>
   );
 }
