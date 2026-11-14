@@ -1,0 +1,170 @@
+[
+  {
+    "id": "ml-transformer-cross-attention-alignment",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 303
+  },
+  {
+    "id": "ml-transformer-cross-attention-alignment",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 347
+  },
+  {
+    "id": "ml-transformer-cross-attention-alignment",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 205
+  },
+  {
+    "id": "ml-transformer-cross-attention-alignment",
+    "depth": "deep",
+    "field": "detailSpec",
+    "requested": 680,
+    "width": 680,
+    "height": 347
+  },
+  {
+    "id": "ml-transformer-context-rules",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 268
+  },
+  {
+    "id": "ml-transformer-context-rules",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 811
+  },
+  {
+    "id": "ml-transformer-context-rules",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 811
+  },
+  {
+    "id": "ml-transformer-context-rules",
+    "depth": "deep",
+    "field": "detailSpec",
+    "requested": 680,
+    "width": 680,
+    "height": 351
+  },
+  {
+    "id": "ml-transformer-encoder-decoder-memory",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 699
+  },
+  {
+    "id": "ml-transformer-encoder-decoder-memory",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 699
+  },
+  {
+    "id": "ml-transformer-encoder-decoder-memory",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 716
+  },
+  {
+    "id": "ml-transformer-contextual-layer-states",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 489
+  },
+  {
+    "id": "ml-transformer-contextual-layer-states",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 723
+  },
+  {
+    "id": "ml-transformer-contextual-layer-states",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 723
+  },
+  {
+    "id": "ml-transformer-contextual-layer-states",
+    "depth": "deep",
+    "field": "detailSpec",
+    "requested": 680,
+    "width": 680,
+    "height": 437
+  },
+  {
+    "id": "ml-transformer-positionwise-feedforward",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 723
+  },
+  {
+    "id": "ml-transformer-positionwise-feedforward",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 723
+  },
+  {
+    "id": "ml-transformer-positionwise-feedforward",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 723
+  },
+  {
+    "id": "ml-transformer-original-decoder-sublayers",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 588
+  },
+  {
+    "id": "ml-transformer-original-decoder-sublayers",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 652
+  },
+  {
+    "id": "ml-transformer-original-decoder-sublayers",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 652
+  }
+]

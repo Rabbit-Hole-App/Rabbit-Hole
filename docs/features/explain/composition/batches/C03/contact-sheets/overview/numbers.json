@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "width": 408,
+  "previews": [
+    {
+      "id": "ml-transformer-context-rules-brief",
+      "referenceId": "ml-transformer-context-rules",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-context-rules-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-context-rules-brief/408.svg"
+    },
+    {
+      "id": "ml-transformer-contextual-layer-states-brief",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-contextual-layer-states-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-contextual-layer-states-brief/408.svg"
+    },
+    {
+      "id": "ml-transformer-cross-attention-alignment-brief",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-cross-attention-alignment-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-cross-attention-alignment-brief/408.svg"
+    },
+    {
+      "id": "ml-transformer-encoder-decoder-memory-brief",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-encoder-decoder-memory-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-encoder-decoder-memory-brief/408.svg"
+    },
+    {
+      "id": "ml-transformer-original-decoder-sublayers-brief",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-original-decoder-sublayers-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-original-decoder-sublayers-brief/408.svg"
+    },
+    {
+      "id": "ml-transformer-positionwise-feedforward-brief",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-positionwise-feedforward-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-positionwise-feedforward-brief/408.svg"
+    }
+  ],
+  "numbers": [
+    {
+      "id": "ml-transformer-context-rules-brief",
+      "referenceId": "ml-transformer-context-rules",
+      "depth": "brief",
+      "field": "diagram.rows[0].heading",
+      "literal": "-2",
+      "value": -2,
+      "text": "GPT-2",
+      "start": 3,
+      "end": 5,
+      "sourceKind": "preview-spec",
+      "sourceFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-context-rules-brief/spec.json",
+      "sourceLine": 12,
+      "sourceColumn": 20,
+      "specFile": "docs/features/explain/composition/batches/C03/previews/ml-transformer-context-rules-brief/spec.json",
+      "specLine": 12,
+      "specColumn": 20
+    }
+  ]
+}

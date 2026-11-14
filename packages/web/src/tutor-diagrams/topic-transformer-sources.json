@@ -1,0 +1,281 @@
+{
+  "batch": "C03",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "base": "f9634af3c236b0d788a12389462227f9fe66dbd1",
+  "references": [
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "mode": "NEW",
+      "lessons": [],
+      "source": {
+        "source": "d2l-transformer",
+        "figure": "14",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-14",
+        "summary": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "d2l-transformer",
+          "figure": "15",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-15",
+          "summary": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+          "kinds": [
+            "heatmap",
+            "token-links"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 5/5. Read cross-attention between target and source. Implementation rendering 2/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "16",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-16",
+          "summary": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+          "kinds": [
+            "heatmap",
+            "token-links"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 5/5. Read cross-attention between target and source. Implementation rendering 3/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "17",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-17",
+          "summary": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+          "kinds": [
+            "heatmap",
+            "token-links"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 5/5. Read cross-attention between target and source. Implementation rendering 4/4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Four framework renderings of the target-query by source-key alignment."
+    },
+    {
+      "queueId": "ml-transformer-context-rules",
+      "referenceId": "ml-transformer-context-rules",
+      "mode": "NEW",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "05",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-05",
+        "summary": "GPT-2, BERT and Transformer-XL repeat different kinds of blocks for different ways of using context.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "12",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-12",
+          "summary": "Bidirectional and causal attention differ in which keys each query can read.",
+          "kinds": [
+            "comparison",
+            "heatmap"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Transformer block variants \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Bidirectional, causal and prior-segment context comparison; the two-mask view is a subset of the three-architecture view."
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "referenceId": "ml-transformer-encoder-decoder-memory",
+      "mode": "REUSE",
+      "lessons": [
+        "01"
+      ],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "02",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-02",
+        "summary": "The encoder prepares source representations that the decoder can consult while producing the target.",
+        "lessons": [
+          "01"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "03",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-03",
+          "summary": "Separate encoder and decoder stacks repeat their layer recipes while keeping learned parameters distinct.",
+          "kinds": [
+            "block-stack",
+            "relationship"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Architecture \u00b7 step 3",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "01",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-01",
+          "summary": "An encoder\u2013decoder Transformer lets masked target states read encoded source information before producing the next token.",
+          "kinds": [
+            "relationship",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 1/5. Trace the complete architecture",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "04",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-04",
+          "summary": "Translation Transformers pair a source encoder with a target decoder.",
+          "kinds": [
+            "relationship",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated encoder/decoder architecture overviews with source memory entering target cross-attention; keep the separate repeat groups.",
+      "catalogLessonAddition": [
+        "01"
+      ],
+      "supportingReferenceIds": [
+        "ml-transformer-token-embeddings",
+        "ml-transformer-encoder-stack",
+        "ml-transformer-original-decoder-sublayers"
+      ],
+      "coverageLimit": "Memory overview does not itself display shifted embeddings, positional features or internal sublayers; see the supporting references. No all-in-one embedding/sublayer claim."
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "mode": "NEW",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "07",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-07",
+        "summary": "Successive encoder layers consume the prior layer's vector at every position.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "14",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-14",
+          "summary": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
+          "kinds": [
+            "block-stack",
+            "relationship"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Transformer block variants \u00b7 step 6",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-bert",
+          "figure": "07",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-07",
+          "summary": "An encoder produces a contextual vector for each input position, including special positions.",
+          "kinds": [
+            "block-stack",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 3",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-bert",
+          "figure": "08",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-08",
+          "summary": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
+          "kinds": [
+            "block-stack",
+            "relationship"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 4",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same token-to-contextual-slot figure repeated across layers/articles, including special-position output slots. The context rule remains explicit; lookup vectors are not called contextual states."
+    },
+    {
+      "queueId": "ml-transformer-cross-position-and-positionwise",
+      "referenceId": "ml-transformer-positionwise-feedforward",
+      "mode": "REUSE",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "08",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-08",
+        "summary": "Attention exchanges information across positions while the feed-forward sublayer updates each position separately.",
+        "lessons": []
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Attention exchanges information across positions; the same FFN acts separately at each position."
+    },
+    {
+      "queueId": "ml-transformer-decoder-sublayers",
+      "referenceId": "ml-transformer-original-decoder-sublayers",
+      "mode": "REUSE",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "28",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-28",
+        "summary": "The original decoder repeats the residual-add-and-normalize pattern around all three of its sublayers.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "10",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-10",
+          "summary": "The translation decoder adds cross-attention to causal self-attention and positionwise processing.",
+          "kinds": [
+            "block-stack",
+            "relationship"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Transformer block variants \u00b7 step 2",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same causal attention, source cross-attention and positionwise update with residual/normalization ordering."
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Lookup becomes contextual state",
+    "caption": "Toy bidirectional encoder; [CLS], we, read, [SEP] keep order and width. Layers have distinct learned parameter sets $W_a,W_b$.",
+    "blocks": [
+      {
+        "id": "lookup",
+        "label": "Lookup slots",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 4,
+            "columns": 2,
+            "dimensions": "4x2"
+          }
+        }
+      },
+      {
+        "id": "layer0",
+        "label": "Layer 1: mix then FFN ($W_a$)",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 4,
+            "columns": 2,
+            "dimensions": "4x2"
+          }
+        }
+      },
+      {
+        "id": "layer1",
+        "label": "Layer 2: mix then FFN ($W_b$)",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 4,
+            "columns": 2,
+            "dimensions": "4x2"
+          }
+        }
+      }
+    ]
+  }
+}

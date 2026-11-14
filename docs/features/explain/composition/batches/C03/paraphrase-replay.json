@@ -1,0 +1,1067 @@
+{
+  "version": 1,
+  "topic": "transformer",
+  "fixture": false,
+  "threshold": 0.8,
+  "hits": 45,
+  "total": 45,
+  "firstPickRate": 1,
+  "passed": true,
+  "byDepth": [
+    {
+      "depth": "brief",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "balanced",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "detailed",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1
+    }
+  ],
+  "prompts": [
+    {
+      "id": "ml-transformer-cross-attention-alignment",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "referenceId": "ml-transformer-cross-attention-alignment",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Read target source alignment with the unavailable source padding excluded.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Read target source alignment with the unavailable source padding excluded.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Read target source alignment with the unavailable source padding excluded.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show cross attention axes for different translation sequences.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show cross attention axes for different translation sequences.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show cross attention axes for different translation sequences.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How does target source alignment produce a weighted source context?",
+          "depth": "brief",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How does target source alignment produce a weighted source context?",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How does target source alignment produce a weighted source context?",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep source keys fixed and broaden target source alignment weights.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep source keys fixed and broaden target source alignment weights.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep source keys fixed and broaden target source alignment weights.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace cross attention axes from target query to source values.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace cross attention axes from target query to source values.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace cross attention axes from target query to source values.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-cross-attention-alignment",
+          "firstReferenceId": "ml-transformer-cross-attention-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-cross-attention-alignment"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-transformer-cross-attention-alignment",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-transformer-context-rules",
+      "prompt": "GPT-2, BERT and Transformer-XL repeat different kinds of blocks for different ways of using context.",
+      "referenceId": "ml-transformer-context-rules",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Compare architecture context rules for GPT-2, BERT and Transformer-XL.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules-single",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules-single"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare architecture context rules for GPT-2, BERT and Transformer-XL.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare architecture context rules for GPT-2, BERT and Transformer-XL.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do architecture context rules hide future current words?",
+          "depth": "brief",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules-single",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules-single"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do architecture context rules hide future current words?",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do architecture context rules hide future current words?",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show prior segment context without revealing future current keys.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules-single",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules-single"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show prior segment context without revealing future current keys.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show prior segment context without revealing future current keys.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare architecture context rules on the same words and focus position.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules-single",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules-single"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare architecture context rules on the same words and focus position.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare architecture context rules on the same words and focus position.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "What changes when prior segment context is added to a causal decoder?",
+          "depth": "brief",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules-single",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules-single"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "What changes when prior segment context is added to a causal decoder?",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "What changes when prior segment context is added to a causal decoder?",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-context-rules",
+          "firstReferenceId": "ml-transformer-context-rules",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-context-rules"
+          ],
+          "plannedKinds": [
+            "comparison"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transformer-context-rules",
+            "referenceKind": "comparison",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-transformer-contextual-layer-states",
+      "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
+      "referenceId": "ml-transformer-contextual-layer-states",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Trace successive contextual states at the same token positions.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace successive contextual states at the same token positions.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace successive contextual states at the same token positions.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do position aligned states retain special-token slots?",
+          "depth": "brief",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do position aligned states retain special-token slots?",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do position aligned states retain special-token slots?",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show successive contextual states without confusing them with embedding lookups.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show successive contextual states without confusing them with embedding lookups.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show successive contextual states without confusing them with embedding lookups.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Do position aligned states keep the same feature width across layers?",
+          "depth": "brief",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Do position aligned states keep the same feature width across layers?",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Do position aligned states keep the same feature width across layers?",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare successive contextual states with causal and bidirectional context.",
+          "depth": "brief",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare successive contextual states with causal and bidirectional context.",
+          "depth": "balanced",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare successive contextual states with causal and bidirectional context.",
+          "depth": "detailed",
+          "firstReference": "ml-transformer-contextual-layer-states",
+          "firstReferenceId": "ml-transformer-contextual-layer-states",
+          "firstPick": true,
+          "references": [
+            "ml-transformer-contextual-layer-states"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transformer-contextual-layer-states",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        }
+      ]
+    }
+  ]
+}

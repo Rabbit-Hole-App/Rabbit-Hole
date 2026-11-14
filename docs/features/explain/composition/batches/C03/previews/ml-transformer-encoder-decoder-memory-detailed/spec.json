@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Encoder memory feeds the decoder stack",
+    "caption": "Six encoder and six decoder layers in the original design. Layers repeat their recipe with separate parameters.",
+    "nodes": [
+      {
+        "id": "source",
+        "label": "Source sentence"
+      },
+      {
+        "id": "encoder",
+        "label": "Encoder stack"
+      },
+      {
+        "id": "memory",
+        "label": "Encoded memory"
+      },
+      {
+        "id": "prefix",
+        "label": "Words written so far"
+      },
+      {
+        "id": "decoder",
+        "label": "Decoder stack"
+      },
+      {
+        "id": "next",
+        "label": "Next word"
+      }
+    ],
+    "edges": [
+      {
+        "from": "source",
+        "to": "encoder",
+        "label": "Supplies ordered words"
+      },
+      {
+        "from": "encoder",
+        "to": "memory",
+        "label": "Builds source context"
+      },
+      {
+        "from": "memory",
+        "to": "decoder",
+        "label": "Supplies source context"
+      },
+      {
+        "from": "prefix",
+        "to": "decoder",
+        "label": "Supplies earlier words"
+      },
+      {
+        "from": "decoder",
+        "to": "next",
+        "label": "Predicts a continuation"
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Lookup becomes contextual state",
+    "caption": "Toy bidirectional encoder; rows [CLS], we, read, [SEP]. Later layers consume contextual states, not fresh lookups.",
+    "blocks": [
+      {
+        "id": "lookup",
+        "label": "Lookup slots",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 4,
+            "columns": 2,
+            "dimensions": "4x2"
+          }
+        }
+      },
+      {
+        "id": "context",
+        "label": "Contextual output slots",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 4,
+            "columns": 2,
+            "dimensions": "4x2"
+          }
+        }
+      }
+    ]
+  }
+}

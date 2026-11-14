@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "How the two halves work together",
+    "caption": "The source is read once. The writing side can consult it at each step.",
+    "nodes": [
+      {
+        "id": "source",
+        "label": "Source sentence"
+      },
+      {
+        "id": "encoder",
+        "label": "Reading layers"
+      },
+      {
+        "id": "memory",
+        "label": "Source notes"
+      },
+      {
+        "id": "prefix",
+        "label": "Words written so far"
+      },
+      {
+        "id": "decoder",
+        "label": "Writing layers"
+      },
+      {
+        "id": "next",
+        "label": "Next word"
+      }
+    ],
+    "edges": [
+      {
+        "from": "source",
+        "to": "encoder",
+        "label": "Supplies ordered words"
+      },
+      {
+        "from": "encoder",
+        "to": "memory",
+        "label": "Builds source context"
+      },
+      {
+        "from": "memory",
+        "to": "decoder",
+        "label": "Supplies source context"
+      },
+      {
+        "from": "prefix",
+        "to": "decoder",
+        "label": "Supplies earlier words"
+      },
+      {
+        "from": "decoder",
+        "to": "next",
+        "label": "Predicts a continuation"
+      }
+    ]
+  }
+}

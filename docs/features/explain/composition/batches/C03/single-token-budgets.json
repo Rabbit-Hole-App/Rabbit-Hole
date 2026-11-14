@@ -1,0 +1,15 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": [
+    {
+      "id": "ml-transformer-context-rules-single",
+      "panelReferenceId": "ml-transformer-context-rules",
+      "chosenPanel": "Different context rules",
+      "reason": "One categorical matrix retains all three architecture context rules, including prior-segment memory, without falsely presenting eligibility as learned probability.",
+      "kind": "matrix",
+      "tokens": 93,
+      "sha256": "f3c2e8f520a37163dec3f6cf42e63edfaf9f9d6321e095324870eef106944cf0"
+    }
+  ]
+}

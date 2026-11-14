@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "staticFlags": [
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-transformer-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    }
+  ],
+  "authorizedFilenameExceptions": [
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-transformer-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    }
+  ],
+  "visualFlags": [],
+  "previewWrapFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "metadataChanges": [
+    {
+      "id": "ml-transformer-encoder-decoder-memory",
+      "lessonsBefore": [],
+      "lessonsAfter": [
+        "01"
+      ]
+    }
+  ]
+}

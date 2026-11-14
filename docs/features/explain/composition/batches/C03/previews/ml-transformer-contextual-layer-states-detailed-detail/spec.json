@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Causal layers keep the slots too",
+    "caption": "Toy GPT-style causal case: rows we, read, maps keep one output slot each. Layer parameter sets are separate; future words stay hidden.",
+    "blocks": [
+      {
+        "id": "input",
+        "label": "Prior contextual states",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 3,
+            "columns": 2,
+            "dimensions": "3x2"
+          }
+        }
+      },
+      {
+        "id": "output",
+        "label": "Next contextual states",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 3,
+            "columns": 2,
+            "dimensions": "3x2"
+          }
+        }
+      }
+    ]
+  }
+}

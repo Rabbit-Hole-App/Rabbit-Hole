@@ -1,0 +1,90 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-transformer-cross-attention-alignment": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 101,
+          "sha256": "2e70f9c5adab376e90ef8be51d3ecfdc6550829abf73054f168618ece49fd9a2"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 136,
+          "sha256": "28b03cee787442d8f7b4055f4cba80af6e0de54f09525ec166a9473c418ab512"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 96,
+          "sha256": "965e18f2b04a54730496e995b403b75eb8162e10ec4969bed540b16258ffa83f"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 130,
+          "sha256": "a3e8f750aad30a7ecd5c5cb72766ca5cfa65df4d9dbb1fa32d59ac5918161048"
+        }
+      ]
+    },
+    "ml-transformer-context-rules": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 93,
+          "sha256": "f3c2e8f520a37163dec3f6cf42e63edfaf9f9d6321e095324870eef106944cf0"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 225,
+          "sha256": "c0ff98bb949f60b8ab249bb7b0c08a2358b4ae05209f219803be59a79ab031ed"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 234,
+          "sha256": "edc79e09eda9af26499ca4c3475d993de9db79864edd009ea323a15686665199"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 116,
+          "sha256": "5693f3d712889e045548e47f25adb7a6d67d779bb5f1892ea3b9ae4d322b4cae"
+        }
+      ]
+    },
+    "ml-transformer-contextual-layer-states": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 120,
+          "sha256": "940e493f83f413cefac6f3840375ab81405ed04310a5e6732355501ef981cbcb"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 173,
+          "sha256": "fd56e2443a91116f4360b9e7cd09b200403a00cbddc8aecaedfd3fee48ce55b0"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 179,
+          "sha256": "a823cbf5c382ae8bc82748a6f7f66418e6a0a9fd314904037be622c073dc32bd"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 126,
+          "sha256": "26056551edb4265ea792ffbc14e357607c3b73cc0fcfa3cb2e2872d024ac5363"
+        }
+      ]
+    }
+  }
+}

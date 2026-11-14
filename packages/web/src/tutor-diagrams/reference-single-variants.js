@@ -7,6 +7,7 @@ import { figureChapterSingleSpecs } from './figure-chapter-single-specs.js';
 import { softmaxSingleSpec } from './topic-logistic-regression-references.js';
 import { regularizationSingleSpecs } from './composition-regularization-single-specs.js';
 import { distributionShiftSingleSpecs } from './composition-distribution-shift-single-specs.js';
+import { transformerSingleSpecs } from './composition-transformer-references.js';
 
 const panelsById = new Map(diagramReferences.map(ref => [ref.id, ref]));
 
@@ -18,6 +19,7 @@ export const singleDiagramReferences = Object.freeze(
     'ml-logistic-regression-softmax': softmaxSingleSpec, // the panels reference's one-diagram variant, built from the topic's data module
     ...regularizationSingleSpecs,
     ...distributionShiftSingleSpecs,
+    ...transformerSingleSpecs,
   }).filter(([panelReferenceId]) => panelsById.has(panelReferenceId)).map(([panelReferenceId, { spec, useWhen }]) => {
     const { id, keywords, prompts, lessons } = panelsById.get(panelReferenceId);
     return {

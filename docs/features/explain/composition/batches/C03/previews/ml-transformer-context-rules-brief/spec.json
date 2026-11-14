@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "Different context rules",
+    "columns": [
+      "Current segment",
+      "Earlier memory"
+    ],
+    "rows": [
+      {
+        "heading": "GPT-2",
+        "cells": [
+          "Earlier and self",
+          "None"
+        ]
+      },
+      {
+        "heading": "BERT",
+        "cells": [
+          "All positions",
+          "None"
+        ]
+      },
+      {
+        "heading": "Transformer-XL",
+        "cells": [
+          "Earlier and self",
+          "Prior segment"
+        ]
+      }
+    ],
+    "caption": "Context permission, not attention probabilities. Earlier-segment memory does not reveal future current words."
+  }
+}

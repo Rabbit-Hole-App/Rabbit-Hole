@@ -1,0 +1,984 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 3048,
+  "changedPriorPicks": [],
+  "sourceHeadings": 17,
+  "uniqueSourcePrompts": 14,
+  "sourceCases": 51,
+  "sourceHits": 51,
+  "actualPlannedAuthorSchemaChecks": 51,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-14",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-14",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-14",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-15",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-15",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-15",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-16",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-16",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-16",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-17",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-17",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-attention-alignment",
+      "expectedFamily": "ml-transformer-cross-attention-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-17",
+      "prompt": "Decoder cross-attention aligns target queries with encoder keys, so the two axes describe different sequences.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-cross-attention-alignment",
+      "rawAuthorReferenceId": "ml-transformer-cross-attention-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-cross-attention-alignment",
+      "preparedId": "ml-transformer-cross-attention-alignment",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-context-rules",
+      "expectedFamily": "ml-transformer-context-rules",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-05",
+      "prompt": "GPT-2, BERT and Transformer-XL repeat different kinds of blocks for different ways of using context.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-context-rules",
+      "rawAuthorReferenceId": "ml-transformer-context-rules-single",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-context-rules",
+      "preparedId": "ml-transformer-context-rules-single",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-context-rules",
+      "expectedFamily": "ml-transformer-context-rules",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-05",
+      "prompt": "GPT-2, BERT and Transformer-XL repeat different kinds of blocks for different ways of using context.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-context-rules",
+      "rawAuthorReferenceId": "ml-transformer-context-rules",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-context-rules",
+      "preparedId": "ml-transformer-context-rules",
+      "preparedSchemaValid": true,
+      "kind": "comparison",
+      "collision": false,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-context-rules",
+      "expectedFamily": "ml-transformer-context-rules",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-05",
+      "prompt": "GPT-2, BERT and Transformer-XL repeat different kinds of blocks for different ways of using context.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-context-rules",
+      "rawAuthorReferenceId": "ml-transformer-context-rules",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-context-rules",
+      "preparedId": "ml-transformer-context-rules",
+      "preparedSchemaValid": true,
+      "kind": "comparison",
+      "collision": false,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-context-rules",
+      "expectedFamily": "ml-transformer-context-rules",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-12",
+      "prompt": "Bidirectional and causal attention differ in which keys each query can read.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-context-rules",
+      "rawAuthorReferenceId": "ml-transformer-context-rules-single",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-context-rules",
+      "preparedId": "ml-transformer-context-rules-single",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-context-rules",
+      "expectedFamily": "ml-transformer-context-rules",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-12",
+      "prompt": "Bidirectional and causal attention differ in which keys each query can read.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-context-rules",
+      "rawAuthorReferenceId": "ml-transformer-context-rules",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-context-rules",
+      "preparedId": "ml-transformer-context-rules",
+      "preparedSchemaValid": true,
+      "kind": "comparison",
+      "collision": false,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-context-rules",
+      "expectedFamily": "ml-transformer-context-rules",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-12",
+      "prompt": "Bidirectional and causal attention differ in which keys each query can read.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-context-rules",
+      "rawAuthorReferenceId": "ml-transformer-context-rules",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-context-rules",
+      "preparedId": "ml-transformer-context-rules",
+      "preparedSchemaValid": true,
+      "kind": "comparison",
+      "collision": false,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-02",
+      "prompt": "The encoder prepares source representations that the decoder can consult while producing the target.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-02",
+      "prompt": "The encoder prepares source representations that the decoder can consult while producing the target.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-02",
+      "prompt": "The encoder prepares source representations that the decoder can consult while producing the target.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-03",
+      "prompt": "Separate encoder and decoder stacks repeat their layer recipes while keeping learned parameters distinct.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-03",
+      "prompt": "Separate encoder and decoder stacks repeat their layer recipes while keeping learned parameters distinct.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-03",
+      "prompt": "Separate encoder and decoder stacks repeat their layer recipes while keeping learned parameters distinct.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-01",
+      "prompt": "An encoder–decoder Transformer lets masked target states read encoded source information before producing the next token.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-01",
+      "prompt": "An encoder–decoder Transformer lets masked target states read encoded source information before producing the next token.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-01",
+      "prompt": "An encoder–decoder Transformer lets masked target states read encoded source information before producing the next token.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-04",
+      "prompt": "Translation Transformers pair a source encoder with a target decoder.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-04",
+      "prompt": "Translation Transformers pair a source encoder with a target decoder.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-encoder-decoder-memory",
+      "expectedFamily": "ml-transformer-encoder-decoder-memory",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-04",
+      "prompt": "Translation Transformers pair a source encoder with a target decoder.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-encoder-decoder-memory",
+      "rawAuthorReferenceId": "ml-transformer-encoder-decoder-memory",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-encoder-decoder-memory",
+      "preparedId": "ml-transformer-encoder-decoder-memory",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-07",
+      "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-07",
+      "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-07",
+      "prompt": "Successive encoder layers consume the prior layer's vector at every position.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-14",
+      "prompt": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-14",
+      "prompt": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-14",
+      "prompt": "The representation at each token position passes through a succession of GPT-2 decoder blocks.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-07",
+      "prompt": "An encoder produces a contextual vector for each input position, including special positions.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-07",
+      "prompt": "An encoder produces a contextual vector for each input position, including special positions.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-07",
+      "prompt": "An encoder produces a contextual vector for each input position, including special positions.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-08",
+      "prompt": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-08",
+      "prompt": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-contextual-layer-states",
+      "expectedFamily": "ml-transformer-contextual-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-08",
+      "prompt": "Each successive BERT layer updates every token with self-attention and a positionwise network.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-contextual-layer-states",
+      "rawAuthorReferenceId": "ml-transformer-contextual-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-contextual-layer-states",
+      "preparedId": "ml-transformer-contextual-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-position-and-positionwise",
+      "expectedFamily": "ml-transformer-positionwise-feedforward",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-08",
+      "prompt": "Attention exchanges information across positions while the feed-forward sublayer updates each position separately.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-positionwise-feedforward",
+      "rawAuthorReferenceId": "ml-transformer-positionwise-feedforward",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-positionwise-feedforward",
+      "preparedId": "ml-transformer-positionwise-feedforward",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-position-and-positionwise",
+      "expectedFamily": "ml-transformer-positionwise-feedforward",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-08",
+      "prompt": "Attention exchanges information across positions while the feed-forward sublayer updates each position separately.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-positionwise-feedforward",
+      "rawAuthorReferenceId": "ml-transformer-positionwise-feedforward",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-positionwise-feedforward",
+      "preparedId": "ml-transformer-positionwise-feedforward",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-cross-position-and-positionwise",
+      "expectedFamily": "ml-transformer-positionwise-feedforward",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-08",
+      "prompt": "Attention exchanges information across positions while the feed-forward sublayer updates each position separately.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-positionwise-feedforward",
+      "rawAuthorReferenceId": "ml-transformer-positionwise-feedforward",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-positionwise-feedforward",
+      "preparedId": "ml-transformer-positionwise-feedforward",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-decoder-sublayers",
+      "expectedFamily": "ml-transformer-original-decoder-sublayers",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-28",
+      "prompt": "The original decoder repeats the residual-add-and-normalize pattern around all three of its sublayers.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-original-decoder-sublayers",
+      "rawAuthorReferenceId": "ml-transformer-original-decoder-sublayers",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-original-decoder-sublayers",
+      "preparedId": "ml-transformer-original-decoder-sublayers",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-decoder-sublayers",
+      "expectedFamily": "ml-transformer-original-decoder-sublayers",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-28",
+      "prompt": "The original decoder repeats the residual-add-and-normalize pattern around all three of its sublayers.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-original-decoder-sublayers",
+      "rawAuthorReferenceId": "ml-transformer-original-decoder-sublayers",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-original-decoder-sublayers",
+      "preparedId": "ml-transformer-original-decoder-sublayers",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-decoder-sublayers",
+      "expectedFamily": "ml-transformer-original-decoder-sublayers",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-28",
+      "prompt": "The original decoder repeats the residual-add-and-normalize pattern around all three of its sublayers.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-original-decoder-sublayers",
+      "rawAuthorReferenceId": "ml-transformer-original-decoder-sublayers",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-original-decoder-sublayers",
+      "preparedId": "ml-transformer-original-decoder-sublayers",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-decoder-sublayers",
+      "expectedFamily": "ml-transformer-original-decoder-sublayers",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-10",
+      "prompt": "The translation decoder adds cross-attention to causal self-attention and positionwise processing.",
+      "depth": "brief",
+      "firstFamily": "ml-transformer-original-decoder-sublayers",
+      "rawAuthorReferenceId": "ml-transformer-original-decoder-sublayers",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-original-decoder-sublayers",
+      "preparedId": "ml-transformer-original-decoder-sublayers",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-decoder-sublayers",
+      "expectedFamily": "ml-transformer-original-decoder-sublayers",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-10",
+      "prompt": "The translation decoder adds cross-attention to causal self-attention and positionwise processing.",
+      "depth": "balanced",
+      "firstFamily": "ml-transformer-original-decoder-sublayers",
+      "rawAuthorReferenceId": "ml-transformer-original-decoder-sublayers",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-original-decoder-sublayers",
+      "preparedId": "ml-transformer-original-decoder-sublayers",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transformer-decoder-sublayers",
+      "expectedFamily": "ml-transformer-original-decoder-sublayers",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-10",
+      "prompt": "The translation decoder adds cross-attention to causal self-attention and positionwise processing.",
+      "depth": "detailed",
+      "firstFamily": "ml-transformer-original-decoder-sublayers",
+      "rawAuthorReferenceId": "ml-transformer-original-decoder-sublayers",
+      "firstPick": true,
+      "preparedFamily": "ml-transformer-original-decoder-sublayers",
+      "preparedId": "ml-transformer-original-decoder-sublayers",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

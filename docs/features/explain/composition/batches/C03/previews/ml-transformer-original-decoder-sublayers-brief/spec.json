@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Inside a writing layer",
+    "caption": "The first step reads earlier target words. The middle step reads the source. The last updates each word separately.",
+    "blocks": [
+      {
+        "id": "self",
+        "label": "Earlier word context",
+        "role": "attention",
+        "repeat": 6,
+        "repeatTo": "n3"
+      },
+      {
+        "id": "n1",
+        "label": "First scale check",
+        "role": "norm"
+      },
+      {
+        "id": "cross",
+        "label": "Source context",
+        "role": "attention",
+        "inputs": [
+          {
+            "label": "Source notes"
+          }
+        ]
+      },
+      {
+        "id": "n2",
+        "label": "Second scale check",
+        "role": "norm"
+      },
+      {
+        "id": "ffn",
+        "label": "Separate word update",
+        "role": "feedforward"
+      },
+      {
+        "id": "n3",
+        "label": "Final scale check",
+        "role": "norm"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "self",
+        "to": "self"
+      },
+      {
+        "kind": "residual",
+        "from": "cross",
+        "to": "cross"
+      },
+      {
+        "kind": "residual",
+        "from": "ffn",
+        "to": "ffn"
+      }
+    ]
+  }
+}

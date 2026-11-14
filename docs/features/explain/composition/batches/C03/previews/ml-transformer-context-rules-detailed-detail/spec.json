@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Prior segment plus causal current",
+    "columns": [
+      "Past old",
+      "Past maps",
+      "we",
+      "read",
+      "maps"
+    ],
+    "rows": [
+      {
+        "label": "we",
+        "cells": [
+          1,
+          1,
+          1,
+          null,
+          null
+        ]
+      },
+      {
+        "label": "read",
+        "cells": [
+          1,
+          1,
+          1,
+          1,
+          null
+        ]
+      },
+      {
+        "label": "maps",
+        "cells": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Transformer-XL permissions: Past columns are old-segment memory. Current future keys remain unavailable."
+  }
+}

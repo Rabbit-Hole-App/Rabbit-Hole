@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Original Transformer decoder layer",
+    "caption": "The first step reads earlier target words. The middle step reads the source. The last updates each word separately.",
+    "blocks": [
+      {
+        "id": "self",
+        "label": "Masked self-attention",
+        "role": "attention",
+        "repeat": 6,
+        "repeatTo": "n3"
+      },
+      {
+        "id": "n1",
+        "label": "Self-attention LayerNorm",
+        "role": "norm"
+      },
+      {
+        "id": "cross",
+        "label": "Encoder–decoder attention",
+        "role": "attention",
+        "inputs": [
+          {
+            "label": "Encoder keys and values"
+          }
+        ]
+      },
+      {
+        "id": "n2",
+        "label": "Cross-attention LayerNorm",
+        "role": "norm"
+      },
+      {
+        "id": "ffn",
+        "label": "Position-wise feed-forward",
+        "role": "feedforward"
+      },
+      {
+        "id": "n3",
+        "label": "Feed-forward LayerNorm",
+        "role": "norm"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "self",
+        "to": "self"
+      },
+      {
+        "kind": "residual",
+        "from": "cross",
+        "to": "cross"
+      },
+      {
+        "kind": "residual",
+        "from": "ffn",
+        "to": "ffn"
+      }
+    ]
+  }
+}

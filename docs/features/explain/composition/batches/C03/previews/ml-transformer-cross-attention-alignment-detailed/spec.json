@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Weighted source context for nous",
+    "bars": [
+      {
+        "label": "f1",
+        "value": 1.436
+      },
+      {
+        "label": "f2",
+        "value": 0.564
+      }
+    ],
+    "caption": "Toy rounded weights: $c=0.576(2,0)+0.14(0,2)+0.284(1,1)\\approx(1.436,0.564)$. Padding excluded."
+  }
+}

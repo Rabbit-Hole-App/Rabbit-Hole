@@ -1602,5 +1602,17 @@
   "ml-distribution-shift-concept-shift": [
     "conditional label change",
     "changed naming rule"
+  ],
+  "ml-transformer-cross-attention-alignment": [
+    "target source alignment",
+    "cross attention axes"
+  ],
+  "ml-transformer-context-rules": [
+    "architecture context rules",
+    "prior segment context"
+  ],
+  "ml-transformer-contextual-layer-states": [
+    "successive contextual states",
+    "position aligned states"
   ]
 }

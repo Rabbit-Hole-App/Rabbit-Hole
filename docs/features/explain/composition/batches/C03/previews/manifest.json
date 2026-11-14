@@ -1,0 +1,542 @@
+{
+  "ml-transformer-cross-attention-alignment": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 347
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 347
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 347
+      }
+    }
+  },
+  "ml-transformer-cross-attention-alignment-brief": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 303
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 303
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 303
+      }
+    }
+  },
+  "ml-transformer-cross-attention-alignment-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 347
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 347
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 347
+      }
+    }
+  },
+  "ml-transformer-cross-attention-alignment-detailed": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 455,
+        "height": 222
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 205
+      },
+      "natural": {
+        "requested": 320,
+        "width": 455,
+        "height": 222
+      }
+    }
+  },
+  "ml-transformer-cross-attention-alignment-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 347
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 347
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 347
+      }
+    }
+  },
+  "ml-transformer-context-rules": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 828
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 811
+      },
+      "natural": {
+        "requested": 772,
+        "width": 720,
+        "height": 811
+      }
+    }
+  },
+  "ml-transformer-context-rules-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 333
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 268
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 366
+      }
+    }
+  },
+  "ml-transformer-context-rules-balanced": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 828
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 811
+      },
+      "natural": {
+        "requested": 772,
+        "width": 720,
+        "height": 811
+      }
+    }
+  },
+  "ml-transformer-context-rules-detailed": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 828
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 811
+      },
+      "natural": {
+        "requested": 772,
+        "width": 720,
+        "height": 811
+      }
+    }
+  },
+  "ml-transformer-context-rules-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 524,
+        "height": 365
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 524,
+        "width": 524,
+        "height": 365
+      }
+    }
+  },
+  "ml-transformer-encoder-decoder-memory": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 823
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 699
+      },
+      "natural": {
+        "requested": 340,
+        "width": 340,
+        "height": 823
+      }
+    }
+  },
+  "ml-transformer-encoder-decoder-memory-brief": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 801
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 699
+      },
+      "natural": {
+        "requested": 340,
+        "width": 340,
+        "height": 823
+      }
+    }
+  },
+  "ml-transformer-encoder-decoder-memory-balanced": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 823
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 699
+      },
+      "natural": {
+        "requested": 340,
+        "width": 340,
+        "height": 823
+      }
+    }
+  },
+  "ml-transformer-encoder-decoder-memory-detailed": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 840
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 716
+      },
+      "natural": {
+        "requested": 340,
+        "width": 340,
+        "height": 857
+      }
+    }
+  },
+  "ml-transformer-contextual-layer-states": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 740
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 706
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 779
+      }
+    }
+  },
+  "ml-transformer-contextual-layer-states-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 506
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 472
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 545
+      }
+    }
+  },
+  "ml-transformer-contextual-layer-states-balanced": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 740
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 706
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 779
+      }
+    }
+  },
+  "ml-transformer-contextual-layer-states-detailed": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 740
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 723
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 779
+      }
+    }
+  },
+  "ml-transformer-contextual-layer-states-detailed-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 454
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 437
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 493
+      }
+    }
+  },
+  "ml-transformer-positionwise-feedforward": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 864
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 723
+      },
+      "natural": {
+        "requested": 347,
+        "width": 347,
+        "height": 864
+      }
+    }
+  },
+  "ml-transformer-positionwise-feedforward-brief": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 864
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 723
+      },
+      "natural": {
+        "requested": 347,
+        "width": 347,
+        "height": 864
+      }
+    }
+  },
+  "ml-transformer-positionwise-feedforward-balanced": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 864
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 723
+      },
+      "natural": {
+        "requested": 347,
+        "width": 347,
+        "height": 864
+      }
+    }
+  },
+  "ml-transformer-positionwise-feedforward-detailed": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 864
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 723
+      },
+      "natural": {
+        "requested": 347,
+        "width": 347,
+        "height": 881
+      }
+    }
+  },
+  "ml-transformer-original-decoder-sublayers": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 701
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 635
+      },
+      "natural": {
+        "requested": 470,
+        "width": 470,
+        "height": 669
+      }
+    }
+  },
+  "ml-transformer-original-decoder-sublayers-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 653
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 571
+      },
+      "natural": {
+        "requested": 467,
+        "width": 467,
+        "height": 605
+      }
+    }
+  },
+  "ml-transformer-original-decoder-sublayers-balanced": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 701
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 635
+      },
+      "natural": {
+        "requested": 470,
+        "width": 470,
+        "height": 669
+      }
+    }
+  },
+  "ml-transformer-original-decoder-sublayers-detailed": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 701
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 635
+      },
+      "natural": {
+        "requested": 470,
+        "width": 470,
+        "height": 652
+      }
+    }
+  }
+}

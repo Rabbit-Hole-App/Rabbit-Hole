@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Target queries read source keys",
+    "rowLabel": "Target query",
+    "columnLabel": "Source key",
+    "columns": [
+      "we",
+      "read",
+      "maps",
+      "<pad>"
+    ],
+    "rows": [
+      {
+        "label": "nous",
+        "cells": [
+          0.576,
+          0.14,
+          0.284,
+          null
+        ]
+      },
+      {
+        "label": "lisons",
+        "cells": [
+          0.14,
+          0.576,
+          0.284,
+          null
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Toy source values: we $(2,0)$, read $(0,2)$, maps $(1,1)$. Mix these values with each row; padding excluded."
+  }
+}

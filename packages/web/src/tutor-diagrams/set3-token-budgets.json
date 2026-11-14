@@ -885,6 +885,16 @@
         "tokens": 71,
         "sha256": "8e35f61203fedc3779c573f7776ada1d3a91f5d7537078f848bc6996c505b8f5"
       }
+    },
+    "ml-transformer-context-rules": {
+      "panel": {
+        "tokens": 225,
+        "sha256": "c0ff98bb949f60b8ab249bb7b0c08a2358b4ae05209f219803be59a79ab031ed"
+      },
+      "single": {
+        "tokens": 93,
+        "sha256": "f3c2e8f520a37163dec3f6cf42e63edfaf9f9d6321e095324870eef106944cf0"
+      }
     }
   }
 }
