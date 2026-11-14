@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -299,4 +300,106 @@ test('a node title is drawn as its SVG <title>, never as visible text', () => {
   assert.match(svg, /<g data-tutor-node="miss"><title>Read the database row for this key and keep it<\/title>/);
   assert.equal((svg.match(/<title>/g) || []).length, 1);
   assert.doesNotMatch(render(layoutFlow(cache, 408)), /<title>/);
+});
+
+// RD-2: a decision with exactly two branches to the next rank, one left and one right of it, leaves the diamond's side vertices: both wires run
+// at the diamond's mid-height to the target's top port and drop straight down, the labels sit above the runs, and the gap below the row takes no lanes for them.
+// Every other decision keeps its routing byte for byte.
+const swallow = {
+  kind: 'flow', title: 'Bedside Swallow Evaluation Process',
+  nodes: [
+    { id: 'chart', label: 'Review medical chart', role: 'process' }, { id: 'exam', label: 'Perform cranial nerve exam', role: 'process' },
+    { id: 'aspiration', label: 'Signs of aspiration present?', role: 'decision' },
+    { id: 'defer', label: 'Defer oral intake and recommend instrumental test', role: 'outcome' },
+    { id: 'proceed', label: 'Proceed with controlled food trials', role: 'outcome' },
+  ],
+  edges: [{ from: 'chart', to: 'exam' }, { from: 'exam', to: 'aspiration' },
+    { from: 'aspiration', to: 'defer', label: 'Yes' }, { from: 'aspiration', to: 'proceed', label: 'No' }],
+};
+const triage = {
+  kind: 'flow', title: 'Triage',
+  nodes: [
+    { id: 'in', label: 'Receive the request', role: 'process' }, { id: 'kind', label: 'Which kind is it?', role: 'decision' },
+    { id: 'a', label: 'Handle the bug', role: 'outcome' }, { id: 'b', label: 'Handle the question', role: 'outcome' }, { id: 'c', label: 'Handle the request', role: 'outcome' },
+  ],
+  edges: [{ from: 'in', to: 'kind' }, { from: 'kind', to: 'a', label: 'Bug' }, { from: 'kind', to: 'b', label: 'Question' }, { from: 'kind', to: 'c', label: 'Feature' }],
+};
+const sameSide = {
+  kind: 'flow', title: 'Same side',
+  nodes: [
+    { id: 'root', label: 'Start the check', role: 'process' }, { id: 'p', label: 'Check the cache', role: 'outcome' }, { id: 'q', label: 'Check the queue', role: 'outcome' },
+    { id: 'd', label: 'Is the record valid?', role: 'decision' }, { id: 't1', label: 'Save the record', role: 'outcome' }, { id: 't2', label: 'Reject the record', role: 'outcome' },
+  ],
+  edges: [{ from: 'root', to: 'p' }, { from: 'root', to: 'q' }, { from: 'root', to: 'd' }, { from: 'd', to: 't1', label: 'Yes' }, { from: 'd', to: 't2', label: 'No' }],
+};
+const shapeOf = (elements, id) => {
+  const shape = elements.find(element => element.props['data-tutor-node'] === id).props.children.find(child => child?.type === 'polygon' || child?.type === 'rect');
+  if (shape.type === 'rect') return shape.props;
+  const [top, right, bottom, left] = shape.props.points.split(' ').map(pair => pair.split(',').map(Number));
+  return { cx: top[0], top: top[1], mid: right[1], bottom: bottom[1], left: left[0], right: right[0] };
+};
+const wireOf = (elements, edge) => pointsFor(elements.find(element => element.props['data-tutor-edge'] === edge));
+const labelRect = (elements, word) => elements.find(item => Array.isArray(item.props.children) && item.props.children[0]?.type === 'rect'
+  && !item.props['data-tutor-node'] && texts(item).some(({ lines }) => lines.join(' ') === word))?.props.children[0].props;
+const digest = layout => createHash('sha256').update(render(layout)).digest('hex').slice(0, 16);
+
+test('RD-2: a two-way decision leaves both side vertices at its mid-height and drops straight onto each target', () => {
+  for (const width of [600, 720]) {
+    const { elements } = layoutFlow(swallow, width);
+    const diamond = shapeOf(elements, 'aspiration');
+    const yes = wireOf(elements, 'aspiration:defer'), no = wireOf(elements, 'aspiration:proceed');
+    assert.deepEqual(yes[0], [diamond.left, diamond.mid], 'Yes leaves the left vertex');
+    assert.deepEqual(no[0], [diamond.right, diamond.mid], 'No leaves the right vertex');
+    assert.equal(yes.length, 3);
+    assert.equal(no.length, 3);
+    assert.equal(yes[0][1], no[0][1], 'both runs are at the same height');
+    for (const [points, id] of [[yes, 'defer'], [no, 'proceed']]) {
+      const target = shapeOf(elements, id);
+      assert.equal(points[1][1], points[0][1], 'the first segment is horizontal');
+      assert.equal(points[2][0], points[1][0], 'the second segment drops straight');
+      assert.equal(points[2][1], target.y, 'the drop ends on the target top');
+      assert.ok(target.x < points[2][0] && points[2][0] < target.x + target.width, 'and lands inside the target');
+    }
+    assert.ok(yes[1][0] < diamond.left && no[1][0] > diamond.right, 'each run goes outward from its vertex');
+  }
+});
+
+test('RD-2: the Yes and No labels are centred on their runs, sit above the line, and touch no wire', () => {
+  for (const width of [600, 720]) {
+    const { elements } = layoutFlow(swallow, width);
+    const wires = elements.filter(element => element.props['data-tutor-edge']).map(pointsFor);
+    for (const [word, edge] of [['Yes', 'aspiration:defer'], ['No', 'aspiration:proceed']]) {
+      const rect = labelRect(elements, word);
+      assert.ok(rect, `${word} label is drawn on the graph`);
+      const [from, turn] = wireOf(elements, edge);
+      assert.ok(Math.abs(rect.x + rect.width / 2 - (from[0] + turn[0]) / 2) <= 1, `${word} is centred on its run`);
+      assert.ok(Math.abs(rect.y + rect.height + 4 - from[1]) <= 1, `${word} sits 4 px above the line`);
+      for (const points of wires) assert.equal(touches(points, rect), false, `${word} label touches a wire`);
+    }
+  }
+});
+
+test('RD-2: the gap below a two-way decision row takes no lanes for its two branches', () => {
+  const { elements } = layoutFlow(swallow, 600);
+  const diamond = shapeOf(elements, 'aspiration');
+  const target = shapeOf(elements, 'defer');
+  assert.ok(target.y - diamond.bottom <= 24, `the targets sit close under the diamond (${target.y - diamond.bottom} px)`);
+});
+
+test('RD-2: a three-branch decision and a decision whose targets share one side route exactly as before', () => {
+  assert.deepEqual([408, 720].map(width => digest(layoutFlow(triage, width))), ['cf111dc3876bc01d', 'cc84f530bafafc25']);
+  assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['ec722199f3c665de', '3c0070cc4f645a6c']);
+});
+
+test('RD-2: where a run would be shorter than its label (the swallow card below about 560 px) the old routing is kept byte for byte', () => {
+  assert.deepEqual([320, 408, 440].map(width => digest(layoutFlow(swallow, width))), ['316743c9b72956c7', 'e64b7f5da260d19b', '8d34c9bf49aca868']);
+});
+
+test('RD-2: the highlight path style applies to the routed branch', () => {
+  const { elements } = layoutFlow({ ...swallow, highlightPath: ['chart', 'exam', 'aspiration', 'defer'] }, 600);
+  const yes = elements.find(element => element.props['data-tutor-edge'] === 'aspiration:defer');
+  const no = elements.find(element => element.props['data-tutor-edge'] === 'aspiration:proceed');
+  assert.ok('data-tutor-path' in yes.props, 'the highlighted branch is marked');
+  assert.equal('data-tutor-path' in no.props, false, 'the other branch is not');
+  assert.equal(yes.props.children.props.children[0].props.strokeWidth, 3, 'and drawn in the path style');
 });

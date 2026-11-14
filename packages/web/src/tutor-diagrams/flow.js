@@ -89,17 +89,18 @@ function crosses(points, { x, y, width, height }) {
 }
 
 function labelBounds(route, others, width) {
-  const { words, points: [[from], , [to, y]] } = route;
+  const { words, side, points: [[from], turn, end] } = route;
+  const [to, y] = side ? turn : end;
   const w = Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12);
   const h = words.length * lineHeight(EDGE_TEXT) + 4;
   const center = (from + to) / 2;
-  const straight = Math.abs(from - to) < 35;
+  const straight = !side && Math.abs(from - to) < 35;
   const offset = straight ? w / 2 + 7 : 0;
   const offsets = [offset, -offset, offset + 10, -offset - 10, offset + 20, -offset - 20, offset + 35, -offset - 35];
   const clamped = candidate => Math.max(PAD, Math.min(width - PAD - w, candidate));
   for (const shift of offsets) {
     const x = clamped(center + shift - w / 2);
-    const bounds = { x, y: y - h / 2, width: w, height: h };
+    const bounds = { x, y: side ? y - h - 4 : y - h / 2, width: w, height: h };
     if (others.every(other => other === route || !crosses(other.points, bounds))) return bounds;
   }
   return null;
@@ -185,6 +186,32 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
   const exitX = edge => skipOrder.has(edge) ? skipX(edge) : placements.get(edge.to).cx;
   const entryOrder = edge => skipOrder.has(edge) ? width + skipOrder.get(edge) : placements.get(edge.from).cx;
   for (const group of outgoing.values()) group.sort((a, b) => exitX(a) - exitX(b));
+  for (const group of incoming.values()) group.sort((a, b) => entryOrder(a) - entryOrder(b));
+  // RD-2: a decision with exactly two branches, one to each side, into the next rank leaves its side vertices: both wires run at the diamond's mid-height to the
+  // target's top port and drop straight, taking no lane in the gap below the row. Anything else (three branches, a skip, both targets on one side, a run shorter than
+  // the label, another node of the row standing on the run) keeps the lane routing.
+  const sideEdges = new Set();
+  for (const node of placements.values()) {
+    const branches = outgoing.get(node.id);
+    if (node.role !== 'decision' || node.tensor || branches.length !== 2) continue;
+    if (branches.some(edge => skipOrder.has(edge) || ranks.get(edge.to) !== ranks.get(node.id) + 1)) continue;
+    if (!(placements.get(branches[0].to).cx < node.cx && node.cx < placements.get(branches[1].to).cx)) continue;
+    const fits = branches.every((edge, index) => {
+      const sign = index === 0 ? -1 : 1;
+      const vertexX = node.cx + sign * node.width / 2;
+      const turnX = port(placements.get(edge.to), incoming.get(edge.to), edge, false)[0];
+      const words = edge.label ? wrap(edge.label, EDGE_WRAP, EDGE_TEXT) : [];
+      const labelWidth = words.length ? Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12) : 0;
+      const low = Math.min(vertexX, turnX), high = Math.max(vertexX, turnX);
+      const clear = placedRows[ranks.get(node.id)].every(other => other === node || other.cx + other.width / 2 <= low - 2 || other.cx - other.width / 2 >= high + 2);
+      return sign * (turnX - vertexX) > 0 && high - low >= labelWidth && clear;
+    });
+    if (fits) for (const edge of branches) sideEdges.add(edge);
+  }
+  for (const edge of sideEdges) {
+    const gap = gaps[ranks.get(edge.from)];
+    gap.splice(gap.indexOf(routeByEdge.get(edge).depart), 1);
+  }
   for (const [id, group] of incoming) {
     group.sort((a, b) => entryOrder(a) - entryOrder(b));
     if (group.length < 3) continue;
@@ -192,7 +219,7 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
     const left = [], right = [];
     for (const edge of group) {
       const { depart, arrive } = routeByEdge.get(edge);
-      if (arrive) continue;
+      if (arrive || sideEdges.has(edge)) continue;
       const source = placements.get(edge.from);
       const fromX = source.cx + portOffset(source, outgoing.get(edge.from), edge);
       const toX = target.cx + portOffset(target, group, edge);
@@ -223,6 +250,12 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
 
   const routed = routes.map(route => {
     const { edge, depart, arrive } = route;
+    if (sideEdges.has(edge)) {
+      const source = placements.get(edge.from);
+      const vertex = [source.cx + (outgoing.get(edge.from).indexOf(edge) === 0 ? -1 : 1) * source.width / 2, source.y + source.height / 2];
+      const target = port(placements.get(edge.to), incoming.get(edge.to), edge, false);
+      return { ...route, side: true, points: [vertex, [target[0], vertex[1]], target] };
+    }
     const from = port(placements.get(edge.from), outgoing.get(edge.from), edge, true);
     const to = port(placements.get(edge.to), incoming.get(edge.to), edge, false);
     const points = arrive ? skipLanePoints(from, to, skipX(edge), depart.y, arrive.y)
