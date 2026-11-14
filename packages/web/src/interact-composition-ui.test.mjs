@@ -294,5 +294,23 @@ test('the card draws the readouts row itself: label, value and unit as tabular n
   assert.match(src, /composed && readoutRows\.length > 0/);
   assert.match(src, /data-interact-readouts className="flex flex-wrap items-baseline gap-x-4 gap-y-0\.5 text-sm text-ink-2"/);
   assert.match(src, /data-interact-readout=\{value\.id\}>\{value\.label\}: <span className="text-ink tabular-nums">\{value\.text\}<\/span>/);
-  assert.match(src, /composition\.main\.readoutIds\.includes\(r\.id\)/);
+  assert.match(src, /rowReadoutIds\(composition\)\.includes\(r\.id\)/); // the plan's readouts less those a callout line already shows (one place per number)
+});
+
+// One place per number (owner 2026-11-14): a readout whose value a callout line in the scene already shows is not drawn again in the readouts row.
+test('one place per number: the pinned plans declare which readouts their callouts show; the row omits them, keeps state readouts and uncovered values, and is absent when all are covered', async () => {
+  const { referencePlans } = await interactFixtures();
+  const { calloutReadoutIds } = await import('./interact-composition.js');
+  const { rowReadoutIds } = await import('./interact-card-layout.js');
+  assert.deepEqual(calloutReadoutIds(referencePlans.tossOverview), [], 'one-body: its callout is words; the state readouts stay');
+  assert.deepEqual(calloutReadoutIds(referencePlans.ledgeTossMoon), []);
+  assert.deepEqual(calloutReadoutIds(referencePlans.tossStandard), ['tossedVelocity', 'tossedAcceleration', 'dropVelocity', 'dropAcceleration'], 'two-lane: each lane prints its velocity and acceleration');
+  assert.deepEqual(calloutReadoutIds(referencePlans.tossDeep), ['velocity', 'acceleration', 'force'], 'body-plot: velocity, acceleration and the force; the state readout stays');
+  const withCallouts = plan => { const base = compositionFromPlan(plan), ids = calloutReadoutIds(plan), out = normalizeComposition({ ...base, main: { ...base.main, ...(ids.length ? { calloutReadoutIds: ids } : {}) } }); assert.equal(out.ok, true); return out.value; };
+  const section = composition => cardLayout(composition).find(s => s.kind === 'readouts');
+  assert.deepEqual(section(withCallouts(referencePlans.tossDeep)).ids, ['motionState'], 'a partly covered plan keeps its uncovered readout (no duplicate of the callout values)');
+  assert.deepEqual(section(withCallouts(referencePlans.tossOverview)).ids, ['motionState', 'gravityState'], 'an uncovered plan is unchanged');
+  assert.equal(section(withCallouts(referencePlans.tossStandard)), undefined, 'an all-covered plan draws no readouts row, so no height is reserved for it');
+  assert.deepEqual(rowReadoutIds(comp('standard')), plans.standard.scene.readoutIds, 'a card composed before the field existed draws every readout, as it did');
+  assert.deepEqual(layoutProblems(cardLayout(withCallouts(referencePlans.tossStandard))), [], 'the card without the row is still a valid layout');
 });

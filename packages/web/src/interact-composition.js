@@ -3,6 +3,11 @@ import { canonicalJson } from './explain-contract.js';
 import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, PROGRAM_KIND, verifyHashes } from './explain-program/contract.js';
 import { PLAN_LIMITS, ScalarExprError, contentHash, evalScalar, planHash, scalarExprProblem, scalarInterval } from './interact-plan.js';
 
+// One place per number (owner 2026-11-14): the quantities a template's callout lines print, named by the template's own slot roles (interact-templates/*.js: two-lane prints each lane's velocity and
+// acceleration, body-plot the velocity, acceleration and force; one-body's callout is words, so its state readouts stay). A plan with no template (a model-built program) declares none.
+const CALLOUT_SLOTS = { 'two-lane': slots => Object.values(slots).flatMap(lane => [lane.velocity, lane.acceleration]), 'body-plot': slots => [slots.velocity, slots.acceleration, slots.force] };
+export const calloutReadoutIds = plan => { const shown = CALLOUT_SLOTS[plan.scene.template]?.(plan.scene.slots ?? {}) ?? []; return plan.scene.readoutIds.filter(id => shown.includes(id)); };
+
 // CardComposition v1 (docs/features/interact.md section 5 "Runtime composition envelope", INT-04, INT-06 composition rules): the one
 // server-built record that binds the approved plan to the validated artifacts, and the pure helpers the player, the capture planner and
 // the checks share. Pure and server-safe: no DOM, no network, no model. Models never create a reference or a hash; every hash below is
@@ -374,7 +379,8 @@ export const CardCompositionSchema = z.object({
   supporting: z.array(z.object({ id: stable, title: planText(PLAN_LIMITS.title), artifact: artifactRef, runtime, readoutIds: z.array(stable).max(16),
     parameterBindings: z.array(z.object({ fromInputId: stable, toInputId: stable }).strict()).max(8), readOnly: z.literal(true), snapshotTime: z.literal(SNAPSHOT_TIME) }).strict()).max(PLAN_LIMITS.supports),
   main: z.object({ artifact: artifactRef, runtime, mode: z.enum(['static', 'time', 'experiment']), readoutIds: z.array(stable).max(16), inputDefaults: z.record(stable, scalar.or(z.array(z.number().int()))),
-    controls: z.array(control).max(PLAN_LIMITS.controls), timeline: timelineRecord.nullable(), onInputChange: z.enum(['recompute_still', 'reset_pause']) }).strict(),
+    controls: z.array(control).max(PLAN_LIMITS.controls), timeline: timelineRecord.nullable(), onInputChange: z.enum(['recompute_still', 'reset_pause']),
+    calloutReadoutIds: z.array(stable).max(16).optional() }).strict(), // readouts whose value a callout line in the scene already shows: the readouts row omits them (one place per number; absent on cards composed before)
   envelopeHash: hex,
 }).strict();
 
@@ -407,7 +413,7 @@ export async function compileCardComposition(plan, artifacts) {
     main: { artifact: hashes.main, runtime: plan.scene.runtime, mode: plan.mode.kind, readoutIds: plan.scene.readoutIds,
       inputDefaults: Object.fromEntries(inputControls(plan).map(c => [c.binding.id, inputDefault(c)])), controls,
       timeline: tl ? { label: tl.label, unit: 's', end: tl.end, displayOffset: tl.displayOffset, markers: tl.markers, playbackRate: tl.playbackRate, initialTime: 0, initialPlayback: 'paused', step: scrubber.step } : null,
-      onInputChange: plan.mode.onInputChange },
+      onInputChange: plan.mode.onInputChange, ...(calloutReadoutIds(plan).length ? { calloutReadoutIds: calloutReadoutIds(plan) } : {}) },
   };
   const composition = { ...body, envelopeHash: await contentHash({ composition: body, artifacts: hashes }) };
   const parsed = CardCompositionSchema.safeParse(composition);
