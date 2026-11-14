@@ -1,0 +1,170 @@
+0.38 GET /api/profile
+0.43 GET /api/watch
+0.43 GET /api/apps
+0.44 GET /api/byoc/connection
+404 /api/byoc/connection
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+0.45 GET /api/apps/canvas-4d6b2a91
+CONSOLE Failed to load resource: the server responded with a status of 502 (Bad Gateway)
+0.86 GET /api/learn/usage
+0.86 GET /api/learn/context
+404 /api/learn/context
+0.86 GET /api/learn/provenance/apps/canvas-4d6b2a91
+404 /api/learn/provenance/apps/canvas-4d6b2a91
+0.86 GET /api/apps/canvas-4d6b2a91/learn-course
+0.86 GET /api/canvases/dives
+0.87 GET /api/learn/boards/canvas-4d6b2a91/main
+0.87 HEAD /api/learn/boards/canvas-4d6b2a91/main/thumbnail
+0.87 GET /api/learn/coaching
+404 /api/learn/coaching
+0.87 GET /api/learn/user-settings
+0.87 GET /api/learn/chat/active
+0.87 GET /api/learn/context
+404 /api/learn/context
+0.87 GET /api/learn/chat/active
+0.87 GET /api/learn/context
+404 /api/learn/context
+0.87 GET /api/learn/image-jobs
+0.87 GET /api/learn/whiteboard/jobs
+404 /api/learn/whiteboard/jobs
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+0.94 GET /api/learn/c/00000000-0000-4000-8000-000000000001
+404 /api/learn/c/00000000-0000-4000-8000-000000000001
+0.94 GET /api/learn/c/00000000-0000-4000-8000-000000000001/threads
+404 /api/learn/c/00000000-0000-4000-8000-000000000001/threads
+0.94 GET /api/learn/roadmap
+0.94 GET /api/learn/links/00000000-0000-4000-8000-000000000001
+404 /api/learn/links/00000000-0000-4000-8000-000000000001
+0.95 GET /api/learn/cad/jobs
+0.95 GET /api/learn/chat/active
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+0.98 GET /api/learn/roadmap/invitations
+0.98 GET /api/ask/threads
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+1.01 GET /api/learn/roadmap
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+2.44 GET /api/learn/boards/canvas-4d6b2a91/main/assets
+4.07 GET /api/learn/graph-config
+ABORT outside small-learn-canvas-notebook-dev.tryrabbithole.workers.dev
+10.92 POST /api/telemetry/client
+11.07 POST /api/learn/files
+SCRIPTED file store {"name":"en.md","size":21526,"family":"markdown"}
+12.65 GET /api/learn/pdf-highlights
+HIGHLIGHTS ?app=canvas-4d6b2a91&key=file%3Afs_film_md
+12.67 PUT /api/learn/files/fs_film_md/text
+LAYOUT after the toggle: scrollable
+15.34 PUT /api/learn/boards/canvas-4d6b2a91/main
+15.37 POST /api/learn/roadmap/invitations
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+23.39 POST /api/learn/artifact
+23.39 POST /api/learn/chat/threads/canvaschat-b02d7446-1b38-439c-b8db-1173322d8cb9/messages
+23.43 PUT /api/learn/chat/active
+T 23.43 skeleton: found=true
+24.19 PUT /api/learn/chat/threads/canvaschat-b02d7446-1b38-439c-b8db-1173322d8cb9/state
+SCRIPTED artifact p1 after 1900 ms: "how does a decision tree split a two-feature dataset into regions?"
+CONSOLE LONGTASK 12264 ms at 25231
+CONSOLE LONGTASK 12264 ms at 402
+38.93 POST /api/learn/explanation-summary
+38.93 POST /api/telemetry/client
+38.93 PUT /api/learn/boards/canvas-4d6b2a91/main/thumbnail
+38.93 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+38.93 PUT /api/learn/chat/messages/undefined/outputs
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+40.33 PUT /api/learn/boards/canvas-4d6b2a91/main
+T 42.74 depth: start
+T 43.54 depth: clicked
+T 43.56 depth: menu visible
+DEPTH menu rect {"x":1439.1982421875,"y":489.89990234375,"w":604.7998046875,"h":441,"right":2043.998046875,"vw":1920} (right edge 2044 of 1920)
+T 44.18 depth: framed
+45.66 POST /api/learn/user-settings
+51.4 POST /api/learn/artifact
+51.4 POST /api/learn/chat/threads/canvaschat-b02d7446-1b38-439c-b8db-1173322d8cb9/messages
+51.45 PUT /api/learn/chat/active
+T 51.45 skeleton: found=true
+52.16 PUT /api/learn/chat/threads/canvaschat-b02d7446-1b38-439c-b8db-1173322d8cb9/state
+SCRIPTED artifact p2 after 1900 ms: "how does a decision tree trace a new point from the root to a prediction?"
+53.32 POST /api/learn/explanation-summary
+53.48 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+53.52 PUT /api/learn/chat/messages/undefined/outputs
+55.32 PUT /api/learn/boards/canvas-4d6b2a91/main
+59.8 POST /api/learn/ask
+ASK "what happens when a tree grows too many regions?" target=card keys=scope,message,canvas_target,thread_id,mode,command,context_refs,depth,generation,canvas_context mode=auto ""
+59.81 PUT /api/learn/chat/active
+61.04 GET /api/learn/roadmap
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+61.07 GET /api/learn/roadmap/invitations
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+61.75 PUT /api/learn/boards/canvas-4d6b2a91/main
+67.85 POST /api/learn/artifact
+67.85 POST /api/learn/chat/threads/canvaschat-4d6b2a91-film/messages
+67.94 PUT /api/learn/chat/active
+T 68.38 skeleton: found=true
+SCRIPTED artifact qcard after 1900 ms: "How are the optimal split thresholds chosen during training?"
+CONSOLE LONGTASK 14347 ms at 69334
+CONSOLE LONGTASK 14347 ms at 149
+84.98 POST /api/learn/explanation-summary
+84.98 PUT /api/learn/chat/messages/undefined/outputs
+84.99 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+84.99 POST /api/telemetry/client
+84.99 PUT /api/learn/boards/canvas-4d6b2a91/main/thumbnail
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+86.51 PUT /api/learn/boards/canvas-4d6b2a91/main
+SEL exact after drag: false
+95.11 POST /api/learn/source-refs
+97.58 POST /api/learn/inline/route
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+97.59 POST /api/learn/inline/decide
+SCRIPTED inline decide
+97.62 POST /api/learn/inline/generate
+SCRIPTED artifact p3 after 1700 ms: ""
+99.46 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+103.63 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+103.64 PUT /api/learn/boards/canvas-4d6b2a91/main
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+107.64 POST /api/learn/inline/telemetry
+DEBUG window picker: {"value":"/explain","options":["explainExplanation","explain","Explanation","motionAnimated explainer","motion","Animated explainer"],"pill":false}
+DEBUG window after pick: {"value":"","cmd":"explanation"}
+T 111.87 depth: start
+T 112.69 depth: clicked
+T 112.74 depth: menu visible
+DEPTH menu rect {"x":941.3125,"y":321.03125,"w":576,"h":420,"right":1517.3125,"vw":1920} (right edge 1517 of 1920)
+T 113.49 depth: framed
+114.57 POST /api/learn/user-settings
+CHECK window text equals P4: true
+118.88 POST /api/learn/artifact
+118.88 POST /api/learn/chat/threads/canvaschat-4d6b2a91-film/messages
+119.01 PUT /api/learn/chat/active
+SCRIPTED artifact p4 after 1900 ms: "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared wit
+CONSOLE LONGTASK 14767 ms at 120484
+CONSOLE LONGTASK 14767 ms at 140
+136.8 GET /api/learn/roadmap
+136.8 POST /api/learn/explanation-summary
+136.8 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+136.8 PUT /api/learn/chat/messages/undefined/outputs
+136.8 PUT /api/learn/boards/canvas-4d6b2a91/main/thumbnail
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+136.83 GET /api/learn/roadmap/invitations
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+138.02 PUT /api/learn/boards/canvas-4d6b2a91/main
+DRAG target {"x":1440,"y":440} from 1223,400 (5 other cards)
+145.9 POST /api/telemetry/client
+146.32 PUT /api/learn/boards/canvas-4d6b2a91/main
+LAYOUT (id x y w h, page px at the final fit) [["b49bc69c",171,382,242,207,"Untitled file  en.md · M"],["8e8b513b",430,386,190,437,"Decision Tree Feature Re"],["fb0d99a0",792,380,190,425,"Decision Tree Traversal "],["a8ef25d8",999,379,190,414,"Searching for the Best T"],["inline-2",798,128,196,224,"Bootstrap Coverage Limit"],["e66db391",1440,440,190,450,"Enter Add to chat Ctrl+L"]]
