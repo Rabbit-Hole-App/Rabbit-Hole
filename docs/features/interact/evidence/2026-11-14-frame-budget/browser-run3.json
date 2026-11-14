@@ -1,0 +1,67 @@
+[
+  {
+    "objects": 30,
+    "svgNodes": 88,
+    "frameMs": {
+      "mean": 10.06,
+      "p95": 15.4,
+      "max": 25.2
+    },
+    "normalizeMs": 2.68,
+    "renderMs": 6.95,
+    "layoutMs": 0.42,
+    "toNextFrameMs": 6.69
+  },
+  {
+    "objects": 60,
+    "svgNodes": 168,
+    "frameMs": {
+      "mean": 9.01,
+      "p95": 12.6,
+      "max": 12.9
+    },
+    "normalizeMs": 2.35,
+    "renderMs": 6.24,
+    "layoutMs": 0.41,
+    "toNextFrameMs": 7.65
+  },
+  {
+    "objects": 100,
+    "svgNodes": 275,
+    "frameMs": {
+      "mean": 13.68,
+      "p95": 22.6,
+      "max": 43.9
+    },
+    "normalizeMs": 3.88,
+    "renderMs": 9.16,
+    "layoutMs": 0.64,
+    "toNextFrameMs": 4.57
+  },
+  {
+    "objects": 130,
+    "svgNodes": 355,
+    "frameMs": {
+      "mean": 27.42,
+      "p95": 51,
+      "max": 57.7
+    },
+    "normalizeMs": 7.36,
+    "renderMs": 19.08,
+    "layoutMs": 0.98,
+    "toNextFrameMs": 2.67
+  },
+  {
+    "objects": 160,
+    "svgNodes": 435,
+    "frameMs": {
+      "mean": 16.08,
+      "p95": 29,
+      "max": 32.5
+    },
+    "normalizeMs": 5.06,
+    "renderMs": 10.22,
+    "layoutMs": 0.79,
+    "toNextFrameMs": 3.56
+  }
+]

@@ -1,0 +1,28 @@
+diff --git a/packages/web/src/animation-scene.js b/packages/web/src/animation-scene.js
+index 875b9946e..2f0ab3cd9 100644
+--- a/packages/web/src/animation-scene.js
++++ b/packages/web/src/animation-scene.js
+@@ -281,7 +281,7 @@ const phase = (event, time) => {
+ // learner's persisted canvas. One leading slash, no scheme, no traversal.
+ const SAME_ORIGIN = /^\/[A-Za-z0-9._~\-/]*$/;
+ 
+-export function validateScene(raw) {
++export function validateScene(raw, { maxOnScreen = 60 } = {}) { // maxOnScreen: a program card's approved per-frame object budget (explain-program/frame-budget.js), 60 for every other scene
+   // Computed from the scene AS AUTHORED - raw.derived and every $derive
+   // marker - before resolveDerived below flattens them away. See scene-
+   // derive.js's own comment: an object here is one whose values are derived
+@@ -317,7 +317,7 @@ export function validateScene(raw) {
+   const parts = [...new Set(scene.objects.map(object => object.part).filter(part => part !== undefined))];
+   for (const part of parts.length ? parts : [undefined]) {
+     const onScreen = scene.objects.filter(object => object.part === undefined || object.part === part).length;
+-    if (onScreen > 60) throw new Error(`Invalid animation at objects: ${onScreen} objects on screen at once${part === undefined ? '' : ` on part ${part + 1}`} (at most 60)`);
++    if (onScreen > maxOnScreen) throw new Error(`Invalid animation at objects: ${onScreen} objects on screen at once${part === undefined ? '' : ` on part ${part + 1}`} (at most ${maxOnScreen})`);
+   }
+   const byId = new Map(scene.objects.map(object => [object.id, object]));
+   const ids = new Set(byId.keys());
+diff --git a/packages/web/src/explain-program/frame.js b/packages/web/src/explain-program/frame.js
+--- a/packages/web/src/explain-program/frame.js
++++ b/packages/web/src/explain-program/frame.js
+@@ -108,3 +108,3 @@ export function normalizeFrame(raw, manifest = null) {
+-    const scene = validateScene({ id: 'explain-program', width: frame.width, height: frame.height, duration: 1, objects: frame.objects.map(object => sceneObject(object, frame.height)), timeline: [], allowFigures: true });
++    const scene = validateScene({ id: 'explain-program', width: frame.width, height: frame.height, duration: 1, objects: frame.objects.map(object => sceneObject(object, frame.height)), timeline: [], allowFigures: true }, { maxOnScreen: manifest?.frameObjects ?? 60 });
