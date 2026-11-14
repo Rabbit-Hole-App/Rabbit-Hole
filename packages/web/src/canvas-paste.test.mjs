@@ -88,3 +88,18 @@ test('the Markdown card: a code block Copy marks the clipboard as code, an equat
   assert.match(canvas, /data-paste-url-choice="tab"[\s\S]{0,520}Open in new tab/);
   assert.match(canvas, /kind === 'mermaid' \|\| kind === 'equation'\) \{ event\.preventDefault\(\); pasteRichRef\.current\(kind, text\)/);
 });
+
+// Owner 2026-11-14: a paste lands where the pointer is, not at the top of the column.
+test('every canvas paste is placed at the pointer when it is over the canvas', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const canvas = await readFile(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8'), page = await readFile(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /const cursorAt = \(\) => \{[\s\S]{0,400}return local\(point\);/, 'the pointer in world coordinates, null when it is off the canvas');
+  assert.match(canvas, /pasteTextRef\.current = \(text, at = null\) => \{[\s\S]{0,80}const center = at \|\| cursorAt\(\) \|\| viewCenter\(\)/, 'text');
+  assert.match(canvas, /const at = cursorAt\(\);[\s\S]{0,200}insertAt\(block, at\)[\s\S]{0,400}newEquation\(at \|\| viewCenter\(\)\)/, 'Mermaid and equation');
+  assert.match(canvas, /dropFilesRef\.current\(images, cursorAt\(\)\)/, 'an image');
+  assert.match(canvas, /pasteCodeRef\.current\(text, cursorAt\(\)\)/, 'code');
+  assert.match(canvas, /setUrlPaste\(\{ text: text\.trim\(\), back: active, at: cursorAt\(\) \}\)/, 'a pasted link');
+  assert.match(canvas, /link: true, at: local\(event\) \}/, 'a clicked link places its card at the click');
+  assert.match(canvas, /addWebpage\(chosen\.text, chosen\.at\)/);
+  assert.match(page, /const pasteCode = \(text, at = null\) =>[\s\S]{0,400}kind: 'paste', at, copy/, 'the Code card or notebook dialog keeps the point');
+});

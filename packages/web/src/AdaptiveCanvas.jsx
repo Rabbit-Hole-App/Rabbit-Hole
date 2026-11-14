@@ -2935,22 +2935,43 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const pasteIdsRef = useRef(pasteIds);
   // Pasted text lands as one text card at the view's centre, as Insert text does, already written.
   const pasteTextRef = useRef(null);
-  pasteTextRef.current = text => {
+  pasteTextRef.current = (text, at = null) => {
     snapshot();
-    const center = viewCenter();
+    const center = at || cursorAt() || viewCenter();
     setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'text', x: center.x - 210, y: center.y - 16, w: 420, text: text.trim(), color, opacity, level }]);
   };
-  // Pasted Mermaid source is a Mermaid card and one pasted $$...$$ equation an equation card, placed where the learner is looking and selected.
+  // A paste lands where the pointer is (owner 2026-11-14), not at the top of the column: the last pointer position, in world coordinates, while it is over the
+  // canvas; null when the pointer is elsewhere, and the paste then lands where the learner is looking, as before.
+  const pointerRef = useRef(null);
+  useEffect(() => {
+    const move = event => { pointerRef.current = { clientX: event.clientX, clientY: event.clientY }; };
+    window.addEventListener('pointermove', move, { passive: true });
+    return () => window.removeEventListener('pointermove', move);
+  }, []);
+  const cursorAt = () => {
+    const point = pointerRef.current, box = surface.current?.getBoundingClientRect();
+    if (!point || !box || point.clientX < box.left || point.clientX > box.right || point.clientY < box.top || point.clientY > box.bottom) return null;
+    return local(point);
+  };
+  // A card at a world point (its column slot nearest that height, as a drop finds it), else where the learner is looking.
+  const insertAt = (block, at) => {
+    if (!at) return insertAtView(block);
+    const index = flowIndexAt(at.y);
+    setBlocks(previous => [...previous.slice(0, index), block, ...previous.slice(index)]);
+    return revealAfter(block.id);
+  };
+  // Pasted Mermaid source is a Mermaid card and one pasted $$...$$ equation an equation card, placed at the pointer and selected.
   const pasteRichRef = useRef(null);
   pasteRichRef.current = (kind, text) => {
     snapshot();
+    const at = cursorAt();
     if (kind === 'mermaid') {
       const block = { ...BLOCK_TYPES.mermaid.sample(), title: 'Diagram', code: mermaidOf(text), showSource: false };
-      insertAtView(block);
+      insertAt(block, at);
       setSelection([block.id]);
       return;
     }
-    const item = { ...newEquation(viewCenter()), latex: equationOf(text), fresh: false };
+    const item = { ...newEquation(at || viewCenter()), latex: equationOf(text), fresh: false };
     setItems(previous => [...previous, item]);
     selectedRef.current = [item.id];
     setSelection([item.id]);
@@ -2962,14 +2983,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Add webpage card (WebpageCard.jsx): placed where the learner is looking, capturing; the card makes the one capture request.
   const [urlPaste, setUrlPaste] = useState(null);
   const [webpageAsk, setWebpageAsk] = useState(null);
-  const addWebpage = url => {
+  const addWebpage = (url, at = null) => {
     if (readOnlyRef.current || localCopyRef.current || !isWebUrl(url)) return null;
     let host = url;
     try { host = new URL(url).hostname; } catch { /* isWebUrl parsed it */ }
     const id = crypto.randomUUID();
     askCapture(id);
     snapshot();
-    insertAtView({ id, type: 'webpage', dx: 0, dy: 0, url, title: host, pending: { manifestId: null, lineage: null, status: 'capturing', reason: null, startedAt: Date.now() }, failure: null, scrollTop: 0, scrollLocked: false });
+    insertAt({ id, type: 'webpage', dx: 0, dy: 0, url, title: host, pending: { manifestId: null, lineage: null, status: 'capturing', reason: null, startedAt: Date.now() }, failure: null, scrollTop: 0, scrollLocked: false }, at);
     setSelection([id]);
     return id;
   };
@@ -2984,7 +3005,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setUrlPaste(null);
     chosen?.back?.focus?.();
     if (!chosen) return;
-    if (choice === 'card') addWebpage(chosen.text); else if (choice === 'text') pasteTextRef.current(chosen.text); else if (choice === 'tab') window.open(chosen.text, '_blank', 'noopener,noreferrer');
+    if (choice === 'card') addWebpage(chosen.text, chosen.at); else if (choice === 'text') pasteTextRef.current(chosen.text, chosen.at); else if (choice === 'tab') window.open(chosen.text, '_blank', 'noopener,noreferrer');
   };
   const pasteCodeRef = useRef(onPasteCode);
   pasteCodeRef.current = onPasteCode;
@@ -4180,11 +4201,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const code = !!pasteCodeRef.current && (!!copiedCode(() => sessionStorage, text) || looksLikeCode(text));
       const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current && !localCopyRef.current, rich: !readOnlyRef.current && !localCopyRef.current });
       // One URL asks first (webcard brief): Paste as text or Add webpage card; nothing is placed or fetched until a choice.
-      if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active }); return; }
-      if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
+      if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active, at: cursorAt() }); return; }
+      if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images, cursorAt()); return; }
       if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true)) { event.preventDefault(); return; }
       if (kind === 'mermaid' || kind === 'equation') { event.preventDefault(); pasteRichRef.current(kind, text); return; }
-      if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text); return; }
+      if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text, cursorAt()); return; }
       if (kind === 'text') { event.preventDefault(); pasteTextRef.current(text); }
     };
     window.addEventListener('keydown', key, true);
@@ -6276,7 +6297,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (!link || event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || readOnlyRef.current || localCopyRef.current) return;
         event.preventDefault();
         event.stopPropagation();
-        setUrlPaste({ text: link.getAttribute('href'), back: null, link: true });
+        setUrlPaste({ text: link.getAttribute('href'), back: null, link: true, at: local(event) });
       }}
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.

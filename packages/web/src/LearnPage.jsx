@@ -867,9 +867,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // Pasted code (AdaptiveCanvas paste, canvas-paste.js; repository-browser.md "Files in Learn"): the same Add to canvas dialog,
   // Code card or Jupyter notebook, before anything is placed - where the learner is looking. Text copied from a repository file
   // keeps its file's name, path and language; Cancel or Esc places nothing; nothing runs, installs or asks a model.
-  const pasteCode = text => {
+  const pasteCode = (text, at = null) => {
     const copy = copiedCode(() => sessionStorage, text);
-    setImports(queue => [...queue, { id: crypto.randomUUID(), file: new File([text], pasteName(copy), { type: 'text/plain' }), kind: 'paste', at: null, copy }]);
+    setImports(queue => [...queue, { id: crypto.randomUUID(), file: new File([text], pasteName(copy), { type: 'text/plain' }), kind: 'paste', at, copy }]);
   };
   // Ask in chat on lines in the Files panel (RepositoryPage small:code-card; repository-browser.md "Files in Learn", owner
   // 2026-10-08): the lines become a Code card - the paste dialog's Code card (pasteBlock), its file, lines and language kept
