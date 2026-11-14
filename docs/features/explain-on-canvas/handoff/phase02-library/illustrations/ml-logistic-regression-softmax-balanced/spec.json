@@ -1,33 +1,89 @@
 {
   "version": 1,
   "diagram": {
-    "kind": "bar-chart",
-    "variant": "grouped",
+    "kind": "panels",
     "title": "Scores become a distribution",
-    "unit": "value",
-    "categories": [
-      "Class 0",
-      "Class 1",
-      "Class 2"
+    "caption": "Illustrative values, rounded to two places. Class 0 keeps the largest share.",
+    "shared": [
+      "classes"
     ],
-    "series": [
+    "panels": [
       {
-        "label": "Raw score",
-        "values": [
-          2,
-          1,
-          0
-        ]
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Raw scores",
+          "bars": [
+            {
+              "label": "Class 0",
+              "value": 2
+            },
+            {
+              "label": "Class 1",
+              "value": 1
+            },
+            {
+              "label": "Class 2",
+              "value": 0.1
+            }
+          ]
+        }
       },
       {
-        "label": "Probability",
-        "values": [
-          0.665,
-          0.245,
-          0.09
-        ]
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Powers of e",
+          "bars": [
+            {
+              "label": "Class 0",
+              "value": 7.39
+            },
+            {
+              "label": "Class 1",
+              "value": 2.72
+            },
+            {
+              "label": "Class 2",
+              "value": 1.11
+            }
+          ],
+          "caption": "Sum $= 11.21$"
+        }
+      },
+      {
+        "diagram": {
+          "kind": "bar-chart",
+          "variant": "stacked",
+          "title": "Shares of one whole",
+          "unit": "probability",
+          "bars": [
+            {
+              "label": "Class 0",
+              "value": 0.66
+            },
+            {
+              "label": "Class 1",
+              "value": 0.24
+            },
+            {
+              "label": "Class 2",
+              "value": 0.1
+            }
+          ],
+          "total": 1
+        }
       }
     ],
-    "caption": "Illustrative values; probabilities are rounded. Their unrounded sum is 1; class 0 wins."
+    "links": [
+      {
+        "from": 0,
+        "to": 1,
+        "operation": "$\\exp(z)$"
+      },
+      {
+        "from": 1,
+        "to": 2,
+        "operation": "$\\div 11.21$"
+      }
+    ]
   }
 }

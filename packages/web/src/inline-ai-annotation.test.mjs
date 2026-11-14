@@ -118,6 +118,8 @@ const READERS = {
   'web/src/tutor-diagrams/tensor-layout.js': 'renderer-local transformation links',
   'web/src/tutor-diagrams/token-links-spec.js': 'weighted links between tokens inside a diagram',
   'web/src/tutor-diagrams/teaching-layouts.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
+  'web/src/tutor-diagrams/ml-composition-layouts.js': 'TutorDiagram panels links (arrow and operation between neighbouring panels), not board links',
+  'web/src/tutor-diagrams/topic-logistic-regression-references.js': 'the softmax panels reference’s links between panels, not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
   const root = new URL('../../', import.meta.url);

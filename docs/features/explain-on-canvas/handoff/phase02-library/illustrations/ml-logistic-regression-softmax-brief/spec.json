@@ -1,23 +1,63 @@
 {
   "version": 1,
   "diagram": {
-    "kind": "bar-chart",
-    "title": "The largest probability wins",
-    "unit": "probability",
-    "bars": [
+    "kind": "panels",
+    "title": "Scores become probabilities",
+    "caption": "Illustrative values; probabilities are rounded and add up to 1. Class 0 wins.",
+    "shared": [
+      "classes"
+    ],
+    "panels": [
       {
-        "label": "Class 0",
-        "value": 0.665
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Raw scores",
+          "bars": [
+            {
+              "label": "Class 0",
+              "value": 2
+            },
+            {
+              "label": "Class 1",
+              "value": 1
+            },
+            {
+              "label": "Class 2",
+              "value": 0.1
+            }
+          ]
+        }
       },
       {
-        "label": "Class 1",
-        "value": 0.245
-      },
-      {
-        "label": "Class 2",
-        "value": 0.09
+        "diagram": {
+          "kind": "bar-chart",
+          "variant": "stacked",
+          "title": "Shares of one whole",
+          "unit": "probability",
+          "bars": [
+            {
+              "label": "Class 0",
+              "value": 0.66
+            },
+            {
+              "label": "Class 1",
+              "value": 0.24
+            },
+            {
+              "label": "Class 2",
+              "value": 0.1
+            }
+          ],
+          "total": 1
+        }
       }
     ],
-    "caption": "Illustrative values; rounded probabilities. Predict class 0."
+    "links": [
+      {
+        "from": 0,
+        "to": 1,
+        "operation": "softmax"
+      }
+    ]
   }
 }

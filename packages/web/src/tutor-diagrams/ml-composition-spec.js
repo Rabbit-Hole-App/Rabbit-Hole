@@ -12,6 +12,14 @@ export function createShapes({ z, titled, text, id, itemList, leafDiagram, panel
       panels: z.array(z.strictObject({ heading: text(40), diagram: panelDiagram })).min(2).max(3).optional(),
       sharedAxes: z.array(z.enum(['x', 'y'])).min(1).max(2).optional(),
     }),
+    // panels: two or three child diagrams left to right, with an arrow and an operation between neighbours. The child union is the one the
+    // comparison panels use, so a panels card can never hold another composition.
+    z.strictObject({
+      ...titled, kind: z.literal('panels'),
+      panels: z.array(z.strictObject({ label: text(40).optional(), diagram: panelDiagram })).min(2).max(3),
+      links: z.array(z.strictObject({ from: z.int().min(0).max(1), to: z.int().min(1).max(2), operation: text(24) })).max(2).optional(),
+      shared: z.array(z.enum(['classes', 'colours', 'axis'])).min(1).max(3).optional(),
+    }),
     z.strictObject({
       ...titled, kind: z.literal('transformation'), variant: z.literal('visual').optional(),
       before: z.union([itemList, visualState]), after: z.union([itemList, visualState]), operation: text(72),
@@ -101,7 +109,30 @@ function validateTransformation(diagram, issue) {
   if ([...after].some(id => !covered.has(id))) issue(['identity', 'mappings'], 'Every output identity needs an explicit mapping');
 }
 
+function validatePanels(diagram, issue) {
+  const { panels, links = [], shared = [] } = diagram;
+  const seen = new Set();
+  links.forEach(({ from, to }, index) => {
+    if (to !== from + 1 || to >= panels.length) issue(['links', index], 'A link joins two neighbouring panels, from one to the next');
+    if (seen.has(from)) issue(['links', index], 'Each pair of neighbouring panels has at most one link');
+    seen.add(from);
+  });
+  if (new Set(shared).size !== shared.length) issue(['shared'], 'Declare each shared item only once');
+  // Only what the renderer can keep shared is accepted: a silent no-op would let a card claim a match it does not draw.
+  if (shared.some(item => item !== 'axis') && panels.some(panel => panel.diagram.kind !== 'bar-chart')) {
+    issue(['shared'], 'Shared classes and colours apply to bar charts: every panel must be a bar chart');
+  }
+  if (shared.includes('axis')) {
+    const first = panels[0].diagram;
+    panels.forEach(({ diagram: child }, index) => {
+      if (child.kind !== 'coordinate-plot' || first.kind !== 'coordinate-plot') issue(['panels', index, 'diagram'], 'A shared axis requires coordinate plots in every panel');
+      else if (!sameAxis(first.x, child.x) || !sameAxis(first.y, child.y)) issue(['panels', index, 'diagram'], 'A shared axis must have the same label, range, unit and scale');
+    });
+  }
+}
+
 export function validate(diagram, issue) {
+  if (diagram.kind === 'panels') validatePanels(diagram, issue);
   if (diagram.kind === 'comparison') validateComparison(diagram, issue);
   if (diagram.kind === 'transformation') validateTransformation(diagram, issue);
 }
@@ -109,6 +140,11 @@ export function validate(diagram, issue) {
 // Child text and descriptions are collected recursively by the shared reader.
 // These helpers return only composition-owned metadata to avoid double counting.
 export function describe(diagram) {
+  if (diagram.kind === 'panels') return [
+    ...diagram.panels.map((panel, index) => `Panel ${index + 1}${panel.label ? `: ${panel.label}` : ''}`),
+    ...(diagram.links ?? []).map(link => `Panel ${link.from + 1} → panel ${link.to + 1}: ${link.operation}`),
+    ...(diagram.shared?.length ? [`Shared: ${diagram.shared.join(', ')}`] : []),
+  ];
   if (diagram.kind === 'comparison' && diagram.variant === 'panels') return [
     ...diagram.panels.map(panel => `Panel: ${panel.heading}`),
     ...(diagram.sharedAxes?.length ? [`Shared axes: ${diagram.sharedAxes.join(', ')}`] : []),
@@ -123,6 +159,9 @@ export function describe(diagram) {
 
 export function visibleText(diagram) {
   const own = [diagram.title, diagram.caption];
+  if (diagram.kind === 'panels') return [...own,
+    ...diagram.panels.filter(panel => panel.label && panel.label !== panel.diagram.title).map(panel => panel.label),
+    ...(diagram.links ?? []).map(link => link.operation)];
   // A heading equal to the child title is drawn once and counted by that child.
   if (diagram.kind === 'comparison' && diagram.variant === 'panels') return [...own,
     ...diagram.panels.filter(panel => panel.heading !== panel.diagram.title).map(panel => panel.heading)];

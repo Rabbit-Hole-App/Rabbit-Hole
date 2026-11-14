@@ -214,22 +214,35 @@ reference({ id: 'ml-logistic-regression-linear-separator', keywords: ['decision 
 (() => {
 const lr3d = data.derived();
 const lr3v = lr3d.display;
-function lr3Softmax(depth) {
+// Softmax as panels: scores, their exponentials, then one stacked bar of shares (the bar is the whole, 1). Shared classes give a class one colour in every panel.
+function lr3Panels(title, caption, shown, steps) {
   const s = lr3v.softmax;
-  if (depth === 'overview') return {
-    kind: 'bar-chart', title: 'The largest probability wins', unit: 'probability',
-    bars: s.classes.map((c, i) => ({ label: `Class ${c}`, value: s.probabilities[i] })),
-    caption: `Illustrative values; rounded probabilities. Predict class ${s.winner}.`,
-  };
-  return {
-    kind: 'bar-chart', variant: 'grouped', title: 'Scores become a distribution', unit: 'value',
-    categories: s.classes.map(c => `Class ${c}`),
-    series: [{ label: 'Raw score', values: s.scores }, { label: 'Probability', values: s.probabilities }],
-    caption: depth === 'deep'
-      ? `Illustrative values; $p_k=e^{z_k}/Σ_j e^{z_j}$. For class ${s.winner}, $p_{${s.winner}}≈${s.exponentials[s.winner]}/${s.denominator}≈${s.probabilities[s.winner]}$. Rounded display; unrounded total ${s.total}.`
-      : `Illustrative values; probabilities are rounded. Their unrounded sum is ${s.total}; class ${s.winner} wins.`,
-  };
+  const bars = values => s.classes.map((c, i) => ({ label: `Class ${c}`, value: values[i] }));
+  const scores = { kind: 'bar-chart', title: 'Raw scores', bars: bars(shown.scores) };
+  const powers = { kind: 'bar-chart', title: 'Powers of e', bars: bars(shown.exponentials), caption: `Sum $= ${shown.denominator}$` };
+  const shares = { kind: 'bar-chart', variant: 'stacked', title: 'Shares of one whole', unit: 'probability', bars: bars(shown.probabilities), total: lr3v.constants.one };
+  return { kind: 'panels', title, caption, shared: ['classes'],
+    panels: steps ? [{ diagram: scores }, { diagram: powers }, { diagram: shares }]
+      : [{ diagram: scores }, { diagram: shares }],
+    links: steps ? [{ from: 0, to: 1, operation: '$\\exp(z)$' }, { from: 1, to: 2, operation: `$\\div ${shown.denominator}$` }] : [{ from: 0, to: 1, operation: 'softmax' }] };
 }
+function lr3Softmax(depth) {
+  const s = lr3v.softmax, shown = s.shown;
+  if (depth === 'overview') return lr3Panels('Scores become probabilities', `Illustrative values; probabilities are rounded and add up to ${lr3v.constants.one}. Class ${s.winner} wins.`, shown, false);
+  return lr3Panels('Scores become a distribution', depth === 'deep'
+    ? `Illustrative values; $p_k=e^{z_k}/Σ_j e^{z_j}$, so $p_{${s.winner}}≈${shown.exponentials[s.winner]}/${shown.denominator}≈${shown.probabilities[s.winner]}$ (rounded).`
+    : `Illustrative values, rounded to two places. Class ${s.winner} keeps the largest share.`, shown, true);
+}
+// The one-diagram variant sent to the author in place of the panels (reference-single-variants.js): scores and probabilities side by side in one grouped chart.
+function lr3SoftmaxSingle() {
+  const s = lr3v.softmax;
+  return { useWhen: 'Show raw multiclass scores next to their normalized softmax probabilities in one chart, with the largest score retaining the largest probability. Not the binary sigmoid.',
+    spec: spec({ kind: 'bar-chart', variant: 'grouped', title: 'Scores become a distribution', unit: 'value',
+      categories: s.classes.map(c => `Class ${c}`), series: [{ label: 'Raw score', values: s.shown.scores }, { label: 'Probability', values: s.shown.probabilities }],
+      caption: `Illustrative values, rounded to two places. Class ${s.winner} keeps the largest share.` }) };
+}
+// Deep only: every score raised by one. Each exponential is multiplied by e, the sum grows the same way, and the shares come out identical.
+const lr3SoftmaxRaised = () => lr3Panels('Adding one to every score changes nothing', 'Every score plus 1: each $e^z$ is multiplied by $e$, so the shares stay the same.', lr3v.softmax.shown.raised, true);
 function lr3Imbalance(depth) {
   const m = lr3v.imbalance;
   if (depth === 'overview') return {
@@ -286,11 +299,12 @@ function lr3Threshold(depth) {
       : `Same ${middle.n} cases. Raising the threshold increases precision and reduces recall. Metrics are rounded.`,
   };
 }
-return { references: [reference({ id: 'ml-logistic-regression-softmax', keywords: ['softmax', 'probabilities sum', 'multi class'], useWhen: 'Show raw multiclass scores becoming normalized softmax probabilities, with the largest score retaining the largest probability. Not the binary sigmoid.', overview: { spec: spec(lr3Softmax('overview')) }, standard: { spec: spec(lr3Softmax('standard')) }, deep: { spec: spec(lr3Softmax('deep')) } }),
+return { references: [reference({ id: 'ml-logistic-regression-softmax', keywords: ['softmax', 'probabilities sum', 'multi class'], useWhen: 'Show raw multiclass scores becoming normalized softmax probabilities, with the largest score retaining the largest probability. Not the binary sigmoid.', overview: { spec: spec(lr3Softmax('overview')) }, standard: { spec: spec(lr3Softmax('standard')) }, deep: { spec: spec(lr3Softmax('deep')), detailSpec: spec(lr3SoftmaxRaised()) } }),
 reference({ id: 'ml-logistic-regression-accuracy-trap', keywords: ['class imbalance', 'accuracy trap', 'zero recall'], useWhen: 'Explain why an always-negative classifier has high accuracy on an imbalanced dataset while missing every positive case.', overview: { spec: spec(lr3Imbalance('overview')) }, standard: { spec: spec(lr3Imbalance('standard')) }, deep: { spec: spec(lr3Imbalance('deep')) } }),
 reference({ id: 'ml-logistic-regression-confusion-matrix', keywords: ['confusion matrix', 'true positive', 'false negative'], useWhen: 'Place the supplied probability predictions into actual-by-predicted confusion cells at the fixed threshold, then calculate precision, recall and F-score.', overview: { spec: spec(lr3Confusion('overview')) }, standard: { spec: spec(lr3Confusion('standard')) }, deep: { spec: spec(lr3Confusion('deep')) } }),
-reference({ id: 'ml-logistic-regression-threshold-tradeoff', keywords: ['threshold tuning', 'precision recall', 'tradeoff'], useWhen: 'Compare precision and recall as the probability threshold changes on the same supplied predictions. Use threshold on the horizontal axis, not a ROC curve or a sigmoid.', overview: { spec: spec(lr3Threshold('overview')) }, standard: { spec: spec(lr3Threshold('standard')) }, deep: { spec: spec(lr3Threshold('deep')) } })], derived: () => ({}) };
+reference({ id: 'ml-logistic-regression-threshold-tradeoff', keywords: ['threshold tuning', 'precision recall', 'tradeoff'], useWhen: 'Compare precision and recall as the probability threshold changes on the same supplied predictions. Use threshold on the horizontal axis, not a ROC curve or a sigmoid.', overview: { spec: spec(lr3Threshold('overview')) }, standard: { spec: spec(lr3Threshold('standard')) }, deep: { spec: spec(lr3Threshold('deep')) } })], derived: () => ({}), softmaxSingle: lr3SoftmaxSingle() };
 })(),
 ];
 export const references = Object.freeze(parts.flatMap(part => part.references));
+export const softmaxSingleSpec = parts.find(part => part.softmaxSingle).softmaxSingle;
 export function derived() { return Object.assign({}, data.derived(), ...parts.map(part => part.derived?.() ?? {})); }

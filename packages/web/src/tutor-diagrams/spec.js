@@ -147,7 +147,7 @@ const diagramShape = z.discriminatedUnion('kind', [...shapeMap.values()]);
 const shape = z.strictObject({ version: z.literal(1), diagram: diagramShape });
 
 function childDiagrams(diagram) {
-  if (diagram.kind === 'comparison' && diagram.variant === 'panels') return (diagram.panels ?? []).map((p, index) => ({ diagram: p.diagram, path: ['panels', index, 'diagram'] }));
+  if ((diagram.kind === 'comparison' && diagram.variant === 'panels') || diagram.kind === 'panels') return (diagram.panels ?? []).map((p, index) => ({ diagram: p.diagram, path: ['panels', index, 'diagram'] }));
   if (diagram.kind === 'transformation' && diagram.variant === 'visual') return ['before', 'after'].filter(side => diagram[side]?.diagram).map(side => ({ diagram: diagram[side].diagram, path: [side, 'diagram'] }));
   return [];
 }
@@ -364,6 +364,18 @@ const { $schema, ...jsonSchema } = z.toJSONSchema(shape, { target: 'draft-7', io
 const flowNode = (jsonSchema.properties.diagram.oneOf ?? jsonSchema.properties.diagram.anyOf).find(s => s.properties.kind.const === 'flow').properties.nodes.items;
 delete flowNode.properties.title;
 export const tutorDiagramJsonSchema = jsonSchema;
+
+// What a model author is asked for. The parser accepts `panels` and a stacked bar's `total`, the renderer draws them, but they stay out of the author's
+// schema until a deliberate step adds them (tier 2): this copy omits the panels kind and the total field, so the author sees the kinds it saw before.
+const authorOnlyFree = structuredClone(jsonSchema);
+const authorUnion = authorOnlyFree.properties.diagram, authorKey = authorUnion.oneOf ? 'oneOf' : 'anyOf';
+authorUnion[authorKey] = authorUnion[authorKey].filter(branch => branch.properties.kind.const !== 'panels');
+(function dropTotal(node) {
+  if (!node || typeof node !== 'object') return;
+  if (node.properties?.kind?.const === 'bar-chart') delete node.properties.total;
+  Object.values(node).forEach(dropTotal);
+})(authorOnlyFree);
+export const tutorDiagramAuthorJsonSchema = authorOnlyFree;
 
 export function parseTutorDiagram(value) {
   if (typeof value === 'string') {

@@ -40,7 +40,7 @@ function authoredText(value, field) {
 test('the depth gallery has one Brief, Balanced and Detailed spec for every supported kind', () => {
   const schema = tutorDiagramJsonSchema.properties.diagram;
   const kinds = (schema.anyOf ?? schema.oneOf).map(shape => shape.properties.kind.const);
-  assert.equal(kinds.length, 24);
+  assert.equal(kinds.length, 25);
   assert.deepEqual(depthGallery.map(entry => entry.kind).sort(), kinds.sort());
   for (const entry of depthGallery) {
     assert.deepEqual(Object.keys(entry).sort(), ['deep', 'kind', 'overview', 'standard']);

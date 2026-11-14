@@ -71,10 +71,11 @@ function contextText(context) {
 function referenceVariants(ref, required) {
   const diagram = ref.spec.diagram;
   if (!required.size || required.has(diagram.kind)) return [ref];
-  const parts = diagram.kind === 'comparison' && diagram.variant === 'panels' ? diagram.panels
+  const parts = diagram.kind === 'panels' || (diagram.kind === 'comparison' && diagram.variant === 'panels') ? diagram.panels
     : diagram.kind === 'transformation' && diagram.variant === 'visual' ? [diagram.before, diagram.after] : [];
   return parts.flatMap((part, partIndex) => required.has(part.diagram.kind) ? [{
     ...ref, id: `${ref.id}--part-${partIndex + 1}`, sourceId: ref.id, partIndex,
+    ...(diagram.kind === 'panels' ? { detailSpec: undefined } : {}), // a panels reference's second figure is panels too: the author is not shown that kind yet
     useWhen: `${ref.useWhen} This is the ${part.heading ?? part.label} panel. Use its ${part.diagram.kind} kind directly when that kind is required.`,
     spec: { version: ref.spec.version, diagram: part.diagram },
   }] : []);
@@ -136,8 +137,10 @@ export function selectWithSteer({ prompt = '', context = '', requiredKinds = [],
 // panel's keywords, so selection and its bench are unchanged: the swap happens after the pick. A leaf excerpt (sourceId) is never swapped.
 const singleByPanel = new Map(singleDiagramReferences.map(single => [single.panelReferenceId, single]));
 export function preferSingleVariants(references, { plannedKind = null, requiredKinds = [] } = {}) {
-  if (plannedKind === 'comparison' || plannedKind === 'transformation') return references;
+  const whole = plannedKind === 'comparison' || plannedKind === 'transformation';
   return references.map(ref => {
+    // A `panels` reference is never sent whole: the author's schema does not carry that kind yet, so it always goes as its one-diagram variant.
+    if (whole && ref.spec.diagram.kind !== 'panels') return ref;
     const single = ref.sourceId ? null : singleByPanel.get(ref.id);
     return !single || requiredKinds.includes(ref.spec.diagram.kind) ? ref : { id: single.id, useWhen: single.useWhen, spec: parseTutorDiagram(single.spec) };
   });

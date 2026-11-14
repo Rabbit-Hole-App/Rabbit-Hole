@@ -127,5 +127,7 @@ test('a steered request sends its steered reference alone (plus the shape exampl
   const prepared = prepareArtifactAuthorRequest(FAST, planWithReferenceKind(request('explain softmax', planFromAnswers(answers('flow')))));
   assert.equal(prepared.diagramReferences.length, 2, 'the shape example and the steered reference');
   assert.match(prepared.diagramReferences[0].id, /^shape-/);
-  assert.equal(prepared.diagramReferences[1].id, 'ml-logistic-regression-softmax');
+  // The softmax reference is panels: the author gets its one-diagram variant, never the panels kind (not in the author's schema yet).
+  assert.equal(prepared.diagramReferences[1].id, 'ml-logistic-regression-softmax-single');
+  assert.equal(prepared.diagramReferences[1].spec.diagram.kind, 'bar-chart');
 });
