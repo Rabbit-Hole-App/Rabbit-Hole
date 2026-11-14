@@ -42,8 +42,8 @@ const LIMITS = [
   'Every word is at most the number of characters its key states.',
 ];
 
-export function fillSystem(depth, schemaInfo) {
-  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, '', '## Formulas', GRAMMAR, ...RULES, '', 'Return the brief only: no prose.'].join('\n');
+export function fillSystem(depth, schemaInfo, describe = familyDescription) {
+  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, describe(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, '', '## Formulas', GRAMMAR, ...RULES, '', 'Return the brief only: no prose.'].join('\n');
 }
 
 
