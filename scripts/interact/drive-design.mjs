@@ -125,10 +125,10 @@ outer: for (let n = 1; n <= runs; n++) for (const depth of depths) {
     for (let t = 0; t < 120000; t += 3000) { const d = await detailOf(r.jobId); if (d?.diagnostics?.bench?.judge || d?.diagnostics?.bench?.error || r.stage !== 'ready') break; await sleep(3000); }
     const led = spawnSync(process.execPath, [join(REPO, 'scripts/interact/ledger.mjs'), '--clone', BASE, '--job', r.jobId, '--board', boardId], { encoding: 'utf8' });
     log(tag, 'ledger:', (led.stdout + led.stderr).trim().slice(0, 200));
-    const row = (await detailOf(r.jobId))?.diagnostics?.ledger ?? null;
+    const det = (await detailOf(r.jobId))?.diagnostics, row = det?.ledger ?? null; r.designFast = det?.designFast ?? null; // firstProblem and lastProblem of a fast design that was refused
     r.ledger = row && Object.fromEntries(['designKind', 'designModel', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'costUsd', 'buildKind', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd'].map(k => [k, row[k]]));
     spent += Math.max(row?.costUsd ?? 0, row?.designCostUsd ?? 0);
-    if (row && row.designKind !== design) { r.failure ??= `the deploy ran the ${row.designKind} design, not ${design}`; stopped = `ledger designKind ${row.designKind} is not ${design}: the clone is not the deploy ${DEPLOY_FILE} says`; }
+    if (row && row.designKind !== design && !(design === 'fast' && row.designFallback === 'after_correction')) /* a fast deploy that fell back to the Opus design is a result, not the wrong deploy */ { r.failure ??= `the deploy ran the ${row.designKind} design, not ${design}`; stopped = `ledger designKind ${row.designKind} is not ${design}: the clone is not the deploy ${DEPLOY_FILE} says`; }
   }
   results.push(r); appendFileSync(`${out}/results.jsonl`, JSON.stringify(r) + '\n'); canvasRecord(results); log(tag, JSON.stringify(r));
   if (stopped) break outer;

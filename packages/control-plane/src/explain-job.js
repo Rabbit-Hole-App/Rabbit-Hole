@@ -215,7 +215,7 @@ export const planProposalFields = job => {
 };
 // The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
 // designFixture: the resolved pinned plan (toss-standard), not the family, so the ledger's fixture column names the card.
-const explainDiagnostics = (job, designFixture = null) => ({ spec: job.spec, ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), ...(job.coverage ? { coverage: job.coverage } : {}), ...(job.history ? { history: job.history, historyDropped: job.historyDropped || 0 } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
+const explainDiagnostics = (job, designFixture = null) => ({ spec: job.spec, ...(job.design?.fast ? { designFast: job.design.fast } : {}), ...(job.program ? { program: job.program, artifact: job.artifact && { ...job.artifact, source: undefined, sourceBytes: job.artifact.source.length } } : {}), ...(job.coverage ? { coverage: job.coverage } : {}), ...(job.history ? { history: job.history, historyDropped: job.historyDropped || 0 } : {}), findings: job.findings, candidates: job.candidates || [], settings: job.settings,
   calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing,
   ...(job.bench ? { bench: job.bench } : {}),
   ...(job.flow && job.approval ? { ledger: ledgerRow({ ...job, plan: job.design?.plan, planHash: job.design?.finalHash, designFixture }) } : {}) });

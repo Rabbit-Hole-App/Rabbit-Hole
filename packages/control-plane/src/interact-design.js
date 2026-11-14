@@ -203,7 +203,7 @@ export async function fastDesign(job, ctx) {
       fast.costUsd += (error.costMicros ?? 0) / 1e6; problems = [(error.problems?.length ? error.problems[0] : `${error.code}: ${error.message}`).toString().slice(0, 300)];
       if (error.sent === false) { fast.firstProblem ??= problems[0]; break; } // nothing was sent (a missing credential): a second call would say the same
     }
-    fast.firstProblem ??= problems[0];
+    fast.firstProblem ??= problems[0]; fast.lastProblem = problems[0];
   }
   return { fast: { ...fast, kind: 'opus', fallback: 'after_correction' } };
 }
