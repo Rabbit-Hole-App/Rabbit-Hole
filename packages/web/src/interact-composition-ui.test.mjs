@@ -244,7 +244,8 @@ test('the program card draws the same Reset through the one ResetButton: on a co
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('./explain-program/ProgramScene.jsx', import.meta.url), 'utf8');
   assert.equal((src.match(/<ResetButton /g) || []).length, 2, 'two draws of the one component: the heading row and the legacy row');
-  assert.match(src, /<div data-interact-heading [^>]*>\s*<h2 [^>]*text-\[17px\] font-\[650\][^>]*>\{composition\.title\}<\/h2>\s*<ResetButton onReset=\{reset\} disabled=\{!changed\} \/>\s*<\/div>/, 'the heading row: the plan title at the left, Reset at the right');
+  assert.match(src, /<div data-interact-heading [^>]*><ResetButton onReset=\{reset\} disabled=\{!changed\} \/><\/div>/, 'the heading row holds Reset at the right and repeats no title (the block header has it)');
+  assert.doesNotMatch(src.slice(src.indexOf('data-interact-heading'), src.indexOf('<div data-program-viewport')), /composition\.title/, 'no repeated title text');
   assert.ok(src.indexOf('<div data-interact-heading') < src.indexOf('<div data-program-viewport'), 'the heading row is above the scene');
   assert.doesNotMatch(src, /corner|absolute top-3|Wrap/, 'the overlay path is gone');
   assert.match(src, /\{!composed && changed && <ResetButton onReset=\{reset\} \/>\}/, 'a composed card has no Reset in its controls row');
