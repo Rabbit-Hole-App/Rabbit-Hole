@@ -300,3 +300,19 @@ test('the production card path: Gemini Flash by the fast chain under the hold, w
   assert.deepEqual(rows[0], { provider: 'google', model: 'gemini-3.5-flash-lite', checkpoint: 'settled' }, 'the call is bound to its own row and checkpoint, priced as Google');
   assert.equal(h.rows('SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE stage = \'generate\' AND payer = \'learner\' AND result_id = (SELECT id FROM learn_step_results ORDER BY created_at LIMIT 1)')[0].n, 1, 'exactly one author operation for the card');
 });
+
+test('the facts call has a valid operation identity and its facts reach the view (found live: a made-up anchor was refused and the wait had no facts)', async t => {
+  const h = await workflow(t);
+  h.script.push(explanation(), table(), explanation(), explanation(), explanation());
+  const view = await started(h);
+  assert.equal((await start(h, view)).status, 200);
+  const roadmapId = view.roadmap.id;
+  h.sqlite.prepare("UPDATE learn_roadmaps SET scope_json = json_remove(scope_json, '$.course.factsTried', '$.course.facts') WHERE id = ?").run(roadmapId);
+  const { ensureFacts } = await import('../src/roadmap/roadmap-course.js');
+  const access = { org: 'team', actorUserId: 'u-alice', actorEmail: 'u-alice@example.test', boardId: h.boards.alice, boardOwnerEmail: 'u-alice@example.test', role: 'owner', payerUserId: 'u-alice', app: 'learn' };
+  const facts = ['Gini impurity was introduced in 1912 by an Italian statistician.', 'A pure node scores zero on both Gini impurity and entropy.', 'Entropy is measured in bits when the logarithm is base two.'];
+  const transport = async () => Response.json({ model: 'gemini-3.5-flash-lite', stop_reason: 'tool_use', usage: { input_tokens: 10, output_tokens: 10 }, content: [{ type: 'tool_use', id: 'tu_1', name: 'submit_facts', input: { facts } }] });
+  assert.deepEqual(await ensureFacts(h.env, access, roadmapId, { transport }), facts);
+  assert.deepEqual((await status(h)).course.facts, facts);
+  assert.equal(h.rows("SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE stage = 'subject' AND checkpoint = 'settled'")[0].n, 1, 'one platform call, on its own row');
+});
