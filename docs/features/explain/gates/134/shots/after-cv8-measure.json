@@ -1,0 +1,9 @@
+{
+ "phase": "after",
+ "requests": [
+  "/api/telemetry/client"
+ ],
+ "ctrlk": {
+  "failed": "locator.waitFor: Timeout 15000ms exceeded."
+ }
+}
