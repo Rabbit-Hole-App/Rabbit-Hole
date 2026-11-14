@@ -12,16 +12,10 @@
   "ml-gpu-matmul": [
     "a"
   ],
-  "ml-logistic-regression-linear-separator": [
-    "a"
-  ],
   "ml-logistic-regression-linear-unbounded": [
     "d"
   ],
   "ml-logistic-regression-log-loss": [
-    "a"
-  ],
-  "ml-logistic-regression-model-pipeline": [
     "a"
   ],
   "ml-robot-arm-pickup": [
@@ -34,6 +28,9 @@
   "ml-what-is-machine-learning-model-choice": [
     "a",
     "d"
+  ],
+  "ml-what-is-machine-learning-workflow": [
+    "e"
   ],
   "ml-word2vec-neural-predictor": [
     "d"
