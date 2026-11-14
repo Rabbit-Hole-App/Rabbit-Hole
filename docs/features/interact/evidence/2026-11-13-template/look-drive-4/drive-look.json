@@ -1,0 +1,58 @@
+[
+  {
+    "i": 0,
+    "title": "Zero velocity. Nonzero acceleration.",
+    "notes": [],
+    "restClock": "?",
+    "atTopClock": "?",
+    "sliderChanged": true,
+    "resetClock": "?",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@?",
+    "firstRun": "Pause@?",
+    "secondStop": "Play@?",
+    "playAgainMoved": true
+  },
+  {
+    "i": 1,
+    "title": "A ball on the Moon still stops at the top.",
+    "notes": [],
+    "restClock": "?",
+    "atTopClock": "?",
+    "sliderChanged": true,
+    "resetClock": "?",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@?",
+    "firstRun": "Pause@?",
+    "secondStop": "@?",
+    "playAgainMoved": true
+  },
+  {
+    "i": 2,
+    "title": "Zero velocity isn’t zero acceleration.",
+    "notes": [],
+    "restClock": "?",
+    "atTopClock": "?",
+    "sliderChanged": true,
+    "resetClock": "?",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@?",
+    "firstRun": "Pause@?",
+    "secondStop": "Play@?",
+    "playAgainMoved": true
+  },
+  {
+    "i": 3,
+    "title": "The ball stops rising. Gravity doesn’t stop.",
+    "notes": [],
+    "restClock": "?",
+    "atTopClock": "?",
+    "sliderChanged": true,
+    "resetClock": "?",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@?",
+    "firstRun": "Pause@?",
+    "secondStop": "@?",
+    "playAgainMoved": true
+  }
+]

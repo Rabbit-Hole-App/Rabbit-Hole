@@ -13,7 +13,9 @@ import { dirname, join } from 'node:path';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const BASE = 'https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev', DEV_CP = 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
-const DEPTHS = [['brief', 'Overview'], ['balanced', 'Standard'], ['detailed', 'Deep']];
+const ALL_DEPTHS = [['brief', 'Overview'], ['balanced', 'Standard'], ['detailed', 'Deep']];
+// LOOK_CANVAS=<canvas name> adds cards to that canvas (its board from look-canvas.json) instead of making a new one; LOOK_DEPTHS=brief picks the depths; LOOK_CARD names the card in the output (the ledge card: LOOK_CARD=Ledge).
+const DEPTHS = (process.env.LOOK_DEPTHS ? process.env.LOOK_DEPTHS.split(',').map(d => ALL_DEPTHS.find(([depth]) => depth === d.trim()) ?? [d.trim(), d.trim()]) : ALL_DEPTHS).map(([depth, name]) => [depth, process.env.LOOK_CARD || name]);
 const PROMPT = '/interactive At the highest point of a vertical throw, is acceleration zero because velocity is zero?'; // the prompt of open-preview.cmd
 const EMAIL = process.env.LOOK_EMAIL || `owner-interact-look-${Date.now().toString(36)}@example.com`, UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };
 const check = process.argv.includes('--check');
@@ -30,10 +32,17 @@ const api = async (method, path, body) => {
   const r = await fetch(`${BASE}${path}`, { method, headers: { ...UA, cookie: `small_session=${session}`, ...(body ? { 'Content-Type': 'application/json', origin: BASE } : {}) }, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, data: await r.json().catch(() => null) };
 };
-const made = await api('POST', '/api/canvases', { title: `Toss look: Overview, Standard, Deep ${Date.now().toString(36)}` });
-const app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
-const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
-const boardId = saved.data?.board_id; if (!boardId) fail(`could not save the canvas board (HTTP ${saved.status}).`);
+const previous = (() => { try { return JSON.parse(readFileSync('C:/s/spec/interact-real/look-canvas.json', 'utf8')); } catch { return null; } })();
+let app, boardId;
+if (process.env.LOOK_CANVAS) {
+  if (previous?.app !== process.env.LOOK_CANVAS) fail('LOOK_CANVAS must be the canvas in look-canvas.json (it holds the board id).');
+  ({ app, boardId } = previous);
+} else {
+  const made = await api('POST', '/api/canvases', { title: `Toss look: Overview, Standard, Deep ${Date.now().toString(36)}` });
+  app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
+  const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
+  boardId = saved.data?.board_id; if (!boardId) fail(`could not save the canvas board (HTTP ${saved.status}).`);
+}
 const url = `${BASE}/apps/${app}`; // never ?board=: on a preview build that opens a separate review board
 mkdirSync('C:/s/spec/interact-real', { recursive: true });
 writeFileSync('C:/s/spec/interact-real/current.json', JSON.stringify({ base: BASE, email: EMAIL, app, boardId, createdAt: new Date().toISOString() }, null, 2)); // ledger.mjs reads the account from here
@@ -100,7 +109,7 @@ for (const [depth, name] of DEPTHS) {
 }
 await browser.close();
 const ready = results.length === DEPTHS.length && results.every(r => r.stage === 'ready');
-writeFileSync('C:/s/spec/interact-real/look-canvas.json', JSON.stringify({ base: BASE, email: EMAIL, app, boardId, createdAt: new Date().toISOString(), scripted: true, jobs: results }, null, 2));
+writeFileSync('C:/s/spec/interact-real/look-canvas.json', JSON.stringify({ base: BASE, email: EMAIL, app, boardId, createdAt: previous && process.env.LOOK_CANVAS ? previous.createdAt : new Date().toISOString(), scripted: true, jobs: [...(process.env.LOOK_CANVAS ? previous.jobs ?? [] : []), ...results] }, null, 2));
 for (const r of results) console.log(`${r.depth.padEnd(8)} -> ${r.card.padEnd(8)} ${r.stage} ${r.jobId} ${r.ms} ms${r.failure ? ` (${r.failure})` : ''}`);
 console.log(ready ? `RESULT OK canvas ${app} board ${boardId} (${EMAIL}): ${url}` : `RESULT FAILED: not all three cards reached ready; canvas ${url}`);
 process.exit(ready ? 0 : 1);
