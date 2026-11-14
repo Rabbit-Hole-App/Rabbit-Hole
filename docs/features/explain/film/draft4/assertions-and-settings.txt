@@ -1,0 +1,24 @@
+DRAFT 4 (take-s5, frame-stepped on a virtual clock, 3840x2160 source -> 854x480, veryfast CRF 23)
+render: NOFREEZE=1 FAST=1.8 TRIM=1.5 REV=3 (holds 1.5 s, waits 3 s, ramp 1.8x outside 1.0x windows); camera moves rendered at 1.0x
+length 95.0 s (script 102.4 s); typing 13.2 s source at 1.0x in 6 stretches (+0.15 s pads) ; typing 45 ms/key prose, 80 ms/key commands
+camera moves: nominal x1.28 + distance (700..1100 ms, overview 1100..1250 ms), same easing and zoom limits
+B6b: three cards dragged, 250-350 px, 24 eased steps, no-overlap check after each drop
+
+TYPED ok 8 chars at 80 ms/key: "/explain"
+TYPED ok 66 chars at 45 ms/key: "how does a decision tree split a two-fea"
+TYPED ok 8 chars at 80 ms/key: "/explain"
+TYPED ok 73 chars at 45 ms/key: "how does a decision tree trace a new poi"
+SEL exact after drag: true
+PILL geometry: gap pill-bottom to selection-top 3 layout px (needs -6..60), pill in view true, selection in view true, selection inside the card's visible area true => ok
+CURSOR on the pill's Ctrl+K button before the click: ok (cursor 512,502; button 475,484 74x37)
+CHECKLIST Ctrl+K window opened from the pill (over highlighted words): {"present":true,"role":"dialog","ariaLabel":"Quick Edit","ariaModal":"false","dataInlineAi":true,"modeCurrent":"explain","modeIsFixedLabel":true,"hasModeDropdown":false,"modeText":"Explain selection","status":"idle"}
+ASSERT the window is the product's own Explain-selection dialog (role=dialog, data-inline-ai, data-inline-mode-current=explain, fixed label, no dropdown): ok
+ASSERT B6 starts from nothing selected (a click on empty canvas at [806,972]; selected cards 0, text selection chars 0, selection toolbar false) => ok
+CHECKLIST Ctrl+K window opened by the chord on the empty canvas: {"present":true,"role":"dialog","ariaLabel":"Quick Edit","modeCurrent":"explain","hasModeDropdown":true,"hasPromptField":true}
+ASSERT B6 window is the empty-canvas Ctrl+K (placeholder prompt field, mode dropdown, no fixed Explain-selection label, no selected card): {"present":true,"hasPrompt":true,"hasDropdown":true,"fixedLabel":false,"selectedCards":0} => ok
+TYPED ok 8 chars at 80 ms/key: "/explain"
+TYPED ok 99 chars at 45 ms/key: "how does Gini impurity change as the fra"
+DRAG Gini Impurity vs Entropy from (1198,156) to (1300,440) size 186x441 planned (1300,440) overlap=false took 1.80 s
+DRAG Bootstrap Coverage Limit from (349,630) to (640,700) size 192x220 planned (640,700) overlap=false took 1.87 s
+DRAG Decision Tree Feature Regions from (470,181) to (360,460) size 186x429 planned (360,460) overlap=false took 1.73 s
+DRAGGED 3 cards: Gini Impurity vs Entropy | Bootstrap Coverage Limit | Decision Tree Feature Regions
