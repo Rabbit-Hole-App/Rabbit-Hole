@@ -1,22 +1,20 @@
 # Geometry lint (RD-3): first run and after RD-2
 
-Two runs of the same lint over every reference at natural width: **before RD-2** (the first run on main `65164f686`, kept in full below) and **after RD-2** (RD-2 + RD-2b: `597d05cd5 RD-2, RD-2b: merge explain/rd-2 (flow decision branches) onto the 144 candidate 5fd37acaa`, merged with the lint at `5aa7057a3`). Nothing in the renderers or references was changed by RD-3.
+Two runs of the same lint over every reference at natural width: **before RD-2** (the first run on main `65164f686`, kept in full below) and **after RD-2** (release 145 candidate `71415b6b8`: RD-2 + RD-2b, this lint, and RD-2c). Nothing in the renderers or references was changed by RD-3.
 
-## After RD-2
+## After RD-2 (and RD-2c)
 
-Violations: **29** in **11** references (before: 31 in 12).
+Violations: **24** in **10** references (before RD-2: 31 in 12).
 
-| Rule | Before RD-2 (violations / references) | After RD-2 (violations / references) |
+| Rule | Before RD-2 (violations / references) | After RD-2 + RD-2c (violations / references) |
 |---|---|---|
 | a | 21 / 8 | 14 / 6 |
 | b | 2 / 1 | 2 / 1 |
 | c | 0 / 0 | 0 / 0 |
 | d | 8 / 6 | 8 / 6 |
-| e | 0 / 0 | 5 / 1 |
+| e | 0 / 0 | 0 / 0 |
 
-**Baseline entries RD-2 removed (2):** `ml-logistic-regression-linear-separator rule a`, `ml-logistic-regression-model-pipeline rule a`.
-
-**Entries that remain or are new (1 new):** `ml-what-is-machine-learning-workflow rule e`.
+**Baseline entries RD-2 removed (2):** `ml-logistic-regression-linear-separator rule a`, `ml-logistic-regression-model-pipeline rule a`. No entry is added.
 
 | Reference | Rule | Count | Example |
 |---|---|---:|---|
@@ -32,14 +30,13 @@ Violations: **29** in **11** references (before: 31 in 12).
 | `ml-what-is-machine-learning-dataset-split` | d | 1 | overview: node reserve: a line of its text (28.9, 177, 76.2 x 14) leaves the capsule (14, 114, 106 x 86) |
 | `ml-what-is-machine-learning-model-choice` | a | 8 | overview: node a: labels of the 2 branches from a stand at different heights: y = 111, 137 (26 px apart) |
 | `ml-what-is-machine-learning-model-choice` | d | 2 | standard detail: node f: a line of its text (292, 417, 91 x 14) leaves the capsule (272, 336, 131 x 104) |
-| `ml-what-is-machine-learning-workflow` | e | 5 | deep detail: labels of edge r:e and edge r:m: the two edge labels overlap (14, 32.5) and (94, 32.5) |
 | `ml-word2vec-neural-predictor` | d | 2 | overview: node s3: a line of its text (26.3, 377, 81.5 x 14) leaves the capsule (14, 368, 106 x 86) |
 
-**RD-2 side effect (a regression the lint found).** `ml-what-is-machine-learning-workflow` was clean before RD-2 (it is not in the first-run list) and now has 5 rule-e violations in its deep detail: side-branch labels of the same decision overlap (for example the labels of edge r:e and edge r:m, both at y 32.5, x 14 and x 94). It is the one baseline entry RD-2 created rather than left behind; it needs a renderer fix (labels of two side branches of one vertex must not share a span), and its baseline entry goes away with that fix.
+**A regression the lint found, and its fix.** RD-2 alone left `ml-what-is-machine-learning-workflow` (clean before RD-2) with 5 rule-e violations in its deep detail: the labels of edge r:e and edge r:m, two side branches of one decision, overlapped (both at y 32.5, x 14 and x 94). RD-2c (`8a7c41de7`, release 145) lifts a label that does not fit beside its vertex clear of the diamond at one height for both branches, and keeps the lane routing where two labels would overlap; that reference is clean again and its transient baseline entry was deleted in the same commit.
 
 **What RD-2 fixed.** Rule a: 21 to 14 violations (`ml-logistic-regression-linear-separator` and `ml-logistic-regression-model-pipeline` leave the baseline). Rules b and d are unchanged, as expected: RD-2 does not touch wire spacing or capsule text.
 
-The baseline (`geometry-lint-baseline.json`) now lists only these ids and rules: the renderer work queue after RD-2.
+The baseline (`geometry-lint-baseline.json`) lists only these ids and rules: the renderer work queue after release 145.
 
 ---
 
