@@ -69,11 +69,11 @@ test('wiring: followAnchor falls back to the markdown file card when there is no
 });
 
 // canvas-cards BUG 4: a typed /explain lands to the right of the previous card, loosely scattered, never overlapping; a full row starts a new one under it, never the column.
-import { followPlace, scatterOf } from './beside-placement.js';
+import { followPlace, scatterOf, SCATTER_MAX_DY } from './beside-placement.js';
 test('the scatter is deterministic per request, inside 0..0.35 of the source height, and alternates one and two gutters', () => {
   assert.deepEqual(scatterOf('slot:abc', 700), scatterOf('slot:abc', 700), 'the same request, the same place');
   const draws = Array.from({ length: 60 }, (_, i) => scatterOf(`slot:request-${i}`, 700));
-  assert.ok(draws.every(({ dy }) => dy >= 0 && dy <= Math.round(0.35 * 700)), 'dy stays within 35% of the source');
+  assert.ok(draws.every(({ dy }) => dy >= 0 && dy <= Math.min(SCATTER_MAX_DY, Math.round(0.35 * 700))), 'dy stays within 35% of the source and the cap');
   assert.deepEqual([...new Set(draws.map(({ gap }) => gap))].sort((a, b) => a - b), [GAP, 2 * GAP], 'both gaps occur');
   assert.ok(new Set(draws.map(({ dy }) => dy)).size > 20, 'cards do not line up: many different offsets');
 });
@@ -90,4 +90,19 @@ test('followPlace: beside the source with its scatter, no overlap; a full row gi
   const card = { ...full.at, w: size.w, h: size.h };
   assert.ok(!blockers.some(box => card.x < box.x + box.w && card.x + card.w > box.x && card.y < box.y + box.h && card.y + card.h > box.y), 'it overlaps nothing');
   assert.ok(full.at.y > source.y + source.h - 1 || full.at.x > blockers.at(-1).x + blockers.at(-1).w - 1, 'a new row under the source, or past the row');
+});
+
+// CV-4 cap: besideDy = min(0.35 x source height, 120 px). A card lands level with the source's top region, never far down a tall source.
+test('the scatter offset is capped at 120 px for a tall source and unchanged for a short one', () => {
+  assert.equal(SCATTER_MAX_DY, 120);
+  const ids = Array.from({ length: 200 }, (_, i) => 'slot:cap-' + i);
+  assert.ok(ids.every(id => scatterOf(id, 5400).dy <= 120), 'a 5,400 px Full markdown: dy <= 120 for every request');
+  assert.ok(ids.some(id => scatterOf(id, 5400).dy === 120), 'the cap is reached (uncapped it would reach about 1,890)');
+  for (const id of ids) {
+    const a = scatterOf(id, 300).dy, b = scatterOf(id, 200).dy;
+    assert.ok(a <= 105, 'a 300 px source keeps the 0.35 range');
+    assert.ok(Math.abs(b - a * 200 / 300) <= 1, 'below the cap dy is still 0.35 x the height times the hash fraction (linear in the height)');
+  }
+  const first = followPlace({ source: { x: 100, y: 240, w: 440, h: 5400 }, size: { w: 440, h: 400 }, id: 'slot:1', obstacles: [] });
+  assert.ok(first.at.y - 240 <= 120, 'followPlace beside a 5,400 px source starts within 120 px of its top');
 });
