@@ -45,7 +45,8 @@ function referenceUI() {
     let svg = states().map((s, i) => `<rect id="rail.${R.escape(s.id)}" data-state="${R.escape(s.id)}" x="${20 + i * (width + gap)}" y="8" width="${width}" height="5" rx="2" fill="${i === step ? R.C.blue : R.C.line}"><title>${R.escape(s.label)}</title></rect>`).join('');
     svg += picture.svg;
     const cy = 66, cx = 444;
-    svg += R.line('callout.anchor', [picture.anchor, [430, picture.anchor[1]], [430, cy + 16], [cx, cy + 16]], true, false);
+    const calloutPath = picture.calloutPath ?? [picture.anchor, [430, picture.anchor[1]], [430, cy + 16], [cx, cy + 16]];
+    svg += R.line('callout.anchor', calloutPath, true, false);
     const sentence = R.wrap(frame.sentence, 22), why = Scene.depth === 'detailed' ? R.wrap(frame.why, 22) : [];
     const calloutHeight = 44 + (sentence.length + why.length) * 20 + (why.length ? 12 : 0);
     svg += '<g id="callout.active" data-bind="state.sentence">' + R.box('callout.active.box', cx, cy, 178, calloutHeight, false, 'process');

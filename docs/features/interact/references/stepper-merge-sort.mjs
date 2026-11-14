@@ -90,7 +90,8 @@ export function drawPicture(frame, variant, scene, previous) {
     svg += R.region(region.id, frame, body, previous);
   }
   const [x,y,w,h] = positions[frame.calloutRegion];
-  return { svg, anchor: [x+w, y+h/2] };
+  const anchor = [x + w / 2, y + h];
+  return { svg, anchor, calloutPath: [anchor, [anchor[0], anchor[1] + 5], [430, anchor[1] + 5], [430, 82], [444, 82]] };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) writeSubject('merge-sort', buildScene, drawPicture);

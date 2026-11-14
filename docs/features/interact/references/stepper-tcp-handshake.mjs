@@ -175,6 +175,7 @@ export function drawPicture(frame, variant, scene, previousActive = []) {
   const anchors = { client: [174, 66], server: [414, 66], syn: [348, 125], synack: [348, 161], retry: [348, 197], ack: [348, 233], connected: [414, 263] };
   const target = regions.has(frame.calloutRegion) && anchors[frame.calloutRegion]
     ? frame.calloutRegion : frame.active.find(id => regions.has(id) && anchors[id]);
+  if (target === 'client') return { svg, anchor: [24, 66], calloutPath: [[24, 66], [18, 66], [18, 284], [430, 284], [430, 82], [444, 82]] };
   return { svg, anchor: target ? anchors[target] : [414, 263] };
 }
 

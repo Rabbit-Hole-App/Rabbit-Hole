@@ -104,3 +104,36 @@ test('all reference depths retain approved font, palette, 640px scene and card o
     assert.equal((html.match(/class="button secondary choice"/g)||[]).length,di?2:0);
   }
 });
+
+test('callout routes avoid every subject rectangle interior in the real generated SVG', () => {
+  for (const subject of subjects) for (const [di, depth] of depths.entries()) {
+    const id = `${depth}-stepper-${subject}`, ui = mount(read(`${id}.html`));
+    for (const [oi, variant] of ui.Scene.variants.entries()) {
+      if (di) ui.click(`option-${oi}`);
+      for (const [si, state] of variant.states.entries()) {
+        ui.step(si);
+        const svg = ui.svg();
+        const route = [...svg.matchAll(/<polyline\b([^<>]+)>/g)]
+          .map(match => attrs(match[1])).find(line => line.id === 'callout.anchor');
+        assert.ok(route, `${id}/${oi}/${state.id}: callout route is drawn`);
+        const points = route.points.trim().split(/\s+/).map(point => point.split(',').map(Number));
+        const boxes = [...svg.matchAll(/<rect\b([^<>]+)>/g)].map(match => attrs(match[1]))
+          .filter(box => box.id?.startsWith('part.') || ['client.box', 'server.box', 'connected.box'].includes(box.id));
+        for (let i = 1; i < points.length; i++) {
+          const [[ax, ay], [bx, by]] = [points[i - 1], points[i]];
+          assert.ok(ax === bx || ay === by, `${id}/${oi}/${state.id}: axis-aligned callout segment`);
+          for (const box of boxes) {
+            const left = Number(box.x), right = left + Number(box.width);
+            const top = Number(box.y), bottom = top + Number(box.height);
+            // Strict inequalities allow a target-boundary touch. A collision
+            // needs a positive segment overlap with the rectangle interior.
+            const crosses = ax === bx
+              ? ax > left && ax < right && Math.max(Math.min(ay, by), top) < Math.min(Math.max(ay, by), bottom)
+              : ay > top && ay < bottom && Math.max(Math.min(ax, bx), left) < Math.min(Math.max(ax, bx), right);
+            assert.equal(crosses, false, `${id}/${oi}/${state.id}: callout segment ${i} crosses ${box.id}`);
+          }
+        }
+      }
+    }
+  }
+});
