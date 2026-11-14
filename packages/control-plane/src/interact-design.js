@@ -234,16 +234,21 @@ export async function fastDesign(job, ctx) {
   // INTERACT_FAST_OPUS_BRIEF=on: two failed fills of a PICKED family are not sent to the full Opus design (author, review, revise: about US$1 and a plan the template cannot always build); Opus writes the same
   // plan brief ONCE (the design author role, the same system text, schema, expander and checks) and the plan goes to approval as it is. On by default under the fast path (INTERACT_FAST_OPUS_BRIEF=off skips it).
   if (ctx.env.INTERACT_FAST_OPUS_BRIEF !== 'off') {
-    try {
-      const done = await ctx.interact('design_author', { system: fillSystem(depth, info, mod), schema: info.jsonSchema, name: 'return_plan_brief', description: 'Return the plan brief of the scene.',
-        input: { request: job.prompt, depth, ...(previous ? { previous } : {}), correction: { instruction: 'Two earlier briefs were refused. Return the WHOLE corrected brief and change only what these problems name.', problems: [...new Set([fast.firstProblem, fast.lastProblem].filter(Boolean))].map(fixOf) } } });
-      fast.costUsd += (done.costMicros ?? 0) / 1e6; fast.opusModel = done.requested?.model ?? null;
-      const checked = await fillProblems(done.output, depth, info, ctx, mod);
-      if (checked.plan) return { plan: checked.plan, planHash: await planHash(checked.plan), bindingProblems: [], fast: { ...fast, kind: 'opus', fallback: 'after_correction', opusBrief: true } };
-      fast.lastProblem = checked.problems[0];
-    } catch (error) {
-      if (!(error instanceof InteractModelError) || error.code === 'spend_refused') throw error;
-      fast.costUsd += (error.costMicros ?? 0) / 1e6; fast.lastProblem = String(error.problems?.[0] ?? error.message).slice(0, 300);
+    // Up to two Opus calls (INTERACT_LIMITS.calls.design_author is 2): the second hears the exact problem line of the first reply, as the fill's own correction does (the first overnight Opus brief reached a card in one call; the
+    // lane word budget then refused one: "Back at start" is drawn as "Back at").
+    let problemsFor = [...new Set([fast.firstProblem, fast.lastProblem].filter(Boolean))].map(fixOf), prior = previous;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const done = await ctx.interact('design_author', { system: fillSystem(depth, info, mod), schema: info.jsonSchema, name: 'return_plan_brief', description: 'Return the plan brief of the scene.',
+          input: { request: job.prompt, depth, ...(prior ? { previous: prior } : {}), correction: { instruction: attempt ? 'Your previous brief was refused. Return the WHOLE corrected brief and change only what this problem names.' : 'Two earlier briefs were refused. Return the WHOLE corrected brief and change only what these problems name.', problems: problemsFor } } });
+        fast.costUsd += (done.costMicros ?? 0) / 1e6; fast.opusModel = done.requested?.model ?? null; prior = done.output;
+        const checked = await fillProblems(done.output, depth, info, ctx, mod);
+        if (checked.plan) return { plan: checked.plan, planHash: await planHash(checked.plan), bindingProblems: [], fast: { ...fast, kind: 'opus', fallback: 'after_correction', opusBrief: true } };
+        fast.lastProblem = checked.problems[0]; problemsFor = [fixOf(checked.problems[0])];
+      } catch (error) {
+        if (!(error instanceof InteractModelError) || error.code === 'spend_refused') throw error;
+        fast.costUsd += (error.costMicros ?? 0) / 1e6; fast.lastProblem = String(error.problems?.[0] ?? error.message).slice(0, 300); break;
+      }
     }
   }
   // Never the full Opus design from here (owner, brief 19): a picked family whose fill and Opus brief both failed ends the job with the plain refusal; the problem line is in the ledger (firstProblem, lastProblem).

@@ -1,0 +1,27 @@
+[
+ {
+  "id": "17",
+  "prompt": "Why does a sigmoid squash any number into 0 to 1?",
+  "expect": "fit"
+ },
+ {
+  "id": "5",
+  "prompt": "What happens to a ball thrown straight up on the Moon?",
+  "expect": "fit"
+ },
+ {
+  "id": "35",
+  "prompt": "How does attention work in a transformer?",
+  "expect": "gap"
+ },
+ {
+  "id": "46",
+  "prompt": "What are the steps of the Krebs cycle?",
+  "expect": "gap"
+ },
+ {
+  "id": "1",
+  "prompt": "At the highest point of a vertical throw, is acceleration zero because velocity is zero?",
+  "expect": "fit"
+ }
+]

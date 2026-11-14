@@ -1,0 +1,17 @@
+[
+ {
+  "id": "17a",
+  "prompt": "Why does a sigmoid squash any number into 0 to 1?",
+  "expect": "fit"
+ },
+ {
+  "id": "17b",
+  "prompt": "Why does a sigmoid squash any number into 0 to 1?",
+  "expect": "fit"
+ },
+ {
+  "id": "17c",
+  "prompt": "Why does a sigmoid squash any number into 0 to 1?",
+  "expect": "fit"
+ }
+]
