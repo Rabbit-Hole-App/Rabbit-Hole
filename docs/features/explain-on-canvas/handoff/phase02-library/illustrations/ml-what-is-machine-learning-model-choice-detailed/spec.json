@@ -3,7 +3,7 @@
   "diagram": {
     "kind": "flow",
     "title": "Rules or learning?",
-    "caption": "Illustrative guide. Gate on expected loss $R=\\mathbb{E}[L]$.",
+    "caption": "Illustrative guide. Gate on expected loss $R=E[L]$.",
     "nodes": [
       {
         "id": "a",

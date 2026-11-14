@@ -148,10 +148,10 @@ For class 0, the coordinate sums are 4 and 8 over 4 members, giving $(1,2)$. For
 `ml-what-is-machine-learning-nearest-centroid-predict` · `flow` at Brief, `coordinate-plot` at Balanced and Detailed
 
 - **Brief** — Locates the query, compares its distances and gives the prediction.
-- **Balanced** — Shows both means, the query, its distance paths and the equal-distance bisector. A separate detail plot identifies the midpoint between means.
+- **Balanced** — Shows both means, the query, straight distance paths and the equal-distance bisector. A separate detail plot identifies the midpoint between means.
 - **Detailed** — Adds the boundary equation, the query-side check, exact square-root distances and the centroid separation calculation.
 
-The query's squared distances are 9 and 10, giving distances 3 and approximately 3.16. Class 0 is nearer. The centroid displacement is $(4,3)$, its length is 5, and its midpoint is $(3,3.5)$. Expanding equality of squared distances gives $4x_1+3x_2=22.5$. The query gives 22, below 22.5, on the class 0 side. The displayed boundary endpoints are computed from the axis limits rather than guessed.
+The query's squared distances are 9 and 10, giving distances 3 and approximately 3.16. Class 0 is nearer. The centroid displacement is $(4,3)$, its length is 5, and its midpoint is $(3,3.5)$. Expanding equality of squared distances gives $4x_1+3x_2=22.5$. The query gives 22, below 22.5, on the class 0 side. The displayed boundary endpoints are computed from the axis limits rather than guessed. Lines are unsmoothed and drawn before the scatter markers so the means and query remain identifiable. The midpoint annotation leaves coordinate formatting to the renderer.
 
 [Brief preview](../illustrations/ml-what-is-machine-learning-nearest-centroid-predict-brief/408.svg) · [Balanced preview](../illustrations/ml-what-is-machine-learning-nearest-centroid-predict/408.svg) · [Detailed preview](../illustrations/ml-what-is-machine-learning-nearest-centroid-predict-detailed/408.svg)
 
@@ -163,7 +163,7 @@ The query's squared distances are 9 and 10, giving distances 3 and approximately
 
 - **Brief** — Compares training accuracy with expected chance accuracy using the minimal pair of bars.
 - **Balanced** — Adds the correct-count denominators and clarifies that the random count is expected.
-- **Detailed** — Adds the count-to-percent calculations.
+- **Detailed** — Adds the count-to-percent calculations, with percent symbols outside the mathematical spans.
 
 Reclassifying every training row gives 8 correct out of 8, or 100 percent. Uniform random guessing across the classes has probability 0.5 of being correct on each row, so its expected count is 4 out of 8, or 50 percent. The difference is 50 percentage points. These are training results, not held-out evidence. Failing to beat a relevant baseline should trigger investigation; beating chance on the training set does not establish real-world usefulness.
 
@@ -173,4 +173,4 @@ The minimal bar chart retains its pair of bars at every depth; additional depth 
 
 ## Checks and replay
 
-The shared data tests independently recompute derived values. The final reference tests additionally recompute class sums, distances, the bisector, the query prediction and the baseline bars, then check every displayed numerical field and textual number against the data module's numerical inventory. Prompt, keyword, source and origin checks keep each reference attached to its assigned question. Replay cases supply distinct learner paraphrases for selection checks at every depth; no selection-pass result is claimed here.
+The shared data tests independently recompute derived values. The final reference tests additionally recompute class sums, distances, the bisector, the query prediction and the baseline bars, then check every displayed numerical field and textual number against the data module's numerical inventory. Prompt, keyword, source and origin checks keep each reference attached to its assigned question. Regression checks require unsmoothed distance paths, scatter markers after lines, a nonduplicating midpoint label and captions without unsupported expectation or percent escapes. Replay cases supply distinct learner paraphrases for selection checks at every depth; no selection-pass result is claimed here.

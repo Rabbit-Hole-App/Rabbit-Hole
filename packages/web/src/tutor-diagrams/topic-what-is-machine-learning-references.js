@@ -15,7 +15,7 @@ function mlIntroDirection(depth) {
     before: { label: 'Traditional programming', items: brief ? ['Rules and data', 'Output from a program'] : ['Rules and data are inputs', 'Program applies the rules', 'Output is produced'] },
     after: { label: 'Machine learning', items: brief ? ['Data and expected output', 'Learned rules in a model'] : ['Data and expected outputs are inputs', 'Learning algorithm fits a model', 'Model stores learned rules as parameters'] },
     operation: 'Reverse what is supplied and learned',
-    caption: depth === 'deep' ? 'Illustrative: learn parameters by $\\theta^*=\\arg\\min_\\theta\\sum_i L(f_\\theta(x_i),y_i)$.' : 'Illustrative: rules enter a program but emerge from learning as model parameters.'
+    caption: depth === 'deep' ? 'Illustrative: rules emerge as parameters $w,b$; learning minimizes $L(wx+b,y)$.' : 'Illustrative: rules enter a program but emerge from learning as model parameters.'
   };
 }
 function mlIntroTaxonomy(depth) {
@@ -24,7 +24,7 @@ function mlIntroTaxonomy(depth) {
   const taskIds = [['c', 'g'], ['k', 'd'], ['p', 'v']];
   const examples = [['Cat or dog', 'House price'], ['Customers', 'Compressed inputs'], ['Choose moves', 'Future reward']];
   return {
-    kind: 'tree', layout: 'hierarchy', title: 'Learning families and their tasks',
+    kind: 'tree', layout: 'hierarchy', title: depth === 'overview' ? 'Learning families' : 'Learning families and their tasks',
     nodes: [{ id: 'm', label: 'Machine learning' }, ...t.families.flatMap((family, index) => [
       { id: familyIds[index], label: family.label, parent: 'm' },
       ...(depth === 'overview' ? [] : family.tasks.map((task, taskIndex) => ({ id: taskIds[index][taskIndex], label: task, parent: familyIds[index], detail: examples[index][taskIndex] })))
@@ -36,12 +36,13 @@ function mlIntroHidden(depth) {
   const d = mlIntroData;
   const groups = d.clustering.groups;
   if (depth === 'overview') {
-    const ids = [['a'], ['c']];
+    const ids = ['a', 'b', 'c'];
+    const selected = [...groups[0].points.slice(0, d.featureCount), groups[1].points[0]];
     return {
-      kind: 'sample-set', title: 'Nearby inputs suggest groups',
-      caption: 'Selected toy inputs; target labels are hidden. Grouping uses proximity, not answers.',
-      samples: groups.map((group, index) => ({ id: ids[index][0], label: `$(${group.points[0].x},${group.points[0].y})$` })),
-      groups: groups.map((group, index) => ({ id: ['low', 'high'][index], label: ['Lower feature values', 'Higher feature values'][index], members: ids[index] }))
+      kind: 'sample-set', title: 'Nearby inputs suggest a group',
+      caption: 'Selected toy inputs; a nearby pair is grouped, while a distant input stays apart. Targets are hidden.',
+      samples: selected.map((point, index) => ({ id: ids[index], label: `$(${point.x},${point.y})$` })),
+      groups: [{ id: 'low', label: 'Nearby pair', members: ids.slice(0, d.featureCount) }]
     };
   }
   return {
@@ -209,7 +210,7 @@ function wmlTailChoice(depth) {
     ]
   } : {
     kind: 'flow', title: 'Rules or learning?',
-    caption: depth === 'deep' ? 'Illustrative guide. Gate on expected loss $R=\\mathbb{E}[L]$.' : 'Illustrative guide; model needs follow below.',
+    caption: depth === 'deep' ? 'Illustrative guide. Gate on expected loss $R=E[L]$.' : 'Illustrative guide; model needs follow below.',
     nodes: [
       { id: 'a', role: 'decision', label: 'Have data?' },
       { id: 'b', role: 'decision', label: 'Can write rules?' },
@@ -294,20 +295,20 @@ function wmlTailPredict(depth) {
         : `Worked example. Distances ${q.roundedDistances[0]} and about ${q.roundedDistances[1]}; predict class ${q.prediction}.`,
       ...wmlTailAxes(),
       series: [
+        { label: 'Distances', kind: 'line', smooth: false, samples: wmlTailSamples([a, q, b]) },
+        { label: 'Bisector', kind: 'line', smooth: false, samples: wmlTailSamples(boundary.endpoints) },
         ...d.centroids.map(c => ({ label: `Mean ${c.label}`, kind: 'scatter', points: [{ x: c.x, y: c.y }] })),
-        { label: 'New point', kind: 'scatter', points: [{ x: q.x, y: q.y }] },
-        { label: 'Distances', kind: 'line', samples: wmlTailSamples([a, q, b]) },
-        { label: 'Bisector', kind: 'line', samples: wmlTailSamples(boundary.endpoints) }
+        { label: 'New point', kind: 'scatter', points: [{ x: q.x, y: q.y }] }
       ]
     }),
     detailSpec: spec({
       kind: 'coordinate-plot', title: 'Centroid separation and midpoint',
       caption: depth === 'deep'
         ? `Worked example. $d=\\sqrt{${boundary.dx}^2+${boundary.dy}^2}=${boundary.distance}$; query $\\sqrt{${q.squared[0]}}$ vs $\\sqrt{${q.squared[1]}}$.`
-        : 'Worked example. Bisect the segment at right angles.',
+        : 'Worked example. The midpoint lies halfway between the means.',
       ...wmlTailAxes(),
-      series: [{ label: 'Between means', kind: 'line', samples: wmlTailSamples([a, b]) }],
-      annotations: [{ kind: 'point', x: boundary.midpoint.x, y: boundary.midpoint.y, label: depth === 'deep' ? `Midpoint $(${boundary.midpoint.x},${boundary.midpoint.y})$` : 'Midpoint' }]
+      series: [{ label: 'Between means', kind: 'line', smooth: false, samples: wmlTailSamples([a, b]) }],
+      annotations: [{ kind: 'point', x: boundary.midpoint.x, y: boundary.midpoint.y, label: 'Midpoint' }]
     })
   };
 }
@@ -322,7 +323,7 @@ function wmlTailBaseline(depth) {
       { label: brief ? 'Random expected' : `Random expected (${e.randomExpectedCorrect} of ${e.total})`, value: e.randomAccuracyPercent }
     ],
     caption: depth === 'deep'
-      ? `Worked example. $${e.correct}/${e.total}\\times${d.percent}\\%=${e.accuracyPercent}\\%$; expected $${e.randomExpectedCorrect}/${e.total}\\times${d.percent}\\%=${e.randomAccuracyPercent}\\%$.`
+      ? `Worked example. $${e.correct}/${e.total}\\times${d.percent}=${e.accuracyPercent}$ %; expected $${e.randomExpectedCorrect}/${e.total}\\times${d.percent}=${e.randomAccuracyPercent}$ %.`
       : brief ? 'Worked example. Learning beats chance on these training rows.' : 'Worked example. Training accuracy is not held-out performance; random is an expectation.'
   }) };
 }

@@ -18,6 +18,7 @@
       {
         "label": "Between means",
         "kind": "line",
+        "smooth": false,
         "samples": {
           "x": [
             1,
@@ -35,7 +36,7 @@
         "kind": "point",
         "x": 3,
         "y": 3.5,
-        "label": "Midpoint $(3,3.5)$"
+        "label": "Midpoint"
       }
     ]
   }

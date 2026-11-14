@@ -2,12 +2,16 @@
   "version": 1,
   "diagram": {
     "kind": "sample-set",
-    "title": "Nearby inputs suggest groups",
-    "caption": "Selected toy inputs; target labels are hidden. Grouping uses proximity, not answers.",
+    "title": "Nearby inputs suggest a group",
+    "caption": "Selected toy inputs; a nearby pair is grouped, while a distant input stays apart. Targets are hidden.",
     "samples": [
       {
         "id": "a",
         "label": "$(0,2)$"
+      },
+      {
+        "id": "b",
+        "label": "$(2,2)$"
       },
       {
         "id": "c",
@@ -17,16 +21,10 @@
     "groups": [
       {
         "id": "low",
-        "label": "Lower feature values",
+        "label": "Nearby pair",
         "members": [
-          "a"
-        ]
-      },
-      {
-        "id": "high",
-        "label": "Higher feature values",
-        "members": [
-          "c"
+          "a",
+          "b"
         ]
       }
     ]

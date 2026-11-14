@@ -49,7 +49,10 @@ test('the rule-direction transformation gains a parameter-learning formula', () 
   assert.ok(brief.before.items.length + brief.after.items.length < balanced.before.items.length + balanced.after.items.length);
   assert.match(balanced.before.items.join(' '), /Rules and data are inputs/);
   assert.match(balanced.after.items.join(' '), /Model stores learned rules as parameters/);
-  assert.ok(deep.caption.includes('arg'));
+  assert.ok(deep.caption.includes('$w,b$'));
+  assert.ok(deep.caption.includes('$L(wx+b,y)$'));
+  assert.ok(deep.caption.includes('rules emerge as parameters'));
+  assert.ok(!deep.caption.includes('^') && !deep.caption.includes('_'));
   assert.notStrictEqual(deep.caption, balanced.caption);
   assert.ok([brief, balanced, deep].every(diagram => diagram.caption.startsWith('Illustrative')));
 });
@@ -72,6 +75,7 @@ test('taxonomy counts, leaves and depth are recomputed from the hierarchy', () =
   assert.strictEqual(nodes.length, 1 + families.length + leaves.length);
   assert.ok(leaves.every(node => node.detail));
   assert.ok(ref.depths.overview.spec.diagram.nodes.length < nodes.length);
+  assert.strictEqual(ref.depths.overview.spec.diagram.title, 'Learning families');
   assert.ok(nodes.every(node => !Object.hasOwn(node, 'side')));
   assert.match(ref.depths.deep.spec.diagram.caption, new RegExp(String(nodes.length)));
 });
@@ -109,9 +113,26 @@ test('hidden groups use inputs alone and recompute every position, radius and co
   assert.strictEqual(brief.kind, 'sample-set');
   assert.ok(brief.samples.every(sample => !Object.hasOwn(sample, 'class')));
   assert.ok(brief.samples.length + brief.groups.length < rows.length + diagram.annotations.length);
-  const expectedLabels = partitions.map(part => part[0]).map(row => `$(${row[0]},${row[1]})$`);
+  const selectedCount = data.toyData.features.length;
+  assert.strictEqual(d.featureCount, selectedCount);
+  const selected = [partitions[0].slice(0, selectedCount), partitions[1].slice(0, 1)];
+  const expectedLabels = selected.flat().map(row => `$(${row[0]},${row[1]})$`);
   assert.deepStrictEqual(brief.samples.map(sample => sample.label), expectedLabels);
-  brief.groups.forEach((group, index) => assert.deepStrictEqual(group.members, [brief.samples[index].id]));
+  assert.strictEqual(brief.samples.length, introSum(selected.map(part => part.length)));
+  assert.ok(d.displayNumbers.includes(brief.samples.length));
+  assert.strictEqual(brief.groups.length, selected[1].length);
+  const members = brief.samples.slice(0, selectedCount).map(sample => sample.id);
+  assert.deepStrictEqual(brief.groups[0].members, members);
+  assert.strictEqual(brief.groups[0].members.length, selected[0].length);
+  assert.ok(brief.groups[0].members.length > 1);
+  assert.strictEqual(new Set(brief.groups[0].members).size, selected[0].length);
+  assert.ok(d.displayNumbers.includes(brief.groups[0].members.length));
+  assert.ok(!brief.groups[0].members.includes(brief.samples.at(-1).id));
+  assert.match(brief.caption, /Selected toy inputs/);
+  const distance = (left, right) => Math.hypot(left[0] - right[0], left[1] - right[1]);
+  const withinDistances = selected[0].flatMap((point, index) => selected[0].slice(index + 1).map(other => distance(point, other)));
+  const betweenDistances = selected[0].flatMap(point => selected[1].map(other => distance(point, other)));
+  assert.ok(Math.max(...withinDistances) < Math.min(...betweenDistances));
 });
 test('output comparison recomputes category geometry and regression arithmetic', () => {
   const rows = data.toyData.rows;
@@ -169,168 +190,144 @@ const b2Ref = id => { const found = references.find(r => r.id === id); assert.ok
 const b2Sum = values => values.reduce((a, b) => a + b, 0);
 function b2Close(actual, expected) {
   if (typeof expected === 'number') { assert.ok(Number.isFinite(actual)); assert.ok(Math.abs(actual - expected) <= 1e-12 * Math.max(1, Math.abs(expected)), `${actual} versus ${expected}`); }
-  else if (Array.isArray(expected)) { assert.strictEqual(actual.length, expected.length); expected.forEach((value, index) => b2Close(actual[index], value)); }
-  else if (expected && typeof expected === 'object') { assert.deepStrictEqual(Object.keys(actual).sort(), Object.keys(expected).sort()); Object.entries(expected).forEach(([key, value]) => b2Close(actual[key], value)); }
+  else if (Array.isArray(expected)) { assert.strictEqual(actual.length, expected.length); expected.forEach((v, i) => b2Close(actual[i], v)); }
+  else if (expected && typeof expected === 'object') { assert.deepStrictEqual(Object.keys(actual).sort(), Object.keys(expected).sort()); Object.entries(expected).forEach(([k, v]) => b2Close(actual[k], v)); }
   else assert.strictEqual(actual, expected);
 }
-const b2Numbers = value => typeof value === 'number' ? [value] : value && typeof value === 'object' ? Object.values(value).flatMap(b2Numbers) : [];
-const b2Strings = value => typeof value === 'string' ? [value] : value && typeof value === 'object' ? Object.values(value).flatMap(b2Strings) : [];
-
+const b2Numbers = v => typeof v === 'number' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(b2Numbers) : [];
+const b2Strings = v => typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(b2Strings) : [];
 test('batch questions, learner keywords and lesson origin remain attached to their own references', () => {
-  for (const id of b2Ids) {
-    const ref = b2Ref(id);
-    const row = replay.prompts.find(item => item.referenceId === id);
+  const keywords = [['ml workflow', 'retrain loop', 'data drift'], ['train split', 'validation set', 'test set'], ['overfitting', 'underfitting', 'generalization'], ['bias variance', 'total error', 'model complexity']];
+  b2Ids.forEach((id, i) => {
+    const ref = b2Ref(id), row = replay.prompts.find(item => item.referenceId === id);
     assert.ok(row);
     assert.strictEqual(replay.prompts.filter(item => item.referenceId === id).length, 1);
     assert.strictEqual(ref.prompts[0], row.prompt);
-    assert.ok(ref.prompts.includes(row.prompt));
     assert.strictEqual(row.paraphrases.length, 5);
     assert.strictEqual(new Set(row.paraphrases).size, 5);
-    row.paraphrases.forEach(phrase => assert.ok(ref.prompts.includes(phrase)));
-    assert.ok(ref.keywords.length >= 2 && ref.keywords.length <= 3);
+    [row.prompt, ...row.paraphrases].forEach(phrase => assert.ok(ref.prompts.includes(phrase)));
+    assert.deepStrictEqual(ref.keywords, keywords[i]);
     assert.deepStrictEqual(ref.shortKeywords, ref.keywords);
-    for (const keyword of ref.keywords) { assert.strictEqual(keyword, keyword.toLowerCase()); assert.ok(keyword.trim().split(/\s+/).length <= 3); assert.ok(ref.keywords.includes(keyword)); }
+    ref.keywords.forEach(k => { assert.strictEqual(k, k.toLowerCase()); assert.ok(k.split(/\s+/).length <= 3); });
     assert.deepStrictEqual(ref.lessons, data.metadata.lessons);
     assert.deepStrictEqual(ref.sources, data.metadata.sources);
     assert.strictEqual(ref.origin, 'lesson');
     assert.strictEqual(ref.lesson, data.metadata.lessons[0]);
-    assert.ok(ref.promptOrigins.some(origin => origin.prompt === row.prompt && origin.id === row.id && origin.origin === 'lesson' && origin.lesson === ref.lesson));
-    for (const depth of ['overview', 'standard', 'deep']) assert.ok(ref.depths[depth].spec.diagram);
-  }
+    assert.ok(ref.promptOrigins.some(o => o.prompt === row.prompt && o.id === row.id && o.origin === 'lesson' && o.lesson === ref.lesson));
+    ['overview', 'standard', 'deep'].forEach(depth => assert.ok(ref.depths[depth].spec.diagram));
+  });
 });
-
 test('workflow and split labels follow recomputed counts and arithmetic', () => {
-  const d = data.derived();
-  const workflow = b2Ref(b2Ids[0]);
-  const stageCount = d.workflow.stages.reduce(count => count + 1, 0);
-  const transitions = d.workflow.stages.slice(1).length;
-  assert.strictEqual(d.workflow.stageCount, stageCount);
-  assert.strictEqual(d.workflow.forwardTransitions, transitions);
+  const d = data.derived(), w = d.workflow, ref = b2Ref(b2Ids[0]);
+  const stageCount = w.stages.reduce(n => n + 1, 0), transitions = w.stages.slice(1).length;
+  assert.strictEqual(w.stageCount, stageCount);
+  assert.strictEqual(w.forwardTransitions, transitions);
   assert.strictEqual(stageCount - 1, transitions);
-  assert.strictEqual(d.workflow.returnCount, d.workflow.feedback.length);
-  const cleanRange = [6 / 10, 8 / 10].map(fraction => fraction * 10 ** 2);
-  assert.deepStrictEqual(d.workflow.cleanPercentRange, cleanRange);
-  const expectedSteps = [...d.workflow.stages.slice(0, -2).map((stage, index) => index === 1 ? `${stage} · ${cleanRange.join('–')}% time` : stage), d.workflow.stages.slice(-2).join(' / ')];
-  assert.deepStrictEqual(workflow.spec.diagram.steps, expectedSteps);
-  assert.ok(workflow.depths.overview.spec.diagram.steps.length < workflow.spec.diagram.steps.length);
-  assert.ok(workflow.depths.deep.spec.diagram.caption.includes(`$${stageCount}-1=${transitions}$`));
-  for (const edge of d.workflow.feedback) {
-    assert.ok(workflow.spec.diagram.caption.includes(edge.from));
-    assert.ok(workflow.spec.diagram.caption.includes(edge.to));
-    assert.ok(workflow.spec.diagram.caption.includes(edge.condition));
-  }
-  const split = b2Ref(b2Ids[1]);
-  const weightTotal = b2Sum(d.split.weights);
-  const percentages = d.split.weights.map(weight => 10 ** 2 * weight / weightTotal);
+  assert.strictEqual(w.returnCount, w.feedback.length);
+  const cleanRange = [6 / 10, 8 / 10].map(f => f * 10 ** 2);
+  assert.deepStrictEqual(w.cleanPercentRange, cleanRange);
+  assert.deepStrictEqual(ref.spec.diagram.steps, [...w.stages.slice(0, -2).map((s, i) => i === 1 ? `${s} · ${cleanRange.join('–')}% time` : s), w.stages.slice(-2).join(' / ')]);
+  assert.ok(ref.depths.overview.spec.diagram.steps.length < ref.spec.diagram.steps.length);
+  assert.ok(ref.depths.deep.spec.diagram.caption.includes(`$${stageCount}-1=${transitions}$`));
+  w.feedback.forEach(e => [e.from, e.to, e.condition].forEach(s => assert.ok(ref.spec.diagram.caption.includes(s))));
+  const split = b2Ref(b2Ids[1]), percentages = d.split.weights.map(v => 10 ** 2 * v / b2Sum(d.split.weights));
   assert.deepStrictEqual(d.split.percentages, percentages);
   assert.strictEqual(d.split.totalPercent, b2Sum(percentages));
   assert.strictEqual(b2Sum(percentages), 10 ** 2);
-  for (const depth of ['standard', 'deep']) {
-    assert.deepStrictEqual(split.depths[depth].spec.diagram.blocks.map(block => block.dims), percentages.map(value => `${value}%`));
-    assert.deepStrictEqual(split.depths[depth].detailSpec.diagram.edges.map(edge => edge.label), percentages.map(value => `${value}%`));
-  }
+  ['standard', 'deep'].forEach(depth => {
+    assert.deepStrictEqual(split.depths[depth].spec.diagram.blocks.map(b => b.dims), percentages.map(v => `${v}%`));
+    assert.deepStrictEqual(split.depths[depth].detailSpec.diagram.edges.map(e => e.label), percentages.map(v => `${v}%`));
+  });
   assert.ok(split.depths.deep.spec.diagram.caption.includes(`$${percentages.join('+')}=${b2Sum(percentages)}$`));
   assert.ok(split.spec.diagram.caption.includes('not block widths'));
 });
-
 test('fit curves, displayed window, residual and error bars are independently reconstructed', () => {
-  const d = data.derived();
-  const rows = data.toyData.rows;
-  const labels = [...new Set(rows.map(row => row.at(-1)))];
-  const firstClassSize = rows.filter(row => row.at(-1) === labels[0]).length;
-  const xs = [...new Set(rows.map(row => row[0]))].sort((a, b) => a - b);
-  const trend = x => 1 + x + x * x / firstClassSize;
-  const observed = xs.map((x, index) => ({ x, y: trend(x) + Math.pow(-1, index) / firstClassSize }));
+  const d = data.derived(), rows = data.toyData.rows;
+  const labels = [...new Set(rows.map(r => r.at(-1)))];
+  const count = rows.filter(r => r.at(-1) === labels[0]).length;
+  const xs = [...new Set(rows.map(r => r[0]))].sort((a, b) => a - b);
+  const trend = x => 1 + x + x * x / count;
+  const observed = xs.map((x, i) => ({ x, y: trend(x) + Math.pow(-1, i) / count }));
   const chord = x => trend(xs[0]) + (trend(xs.at(-1)) - trend(xs[0])) * (x - xs[0]) / (xs.at(-1) - xs[0]);
-  const centers = labels.map(label => { const part = rows.filter(row => row.at(-1) === label); return [0, 1].map(column => b2Sum(part.map(row => row[column])) / part.length); });
-  const radius = Math.max(...rows.map(row => { const center = centers[labels.indexOf(row.at(-1))]; return Math.hypot(row[0] - center[0], row[1] - center[1]); }));
+  const centers = labels.map(label => { const part = rows.filter(r => r.at(-1) === label); return [0, 1].map(c => b2Sum(part.map(r => r[c])) / part.length); });
+  const radius = Math.max(...rows.map(r => { const c = centers[labels.indexOf(r.at(-1))]; return Math.hypot(r[0] - c[0], r[1] - c[1]); }));
   const overfit = [];
-  observed.forEach((point, index) => {
-    overfit.push({ ...point });
-    if (index + 1 < observed.length) { const next = observed[index + 1]; overfit.push({ x: (point.x + next.x) / 2, y: (point.y + next.y) / 2 + Math.pow(-1, index) * labels.length * radius }); }
+  observed.forEach((p, i) => {
+    overfit.push({ ...p });
+    if (i + 1 < observed.length) { const q = observed[i + 1]; overfit.push({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 + Math.pow(-1, i) * labels.length * radius }); }
   });
   const interpolate = x => {
-    for (let index = 1; index < overfit.length; index += 1) {
-      const a = overfit[index - 1]; const b = overfit[index];
+    for (let i = 1; i < overfit.length; i += 1) {
+      const a = overfit[i - 1], b = overfit[i];
       if (x >= a.x && x <= b.x) return a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x);
     }
     assert.fail('Input must lie on the generated fit');
   };
   const cutoff = xs[labels.length];
-  const expectedWindow = {
+  const window = {
     observed: observed.filter(p => p.x <= cutoff),
     underfit: [xs[0], cutoff].map(x => ({ x, y: chord(x) })),
     goodFit: xs.filter(x => x <= cutoff).map(x => ({ x, y: trend(x) })),
     overfit: overfit.filter(p => p.x <= cutoff),
-    bounds: { minX: xs[0], maxX: cutoff, minY: Math.min(0, ...rows.flatMap(row => row.slice(0, 2))), maxY: Math.max(...rows.flatMap(row => row.slice(0, 2))) + 1 }
+    bounds: { minX: xs[0], maxX: cutoff, minY: Math.min(0, ...rows.flatMap(r => r.slice(0, 2))), maxY: Math.max(...rows.flatMap(r => r.slice(0, 2))) + 1 }
   };
-  b2Close(derived().fitWindow, expectedWindow);
-  const fit = b2Ref(b2Ids[2]);
-  const keys = ['observed', 'underfit', 'goodFit', 'overfit'];
-  for (const depth of ['standard', 'deep']) {
-    const diagram = fit.depths[depth].spec.diagram;
-    b2Close([diagram.x.min, diagram.x.max, diagram.y.min, diagram.y.max], Object.values(expectedWindow.bounds));
-    keys.forEach((key, index) => { b2Close(diagram.series[index].samples.x, expectedWindow[key].map(p => p.x)); b2Close(diagram.series[index].samples.y, expectedWindow[key].map(p => p.y)); });
-  }
-  const heldX = b2Sum(centers.map(center => center[0])) / centers.length;
-  const heldY = trend(heldX);
-  const models = { underfit: chord, goodFit: trend, overfit: interpolate };
-  const expectedErrors = Object.entries(models).map(([key, predict]) => {
-    const training = b2Sum(observed.map(p => (p.y - predict(p.x)) ** 2)) / observed.length;
-    const held = (heldY - predict(heldX)) ** 2;
-    b2Close(d.fits.trainingMse[key], training);
-    b2Close(d.fits.heldOut.squaredErrors[key], held);
-    return [training, held];
+  b2Close(derived().fitWindow, window);
+  const ref = b2Ref(b2Ids[2]);
+  ['standard', 'deep'].forEach(depth => {
+    const plot = ref.depths[depth].spec.diagram;
+    b2Close([plot.x.min, plot.x.max, plot.y.min, plot.y.max], Object.values(window.bounds));
+    ['observed', 'underfit', 'goodFit', 'overfit'].forEach((key, i) => {
+      b2Close(plot.series[i].samples, { x: window[key].map(p => p.x), y: window[key].map(p => p.y) });
+    });
   });
-  b2Close(fit.depths.deep.detailSpec.diagram.series.map(series => series.values), expectedErrors);
+  const heldX = b2Sum(centers.map(c => c[0])) / centers.length, heldY = trend(heldX);
+  const errors = Object.entries({ underfit: chord, goodFit: trend, overfit: interpolate }).map(([key, predict]) => {
+    const train = b2Sum(observed.map(p => (p.y - predict(p.x)) ** 2)) / observed.length;
+    const held = (heldY - predict(heldX)) ** 2;
+    b2Close(d.fits.trainingMse[key], train);
+    b2Close(d.fits.heldOut.squaredErrors[key], held);
+    return [train, held];
+  });
+  b2Close(ref.depths.deep.detailSpec.diagram.series.map(s => s.values), errors);
   const residualSquared = (observed[0].y - trend(observed[0].x)) ** 2;
   b2Close(d.fits.trainingMse.goodFit, residualSquared);
-  assert.ok(fit.depths.deep.spec.diagram.caption.includes(`$(${observed[0].y}-${trend(observed[0].x)})^2=${residualSquared}$`));
+  assert.ok(ref.depths.deep.spec.diagram.caption.includes(`$(${observed[0].y}-${trend(observed[0].x)})^2=${residualSquared}$`));
 });
-
 test('bias, variance, noise, totals, axes and minimum are recomputed from toy geometry', () => {
-  const d = data.derived();
-  const rows = data.toyData.rows;
-  const labels = [...new Set(rows.map(row => row.at(-1)))];
-  const groups = labels.map(label => rows.filter(row => row.at(-1) === label));
-  const centers = groups.map(group => [0, 1].map(column => b2Sum(group.map(row => row[column])) / group.length));
-  const radiusSquared = Math.max(...rows.map(row => { const center = centers[labels.indexOf(row.at(-1))]; return (row[0] - center[0]) ** 2 + (row[1] - center[1]) ** 2; }));
+  const d = data.derived(), rows = data.toyData.rows;
+  const labels = [...new Set(rows.map(r => r.at(-1)))];
+  const groups = labels.map(label => rows.filter(r => r.at(-1) === label));
+  const centers = groups.map(g => [0, 1].map(c => b2Sum(g.map(r => r[c])) / g.length));
+  const radiusSquared = Math.max(...rows.map(r => { const c = centers[labels.indexOf(r.at(-1))]; return (r[0] - c[0]) ** 2 + (r[1] - c[1]) ** 2; }));
   const levels = labels.length + 1;
-  const expected = Array.from({ length: levels }, (_, index) => {
-    const complexity = index + 1;
-    const biasSquared = (levels - complexity) ** 2;
-    const variance = index ** 2;
-    const noise = radiusSquared / groups[0].length;
+  const points = Array.from({ length: levels }, (_, i) => {
+    const complexity = i + 1, biasSquared = (levels - complexity) ** 2, variance = i ** 2, noise = radiusSquared / groups[0].length;
     return { complexity, biasSquared, variance, noise, total: b2Sum([biasSquared, variance, noise]) };
   });
-  b2Close(d.tradeoff.points, expected);
-  const best = expected.reduce((a, b) => a.total <= b.total ? a : b);
+  b2Close(d.tradeoff.points, points);
+  const best = points.reduce((a, b) => a.total <= b.total ? a : b);
   b2Close(d.tradeoff.sweetSpot, best);
   const ref = b2Ref(b2Ids[3]);
-  for (const depth of ['standard', 'deep']) {
-    const diagram = ref.depths[depth].spec.diagram;
-    b2Close([diagram.x.min, diagram.x.max, diagram.y.min, diagram.y.max], [expected[0].complexity, expected.at(-1).complexity, 0, Math.ceil(Math.max(...expected.map(p => p.total)))]);
-    ['biasSquared', 'variance', 'noise', 'total'].forEach((key, index) => { b2Close(diagram.series[index].samples.x, expected.map(p => p.complexity)); b2Close(diagram.series[index].samples.y, expected.map(p => p[key])); });
-    b2Close([diagram.annotations[0].x, diagram.annotations[0].y], [best.complexity, best.total]);
-  }
+  ['standard', 'deep'].forEach(depth => {
+    const plot = ref.depths[depth].spec.diagram;
+    b2Close([plot.x.min, plot.x.max, plot.y.min, plot.y.max], [points[0].complexity, points.at(-1).complexity, 0, Math.ceil(Math.max(...points.map(p => p.total)))]);
+    ['biasSquared', 'variance', 'noise', 'total'].forEach((key, i) => b2Close(plot.series[i].samples, { x: points.map(p => p.complexity), y: points.map(p => p[key]) }));
+    b2Close([plot.annotations[0].x, plot.annotations[0].y], [best.complexity, best.total]);
+  });
   assert.ok(ref.depths.deep.spec.diagram.caption.includes(`$${best.biasSquared}+${best.variance}+${best.noise}=${best.total}$`));
 });
-
 test('each displayed number belongs to shared or batch derived results; every visual is illustrative', () => {
   const available = b2Numbers({ shared: data.derived(), batch: derived() });
-  for (const id of b2Ids) {
-    const ref = b2Ref(id);
-    for (const depth of ['overview', 'standard', 'deep']) {
-      const entry = ref.depths[depth];
-      for (const visual of [entry.spec, entry.detailSpec].filter(Boolean)) {
-        assert.ok(visual.diagram.caption.startsWith('Illustrative'));
-        for (const number of b2Numbers(visual)) assert.ok(available.includes(number), `${id}: missing numerical field ${number}`);
-        for (const text of b2Strings(visual)) {
-          for (const match of text.matchAll(/\d+(?:\.\d+)?/g)) assert.ok(available.includes(Number(match[0])), `${id}: missing displayed number ${match[0]}`);
-        }
-      }
-    }
-  }
+  b2Ids.forEach(id => ['overview', 'standard', 'deep'].forEach(depth => {
+    const entry = b2Ref(id).depths[depth];
+    [entry.spec, entry.detailSpec].filter(Boolean).forEach(visual => {
+      assert.ok(visual.diagram.caption.startsWith('Illustrative'));
+      b2Numbers(visual).forEach(n => assert.ok(available.includes(n), `${id}: missing numerical field ${n}`));
+      b2Strings(visual).forEach(text => {
+        for (const m of text.matchAll(/\d+(?:\.\d+)?/g)) assert.ok(available.includes(Number(m[0])), `${id}: missing displayed number ${m[0]}`);
+      });
+    });
+  }));
 });
 }
 {
@@ -538,5 +535,36 @@ test('suitability flows have valid labeled gates and detailed arithmetic is addi
     const newNumber = [...deepText.matchAll(/-?\d+(?:\.\d+)?/g)].some(match => !oldNumbers.has(match[0]));
     assert.ok(newFormula || newNumber, ref.id);
   }
+});
+
+test('review repairs keep distance paths straight, scatter markers foremost and captions renderable', () => {
+  const d = data.derived();
+  const predict = references.find(ref => ref.id === wmlTailIds[2]);
+  for (const depth of ['standard', 'deep']) {
+    const diagram = predict.depths[depth].spec.diagram;
+    const lines = diagram.series.filter(series => series.kind === 'line');
+    assert.ok(lines.every(series => series.smooth === false));
+    const lastLine = Math.max(...diagram.series.flatMap((series, index) => series.kind === 'line' ? [index] : []));
+    const firstScatter = diagram.series.findIndex(series => series.kind === 'scatter');
+    assert.ok(lastLine < firstScatter);
+    const path = diagram.series.find(series => series.label === 'Distances').samples;
+    assert.deepStrictEqual(path.x, [d.centroids[0].x, d.query.x, d.centroids[1].x]);
+    assert.deepStrictEqual(path.y, [d.centroids[0].y, d.query.y, d.centroids[1].y]);
+    const scatters = diagram.series.filter(series => series.kind === 'scatter');
+    assert.deepStrictEqual(scatters.flatMap(series => series.points), [...d.centroids.map(center => ({ x: center.x, y: center.y })), { x: d.query.x, y: d.query.y }]);
+    const detail = predict.depths[depth].detailSpec.diagram;
+    assert.strictEqual(detail.annotations[0].label, 'Midpoint');
+    assert.strictEqual(detail.annotations[0].x, d.boundary.midpoint.x);
+    assert.strictEqual(detail.annotations[0].y, d.boundary.midpoint.y);
+    assert.strictEqual(detail.series[0].smooth, false);
+  }
+  assert.strictEqual(predict.depths.standard.detailSpec.diagram.caption, 'Worked example. The midpoint lies halfway between the means.');
+  const choice = references.find(ref => ref.id === wmlTailIds[0]);
+  assert.ok(choice.depths.deep.spec.diagram.caption.includes('$R=E[L]$'));
+  const baseline = references.find(ref => ref.id === wmlTailIds[3]);
+  const caption = baseline.depths.deep.spec.diagram.caption;
+  assert.ok(!caption.includes(String.fromCharCode(92) + '%'));
+  assert.strictEqual((caption.match(/%/g) || []).length, d.classCount);
+  for (const span of caption.matchAll(/\$([^$]+)\$/g)) assert.ok(!span[1].includes('%'));
 });
 }

@@ -17,16 +17,16 @@
       ],
       "deep": [
         {
-          "tokens": 122,
-          "sha256": "1888fd289f7bd3a1ad141bbb228e6edc30f673db44dc374a7839c32c8990aec6"
+          "tokens": 111,
+          "sha256": "8dc056e4d5bfede9393c41163ccb7bd175baf3a42c17434743ead70f0d1a4318"
         }
       ]
     },
     "ml-what-is-machine-learning-learning-families": {
       "overview": [
         {
-          "tokens": 95,
-          "sha256": "6080318f81ba30f897a09f5169e21f15a792c6972065dffa6f4406a756f1384f"
+          "tokens": 92,
+          "sha256": "a801edf1084144b87214a85bdec692f113b5a5d135c3bccea6d304fa1ea70bd2"
         }
       ],
       "standard": [
@@ -45,8 +45,8 @@
     "ml-what-is-machine-learning-hidden-groups": {
       "overview": [
         {
-          "tokens": 100,
-          "sha256": "955acfbf89d0dd7f96f8459322adf0ffc5ee64ca9964e0a996fbf152dab99338"
+          "tokens": 104,
+          "sha256": "68963eae0412191a7ab097eb732f8010e1c8335e27919832908fc2d9d6ed3d82"
         }
       ],
       "standard": [
@@ -197,8 +197,8 @@
       ],
       "deep": [
         {
-          "tokens": 224,
-          "sha256": "be1e88aa6e2d530d2d0e9899fad0e2d300ce8ced58a2e9ce80cc0821a9b725ab"
+          "tokens": 218,
+          "sha256": "7f87b6431bb9421cdc35a2e49bf1808fd9b51b59ef0aebf64baa864913aa3484"
         },
         {
           "tokens": 198,
@@ -243,22 +243,22 @@
       ],
       "standard": [
         {
-          "tokens": 203,
-          "sha256": "c736660a45db9be55e697e901f7de954aab379f07d12dd51dc8d8a3d300e321f"
+          "tokens": 211,
+          "sha256": "86db2b8583a880006f6f76d9cffac6b4c917d86f466a4e6ff1064513600b91d4"
         },
         {
-          "tokens": 124,
-          "sha256": "7e5f58366bf7d1cd6647c56e1268fbdb440cd8d28825aec6146ab5dd9e553306"
+          "tokens": 128,
+          "sha256": "db2b7d1e182a9e4aa4e64bef23a491b56fbca0c30dbfad5eb8be140ddcd36589"
         }
       ],
       "deep": [
         {
-          "tokens": 216,
-          "sha256": "1c9582cde6de17adba8529b937af53fbe6ae56dfa8dc3a04f32166fd536af1da"
+          "tokens": 224,
+          "sha256": "37a6f57a5c416ce617e3d115e504efc2a2fe4d2a6b4dba973ae9a16694699e51"
         },
         {
-          "tokens": 156,
-          "sha256": "e6855275bc9c3be969f02b54140671d46d9d56d2dbb57373fa21d2ac71eeb31d"
+          "tokens": 153,
+          "sha256": "a97756dd7e9d340b7307dc9b0b3b8e2bd1080d4eadf5c24b7fc94ac45ea7224e"
         }
       ]
     },
@@ -277,8 +277,8 @@
       ],
       "deep": [
         {
-          "tokens": 91,
-          "sha256": "63cd2bd4f423a05e7214335af9d5228984cac33340446044e263698cbb05bccf"
+          "tokens": 87,
+          "sha256": "b677670f40a60c46331e04ac703c19ae41746d3e7d1e4ed9b265dfd9aba966b0"
         }
       ]
     }

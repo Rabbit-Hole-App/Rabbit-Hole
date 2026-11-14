@@ -20,6 +20,6 @@
       ]
     },
     "operation": "Reverse what is supplied and learned",
-    "caption": "Illustrative: learn parameters by $\\theta^*=\\arg\\min_\\theta\\sum_i L(f_\\theta(x_i),y_i)$."
+    "caption": "Illustrative: rules emerge as parameters $w,b$; learning minimizes $L(wx+b,y)$."
   }
 }

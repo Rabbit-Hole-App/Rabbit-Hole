@@ -16,6 +16,38 @@
     },
     "series": [
       {
+        "label": "Distances",
+        "kind": "line",
+        "smooth": false,
+        "samples": {
+          "x": [
+            1,
+            4,
+            5
+          ],
+          "y": [
+            2,
+            2,
+            5
+          ]
+        }
+      },
+      {
+        "label": "Bisector",
+        "kind": "line",
+        "smooth": false,
+        "samples": {
+          "x": [
+            5.625,
+            0.375
+          ],
+          "y": [
+            0,
+            7
+          ]
+        }
+      },
+      {
         "label": "Mean 0",
         "kind": "scatter",
         "points": [
@@ -44,36 +76,6 @@
             "y": 2
           }
         ]
-      },
-      {
-        "label": "Distances",
-        "kind": "line",
-        "samples": {
-          "x": [
-            1,
-            4,
-            5
-          ],
-          "y": [
-            2,
-            2,
-            5
-          ]
-        }
-      },
-      {
-        "label": "Bisector",
-        "kind": "line",
-        "samples": {
-          "x": [
-            5.625,
-            0.375
-          ],
-          "y": [
-            0,
-            7
-          ]
-        }
       }
     ]
   }
