@@ -2,12 +2,15 @@
 // Pure: it reads the job record (or the same fields rebuilt from a detail=1 response, jobFromDetail) and invents nothing; a number the record does not hold is null,
 // never 0. The server puts the row on GET .../jobs/<id>?detail=1 as diagnostics.ledger, and scripts/interact/ledger.mjs appends it to the ledger file.
 import { interactOracle } from './interact-oracle.js';
+import { TOSS_MVP_META } from '../../web/src/interact-toss-mvp-plans.js';
 import { timingSummary } from './explain-policy.js';
 const round1 = n => Math.round(n * 10) / 10;
+// A job pinned to toss-mvp-<depth> is a brief-mvp design; the model and the fill time come from the data file's meta of that depth (null when it has none).
+const mvpDesign = fixture => { const depth = typeof fixture === 'string' ? /^toss-mvp-(brief|balanced|detailed)$/.exec(fixture)?.[1] : null, meta = depth ? TOSS_MVP_META[depth] : null; return { designModel: meta?.designModel ?? null, designKind: depth ? 'brief-mvp' : null, msFill: meta?.msFill ?? null }; };
 
 // timing: 'v2' is a job whose stage columns are the contiguous wall-clock slices ledgerRow explains (they add up to msTotal); 'v1' is every older row, kept as it was recorded.
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs', 'repairCauses',
-  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath']);
+  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath', 'designModel', 'designKind', 'msFill']);
 
 // What triggered each failed round, in order, `;`-joined, one token per distinct problem of a round: `overlap:text-frame` (a layout rule), `numeric_mismatch` (an oracle code),
 // `program_error:sdk.panel` or `program_error:frame.objects.*.series.*.points` (the guest program's own error), `schema:manifest.readouts.*.labels` (the path a validation problem names),
@@ -73,6 +76,8 @@ export function ledgerRow(job) {
     msTotal: t.generateToResultMs, msJudge: judge?.ms ?? null, timing: job.timing.v === 2 ? 'v2' : 'v1',
     buildKind: template ? 'template' : calls.some(c => c.role === 'build_author') ? 'model' : null, msHopWait: hopWait,
     judgeFindingsPath: null, // set by scripts/interact/ledger.mjs when it writes the judge's findings to benchmarks/judge/<jobId>.json (the row itself stays pure)
+    // A job pinned to a toss-mvp-<depth> fixture (the design MVP, brief 11): which model wrote the plan brief, that the design was a brief, and how long the fill took, from the data file's TOSS_MVP_META (the bench row the plan was picked from).
+    ...mvpDesign(job.designFixture),
   };
 }
 

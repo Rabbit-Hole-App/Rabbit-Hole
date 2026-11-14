@@ -1123,3 +1123,16 @@ export const TOSS_MVP_PLANS = Object.freeze({
   ]
  }
 });
+// Where each plan came from, for the ledger's designModel / designKind / msFill columns (interact-ledger.js, jobs pinned to toss-mvp-<depth>): the model of the bench row, its fill time in ms, and the attempt's timestamp.
+export const TOSS_MVP_META = Object.freeze({
+ "brief": {
+  "designModel": "gemini-3.5-flash-lite",
+  "msFill": 2406.4,
+  "jobTs": "2026-11-14T06:44:45.669Z"
+ },
+ "balanced": {
+  "designModel": "gemini-3.5-flash-lite",
+  "msFill": 2983.7,
+  "jobTs": "2026-11-14T06:44:55.826Z"
+ }
+});

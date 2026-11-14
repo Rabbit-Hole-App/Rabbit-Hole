@@ -226,7 +226,7 @@ export function ledgeMoonOracle(plan) {
 const familyShape = plan => canonicalJson({
   depth: plan.depth, template: plan.scene.template, slots: plan.scene.slots, words: plan.scene.words, readoutIds: plan.scene.readoutIds, fixed: plan.mode.fixedValues, controls: plan.controls,
   checkpoints: plan.scene.checkpoints.map(c => [c.id, c.time, c.inputOverrides]), timeline: { ...plan.mode.timeline, playbackRate: 0 },
-  quantities: plan.scene.quantities.map(q => [q.id, q.formula ?? (['launchSpeed', 'gravity', 'mass'].includes(q.id) ? q.id : undefined), q.switchAt, q.formulaAfter, q.unit, q.label]),
+  quantities: plan.scene.quantities.map(q => [q.id, q.formula ?? (['launchSpeed', 'gravity', 'mass'].includes(q.id) ? q.id : undefined), q.switchAt, q.formulaAfter, q.unit]), // no labels: wording is not physics (the first picked plans carry an older gravity label)
 });
 
 function familyReference(plan) {
