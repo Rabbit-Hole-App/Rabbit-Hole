@@ -2392,21 +2392,26 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         blocksRef.current = [...blocksRef.current, added];
         return insertAtView(added, into);
       },
-      // near { cardId, world }: the card the passage is in and the passage's box. The skeleton stands beside that passage, in free space, never over the source card
-      // or anything else (roadmap-placement.js deliveredSpot, the Tutor slots' rule), and the camera stays where it is.
+      // near { cardId, world | alignY }: the card the passage is in and the passage's box (world), or the highlighted line's offset from the card's top. The skeleton stands beside that passage, on the right or the left of the
+      // source and level with the line, in free space (place-sourced.js, the one placement of a card made from a card), never over or moving any card; CK-4: the camera then centres on it.
       placeExplain: (card, { into = null, near = null } = {}) => {
         if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation') return null;
         if (blocksRef.current.some(block => block.id === card.id)) return card.id;
         snapshot();
         const source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];
         // AR-C1: the card names its source card and the passage line (the connector's tail), so the arrow survives a reload without measuring the passage again.
-        const added = { ...card, dx: 0, dy: 0, ...(box && near.world ? { parentCard: { id: source.id, dy: Math.round(near.world.y + near.world.h / 2 - box.y) } } : {}) };
+        const line = box ? (near.world ? near.world.y + near.world.h / 2 : Number.isFinite(near.alignY) ? box.y + near.alignY : null) : null;
+        const added = { ...card, dx: 0, dy: 0, ...(box && line != null ? { parentCard: { id: source.id, dy: Math.round(line - box.y) } } : {}) };
         if (box) {
-          const spot = deliveredSpot({ w: EXPLAIN_PENDING_SIZE.width, h: 360 }, proposalAnchor(box, near.world), [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current), box], null);
+          const slot = { w: EXPLAIN_PENDING_SIZE.width, h: 360 };
+          const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === source.id && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));
+          // CK-5: the ONE placement call of the card a Ctrl+K Explain selection makes (the v2 job path); reserve() has the other (a card from a card through a skeleton).
+          const placed = placeSourced({ source: box, anchorY: line, size: slot, boxes: [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current)], siblings, id: card.id, sourceId: source.id, area: null });
           perfMark(added.id, 'insert');
-          pendingAt.current.set(added.id, spot);
+          pendingAt.current.set(added.id, { x: placed.x, y: placed.y });
           blocksRef.current = [...blocksRef.current, added];
           setBlocks(previous => [...previous, added]);
+          revealAfter(added.id); // CK-4: once measured and placed, the camera centres on the new card (never over a camera the learner moved since)
           return added.id;
         }
         blocksRef.current = [...blocksRef.current, added];

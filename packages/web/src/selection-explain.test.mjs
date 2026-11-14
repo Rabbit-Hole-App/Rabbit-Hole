@@ -171,3 +171,16 @@ test('CK-3: Explain selection over a passage makes its card through /explain (sk
   assert.ok(editor.includes("!busy(status) && !autoCard && (") && editor.includes("(preview && status !== 'proposal' && !autoCard) && ("), 'no Accept or Reject, no preview text, for that card only');
   assert.ok(editor.includes("preview?.kind === 'note'") && editor.includes("status === 'proposal' && ("), 'notes and the paid proposal keep their own review');
 });
+
+// CK-5: BOTH placement points of a card made from a passage call the shared placeSourced (right or left, level with the line, no overlap, nothing moves); CK-4 centres the camera on it.
+test('CK-5: placeExplain (the Ctrl+K v2 job) places through placeSourced at the passage line, writes parentCard, and centres the camera; the highlight card goes there as near.alignY', () => {
+  const canvas = read('./AdaptiveCanvas.jsx').replace(/\r\n/g, '\n'), page = read('./LearnPage.jsx').replace(/\r\n/g, '\n');
+  const at = canvas.indexOf('placeExplain: (card,'), body = canvas.slice(at, canvas.indexOf('reconcileCad:', at));
+  assert.ok(body.includes('placeSourced({ source: box, anchorY: line, size: slot,') && !body.includes('deliveredSpot('), 'one shared helper, no private spot');
+  assert.ok(body.includes('Number.isFinite(near.alignY) ? box.y + near.alignY') && body.includes('parentCard: { id: source.id, dy: Math.round(line - box.y) }'));
+  assert.ok(body.includes("pendingAt.current.set(added.id, { x: placed.x, y: placed.y })") && body.includes('revealAfter(added.id)'), 'placed once; the camera centres on it once measured');
+  assert.ok(page.includes("near = null } = {}) => {") && page.includes('near: near || (sourceRef && passageSites.current.get(sourceRef)) || null'));
+  assert.ok(page.includes('near: { cardId: about.selection.id, alignY: about.selection.alignY }'), 'the highlight card and the highlighted line reach placeExplain');
+  const reserve = canvas.slice(canvas.indexOf('reserve: ({ label,'), canvas.indexOf('placeRoadmapCard:'));
+  assert.ok(reserve.includes('placeSourced({ source, anchorY'), 'reserve({beside}) uses it too');
+});
