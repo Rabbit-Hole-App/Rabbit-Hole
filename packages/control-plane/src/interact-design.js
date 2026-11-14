@@ -23,6 +23,7 @@ import { INTERACT_LIMITS, InteractModelError } from './interact-models.js';
 import { INTERACT_FAMILIES } from './interact-families.js';
 import { pickFamily, pickThreshold } from './interact-design-pick.js';
 import { fillSystem, formulaProblems } from './interact-design-fill.js';
+import { templatePrecheck } from './interact-template.js';
 import { DESIGN_AUTHOR_SYSTEM, DESIGN_AUTHOR_TOOL, DESIGN_AUTHOR_VERSION, designAuthorSchema } from './agents/interact-design-author.js';
 import { DESIGN_REVIEW_SYSTEM, DESIGN_REVIEW_TOOL, DESIGN_REVIEW_VERSION, designReviewSchema } from './agents/interact-design-review.js';
 import { DESIGN_REVISE_SYSTEM, DESIGN_REVISE_TOOL, DESIGN_REVISE_VERSION, designReviseSchema } from './agents/interact-design-revise.js';
@@ -188,7 +189,9 @@ async function fillProblems(raw, depth, info, ctx, { expandBrief, referenceFormu
   // The fit line says how many lines it rendered; the fill reads it as 'split it', so the correction says what to do (the second reply to the bare line inserted a line break and failed 'plain single-paragraph text').
   if (fit.length) return { problems: fit.map(f => `${line(f)}. Fix: write cardDescription as two sentences of 130 to 200 characters in one paragraph, with no line break`) };
   const wrong = formulaProblems(referenceFormulaCheck(parsed.value, depth));
-  return wrong.length ? { problems: wrong } : { plan: checked.value };
+  if (wrong.length) return { problems: wrong };
+  const unbuildable = await templatePrecheck(checked.value, ctx); // the build's own checks, here, so the correction hears what Generate would refuse
+  return unbuildable.length ? { problems: unbuildable } : { plan: checked.value };
 }
 // The pick (brief 13) runs first: one System One call names the family that fits, or none. A gap (none, below the threshold, a failed or timed out call, no key) goes straight to the Opus design with no fill.
 const pickOf = async (job, ctx) => ctx.env.TYPESAFE_API_KEY

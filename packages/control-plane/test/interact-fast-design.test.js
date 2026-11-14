@@ -9,6 +9,9 @@ import { CHAIN_ENDPOINTS } from '../src/explanation-fast-chain.js';
 import { INTERACT_ROLES, interactReservation, resolveInteractProfile } from '../src/interact-models.js';
 import { fillSystem } from '../src/interact-design-fill.js';
 import { defaultThreshold, pickThreshold } from '../src/interact-design-pick.js';
+import { designCapabilities } from '../src/interact-design.js';
+import { templatePrecheck } from '../src/interact-template.js';
+import { readFileSync } from 'node:fs';
 import { SCENE_TEACHING_GUIDE } from '../src/agents/interact-design-author.js';
 import { PLAN, clone, designStack } from './interact-design-fixture.js';
 
@@ -184,4 +187,23 @@ test('the default threshold is a function of the registry size; the setting over
   assert.deepEqual([pickThreshold({}, one), pickThreshold({}, two)], [0.7, 0.9]);
   assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0.55' }, two), 0.55); assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0' }, two), 0);
   assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.9, 0.7]);
+// The captured failure of the fast clone (2026-11-14, three of three Detailed plans): the model's own checkpoint asks for gravity 1, where body-plot's acceleration arrow (3.4 px per m/s^2) is shorter than the
+// minimum an arrow is drawn at, so the build's oracle refused the card at Generate. The precheck runs the build's checks at design time so the correction (or the Opus fallback) hears it first.
+const GRAVITY_ONE = JSON.parse(readFileSync(new URL('./fixtures/fast-detailed-gravity1-plan.json', import.meta.url), 'utf8'));
+const BUILD = { INTERACT_BUILD_KIND: 'template', INTERACT_SEEK: 'on', EXPLAIN_PROGRAM_ENABLED: 'true', EXPLAIN_PROGRAM_STATEFUL: 'true' };
+
+test('the precheck names the arrow the template cannot draw; the pinned Deep plan and a non-template build pass it', async () => {
+  const capabilities = await designCapabilities(BUILD, { evidence: [{ id: 'kinematics_note' }] });
+  const bad = await templatePrecheck(GRAVITY_ONE, { env: BUILD, capabilities: await designCapabilities(BUILD, { evidence: [] }) });
+  assert.equal(bad.length, 1); assert.match(bad[0], /^template build: \[arrow_direction\] the arrow "vec.a" is not drawn at cp-fastTop/);
+  assert.deepEqual(await templatePrecheck(referencePlans.tossDeep, { env: BUILD, capabilities }), []);
+  assert.deepEqual(await templatePrecheck(GRAVITY_ONE, { env: { ...BUILD, INTERACT_BUILD_KIND: undefined }, capabilities }), [], 'the model build has no template to try');
+});
+
+test('a Detailed brief the template cannot draw gets ONE correction naming the arrow, then the corrected brief passes (template build on)', async t => {
+  const goodDeep = extractBrief(referencePlans.tossDeep), s = fastStack(t, { answers: [extractBrief(GRAVITY_ONE), goodDeep], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
+  const { body } = await s.create({ depth: 'detailed' });
+  const { job } = await s.design(body.job.id);
+  assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure)); assert.equal(s.fills.length, 2); assert.deepEqual(s.model.roles(), []);
+  assert.match(userOf(s.fills[1]).correction.problems[0], /^template build: \[arrow_direction\] the arrow "vec.a" is not drawn at cp-fastTop/);
 });
