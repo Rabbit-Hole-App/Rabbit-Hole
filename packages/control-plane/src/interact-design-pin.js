@@ -7,6 +7,7 @@
 // ONE pin family (owner 2026-11-13): INTERACT_DESIGN_FIXTURE=toss pins by the job's Depth: brief -> toss-overview, balanced -> toss-standard, detailed -> toss-deep
 // (the three reference toss-and-drop cards). A single plan id (toss-overview, toss-standard, toss-deep) pins that plan at its own Depth only. The older ids
 // toss-drop-standard and toss-drop-standard-controls stay valid and pin the Standard (balanced) as before.
+// curve pins curve-logistic-brief/balanced/detailed by Depth through the same path.
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
 import { TOSS_MVP_PLANS } from '../../web/src/interact-toss-mvp-plans.js';
 import { depthOf } from './chat-depth.js';
@@ -15,7 +16,8 @@ import { depthOf } from './chat-depth.js';
 export const FIXTURE_DEPTHS = Object.freeze({ brief: 'toss-overview', balanced: 'toss-standard', detailed: 'toss-deep' });
 // id -> [the plan's name, its Depth, the fixtures group it lives in]
 const PLAN_OF = Object.freeze({ 'toss-overview': ['tossOverview', 'brief', 'referencePlans'], 'toss-standard': ['tossStandard', 'balanced', 'referencePlans'], 'toss-deep': ['tossDeep', 'detailed', 'referencePlans'], 'ledge-toss-moon': ['ledgeTossMoon', 'brief', 'referencePlans'], 'toss-drop-standard': ['standard', 'balanced', 'plans'], 'toss-drop-standard-controls': ['standardControls', 'balanced', 'plans'],
-  'toss-mvp-brief': ['brief', 'brief', 'mvp'], 'toss-mvp-balanced': ['balanced', 'balanced', 'mvp'], 'toss-mvp-detailed': ['detailed', 'detailed', 'mvp'] });
+  'toss-mvp-brief': ['brief', 'brief', 'mvp'], 'toss-mvp-balanced': ['balanced', 'balanced', 'mvp'], 'toss-mvp-detailed': ['detailed', 'detailed', 'mvp'],
+  'curve-logistic-brief': ['curve-logistic-brief', 'brief', 'curvePlans'], 'curve-logistic-balanced': ['curve-logistic-balanced', 'balanced', 'curvePlans'], 'curve-logistic-detailed': ['curve-logistic-detailed', 'detailed', 'curvePlans'] });
 // The third family (brief 11 section 5): INTERACT_DESIGN_FIXTURE=toss-mvp pins by the job's Depth to the plans a model wrote as a plan brief and the code expanded (interact-plan-brief.js), taken from the data file
 // interact-toss-mvp-plans.js ({ brief, balanced, detailed }; a depth with no plan there is not pinned). Each plan has its own oracle (interact-oracle.js verticalThrowOracle, id toss-mvp-<depth>).
 // The plans map the toss-mvp family answers from: the data file's by default; a test sets `mvpPlans.current` (and puts the default back) so it does not depend on which plans the picker last wrote.
@@ -23,14 +25,17 @@ export const mvpPlans = { current: TOSS_MVP_PLANS };
 export const MVP_DEPTHS = Object.freeze({ brief: 'toss-mvp-brief', balanced: 'toss-mvp-balanced', detailed: 'toss-mvp-detailed' });
 // The second family (brief 7 section 5): INTERACT_DESIGN_FIXTURE=ledge pins the Moon ledge toss for brief only, to show a template build on a plan no template was written for.
 export const LEDGE_DEPTHS = Object.freeze({ brief: 'ledge-toss-moon' });
-export const PIN_FIXTURES = Object.freeze(['toss', 'ledge', 'toss-mvp', ...Object.keys(PLAN_OF)]);
+export const CURVE_DEPTHS = Object.freeze({ brief: 'curve-logistic-brief', balanced: 'curve-logistic-balanced', detailed: 'curve-logistic-detailed' });
+// Pin families are data: another family adds a depth map, not a selector branch.
+const PIN_DEPTHS = Object.freeze({ toss: FIXTURE_DEPTHS, ledge: LEDGE_DEPTHS, 'toss-mvp': MVP_DEPTHS, curve: CURVE_DEPTHS });
+export const PIN_FIXTURES = Object.freeze([...Object.keys(PIN_DEPTHS), ...Object.keys(PLAN_OF)]);
 const PINNED_DESCRIPTION = 'A ball tossed at 3.0 m/s has zero velocity at its top, yet its acceleration stays -9.8 m/s^2 there and at every instant of the flight.';
 const text = value => value;
 
 export const designPinOf = env => ((env.SMALL_ENV === 'dev' || env.SMALL_ENV === 'test' || env.EXPLAIN_DIAGNOSTICS === 'true') && PIN_FIXTURES.includes(env.INTERACT_DESIGN_FIXTURE) ? env.INTERACT_DESIGN_FIXTURE : null);
 
 // The plan id a pin answers for a job's Depth, or null when this Depth is not pinned (the real design runs): `toss` follows the Depth, a plan id answers its own Depth only.
-export const pinnedFixtureId = (pin, depth) => { const d = depthOf(depth), id = pin === 'toss' ? FIXTURE_DEPTHS[d] : pin === 'ledge' ? LEDGE_DEPTHS[d] : pin === 'toss-mvp' ? MVP_DEPTHS[d] : pin; return id && PLAN_OF[id]?.[1] === d && (PLAN_OF[id][2] !== 'mvp' || mvpPlans.current[d]) ? id : null; };
+export const pinnedFixtureId = (pin, depth) => { const d = depthOf(depth), id = PIN_DEPTHS[pin]?.[d] ?? pin; return id && PLAN_OF[id]?.[1] === d && (PLAN_OF[id][2] !== 'mvp' || mvpPlans.current[d]) ? id : null; };
 
 export async function pinnedPlan(fixtureId, job) {
   const id = pinnedFixtureId(fixtureId, job.depth) ?? fixtureId, fixtures = { ...await interactFixtures(), mvp: mvpPlans.current }, [name, , group] = PLAN_OF[id];

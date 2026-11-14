@@ -434,7 +434,7 @@ test('the JSON Schema is exported from the authoritative contract', () => {
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.required.sort(), ['assumptions', 'cardDescription', 'claims', 'controls', 'depth', 'learningGoal', 'limitations', 'mode', 'scene', 'schemaVersion', 'story', 'supportingVisuals', 'title']);
   assert.equal(schema.properties.schemaVersion.const, 1);
-  assert.ok(schema.$defs.ScalarExpr.oneOf.length === 3);
+  assert.ok(schema.$defs.ScalarExpr.oneOf.length === 4);
   assert.equal(schema.properties.mode.properties.timeline.anyOf.length, 2);
   assert.doesNotThrow(() => JSON.stringify(schema));
   assert.equal(scenePlanJsonSchema().$id, 'scene-plan-v1');

@@ -41,7 +41,7 @@ test('names: t, the inputs and the fixed numbers (a literal); anything else is r
   assert.deepEqual(parseFormula('-gravity', { fixed: { gravity: 9.8 } }), { op: 'literal', value: -9.8 });
   throws('launchSpeed + altitude', 'formula_name', /unknown name "altitude" at character 15/);
   throws('gravity', 'formula_name', /unknown name "gravity"/, { names: [] });
-  throws('sqrt(t)', 'formula_name', /unknown name "sqrt" at character 1/);
+  throws('sin(t)', 'formula_name', /unknown name "sin" at character 1/);
   throws('t', 'formula_name', /not t/, { names: [], time: false });
   assert.throws(() => parseFormula('launchSpeed + altitude', { names }), error => error.position === 14 && error.token === 'altitude');
 });
@@ -125,10 +125,14 @@ test('exprToJs: numeric literals, the whitelisted names, + - * / and parentheses
 
 // A minimal valid plan shape is expensive to write here; the plan-level checks run on the three toss fixtures (interact-plan-formulas.test.mjs); this keeps the module's own contract.
 test('the template roles table', () => {
-  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot']);
+  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot', 'curve-one', 'curve-compare', 'curve-readouts']);
   assert.deepEqual(TEMPLATE_ROLES['one-body'].roles, ['height', 'velocity', 'acceleration']);
   assert.deepEqual(TEMPLATE_ROLES['two-lane'], { lanes: 2, roles: ['height', 'velocity', 'acceleration'] });
   assert.deepEqual(TEMPLATE_ROLES['body-plot'].roles, ['height', 'velocity', 'acceleration', 'force', 'plotted']);
+  for (const name of ['curve-one', 'curve-compare', 'curve-readouts']) {
+    assert.deepEqual(TEMPLATE_ROLES[name].roles, ['y', 'slope', 'yAtMarker']);
+    assert.deepEqual(TEMPLATE_ROLES[name].independent, { id: 'x', domain: [-6, 6] });
+  }
   assert.equal(typeof planProblems, 'function');
   assert.deepEqual(formulaScope({ controls: [{ type: 'number', binding: { kind: 'input', id: 'a' } }, { type: 'seek', binding: { kind: 'marker', id: 'm' } }], mode: { fixedValues: { g: 9.8, label: 'x' } } }), { names: ['a'], fixed: { g: 9.8 } });
 });

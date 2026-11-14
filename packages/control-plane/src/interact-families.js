@@ -7,6 +7,7 @@
 // Everything reads the module: briefSchema(depth, module), fillSystem(depth, info, module), module.referenceCheck, generateProgram (by the family whose `templates` name the plan's template).
 import { briefSchema } from '../../web/src/interact-plan-brief.js';
 import { verticalThrow as verticalThrowModule } from '../../web/src/interact-family-vertical-throw.js';
+import { curveSliders as curveSlidersModule } from '../../web/src/interact-family-curve-sliders.js';
 
 export const verticalThrow = Object.freeze({
   id: verticalThrowModule.id,
@@ -14,4 +15,9 @@ export const verticalThrow = Object.freeze({
   module: Object.freeze({ ...verticalThrowModule, family: verticalThrowModule.FAMILY, briefSchema: depth => briefSchema(depth, verticalThrowModule) }),
 });
 
-export const INTERACT_FAMILIES = Object.freeze([verticalThrow]);
+export const curveSliders = Object.freeze({
+  id: curveSlidersModule.id,
+  pickCriterion: curveSlidersModule.pickCriterion,
+  module: Object.freeze({ ...curveSlidersModule, family: curveSlidersModule.FAMILY, briefSchema: depth => briefSchema(depth, curveSlidersModule) }),
+});
+export const INTERACT_FAMILIES = Object.freeze([verticalThrow, curveSliders]);
