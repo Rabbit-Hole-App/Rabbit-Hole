@@ -96,10 +96,10 @@ for (const theme of ['light', 'dark']) {
   await open(page);
   const p = parts(page);
   check(`${theme}: the ${theme} theme is on`, await page.evaluate(() => document.documentElement.classList.contains('dark')) === (theme === 'dark'));
-  const visibleLogos = await p.brand.locator('img').evaluateAll(images => images.filter(image => getComputedStyle(image).display !== 'none').map(image => ({ src: image.getAttribute('src'), natural: image.naturalWidth, w: image.getBoundingClientRect().width, h: image.getBoundingClientRect().height })));
-  check(`${theme}: the left area is the transparent logo only - one image for this theme, loaded, square, no wordmark, linking home with a name`,
-    visibleLogos.length === 1 && visibleLogos[0].natural > 0 && Math.abs(visibleLogos[0].w - visibleLogos[0].h) < 1 && visibleLogos[0].src.includes(theme === 'dark' ? 'rabbit-hole-white' : 'rabbit-hole-black')
-    && (await p.brand.innerText()).trim() === '' && (await p.brand.getAttribute('href')) === '/' && /home/i.test(await p.brand.getAttribute('aria-label')) && !/Rabbit Hole/.test(await p.header.innerText()), JSON.stringify(visibleLogos));
+  // SH-1 (release 143; replaces the 2026-10-22 logo-only brief): the left area is the product title as text in the landing footer's family and weight, in the page ink, linking home with a name.
+  const brandFacts = await p.brand.evaluate(node => { const s = getComputedStyle(node.querySelector('span')), a = getComputedStyle(node); return { text: node.innerText.trim(), images: node.querySelectorAll('img').length, family: s.fontFamily, weight: s.fontWeight, colour: s.color, ink: a.color, h: node.getBoundingClientRect().height }; });
+  check(`${theme}: the left area is the product title as text (Rabbit Hole), weight 500, display family first, no image, linking home with a name`,
+    brandFacts.text === 'Rabbit Hole' && brandFacts.images === 0 && brandFacts.weight === '500' && /^"?Space Grotesk/.test(brandFacts.family) && (await p.brand.getAttribute('href')) === '/' && /home/i.test(await p.brand.getAttribute('aria-label')), JSON.stringify(brandFacts));
   const [headerBox, brandBox, centreBox, forkBox, toggleBox] = await Promise.all([box(p.header), box(p.brand), box(p.centre), box(p.fork), box(p.toggle)]);
   check(`${theme}: three areas - logo left, the title group in the middle, Fork then the panel toggle at the far right`, brandBox.right < centreBox.x && centreBox.right < forkBox.x && forkBox.right <= toggleBox.x + 1 && headerBox.right - toggleBox.right < 24 && brandBox.x - headerBox.x < 24);
   // The header re-lays out when the panel opens or closes, after aria-pressed flips (CI run 40037110708 read 0 / 76.875 on the light theme only): wait up to 5s for the

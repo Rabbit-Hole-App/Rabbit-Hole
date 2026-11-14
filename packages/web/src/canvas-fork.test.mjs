@@ -54,17 +54,26 @@ test('postFork never sends a null state; a real copy still travels', async t => 
   ]);
 });
 
-// Owner header brief, 2026-10-22: the logo only on the left, no wordmark, no black square, a transparent variant per theme, linked home.
-test('the shared canvas page shows the transparent logo top left: no wordmark, a variant per theme, linking home (owner, 2026-10-22)', async () => {
+// SH-1 (owner, release 143; replaces the 2026-10-22 logo-only brief): the top left of the shared canvas is the product title in the landing footer's font, linking home.
+test('the shared canvas page shows the product title top left, in the landing footer font and weight, linking home (SH-1)', async () => {
   const { readFileSync } = await import('node:fs');
-  const page = readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  // The logo link is SharedBrand (CanvasLoading.jsx), shared with the page's loading skeleton (owner brief 2026-10-23).
-  const loading = readFileSync(new URL('./CanvasLoading.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const read = name => readFileSync(new URL(name, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const page = read('./SharedBoardPage.jsx'), loading = read('./CanvasLoading.jsx'), css = read('./index.css');
+  // The brand is SharedBrand (CanvasLoading.jsx), shared with the page's loading skeleton.
   const brand = loading.slice(loading.indexOf('export function SharedBrand('), loading.indexOf('export function MemberBrand('));
   assert.match(page, /<SharedBrand data-shared-brand \/>/);
-  assert.match(brand, /<a href="\/" \{\.\.\.props\}[^>]*aria-label=\{`\$\{PRODUCT\} home`\}>\n\s+<img src=\{logoBlack\}[^>]*dark:hidden[^>]*\/>\n\s+<img src=\{logoWhite\}[^>]*hidden[^>]*dark:block[^>]*\/>\n\s+<\/a>/);
-  assert.doesNotMatch(page, /favicon-32-v1|\{PRODUCT\}<\/span>/, 'no black square, no wordmark');
-  assert.doesNotMatch(brand, /favicon-32-v1|\{PRODUCT\}<\/span>/, 'no black square, no wordmark');
+  assert.match(brand, /<a href="\/" \{\.\.\.props\}[^>]*aria-label=\{`\$\{PRODUCT\} home`\}>/);
+  assert.match(brand, /<span className="font-display[^"]*font-medium[^"]*">\{PRODUCT\}<\/span>/);
+  assert.doesNotMatch(brand, /<img|logoBlack|logoWhite/, 'text, no logo image');
+  assert.match(brand, /text-ink/, 'the page ink token, so it follows light and dark');
+  assert.match(loading, /<SharedBrand tabIndex=\{-1\} \/>/, 'the loading header shows the same brand');
+  // The family and weight are the footer's: footer.css .footer-wordmark is font 500 var(--display), --display is "Space Grotesk","Inter",sans-serif (design/rabbit-hole.css).
+  const footer = read('./landing/footer.css'), design = read('../design/rabbit-hole.css');
+  assert.match(footer, /#site-footer \.footer-wordmark\{font:500 [^;]*var\(--display\)/);
+  const display = design.match(/--display:\s*([^;]+);/)[1];
+  assert.equal(display, '"Space Grotesk","Inter",sans-serif');
+  const mine = css.match(/--font-display:\s*([^;]+);/)[1];
+  assert.ok(mine.startsWith("'Space Grotesk'"), 'Space Grotesk first, as the footer');
 });
 
 // The shared header (owner, 2026-10-06): one GitHub-style control, [fork icon  Fork  N], with the same lucide GitFork the

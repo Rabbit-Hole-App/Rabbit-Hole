@@ -18,6 +18,9 @@
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'SFMono-Regular', Menlo, Consolas, monospace;
+  /* SH-1: the landing's display family (design/rabbit-hole.css --display, the footer wordmark). Space Grotesk is not shipped with the app (the landing page loads it from Google Fonts in
+     design/rabbit-hole-hero.html): until a self-hosted file is decided (release 143 DECISION NEEDED) it shows where installed and falls back to the app's Inter. */
+  --font-display: 'Space Grotesk', 'Inter Variable', 'Inter', sans-serif;
   --color-ink: #37352f; /* text */
   /* text-secondary. Darker than Notion's #787774 (4.32:1 on the scene surface,
      3.37:1 on a soft cell tint): secondary text is learner-facing and clears
