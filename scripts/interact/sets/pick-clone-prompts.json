@@ -1,0 +1,42 @@
+[
+ {
+  "id": "1",
+  "prompt": "At the highest point of a vertical throw, is acceleration zero because velocity is zero?",
+  "expect": "fit"
+ },
+ {
+  "id": "5",
+  "prompt": "What happens to a ball thrown straight up on the Moon?",
+  "expect": "fit"
+ },
+ {
+  "id": "9",
+  "prompt": "A ball is thrown up from a 2 m balcony. When does it pass the balcony again?",
+  "expect": "fit"
+ },
+ {
+  "id": "49",
+  "prompt": "A ball is dropped from a tower. How long until it hits the ground?",
+  "expect": "gap"
+ },
+ {
+  "id": "50",
+  "prompt": "A ball is thrown downward from a bridge. How fast is it after one second?",
+  "expect": "gap"
+ },
+ {
+  "id": "35",
+  "prompt": "How does attention work in a transformer?",
+  "expect": "gap"
+ },
+ {
+  "id": "46",
+  "prompt": "What are the steps of the Krebs cycle?",
+  "expect": "gap"
+ },
+ {
+  "id": "4",
+  "prompt": "Does a heavier ball thrown upward come down faster?",
+  "expect": "gap"
+ }
+]

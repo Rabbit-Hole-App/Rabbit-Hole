@@ -1,6 +1,7 @@
 // Brief 12 §2: drives the /interactive design path from Chat on the dev clone and times it. Fresh account, ONE canvas; per run it types the toss prompt at a depth, waits for the plan in Chat
 // (prompt sent -> plan shown), presses Generate, waits for ready (Generate -> ready), screenshots the plan and the card at the top, waits for the shadow judge, and appends the job's ledger row.
-//   node scripts/interact/drive-design.mjs --design fast|opus [--depth brief,balanced,detailed] [--runs N] [--prompt "<text>"] [--version <Version ID>] [--out <dir>] [--stop-usd N]
+//   node scripts/interact/drive-design.mjs --design fast|opus [--depth brief,balanced,detailed] [--runs N] [--prompt "<text>" | --prompts <list.json>] [--version <Version ID>] [--out <dir>] [--stop-usd N]
+//   node scripts/interact/drive-design.mjs --design fast --prompts scripts/interact/sets/pick-clone-prompts.json [--depth balanced]   each listed prompt once on one canvas; expect gap stops at the plan (no Generate), expect fit builds the card
 //   node scripts/interact/drive-design.mjs --design fast --check      session, canvas, signed-in page, Chat composer and Depth menu; sends nothing (headless, read only)
 // The clone's design path is not readable from outside, so --design is checked against the deploy record C:/s/spec/interact-real/fast-deploy.json ({ design: 'fast'|'opus', versionId }), which the person
 // who deploys writes right after `deploy-clone.mjs deploy`: a mismatch (or a missing record, or a different --version) refuses BEFORE any session, canvas or model call. After each run the ledger row's
@@ -17,17 +18,25 @@ const SPEC_DIR = 'C:/s/spec/interact-real', DEPLOY_FILE = process.env.DESIGN_DEP
 const BASE = 'https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev', DEV_CP = 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev', UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };
 const TOSS_PROMPT = 'At the highest point of a vertical throw, is acceleration zero because velocity is zero?'; // bench-design-mvp.mjs REQUEST, the prompt of open-preview.cmd
 const DEPTHS = ['brief', 'balanced', 'detailed'];
-const USAGE = 'usage: node scripts/interact/drive-design.mjs --design fast|opus [--depth brief,balanced,detailed] [--runs N] [--prompt "<text>"] [--version <id>] [--out <dir>] [--stop-usd N] [--check] [--help]';
+const USAGE = 'usage: node scripts/interact/drive-design.mjs --design fast|opus [--depth brief,balanced,detailed] [--runs N] [--prompt "<text>" | --prompts <list.json>] [--version <id>] [--out <dir>] [--stop-usd N] [--check] [--help]';
 
 const argv = process.argv.slice(2);
 const flag = name => argv.includes(`--${name}`), opt = (name, dflt) => { const i = argv.indexOf(`--${name}`); return i < 0 ? dflt : argv[i + 1]; };
 const fail = (message, code = 1) => { console.log(`RESULT FAILED: ${message}`); process.exit(code); };
 if (flag('help')) { console.log(USAGE); process.exit(0); }
-const design = opt('design'), depths = opt('depth', DEPTHS.join(',')).split(',').map(d => d.trim()), runs = Number(opt('runs', 1)), prompt = opt('prompt', TOSS_PROMPT), check = flag('check');
+const promptsFile = opt('prompts'), design = opt('design'), depths = opt('depth', promptsFile ? 'balanced' : DEPTHS.join(',')).split(',').map(d => d.trim()), runs = Number(opt('runs', 1)), prompt = opt('prompt', TOSS_PROMPT), check = flag('check');
 const stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd')), out = opt('out', `${SPEC_DIR}/drive-design-${design}-${Date.now().toString(36)}`);
 if (!['fast', 'opus'].includes(design)) fail(`--design fast|opus is required. ${USAGE}`, 2);
 if (!depths.length || depths.some(d => !DEPTHS.includes(d))) fail(`--depth takes ${DEPTHS.join(', ')}. ${USAGE}`, 2);
 if (!Number.isInteger(runs) || runs < 1 || !(stopUsd > 0)) fail(`--runs is a whole number of 1 or more and --stop-usd a positive number. ${USAGE}`, 2);
+
+// --prompts <list.json>: [{ id, prompt, expect: 'fit' | 'gap' }], run once each at ONE depth (default balanced); read and checked before anything is created.
+let PROMPT_LIST = [];
+if (promptsFile) {
+  try { PROMPT_LIST = JSON.parse(readFileSync(promptsFile, 'utf8').replace(/^﻿/, '')); } catch (error) { fail(`--prompts ${promptsFile} is not readable JSON (${error.message}). ${USAGE}`, 2); }
+  if (!Array.isArray(PROMPT_LIST) || !PROMPT_LIST.length || PROMPT_LIST.some(p => !p?.prompt || p.id === undefined || !['fit', 'gap'].includes(p.expect))) fail(`--prompts takes a list of { id, prompt, expect: "fit" | "gap" }. ${USAGE}`, 2);
+  if (depths.length !== 1) fail(`--prompts runs at one depth: --depth takes one of ${DEPTHS.join(', ')}. ${USAGE}`, 2);
+}
 
 // Refuse the wrong deploy before anything is spent or created.
 let deployed; try { deployed = JSON.parse(readFileSync(DEPLOY_FILE, 'utf8')); } catch { fail(`no deploy record at ${DEPLOY_FILE}. Next: after the clone deploy, write {"design":"${design}","versionId":"<Version ID>"} there.`, 2); }
@@ -53,7 +62,7 @@ const boardId = saved.data?.board_id; if (!boardId) fail(`could not save the can
 const url = `${BASE}/apps/${app}`; // never ?board=: on a preview build that opens a separate review board
 mkdirSync(SPEC_DIR, { recursive: true }); mkdirSync(out, { recursive: true });
 writeFileSync(`${SPEC_DIR}/current.json`, JSON.stringify({ base: BASE, email: EMAIL, app, boardId, createdAt: new Date().toISOString() }, null, 2)); // ledger.mjs reads the account from here
-const CANVAS_FILE = `${SPEC_DIR}/${design === 'fast' ? 'fast' : 'opus'}-canvas.json`, canvasRecord = jobs => writeFileSync(CANVAS_FILE, JSON.stringify({ base: BASE, email: EMAIL, app, boardId, design, versionId: deployed.versionId, createdAt: new Date().toISOString(), jobs }, null, 2));
+const CANVAS_FILE = `${SPEC_DIR}/${promptsFile ? 'pick' : design === 'fast' ? 'fast' : 'opus'}-canvas.json`, canvasRecord = jobs => writeFileSync(CANVAS_FILE, JSON.stringify({ base: BASE, email: EMAIL, app, boardId, design, versionId: deployed.versionId, createdAt: new Date().toISOString(), jobs }, null, 2));
 const jobsOf = async () => { const l = await api('GET', `/api/learn/explain/jobs?board=${boardId}`); return Array.isArray(l.data) ? l.data : (l.data?.jobs || []); };
 
 const { chromium } = createRequire('C:/s/explain-layout-web/package.json')('playwright');
@@ -89,13 +98,15 @@ if (check) {
 
 // The row of a finished job from the clone's own diagnostics (detail=1), once the shadow judge has answered (or 120 s have passed).
 const detailOf = async id => (await api('GET', `/api/learn/explain/jobs/${id}?board=${boardId}&detail=1`)).data;
-const results = [], summary = []; let spent = 0, stopped = null;
-outer: for (let n = 1; n <= runs; n++) for (const depth of depths) {
-  const tag = `${design}-${depth}-${n}`, known = new Set((await jobsOf()).map(j => j.id)), plans0 = await page.locator('[data-generation-proposal] [data-proposal-generate]').count();
+const results = []; let spent = 0, stopped = null;
+// The work list: one entry per (run, depth) of the single prompt, or, with --prompts, one per listed prompt at the one depth. expect 'gap' stops at the plan in Chat (Generate is never pressed: the Opus plan would build with Opus).
+const items = promptsFile ? PROMPT_LIST.map(p => ({ n: 1, depth: depths[0], prompt: p.prompt, id: String(p.id), expect: p.expect === 'gap' ? 'gap' : 'fit' })) : Array.from({ length: runs }, (_, i) => depths.map(depth => ({ n: i + 1, depth, prompt, id: null, expect: 'fit' }))).flat();
+outer: for (const { n, depth, prompt, id, expect } of items) {
+  const tag = id ? `${design}-p${id}` : `${design}-${depth}-${n}`, known = new Set((await jobsOf()).map(j => j.id)), plans0 = await page.locator('[data-generation-proposal] [data-proposal-generate]').count();
   await chooseDepth(depth);
   await box.click(); await box.fill(`/interactive ${prompt}`); await page.waitForTimeout(200);
   const tSent = Date.now(); await box.press('Enter'); log(tag, 'sent');
-  const r = { run: n, design, depth, deploy: deployed.versionId, canvasId: app, account: EMAIL, jobId: null, promptToPlanMs: null, generateToReadyMs: null, promptToCardMs: null, stage: null, stopReason: null, failure: null };
+  const r = { run: n, design, depth, deploy: deployed.versionId, canvasId: app, account: EMAIL, jobId: null, ...(id ? { id, expect } : {}), promptToPlanMs: null, generateToReadyMs: null, promptToCardMs: null, stage: null, stopReason: null, failure: null };
   // The plan is shown when a new proposal with a Generate button appears in Chat; a job that ends first (failed, cancelled) ends the wait.
   let job = null, shown = false;
   const planWait = page.waitForFunction(count => document.querySelectorAll('[data-generation-proposal] [data-proposal-generate]').length > count, plans0, { timeout: 900000, polling: 'raf' }).then(() => { shown = Date.now(); });
@@ -107,35 +118,38 @@ outer: for (let n = 1; n <= runs; n++) for (const depth of depths) {
     const proposal = page.locator('[data-generation-proposal][data-proposal-job]').last();
     r.jobId = await proposal.getAttribute('data-proposal-job'); job = { id: r.jobId };
     await proposal.screenshot({ path: `${out}/${tag}-plan.png` }).catch(() => {});
-    const tGen = Date.now(); await proposal.locator('[data-proposal-generate]').click(); log(tag, 'job', r.jobId, `plan shown ${r.promptToPlanMs} ms, Generate pressed`);
+    if (expect === 'gap') { r.stage = (await api('GET', `/api/learn/explain/jobs/${r.jobId}?board=${boardId}`)).data?.job?.stage ?? null; log(tag, 'job', r.jobId, `plan shown ${r.promptToPlanMs} ms, Generate NOT pressed (expect gap)`); }
+    const tGen = Date.now(); if (expect !== 'gap') { await proposal.locator('[data-proposal-generate]').click(); log(tag, 'job', r.jobId, `plan shown ${r.promptToPlanMs} ms, Generate pressed`); }
     let end = null;
-    while (Date.now() - tGen < 300000) {
+    while (expect !== 'gap' && Date.now() - tGen < 300000) {
       end = (await api('GET', `/api/learn/explain/jobs/${r.jobId}?board=${boardId}`)).data?.job;
       if (end?.terminal || ['ready', 'failed', 'cancelled'].includes(end?.stage) || approveFailed) break;
       await sleep(400);
     }
-    r.generateToReadyMs = Date.now() - tGen; r.promptToCardMs = r.promptToPlanMs + r.generateToReadyMs;
-    Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed });
+    if (expect !== 'gap') { r.generateToReadyMs = Date.now() - tGen; r.promptToCardMs = r.promptToPlanMs + r.generateToReadyMs; }
+    if (expect !== 'gap') Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed });
     if (end?.stage === 'ready') {
       const card = page.locator('[data-program-card]').last();
       try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); const top = card.getByRole('button', { name: 'At top' }); if (await top.count()) { await top.first().click(); await page.waitForTimeout(800); } await card.screenshot({ path: `${out}/${tag}-card-top.png` }); } catch (e) { r.cardShotError = String(e).slice(0, 120); }
-    } else await page.screenshot({ path: `${out}/${tag}-${end?.stage ?? 'nostage'}.png` }).catch(() => {});
+    } else if (expect !== 'gap') await page.screenshot({ path: `${out}/${tag}-${end?.stage ?? 'nostage'}.png` }).catch(() => {});
   }
   if (r.jobId) {
-    for (let t = 0; t < 120000; t += 3000) { const d = await detailOf(r.jobId); if (d?.diagnostics?.bench?.judge || d?.diagnostics?.bench?.error || r.stage !== 'ready') break; await sleep(3000); }
+    for (let t = 0; t < 120000; t += 3000) { const d = await detailOf(r.jobId); if (d?.diagnostics?.bench?.judge || d?.diagnostics?.bench?.error || r.stage !== 'ready' || expect === 'gap') break; await sleep(3000); }
     const led = spawnSync(process.execPath, [join(REPO, 'scripts/interact/ledger.mjs'), '--clone', BASE, '--job', r.jobId, '--board', boardId], { encoding: 'utf8' });
     log(tag, 'ledger:', (led.stdout + led.stderr).trim().slice(0, 200));
     const det = (await detailOf(r.jobId))?.diagnostics, row = det?.ledger ?? null; r.designFast = det?.designFast ?? null; // firstProblem and lastProblem of a fast design that was refused
-    r.ledger = row && Object.fromEntries(['designKind', 'designModel', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'costUsd', 'buildKind', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd'].map(k => [k, row[k]]));
-    spent += Math.max(row?.costUsd ?? 0, row?.designCostUsd ?? 0);
-    if (row && row.designKind !== design && !(design === 'fast' && row.designFallback === 'after_correction')) /* a fast deploy that fell back to the Opus design is a result, not the wrong deploy */ { r.failure ??= `the deploy ran the ${row.designKind} design, not ${design}`; stopped = `ledger designKind ${row.designKind} is not ${design}: the clone is not the deploy ${DEPLOY_FILE} says`; }
+    r.ledger = row && Object.fromEntries(['designKind', 'designModel', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'costUsd', 'buildKind', 'pickFamily', 'pickConfidence', 'msPick', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd'].map(k => [k, row[k]]));
+    const fb = row?.designFallback ?? det?.designFast?.fallback ?? null; // which path the design took: the fast fill, the Opus design straight after a pick gap, or the Opus design after a failed correction
+    r.path = row ? (fb === 'gap' ? 'opus-gap' : fb === 'after_correction' ? 'opus-after-correction' : row.designKind === 'fast' ? 'fast' : row.designKind) : null;
+    spent += Math.max(row?.costUsd ?? 0, row?.designCostUsd ?? 0); // a gap plan's Opus design counts toward --stop-usd
+    if (row && row.designKind !== design && !(design === 'fast' && ['after_correction', 'gap'].includes(row.designFallback))) /* a fast deploy that fell back to the Opus design is a result, not the wrong deploy */ { r.failure ??= `the deploy ran the ${row.designKind} design, not ${design}`; stopped = `ledger designKind ${row.designKind} is not ${design}: the clone is not the deploy ${DEPLOY_FILE} says`; }
   }
   results.push(r); appendFileSync(`${out}/results.jsonl`, JSON.stringify(r) + '\n'); canvasRecord(results); log(tag, JSON.stringify(r));
   if (stopped) break outer;
   if (spent >= stopUsd) { stopped = `spent US$${spent.toFixed(2)} reached --stop-usd ${stopUsd}`; break outer; }
 }
 await browser.close();
-for (const r of results) console.log(`${r.depth.padEnd(9)} #${r.run} ${String(r.stage).padEnd(9)} plan ${r.promptToPlanMs ?? '-'} ms, ready ${r.generateToReadyMs ?? '-'} ms, card ${r.promptToCardMs ?? '-'} ms ${r.jobId}${r.failure ? ` (${r.failure})` : ''}`);
-const ok = !stopped && results.length === runs * depths.length && results.every(r => r.stage === 'ready');
-console.log(ok ? `RESULT OK canvas ${app} (${EMAIL}): ${url}; results in ${out}/results.jsonl` : `RESULT FAILED: ${stopped ?? 'not every run reached ready'}; ${results.length} of ${runs * depths.length} runs done; canvas ${url}; results in ${out}/results.jsonl`);
+for (const r of results) console.log(`${r.id ? `p${r.id} ${r.expect} ${r.path ?? '-'} pick ${r.ledger?.pickFamily ?? 'none'} ${r.ledger?.pickConfidence ?? '-'} ${r.ledger?.msPick ?? '-'} ms ` : ''}${r.depth.padEnd(9)} #${r.run} ${String(r.stage).padEnd(9)} plan ${r.promptToPlanMs ?? '-'} ms, ready ${r.generateToReadyMs ?? '-'} ms, card ${r.promptToCardMs ?? '-'} ms ${r.jobId}${r.failure ? ` (${r.failure})` : ''}`);
+const ok = !stopped && results.length === items.length && results.every(r => r.stage === (r.expect === 'gap' ? 'awaiting_approval' : 'ready'));
+console.log(ok ? `RESULT OK canvas ${app} (${EMAIL}): ${url}; results in ${out}/results.jsonl` : `RESULT FAILED: ${stopped ?? 'not every run reached ready'}; ${results.length} of ${items.length} runs done; canvas ${url}; results in ${out}/results.jsonl`);
 process.exit(ok ? 0 : 1);
