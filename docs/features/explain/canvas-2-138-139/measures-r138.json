@@ -1,0 +1,152 @@
+{
+  "phase": "r138",
+  "worktree": "C:/s/explain-canvas-2",
+  "fixtures": {
+    "cv6": "all blocks dx +4000, dy +5000; items removed",
+    "cv7": "export blocks unchanged; its text item moved to x -6000, y -4000",
+    "cv3": "three column cards 12b2f014, 90f74975, 5be887a2 with offsets zeroed; the third dragged 420 px right, then the first deleted"
+  },
+  "cv6": {
+    "viewport": {
+      "w": 1700,
+      "h": 1050
+    },
+    "blocks": 13,
+    "blocksVisible": 2,
+    "visibleIds": [
+      "90f74975",
+      "8c56b678"
+    ],
+    "widest": 748,
+    "card90f7": {
+      "id": "90f74975",
+      "x": 249,
+      "y": 190,
+      "w": 724,
+      "h": 646
+    },
+    "md": {
+      "id": "8c56b678",
+      "x": 333,
+      "y": 926,
+      "w": 699,
+      "h": 10500
+    }
+  },
+  "cv7open": {
+    "viewport": {
+      "w": 1700,
+      "h": 1050
+    },
+    "blocks": 13,
+    "blocksVisible": 2,
+    "visibleIds": [
+      "90f74975",
+      "8c56b678"
+    ],
+    "widest": 748,
+    "card90f7": {
+      "id": "90f74975",
+      "x": 249,
+      "y": 190,
+      "w": 724,
+      "h": 646
+    },
+    "md": {
+      "id": "8c56b678",
+      "x": 333,
+      "y": 926,
+      "w": 699,
+      "h": 10500
+    }
+  },
+  "cv7fit": {
+    "viewport": {
+      "w": 1700,
+      "h": 1050
+    },
+    "blocks": 13,
+    "blocksVisible": 7,
+    "visibleIds": [
+      "6b07ba21",
+      "1142d18c",
+      "12b2f014",
+      "c320ad36",
+      "90f74975",
+      "8c56b678",
+      "inline-a"
+    ],
+    "widest": 150,
+    "card90f7": {
+      "id": "90f74975",
+      "x": 310,
+      "y": 517,
+      "w": 145,
+      "h": 129
+    },
+    "md": {
+      "id": "8c56b678",
+      "x": 326,
+      "y": 664,
+      "w": 140,
+      "h": 2100
+    }
+  },
+  "cv3": {
+    "open": {
+      "A": {
+        "x": 462,
+        "y": 104,
+        "w": 440,
+        "h": 921
+      },
+      "B": {
+        "x": 402,
+        "y": 1045,
+        "w": 724,
+        "h": 646
+      },
+      "C": {
+        "x": 462,
+        "y": 1711,
+        "w": 440,
+        "h": 1245
+      }
+    },
+    "afterDrag": {
+      "A": {
+        "x": 462,
+        "y": 104,
+        "w": 440,
+        "h": 921
+      },
+      "B": {
+        "x": 402,
+        "y": 1045,
+        "w": 724,
+        "h": 646
+      },
+      "C": {
+        "x": 462,
+        "y": 1711,
+        "w": 440,
+        "h": 1245
+      }
+    },
+    "afterDeleteA": {
+      "A": null,
+      "B": {
+        "x": 402,
+        "y": 104,
+        "w": 724,
+        "h": 646
+      },
+      "C": {
+        "x": 462,
+        "y": 770,
+        "w": 440,
+        "h": 1245
+      }
+    }
+  }
+}

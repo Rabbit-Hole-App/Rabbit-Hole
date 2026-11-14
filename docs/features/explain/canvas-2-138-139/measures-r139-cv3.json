@@ -1,0 +1,89 @@
+{
+  "phase": "r139",
+  "worktree": "C:/s/explain-canvas-3",
+  "fixtures": {
+    "cv6": "all blocks dx +4000, dy +5000; items removed",
+    "cv7": "export blocks unchanged; its text item moved to x -6000, y -4000",
+    "cv3": "three column cards A 12b2f014, B 90f74975, C 5be887a2 with offsets zeroed; the camera panned down 700, C dragged 420 px right, then B (above C) deleted: C is anchored, so it should stay"
+  },
+  "cv3": {
+    "open": {
+      "A": {
+        "x": 462,
+        "y": 104,
+        "w": 440,
+        "h": 921
+      },
+      "B": {
+        "x": 402,
+        "y": 1045,
+        "w": 724,
+        "h": 646
+      },
+      "C": {
+        "x": 462,
+        "y": 1711,
+        "w": 440,
+        "h": 1245
+      }
+    },
+    "afterPan": {
+      "A": {
+        "x": 462,
+        "y": -596,
+        "w": 440,
+        "h": 921
+      },
+      "B": {
+        "x": 402,
+        "y": 345,
+        "w": 724,
+        "h": 646
+      },
+      "C": {
+        "x": 462,
+        "y": 1011,
+        "w": 440,
+        "h": 1245
+      }
+    },
+    "afterDrag": {
+      "A": {
+        "x": 462,
+        "y": -596,
+        "w": 440,
+        "h": 921
+      },
+      "B": {
+        "x": 402,
+        "y": 345,
+        "w": 724,
+        "h": 646
+      },
+      "C": {
+        "x": 882,
+        "y": 1011,
+        "w": 440,
+        "h": 1245
+      }
+    },
+    "selectedBeforeDelete": [
+      "90f74975"
+    ],
+    "afterDeleteB": {
+      "A": {
+        "x": 462,
+        "y": -596,
+        "w": 440,
+        "h": 921
+      },
+      "B": null,
+      "C": {
+        "x": 882,
+        "y": 1011,
+        "w": 440,
+        "h": 1245
+      }
+    }
+  }
+}
