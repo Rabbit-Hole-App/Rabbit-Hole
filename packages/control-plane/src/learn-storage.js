@@ -14,10 +14,9 @@ export const learnMedia = env => env?.LEARN_MEDIA || env?.RUNS;
 export async function archiveExplanation(env, record) {
   try {
     const bucket = learnMedia(env);
-    if (!bucket) return false;
+    if (!bucket) return;
     await bucket.put(`explain-archive/${new Date().toISOString().slice(0, 10)}/${record.id}.json`, JSON.stringify(record), { httpMetadata: { contentType: 'application/json' } });
-    return true;
-  } catch (error) { console.log(JSON.stringify({ event: 'explain_archive_failed', id: record?.id ?? null, error: String(error?.message || error).slice(0, 200) })); return false; }
+  } catch (error) { console.log(JSON.stringify({ event: 'explain_archive_failed', id: record?.id ?? null, error: String(error?.message || error).slice(0, 200) })); }
 }
 
 // Where the video-moment log (learn_moments) lives. Every learn_moments statement
