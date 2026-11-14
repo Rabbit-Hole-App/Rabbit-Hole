@@ -8,6 +8,7 @@ import { briefSchema, extractBrief } from '../../web/src/interact-plan-brief.js'
 import { CHAIN_ENDPOINTS } from '../src/explanation-fast-chain.js';
 import { INTERACT_ROLES, interactReservation, resolveInteractProfile } from '../src/interact-models.js';
 import { fillSystem } from '../src/interact-design-fill.js';
+import { defaultThreshold, pickThreshold } from '../src/interact-design-pick.js';
 import { SCENE_TEACHING_GUIDE } from '../src/agents/interact-design-author.js';
 import { PLAN, clone, designStack } from './interact-design-fixture.js';
 
@@ -18,17 +19,19 @@ const GOOD = extractBrief(referencePlans.tossOverview); // a brief the checks ac
 const completion = (content, model) => ({ id: 'c1', model, choices: [{ index: 0, message: { role: 'assistant', content: JSON.stringify(content) }, finish_reason: 'stop' }], usage: { prompt_tokens: 9000, completion_tokens: 900, total_tokens: 9900 } });
 
 // answers: one per fill call, in order (the last repeats): a brief, or a function (n, request body) -> a brief. Anthropic calls still go to the scripted provider's own fetch.
-function fastStack(t, { answers, script, env = {}, evidence } = {}) {
+// pick: the JEV answer { choice, confidence } (default: a confident fit of the vertical throw), or a function (url, init) -> Response, which may throw (a timeout).
+function fastStack(t, { answers, script, env = {}, evidence, pick = { choice: 'vertical-throw', confidence: 0.95 } } = {}) {
   const s = designStack(t, { script, ...(evidence ? { evidence } : {}) });
-  Object.assign(s.env, { INTERACT_DESIGN_KIND: 'fast', GEMINI_API_KEY: 'g-test', ...env });
-  const inner = globalThis.fetch, fills = [];
+  Object.assign(s.env, { INTERACT_DESIGN_KIND: 'fast', GEMINI_API_KEY: 'g-test', TYPESAFE_API_KEY: 'tk-test', ...env });
+  const inner = globalThis.fetch, fills = [], picks = [];
   globalThis.fetch = async (url, init) => {
+    if (String(url) === 'https://api.typesafe.ai/v1/systemone') { picks.push(JSON.parse(init.body)); return typeof pick === 'function' ? pick(url, init) : Response.json({ answers: { family: pick } }); }
     if (String(url) !== CHAIN_ENDPOINTS.google.url) return inner(url, init);
     const body = JSON.parse(init.body), n = fills.length + 1, one = answers[Math.min(n - 1, answers.length - 1)];
     fills.push(body);
     return Response.json(completion(typeof one === 'function' ? one(n, body) : one, body.model));
   };
-  return { ...s, fills, jobOf: id => s.state.data.get(`job:${id}`) };
+  return { ...s, fills, picks, jobOf: id => s.state.data.get(`job:${id}`) };
 }
 const SEEK = { INTERACT_SEEK: 'on' }; // the reference toss plans use the scrubber
 const userOf = body => JSON.parse(body.messages.at(-1).content);
@@ -125,4 +128,60 @@ test('a job with no evidence still passes: the family claims drop the reference 
   const { job } = await s.design(body.job.id);
   assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure)); assert.equal(s.fills.length, 1);
   assert.ok(job.design.plan.claims.every(c => c.evidenceIds.length === 0));
+});
+
+const OPUS = { author: () => clone(PLAN.standard) }; // the scripted Opus author of a gap or a fallback
+// ---- the pick (brief 13): one JEV call first; a gap goes to the Opus design with no fill ----
+test('the pick runs first and a fit goes to that family fill: one JEV call, one fill, the pick is recorded on the job', async t => {
+  const s = fastStack(t, { answers: [GOOD], env: SEEK, evidence: [] });
+  const { body } = await s.create({ depth: 'brief' });
+  const { job } = await s.design(body.job.id);
+  assert.equal(job.stage, 'awaiting_approval'); assert.equal(s.picks.length, 1); assert.equal(s.fills.length, 1);
+  assert.deepEqual(Object.keys(s.picks[0].questions.family.criteria), ['vertical-throw', 'none'], 'the question is built from the registry');
+  const { pick } = job.design.fast;
+  assert.deepEqual([pick.family, pick.confidence, pick.reason, typeof pick.ms], ['vertical-throw', 0.95, 'fit', 'number']);
+  assert.deepEqual([job.design.fast.kind, job.design.fast.fallback], ['fast', 'none']);
+});
+
+test('a pick of none is a gap: no fill call, the Opus author runs in the same job, fallback gap, the Opus roles are reserved', async t => {
+  const s = fastStack(t, { answers: [GOOD], pick: { choice: 'none', confidence: 0.8 }, script: OPUS });
+  const { body } = await s.create({ depth: 'balanced' });
+  const before = s.jobOf(body.job.id).reservation.preparationMicros;
+  const { job, seen } = await s.design(body.job.id);
+  assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure));
+  assert.equal(s.fills.length, 0, 'no fill, no correction'); assert.ok(s.model.roles().includes('author'), 'the Opus author ran');
+  assert.deepEqual([job.design.fast.kind, job.design.fast.fallback, job.design.fast.calls, job.design.fast.pick.family, job.design.fast.pick.reason], ['opus', 'gap', 0, null, 'none']);
+  const profile = resolveInteractProfile('opus-baseline');
+  assert.equal(job.reservation.preparationMicros, before + interactReservation(profile).preparationMicros);
+  assert.ok(seen.includes('design_authoring'));
+});
+
+test('a JEV timeout, a JEV error and a missing key are gaps too, never a learner-visible error', async t => {
+  for (const [label, opts] of [['timeout', { pick: () => { throw Object.assign(new Error('The operation timed out'), { name: 'TimeoutError' }); } }], ['http 500', { pick: () => new Response('no', { status: 500 }) }], ['no key', { env: { TYPESAFE_API_KEY: '' } }]]) {
+    const s = fastStack(t, { answers: [GOOD], script: OPUS, ...opts });
+    const { body } = await s.create({ depth: 'balanced' });
+    const { job } = await s.design(body.job.id);
+    assert.equal(job.stage, 'awaiting_approval', label + ' ' + JSON.stringify(job.failure)); assert.equal(s.fills.length, 0, label);
+    assert.deepEqual([job.design.fast.fallback, job.design.fast.pick.family], ['gap', null], label);
+  }
+});
+
+test('a fit below the threshold is a gap; INTERACT_PICK_THRESHOLD moves the line', async t => {
+  const low = { choice: 'vertical-throw', confidence: 0.6 };
+  const s = fastStack(t, { answers: [GOOD], pick: low, script: OPUS });
+  const { body } = await s.create({ depth: 'balanced' });
+  const { job } = await s.design(body.job.id);
+  assert.deepEqual([job.design.fast.fallback, job.design.fast.pick.reason, s.fills.length], ['gap', 'below_threshold', 0], '0.6 is under the one-family default of 0.7');
+  const s2 = fastStack(t, { answers: [GOOD], env: { ...SEEK, INTERACT_PICK_THRESHOLD: '0.5' }, pick: low, evidence: [] });
+  const { body: b2 } = await s2.create({ depth: 'brief' });
+  const { job: j2 } = await s2.design(b2.job.id);
+  assert.deepEqual([j2.design.fast.fallback, s2.fills.length], ['none', 1], 'the setting lowers the line to 0.5');
+});
+
+test('the default threshold is a function of the registry size; the setting overrides it, bad values are ignored', () => {
+  const one = [{ id: 'a' }], two = [{ id: 'a' }, { id: 'b' }];
+  assert.deepEqual([defaultThreshold(1), defaultThreshold(2), defaultThreshold(3)], [0.7, 0.9, 0.9]);
+  assert.deepEqual([pickThreshold({}, one), pickThreshold({}, two)], [0.7, 0.9]);
+  assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0.55' }, two), 0.55); assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0' }, two), 0);
+  assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.9, 0.7]);
 });

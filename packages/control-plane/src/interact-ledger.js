@@ -15,13 +15,15 @@ const designPart = (job, t, mvp) => {
   const fast = job.design?.fast ?? null, stages = t.stages.filter(s => s.stage.startsWith('design_')), calls = stages.reduce((n, s) => n + s.calls, 0), priced = stages.filter(s => s.model !== undefined && s.calls > 0);
   const dcalls = (job.calls ?? []).filter(c => c.role?.startsWith('design_') && c.status !== 'refused'), opus = !fast && !job.designFixture && calls > 0, model = stages.find(s => s.model)?.model;
   const stageCost = priced.length && priced.every(s => typeof s.costMicros === 'number') ? priced.reduce((n, s) => n + s.costMicros, 0) / 1e6 : null;
-  return { designModel: fast?.model ?? (opus ? model?.served ?? model?.requested ?? null : mvp.designModel), designKind: fast?.kind ?? (opus ? 'opus' : mvp.designKind), msFill: mvp.msFill, designFallback: fast ? fast.fallback ?? 'none' : null,
-    designCalls: fast || opus ? (dcalls.length || (fast?.calls ?? calls)) : null, msDesign: fast || opus ? t.proposalMs : null, designCostUsd: fast || opus ? (dcalls.length ? (dcalls.every(c => typeof c.costMicros === 'number') ? dcalls.reduce((n, c) => n + c.costMicros, 0) / 1e6 : null) : fast?.costUsd ?? stageCost) : null };
+  return { designModel: fast?.model ?? (opus || fast ? model?.served ?? model?.requested ?? null : mvp.designModel), designKind: fast?.kind ?? (opus ? 'opus' : mvp.designKind), msFill: mvp.msFill, designFallback: fast ? fast.fallback ?? 'none' : null,
+    designCalls: fast || opus ? (dcalls.length || fast?.calls || calls) : null, msDesign: fast || opus ? t.proposalMs : null, designCostUsd: fast || opus ? (dcalls.length ? (dcalls.every(c => typeof c.costMicros === 'number') ? dcalls.reduce((n, c) => n + c.costMicros, 0) / 1e6 : null) : fast?.costUsd || stageCost) : null,
+    // brief 13: the pick of a fast design (a family id, or 'gap'), its confidence and its wall-clock; null when no pick ran.
+    pickFamily: fast?.pick ? fast.pick.family ?? 'gap' : null, pickConfidence: fast?.pick?.confidence ?? null, msPick: fast?.pick?.ms ?? null };
 };
 
 // timing: 'v2' is a job whose stage columns are the contiguous wall-clock slices ledgerRow explains (they add up to msTotal); 'v1' is every older row, kept as it was recorded.
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs', 'repairCauses',
-  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath', 'designModel', 'designKind', 'msFill', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd']);
+  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath', 'designModel', 'designKind', 'msFill', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'pickFamily', 'pickConfidence', 'msPick']);
 
 // What triggered each failed round, in order, `;`-joined, one token per distinct problem of a round: `overlap:text-frame` (a layout rule), `numeric_mismatch` (an oracle code),
 // `program_error:sdk.panel` or `program_error:frame.objects.*.series.*.points` (the guest program's own error), `schema:manifest.readouts.*.labels` (the path a validation problem names),
@@ -94,7 +96,7 @@ export function ledgerRow(job) {
 
 // The job-shaped fields of a detail=1 response ({ job, scenePlan, diagnostics }), for a run the server did not compute a row for (the saved evidence, an older clone).
 export const jobFromDetail = ({ job, scenePlan, diagnostics: d }) => ({ id: job.id, plan: scenePlan?.plan, planHash: scenePlan?.hash ?? null, stage: job.stage, stopReason: job.stopReason,
-  calls: d.calls, timing: d.timing, findings: d.findings, build: d.build ?? null, bench: d.bench ?? null });
+  calls: d.calls, timing: d.timing, findings: d.findings, build: d.build ?? null, bench: d.bench ?? null, ...(d.designFast ? { design: { fast: d.designFast } } : {}) }); // designFast: the fast design record the clone exposes (diagnostics), so a saved response keeps the design and pick columns
 
 // The ledger table: the same columns, factual first; a null cell is empty.
 export const ledgerMarkdown = rows => {

@@ -43,8 +43,8 @@ const LIMITS = [
   'A formula reads only the names t, launchSpeed, gravity and (at the Deep depth) mass; any other name (apexTime, apexHeight, launchHeight) is refused.',
 ];
 
-export function fillSystem(depth, schemaInfo) {
-  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, '', '## Formulas', GRAMMAR, ...RULES, '', 'Return the brief only: no prose.'].join('\n');
+export function fillSystem(depth, schemaInfo, describe = familyDescription) {
+  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, describe(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, '', '## Formulas', GRAMMAR, ...RULES, '', 'Return the brief only: no prose.'].join('\n');
 }
 
 

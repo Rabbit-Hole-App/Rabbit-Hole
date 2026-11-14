@@ -20,7 +20,8 @@ import { capabilityGap, compilerSupport } from './explain-author.js';
 import { programEnabled, programTupleFor, statefulEnabled } from './explain-program.js';
 import { modelEvidence } from './explain-evidence.js';
 import { INTERACT_LIMITS, InteractModelError } from './interact-models.js';
-import { briefSchema, expandBrief, referenceFormulaCheck } from '../../web/src/interact-plan-brief.js';
+import { INTERACT_FAMILIES } from './interact-families.js';
+import { pickFamily, pickThreshold } from './interact-design-pick.js';
 import { fillSystem, formulaProblems } from './interact-design-fill.js';
 import { DESIGN_AUTHOR_SYSTEM, DESIGN_AUTHOR_TOOL, DESIGN_AUTHOR_VERSION, designAuthorSchema } from './agents/interact-design-author.js';
 import { DESIGN_REVIEW_SYSTEM, DESIGN_REVIEW_TOOL, DESIGN_REVIEW_VERSION, designReviewSchema } from './agents/interact-design-review.js';
@@ -170,7 +171,7 @@ async function authorOnce(job, ctx, extra = {}) {
 // the runtime and capture budget, the description fit and the reference formulas (no range-match rule). A refusal gets ONE fill correction that names the first problem line; a second refusal sends the same
 // job to the Opus author below (the learner sees no difference). -> { plan, planHash, bindingProblems, fast: { kind: 'fast', ... } } on a pass, { fast: { kind: 'opus', fallback: 'after_correction', ... } } on a fallback.
 const line = problem => (typeof problem === 'string' ? problem : `${problem.path ?? ''} ${problem.message ?? ''}`.trim());
-async function fillProblems(raw, depth, info, ctx) {
+async function fillProblems(raw, depth, info, ctx, { expandBrief, referenceFormulaCheck }) {
   const parsed = info.parse(raw);
   if (!parsed.ok) return { problems: parsed.problems };
   let plan;
@@ -189,16 +190,24 @@ async function fillProblems(raw, depth, info, ctx) {
   const wrong = formulaProblems(referenceFormulaCheck(parsed.value, depth));
   return wrong.length ? { problems: wrong } : { plan: checked.value };
 }
+// The pick (brief 13) runs first: one System One call names the family that fits, or none. A gap (none, below the threshold, a failed or timed out call, no key) goes straight to the Opus design with no fill.
+const pickOf = async (job, ctx) => ctx.env.TYPESAFE_API_KEY
+  ? pickFamily(ctx.env, { request: job.prompt, depth: job.depth }, { families: INTERACT_FAMILIES, threshold: pickThreshold(ctx.env, INTERACT_FAMILIES) })
+  : { family: null, confidence: null, probabilities: null, ms: 0, reason: 'no_key' };
 export async function fastDesign(job, ctx) {
-  const depth = job.depth, info = briefSchema(depth), fast = { kind: 'fast', model: null, calls: 0, fallback: 'none', firstProblem: null, costUsd: 0 };
+  const depth = job.depth, fast = { kind: 'fast', model: null, calls: 0, fallback: 'none', firstProblem: null, costUsd: 0 };
+  const pick = await pickOf(job, ctx); fast.pick = pick;
+  const family = INTERACT_FAMILIES.find(f => f.id === pick.family);
+  if (!family) return { fast: { ...fast, kind: 'opus', fallback: 'gap' } };
+  const mod = family.module, info = mod.briefSchema(depth);
   let problems = [], previous = null;
   for (let round = 0; round < INTERACT_LIMITS.calls.design_fill; round++) {
     fast.calls++;
     try {
-      const done = await ctx.interact('design_fill', { system: fillSystem(depth, info), schema: info.jsonSchema, name: 'return_plan_brief', description: 'Return the plan brief of the scene.',
+      const done = await ctx.interact('design_fill', { system: fillSystem(depth, info, mod.familyDescription), schema: info.jsonSchema, name: 'return_plan_brief', description: 'Return the plan brief of the scene.',
         input: { request: job.prompt, depth, ...(round ? { ...(previous ? { previous } : {}), correction: { instruction: 'Your previous brief was refused. Return the WHOLE corrected brief and change only what this problem names.', problems: problems.slice(0, 1) } } : {}) } });
       fast.model = done.requested?.model ?? fast.model; fast.costUsd += (done.costMicros ?? 0) / 1e6; previous = done.output;
-      const checked = await fillProblems(done.output, depth, info, ctx);
+      const checked = await fillProblems(done.output, depth, info, ctx, mod);
       if (checked.plan) return { plan: checked.plan, planHash: await planHash(checked.plan), bindingProblems: [], fast };
       problems = checked.problems;
     } catch (error) {
