@@ -49,12 +49,39 @@ test('the card is placed clear of the source and of every obstacle: no overlap a
 test('wiring: Ask in a new card and Explore ask for a card beside the source with no connector; the slot is as tall as the source; an anchored slot puts the card on its place; reload keeps dx, dy', () => {
   const canvas = src('./AdaptiveCanvas.jsx'), slash = src('./learn-slash.js');
   assert.match(canvas, /\.\.\.\(destination === 'card' \|\| destination === 'follow-up' \|\| destination === 'explore' \? \{ beside: true \} : \{\}\)/);
-  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[beside\]\), \{ dy: besideDy \}\)/);
-  assert.match(canvas, /if \(spot\) size = \{ \.\.\.size, h: Math\.round\(source\.h\) \}/);
+  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy \}\)/);
+  assert.match(canvas, /if \(at\) size = \{ \.\.\.size, h: Math\.round\(source\.h\) \}/);
+  // typed /explain (BUG 4): follow the selected or latest explanation card through followPlace, never the column once there is one to follow
+  assert.match(canvas, /\(\{ at, size \} = followPlace\(\{ source, size, id, obstacles: boardObstacles\(\[anchor\]\) \}\)\)/);
+  assert.match(canvas, /beside \|\| \(follow && !given \? followAnchor\(\) : null\)/);
   assert.match(canvas, /if \(slot\?\.at\) pendingAt\.current\.set\(block\.id, slot\.at\)/);
   assert.match(canvas, /if \(link && parent\?\.id &&/);
   assert.match(slash, /target\?\.beside && target\.id \? \{ beside: target\.id, /);
   assert.match(slash, /\.\.\.\(target\?\.beside \? \{ link: false \} : \{\}\)/);
   // the offsets are the block's own dx, dy: the saved board already stores them (a dragged card), so a reload keeps the place without a migration
   assert.match(canvas, /moves\.set\(id, \{ dx: Math\.round\(at\.x - \(box\.x - \(owner\.dx \|\| 0\)\)\), dy: Math\.round\(at\.y - \(box\.y - \(owner\.dy \|\| 0\)\)\) \}\)/);
+});
+
+// canvas-cards BUG 4: a typed /explain lands to the right of the previous card, loosely scattered, never overlapping; a full row starts a new one under it, never the column.
+import { followPlace, scatterOf } from './beside-placement.js';
+test('the scatter is deterministic per request, inside 0..0.35 of the source height, and alternates one and two gutters', () => {
+  assert.deepEqual(scatterOf('slot:abc', 700), scatterOf('slot:abc', 700), 'the same request, the same place');
+  const draws = Array.from({ length: 60 }, (_, i) => scatterOf(`slot:request-${i}`, 700));
+  assert.ok(draws.every(({ dy }) => dy >= 0 && dy <= Math.round(0.35 * 700)), 'dy stays within 35% of the source');
+  assert.deepEqual([...new Set(draws.map(({ gap }) => gap))].sort((a, b) => a - b), [GAP, 2 * GAP], 'both gaps occur');
+  assert.ok(new Set(draws.map(({ dy }) => dy)).size > 20, 'cards do not line up: many different offsets');
+});
+test('followPlace: beside the source with its scatter, no overlap; a full row gives a new row under the source, right of the column, never null', () => {
+  const size = { w: 440, h: 400 };
+  const first = followPlace({ source, size, id: 'slot:1', obstacles: [] });
+  const { dy, gap } = scatterOf('slot:1', source.h);
+  assert.deepEqual(first.at, { x: source.x + source.w + gap, y: source.y + Math.min(dy, source.h - 40) });
+  assert.equal(first.size.h, source.h, 'as tall as the source');
+  // Fill the source's row for every try: one box per attempt, wide enough to block it.
+  const w = Math.max(size.w, BESIDE_ASSUMED_W), blockers = Array.from({ length: 6 }, (_, k) => ({ x: source.x + source.w + 1 + k * (w + 2 * GAP), y: source.y, w: w + 2 * GAP, h: source.h }));
+  const full = followPlace({ source, size, id: 'slot:1', obstacles: blockers });
+  assert.ok(full.at && Number.isFinite(full.at.x) && Number.isFinite(full.at.y), 'a place is found, not the column');
+  const card = { ...full.at, w: size.w, h: size.h };
+  assert.ok(!blockers.some(box => card.x < box.x + box.w && card.x + card.w > box.x && card.y < box.y + box.h && card.y + card.h > box.y), 'it overlaps nothing');
+  assert.ok(full.at.y > source.y + source.h - 1 || full.at.x > blockers.at(-1).x + blockers.at(-1).w - 1, 'a new row under the source, or past the row');
 });
