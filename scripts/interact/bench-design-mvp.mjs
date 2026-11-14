@@ -22,7 +22,8 @@ import { BENCH_MODELS, benchRole, callInteractRole } from '../../packages/contro
 import { approvedPlanOf } from '../../packages/control-plane/src/interact-build.js';
 import { buildTemplate } from '../../packages/control-plane/src/interact-template.js';
 import { captureAndCheck } from '../../packages/control-plane/src/interact-checks.js';
-import { verticalThrowArrowOracle } from '../../packages/control-plane/src/interact-oracle.js';
+import { interactOracle, verticalThrowArrowOracle } from '../../packages/control-plane/src/interact-oracle.js';
+import { INTERACT_FAMILIES } from '../../packages/control-plane/src/interact-families.js';
 import { scriptedAdapter } from '../../packages/control-plane/src/interact-fixtures.js';
 import { priceUsage } from '../../packages/control-plane/src/pricing-registry.js';
 import { BENCH_DIR, benchContext, readCredentials } from './bench-author.mjs';
@@ -31,6 +32,11 @@ const HERE = dirname(fileURLToPath(import.meta.url)), REPO = resolve(HERE, '..',
 export const OUT = join(BENCH_DIR, 'bench-design-mvp.jsonl'), REPORT = join(BENCH_DIR, 'bench-design-mvp.md'), SAVE_DIR = join(BENCH_DIR, 'bench-design-mvp');
 export const REQUEST = 'At the highest point of a vertical throw, is acceleration zero because velocity is zero?'; // docs/features/interact/references/tutor-scene-examples.md
 export const DEPTHS = Object.freeze(['brief', 'balanced', 'detailed']);
+// --family: the default keeps today's toss path untouched; any other registered family fills through ITS module (schema, fill text, expansion, reference check, oracle) and has no range-match step (the job has none either).
+export const FAMILY_REQUESTS = Object.freeze({ 'curve-sliders': 'Why does a sigmoid squash any number into 0 to 1?' });
+export const DEFAULT_FAMILY = 'vertical-throw';
+export const outFile = (family = DEFAULT_FAMILY) => (family === DEFAULT_FAMILY ? OUT : join(BENCH_DIR, `bench-design-mvp-${family.split('-')[0]}.jsonl`));
+export const reportFile = (family = DEFAULT_FAMILY) => (family === DEFAULT_FAMILY ? REPORT : join(BENCH_DIR, `bench-design-mvp-${family.split('-')[0]}.md`));
 const PINNED = { brief: 'tossOverview', balanced: 'tossStandard', detailed: 'tossDeep' };
 const round1 = n => Math.round(n * 10) / 10, now = () => globalThis.performance.now(), clip = (s, n = 400) => String(s).replace(/\s+/g, ' ').slice(0, n);
 export { FILL_MAX_TOKENS, fillSystem };
@@ -63,10 +69,13 @@ export function matchProblems(plan, pinned) {
 const slug = s => s.replace(/[^\w.-]+/g, '_');
 
 // One attempt. -> the row (never throws on a model or build problem). `save(kind, data)` stores a raw reply or an expanded plan and returns its repo-relative path.
-export async function designAttempt({ depth, model, ctx, save = null, ts = new Date().toISOString() }) {
+export async function designAttempt({ depth, model, ctx, save = null, ts = new Date().toISOString(), family = DEFAULT_FAMILY }) {
   const { referencePlans, referenceCapabilities } = await interactFixtures(), pinned = referencePlans[PINNED[depth]];
-  const row = { ts, depth, model, provider: ctx.profile.roles.build_author.provider, contract: 'design-mvp', round: 0, timing: 'v3' };
-  const info = briefSchema(depth);
+  const mod = family === DEFAULT_FAMILY ? null : INTERACT_FAMILIES.find(f => f.id === family)?.module;
+  if (family !== DEFAULT_FAMILY && !mod) throw new Error(`unknown family ${family}`);
+  const request = mod ? FAMILY_REQUESTS[family] ?? REQUEST : REQUEST;
+  const row = { ts, depth, model, provider: ctx.profile.roles.build_author.provider, contract: 'design-mvp', round: 0, timing: 'v3', ...(mod ? { family } : {}) };
+  const info = mod ? mod.briefSchema(depth) : briefSchema(depth);
   const config = ctx.profile.roles.build_author, run = { ...ctx, profile: { ...ctx.profile, roles: { ...ctx.profile.roles, build_author: { ...config, maxOutputTokens: FILL_MAX_TOKENS } } } };
   const t0 = now();
   let done;
@@ -74,7 +83,7 @@ export async function designAttempt({ depth, model, ctx, save = null, ts = new D
     row.msTotal = round1(['msFill', 'msExpand', 'msChecks', 'msBuild'].reduce((n, k) => n + (row[k] ?? 0), 0));
     return Object.assign(row, { result: problems.length ? 'fail' : 'pass', firstProblem: problems[0] ? clip(problems[0]) : null, problems: problems.slice(0, 12).map(p => clip(p)) }, extra);
   };
-  try { done = await callInteractRole(run, 'build_author', { system: fillSystem(depth, info), schema: info.jsonSchema, input: { request: REQUEST, depth }, name: 'return_plan_brief', description: 'Return the plan brief of the scene.' }); }
+  try { done = await callInteractRole(run, 'build_author', { system: mod ? fillSystem(depth, info, mod) : fillSystem(depth, info), schema: info.jsonSchema, input: { request, depth }, name: 'return_plan_brief', description: 'Return the plan brief of the scene.' }); }
   catch (error) {
     const text = `${error.code ?? 'error'}: ${error.message}`;
     Object.assign(row, { msFill: round1(now() - t0), msExpand: 0, msChecks: 0, msBuild: 0, costUsd: costOf(config, error.usage, error.costMicros), outTokens: error.usage?.quantities?.output ?? null, error: clip(error.message, 300), errorCode: error.code ?? null, step: 'fill' });
@@ -90,7 +99,7 @@ export async function designAttempt({ depth, model, ctx, save = null, ts = new D
   try { // anything below that throws on a model-written brief is a failed row (step internal), never a lost run
   const t1 = now();
   let plan;
-  try { plan = expandBrief(parsed?.value ?? brief, depth, { catalogueHash: referenceCapabilities.catalogueHash }); } catch (error) { row.msExpand = round1(now() - t1); return finish([`expand: ${clip(error.message, 300)}`], { step: 'expand', msChecks: 0, msBuild: 0 }); }
+  try { plan = (mod ? mod.expandBrief : expandBrief)(parsed?.value ?? brief, depth, { catalogueHash: referenceCapabilities.catalogueHash }); } catch (error) { row.msExpand = round1(now() - t1); return finish([`expand: ${clip(error.message, 300)}`], { step: 'expand', msChecks: 0, msBuild: 0 }); }
   row.msExpand = round1(now() - t1); row.expandedPlanPath = save?.('plan', plan) ?? null;
   // The plan checks (the design stage's own close), the formula check, then the build and its checks.
   const t2 = now();
@@ -102,7 +111,7 @@ export async function designAttempt({ depth, model, ctx, save = null, ts = new D
   if (planIssues.length) return fail('plan', planIssues);
   const fitIssues = await descriptionFitProblems(plan, await descriptionFit(plan));
   if (fitIssues.length) return fail('plan', fitIssues.map(p => (typeof p === 'string' ? p : `${p.path ?? ''} ${p.message ?? ''}`.trim())));
-  const wrong = formulaProblems(referenceFormulaCheck(parsed?.value ?? brief, depth));
+  const wrong = formulaProblems(mod ? mod.referenceCheck(parsed?.value ?? brief, depth) : referenceFormulaCheck(parsed?.value ?? brief, depth));
   if (wrong.length) return fail('formulas', wrong);
   const t3 = now();
   row.msChecks = round1(t3 - t2);
@@ -110,25 +119,25 @@ export async function designAttempt({ depth, model, ctx, save = null, ts = new D
   row.msBuild = round1(now() - t3);
   if (built.problems) return finish(built.problems, { step: 'build' });
   const t4 = now();
-  job.oracle = verticalThrowArrowOracle((await approvedPlanOf(job)).plan);
+  job.oracle = mod ? interactOracle((await approvedPlanOf(job)).plan) : verticalThrowArrowOracle((await approvedPlanOf(job)).plan);
   const result = await captureAndCheck({ ...job, artifacts: built.artifacts, composition: built.composition }, ctx);
   row.msChecks = round1(row.msChecks + (now() - t4));
   if (result.status !== 'captured') return finish(result.status === 'failed' ? result.failure.problems : [`${result.status}: ${clip(result.reason ?? '')}`], { step: 'checks', oracleChecked: result.check?.oracle?.checked ?? null });
-  const mismatch = matchProblems(plan, pinned);
+  const mismatch = mod ? [] : matchProblems(plan, pinned);
   return finish(mismatch, { step: mismatch.length ? 'match' : 'done', oracleChecked: result.det?.coverage?.oracle?.checked ?? null });
   } catch (error) { return finish([`internal: ${clip(error?.message ?? error, 300)}`], { step: 'internal' }); }
 }
 
-export async function runDesign({ models, depths, nOf, concurrency = 2, capUsd = Infinity, env, scripted = null, write = true, out = OUT, say = () => {} }) {
+export async function runDesign({ models, depths, nOf, concurrency = 2, capUsd = Infinity, env, scripted = null, write = true, family = DEFAULT_FAMILY, out = outFile(family), say = () => {} }) {
   const jobs = [];
   for (const model of models) for (const depth of depths) for (let i = 0; i < nOf(model); i++) jobs.push({ model, depth, i });
   const all = [];
   let next = 0, spent = 0;
   const worker = async () => {
     while (next < jobs.length && spent <= capUsd) { // the cap stops NEW attempts; one in flight finishes
-      const { model, depth, i } = jobs[next++], ts = new Date().toISOString(), stem = `${ts.replace(/[:.]/g, '-')}-${depth}-${slug(model)}-a${i}`;
+      const { model, depth, i } = jobs[next++], ts = new Date().toISOString(), stem = `${ts.replace(/[:.]/g, '-')}-${family === DEFAULT_FAMILY ? '' : `${family}-`}${depth}-${slug(model)}-a${i}`;
       const save = write ? (kind, data) => { mkdirSync(SAVE_DIR, { recursive: true }); const file = `${stem}-${kind}.json`; writeFileSync(join(SAVE_DIR, file), JSON.stringify(data, null, 1)); return `docs/features/interact/benchmarks/bench-design-mvp/${file}`; } : null;
-      const row = await designAttempt({ depth, model, ctx: benchContext({ model, env, scripted }), save, ts });
+      const row = await designAttempt({ depth, model, ctx: benchContext({ model, env, scripted }), save, ts, family });
       spent += row.costUsd ?? 0;
       if (write) { mkdirSync(dirname(out), { recursive: true }); appendFileSync(out, `${JSON.stringify(row)}\n`); }
       all.push(row);
@@ -140,9 +149,9 @@ export async function runDesign({ models, depths, nOf, concurrency = 2, capUsd =
 }
 
 const median = list => { const a = list.filter(x => x != null).sort((x, y) => x - y); return a.length ? (a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2) : null; };
-export function reportMarkdown(rows) {
-  const lines = ['# bench-design-mvp (can a fast model write the plan of the toss cards from the prompt and the depth alone?)', '',
-    'Generated by `scripts/interact/bench-design-mvp.mjs --report`. One call fills a flat plan brief; code expands it to the ScenePlan; the sealed template builds the card. pass = every step clean (schema, expand, plan checks, description fit, the 24-point formula check against the family physics, the template build, the headless run with layout rules and the arrow-direction rule) and the match to the approved card holds (same control ids and units, defaults inside the pinned ranges, ranges 0.5x to 2x of the pinned ones). First try only.', ''];
+export function reportMarkdown(rows, family = DEFAULT_FAMILY) {
+  const lines = [family === DEFAULT_FAMILY ? '# bench-design-mvp (can a fast model write the plan of the toss cards from the prompt and the depth alone?)' : `# bench-design-mvp --family ${family} (can a fast model write the plan of the ${family} cards from the prompt "${FAMILY_REQUESTS[family]}" and the depth alone?)`, '',
+    `Generated by \`scripts/interact/bench-design-mvp.mjs${family === DEFAULT_FAMILY ? '' : ` --family ${family}`} --report\`. One call fills a flat plan brief; code expands it to the ScenePlan; the sealed template builds the card. pass = every step clean (schema, expand, plan checks, description fit, the 24-point formula check against the family physics, the template build, the headless run with layout rules and the arrow-direction rule) and ${family === DEFAULT_FAMILY ? 'the match to the approved card holds (same control ids and units, defaults inside the pinned ranges, ranges 0.5x to 2x of the pinned ones)' : "the family's own oracle passes (no range-match step: the job has none)"}. First try only.`, ''];
   const models = [...new Set(rows.map(r => r.model))];
   lines.push('| model | depth | attempts | pass | median fill s | median total s | median cost $ |', '|---|---|---|---|---|---|---|');
   for (const model of models) for (const depth of DEPTHS) {
@@ -164,16 +173,17 @@ export const scriptedDesignAdapter = (briefOf = (plan, depth) => extractBrief(pl
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values: a } = parseArgs({ options: { model: { type: 'string' }, depth: { type: 'string', default: 'all' }, n: { type: 'string', default: '10' }, 'n-sonnet': { type: 'string', default: '3' }, concurrency: { type: 'string', default: '2' },
-    'cap-usd': { type: 'string', default: '2' }, scripted: { type: 'boolean' }, 'no-write': { type: 'boolean' }, report: { type: 'boolean' } }, strict: true });
-  if (a.report) { const rows = existsSync(OUT) ? readFileSync(OUT, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : []; writeFileSync(REPORT, reportMarkdown(rows)); console.log(`wrote ${REPORT} from ${rows.length} rows`); }
+    'cap-usd': { type: 'string', default: '2' }, family: { type: 'string', default: DEFAULT_FAMILY }, scripted: { type: 'boolean' }, 'no-write': { type: 'boolean' }, report: { type: 'boolean' } }, strict: true });
+  if (a.report) { const out = outFile(a.family), report = reportFile(a.family), rows = existsSync(out) ? readFileSync(out, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : []; writeFileSync(report, reportMarkdown(rows, a.family)); console.log(`wrote ${report} from ${rows.length} rows`); }
   else {
-    if (!a.model) { console.log(`usage: bench-design-mvp.mjs --model <${BENCH_MODELS.join('|')}|all> [--depth ${DEPTHS.join('|')}|all] [--n 10] [--n-sonnet 3] [--concurrency 2] [--cap-usd 2] [--scripted] [--no-write] | --report`); process.exit(2); }
+    if (!a.model) { console.log(`usage: bench-design-mvp.mjs --model <${BENCH_MODELS.join('|')}|all> [--depth ${DEPTHS.join('|')}|all] [--n 10] [--n-sonnet 3] [--concurrency 2] [--cap-usd 2] [--family ${DEFAULT_FAMILY}|${Object.keys(FAMILY_REQUESTS).join('|')}] [--scripted] [--no-write] | --report [--family <id>]`); process.exit(2); }
+    if (a.family !== DEFAULT_FAMILY && !FAMILY_REQUESTS[a.family]) { console.error(`x no request for family ${a.family} (known: ${DEFAULT_FAMILY}, ${Object.keys(FAMILY_REQUESTS).join(', ')})`); process.exit(2); }
     const models = a.model === 'all' ? ['gemini-3.5-flash-lite', 'claude-sonnet-5-5'] : [a.model], depths = a.depth === 'all' ? [...DEPTHS] : [a.depth];
     for (const m of models) if (!BENCH_MODELS.includes(m)) { console.error(`x unknown model ${m}`); process.exit(2); }
     for (const d of depths) if (!DEPTHS.includes(d)) { console.error(`x unknown depth ${d}`); process.exit(2); }
     const scripted = a.scripted ? scriptedDesignAdapter() : null, env = scripted ? {} : readCredentials();
     if (!scripted) for (const m of models) { const ref = benchRole(m).credentialRef; if (!env[ref]) { console.error(`x ${ref} is not set in the env file; nothing was sent`); process.exit(2); } }
-    const rows = await runDesign({ models, depths, nOf: m => Number(/sonnet/.test(m) ? a['n-sonnet'] : a.n), concurrency: Number(a.concurrency), capUsd: Number(a['cap-usd']), env, scripted, write: !a['no-write'], say: line => console.log(line) });
+    const rows = await runDesign({ models, depths, nOf: m => Number(/sonnet/.test(m) ? a['n-sonnet'] : a.n), concurrency: Number(a.concurrency), capUsd: Number(a['cap-usd']), env, scripted, family: a.family, write: !a['no-write'], say: line => console.log(line) });
     const spent = rows.reduce((s, r) => s + (r.costUsd ?? 0), 0);
     console.log(`RESULT ${rows.filter(r => r.result === 'pass').length}/${rows.length} pass, $${spent.toFixed(4)} spent`);
     process.exitCode = spent > Number(a['cap-usd']) ? 3 : 0;

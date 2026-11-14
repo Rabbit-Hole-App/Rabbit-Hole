@@ -82,3 +82,17 @@ test('the report reads rows: pass counts, medians and the top three first proble
   assert.match(md, /- 2x a/);
   assert.match(md, /- 1x b/);
 });
+
+test('--family curve-sliders: the brief of each pinned curve plan passes end to end through the family module, a wrong curve brief fails on its line, $0', async () => {
+  const { curveBriefs } = await import('../../web/src/interact-curve-briefs.js');
+  const { wrongCurveBriefs } = await import('./fixtures/interact-curve-wrong-briefs.js');
+  for (const depth of DEPTHS) {
+    const row = await designAttempt({ depth, model: 'gemini-3.5-flash-lite', family: 'curve-sliders', ctx: ctxOf(scriptedAdapter({ build_author: async () => curveBriefs[depth] })) });
+    assert.equal(row.result, 'pass', `${depth}: [${row.step}] ${row.firstProblem}`);
+    assert.equal(row.family, 'curve-sliders'); assert.ok(row.oracleChecked >= 30, `${depth}: oracle checked ${row.oracleChecked}`);
+  }
+  const bad = wrongCurveBriefs.find(b => b.id === 'slope-sign');
+  const row = await designAttempt({ depth: 'detailed', model: 'gemini-3.5-flash-lite', family: 'curve-sliders', ctx: ctxOf(scriptedAdapter({ build_author: async () => bad.brief })) });
+  assert.equal(row.result, 'fail'); assert.equal(row.step, 'formulas'); assert.match(row.firstProblem, /formula slope/);
+  assert.match(reportMarkdown([row], 'curve-sliders'), /--family curve-sliders/);
+});
