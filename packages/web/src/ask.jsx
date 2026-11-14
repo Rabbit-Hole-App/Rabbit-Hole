@@ -848,6 +848,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null, history: routeHistory(msgs) }), { plain: !commandName && !routeAs && !prompted });
         if (late()) return;
         // Plain words the router read as an image request take the same plan route as the typed command.
+        // The router read the words as a request for a course (owner 2026-11-14): the canvas's Markdown file becomes a course through the same create the invitation's button runs; the plan arrives in Chat.
+        if (!outcome.send && outcome.direct?.command === 'course' && chat?.canvasOps?.startCourse) { const done = chat.canvasOps.startCourse(outcome.direct.args); setMsgs(m => m.slice(0, -2)); say(done?.notice?.text || 'Making the plan. It appears in Chat for you to review.'); return; }
         if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }
         if (!outcome.send) {
           setMsgs(m => m.slice(0, -2)); // no turn happened: the decision replaces it

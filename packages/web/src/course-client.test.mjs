@@ -169,3 +169,27 @@ test('a paused roadmap can Generate course; a drop is invited over a stopped cou
   assert.match(STRINGS.boundary('New.md'), /A course is being made/);
   assert.doesNotMatch(STRINGS.boundary('New.md'), /End roadmap/);
 });
+
+test('typed words: "create a course" is a declared chat capability the router reads by its intent, never a phrase list (owner 2026-11-14)', async () => {
+  const { CHAT_CAPABILITIES, chatRoutesWith, chatRouteRequest } = await import('./inline-ai-route.js');
+  const { routeOutcome } = await import('./generation-proposal-chat.js');
+  const { SLASH, SLASH_FLAGS } = await import('./agent/slash.js');
+  const { chatCapability } = await import('./inline-ai-route.js');
+  assert.match(CHAT_CAPABILITIES.course.intent, /document they added to the canvas/);
+  assert.match(CHAT_CAPABILITIES.course.intent, /The test is the goal, not the words/);
+  assert.equal(CHAT_CAPABILITIES.course.flow, 'direct');
+  assert.ok(chatRoutesWith().course, 'offered to the router');
+  assert.equal(CHAT_CAPABILITIES.course.standalone, true, 'no slash command: no picker row, colour or window card');
+  assert.equal(SLASH.some(c => c.name === 'course'), false);
+  assert.equal(SLASH_FLAGS.course, undefined);
+  assert.equal(chatCapability('course').id, 'course', 'the server can route it');
+  const request = chatRouteRequest({ text: 'turn this into a study course' }, 'jev-model', chatRoutesWith());
+  assert.ok(JSON.stringify(request).includes('document they added to the canvas'), 'the router is asked with the capability\'s intent');
+  const source = read('inline-ai-route.js');
+  assert.doesNotMatch(source.slice(source.indexOf('course: { flow')), /^\s*course: \{[^\n]*\/[^\n]*\/i/, 'no regular expression of phrases');
+  assert.deepEqual(routeOutcome({ route: 'capability:course', capability: 'course', flow: 'direct', args: 'create a course' }), { direct: { command: 'course', args: 'create a course' } }, 'the router\'s answer runs the command');
+  const page = read('LearnPage.jsx');
+  assert.match(page, /startCourse: words => \{/);
+  assert.match(page, /roadmap\.controller\.lesson\(\{ depth: chat\?\.settings\?\.depth \|\| 'balanced', instruction: String\(words \|\| ''\)\.trim\(\) \|\| 'Create a course from this document\.'/);
+  assert.match(read('ask.jsx'), /outcome\.direct\?\.command === 'course' && chat\?\.canvasOps\?\.startCourse/);
+});

@@ -42,7 +42,7 @@ test('the router only offers commands whose flag is on, so an off command stays 
   // the shipped flags: goal, animation, whiteboard, motion, interactive (explain), image generation and cad are off
   const offered = flags => Object.keys(CHAT_ROUTES).filter(id => id !== 'answer' && flags[id]);
   assert.ok(!offered(SHIPPED_FLAGS).includes('motion') && !offered(SHIPPED_FLAGS).includes('generate-image'));
-  for (const id of Object.keys(CHAT_CAPABILITIES)) if (!SHIPPED_FLAGS[id]) assert.ok(!(id in CHAT_ROUTES) || SLASH_FLAGS[id], `/${id} is off in the build`);
+  for (const id of Object.keys(CHAT_CAPABILITIES)) if (!SHIPPED_FLAGS[id]) assert.ok(!(id in CHAT_ROUTES) || SLASH_FLAGS[id] || CHAT_CAPABILITIES[id].standalone, `/${id} is off in the build`); // standalone: Create a course, no slash command (owner 2026-11-14)
   // with every flag on (the test helper) the routable set is the declared one, minus explicit-only and guarded
   assert.deepEqual(Object.keys(CHAT_ROUTES).filter(id => id !== 'answer').sort(), Object.keys(CHAT_CAPABILITIES).filter(id => !CHAT_CAPABILITIES[id].explicit && !CHAT_CAPABILITIES[id].guarded).sort());
   assert.ok('explain' in chatRoutesWith(['explain']) && !('explain' in chatRoutesWith([])));

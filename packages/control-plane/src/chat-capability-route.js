@@ -62,7 +62,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
     const removed = unavailableCommand(typedOf(name), { imageGeneration: imageAllowed(env, email), whiteboard: env.WHITEBOARD_ENABLED === 'true' }); // name is a stable id; unavailableCommand takes what was typed
     if (removed) return refuse(via, removed);
     const declared = chatCapability(name);
-    const entry = SLASH.find(command => command.name === name && command.places.includes('learn'));
+    const entry = SLASH.find(command => command.name === name && command.places.includes('learn')) ?? (declared?.standalone ? { needs: null } : null); // standalone: a router-only capability the browser runs (Create a course, owner 2026-11-14)
     if (!entry) return refuse(via, `/${name} is not a Learn command.`);
     if (!availability(env, { name, needs: entry.needs || null }, enabled, email)) return { ...refuse(via, unavailable(env, name, email)), ...extra };
     const flow = declared?.flow === 'proposal' && reviewRequired(name) ? 'proposal' : 'direct';
