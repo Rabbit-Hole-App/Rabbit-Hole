@@ -22,7 +22,7 @@ for (const line of readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deplo
   if (m) env0[m[1]] = m[2].replace(/^["']|["']$/g, '');
 }
 const need = k => { if (!env0[k]) { console.error(`missing key ${k}`); process.exit(2); } return env0[k]; };
-const secrets = [need('CLOUDFLARE_API_TOKEN'), need('CLOUDFLARE_ACCOUNT_ID'), need('TLDRAW_LICENSE_KEY'), need('ANTHROPIC_API_KEY'), env0.ANTHROPIC_WORKSPACE_ID, env0.GEMINI_API_KEY, env0.FIREWORKS_API_KEY].filter(Boolean);
+const secrets = [need('CLOUDFLARE_API_TOKEN'), need('CLOUDFLARE_ACCOUNT_ID'), need('TLDRAW_LICENSE_KEY'), need('ANTHROPIC_API_KEY'), env0.ANTHROPIC_WORKSPACE_ID, env0.GEMINI_API_KEY, env0.FIREWORKS_API_KEY, env0.TYPESAFE_API_KEY].filter(Boolean);
 const redact = s => secrets.reduce((a, v) => a.split(v).join('***'), String(s ?? ''));
 const base = { ...process.env, CLOUDFLARE_API_TOKEN: env0.CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID: env0.CLOUDFLARE_ACCOUNT_ID };
 
@@ -41,7 +41,7 @@ if (step === 'build') {
     ...varArgs]));
 } else if (step === 'secrets') {
   let code = 0;
-  for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', 'GEMINI_API_KEY', 'FIREWORKS_API_KEY']) {
+  for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', 'GEMINI_API_KEY', 'FIREWORKS_API_KEY', 'TYPESAFE_API_KEY']) {
     if (!env0[k]) { console.log(`skip ${k} (absent)`); continue; }
     code ||= run('npx', ['wrangler', 'secret', 'put', k, '--config', 'wrangler.dev.jsonc', '--name', NAME], { input: env0[k] });
   }
