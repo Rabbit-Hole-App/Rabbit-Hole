@@ -185,6 +185,8 @@ if (MODE === 'after') {
     const md = await rectOf(page, '[data-file-doc-text]');
     if (md) await shot(page, 'A1b-pink-and-yellow-zoom', { x: md.x, y: md.y, width: Math.min(md.w, 760), height: Math.min(md.h, 520) });
     measures.A_header = await rectOf(page, '[data-source-ref-open]'); // off-screen right at this zoom: it is hovered and shot after Go to card has brought the card to the middle
+    const centreOf = async sel => page.evaluate(s => { const el = document.querySelector(s); if (!el) return null; const r = el.getBoundingClientRect(); return { cx: Math.round(r.left + r.width / 2), cy: Math.round(r.top + r.height / 2), x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }; }, sel);
+    measures.A_canvas_centre = { cx: 590, cy: 474, note: 'visible canvas is x 0..1180 (the Chat panel is open) and y 48..900' };
     // Hover the pink passage: Go to card in the gutter.
     const spot = await page.evaluate(text => { const h = [...document.querySelectorAll('[data-file-doc-md] h3')].find(el => el.textContent.trim() === text); const r = h?.getBoundingClientRect(); return r ? { x: r.left + 30, y: r.top + r.height / 2 } : null; }, HEADING);
     if (spot) { await page.mouse.move(spot.x, spot.y); await wait(500); }
@@ -215,7 +217,7 @@ if (MODE === 'after') {
   try {
     const page = await open('linked', { yellow: false });
     await scrollHeading(page); await wait(500);
-    measures.B_selection = await selectText(page, 'Gini impurity measures the probability that a randomly chosen sample');
+    measures.B_selection = await selectText(page, 'We want to split them so that the resulting child nodes');
     await page.evaluate(() => document.activeElement?.blur?.());
     await page.keyboard.press('Control+k');
     await page.waitForSelector('[data-inline-ai]', { timeout: 10000 });

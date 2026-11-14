@@ -1,0 +1,215 @@
+{
+ "mode": "after",
+ "base": "http://127.0.0.1:5593",
+ "measures": {
+  "A_marks": {
+   "tutorSource": 1,
+   "inlineTarget": 0,
+   "wikiHighlight": 1,
+   "headerButton": "Go to highlight",
+   "gutterButtons": [
+    "Go to card: Split criteria: measuring impurity"
+   ],
+   "scrim": false,
+   "scrimClip": "",
+   "cards": [
+    "8c56b678",
+    "c0ffee00"
+   ]
+  },
+  "A_dom": [
+   {
+    "id": "8c56b678",
+    "text": "Enter | Decision Trees and Random Forests |  | en.md · Markdown · MD · 21 KiB · UTF-8 |  | Decision ",
+    "refs": 0,
+    "open": 0
+   },
+   {
+    "id": "c0ffee00",
+    "text": "Split criteria: measuring impurity | Source: en.md |  | Explanation |  | A node holding 4 class A an",
+    "refs": 1,
+    "open": 1
+   }
+  ],
+  "A_marks_after_reload": {
+   "tutorSource": 1,
+   "inlineTarget": 0,
+   "wikiHighlight": 1,
+   "headerButton": "Go to highlight",
+   "gutterButtons": [
+    "Go to card: Split criteria: measuring impurity"
+   ],
+   "scrim": false,
+   "scrimClip": "",
+   "cards": [
+    "8c56b678",
+    "c0ffee00"
+   ]
+  },
+  "A_header": {
+   "x": 1542,
+   "y": -534,
+   "w": 28,
+   "h": 28,
+   "cx": 1556,
+   "cy": -520
+  },
+  "A_gutter": {
+   "tutorSource": 1,
+   "inlineTarget": 0,
+   "wikiHighlight": 1,
+   "headerButton": "Go to highlight",
+   "gutterButtons": [
+    "Go to card: Split criteria: measuring impurity"
+   ],
+   "scrim": false,
+   "scrimClip": "",
+   "cards": [
+    "8c56b678",
+    "c0ffee00"
+   ]
+  },
+  "A_cards_before_card_click": [
+   {
+    "id": "8c56b678-43f3-4bcf-9a48-7204c2df466d",
+    "md": true,
+    "r": {
+     "x": 436,
+     "y": -1089,
+     "w": 699,
+     "h": 10738
+    }
+   },
+   {
+    "id": "c0ffee00-0000-4000-8000-000000000145",
+    "md": false,
+    "r": {
+     "x": 1181,
+     "y": -570,
+     "w": 462,
+     "h": 838
+    }
+   }
+  ],
+  "A_cards_after_card_click": [
+   {
+    "id": "8c56b678-43f3-4bcf-9a48-7204c2df466d",
+    "md": true,
+    "r": {
+     "x": -174,
+     "y": -285,
+     "w": 577,
+     "h": 8867
+    }
+   },
+   {
+    "id": "c0ffee00-0000-4000-8000-000000000145",
+    "md": false,
+    "r": {
+     "x": 441,
+     "y": 144,
+     "w": 381,
+     "h": 692
+    }
+   }
+  ],
+  "B_selection": null,
+  "B_window": {
+   "tutorSource": 1,
+   "inlineTarget": 0,
+   "wikiHighlight": 0,
+   "headerButton": "Go to highlight",
+   "gutterButtons": [
+    "Go to card: Split criteria: measuring impurity"
+   ],
+   "scrim": true,
+   "scrimClip": "path(evenodd, \"M 0 0 H 1180 V 900 H 0 Z M 449 345 h 253 v 20 h -253 Z\")",
+   "cards": [
+    "8c56b678",
+    "c0ffee00"
+   ]
+  }
+ },
+ "log": [
+  "HEAD /api/learn/boards/canvas-4d6b2a91/main/thumbnail",
+  "GET /api/learn/coaching",
+  "404 /api/learn/coaching",
+  "GET /api/learn/user-settings",
+  "GET /api/learn/chat/active",
+  "GET /api/learn/context",
+  "404 /api/learn/context",
+  "GET /api/learn/chat/active",
+  "GET /api/learn/context",
+  "404 /api/learn/context",
+  "GET /api/learn/image-jobs",
+  "GET /api/learn/whiteboard/jobs",
+  "404 /api/learn/whiteboard/jobs",
+  "POST /api/learn/source-refs/resolve",
+  "GET /api/learn/card-feedback",
+  "404 /api/learn/card-feedback",
+  "GET /api/learn/c/00000000-0000-4000-8000-000000000001",
+  "404 /api/learn/c/00000000-0000-4000-8000-000000000001",
+  "GET /api/learn/c/00000000-0000-4000-8000-000000000001/threads",
+  "404 /api/learn/c/00000000-0000-4000-8000-000000000001/threads",
+  "GET /api/learn/roadmap",
+  "GET /api/learn/links/00000000-0000-4000-8000-000000000001",
+  "404 /api/learn/links/00000000-0000-4000-8000-000000000001",
+  "GET /api/learn/cad/jobs",
+  "GET /api/learn/chat/active",
+  "GET /api/learn/pdf-highlights",
+  "GET /api/learn/roadmap/invitations",
+  "GET /api/ask/threads",
+  "GET /api/learn/roadmap",
+  "GET /api/learn/roadmap",
+  "GET /api/learn/graph-config",
+  "ABORT outside small-learn-canvas-notebook-dev.tryrabbithole.workers.dev",
+  "SCENE FAILED ReferenceError: centreOf is not defined\n    at file:///C:/s/spec/hl145/capture.mjs:201:52",
+  "GET /api/profile",
+  "GET /api/watch",
+  "GET /api/apps",
+  "GET /api/apps/canvas-4d6b2a91",
+  "GET /api/learn/usage",
+  "GET /api/learn/context",
+  "404 /api/learn/context",
+  "GET /api/learn/provenance/apps/canvas-4d6b2a91",
+  "404 /api/learn/provenance/apps/canvas-4d6b2a91",
+  "GET /api/apps/canvas-4d6b2a91/learn-course",
+  "GET /api/canvases/dives",
+  "GET /api/learn/boards/canvas-4d6b2a91/main",
+  "HEAD /api/learn/boards/canvas-4d6b2a91/main/thumbnail",
+  "GET /api/learn/coaching",
+  "404 /api/learn/coaching",
+  "GET /api/learn/user-settings",
+  "GET /api/learn/chat/active",
+  "GET /api/learn/context",
+  "404 /api/learn/context",
+  "GET /api/learn/chat/active",
+  "GET /api/learn/context",
+  "404 /api/learn/context",
+  "GET /api/learn/image-jobs",
+  "GET /api/learn/whiteboard/jobs",
+  "404 /api/learn/whiteboard/jobs",
+  "GET /api/learn/c/00000000-0000-4000-8000-000000000001",
+  "404 /api/learn/c/00000000-0000-4000-8000-000000000001",
+  "GET /api/learn/c/00000000-0000-4000-8000-000000000001/threads",
+  "404 /api/learn/c/00000000-0000-4000-8000-000000000001/threads",
+  "GET /api/learn/roadmap",
+  "GET /api/learn/links/00000000-0000-4000-8000-000000000001",
+  "404 /api/learn/links/00000000-0000-4000-8000-000000000001",
+  "GET /api/learn/cad/jobs",
+  "GET /api/learn/chat/active",
+  "POST /api/learn/source-refs/resolve",
+  "GET /api/learn/card-feedback",
+  "404 /api/learn/card-feedback",
+  "GET /api/learn/roadmap/invitations",
+  "GET /api/ask/threads",
+  "GET /api/learn/roadmap",
+  "GET /api/learn/files/fs_9ad40d44453c491739dd3ee2",
+  "GET /api/learn/roadmap",
+  "GET /api/learn/pdf-highlights",
+  "GET /api/learn/boards/canvas-4d6b2a91/main/assets",
+  "POST /api/telemetry/client",
+  "GET /api/learn/graph-config",
+  "ABORT outside small-learn-canvas-notebook-dev.tryrabbithole.workers.dev"
+ ]
+}
