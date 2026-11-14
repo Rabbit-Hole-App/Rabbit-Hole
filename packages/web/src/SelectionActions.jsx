@@ -68,6 +68,30 @@ function Actions({ ctx, mode, className = '', style }) {
   return <div data-selection-group className={`pointer-events-auto flex w-max items-center gap-1.5 ${className}`} style={style}>{long && bar('', undefined)}{pill}</div>; // Minimize last (owner 2026-11-13): Add to chat and Quick Edit first
 }
 
+// The row of a card the pointer is over but that is not the selected one (owner 2026-11-13: the card's actions show on hover, not on click). Pressing a button selects this card first
+// and then runs the action, which acts on the selection as ever (the handler is read after the selection has re-rendered).
+export function HoverActions({ id, select, minimizable = false }) {
+  const ctx = useContext(Ctx);
+  const latest = useRef(ctx);
+  latest.current = ctx;
+  if (!ctx || ctx.hidden || ctx.sole === id || (!ctx.onAddToChat && !ctx.onQuickEdit)) return null;
+  const press = event => { event.preventDefault(); event.stopPropagation(); };
+  const act = name => { select(id); requestAnimationFrame(() => requestAnimationFrame(() => latest.current?.[name]?.())); };
+  return (
+    <div className="pointer-events-auto flex w-max items-center gap-1.5">
+      <div role="toolbar" aria-label="Card actions" data-selection-bar="hover" data-thumbnail-hide onPointerDown={press}
+        className="pointer-events-auto flex h-[34px] w-max items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-md">
+        {ctx.onAddToChat && <Action label="Add to chat" chord="add-to-chat" Icon={MessageSquarePlus} mac={ctx.mac} onClick={() => act('onAddToChat')} data-add-to-chat />}
+        {ctx.onQuickEdit && <Action label="Quick Edit" chord="quick-edit" Icon={Wand} mac={ctx.mac} onClick={() => act('onQuickEdit')} data-quick-edit />}
+      </div>
+      {minimizable && (
+        <button type="button" aria-label="Minimize" title="Minimize" onClick={() => act('onMinimize')} onPointerDown={press} data-minimize-button data-thumbnail-hide
+          className="pointer-events-auto flex h-[34px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white px-3 text-ink shadow-md hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none"><ChevronsDownUp size={15} strokeWidth={1.8} aria-hidden="true" /></button>
+      )}
+    </div>
+  );
+}
+
 // A host row's trailing segment: shown only while `id` is the one selected object, and tells the floating bar to stand down.
 // divider: a thin rule before it, where other controls of the row come first.
 export function SelectionActionsHost({ id, className = '', style, divider = false }) {

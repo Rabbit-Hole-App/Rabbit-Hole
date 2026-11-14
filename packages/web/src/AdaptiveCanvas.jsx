@@ -41,7 +41,9 @@ import { outlineFrom, applyTocAction, moveTocSection, toggleTocDone, removeTocEn
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import { describeCanvasObject, groupTargetText } from './learn-ask-target.js';
-import { SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx';
+import { HoverActions, SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx';
+// A touch screen has no hover: there the selected card keeps its action row (owner 2026-11-13: elsewhere the row shows on hover, not on click).
+const NO_HOVER = typeof matchMedia === 'function' && matchMedia('(hover: none)').matches;
 import { anchorOf } from './selection-bar-place.js';
 import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
@@ -326,7 +328,7 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // so it never flashes at the default place (UI.06).
 const PLACING = { visibility: 'hidden' };
 const grown = (height, grow) => (height == null ? height : height + grow);
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hovered = false, onHover = null, hoverTools = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
@@ -418,6 +420,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     // exposed as aria-current, and the keyboard focus ring sits outside the selection ring.
     <div ref={card} data-block data-block-id={id} data-card-layout={full ? 'full' : 'scrollable'} {...(chat ? { 'data-chat-block': true } : {})}
       tabIndex={0} role="group" aria-roledescription="card" aria-current={selected ? 'true' : undefined}
+      onPointerEnter={onHover ? () => onHover(id) : undefined} onPointerLeave={onHover ? () => onHover(null) : undefined}
       // Read before this press selects the card (the selection re-renders before mousedown); a press within a
       // double-click's interval of the last one is that double-click's second press.
       // A press on a card takes the keyboard back from the companion column (its keys stand down while a focus is held
@@ -439,8 +442,10 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
-      {selected && ((opens && opener.single === id) || tools) && (
+      {(selected ? (hovered || NO_HOVER) && ((opens && opener.single === id) || tools) : hovered && hoverTools) && (
         <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
+          {/* Bridges the 8px gap between the row and the card, so moving the pointer up to the buttons keeps the card hovered. */}
+          <span aria-hidden="true" className="pointer-events-auto absolute inset-x-0 top-full h-2" />
           {opens && opener.single === id && (
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
               onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
@@ -448,7 +453,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
               Enter<ArrowUpRight size={13} />
             </button>
           )}
-          {tools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{tools}</div>}
+          {(selected ? tools : hoverTools) && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{selected ? tools : hoverTools}</div>}
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
@@ -897,7 +902,7 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   );
 }
 
-function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
+function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null, hovered = false, onHover = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
   // A CAD card's Interact, Fit view and Show dimensions sit in this row, outside the card (cad-controls placement requirement).
@@ -956,6 +961,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      hovered={hovered} onHover={onHover} hoverTools={!selected && hovered ? <HoverActions id={block.id} select={onSelect} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} /> : null}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
         <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
@@ -1623,6 +1629,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const startRename = id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: startTitleOf(block, describeBlock(block)?.title), rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); };
   // The canvas chat strip (owner 2026-11-13): minimized to the Rabbit Hole button at the lower right, and the last choice is kept on
   // this device (ui-prefs.js chatStrip), so a canvas opens the way the learner left it.
+  // The hovered card (owner 2026-11-13): its action row shows after a short delay in, and a short grace out, so crossing the canvas does not flicker rows.
+  const [hoverId, setHoverId] = useState(null), hoverTimer = useRef(null);
+  const hoverCard = useCallback(id => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => setHoverId(id), id == null ? 120 : 150); }, []);
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
   const [composerHidden, setComposerHidden] = useState(() => uiPrefs().chatStrip === 'min');
   const keepStrip = value => { try { saveUiPref('chatStrip', value); } catch { /* storage refused: the choice holds until a reload */ } };
   const hideComposer = useCallback(() => { setComposerHidden(true); keepStrip('min'); }, []);
@@ -6400,7 +6410,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardRename.Provider value={readOnly || localCopy ? null : startRename}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; }, tocLinksOf: id => (refLinks.goToc ? resolvedLinks(blocks.find(block => block.id === id), outline) : []) }}>
-            {anchoredSlots(slots).map(slot => <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} /></SurfaceBoundary>)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} /></SurfaceBoundary> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} placing={pendingAt.current.has(block.id)} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
+            {anchoredSlots(slots).map(slot => <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} /></SurfaceBoundary>)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} /></SurfaceBoundary> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} hovered={hoverId === block.id} onHover={hoverCard} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} placing={pendingAt.current.has(block.id)} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
           </CanvasRefs.Provider></CardOpen.Provider></CardRename.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
