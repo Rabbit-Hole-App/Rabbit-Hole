@@ -1,0 +1,18 @@
+GATE: PASS(replay) bf494e1a4ef6598987f3ea2c90df43b47e155e9c tier=suites+replay (web-only change; planner-kind replay vs BASE 24294b113 moves 0 of 474 card rows; no control-plane source in the diff, so no smoke)
+
+STEP ci rc=1 82s   (first run, 1 fail: run-part.test.mjs:54 flake; see 142-step-ci.out)
+STEP scripts rc=0 54s
+STEP tutor rc=0 247s
+STEP figbriefs rc=0 2s
+STEP webunit rc=0 269s
+STEP build rc=0 22s
+STEP props rc=0 19s
+STEP replay rc=0 48s
+SINGLE run-part.test.mjs rc=0: 8/8 (142-step-ci-single.out)
+RERUN ci directory (serial, under the lock) rc=0: 95 tests, 94 pass, 0 fail, 1 skipped (142-step-ci-rerun.out)
+control-plane suite skipped: no packages/control-plane file in the diff
+GATE RUN DONE
+
+card rows 474 moved counts {"first":0,"steer":0,"kind":0,"refs":0} unique prompt-cases 171
+no change
+GATE PASS: 0 first picks moved

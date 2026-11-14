@@ -1,0 +1,29 @@
+== release 142 AN-1/AN-2 banner tests on the candidate bf494e1a4 (landing flag false) ==
+✔ AN-1: with no saved choice a page load opens the banner, every time: a private window starts with empty storage (12.8134ms)
+✔ AN-1: Reject optional once, and a new tab or page load on the same site never opens the banner again (8.0154ms)
+✔ AN-1: Accept (this version) is remembered the same way, and a withdrawn choice stays an answer (4.9896ms)
+✔ AN-1: an answer in one tab closes the banner already open in another (storage event) and it does not come back (3.1595ms)
+✔ AN-1: a published /b canvas page runs this same banner on the same origin as the app (one entry, main.jsx) (0.7721ms)
+✔ AN-1: an acceptance from before version 2 asks once, with the update words, and stops after Accept (4.0865ms)
+✔ AN-1 note: storage that throws cannot keep the answer, so the banner asks on every load (private mode on some browsers); no UI is added for it (4.6066ms)
+✔ AN-1: Do Not Track and Global Privacy Control never open the banner (5.3459ms)
+✔ AN-2: the landing entry mounts no banner while SHOW_LANDING_CONSENT_BANNER is false, and sets no choice marker for the Privacy page button (14.0116ms)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+
+== same test file against the BASE landing/analytics.js (24294b113, banner mounted unconditionally): AN-2 must fail ==
+✔ AN-1: with no saved choice a page load opens the banner, every time: a private window starts with empty storage (21.2103ms)
+✔ AN-1: Reject optional once, and a new tab or page load on the same site never opens the banner again (12.0523ms)
+✔ AN-1: Accept (this version) is remembered the same way, and a withdrawn choice stays an answer (7.6095ms)
+✔ AN-1: an answer in one tab closes the banner already open in another (storage event) and it does not come back (5.6916ms)
+✔ AN-1: a published /b canvas page runs this same banner on the same origin as the app (one entry, main.jsx) (0.9831ms)
+✔ AN-1: an acceptance from before version 2 asks once, with the update words, and stops after Accept (5.1143ms)
+✔ AN-1 note: storage that throws cannot keep the answer, so the banner asks on every load (private mode on some browsers); no UI is added for it (4.8981ms)
+✔ AN-1: Do Not Track and Global Privacy Control never open the banner (6.1577ms)
+✖ AN-2: the landing entry mounts no banner while SHOW_LANDING_CONSENT_BANNER is false, and sets no choice marker for the Privacy page button (1.1723ms)
+ℹ tests 9
+ℹ pass 8
+ℹ fail 1
+✖ failing tests:
+✖ AN-2: the landing entry mounts no banner while SHOW_LANDING_CONSENT_BANNER is false, and sets no choice marker for the Privacy page button (1.1723ms)

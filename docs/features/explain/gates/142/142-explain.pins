@@ -1,0 +1,5 @@
+LABEL="Release 142: AN-2 the landing page analytics banner is hidden behind a reversible flag (SHOW_LANDING_CONSENT_BANNER = false; the app banner and Settings choice are unchanged) and AN-1 closed as by design (a private window has no saved choice) with banner persistence tests"
+SHA=bf494e1a4ef6598987f3ea2c90df43b47e155e9c
+MAIN_PREV="24294b113128fcf1162fc218b53cb8ae3c032ea1"
+W=C:/s/explain-142
+RECOVERY=release/explain-142-rollback-bf494e1a

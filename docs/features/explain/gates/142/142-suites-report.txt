@@ -1,0 +1,12 @@
+SUITES: GREEN bf494e1a4ef6598987f3ea2c90df43b47e155e9c
+Release 142 = AN-2 (landing/analytics.js: SHOW_LANDING_CONSENT_BANNER = false guards mountConsentBanner; the app banner, Settings choice and installUsageAnalytics are unchanged) + AN-1 closed as by design (a private window has no saved choice; persistence tests in the new packages/web/src/analytics-banner.test.mjs) + e2e/usage-analytics-check.mjs bundles the landing entry with the flag restored + docs/features/usage-analytics.md. STACKED on release 141 (BASE 24294b113128fcf1162fc218b53cb8ae3c032ea1).
+1. scripts/ci tests: first run 93/95 pass, 1 skipped, 1 FAIL: scripts/ci/run-part.test.mjs:54 ("dark-ink gets no fork env"), a process-spawning test in a directory this release does not touch (same flake as release 141). Rerun singly: 8/8. Whole directory serial under the lock: 95 tests, 94 pass, 0 fail, 1 skipped. Accepted with this caveat (TRAIN.md rule); every run kept (142-step-ci.out, 142-step-ci-single.out, 142-step-ci-rerun.out).
+2. scripts/*.test.mjs: 255/255.
+3. control-plane npm test: SKIPPED on purpose: the diff holds no packages/control-plane file (web landing entry, a web unit test, one e2e check, one doc).
+4. tutor-diagrams tests (packages/web, src/tutor-diagrams/*.test.mjs): 1266/1266.
+5. figure-briefs tests: 7/7.
+6. web unit (npm run test:unit): 6910 pass, 27 skipped, 1 todo, 0 fail (6938 tests; BASE had 6929, the difference is the 9 new analytics-banner tests).
+7. web build: exit 0.
+8. property count (int8-props, int8-mixed): max 347 <= 362 and max 358 <= 362, 0 over 362.
+9. planner-kind replay vs BASE 24294b113: 474 card rows, 114 steer events, 0 first picks moved, 0 steer, 0 kind, 0 refs moved, no change.
+New tests (analytics-banner.test.mjs, 9/9): AN-2 fails on the old landing code (checked by restoring it), passes on the fix. e2e/usage-analytics-check.mjs: bundled only (BUNDLE_ONLY=1, exit 0, no browser, per CLAUDE.md); its Playwright run is CI's. No smoke: no control-plane source in the diff. Snapshots untouched. Spend: US$0.

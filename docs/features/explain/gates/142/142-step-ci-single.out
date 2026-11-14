@@ -1,0 +1,16 @@
+✔ fork checks get the gate env and a shots dir; harness checks get their port and nothing else; everything is stopped (7243.1026ms)
+✔ readiness runs every check three times in a row, each run in its own log and its own line (7009.761ms)
+✔ a fork check whose stack died under it restarts the stack and reruns once; the first log is kept and the line says so (3634.7697ms)
+✔ a harness-only part never starts the stack (1659.0203ms)
+✔ a server that never starts fails its checks without running them; a runner the tier cannot run, or a check the map lacks, is a stop with its fix (3137.2571ms)
+✔ a check that exited 0 having executed no assertions fails, whatever it prints; counted lines and "N/N passed" are passes (5430.9841ms)
+✔ a scenario that throws, or a nonzero exit after the log counted N/N, never reads as checks passed (3500.2034ms)
+✔ an empty selection is reported as NOT SELECTED and is not a pass (511.8554ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32354.7294
