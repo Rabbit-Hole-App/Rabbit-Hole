@@ -21,16 +21,14 @@ export const stories=[
     mark:'Not courses.',motif:'courses',
     // Hero: GPT Image 2.5 Flare, the guide's prompt, attempt 4 of 4 (owner GO 2026-11-02), hand-tinted Wonderland scene, JPEG, fitted to 16:5.6 at 2x offline.
     hero:'The White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat in a hand-tinted engraving of Wonderland, walking through a garden with a tea-party table, playing-card soldiers and a castle behind them.',
-    body:`<p>Rabbit Hole started as a fix for how I learn. I was spending more time keeping track of what I had learned than learning it.</p>
-      <p><b>TL;DR:</b> Rabbit Hole was a personal tool that I built for myself to track what I learn. Knowledge is meant to share. Hence, the reason for sharing this tool with you too.</p>
+    body:`<p><b>TL;DR:</b> Rabbit Hole was a personal tool that I built for myself to track what I learn. Knowledge is meant to be shared, which is why I am sharing this tool with you too.</p>
       <h2>The README I kept writing</h2>
-      <p>For years my way of learning anything was the same: start with a course on Coursera or Udemy, or with the slides from a class, then watch the hours of video with my iPad open and take notes. Pause to read blog posts and watch YouTube videos that explained the same thing a different way, and code along with the instructor or do the exercises afterwards. At the end, write a README on GitHub with everything I had learned.</p>
-      <p>For many years, I had a consistent way of learning new things. My source of knowledge would be either from classes or from online courses on platforms like Udemy, Coursera or EdX or YouTube or reading scientific papers on arxiv and or a simple google search or now just asking Claude. I always follow two steps:</p>
+      <p>For many years, I had a consistent way of learning new things. My sources of knowledge were classes, online courses on platforms like Udemy, Coursera, edX or YouTube, scientific papers on arXiv, a simple Google search or, more recently, just asking Claude. I always followed two steps:</p>
       <ol>
         <li>I wrote notes on my iPad.</li>
         <li>I converted those notes into a more structured format and detailed them in a README on GitHub that I would make public.</li>
       </ol>
-      <p>The reason is because this helps me dig deeper into certain topics when I write my notes in the README and structure my thoughts alongside the project I would build and push on GitHub. Secondly, this would allow me to remember or come back to a specific topic if I happen to forget some theory or concepts and this would help me revise. Thirdly, sharing this extensive README is a way of sharing what I learnt to the online community and answering issues on GitHub helps deepen my understanding by explaining steps on my project.</p>
+      <p>The reason is that this helped me dig deeper into certain topics when I wrote my notes in the README and structured my thoughts alongside the project I would build and push on GitHub. Second, it allowed me to come back to a specific topic if I happened to forget some theory or concepts, which helped me revise. Third, sharing this extensive README was a way of sharing what I learned with the online community, and answering issues on GitHub deepened my understanding because I had to explain the steps in my project.</p>
       <p>The README mattered for three reasons:</p>
       <ul>
         <li>I would not forget the material, and I could go back to it.</li>
@@ -41,7 +39,7 @@ export const stories=[
       <h2>Two problems I kept hitting</h2>
       <ol>
         <li><b>Everything was scattered.</b> The knowledge sources lived on one website, the videos on YouTube, the blog posts in twenty tabs, the code on my laptop and then on GitHub. I put references in each README, but by the second post I could no longer trace which sources I had used for the first, or how they connected.</li>
-        <li><b>Every topic branched.</b> One write-up of mine on stereo vision is a good example. The question was whether two cameras could replace a LiDAR. To answer it I had to explain the linear camera model, which meant the mapping from camera to image coordinates, which meant homogeneous coordinates, which meant intrinsic and extrinsic parameters, before I could get to stereo matching at all. The README ended up with a four-part plan and headings numbered 1.1.2. If I followed every branch, it became too long to read. So I held back on depth to keep it readable, and when a branch really deserved its own write-up, I put it in a separate file. Do that for a few topics and the knowledge base is scattered again.</li>
+        <li><b>Every topic branched.</b> One write-up of mine on stereo vision is a good example. The question was whether two cameras could replace a LiDAR. To answer it I had to explain the linear camera model, which meant the mapping from camera to image coordinates, which meant homogeneous coordinates, which meant intrinsic and extrinsic parameters, before I could get to stereo matching at all. The README ended up with a four-part plan and headings numbered 1.1.2. If I followed every branch, it would become too long to read. So I held back on depth to keep it readable, and when a branch really deserved its own write-up, I put it in a separate file. Do that for a few topics and the knowledge base is scattered again.</li>
       </ol>
       <figure>
         <pre>README
@@ -58,11 +56,10 @@ export const stories=[
 └── 4. Application of Simple Stereo</pre>
         <figcaption>The README's outline. Four parts, three levels deep, and I still cut branches.</figcaption>
       </figure>
-      <p>The course was where I started; the problems came after it ended, when I tried to keep what I knew, go deeper into one part of it, and connect it to the next thing.</p>
       <blockquote>Go deeper, and the file gets too long. Split it, and the knowledge scatters.</blockquote>
       <h2>What I built instead</h2>
-      <p>I tried ChatGPT and Claude first and even their learning/study modes. They are great at answering questions, but the answer stays in the chat. There was nowhere to write my own notes next to it, the way I did in a README, nowhere to put a GIF or write some code to explain the theory. Their interfaces were built for asking, not for learning. I had to rethink what an interface for learning would look like.</p>
-      <p>So I built a Rabbit Hole for myself. One place where I can learn a topic, write about it, decide how deep to go into each branch, and share the result. The course, the paper, the video and the code sit on one canvas, a single page that holds all of it, and an AI tutor asks me questions about them, so the next thing I learn depends on what I actually understood. That stereo vision write-up keeps its shape here. Every heading in the outline above becomes its own rabbit hole, nested the way it was, with a path back to the question it came from, and nothing has to be cut to keep a file short. Then I got an idea. If I can go from courses to README then I can also go from README to courses.</p>
+      <p>I tried ChatGPT and Claude first, and even their learning and study modes. They are great at answering questions, but the answer stays in the chat. There was nowhere to write my own notes next to it, the way I did in a README, nowhere to put a GIF or write some code to explain the theory. Their interfaces were built for asking, not for learning. I had to rethink what an interface for learning would look like.</p>
+      <p>So I built a Rabbit Hole for myself. One place where I can learn a topic, write about it, decide how deep to go into each branch, and share the result. The course, the paper, the video and the code sit on one canvas, a single page that holds all of it, and an AI tutor asks me questions about them, so the next thing I learn depends on what I actually understood. Then I got an idea. If I can go from courses to README, then I can also go from README to courses.</p>
       <blockquote>Except it is not a course. There is no syllabus and no finish line; you stop when you stop being curious.</blockquote>
       <p>I built it first to learn about AI and ML topics. I started to notice the same problem everywhere I had ever learned anything:</p>
       <ul>
