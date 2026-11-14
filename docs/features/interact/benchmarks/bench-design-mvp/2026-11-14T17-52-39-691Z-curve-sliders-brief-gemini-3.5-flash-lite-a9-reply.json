@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Squashing Values with a Sigmoid Curve",
+  "story": "When modeling probabilities or neural networks, we often need to take any number from negative infinity to positive infinity and squash it into a strict range between zero and one. A linear scale cannot do this because it grows without bound. By passing our input through an exponential growth ratio, we create a smooth S-shaped curve that compresses extreme values while leaving inputs near zero flexible. Adjusting the steepness parameter alters how quickly the transition happens, letting us control the sensitivity of the response.",
+  "cardDescription": "Explore how the sigmoid function maps any real input into an output strictly between $0$ and $1$. Adjust the steepness to see how the transition sharpens or flattens.",
+  "instructions": "Adjust the steepness slider to change how fast the curve transitions from zero to one. Observe the output value update at the fixed marker position.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * x) / ((1 + exp(0 - k * x)) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Curve",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "marker_note": "Squashed value"
+  }
+ },
+ "usage": {
+  "completion_tokens": 524,
+  "prompt_tokens": 2077,
+  "total_tokens": 2601
+ }
+}

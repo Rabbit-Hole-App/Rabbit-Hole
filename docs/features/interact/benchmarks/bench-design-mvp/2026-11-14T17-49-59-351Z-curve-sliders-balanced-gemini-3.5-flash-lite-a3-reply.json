@@ -1,0 +1,7 @@
+{
+ "error": {
+  "code": "schema_mismatch",
+  "message": "The structured result does not match its schema: $.words.legend_curve: longer than 12",
+  "problems": null
+ }
+}

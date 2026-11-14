@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When building models that decide between two options, we often need a way to turn any raw score into a clear probability between zero and one. If a score grows very large or very negative, standard linear rules fail because they keep growing without bounds. We need a curve that bends gracefully, acting like a smooth valve that compresses extreme inputs into a neat range. This shaping behavior comes from the logistic function, which maps the entire real number line onto a bounded interval. By adjusting its steepness, we control how sharply the transition happens around the midpoint, making it an essential tool for smooth thresholds.",
+  "cardDescription": "Explore how the logistic sigmoid curve maps any real input into an output strictly between $0$ and $1$. Adjust the steepness parameter to see how quickly the transition occurs around the midpoint.",
+  "instructions": "Adjust the steepness slider to change how fast the curve rises. Observe the output value at the fixed marker.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(-k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(-k * x) / ((1 + exp(-k * x))^2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(-k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Curve",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "marker_note": "Squashed value"
+  }
+ },
+ "usage": {
+  "completion_tokens": 537,
+  "prompt_tokens": 2077,
+  "total_tokens": 2614
+ }
+}

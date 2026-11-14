@@ -1,0 +1,41 @@
+{
+ "jobId": "ej_0a08e16a257242478565c78d051679d9",
+ "label": "curve-run-p17",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 10441,
+ "verdict": "fail",
+ "costUsd": 0.018914,
+ "findings": [
+  {
+   "capture": "default",
+   "category": "spec",
+   "severity": "major",
+   "message": "The default capture has no frame, readouts, quantities or objects. The 'default' checkpoint and the 'bounds' and 'sensitivity' observations can't be judged from it."
+  },
+  {
+   "capture": "cp-gentle",
+   "category": "spec",
+   "severity": "major",
+   "message": "The 'Least steep' capture is empty. It has no frame, readouts or trace, so the gentle checkpoint is unsupported."
+  },
+  {
+   "capture": "cp-steep",
+   "category": "spec",
+   "severity": "major",
+   "message": "The slope readout is wrong. At k=5, x0=0, x=1, y=0.993307 and slope = k·y·(1−y) = 5×0.993307×0.006693 ≈ 0.0332. This agrees with the trace, so the numbers are fine. However, the frame has no tangent line, no guide lines, and no legend entries drawn beyond the series names. The tangent that the 'sensitivity' observation depends on can't be verified."
+  },
+  {
+   "capture": "bound-x0-max",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The marker label always reads 'x = 1.0'. The state word reads 'Standard steepness' even though the midpoint has moved. This is imprecise but not wrong. The tangent can't be verified from the objects drawn."
+  },
+  {
+   "capture": "cp-steep",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The marker is at y=69.4 on a plot spanning y=24 to 323. The marker sits above the guide-line region and has no guide lines, unlike the cp-shifted capture. This is inconsistent but not misleading."
+  }
+ ]
+}

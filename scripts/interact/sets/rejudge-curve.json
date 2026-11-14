@@ -1,0 +1,26 @@
+[
+ {
+  "label": "curve-run-p17",
+  "email": "owner-interact-fast-mwgp5gy4@example.com",
+  "board": "be3614dc-5b4e-4ee8-97fc-a753a954596c",
+  "job": "ej_0a08e16a257242478565c78d051679d9"
+ },
+ {
+  "label": "curve-run-p19",
+  "email": "owner-interact-fast-mwgp5gy4@example.com",
+  "board": "be3614dc-5b4e-4ee8-97fc-a753a954596c",
+  "job": "ej_214fd66abae14ebf8b61b71cdb6b6be5"
+ },
+ {
+  "label": "curve-run-p26",
+  "email": "owner-interact-fast-mwgp5gy4@example.com",
+  "board": "be3614dc-5b4e-4ee8-97fc-a753a954596c",
+  "job": "ej_ec256719c20c47d7a0ccac9b8759faa8"
+ },
+ {
+  "label": "curve-run-p1",
+  "email": "owner-interact-fast-mwgp5gy4@example.com",
+  "board": "be3614dc-5b4e-4ee8-97fc-a753a954596c",
+  "job": "ej_50aedff711e54f6a8b31deb4a03aa7c1"
+ }
+]

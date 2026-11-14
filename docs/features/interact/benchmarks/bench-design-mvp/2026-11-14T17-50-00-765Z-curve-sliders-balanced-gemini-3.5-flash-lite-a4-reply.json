@@ -1,0 +1,56 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When modeling probabilities or biological neurons, we often need to convert any real number into a strict range between zero and one. If we simply scale down large numbers, we lose sensitivity near zero. A better solution is the logistic function, a smooth S-shaped curve that maps infinite inputs into a bounded output.\n\nAt the heart of the curve is an exponential growth factor in the denominator. As the input becomes very negative, the exponential term grows large, driving the fraction close to zero. As the input becomes very positive, the exponential term shrinks toward zero, leaving the fraction at one.\n\nBy adjusting the steepness and midpoint parameters, we can shape how abruptly this transition occurs. The derivative reveals that the maximum rate of change happens right at the midpoint, making it an ideal activation function for transitions.",
+  "cardDescription": "Explore how the logistic sigmoid maps infinite inputs into a bounded $0$ to $1$ range. Adjust steepness and midpoint parameters to see how the S-curve responds.",
+  "instructions": "Adjust the steepness and midpoint sliders to see how the S-curve shifts and stretches. Observe how the tangent line changes slope at the marker.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * (x - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * (x - x0)) / ((1 + exp(0 - k * (x - x0))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * (1 - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker at x = 1",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "legend_curve": "Sigmoid",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 691,
+  "prompt_tokens": 2165,
+  "total_tokens": 2856
+ }
+}

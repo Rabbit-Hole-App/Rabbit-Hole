@@ -1,0 +1,62 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When building models that make binary choices, we often need a way to turn any raw score—ranging from negative infinity to positive infinity—into a clean probability between zero and one. Linear functions fail here because they grow without bound. We need a smooth, S-shaped curve that compresses extreme values while remaining sensitive near the threshold.\n\nPierre François Verhulst faced a similar problem when modeling population growth constrained by limited resources. He introduced the logistic function, which maps inputs smoothly between zero and one. The central mechanism relies on the exponential function: as the input grows very large, the denominator grows exponentially faster than the numerator, driving the output toward one. As the input drops to large negative values, the exponential term vanishes, leaving the output near zero.\n\nBy adjusting the steepness parameter $k$ and the midpoint $x_0$, we can control how sharply the transition occurs and where it centers. This remarkable squashing property makes the logistic curve foundational for probability estimation and neural network activation functions everywhere.",
+  "cardDescription": "Explore how the logistic function maps any real input into a strictly bounded range between zero and one. Adjust the steepness, midpoint, and marker to examine the curve and its slope.",
+  "instructions": "Adjust the steepness and midpoint sliders to reshape the curve. Move the marker to inspect the output and slope at any input.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "xMarker": {
+   "min": -6,
+   "max": 6,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * (x - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * (x - x0)) / ((1 + exp(0 - k * (x - x0))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * (xMarker - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "y = 1 / (1 + exp(-k(x - x0)))",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "legend_curve": "Sigmoid",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 789,
+  "prompt_tokens": 2180,
+  "total_tokens": 2969
+ }
+}

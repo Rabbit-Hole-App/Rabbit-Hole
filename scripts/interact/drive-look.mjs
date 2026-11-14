@@ -50,6 +50,7 @@ for (let i = 0; i < n; i++) {
   const reset = card.locator('[data-scene-reset]');
   if (await reset.count()) { await reset.first().click(); await page.waitForTimeout(800); r.resetClock = await clock(card); r.resetDisabledAfter = await reset.first().isDisabled(); } else r.notes.push('no Reset');
   // Play from the start: it should run, then stop at the first pause marker; Play again should carry on past it.
+  if (!(await card.getByRole('button', { name: /^(Play|Replay|Restart)$/ }).count())) { r.notes.push('no Play button (a still card)'); results.push(r); console.log(JSON.stringify(r)); continue; } // a curve card has sliders and no transport
   const play = card.getByRole('button', { name: /^(Play|Replay|Restart)$/ }).first();
   const seen = [];
   await play.click();

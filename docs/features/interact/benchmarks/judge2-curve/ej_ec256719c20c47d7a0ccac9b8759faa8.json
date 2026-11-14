@@ -1,0 +1,29 @@
+{
+ "jobId": "ej_ec256719c20c47d7a0ccac9b8759faa8",
+ "label": "curve-run-p26",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 13017,
+ "verdict": "fail",
+ "costUsd": 0.020626,
+ "findings": [
+  {
+   "capture": "cp-steep",
+   "category": "spec",
+   "severity": "major",
+   "message": "At k=5, x0=0, x=1, the slope should be k*y*(1-y) = 5*0.993307*0.006693 = 0.03324. That value is correct. But the 'Most steep' state has no guide.marker.x or guide.marker.y lines, while the default state does. The marker guides are missing, so the marker is less clear in the steepest state. The same happens in bound-x0-min."
+  },
+  {
+   "capture": "default",
+   "category": "spec",
+   "severity": "major",
+   "message": "The frames list the plot with 'Logistic' and 'Tangent' series but no legend text and no tangent line object. The tangent is the plan's main tool for the sensitivity observation, and the frame does not show it as a drawn object. So the sensitivity observation (tangent slope at the marker) cannot be verified. No 'Curve/Tangent' legend label appears in the labels."
+  },
+  {
+   "capture": "cp-gentle",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The marker x readout is shown only as the callout 'x = 1.0'. The bounds observation (approaching the bounds without reaching them) is supported only by the marker value. The frames show nothing that shows the curve approaching the bounds. The plan's steepness slider range also cannot be judged from the frames."
+  }
+ ]
+}

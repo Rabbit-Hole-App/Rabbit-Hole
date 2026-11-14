@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Squashing with the Logistic Curve",
+  "story": "When modeling probabilities or neural networks, we often need to turn any input from negative infinity to positive infinity into a clean probability between zero and one. Early biometricians studying population growth noticed that growth starts exponential but caps out due to limited resources, forming an S-shaped curve. By dividing one by the sum of one and the exponential of negative input, we get a smooth function that compresses vast ranges into a tight interval. Adjusting the steepness parameter changes how sharply the transition happens around the midpoint, letting us control the sensitivity of the response.",
+  "cardDescription": "Discover how the logistic sigmoid maps any real input into a bounded range between $0$ and $1$. See how adjusting the steepness parameter shapes the transition.",
+  "instructions": "Adjust the steepness slider to change how fast the curve transitions from zero to one. Observe the output value at the fixed marker.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * x) / ((1 + exp(0 - k * x)) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Curve",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "At Marker",
+   "marker_at": "x =",
+   "readout_y": "Output value",
+   "marker_note": "Squashed output"
+  }
+ },
+ "usage": {
+  "completion_tokens": 529,
+  "prompt_tokens": 2077,
+  "total_tokens": 2606
+ }
+}

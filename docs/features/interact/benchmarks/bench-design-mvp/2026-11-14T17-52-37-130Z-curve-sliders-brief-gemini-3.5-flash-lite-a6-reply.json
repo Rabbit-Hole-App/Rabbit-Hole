@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Why a Sigmoid Squashes Numbers into Zero and One",
+  "story": "When we build models that decide between two options, we often need to turn any score, no matter how large or small, into a probability between zero and one. Early researchers looked for a smooth mathematical function that could take the entire number line and compress it gently into this bounded range. They found that an exponential expression with the input in the exponent creates an S-shaped curve. As the input grows very large and positive, the output approaches one. As the input drops to large negative values, the output flattens out toward zero. This mapping gives us a reliable way to represent certainty.",
+  "cardDescription": "Discover how the logistic sigmoid function squashes any input onto the range $0$ to $1$. Adjust the steepness parameter to see how sharply the transition occurs.",
+  "instructions": "Adjust the steepness slider to change how fast the curve transitions from zero to one. Observe the output value update at the marked input position.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * x) / ((1 + exp(0 - k * x))^2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentle transition",
+   "state_steeper": "Sharp transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x = ",
+   "readout_y": "Output value",
+   "marker_note": "Squashed value"
+  }
+ },
+ "usage": {
+  "completion_tokens": 545,
+  "prompt_tokens": 2077,
+  "total_tokens": 2622
+ }
+}

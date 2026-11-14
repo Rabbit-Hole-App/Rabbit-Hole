@@ -1,0 +1,120 @@
+[
+  {
+    "i": 0,
+    "title": "Why does a sigmoid squash any number into 0 to 1?",
+    "notes": [
+      "no At top button",
+      "no Play button (a still card)"
+    ],
+    "fit": {
+      "block": {
+        "w": 676,
+        "h": 646
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 104,
+      "bottom": 750
+    },
+    "restClock": "?",
+    "sliderChanged": true,
+    "resetClock": "?",
+    "resetDisabledAfter": true
+  },
+  {
+    "i": 1,
+    "title": "At the Highest Point, is Acceleration Zero?",
+    "notes": [],
+    "fit": {
+      "block": {
+        "w": 676,
+        "h": 660
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 85,
+      "bottom": 745
+    },
+    "restClock": "−0.51s",
+    "atTopClock": "0.00s",
+    "sliderChanged": true,
+    "resetClock": "−0.51s",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@−0.10s",
+    "firstRun": "Pause@−0.43s",
+    "secondStop": "Play@0.00s",
+    "playAgainMoved": true
+  },
+  {
+    "i": 2,
+    "title": "Logistic Growth Transition",
+    "notes": [
+      "no At top button",
+      "no Play button (a still card)"
+    ],
+    "fit": {
+      "block": {
+        "w": 676,
+        "h": 647
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 253,
+      "bottom": 900
+    },
+    "restClock": "?",
+    "sliderChanged": true,
+    "resetClock": "?",
+    "resetDisabledAfter": true
+  },
+  {
+    "i": 3,
+    "title": "Mapping the Logistic Curve",
+    "notes": [
+      "no At top button",
+      "no Play button (a still card)"
+    ],
+    "fit": {
+      "block": {
+        "w": 676,
+        "h": 626
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 241,
+      "bottom": 867
+    },
+    "restClock": "?",
+    "sliderChanged": true,
+    "resetClock": "?",
+    "resetDisabledAfter": true
+  }
+]

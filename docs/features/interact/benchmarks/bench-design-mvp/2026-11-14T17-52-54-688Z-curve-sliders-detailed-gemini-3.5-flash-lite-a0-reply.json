@@ -1,0 +1,62 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When building models that make binary choices, we often need to convert any real number into a probability between zero and one. Linear functions fail here because they grow without bound. Instead, we need a smooth curve that gently bends to cap extremely large and small inputs.\n\nPierre François Verhulst faced a similar problem in population dynamics, leading him to the logistic function. By mapping infinite inputs through an exponential decay term, the function compresses every value into a strict interval. As the input grows, the denominator grows just fast enough to hold the output below one.\n\nExploring this curve reveals how steepness and the midpoint govern its shape. The derivative shows that the maximum rate of change occurs right at the center. By adjusting these parameters, we can tune how aggressively the transition occurs.",
+  "cardDescription": "Explore how the logistic function squashes infinite inputs into a bounded range between zero and one. Adjust the steepness, midpoint, and marker to inspect the curve and its slope.",
+  "instructions": "Change the steepness, midpoint, or marker to observe how the logistic curve and its tangent adapt.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "xMarker": {
+   "min": -6,
+   "max": 6,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - (k * (x - x0))))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - (k * (x - x0))) / ((1 + exp(0 - (k * (x - x0)))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - (k * (xMarker - x0))))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "y = 1 / (1 + exp(-k(x - x₀)))",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x =",
+   "readout_y": "Output y",
+   "legend_curve": "Logistic",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 738,
+  "prompt_tokens": 2180,
+  "total_tokens": 2918
+ }
+}

@@ -187,6 +187,15 @@ One card per depth for each of three prompts, hand-built first as HTML in `docs/
 
 That is nine cards (three prompts at Brief, Balanced and Detailed). All three prompts are in the reference set above.
 
+## Contract fixes before deliverable 3
+
+Two contract fixes are required before deliverable 3 starts, because the stepper needs both. They are specified in `docs/features/interact/briefs/contract-fixes.md` (friction list with file and line evidence, then each proposal). Order: the coordinator makes both on `design/fast-path` first and pushes; Codex merges that tip; then deliverable 3 begins. Neither is part of Codex's lane.
+
+1. **One-place family registration.** A family is one directory with one descriptor (`templates` with generator, states hook, roles and words together; `pickCriterion`; `pins`; `oracles`; `tests`). One index lists the family modules and everything else is derived from it: the generator's template table, the role and word tables, the control-plane registry, the pin tables, the fixtures, the oracle chain. Adding the stepper then needs no edit to a table, the registry, the pins, the oracle chain or `check-map.json` rows (two glob rows exist once). Migration: toss first (byte-identical tests), then curve, then delete the hand tables. Proof: the toss snapshot and contract tests, the template tests, the curve tests and the `check-map` class test.
+2. **Fixed-input schema change.** Today a fixed brief input is positive-only (`fixed: num.positive()` at `packages/web/src/interact-plan-brief.js:45`; family scalars are non-negative at `:44`), a rule that came from gravity. The proposal lets a family declare the sign: `[id, 'fixed', { min: -Infinity }]`, and omitting it keeps today's positive-only rule, so the toss JSON schema, key lists and fill text stay byte-identical. The stepper needs it: a step index starts at 0, and a parameter that changes the states' content may be zero or negative.
+
+Rationale: the curve family added thirteen edits outside its own files, and its notes ask that "the contract should distinguish slider inputs, fixed parameters and independent coordinates without assuming all fixed numbers are positive".
+
 ## Deliverables (numbered as the curve brief; push after each, one paragraph each)
 
 1. **Review gate.** Read the list above and write the contract gaps the stepper needs in `docs/features/interact/references/tutor-scene-examples.md` under a heading `stepper-states: deliverable 1 review gate`. Expected gaps: a template chosen by a brief field, not by depth; `referenceCheck` returning invariant problems instead of formula failures; a family whose `inputs` are an `index` control and a `select` (check `briefSchema`'s input kinds); string-valued scene data (`scene.words` keys per state, id-valued `scene.slots`) and the key limits they hit; the `inputs_v2` and `select_inputs` capabilities the clone must have on. List which are contract-side (fixed on `design/fast-path`, small) and which are yours.

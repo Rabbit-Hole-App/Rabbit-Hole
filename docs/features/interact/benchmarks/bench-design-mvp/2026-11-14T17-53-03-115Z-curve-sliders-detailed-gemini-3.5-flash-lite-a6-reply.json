@@ -1,0 +1,62 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When building models that make binary choices, we often need to turn any real number into a probability between zero and one. Linear functions fail here because they grow without bound. We need a smooth curve that gently saturates at both ends.\n\nPierre François Verhulst faced a similar problem describing population growth constrained by limited resources. He used an S-shaped curve now known as the logistic function. The exponential term in the denominator dominates for large inputs, forcing the output toward zero or one.\n\nBy adjusting the steepness and midpoint, we can shape how abruptly this transition occurs. The derivative reveals that the steepest growth happens right at the midpoint, dropping smoothly to zero as the input moves away.",
+  "cardDescription": "Explore how the logistic function $y = 1 / (1 + \\exp(-k(x - x_0)))$ maps any real input into a smooth range between zero and one. Adjust the steepness and midpoint to see how the curve transforms.",
+  "instructions": "Adjust the steepness, midpoint, and marker position to inspect the output and slope.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "xMarker": {
+   "min": -6,
+   "max": 6,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(-k * (x - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(-k * (x - x0)) / ((1 + exp(-k * (x - x0))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(-k * (xMarker - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "y = 1 / (1 + exp(-k(x - x0)))",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "legend_curve": "Logistic",
+   "legend_tangent": "Slope",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 725,
+  "prompt_tokens": 2180,
+  "total_tokens": 2905
+ }
+}
