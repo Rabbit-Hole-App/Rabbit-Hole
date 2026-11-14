@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "queue approved at 9288dca9d; C01 authoring authorized against 1944b48cf",
+  "status": "queue approved at 9288dca9d; C01 approved, C02 authorized against 1944b48cf",
   "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
   "taskId": "d0064f06-a457-4f4b-a40c-9c636798a66c",
   "inputs": [
@@ -102,7 +102,7 @@
           "references": 1
         }
       ],
-      "approval": "Owner approved C01; keywords reviewed with specs, report and previews",
+      "approval": "C01 approved at 2409cff02 + 767ba06c4; release after 133 and 134 are on main",
       "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: linear-regression (1), neural-networks (1) into regularization."
     },
     {
@@ -150,7 +150,7 @@
           "references": 1
         }
       ],
-      "approval": "pending corrected-queue and batch id/keyword approval; schema pinned to 1944b48cf",
+      "approval": "Owner authorized C02 on 2026-11-14; keywords reviewed with specs, report and previews",
       "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: attention (1), model-evaluation (2), time-series (1) into distribution-shift."
     },
     {
@@ -8149,19 +8149,24 @@
     }
   ],
   "authoringGate": {
-    "status": "C01 authorized; later batches await individual approval",
+    "status": "C01 approved; C02 authorized; later batches await individual approval",
     "authoringRevision": "1944b48cf24c9d6bd7f53b34ddbe258d1c6113df",
     "schemaFinalForAuthoring": true,
     "schemaPath": "packages/web/src/tutor-diagrams/ml-composition-spec.js",
-    "instructions": "Owner confirmed the schema at 1944b48cf is final for this work. After corrected-queue approval, author batch 1 against that tip; rebase onto main when release 133 lands.",
-    "rebaseAfterRelease": 133,
+    "instructions": "Owner confirmed schema 1944b48cf is final for this work. C01 is approved, C02 is authorized; rebase both after releases 133 and 134 are on main. Later batches need approval.",
     "formattingFollowup": "One data-only number-formatting commit will follow; the owner states that it does not change the schema.",
     "contract": [
       "An ordered sequence or an operation between panels uses kind panels: 2–3 children, optional label text(40), at most two neighbouring links with operation text(24). Children are leaf kinds, block-stack or token-links; no nested composition.",
       "Plain side-by-side without an operation uses comparison variant panels with heading text(40) on each child, not the text-column comparison form.",
       "Stacked bar-chart uses variant stacked, a unit, 2–8 strictly positive parts and optional total; parts must sum to total within rounding.",
       "The current author tool schema exposes neither composition form; references may use both, and this task does not change the author schema or prompts.",
-      "Shared classes/colours require bar charts in every panel. Shared axis requires coordinate plots with matching labels, ranges, units and scales."
+      "Shared classes/colours require bar charts in every panel. Shared axis requires coordinate plots with matching labels, ranges, units and scales.",
+      "For C02 onward, Standard has at most two coordinate-plot panels; shared-axis stems are used only when the shared-axis comparison is the learning point. Other small quantities use bar panels with values beside them.",
+      "For C02 onward, a composition must fit a 680 px request without horizontal scrolling; split the content across figures/depths if it needs more width."
+    ],
+    "rebaseAfterReleases": [
+      133,
+      134
     ]
   },
   "flowBackEdgeAudit": {

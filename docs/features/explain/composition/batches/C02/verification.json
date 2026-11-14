@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "task": "a97894d9-db7b-4af3-8a7d-35c2d0114221",
+  "contentFirstCommit": "343d91f8a378c5b2200276624ffb8ec952be1e70",
+  "focused": {
+    "passed": 92,
+    "failed": 0,
+    "skipped": 0,
+    "tests": [
+      "topic-attention-composition.test.mjs",
+      "topic-model-evaluation-composition.test.mjs",
+      "topic-time-series-composition.test.mjs",
+      "topic-distribution-shift-composition.test.mjs",
+      "topic-regularization-composition.test.mjs",
+      "ml-composition.test.mjs",
+      "ml-stacked-bar.test.mjs",
+      "ml-plot.test.mjs",
+      "ml-statistical.test.mjs",
+      "reference-content-contract.test.mjs",
+      "svg-snapshots.test.mjs"
+    ]
+  },
+  "priorReferencePayloadsUnchanged": true,
+  "svgSnapshots": {
+    "changedPrior": [],
+    "added": [
+      "ml-attention-scaled-score-normalization/320",
+      "ml-attention-scaled-score-normalization/408",
+      "ml-attention-scaled-score-normalization/720",
+      "ml-distribution-shift-concept-shift/320",
+      "ml-distribution-shift-concept-shift/408",
+      "ml-distribution-shift-concept-shift/720",
+      "ml-distribution-shift-input-distribution-shift/320",
+      "ml-distribution-shift-input-distribution-shift/408",
+      "ml-distribution-shift-input-distribution-shift/720",
+      "ml-model-evaluation-schedule-run-diagnostics/320",
+      "ml-model-evaluation-schedule-run-diagnostics/408",
+      "ml-model-evaluation-schedule-run-diagnostics/720",
+      "ml-model-evaluation-training-diagnostics/320",
+      "ml-model-evaluation-training-diagnostics/408",
+      "ml-model-evaluation-training-diagnostics/720",
+      "ml-time-series-recursive-rollout/320",
+      "ml-time-series-recursive-rollout/408",
+      "ml-time-series-recursive-rollout/720"
+    ]
+  },
+  "broadSparseLaneAttempt": {
+    "command": "npm run test:unit",
+    "base": "d5149cda5972c5335cabc2ffb601e4bf8ae7dfb9",
+    "laneFiles": "Three new distribution-shift files; no registry or existing source changes in that lane",
+    "total": 3097,
+    "passed": 2746,
+    "failed": 351,
+    "status": "failed, incomplete diagnosis",
+    "observedMissingDependenciesOrFixtures": [
+      "esbuild",
+      "oidc-client-ts",
+      "lucide-react",
+      "CodeMirror",
+      "pdfjs",
+      "linkedom",
+      "xlsx",
+      "JSX/media/benchmark fixtures"
+    ],
+    "allFailuresClassified": false,
+    "logSha256": "a6d2b9dbfa9cd8cb0b1802d56684a9ddeb85498507a1c572df98a75a3995ea22"
+  },
+  "release": {
+    "owner": "Claude Code",
+    "afterReleases": [
+      133,
+      134
+    ],
+    "gate": [
+      "suites",
+      "property count",
+      "planner-kind replay zero"
+    ],
+    "smoke": false,
+    "buildAndReleaseGateRunHere": false,
+    "liveProviderCalls": 0,
+    "stackRuns": 0
+  }
+}

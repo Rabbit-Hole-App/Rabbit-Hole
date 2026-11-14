@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "variant": "grouped",
+    "title": "Both target classes remain represented",
+    "unit": "Cards",
+    "caption": "Round is A; square is B in both independent domains.",
+    "categories": [
+      "A",
+      "B"
+    ],
+    "series": [
+      {
+        "label": "Training",
+        "values": [
+          2,
+          2
+        ]
+      },
+      {
+        "label": "Deployment",
+        "values": [
+          2,
+          2
+        ]
+      }
+    ]
+  }
+}
