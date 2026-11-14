@@ -3,7 +3,7 @@ import { canonicalJson } from './explain-contract.js';
 import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, PROGRAM_KIND, verifyHashes } from './explain-program/contract.js';
 import { FRAME_OBJECTS_DEFAULT, FRAME_OBJECTS_HARD_MAX } from './explain-program/frame-budget.js';
 import { CALLOUT_SLOTS } from './interact-family-registry.js';
-import { PLAN_LIMITS, ScalarExprError, contentHash, evalScalar, planHash, scalarExprProblem, scalarInterval } from './interact-plan.js';
+import { PLAN_LIMITS, indexLists, ScalarExprError, contentHash, evalScalar, planHash, scalarExprProblem, scalarInterval } from './interact-plan.js';
 
 // One place per number (owner 2026-11-14): the quantities a template's callout lines print, named by the template's own slot roles (interact-templates/*.js: two-lane prints each lane's velocity and
 // acceleration, body-plot the velocity, acceleration and force; one-body's callout is words, so its state readouts stay). A plan with no template (a model-built program) declares none. The table is
@@ -48,7 +48,7 @@ export function nativeDeclaration(control, renderer) {
     if (control.type === 'select') return done('manifest.inputs', { type: 'select', id, label: control.label, default: control.default, options: control.options.map(({ value, label }) => ({ value, label })) });
     // inputs_v2 (the catalogue offers these only when it is on; validateCompositionBindings requires the capability in the manifest).
     if (control.type === 'boolean') return done('manifest.inputs', { type: 'boolean', id, label: control.label, default: control.default });
-    if (control.type === 'index') return done('manifest.inputs', { type: 'index', id, label: control.label, default: control.default, presentation: control.presentation, items: control.items.map(({ id: itemId, label }) => ({ id: itemId, label })) });
+    if (control.type === 'index') return done('manifest.inputs', { type: 'index', id, label: control.label, default: control.default, presentation: control.presentation, items: Array.isArray(control.items) ? control.items.map(({ id: itemId, label }) => ({ id: itemId, label })) : { by: control.items.by, options: Object.fromEntries(Object.entries(control.items.options).map(([value, list]) => [value, list.map(({ id: itemId, label }) => ({ id: itemId, label }))])) } });
     if (control.type === 'action') return done('manifest.actions', { id, label: control.label });
     if (control.type === 'target') return done('manifest.targets', { id, label: control.label, ...(control.interaction === 'drag' ? { drag: true } : {}) });
     return refuse();
@@ -59,7 +59,7 @@ export function nativeDeclaration(control, renderer) {
     // only the id and the admitted domain are checked.
     if (control.type === 'select') return done('presentation.experiments', { id, domain: { values: control.options.map(o => o.value) } });
     if (control.type === 'boolean') return done('presentation.experiments', { id, domain: { values: [0, 1] } });
-    if (control.type === 'index' || control.type === 'multi_select') return done('presentation.experiments', { id, domain: { values: control.items.map((_, i) => i) } });
+    if (control.type === 'index' || control.type === 'multi_select') return done('presentation.experiments', { id, domain: { values: Array.from({ length: Math.max(...indexLists(control).map(l => l.length)) }, (_, i) => i) } });
     return refuse();
   }
   return refuse();
@@ -306,7 +306,7 @@ function supportProblems(plan, panel, bad) {
       const ok = from.type === 'number' ? input.type === 'number' && input.min <= from.min + 1e-9 && input.max >= from.max - 1e-9
         : from.type === 'select' ? input.type === 'select' && from.options.every(o => input.options.some(x => x.value === o.value))
           : from.type === 'boolean' ? input.type === 'boolean'
-            : from.type === 'index' ? input.type === 'index' && input.items.length >= from.items.length : false;
+            : from.type === 'index' ? input.type === 'index' && Math.max(...indexLists(input).map(l => l.length)) >= Math.max(...indexLists(from).map(l => l.length)) : false;
       if (!ok) bad(at('parameterBindings'), 'binding_incompatible', `main ${from.type} "${from.id}" does not fit support input "${input.id}" (${input.type} ${input.min ?? ''}${input.max !== undefined ? `..${input.max}` : ''})`);
     }
     for (const b of support.parameterBindings) if (!(m.inputs || []).some(i => i.id === b.toInputId)) bad(at('parameterBindings'), 'binding_incompatible', `support panel "${id}" declares no input "${b.toInputId}"`);
@@ -369,7 +369,7 @@ const control = z.object({
   affects: z.array(z.object({ scope: stable, kind: z.enum(['entity', 'quantity', 'readout']), id: stable }).strict()).max(16),
   unit: z.string().max(16).optional(), default: z.union([scalar, z.array(z.number().int())]).optional(), min: z.number().finite().optional(), max: z.number().finite().optional(), step: z.number().positive().finite().optional(),
   options: z.array(z.object({ value: z.string().max(32), label: planText(60) }).strict()).max(CONTRACT_LIMITS.options).optional(),
-  items: z.array(z.object({ id: stable, label: planText(60) }).strict()).max(PLAN_LIMITS.items).optional(), presentation: z.string().max(32).optional(), dataRef: stable.optional(),
+  items: z.union([z.array(z.object({ id: stable, label: planText(60) }).strict()).max(PLAN_LIMITS.items), z.object({ by: stable, options: z.record(z.string().max(32), z.array(z.object({ id: stable, label: planText(60) }).strict()).max(12)) }).strict()]).optional(), presentation: z.string().max(32).optional(), dataRef: stable.optional(),
   labels: z.object({ paused: z.string(), playing: z.string(), ended: z.string() }).strict().optional(), interaction: z.enum(['select', 'drag']).optional(), onChange: z.enum(['recompute_still', 'reset_pause']).optional(),
 }).strict();
 const timelineRecord = z.object({
