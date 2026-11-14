@@ -187,6 +187,8 @@ test('the default threshold is a function of the registry size; the setting over
   assert.deepEqual([pickThreshold({}, one), pickThreshold({}, two)], [0.7, 0.9]);
   assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0.55' }, two), 0.55); assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0' }, two), 0);
   assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.9, 0.7]);
+});
+
 // The captured failure of the fast clone (2026-11-14, three of three Detailed plans): the model's own checkpoint asks for gravity 1, where body-plot's acceleration arrow (3.4 px per m/s^2) is shorter than the
 // minimum an arrow is drawn at, so the build's oracle refused the card at Generate. The precheck runs the build's checks at design time so the correction (or the Opus fallback) hears it first.
 const GRAVITY_ONE = JSON.parse(readFileSync(new URL('./fixtures/fast-detailed-gravity1-plan.json', import.meta.url), 'utf8'));
