@@ -1,15 +1,14 @@
 import { z } from 'zod';
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 import { referenceCardWords, referenceComposition } from './interact-stepper-data.js';
+import { id, pickCriterion, templates, independent, templateData } from './interact-family-stepper-data.js';
+import { STEPPER_PLANS } from './interact-stepper-plans.js';
 import * as stepperScene from './interact-templates/stepper-scene.js';
 import {
   canonicalIds, DEPTH_LIMITS, WORDS, compositionSchemaFor, parseComposition, plainText, schemaFailures, wordsSchema,
 } from './interact-stepper-schema.js';
 
-export const id = 'stepper-states';
-export const pickCriterion = 'An ordered sequence of discrete states in one fixed teaching picture, with linked emphasis and an explanation of the selected state.';
-export const templates = Object.freeze(['stepper-brief', 'stepper-standard', 'stepper-deep']);
-export const independent = Object.freeze({ id: 'step', domain: Object.freeze([0, 7]) });
+export { id, pickCriterion, templates, independent, templateData };
 export const coordinate = Object.freeze({
   kind: 'discrete', id: 'step', integer: true, stateCollection: 'composition.data.variants[option].states',
   domainRule: '0..states.length-1', nativeItemIdRule: 'state followed by the zero-based position', onVariantChange: 'clamp-current-state', resolveDomain,
@@ -39,9 +38,6 @@ export const FAMILY = Object.freeze({ id, depths: Object.freeze(Object.fromEntri
   inputs: Object.freeze([Object.freeze(['step', 'index']), ...(depth === 'brief' ? [] : [Object.freeze(['option', 'select'])])]),
   compositions: canonicalIds, limits: DEPTH_LIMITS[depth],
 })]))) });
-export const templateData = Object.freeze(Object.fromEntries(depthNames.map((depth, i) => [templates[i], Object.freeze({
-  lanes: 0, roles: scalarRoles, independent, words: WORDS, sceneDataSchema: compositionSchemaFor(depth),
-})])));
 
 export const formulaGrammar = Object.freeze([
   'This family has no formula fields or scalar quantity roles. Fill only the closed typed composition and the declared word slots.',
@@ -97,6 +93,31 @@ export function briefSchema(depth) {
   });
   briefSchemas.set(depth, result);
   return result;
+}
+
+export function fillKeyLines(keys) {
+  return [
+    ...keys.text.map(({ key, what, max }) => `- ${key}: ${what} (at most ${max} characters)`),
+    `- composition: ${keys.composition.what} Choose one canonical: ${keys.composition.canonicalIds.join(', ')}.`,
+    `  Limits for this depth: ${Object.entries(keys.composition.limits).map(([name, max]) => `${name} at most ${max}`).join('; ')}.`,
+    '  Bind the ordered state table, fixed-picture regions and links, named active regions, aha state, parts and native controls through the closed schema. Use no executable drawing code.',
+    ...keys.words.map(({ key, what, max }) => `- words.${key}: ${what} (at most ${max} characters)`),
+  ];
+}
+
+export function fillTeachingRules(depth) {
+  infoOf(depth);
+  return [
+    'Teach one aha that answers the opening question. Name its state and hold it until the learner changes the discrete step index; there is no timeline or elapsed time.',
+    'Use tested parts plus canonical composition data plus these rules. Bind every visible region, link, highlight, word and readout to the declared state data.',
+    'Name every changing part in the story and use the same names in the picture and selected-state sentence. A control must change the aha evidence, beyond changing a label.',
+    depth === 'brief' ? 'Overview: one changing region and its observation. Use the rail, fixed picture and anchored callout.'
+      : depth === 'balanced' ? 'Standard: add the comparison with the previous state and computed readouts.'
+        : 'Deep: add an inspectable computed count or governing rule and completed-state trace. Never exceed the approved Deep mitosis density.',
+    'Compose inside the 640 px picture. Callouts identify where; readouts report values. Keep each number in one place and compute it from the same state and inputs.',
+    'Reset restores the first state and default variant. Every selected state persists until the learner acts. A step is an integer state position, never a fabricated clock.',
+    ...formulaGrammar, ...formulaRules(depth),
+  ];
 }
 
 export class StepperBriefError extends Error {
@@ -260,8 +281,7 @@ export function expandBrief(raw, depth, { catalogueHash = '' } = {}) {
       runtime: { renderer: 'program', schemaVersion: tuple.schemaVersion, sdkVersion: tuple.sdkVersion, programTuple: tuple, requiredHelpers: [], requiredCapabilities: ['inputs_v2', ...(selector ? ['select_inputs'] : [])], catalogueHash },
       entities: composition.parts.map(p => ({ id: p.id, label: partLabels[p.id], purpose: `Show the ${partLabels[p.id].toLowerCase()} from the declared state data.` })),
       quantities: [], template: info.template, slots: {}, words: { ...brief.words }, readoutIds: [],
-      // Deliberate shared hook request: never move this typed payload into words,
-      // formula roles or a fabricated clock to evade ScenePlan's strict refusal.
+      // The registered template admits this typed payload through sceneDataSchema.
       data: composition,
       observations: [{ id: 'aha', text: composition.aha.observation, quantityIds: [], readoutIds: [] }],
       checkpoints: points.map((step, i) => ({ id: `state${i}`, label: variant.states[step].label, time: null, inputOverrides: { step, ...(selector ? { option: '0' } : {}) }, actions: [], expected: variant.states[step].sentence })),
@@ -300,10 +320,19 @@ export const compositions = freezeData(Object.fromEntries(canonicalIds.map(canon
   Object.fromEntries(depthNames.map(depth => [depth, referenceComposition(canonical, depth)])),
 ])));
 export const templateModules = Object.freeze(Object.fromEntries(templates.map(name => [name, stepperScene])));
-export const fixtureGroups = () => ({});
-export const pins = Object.freeze({ families: Object.freeze({}), plans: Object.freeze({}) });
+export const fixtureGroups = catalogueHash => ({ stepperPlans: Object.fromEntries(Object.entries(STEPPER_PLANS).map(([name, stored]) => {
+  const plan = structuredClone(stored);
+  plan.scene.runtime.catalogueHash = catalogueHash;
+  return [name, plan];
+})) });
+export const pins = Object.freeze({
+  families: Object.freeze({ stepper: Object.freeze({ brief: 'stepper-merge-sort-brief' }) }),
+  plans: Object.freeze({ 'stepper-merge-sort-brief': Object.freeze(['stepper-merge-sort-brief', 'brief', 'stepperPlans']) }),
+});
 export const checkMap = Object.freeze({
   'packages/web/src/interact-family-stepper.js': ['packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],
+  'packages/web/src/interact-family-stepper-data.js': ['packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-pins.test.js'],
+  'packages/web/src/interact-stepper-plans.js': ['packages/control-plane/test/interact-stepper-pins.test.js', 'packages/control-plane/test/interact-stepper-templates.test.js'],
   'packages/web/src/interact-stepper-schema.js': ['packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],
   'packages/web/src/interact-stepper-data.js': ['packages/web/src/interact-stepper-data.test.mjs', 'packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],
   'packages/web/src/interact-stepper-programs.js': ['packages/control-plane/test/interact-stepper-templates.test.js'],
@@ -317,6 +346,7 @@ export const stepperStates = Object.freeze({
   id, contractVersion: 1, pickCriterion, FAMILY, INPUTS, ROLES, LIMITS, scalars, scalarRoles,
   independent, coordinate, parameters, templates, templateData, templateModules, parts, compositions, fixtureGroups, pins, checkMap,
   briefSchema, check, referenceCheck, expandBrief, extractBrief, familyDescription, formulaGrammar, formulaRules,
+  fillKeyLines, fillTeachingRules,
   context, resolveDomain, resolveSelection, clampSelection,
 });
 export const stepperFamily = stepperStates;

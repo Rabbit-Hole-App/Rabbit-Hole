@@ -195,22 +195,17 @@ test('family-owned provider brief never falls back to scalar-formula fields', as
   assert.equal(info.parse(wrong).ok, false);
 });
 
-test('registration admits template metadata but current ScenePlan honestly refuses scene.data', async () => {
-  const { stepperStates, referenceBrief, expandBrief } = await import('./interact-family-stepper.js');
-  const { registerFamily } = await import('./interact-family-registry.js');
+test('built-in registration admits typed scene.data at all nine composition depths', async () => {
+  const { referenceBrief, expandBrief } = await import('./interact-family-stepper.js');
   const { ScenePlanSchema, planProblems } = await import('./interact-plan.js');
-  const unregister = registerFamily(stepperStates);
-  try {
-    for (const { subject, depth } of fixtures) {
-      const plan = expandBrief(referenceBrief(subject, depth), depth, { catalogueHash: 'a'.repeat(64) });
-      assert.deepEqual(planProblems(plan), []);
-      const parsed = ScenePlanSchema.safeParse(plan);
-      assert.equal(parsed.success, false);
-      const issue = parsed.error.issues.find(i => i.code === 'unrecognized_keys' && i.keys.includes('data'));
-      assert.deepEqual([...issue.path, ...issue.keys], ['scene', 'data']);
-      const { data, ...withoutData } = plan.scene;
-      assert.equal(ScenePlanSchema.safeParse({ ...plan, scene: withoutData }).success, true);
-      assert.deepEqual(data, plan.scene.data);
-    }
-  } finally { unregister(); }
+  for (const { subject, depth } of fixtures) {
+    const plan = expandBrief(referenceBrief(subject, depth), depth, { catalogueHash: 'a'.repeat(64) });
+    assert.deepEqual(planProblems(plan), []);
+    const parsed = ScenePlanSchema.safeParse(plan);
+    assert.equal(parsed.success, true, JSON.stringify(parsed.error));
+    assert.deepEqual(parsed.data.scene.data, plan.scene.data);
+    const { data, ...withoutData } = plan.scene;
+    assert.ok(planProblems({ ...plan, scene: withoutData }).some(problem => problem.path.join('.') === 'scene.data'));
+    assert.deepEqual(data, plan.scene.data);
+  }
 });

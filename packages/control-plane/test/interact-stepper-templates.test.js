@@ -5,7 +5,7 @@ import { Frame, CONTRACT_LIMITS } from '../../web/src/explain-program/contract.j
 import { loadEngine, runProgram } from '../../web/src/explain-program/runtime.js';
 import { frameOverlaps } from '../../web/src/explain-program/frame-overlap.js';
 import { generateProgram, TEMPLATES } from '../../web/src/interact-templates/generate.js';
-import { registerFamily, INTERACT_FAMILIES } from '../src/interact-families.js';
+import { INTERACT_FAMILIES } from '../src/interact-families.js';
 import * as sceneTemplate from '../../web/src/interact-templates/stepper-scene.js';
 import { stepperReferenceSource } from '../../web/src/interact-stepper-programs.js';
 import { referenceModuleSource } from '../../../scripts/interact/stepper-reference-frames.mjs';
@@ -14,6 +14,7 @@ import { stepperStates, referenceBrief, expandBrief, extractBrief } from '../../
 import { interactCapabilities } from '../../web/src/interact-control-catalogue.js';
 import { parseScenePlan } from '../../web/src/interact-plan.js';
 import { buildInput } from '../src/interact-build.js';
+import { pinnedPlan } from '../src/interact-design-pin.js';
 import { missingRows } from '../../../scripts/ci/gen-family-check-map.mjs';
 
 const engine = await loadEngine();
@@ -23,7 +24,6 @@ const evaluate = (source, step) => {
   assert.equal(out.ok, true, JSON.stringify(out));
   return { ...out.value, frame: Frame.parse(out.value.frame) };
 };
-const proofDescriptor = () => stepperStates;
 
 test('the scripted program is regenerated from the approved HTML with no production-part import', () => {
   const source = readFileSync(new URL('../../web/src/interact-stepper-programs.js', import.meta.url), 'utf8');
@@ -32,14 +32,14 @@ test('the scripted program is regenerated from the approved HTML with no product
   assert.ok(Buffer.byteLength(stepperReferenceSource()) < CONTRACT_LIMITS.sourceBytes);
 });
 
-test('registered merge-sort Brief assembles into complete HTML-derived reference frames without a model', () => {
-  const unregister = registerFamily(proofDescriptor());
+test('the pinned merge-sort Brief assembles into complete HTML-derived reference frames without a model', async t => {
   const originalFetch = globalThis.fetch;
   let modelCalls = 0;
   globalThis.fetch = () => { modelCalls++; throw new Error('The registered template proof must not call a provider or network'); };
   try {
-    const brief = referenceBrief('merge-sort', 'brief');
-    const plan = expandBrief(brief, 'brief', { catalogueHash: capabilities.catalogueHash });
+    const plan = await pinnedPlan('stepper-merge-sort-brief', { depth: 'brief', evidence: [] });
+    plan.scene.runtime.catalogueHash = capabilities.catalogueHash;
+    const brief = extractBrief(plan);
     const program = generateProgram(plan, buildInput({}, plan, 'proof-only'));
     assert.ok(INTERACT_FAMILIES.some(family => family.id === stepperStates.id));
     assert.equal(TEMPLATES[plan.scene.template], sceneTemplate);
@@ -74,7 +74,8 @@ test('registered merge-sort Brief assembles into complete HTML-derived reference
     assert.equal(receipt.manifestBytes, Buffer.byteLength(JSON.stringify(program.manifest)));
     assert.equal(receipt.modelCalls, modelCalls);
     assert.equal(modelCalls, 0);
-  } finally { globalThis.fetch = originalFetch; unregister(); }
+    t.diagnostic(`pinned states: ${cases.map(c => c.objects).join('/')} objects; densest ${Math.max(...cases.map(c => c.objects))}; source ${receipt.sourceBytes} bytes`);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test('the family declares the six bound parts and all nine canonical composition data instances', () => {
@@ -86,19 +87,16 @@ test('the family declares the six bound parts and all nine canonical composition
   }
 });
 
-test('the pending family descriptor supplies CI rows even before built-in pick activation', () => {
+test('the built-in family supplies its generated CI rows', () => {
   const map = JSON.parse(readFileSync(new URL('../../../scripts/ci/check-map.json', import.meta.url), 'utf8'));
   assert.deepEqual(missingRows(map, [stepperStates]), []);
 });
 
-test('typed ScenePlan admission is explicitly pending and is never replaced by JSON inside scene.words', () => {
-  const unregister = registerFamily(proofDescriptor());
-  try {
-    const plan = expandBrief(referenceBrief('merge-sort', 'brief'), 'brief', { catalogueHash: capabilities.catalogueHash });
-    const admitted = parseScenePlan(plan, capabilities);
-    assert.equal(admitted.ok, false);
-    assert.ok(admitted.problems.some(problem => problem.path === 'scene.data' && problem.code === 'unknown_field'), JSON.stringify(admitted.problems));
-    assert.deepEqual(Object.keys(plan.scene.words).sort(), ['completed', 'current', 'heading', 'previous']);
-    assert.ok(Object.values(plan.scene.words).every(word => word.length <= 40));
-  } finally { unregister(); }
+test('built-in typed ScenePlan admission carries scene.data separately from scene.words', () => {
+  const plan = expandBrief(referenceBrief('merge-sort', 'brief'), 'brief', { catalogueHash: capabilities.catalogueHash });
+  const admitted = parseScenePlan(plan, capabilities);
+  assert.equal(admitted.ok, true, JSON.stringify(admitted.problems));
+  assert.deepEqual(admitted.value.scene.data, plan.scene.data);
+  assert.deepEqual(Object.keys(plan.scene.words).sort(), ['completed', 'current', 'heading', 'previous']);
+  assert.ok(Object.values(plan.scene.words).every(word => word.length <= 40));
 });

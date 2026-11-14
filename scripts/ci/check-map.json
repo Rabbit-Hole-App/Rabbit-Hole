@@ -1464,7 +1464,9 @@
     "packages/web/src/interact-templates/readouts.js": ["packages/web/src/interact-templates/stepper-parts.test.mjs","packages/control-plane/test/interact-stepper-templates.test.js"],
     "packages/web/src/interact-templates/ghost-previous.js": ["packages/web/src/interact-templates/stepper-parts.test.mjs","packages/control-plane/test/interact-stepper-templates.test.js"],
     "packages/web/src/interact-templates/status-line.js": ["packages/web/src/interact-templates/stepper-parts.test.mjs","packages/control-plane/test/interact-stepper-templates.test.js"],
-    "packages/web/src/interact-templates/stepper-scene.js": ["packages/web/src/interact-templates/stepper-parts.test.mjs","packages/control-plane/test/interact-stepper-templates.test.js"]
+    "packages/web/src/interact-templates/stepper-scene.js": ["packages/web/src/interact-templates/stepper-parts.test.mjs","packages/control-plane/test/interact-stepper-templates.test.js"],
+    "packages/web/src/interact-family-stepper-data.js": ["packages/web/src/interact-family-stepper.test.mjs","packages/control-plane/test/interact-stepper-pins.test.js"],
+    "packages/web/src/interact-stepper-plans.js": ["packages/control-plane/test/interact-stepper-pins.test.js","packages/control-plane/test/interact-stepper-templates.test.js"]
   },
   "previewTier": {
     "packages/control-plane/file-jobs-demo.mjs": {"tier":"preview","why":"only windows-only checks (file-converter-ui-check.mjs, file-step-retry-check.mjs), which no workflow runs (coverage hole, ruling G), and no unit test that run.sh test:unit runs imports it"},

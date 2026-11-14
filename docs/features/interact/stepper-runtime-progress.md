@@ -14,8 +14,8 @@ There is no timeline, formula quantity or JSON encoded inside `scene.words`. Nat
 
 `check` reports its structural/binding coverage explicitly. `referenceCheck` fails closed with `reference_unproved`
 until the separately required independent state/readout invariants and six semantic negatives are implemented.
-The family is not added to the built-in pick before shared admission is safe. The following parts commit wires the
-actual renderer modules into its descriptor; no placeholder drawing is registered.
+The family is now in the built-in registry after brief 24 made shared admission safe. The renderer modules are
+wired into its descriptor; unsupported canonical pictures and depths fail before source emission.
 
 The codec interns strings, object shapes and repeated subtrees, including repeated regions between variants.
 These lossless packet sizes are computed in `interact-stepper-data.test.mjs`:
@@ -59,7 +59,7 @@ explicit. SDK-8 does not carry arbitrary per-mark font sizes/weights, radii, fil
 equality is claimed and no reference styling has been edited to hide that difference. Empty `.l0` container ids use
 the existing ownership convention without triggering SDK callout reflow or moving labels.
 
-## Shared hooks still needed
+## Shared hooks requested before brief 24
 
 The registration migration derives the template/role/word tables and generator lookup, but it does not yet carry a
 typed state table through the product:
@@ -100,3 +100,33 @@ captures in `interact-curve-templates.test.js`. The inventory now explicitly cla
 picture links without changing its detection rule; all three failing files pass in a quiet serial focused rerun.
 Those initial broad runs are not reported as green. Focused checks, full-suite results, build output and clone/live
 acceptance remain distinct evidence.
+
+## Owner 15:15 milestone: built-in family and admitted Brief pin
+
+Fast-path `85512d301` is merged as a merge commit. Its family-owned brief dispatch, typed `sceneDataSchema`
+admission, fill hooks, precise failure paths and manifest frame budget resolve the shared-hook requests above.
+The validation-only stepper declaration imports the closed schemas without loading templates or expansion; the
+full built-in declaration takes over through the existing `registerFamily` call. No temporary registration is
+used by the stepper admission, pin or template tests.
+
+The checked-in plan is `packages/web/src/interact-stepper-plans.js`, with id `stepper-merge-sort-brief` and pin
+family `stepper` at Brief only. It carries the approved typed composition in `scene.data`, separate from the four
+word slots. The pin clones its stored data and binds to the job's offered catalogue. Unknown nested data keys
+fail at their precise paths; missing data is refused. The sealed build passes without any provider adapter or
+network call. All four pinned states and their brief round trip equal the independent HTML-derived Frames:
+**59/58/59/58 objects**, densest **59**; source remains **15,216 bytes** and manifest **826 bytes**.
+
+The approved HTML used its short concept as both design story and card description in the initial family fixture.
+The real build correctly refused that as `story_in_card`. The pin now has a separate design narrative while
+retaining all visible copy, composition and geometry. No generator or renderer change was needed. The annotation
+reader inventory explicitly classifies this new plan's structural teaching-picture links; its detector is unchanged.
+
+This milestone proves ScenePlan admission and the sealed Brief build, not independent semantic certification or
+live fill. `referenceCheck` still fails closed until the later invariants deliverable. TCP and mitosis renderer
+work, broader pin depths, clone fit and provider benchmarking remain subsequent work.
+
+Final verification: **214/214 focused tests pass**, with no skips: stepper schemas/data/parts/pin and reference
+frames; toss and curve plans, round trips, templates, oracles and sealed job paths; brief-24 hooks/dynamic plan
+items; frame budgets; signed inputs; annotation inventory; and generated CI coverage rows. The web production
+build passes in **5.79 s** with the existing CSS pseudo-element and chunk-size warnings. The earlier inventory
+failure and the tracked-file check during local merge canonicalization were corrected before this final run.

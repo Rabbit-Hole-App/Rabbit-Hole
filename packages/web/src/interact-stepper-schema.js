@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-// Family-owned, closed data schemas. These do not extend ScenePlan v1: scene.data
-// still needs the shared contract owner's explicit admission/versioning decision.
+// Family-owned, closed data schemas. The registered template's sceneDataSchema
+// admits scene.data through the shared ScenePlan contract (brief 24).
 export const canonicalIds = Object.freeze(['algorithm-over-collection', 'protocol-between-parties', 'cycle-of-phases']);
 export const DEPTH_LIMITS = Object.freeze({
   brief: Object.freeze({ variants: 1, states: 4, regions: 7, links: 8, parts: 3, readouts: 0 }),
