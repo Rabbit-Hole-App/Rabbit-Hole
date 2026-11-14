@@ -1,0 +1,31 @@
+{
+  "jobId": "ej_090f37260c9f43cd8ad03391b109cb99",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 23834,
+  "ms": 5859,
+  "findings": [
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "major",
+      "message": "The end capture is at t = 1.020408 s with launch speed 5. Its apex time is 0.510204 s, so the ball should land at t = 1.020408 s. The trace shows v = -5, height 0 and the ball at the launch line, which is correct. But the layout text says the default scrubber reads 0 to 1.020408 s while the default launch speed is 5, so the flight is 1.020408 s. That is consistent. The mismatch is that the state label says 'Back to start' while the readout says 'Moving downward'. At landing the ball is not simply moving downward, but this is imprecise. The v arrow at -5 is 60 px long and matches the launch arrow, so the arrow lengths are fine."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "message": "At launch speed 10 the apex is 5.102 m. The drawn ball is at y=60, which is 170 px above the launch line, or 33.3 px/m. At speed 5, 1.2755 m is 42.5 px, which is also 33.3 px/m. So the scale is consistent. But the callout boxes at y=40 and y=68 sit near the top edge of the lane (lane y=34). The callout is drawn only as empty boxes, with no text in the frames. I cannot confirm that the callout names the motion and shows gravity, as the plan requires. The callout.toss.l0 and l1 objects carry no text."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "message": "At the top the v arrow is absent, as the plan requires. The gravity arrow is 48 px at every state, so it stays constant. The motion arrow lengths are 60, 30, 0, 30 and 60, which is consistent with v. The ghost ball and guide are fine. The readout 'Moving downward' at the end is acceptable."
+    }
+  ]
+}

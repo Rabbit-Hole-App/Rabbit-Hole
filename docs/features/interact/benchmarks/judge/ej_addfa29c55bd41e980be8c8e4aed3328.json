@@ -1,0 +1,38 @@
+{
+  "jobId": "ej_addfa29c55bd41e980be8c8e4aed3328",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 22044,
+  "ms": 6909,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The layout says the scrubber reads 0 to 1.020408 s at the default inputs. The traces use launch speed 5, so the full flight is 1.020408 s. Launch speed 10 would give 2.040816 s. So the default is 5, and that fits the 'start' and 'end' captures. But the cp-fastTop capture is at launch speed 10 and time 1.020408. That is the apex time for 10 m/s, which is fine. The scrubber range for that capture is 0 to 2.040816 s, which matches the layout's 'Launch speed 10' example. No contradiction is found here. This item is informational only.",
+      "object": "scrubber"
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "major",
+      "message": "The plan's observation 'The Motion arrow shortens ... is absent at the top' is supported. At the top the v arrow and its label are absent. The a arrow is the same length, 48 px, in every frame. However, the Motion arrow's scale is inconsistent with the height scale. At launch speed 5, v = 5 gives a 60 px arrow. v = 2.5 gives a 30 px arrow. That is consistent. At launch speed 5, height 1.2755 m moves the ball 42.5 px, which is 33.3 px/m. At launch speed 10, 5.102 m moves it 170 px, which is also 33.3 px/m. This is consistent. So the height scale is fixed, as the plan requires."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "major",
+      "message": "At the end capture the v arrow ends at y=290. The lane box ends at y=266, and the arrow extends past it. The a arrow also extends to y=278, beyond the lane. This is a drawing overflow that the frames show. The frames cannot show whether it is clipped."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The callout text lines are boxes with no text in the frame. I cannot judge from the frame whether the callout names the motion and shows gravity. The readouts 'Gravity pulls down' and 'At the top' are given only in the readouts. The card's own texts list does not include them."
+    }
+  ]
+}
