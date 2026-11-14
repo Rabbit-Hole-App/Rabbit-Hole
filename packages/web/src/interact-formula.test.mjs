@@ -125,10 +125,14 @@ test('exprToJs: numeric literals, the whitelisted names, + - * / and parentheses
 
 // A minimal valid plan shape is expensive to write here; the plan-level checks run on the three toss fixtures (interact-plan-formulas.test.mjs); this keeps the module's own contract.
 test('the template roles table', () => {
-  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot']);
+  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot', 'curve-one', 'curve-compare', 'curve-readouts']);
   assert.deepEqual(TEMPLATE_ROLES['one-body'].roles, ['height', 'velocity', 'acceleration']);
   assert.deepEqual(TEMPLATE_ROLES['two-lane'], { lanes: 2, roles: ['height', 'velocity', 'acceleration'] });
   assert.deepEqual(TEMPLATE_ROLES['body-plot'].roles, ['height', 'velocity', 'acceleration', 'force', 'plotted']);
+  for (const name of ['curve-one', 'curve-compare', 'curve-readouts']) {
+    assert.deepEqual(TEMPLATE_ROLES[name].roles, ['y', 'slope', 'yAtMarker']);
+    assert.deepEqual(TEMPLATE_ROLES[name].independent, { id: 'x', domain: [-6, 6] });
+  }
   assert.equal(typeof planProblems, 'function');
   assert.deepEqual(formulaScope({ controls: [{ type: 'number', binding: { kind: 'input', id: 'a' } }, { type: 'seek', binding: { kind: 'marker', id: 'm' } }], mode: { fixedValues: { g: 9.8, label: 'x' } } }), { names: ['a'], fixed: { g: 9.8 } });
 });

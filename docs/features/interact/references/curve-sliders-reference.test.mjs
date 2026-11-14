@@ -116,8 +116,8 @@ for (const name of depths) {
       near(Curve.at(changed).y, 1 / 2);
       near(Curve.at(changed).slope, 2 / 4);
       const svg = ui.nodes.get('objects').innerHTML;
-      assert.ok(name === 'standard' ? svg.includes('y = 0.500') : /id="readout.y.value"[^>]*>0.500<\/text>/.test(svg));
-      assert.ok(name === 'standard' ? svg.includes('Slope = 0.500') : /id="readout.slope.value"[^>]*>0.500<\/text>/.test(svg));
+      assert.ok(/id="readout.y.value"[^>]*>0.500<\/text>/.test(svg));
+      assert.ok(/id="readout.slope.value"[^>]*>0.500<\/text>/.test(svg));
     }
     if (name === 'deep') {
       changed.xMarker = -1; ui.change('xMarker', changed.xMarker);
@@ -130,6 +130,21 @@ for (const name of depths) {
     for (const id of Curve.adjustable) assert.equal(Number(ui.nodes.get(id).value), Curve.ranges[id].default);
   });
 }
+
+test('marker location and numerical values have one owner; tangent depths share their legend and readout row', () => {
+  for (const name of depths) {
+    const ui = mount(load(name).html), svg = ui.nodes.get('objects').innerHTML;
+    const callout = svg.match(/<g id="callout.marker">([\s\S]*?)<\/g>/)?.[1];
+    assert.ok(callout);
+    assert.doesNotMatch(callout, /y =|Slope =/);
+    assert.equal(svg.includes('legend.curve.label'), name !== 'overview');
+    assert.equal(svg.includes('legend.tangent.label'), name !== 'overview');
+    assert.equal((svg.match(/id="readout.y.value"/g) ?? []).length, 1);
+    assert.equal((svg.match(/id="readout.slope.value"/g) ?? []).length, name === 'overview' ? 0 : 1);
+    ui.change('k', 2);
+    assert.equal(ui.nodes.get('curve-state').textContent, 'Steeper transition');
+  }
+});
 
 test('steepness and midpoint have their declared effects across the admitted range', () => {
   const { Curve } = load('deep'), r = Curve.ranges;

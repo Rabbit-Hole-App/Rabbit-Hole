@@ -5,16 +5,17 @@ export const templates = Object.freeze(['curve-one', 'curve-compare', 'curve-rea
 export const curveRoles = Object.freeze(['y', 'slope', 'yAtMarker']);
 const common = [
   ['heading', 40, 'scene heading; at Detailed write the formula here'],
-  ['state.default', 32, 'subtitle at default steepness'],
-  ['state.gentler', 32, 'subtitle below default steepness'],
-  ['state.steeper', 32, 'subtitle above default steepness'],
+  ['state.default', 24, 'subtitle at default steepness'],
+  ['state.gentler', 24, 'subtitle below default steepness'],
+  ['state.steeper', 24, 'subtitle above default steepness'],
   ['axis.x', 24, 'horizontal axis label'], ['axis.y', 24, 'vertical axis label'],
-  ['marker.heading', 24, 'marker location callout heading'],
-  ['marker.at', 24, 'prefix before the marker input coordinate'],
+  ['marker.heading', 16, 'marker location callout heading'],
+  ['marker.at', 8, 'prefix before the marker input coordinate'],
+  ['readout.y', 24, 'label of the output value in the readouts row'],
 ];
-const legend = [['legend.curve', 24, 'curve legend label'], ['legend.tangent', 24, 'tangent legend label']];
+const legend = [['legend.curve', 12, 'curve legend label'], ['legend.tangent', 12, 'tangent legend label'], ['readout.slope', 24, 'label of the slope value in the readouts row']];
 export const curveWords = Object.freeze({
-  'curve-one': Object.freeze([...common, ['marker.note', 40, 'plain-word callout about the marker output']]),
+  'curve-one': Object.freeze([...common, ['marker.note', 18, 'plain-word callout about the marker output']]),
   'curve-compare': Object.freeze([...common, ...legend]),
   'curve-readouts': Object.freeze([...common, ...legend]),
 });

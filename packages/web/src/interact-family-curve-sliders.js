@@ -27,10 +27,11 @@ export const LIMITS = Object.freeze({});
 export const scalars = Object.freeze([]);
 export const formulaGrammar = Object.freeze([
   'A formula is text: numbers, names, + - * /, unary minus, parentheses, ^ with a literal integer exponent 2, 3 or 4; exp, log, sqrt and abs take one argument, min and max take two. No other functions or powers. At most 200 characters, 32 nodes and 8 levels.',
-  'x is the independent variable over its domain [-6, 6], not elapsed time. Readable names are x, k, x0 and xMarker. This is an adjustable still scene with no timeline and no t. Use one continuous rule: switchAt and formulaAfter are null.',
+  'x is the independent variable over its domain [-6, 6], not elapsed time. Readable names are x and the numeric inputs listed for this depth. This is an adjustable still scene with no timeline and no t. Use one continuous rule: switchAt and formulaAfter are null.',
 ]);
-export const formulaRules = Object.freeze([
-  'Use positive k. At Brief, x0 is fixed at zero and xMarker at one; at Balanced, xMarker is fixed at one. Detailed offers all three sliders. Fixed values are family data, not extra brief fields.',
+export const formulaRules = depth => Object.freeze([
+  'Use positive k. Detailed offers all three sliders. Fixed values are family data, not extra brief fields.',
+  ...(depth === 'brief' ? ['The midpoint is fixed at zero and the marker input at one. Write 0 and 1 as literals; x0 and xMarker are not readable names at this depth.'] : depth === 'balanced' ? ['The marker input is fixed at one. Write 1 as a literal; xMarker is not a readable name at this depth.'] : []),
   'The y and slope formulas read x, k and x0; yAtMarker substitutes xMarker for x. Do not reference another quantity such as y inside a formula.',
   'Write the derivative directly over the admitted names. Simplify it to fit the node and depth limits; computed quantities are not readable names.',
   'A callout locates the marker; the readouts row holds output and slope. Legend labels belong at Balanced and Detailed only. The subtitle names current steepness relative to its default.',

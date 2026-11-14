@@ -152,7 +152,7 @@ export function parseFormula(text, { names = [], fixed = {}, time = true } = {})
 export function formulaScope(plan) {
   const names = plan.controls.filter(c => c.type === 'number' && c.binding.kind === 'input').map(c => c.binding.id);
   const fixed = Object.fromEntries(Object.entries(plan.mode.fixedValues ?? {}).filter(([, v]) => typeof v === 'number' && Number.isFinite(v)));
-  const independent = TEMPLATE_ROLES[plan.scene.template]?.independent;
+  const independent = TEMPLATE_ROLES[plan.scene?.template]?.independent;
   return { names: [...names, ...(independent ? [independent.id] : [])], fixed, ...(independent ? { time: false } : {}) };
 }
 

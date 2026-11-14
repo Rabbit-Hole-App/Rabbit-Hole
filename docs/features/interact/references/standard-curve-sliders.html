@@ -147,7 +147,7 @@ main{max-width:724px}
     <button class="button secondary experiment-reset" id="reset" type="button" aria-label="Reset experiment" title="Reset experiment"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2.7 8.4M3 4v6h6"/></svg></button>
     <div class="experiment-heading"><h2>Sigmoid and tangent</h2><span id="curve-state">Default steepness</span></div>
     <div class="scenes-viewport">
-      <svg class="curve-scene" id="drawing" width="640" height="300" viewBox="0 0 640 300" role="img" aria-labelledby="scene-title scene-description"><title id="scene-title">A sigmoid curve with a linked input marker</title><desc id="scene-description"></desc><g id="objects"></g></svg>
+      <svg class="curve-scene" id="drawing" width="640" height="360" viewBox="0 0 640 360" role="img" aria-labelledby="scene-title scene-description"><title id="scene-title">A sigmoid curve with a linked input marker</title><desc id="scene-description"></desc><g id="objects"></g></svg>
     </div>
     <div class="experiment-controls curve-controls">
       <div class="parameters" role="group" aria-label="Experiment parameters">
@@ -216,7 +216,7 @@ const Curve = (() => {
     }
     return [left, right].map(x => ({ x, y: a.y + a.slope * (x - a.x) }));
   };
-  return Object.freeze({ depth, domain, ranges, adjustable, defaults, y, slope, at, bounds, axes, ticks, sample, tangent, width: 640, height: depth === 'detailed' ? 360 : 300, plotHeight: 206 });
+  return Object.freeze({ depth, domain, ranges, adjustable, defaults, y, slope, at, bounds, axes, ticks, sample, tangent, width: 640, height: 360, plotHeight: 206 });
 })();
 
 </script>
@@ -317,28 +317,29 @@ function draw() {
   }
   out += text('axis.y.label', 20, 18, 'Output y', { size: 14, weight: 600 });
   out += text('axis.x.label', right, bottom + 44, 'Input x', { size: 14, weight: 600, anchor: 'end' });
+  if (tangent) {
   out += line('legend.curve', [[226, 14], [242, 14]], { color: P.TEACHING.blue, width: 2 });
   out += text('legend.curve.label', 250, 18, 'Curve');
-  if (tangent) {
     out += line('legend.tangent', [[306, 14], [322, 14]], { color: P.TEACHING.warm, width: 2 });
     out += text('legend.tangent.label', 330, 18, 'Tangent');
   }
   out += line('plot.curve.line', Curve.sample(values).map(p => [px(p.x), py(p.y)]), { color: P.TEACHING.blue, width: 2 });
+  if (my-top >= 12 && bottom-my >= 12) {
   out += line('guide.marker.x', [[mx, my], [mx, bottom]], { color: P.TEACHING.blue, dashed: true });
   out += line('guide.marker.y', [[left, my], [mx, my]], { color: P.TEACHING.blue, dashed: true });
+  }
   if (tangent) out += line('plot.tangent', Curve.tangent(values).map(p => [px(p.x), py(p.y)]), { color: P.TEACHING.warm, width: 2 });
   const marker = P.dot(mx, my, 6, 'process'); marker.props.id = 'ball.marker'; out += P.render(marker) + '</g>';
-  const lines = Curve.depth === 'brief'
-    ? ['Inside the bounds', `x = ${signed(a.x)}`, `y = ${fmt(a.y, 3)}`]
-    : detailed ? ['At the marker', `x = ${signed(a.x)}`]
-    : ['At the marker', `x = ${signed(a.x)}`, `y = ${fmt(a.y, 3)}`, `Slope = ${fmt(a.slope, 3)}`];
+  const lines = ['Marked input', `At x = ${fmt(a.x)}`, ...(tangent ? [] : ['Between the bounds'])];
   out += callout(438, Math.max(44, Math.min(bottom - lines.length * 28, my - 28)), lines);
-  if (detailed) {
+  {
     out += line('readouts.rule', [[20, 302], [620, 302]], { color: P.TEACHING.line, width: 1 });
     out += text('readout.y.label', 56, 321, 'Output y', { size: 13 });
     out += text('readout.y.value', 56, 347, fmt(a.y, 3), { color: '#375d92', size: 24, weight: 600 });
+    if (tangent) {
     out += text('readout.slope.label', 334, 321, 'Slope dy/dx', { size: 13 });
     out += text('readout.slope.value', 334, 347, fmt(a.slope, 3), { color: P.TEACHING.warm, size: 24, weight: 600 });
+    }
   }
   $('objects').innerHTML = out;
   for (const id of Curve.adjustable) {

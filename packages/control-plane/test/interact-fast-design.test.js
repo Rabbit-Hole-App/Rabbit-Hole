@@ -142,7 +142,7 @@ test('the pick runs first and a fit goes to that family fill: one JEV call, one 
   const { body } = await s.create({ depth: 'brief' });
   const { job } = await s.design(body.job.id);
   builtDirect(s, job); assert.equal(s.picks.length, 1); assert.equal(s.fills.length, 1);
-  assert.deepEqual(Object.keys(s.picks[0].questions.family.criteria), ['vertical-throw', 'none'], 'the question is built from the registry');
+  assert.deepEqual(Object.keys(s.picks[0].questions.family.criteria), ['vertical-throw', 'curve-sliders', 'none'], 'the question is built from the registry');
   const { pick } = job.design.fast;
   assert.deepEqual([pick.family, pick.confidence, pick.reason, typeof pick.ms], ['vertical-throw', 0.95, 'fit', 'number']);
   assert.deepEqual([job.design.fast.kind, job.design.fast.fallback], ['fast', 'none']);
