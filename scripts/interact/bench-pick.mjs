@@ -47,7 +47,8 @@ export function aggregate(rows, set, { thresholds = THRESHOLDS, families = {} } 
       for (const r of mine) {
         const got = decide(r, t), want = label[String(r.id)], d = perDepth[r.depth] ?? (perDepth[r.depth] = { wrong: 0, missed: 0, calls: 0 });
         d.calls++;
-        if (got && got !== want) { wrongCalls.push(String(r.id)); d.wrong++; }
+        // label `either` (an ambiguous prompt): any fit is fine, and it is never a missed fit (it is in no family list)
+        if (got && got !== want && want !== 'either') { wrongCalls.push(String(r.id)); d.wrong++; }
         if (!got && ids.includes(want)) { (gapCalls[String(r.id)] ??= []).push(r); d.missed++; }
       }
       const callsOf = id => mine.filter(r => String(r.id) === id).length;
