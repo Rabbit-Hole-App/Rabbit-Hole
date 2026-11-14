@@ -1,12 +1,12 @@
 import { evalScalar } from '../interact-plan.js';
-import { exprToJs, formulaScope, parseQuantity } from '../interact-formula.js';
+import { TEMPLATE_WORDS, exprToJs, formulaScope, nestWords, parseQuantity } from '../interact-formula.js';
 import * as oneBody from './one-body.js';
 import * as twoLane from './two-lane.js';
 import * as bodyPlot from './body-plot.js';
 
 // generateProgram(plan, buildInput) -> { source, manifest }: the program for a plan that names a template, written by trusted code and no model. The plan carries the physics (each quantity's
 // formula, piecewise through switchAt / formulaAfter), the controls, the ranges and the timeline; buildInput carries the exact control declarations and timeline (interact-build.js buildInput). A
-// template (./one-body.js, ./two-lane.js, ./body-plot.js) owns the drawing, the geometry and the words the plan does not hold. A plan the template cannot build is a TemplateError (our bug or a plan
+// template (./one-body.js, ./two-lane.js, ./body-plot.js) owns the drawing and the geometry; the plan holds every word (scene.words). A plan the template cannot build is a TemplateError (our bug or a plan
 // that names slots it does not have), never a model call or a repair.
 export const TEMPLATES = Object.freeze({ 'one-body': oneBody, 'two-lane': twoLane, 'body-plot': bodyPlot });
 
@@ -77,11 +77,13 @@ export function generateProgram(plan, buildInput) {
   const unitOf = id => superscripts(quantities.get(id)?.unit);
   const units = { height: unitOf(body.height), velocity: unitOf(body.velocity), acceleration: unitOf(body.acceleration), ...(slots.force ? { force: unitOf(slots.force) } : {}) };
   const geometry = template.geometry(range), readoutIds = scene.readoutIds;
-  const ctx = { slots, q: js, end: exprToJs(endExpr), inputIds, readoutIds, units, geometry, timeline: { label: timeline.label, unit: timeline.unit ?? 's' } };
+  const wordProblems = TEMPLATE_WORDS[name].filter(({ key, max }) => typeof scene.words?.[key] !== 'string' || !scene.words[key].trim() || scene.words[key].length > max).map(({ key }) => key);
+  if (wordProblems.length) throw new TemplateError('words_missing', `template ${name} needs scene.words for ${wordProblems.join(', ')}`);
+  const ctx = { words: nestWords(name, scene.words), slots, q: js, end: exprToJs(endExpr), inputIds, readoutIds, units, geometry, timeline: { label: timeline.label, unit: timeline.unit ?? 's' } };
   const source = template.source(ctx);
 
   // The manifest: every value the plan or buildInput holds, copied; the state readouts' definitions are the template's (the plan names only their ids).
-  const states = template.words.states ?? {}, velocities = bodies.map(b => b.velocity), accelerations = bodies.map(b => b.acceleration);
+  const states = template.states(ctx.words), velocities = bodies.map(b => b.velocity), accelerations = bodies.map(b => b.acceleration);
   const decimalsOf = id => (velocities.includes(id) ? 2 : accelerations.includes(id) || id === slots.force ? 1 : 2);
   const readouts = readoutIds.map(id => {
     if (states[id]) return { id, ...states[id] };
