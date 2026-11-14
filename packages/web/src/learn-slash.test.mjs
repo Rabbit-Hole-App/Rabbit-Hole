@@ -327,7 +327,7 @@ const slotHarness = reply => {
 test('a card command reserves before the request and its card takes that slot', async () => {
   const { did, run } = slotHarness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'T', body: 'B' } });
   const out = await run('/explain why a token id is only an index'); // the written command (id explanation)
-  assert.deepEqual(did, [['reserve', { label: 'Creating /explain', card: 'explanation' }], ['post', true], ['block', 'explanation', { into: 'slot:1', fit: true }]], 'the card keeps its typed line; the prompt is hidden until asked for, so the slot reserves no row (owner brief 2026-10-23)');
+  assert.deepEqual(did, [['reserve', { label: 'Creating /explain', card: 'explanation', follow: true }], ['post', true], ['block', 'explanation', { into: 'slot:1', fit: true }]], 'the card keeps its typed line; the prompt is hidden until asked for, so the slot reserves no row (owner brief 2026-10-23)');
   assert.equal(out.notice, null, 'a written /explain says nothing on success (owner 2026-11-08): its card and chip are the answer');
   // Sized as the command's own card: /graph as a graph, /quiz as a quiz.
   const graph = slotHarness({ result: 'clarification', question: 'Which function?' });
@@ -607,4 +607,14 @@ test('Ask in a new card: the written /explain inserts its card with the parent l
   assert.equal(linked.out.notice, null, 'no Added notice (owner 2026-11-08)');
   const plain = await run({ id: 'card-1', title: 'Why trees', text: 'The card text' });
   assert.deepEqual(plain.did, [{ into: 'slot:1', fit: true }], 'a selected card alone adds no link; the new Explanation is shown whole (fit)');
+});
+
+// canvas-cards BUG 4: a typed /explain reserves its slot to follow the previous card (the canvas picks the anchor and the scatter); a card made from a card keeps its own beside.
+test('a typed /explain asks to follow the previous card; a request from a card is placed beside that card, as before', async () => {
+  const typed = slotHarness({ result: 'clarification', question: 'Which?' });
+  await typed.run('/explain why a token id is only an index');
+  assert.deepEqual(typed.did[0], ['reserve', { label: 'Creating /explain', card: 'explanation', follow: true }]);
+  const did = [], canvas = { reserve: slot => { did.push(slot); return 'slot:1'; }, release: () => {}, insertBlock: () => 'card-1' };
+  await runLearnCommand('/explain more on this', { app: 'demo', canvas, post: async () => ({ result: 'clarification', question: 'Which?' }), openSearch: () => {}, target: { id: 'card-9', beside: true, alignY: 30 } });
+  assert.deepEqual(did[0], { label: 'Creating /explain', card: 'explanation', beside: 'card-9', besideDy: 30 }, 'a follow-up keeps its beside and no follow');
 });
