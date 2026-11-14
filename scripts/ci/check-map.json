@@ -1249,6 +1249,7 @@
     "packages/web/src/tutor-diagrams/set3-token-budgets.json": ["packages/web/src/tutor-diagrams/set3-token-budgets.test.mjs"],
     "packages/web/src/explanation-card-width.js": ["packages/web/src/explanation-card-width.test.mjs"],
     "packages/web/src/beside-placement.js": ["packages/web/src/beside-placement.test.mjs"],
+    "packages/web/src/place-sourced.js": ["packages/web/src/place-sourced.test.mjs"],
     "packages/web/src/canvas-view.js": ["packages/web/src/canvas-view.test.mjs"],
     "packages/web/src/card-anchor.js": ["packages/web/src/card-anchor.test.mjs"],
     "packages/web/src/place-near.js": ["packages/web/src/place-near.test.mjs"],
