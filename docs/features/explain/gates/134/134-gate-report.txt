@@ -1,0 +1,21 @@
+GATE: PASS(web) bbd2c581b00be9689b6712c4f68ac52ab7e82208 tier=web (no smoke, no replay: web only, no card bytes)
+Candidate bbd2c581b00be9689b6712c4f68ac52ab7e82208 = explain/canvas-cards-r5, base main a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36 (release 133). Steps and counts: 134-suites-report.txt.
+
+Register ids and commits on r5 (cherry-picked in order; the rebase kept every commit):
+ CV-1 701885ed4 + 6df35aa08 (guard) | CV-2 5fd7cf49e | CV-4 bf5cc87cf + b1da8a02e (guard) + cb500554d (120 px cap) + 6debbf746 (tall source) | CV-5 56f7f3ffc + edd54c9e6 + 8f743c7a9 (guards) | CV-8 e263418e4 (insertBlock, insertImported, placeRoadmapCard) + bbd2c581b (the Ctrl+K card transaction).
+ CV-3 deferred: 0d16b395f (not in this release).
+
+Real-board evidence (canvas-bcb7f9f6 export, v59, 13 blocks, imported read-only into a fresh canvas on my own keyless stack; markdown kept in Full layout, 699 x 10,500 px; the file is the lesson's en.md uploaded as a source of that canvas), before = main a8ef11d64 build, after = this tip build; screenshots and measure json in gates/134/shots/:
+ CV-1 widths: a typed /explain card with a plot opens 440 wide (before) and 669 wide (after); cards already saved on the board keep their saved widths (a saved width always wins).
+ CV-2: a +260 corner drag on "Computing Gini Impurity and Gain": 646 -> 646 (before, clamped to the content) and 646 -> 906 (after).
+ CV-5: after the +260 growth no other block moved (before: nothing grew, so a -200 shrink shows the reflow: the markdown and the "inline-a" card moved). After the growth the shrink drag missed its handle (it was below the viewport), so no after shrink is shown; the growth case is the proof.
+ CV-4: with the markdown selected, four typed /explain prompts: before, one column of 440 px cards, 646 px apart, above the markdown (no beside placement); after, all four at dy = 120 (the cap) from the markdown's top, 669 wide, no overlap, left to right (x = +1498, +2258, +3178, +3978 from the markdown's left edge). The first one is not adjacent because other cards stand right of the markdown at +790..+1252; it takes the first free place after them.
+ CV-8: see the caveat below.
+
+Caveats:
+ 1. CV-8, the Ctrl+K PASSAGE path (inline editor, cardTx, applyTx) was NOT driven in the browser: it needs a selected text range plus the inline editor's routing, and a plain double-click did not open it keyless. Verified by tests instead: explanation-card-width.test.mjs builds the card with cardTx, shows it carries no layout (the reproduction), opens it through openedExplanation, applies it with applyTx and gets a Full layout at the plot's width, and guards that the canvas does this for every card transaction. What was driven: Ctrl+K on a selected CARD with /explain (the chat command path): the card opens whole (after-8a-ctrlk-on-card-command.png); that path was already whole before (typed route), so it is no before/after.
+ 2. CV-4 beside a very tall source: the card needs a free 720 px beside it (commit 6debbf746), not a free column as tall as the source; follow-ups from a card (besideSpot defaults) are unchanged.
+ 3. The markdown here is about 10,500 px tall (the reviewer expected about 5,400).
+ 4. Not exercised on a dev clone or prod; no production write of any kind; the owner's 8878 untouched.
+
+DECISIONS NEEDED: none blocking. Optional: prove the Ctrl+K PASSAGE card live on the dev clone (needs the model for the inline editor's routing, or a text selection driven by hand).

@@ -1,0 +1,11 @@
+SUITES: GREEN bbd2c581b00be9689b6712c4f68ac52ab7e82208
+Release 134 candidate = explain/canvas-cards-r5 (rebased on main a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36, release 133; no conflicts): CV-1 card width from the visual, CV-2 vertical resize, CV-4 typed /explain lands beside the last card (jitter capped at 120 px; needs only a card-sized free spot beside a very tall source), CV-5 a corner resize does not reflow the cards below, CV-8 every new Explanation opens whole (insertBlock without fit, insertImported, the Tutor's placeRoadmapCard, the Ctrl+K card transaction). Web only (packages/web/src js/jsx/mjs); no card bytes, no migrations, no config change. CV-3 stays deferred (0d16b395f).
+Gate (web only, TRAIN.md; heavy lock held by canvas-134; outputs in gates/134/ on release/evidence):
+1. scripts/ci tests: 94/95 pass (1 skipped), 0 fail. No new test file was added (every test was added to an existing file), so no check-map row was needed.
+2. tutor-diagrams tests (packages/web, src/tutor-diagrams/*.test.mjs): 1214/1214 pass.
+3. web unit (node --test --test-concurrency=1 "src/**/*.test.mjs" in packages/web): 6853 tests, 6825 pass, 0 fail, 27 skipped. First run green; no timing-sensitive failure to rerun.
+4. web build (build-bundles: dist and dist-dev): exit 0, exit 0.
+5. svg snapshots untouched: git diff --name-only a8ef11d64..HEAD (gate134/changed-files.txt) lists 16 packages/web/src files, none a svg-snapshots, illustration, reference or data file; the tutor-diagrams tests (step 2) pass unchanged.
+6. scripts/*.test.mjs and control-plane: SKIPPED on purpose: the candidate changes no server and no script file (see step 5's file list).
+7. property count and planner-kind replay: not applicable (no card bytes, no reference, no planner change; TutorDiagram.js gained naturalSize, used only to size a card; renderTutorDiagram is untouched).
+8. real-board before/after captures on this tip (before = main a8ef11d64 build): gates/134/shots/ on release/evidence; see 134-gate-report.txt.

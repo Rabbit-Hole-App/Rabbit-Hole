@@ -1,0 +1,16 @@
+packages/web/src/AdaptiveCanvas.jsx
+packages/web/src/area-crop.js
+packages/web/src/beside-placement.js
+packages/web/src/beside-placement.test.mjs
+packages/web/src/card-layout.js
+packages/web/src/card-layout.test.mjs
+packages/web/src/explain-client.js
+packages/web/src/explain-inputs.js
+packages/web/src/explanation-card-width.js
+packages/web/src/explanation-card-width.test.mjs
+packages/web/src/explanation-full-length.test.mjs
+packages/web/src/inline-ai-context.js
+packages/web/src/inline-highlight.test.mjs
+packages/web/src/learn-slash.js
+packages/web/src/learn-slash.test.mjs
+packages/web/src/tutor-diagrams/TutorDiagram.js
