@@ -58,6 +58,10 @@ for (const model of ['gpt-4.1-mini', 'gpt-4.1-mini-2025-04-14']) {
   row('openai', model, 'standard', 'output', 1.6, PER.mtok, VERIFIED);
   row('openai', model, 'standard', 'cache_read', 0.1, PER.mtok, VERIFIED, null, OPENAI_PRICING);
 }
+// gpt-6.1-sol, the brief-23 composition bench only (scripts/interact/bench-composition.mjs): ESTIMATE. developers.openai.com/api/docs/pricing could not be read as text on 2026-11-14; secondary pages (anotherwrapper.com/llm-pricing/gpt-6.1-sol, eesel.ai/blog/gpt-6-1-sol-pricing, aicybr.com/blog/openai-gpt-6-1-sol-pricing-benchmarks-api) agree on $2 input, $10 output, $0.10 cached input per million tokens; one aggregator (pricepertoken.com) lists $1 and $5, so the figures stay unverified.
+row('openai', 'gpt-6.1-sol', 'standard', 'input', 2, PER.mtok, ESTIMATE, 'secondary sources, 2026-11-14', OPENAI_PRICING, '2026-11-14');
+row('openai', 'gpt-6.1-sol', 'standard', 'output', 10, PER.mtok, ESTIMATE, 'includes reasoning tokens', OPENAI_PRICING, '2026-11-14');
+row('openai', 'gpt-6.1-sol', 'standard', 'cache_read', 0.1, PER.mtok, ESTIMATE, null, OPENAI_PRICING, '2026-11-14');
 // The written /explain fast chain (explanation-fast-chain.js, profiles cerebras-*), each read on the provider's official page 2026-11-08. No cache rows:
 // cached prompt tokens are charged at the input rate (an over-estimate). PRICE_VERSION is not bumped (the gpt-transcribe precedent): nothing prices with
 // these rows until EXPLANATION_MODEL_PROFILE names a cerebras profile.
