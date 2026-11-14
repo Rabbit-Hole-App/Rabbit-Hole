@@ -196,25 +196,27 @@ test('the default threshold is a function of the registry size; the setting over
   assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.9, 0.7]);
 });
 
-// The captured failure of the fast clone (2026-11-14, three of three Detailed plans): the model's own checkpoint asks for gravity 1, where body-plot's acceleration arrow (3.4 px per m/s^2) is shorter than the
-// minimum an arrow is drawn at, so the build's oracle refused the card at Generate. The precheck runs the build's checks at design time so the correction (or the Opus fallback) hears it first.
+// The captured failure of the fast clone (2026-11-14, three of three Detailed plans): the model's own checkpoint asks for gravity 1, where body-plot's acceleration arrow (a fixed 3.4 px per m/s^2 then) was shorter than the
+// minimum an arrow is drawn at, so the build's oracle refused the card at Generate. Brief 19: the arrow's scale now follows the plan's smallest gravity (templates/shared.js arrowScale), so this plan builds.
 const GRAVITY_ONE = JSON.parse(readFileSync(new URL('./fixtures/fast-detailed-gravity1-plan.json', import.meta.url), 'utf8'));
 const BUILD = { INTERACT_BUILD_KIND: 'template', INTERACT_SEEK: 'on', EXPLAIN_PROGRAM_ENABLED: 'true', EXPLAIN_PROGRAM_STATEFUL: 'true' };
 
-test('the precheck names the arrow the template cannot draw; the pinned Deep plan and a non-template build pass it', async () => {
+test('the gravity-1 Detailed plan and a Moon-gravity Balanced plan (1.62) pass the build precheck: the acceleration arrow scales with the smallest gravity; the pinned Deep plan and a non-template build pass too', async () => {
   const capabilities = await designCapabilities(BUILD, { evidence: [{ id: 'kinematics_note' }] });
-  const bad = await templatePrecheck(GRAVITY_ONE, { env: BUILD, capabilities: await designCapabilities(BUILD, { evidence: [] }) });
-  assert.equal(bad.length, 1); assert.match(bad[0], /^template build: \[arrow_direction\] the arrow "vec.a" is not drawn at cp-fastTop/);
+  const noEvidence = await designCapabilities(BUILD, { evidence: [] });
+  assert.deepEqual(await templatePrecheck(GRAVITY_ONE, { env: BUILD, capabilities: noEvidence }), []);
+  const moon = clone(referencePlans.tossStandard); // the pinned Standard plan with its gravity range widened down to the Moon's 1.62 (default 1.62): zero model calls, headless run and oracle
+  const gravity = moon.controls.find(c => c.binding.id === 'gravity'); Object.assign(gravity, { min: 1.62, default: 1.62 });
+  assert.deepEqual(await templatePrecheck(moon, { env: BUILD, capabilities }), []);
   assert.deepEqual(await templatePrecheck(referencePlans.tossDeep, { env: BUILD, capabilities }), []);
   assert.deepEqual(await templatePrecheck(GRAVITY_ONE, { env: { ...BUILD, INTERACT_BUILD_KIND: undefined }, capabilities }), [], 'the model build has no template to try');
 });
 
-test('a Detailed brief the template cannot draw gets ONE correction naming the arrow, then the corrected brief passes (template build on)', async t => {
-  const goodDeep = extractBrief(referencePlans.tossDeep); goodDeep.words.where_end = 'Back at start'; const s = fastStack(t, { answers: [extractBrief(GRAVITY_ONE), goodDeep], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
+test('a Detailed brief whose gravity range reaches 1 passes the build precheck on the first fill (no floor, no correction; template build on)', async t => {
+  const s = fastStack(t, { answers: [Object.assign(extractBrief(GRAVITY_ONE), { words: { ...extractBrief(GRAVITY_ONE).words, where_end: 'Landed' } })], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
   const { body } = await s.create({ depth: 'detailed' });
   const { job } = await s.design(body.job.id);
-  assert.equal(job.design.fast.kind, 'fast'); assert.equal(job.approval?.by, 'fast-path', 'the corrected brief passed and the fast path approved it'); assert.equal(s.fills.length, 2); assert.deepEqual(s.model.roles(), []);
-  assert.match(userOf(s.fills[1]).correction.problems[0], /^template build: \[arrow_direction\] the arrow "vec.a" is not drawn at cp-fastTop/);
+  assert.equal(job.design.fast.kind, 'fast', JSON.stringify(job.design.fast)); assert.equal(job.approval?.by, 'fast-path'); assert.equal(s.fills.length, 1, JSON.stringify(job.design.fast)); assert.deepEqual(s.model.roles(), []);
 });
 
 // ---- no approval pause (brief 14) ----
@@ -288,23 +290,21 @@ test('a gap plan that names a template without its slots and words loses the tem
   assert.equal(job.design.fast.fallback, 'gap');
 });
 
-test('the corrections name the fix: a formula over 32 nodes, a marker before 0, an arrow the template cannot draw', async () => {
+test('the corrections name the fix: a formula over 32 nodes, a marker before 0, an unknown name, a wrong value', async () => {
   const { fixOf } = await import('../src/interact-design.js');
   assert.match(fixOf('scene.quantities.9.formulaAfter quantity "dropHeight" formulaAfter: this formula needs 33 nodes; at most 32 (simplify it or split it into quantities)'), /Fix: write the formula in a shorter form/);
   assert.match(fixOf('mode.timeline.markers.0.time a time before 0 is outside the elapsed timeline'), /Fix: derive every marker time from the plan \(0 or later\)/);
-  assert.match(fixOf('template build: [arrow_direction] the arrow "vec.a.toss" is not drawn at cp-fastTop, expected down'), /Fix: every gravity value of the range is at least 4/);
   assert.match(fixOf('formula dropHeight at {"t":1}: got 1, expected 2'), /Fix: check the formula against the meaning of its key/);
   assert.match(fixOf('scene.quantities.7.formulaAfter quantity "dropVelocity" formulaAfter: unknown name "apexTime" at character 20; readable: t, launchSpeed, gravity'), /Fix: a formula reads only the names its key lists/);
   assert.equal(fixOf('expand: something else'), 'expand: something else');
 });
 
-test('Balanced: a gravity range that reaches 1 is refused by the build precheck; the correction names the floor, the corrected brief passes (template build on)', async t => {
+test('Balanced: a gravity range that reaches 1 passes on the first fill, and the fill text no longer asks for a gravity floor (template build on)', async t => {
   const low = extractBrief(referencePlans.tossStandard); low.gravity = { ...low.gravity, min: 1 };
-  const s = fastStack(t, { answers: [low, extractBrief(referencePlans.tossStandard)], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
+  const s = fastStack(t, { answers: [low], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
   const { body } = await s.create({ depth: 'balanced' });
   await s.design(body.job.id);
   const job = s.jobOf(body.job.id);
-  assert.equal(job.design.fast.kind, 'fast', JSON.stringify(job.design.fast)); assert.equal(s.fills.length, 2);
-  assert.match(userOf(s.fills[1]).correction.problems[0], /Fix: every gravity value of the range is at least 4$/);
-  assert.match(fillSystem('balanced', briefSchema('balanced')), /gravity: every value of its range is at least 4/);
+  assert.equal(job.design.fast.kind, 'fast', JSON.stringify(job.design.fast)); assert.equal(s.fills.length, 1);
+  assert.doesNotMatch(fillSystem('balanced', briefSchema('balanced')), /every value of its range is at least 4/);
 });

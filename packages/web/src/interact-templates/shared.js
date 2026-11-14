@@ -4,6 +4,8 @@
 // approved on canvas (interact-toss-programs.js stays as that reference, and the tests prove frame equality against it).
 
 export const J = value => JSON.stringify(value);
+// px per m/s^2 of the acceleration arrow: 3.4, or larger when the smallest acceleration in the plan's ranges (range.minAccel) would draw under 12 px (sdk.vector draws a plain line there, not an arrow).
+export const arrowScale = range => (range.minAccel > 0 ? Math.max(3.4, Math.round(12.5 / range.minAccel * 1e6) / 1e6) : 3.4);
 
 // ctx.q: { quantityId: 'js expression over inputs, t' } already built; ctx.end: 'js expression over inputs'; ctx.slots: role -> quantity id.
 // -> the source head: constants, the quantity table Q, END and motion(inputs, time) for the body described by `slots` ({ height, velocity, acceleration }).
