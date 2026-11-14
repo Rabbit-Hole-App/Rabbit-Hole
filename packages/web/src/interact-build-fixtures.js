@@ -20,7 +20,7 @@ export function tossDrop({ u = 3, g = G } = {}) {
 
 const STANDARD_MAIN = String.raw`
 export function evaluate({ time }) {
-  const U = 3, G = 9.8, APEX = U / G, PEAK = U * U / (2 * G), S = 600, GROUND = 330, XT = 220, XH = 440;
+  const U = 3, G = 9.8, APEX = U / G, PEAK = U * U / (2 * G), S = 500, GROUND = 330, XT = 220, XH = 440;
   const t = Math.min(time, 2 * APEX);
   const height = U * t - G * t * t / 2, velocity = U - G * t;
   const fall = Math.max(0, t - APEX), drop = G * fall * fall / 2, heldVelocity = -G * fall;
@@ -30,11 +30,11 @@ export function evaluate({ time }) {
     sdk.line('ground', 60, GROUND + 12, 580, GROUND + 12),
     sdk.text('launch-mark', 60, GROUND + 34, 'launch mark'),
     sdk.line('peak-line', 150, peakY, 500, peakY, { role: 'prediction', opacity: 0.5 }),
-    sdk.text('peak-label', 505, peakY + 5, 'peak'),
+    sdk.text('peak-label', 510, peakY + 5, 'peak'),
     sdk.box('gate', XH - 24, yHeld + 12, 48, 6, { role: 'warning', opacity: t < APEX ? 1 : 0.25 }),
     sdk.circle('tossed-ball', XT, yTossed, 24, { role: 'output' }),
     sdk.circle('held-ball', XH, yHeld, 24, { role: 'input' }),
-    sdk.text('tossed-label', XT - 40, GROUND + 56, 'tossed ball'),
+    sdk.text('tossed-label', XT - 80, GROUND + 56, 'tossed ball'),
     sdk.text('held-label', XH - 40, GROUND + 56, 'held ball'),
     sdk.text('velocity-readout', 20, 28, 'velocity ' + sign(velocity) + sdk.format(shown(velocity), 2) + ' m/s'),
     sdk.text('acceleration-readout', 20, 52, 'acceleration ' + sdk.format(-G, 1) + ' m/s^2'),
@@ -51,7 +51,7 @@ export function evaluate({ time }) {
 
 const THREE_MOMENTS = String.raw`
 export function evaluate() {
-  const U = 3, G = 9.8, APEX = U / G, PEAK = U * U / (2 * G), S = 600, GROUND = 330;
+  const U = 3, G = 9.8, APEX = U / G, PEAK = U * U / (2 * G), S = 500, GROUND = 330;
   const moments = [{ id: 'before', t: APEX - 0.1, x: 120, label: '0.10 s before' }, { id: 'top', t: APEX, x: 320, label: 'at the top' }, { id: 'after', t: APEX + 0.1, x: 520, label: '0.10 s after' }];
   const shown = v => (Math.abs(v) < 5e-9 ? 0 : v), sign = v => (shown(v) > 0 ? '+' : '');
   const peakY = GROUND - S * PEAK, objects = [sdk.line('peak-line', 60, peakY, 580, peakY, { role: 'prediction', opacity: 0.5 }), sdk.text('up-label', 560, 28, 'up is +')];
@@ -59,7 +59,7 @@ export function evaluate() {
   for (const m of moments) {
     const height = U * m.t - G * m.t * m.t / 2, velocity = U - G * m.t, y = GROUND - S * height;
     objects.push(sdk.circle('ball-' + m.id, m.x, y, 24, { role: 'output' }), sdk.text('label-' + m.id, m.x - 50, GROUND + 34, m.label),
-      sdk.text('velocity-' + m.id, m.x + 22, y - 18, 'v = ' + sign(velocity) + sdk.format(shown(velocity), 2) + ' m/s'));
+      sdk.text('velocity-' + m.id, m.x + 22, y + 30, 'v = ' + sign(velocity) + sdk.format(shown(velocity), 2) + ' m/s'));
     if (Math.abs(velocity) >= 0.02) objects.push(sdk.arrow('velocity-arrow-' + m.id, m.x, y, m.x, y - 40 * velocity, { role: 'output' }));
     const name = 'velocity' + m.id[0].toUpperCase() + m.id.slice(1);
     quantities[name] = velocity; quantities['belowPeak' + m.id[0].toUpperCase() + m.id.slice(1)] = PEAK - height; readouts.push({ id: name, value: velocity });
@@ -99,15 +99,15 @@ export function evaluate() {
   const objects = [
     sdk.line('ground', 60, GROUND + 12, 580, GROUND + 12),
     sdk.line('shared-height', 150, PEAKY, 520, PEAKY, { role: 'prediction', opacity: 0.5 }),
-    sdk.text('shared-label', 330, PEAKY - 14, 'same height, zero velocity'),
+    sdk.text('shared-label', 330, PEAKY - 30, 'same height, zero velocity'),
     sdk.circle('tossed-ball', XT, PEAKY, 24, { role: 'output' }),
     sdk.circle('released-ball', XR, PEAKY, 24, { role: 'input' }),
     sdk.circle('tossed-after', XT, PEAKY + fall, 24, { role: 'output', opacity: 0.35 }),
     sdk.circle('released-after', XR, PEAKY + fall, 24, { role: 'input', opacity: 0.35 }),
     sdk.arrow('tossed-gravity', XT - 44, PEAKY, XT - 44, PEAKY + 40, { role: 'warning' }),
     sdk.arrow('released-gravity', XR - 44, PEAKY, XR - 44, PEAKY + 40, { role: 'warning' }),
-    sdk.text('tossed-label', XT - 70, GROUND + 56, 'tossed ball at its top'),
-    sdk.text('released-label', XR - 50, GROUND + 56, 'just released'),
+    sdk.text('tossed-label', XT - 70, GROUND + 46, 'tossed ball at its top'),
+    sdk.text('released-label', XR - 50, GROUND + 46, 'just released'),
     sdk.text('drop-readout', 20, 28, 'after 0.10 s each ball has moved ' + sdk.format(drop, 3) + ' m down'),
     sdk.text('gravity-readout', 20, 52, 'gravity ' + sdk.format(G, 1) + ' m/s^2 on both'),
   ];

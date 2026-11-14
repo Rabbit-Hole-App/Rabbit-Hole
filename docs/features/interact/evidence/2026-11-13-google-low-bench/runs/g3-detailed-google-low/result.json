@@ -1,0 +1,13 @@
+{
+  "url": "https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev/apps/canvas-6ed97acb",
+  "app": "canvas-6ed97acb",
+  "boardId": "797d0a21-2023-46b9-a7be-bea67f4a096c",
+  "jobId": "ej_04ebfeb19d594a2a839e3ef4f508a04c",
+  "depth": "detailed",
+  "profile": "google-low",
+  "stage": "failed",
+  "stopReason": "no_progress",
+  "failure": "The explanation could not be repaired. Edit the request and try again.",
+  "ms": 30574,
+  "detailStatus": 200
+}

@@ -1,0 +1,47 @@
+{
+  "text": "Zero velocity at the top is not zero acceleration\n\nExplanation\n\nA ball tossed at 3.0 m/s has zero velocity at its top, yet its acceleration stays -9.8 m/s^2 there and at every instant of the flight.\n\nTHREE MOMENTS AROUND THE TOP\n\nThree moments around the top\nheight (m), up +\n0.38\n0.42\n0.46\n0.10 s before the top\nv = +0.98 m/s\na = -9.8 m/s²\nAt the top\nv = 0.00 m/s\na = -9.8 m/s²\n0.10 s after the top\nv = -0.98 m/s\na = -9.8 m/s²\nheight (m), up +\n-0.4\n-0.2\n0.0\n0.2\n0.4\nlaunch mark\nRelease gate: closed\nv\na\nTossed ball\nv = 0\na = 0\nHeld ball\nTossed ball\nv = +3.00 m/s\na = -9.8 m/s²\nheight = 0.000 m\nHeld ",
+  "buttons": [
+    {
+      "label": null,
+      "text": "Play",
+      "data": "data-animation-play=true"
+    },
+    {
+      "label": "Understood",
+      "text": "",
+      "data": "data-card-thumb=up"
+    },
+    {
+      "label": "Still unclear",
+      "text": "",
+      "data": "data-card-thumb=down"
+    },
+    {
+      "label": "Connect top",
+      "text": "",
+      "data": "data-port=top data-owner=58392484-6055-402a-a607-4635ffa8a9f7 data-node-tool=true"
+    },
+    {
+      "label": "Connect bottom",
+      "text": "",
+      "data": "data-port=bottom data-owner=58392484-6055-402a-a607-4635ffa8a9f7 data-node-tool=true"
+    },
+    {
+      "label": "Resize chat block",
+      "text": "",
+      "data": "data-node-tool=true"
+    }
+  ],
+  "ranges": [
+    {
+      "min": "0",
+      "max": "0.6122448979591836",
+      "step": "0.001",
+      "value": "0",
+      "label": "Time from the apex",
+      "data": ""
+    }
+  ],
+  "svgObjects": 189,
+  "markers": []
+}

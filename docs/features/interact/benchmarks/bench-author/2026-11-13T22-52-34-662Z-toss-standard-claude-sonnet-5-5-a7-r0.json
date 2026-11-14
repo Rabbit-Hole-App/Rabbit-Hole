@@ -1,0 +1,114 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time }) {\n  const u = inputs.launchSpeed, g = inputs.gravity;\n  const T = u / g, H = u * u / (2 * g);\n  const t = sdk.clamp(time, 0, 2 * T);\n  const yT = u * t - g * t * t / 2;\n  const vT = u - g * t;\n  const rel = t >= T - 1e-9;\n  const tau = Math.max(0, t - T);\n  const vD = rel ? -g * tau : 0;\n  const aD = rel ? -g : 0;\n  const yD = rel ? H - g * tau * tau / 2 : H;\n  const sy = sdk.linear([0, 2.2], [350, 90]);\n  const o = [];\n  o.push(...sdk.panel({ id: 'lane.toss', x: 10, y: 40, w: 305, h: 370, title: 'Toss', state: t < 1e-9 ? 'At launch' : (Math.abs(t - T) < 1e-9 ? 'At the top' : (t < T ? 'Rising' : (t > 2 * T - 1e-9 ? 'At launch height' : 'Falling'))), role: 'input' }));\n  o.push(...sdk.panel({ id: 'lane.drop', x: 325, y: 40, w: 305, h: 370, title: 'Drop', state: !rel ? 'Held in place' : (tau < 0.05 ? 'Just released' : (t > 2 * T - 1e-9 ? 'At launch height' : 'Falling together')), role: 'output' }));\n  o.push(...sdk.groundMark('mark.toss', 162, 350, 120, '0 m'));\n  o.push(...sdk.groundMark('mark.drop', 477, 350, 120, '0 m'));\n  o.push(...sdk.gate('gate.drop', 477, sy(H) + 20, { open: rel }));\n  if (rel) o.push({ kind: 'circle', id: 'ghost.drop', x: 477, y: sy(H), w: 28, opacity: 0.25 });\n  const cx1 = 162, cx2 = 477, sc = 8;\n  o.push(sdk.circle('ball.toss', cx1, sy(yT), 28));\n  o.push(sdk.circle('ball.drop', cx2, sy(yD), 28));\n  o.push(...sdk.vector('vec.v.toss', { x: cx1 - 30, y: sy(yT) }, { value: vT, direction: 'up' }, { scale: sc, label: 'v' }));\n  o.push(...sdk.vector('vec.v.drop', { x: cx2 - 30, y: sy(yD) }, { value: vD, direction: 'up' }, { scale: sc, label: 'v' }));\n  o.push(...sdk.vector('vec.a.toss', { x: cx1 + 30, y: sy(yT) }, { value: -g, direction: 'up' }, { scale: 4, label: 'a' }));\n  o.push(...sdk.vector('vec.a.drop', { x: cx2 + 30, y: sy(yD) }, { value: aD, direction: 'up' }, { scale: 4, label: 'a' }));\n  o.push(...sdk.callout(cx1 + 50, sy(yT) - 40, ['v ' + sdk.format(vT, 2) + ' m/s', 'a ' + sdk.format(-g, 1) + ' m/s^2'], { id: 'callout.toss' }));\n  o.push(...sdk.callout(cx2 + 50, sy(yD) - 40, ['v ' + sdk.format(vD, 2) + ' m/s', 'a ' + sdk.format(aD, 1) + ' m/s^2'], { id: 'callout.drop' }));\n  return {\n    frame: { width: 640, height: 420, objects: o, readouts: [{ id: 'tossedVelocity', value: vT }, { id: 'tossedAcceleration', value: -g }, { id: 'dropVelocity', value: vD }, { id: 'dropAcceleration', value: aD }] },\n    quantities: { launchSpeed: u, gravity: g, apexTime: T, apexHeight: H, tossedVelocity: vT, tossedAcceleration: -g, tossedHeight: yT, dropVelocity: vD, dropAcceleration: aD, dropHeight: yD }\n  };\n}\n",
+    "manifest": {
+     "title": "Zero velocity isn’t zero acceleration.",
+     "summary": "A tossed ball and a ball released from rest at the top share the same motion afterwards. Acceleration stays at -g even where velocity is zero.",
+     "assumptions": [
+      "No air resistance, the same gravity for both balls, up is positive."
+     ],
+     "description": "Two lanes compare a tossed ball with a ball held by a gate at the apex height. The gate opens at the top. Velocity and acceleration arrows show the readings.",
+     "instructions": "Change launch speed or gravity, then press Play. At top jumps to the shared release.",
+     "duration": 1.6666666666666667,
+     "timeline": {
+      "label": "Time from the top",
+      "displayOffset": -0.4081632653061224,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "before",
+        "label": "-0.10 s",
+        "time": 0.30816326530612237
+       },
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       },
+       {
+        "id": "after",
+        "label": "+0.10 s",
+        "time": 0.5081632653061224
+       }
+      ]
+     },
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "gravity",
+       "label": "Gravity",
+       "unit": "m/s^2",
+       "default": 9.8,
+       "min": 6,
+       "max": 12,
+       "step": 0.1
+      }
+     ],
+     "readouts": [
+      {
+       "id": "tossedVelocity",
+       "label": "Toss velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "tossedAcceleration",
+       "label": "Toss acceleration",
+       "unit": "m/s^2",
+       "decimals": 1
+      },
+      {
+       "id": "dropVelocity",
+       "label": "Drop velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "dropAcceleration",
+       "label": "Drop acceleration",
+       "unit": "m/s^2",
+       "decimals": 1
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "input_tokens": 11414,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 6867,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 2277,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ }
+}

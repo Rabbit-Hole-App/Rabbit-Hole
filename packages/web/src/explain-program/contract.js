@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { fitFrame } from './frame-fit.js';
 import { RASTER_LIMITS, rasterProblem } from '../raster-pixels.js';
 import { ROLES } from '../scene-vocab.js';
 import { IMAGE_FIXTURE_IDS } from './sdk-image.js';
-import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION, RASTER_CAPABILITY, RASTER_SDK_VERSION } from './stamps.js';
+import { parseTutorDiagram } from '../tutor-diagrams/spec.js';
+import { CYCLIC_CAPABILITY, CYCLIC_SDK_VERSION, FIGURES_CAPABILITY, FIGURES_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_CAPABILITY, MEDIUM_SDK_VERSION, PROPS_CAPABILITY, PROPS_SDK_VERSION, RASTER_CAPABILITY, RASTER_SDK_VERSION } from './stamps.js';
 
 // The frozen artifact and frame contract of the generic /explain sandbox (plan section 5.2, Task 2).
 // Subject-independent on purpose: nothing here names a topic. Every object is strict, every value bounded; the host
@@ -37,9 +39,23 @@ export const ERROR_CODES = Object.freeze(['invalid_program', 'unsupported_capabi
 // Capabilities a manifest may require. An unknown one is unsupported_capability, never silently ignored.
 export const HEAT_GRID_CAPABILITY = 'heat_grid';
 export const requiresHeatGrid = manifest => Array.isArray(manifest?.capabilities) && manifest.capabilities.includes(HEAT_GRID_CAPABILITY);
-export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, RASTER_CAPABILITY, HEAT_GRID_CAPABILITY]);
+// inputs_v2 (INTERACT_INPUTS_V2): native `boolean` and `index` manifest inputs. A manifest capability, not an SDK helper: the sdk tuple and renderer stamp are unchanged, and a manifest with
+// either input type must declare it, so every saved artifact (number and select inputs only) parses and seals exactly as before.
+export const INPUTS_V2_CAPABILITY = 'inputs_v2';
+export const CAPABILITIES = Object.freeze(['time_playback', 'number_inputs', 'select_inputs', 'polyline', 'math_text', MEDIUM_CAPABILITY, CYCLIC_CAPABILITY, RASTER_CAPABILITY, HEAT_GRID_CAPABILITY, PROPS_CAPABILITY, FIGURES_CAPABILITY]);
+// CAPABILITIES is the list /explain tells its author and repairer (explain-program.js PROGRAM_CAPABILITIES; a maximal 16 KiB program has 14 bytes of room in the repair request, explain-program-budget.test.js), so inputs_v2
+// stays out of it while the setting is off; KNOWN_CAPABILITIES is every capability a manifest may name.
+export const KNOWN_CAPABILITIES = Object.freeze([...CAPABILITIES, INPUTS_V2_CAPABILITY]);
 // Frame object kinds: the closed set the trusted renderer draws. Equations are text objects with math runs (hardened path).
-export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image', 'raster', 'heat_grid']);
+export const OBJECT_KINDS = Object.freeze(['box', 'circle', 'text', 'line', 'arrow', 'polyline', 'image', 'raster', 'heat_grid', 'axis', 'plot', 'diagram']);
+// The semantic figure kinds (capability figures, sdk-8): a frame that draws one needs both (parseGuestResult). Saved frames never carry them, so every older artifact parses unchanged.
+export const FIGURE_KINDS = Object.freeze(['axis', 'plot', 'diagram']);
+// What a figure keeps free beside its line, in frame units, so the frame bounds check is the same number the renderer draws with (FrameFigures.jsx): an x axis keeps
+// BAND.x below it for ticks and its title, a y axis keeps BAND.y to its left and titleRoom above its top end.
+export const FIGURE_BAND = Object.freeze({ x: 52, y: 60, titleRoom: 28 }); // 22 until run 2 (2026-11-13): the y title sat on the top tick label; it now rides 18 px above the axis end
+// A body (a circle of at least this diameter, frame-look.js) is coloured by the renderer, by order, whatever role it carries (a role on a body is ignored, never refused: owner 2026-11-13).
+export const BODY_MIN = 12;
+export const FIGURE_LIMITS = Object.freeze({ series: 3, points: 24, ticks: 12, specBytes: 16 * 1024, plotMin: Object.freeze({ w: 200, h: 160 }) });
 
 const finite = limit => z.number().min(-limit).max(limit); // z.number() already refuses NaN and Infinity
 const coordinate = finite(CONTRACT_LIMITS.coordinate);
@@ -75,8 +91,23 @@ const selectInput = z.object({
   default: z.string(), options: z.array(optionSchema).min(2).max(CONTRACT_LIMITS.options),
 }).strict().refine(input => input.options.some(option => option.value === input.default), { message: 'default must be one of the options', path: ['default'] })
   .refine(input => new Set(input.options.map(option => option.value)).size === input.options.length, { message: 'option values must be unique', path: ['options'] });
-const inputSchema = z.union([numberInput, selectInput]);
-const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2) }).strict();
+const INDEX_ITEMS_MAX = 12;
+// inputs_v2: a switch (the value is true or false) and a position in 2 to 12 ordered items (the value is the item's index, 0 to items - 1).
+const booleanInput = z.object({ type: z.literal('boolean'), id: name, label: plain(60), default: z.boolean() }).strict();
+const indexInput = z.object({
+  type: z.literal('index'), id: name, label: plain(60), default: z.number().int().min(0), presentation: z.enum(['picker', 'slider']).default('picker'),
+  items: z.array(z.object({ id: name, label: plain(60) }).strict()).min(2).max(INDEX_ITEMS_MAX),
+}).strict().refine(input => input.default < input.items.length, { message: 'default must be the position of an item', path: ['default'] })
+  .refine(input => new Set(input.items.map(item => item.id)).size === input.items.length, { message: 'item ids must be unique', path: ['items'] });
+const inputSchema = z.union([numberInput, selectInput, booleanInput, indexInput]);
+// kind (additive): absent or 'number' is a number readout as before; 'state' names a mode the frame reports as one of its labels (Moving up, Still for an instant, Moving down), never a number.
+const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2),
+  kind: z.enum(['number', 'state']).optional(), labels: z.array(plain(40)).min(1).max(6).optional() }).strict()
+  .superRefine((readout, context) => {
+    if (readout.kind === 'state' && !readout.labels) context.addIssue({ code: 'custom', message: 'a state readout lists its labels', path: ['labels'] });
+    if (readout.kind !== 'state' && readout.labels) context.addIssue({ code: 'custom', message: 'only a state readout has labels', path: ['labels'] });
+    if (readout.labels && new Set(readout.labels).size !== readout.labels.length) context.addIssue({ code: 'custom', message: 'state labels must be unique', path: ['labels'] });
+  });
 
 // interact.md INT-01 mode.timeline, as far as a program card needs it now: shown time = elapsed + displayOffset, a trusted playback rate in simulated
 // seconds per wall second, and named exact-seek markers. Optional and additive: a saved card without it plays and saves exactly as before.
@@ -113,6 +144,9 @@ const manifestChecks = (manifest, context) => {
     const ids = (manifest.timeline.markers || []).map(marker => marker.id);
     if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: 'timeline marker ids must be unique', path: ['timeline', 'markers'] });
   }
+  if (manifest.inputs.some(input => input.type === 'boolean' || input.type === 'index') && !manifest.capabilities.includes(INPUTS_V2_CAPABILITY)) {
+    context.addIssue({ code: 'custom', message: `a boolean or index input needs the ${INPUTS_V2_CAPABILITY} capability in manifest.capabilities`, path: ['capabilities'] });
+  }
   const combinations = manifest.inputs.filter(input => input.type === 'select').reduce((total, input) => total * input.options.length, 1);
   if (combinations > CONTRACT_LIMITS.optionCombinations) context.addIssue({ code: 'custom', message: `select options combine to ${combinations} states (at most ${CONTRACT_LIMITS.optionCombinations})`, path: ['inputs'] });
   if (utf8(JSON.stringify(manifest)) > CONTRACT_LIMITS.manifestBytes) context.addIssue({ code: 'custom', message: `the manifest is over ${CONTRACT_LIMITS.manifestBytes} bytes`, path: [] });
@@ -146,7 +180,7 @@ export const draftSchemaVersion = draft => (draft?.manifest && typeof draft.mani
 // What the author is told about the stateful contract, from the same constants the schemas enforce.
 export const STATEFUL_CONTRACT = Object.freeze({
   exports: 'export function initialState({ inputs, seed }) -> state; export function reduce({ state, event, inputs, time, seed }) -> state; export function evaluate({ inputs, time, seed, state }) -> { frame, quantities }',
-  manifest: `viewport {width, height} (required; width x height at most ${CONTRACT_LIMITS.viewportPixels} pixels, for example 1120 x 860 or 960 x 540; every frame has exactly this size), actions [{id, label}] (at most ${CONTRACT_LIMITS.actions} buttons; id is a name), targets [{id, label, drag?}] (at most ${CONTRACT_LIMITS.targets}; id is the id of a frame object the learner can select; with drag: true the learner can also drag it; every frame draws every target under that id)`,
+  manifest: `viewport {width, height} (required; width x height at most ${CONTRACT_LIMITS.viewportPixels} pixels, for example 640 x 420; every frame has exactly this size), actions [{id, label}] (at most ${CONTRACT_LIMITS.actions} buttons; id is a name), targets [{id, label, drag?}] (at most ${CONTRACT_LIMITS.targets}; id is the id of a frame object the learner can select; with drag: true the learner can also drag it; every frame draws every target under that id)`,
   events: [`{type:"action", action: <an actions id>}`, `{type:"select", target: <a targets id>}`, `{type:"input", input: <an inputs id>, value: <the new value>}`,
     `{type:"drag_start" | "drag_move" | "drag_end", target: <a drag target id>, x, y} (x, y: the pointer in frame coordinates, inside the viewport; one drag is a start, any number of moves, then an end; moves may be merged, the last position and the end always arrive)`],
   state: `a plain JSON object: finite numbers, strings, booleans, null, arrays and objects; at most ${CONTRACT_LIMITS.stateBytes} bytes as JSON and ${CONTRACT_LIMITS.depth} levels deep`,
@@ -171,7 +205,7 @@ export const StatefulArtifact = artifactSchema(STATEFUL_SCHEMA_VERSION);
 
 // ---- evaluate request / frame / response ------------------------------------------------------------------------------
 
-const inputValue = z.union([finite(1e9), z.string().max(32)]);
+const inputValue = z.union([finite(1e9), z.string().max(32), z.boolean()]);
 const requestFields = {
   requestId: z.string().min(1).max(64),
   inputs: z.record(name, inputValue).refine(record => Object.keys(record).length <= CONTRACT_LIMITS.inputs, 'too many inputs'),
@@ -218,7 +252,26 @@ const size = z.number().positive().max(CONTRACT_LIMITS.size);
 const cropFraction = z.number().positive().max(1);
 const imageCrop = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: cropFraction, h: cropFraction }).strict()
   .refine(({ x, y, w, h }) => x + w <= 1 && y + h <= 1, 'crop must stay within the source');
+const axisRange = z.object({ label: plain(40), min: finite(1e9), max: finite(1e9), unit: maybePlain(16).optional() }).strict().refine(axis => axis.min < axis.max, { message: 'min must be below max', path: ['max'] });
+const plotPoint = z.object({ x: finite(1e9), y: finite(1e9) }).strict();
+const plotSeries = z.object({ label: plain(40), kind: z.enum(['line', 'scatter', 'step']), points: z.array(plotPoint).max(FIGURE_LIMITS.points) }).strict()
+  .refine(series => series.kind === 'scatter' || series.points.length >= 2, { message: 'a line or step series needs at least two points', path: ['points'] });
+// The spec is the written card's own diagram JSON: parseTutorDiagram is its validator (a bad spec is invalid_output, never drawn), and it counts as one object.
+const diagramSpec = z.unknown().superRefine((spec, context) => {
+  if (spec === null || typeof spec !== 'object' || Array.isArray(spec)) return context.addIssue({ code: 'custom', message: 'a diagram spec is the diagram JSON object' });
+  let text;
+  try { text = JSON.stringify(spec); } catch { return context.addIssue({ code: 'custom', message: 'a diagram spec must be plain JSON' }); }
+  if (utf8(text) > FIGURE_LIMITS.specBytes) return context.addIssue({ code: 'custom', message: `a diagram spec is at most ${FIGURE_LIMITS.specBytes} bytes` });
+  try { parseTutorDiagram(spec); } catch (error) { context.addIssue({ code: 'custom', message: `the diagram spec is not valid: ${String(error?.issues?.[0]?.message ?? error?.message ?? error).slice(0, 160)}` }); }
+  return undefined;
+});
 const frameObject = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('axis'), id, x: coordinate, y: coordinate, length: size, orientation: z.enum(['x', 'y']), min: finite(1e9), max: finite(1e9),
+    ticks: z.array(finite(1e9)).min(1).max(FIGURE_LIMITS.ticks).optional(), label: plain(40), unit: maybePlain(16).optional(), ...style,
+  }).strict(),
+  z.object({ kind: z.literal('plot'), id, x: coordinate, y: coordinate, w: size, h: size, axes: z.object({ x: axisRange, y: axisRange }).strict(), series: z.array(plotSeries).min(1).max(FIGURE_LIMITS.series), ...style }).strict(),
+  z.object({ kind: z.literal('diagram'), id, x: coordinate, y: coordinate, w: size, spec: diagramSpec, ...style }).strict(),
   z.object({ kind: z.literal('box'), id, x: coordinate, y: coordinate, w: size, h: size, ...labelled, ...style, rotation: finite(360).default(0) }).strict(),
   z.object({ kind: z.literal('circle'), id, x: coordinate, y: coordinate, w: size, ...labelled, ...style, rotation: finite(360).default(0) }).strict(), // w is the diameter
   z.object({ kind: z.literal('text'), id, x: coordinate, y: coordinate, ...labelled, align: z.enum(['start', 'middle']).default('start'), ...style }).strict(),
@@ -239,10 +292,32 @@ const frameObject = z.discriminatedUnion('kind', [
   }).strict(),
 ]);
 
+// The first problem with a figure object, or null. Bounds are checked against the frame: an axis with its tick labels and title, a plot's rectangle, a diagram's left edge,
+// width and top (its height is the diagram's own, fitted by the renderer into what the frame leaves below it).
+export function figureProblem(object, frame) {
+  const inside = (left, top, right, bottom) => left >= 0 && top >= 0 && right <= frame.width && bottom <= frame.height;
+  if (object.kind === 'axis') {
+    if (!(object.min < object.max)) return 'an axis needs min below max';
+    if (object.ticks?.some(tick => tick < object.min || tick > object.max)) return 'every axis tick must lie between min and max';
+    const fits = object.orientation === 'x'
+      ? inside(object.x, object.y - 4, object.x + object.length, object.y + FIGURE_BAND.x)
+      : inside(object.x - FIGURE_BAND.y, object.y - object.length - FIGURE_BAND.titleRoom, object.x + 4, object.y + 8);
+    return fits ? null : `the axis, its tick labels and its title must stay inside the ${frame.width} x ${frame.height} frame (an x axis keeps ${FIGURE_BAND.x} below it; a y axis grows up from its start and keeps ${FIGURE_BAND.y} to its left and ${FIGURE_BAND.titleRoom} above its top)`;
+  }
+  if (object.kind === 'plot') {
+    if (object.w < FIGURE_LIMITS.plotMin.w || object.h < FIGURE_LIMITS.plotMin.h) return `a plot is at least ${FIGURE_LIMITS.plotMin.w} x ${FIGURE_LIMITS.plotMin.h}`;
+    if (!inside(object.x, object.y, object.x + object.w, object.y + object.h)) return 'the plot must stay inside the frame';
+    const { x, y } = object.axes;
+    const outside = object.series.find(series => series.points.some(point => point.x < x.min || point.x > x.max || point.y < y.min || point.y > y.max));
+    return outside ? `series "${outside.label}" has a point outside the plot axes` : null;
+  }
+  return object.x >= 0 && object.y >= 0 && object.y < frame.height && object.x + object.w <= frame.width ? null : 'the diagram must start inside the frame and fit its width';
+}
+
 export const Frame = z.object({
   width: z.number().positive().max(4096).default(960), height: z.number().positive().max(4096).default(540),
   objects: z.array(frameObject).max(CONTRACT_LIMITS.objects),
-  readouts: z.array(z.object({ id: name, value: finite(1e12) }).strict()).max(CONTRACT_LIMITS.readouts).default([]),
+  readouts: z.array(z.object({ id: name, value: finite(1e12).or(plain(40)) }).strict()).max(CONTRACT_LIMITS.readouts).default([]), // a string is a state readout's label (manifest readout kind 'state')
 }).strict().superRefine((frame, context) => {
   const seen = new Set();
   let points = 0, images = 0, rasterPixels = 0, heatCells = 0;
@@ -273,6 +348,10 @@ export const Frame = z.object({
       if (object.x < 0 || object.y < 0 || object.x + object.cols * object.cell > frame.width || object.y + object.rows * object.cell > frame.height) {
         context.addIssue({ code: 'custom', message: 'the heat grid must fit inside the frame', path: ['objects', index] });
       }
+    }
+    if (FIGURE_KINDS.includes(object.kind)) {
+      const problem = figureProblem(object, frame);
+      if (problem) context.addIssue({ code: 'custom', message: problem, path: ['objects', index] });
     }
     if (object.kind === 'text' && !object.text && !object.runs) context.addIssue({ code: 'custom', message: 'a text object needs text or runs', path: ['objects', index] });
     if ('text' in object && object.text && object.runs) context.addIssue({ code: 'custom', message: 'give text or runs, not both', path: ['objects', index] });
@@ -329,7 +408,7 @@ function parseWith(schema, raw, code) {
 // A manifest requiring a capability this build lacks is unsupported_capability, not a malformed program. Model output is untrusted: only a
 // list of strings is read here; a field of another type (or a non-string in the list) is a malformed manifest, which the schema reports with its
 // path, the expected type and the observed type, so it can be repaired.
-export const unsupportedCapabilities = manifest => (Array.isArray(manifest?.capabilities) ? manifest.capabilities : []).filter(capability => typeof capability === 'string' && !CAPABILITIES.includes(capability));
+export const unsupportedCapabilities = manifest => (Array.isArray(manifest?.capabilities) ? manifest.capabilities : []).filter(capability => typeof capability === 'string' && !KNOWN_CAPABILITIES.includes(capability));
 export function parseManifest(raw, schemaVersion = SCHEMA_VERSION) {
   const result = parseWith(manifestFor(schemaVersion), raw, 'invalid_program');
   if (!result.ok) return result;
@@ -352,6 +431,12 @@ export const parseArtifact = raw => {
   }
   if (manifest.value.capabilities.includes(CYCLIC_CAPABILITY) && ![CYCLIC_SDK_VERSION, RASTER_SDK_VERSION].includes(raw.sdkVersion)) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'cyclic networks require their SDK version' };
+  }
+  if (manifest.value.capabilities.includes(PROPS_CAPABILITY) && ![PROPS_SDK_VERSION, FIGURES_SDK_VERSION].includes(raw.sdkVersion)) {
+    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'physical props require their SDK version' };
+  }
+  if (manifest.value.capabilities.includes(FIGURES_CAPABILITY) && raw.sdkVersion !== FIGURES_SDK_VERSION) {
+    return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'semantic figures require their SDK version' };
   }
   if (manifest.value.capabilities.includes(RASTER_CAPABILITY) && raw.sdkVersion !== RASTER_SDK_VERSION) {
     return { ok: false, error: new RuntimeError('version_unavailable'), issue: 'raster visuals require their SDK version' };
@@ -377,7 +462,9 @@ export function parseEvent(raw, manifest) {
     : event.type === 'select' ? manifest.targets.some(target => target.id === event.target)
       : DRAG_EVENTS.includes(event.type) ? manifest.targets.some(target => target.id === event.target && target.drag === true) && inside()
         : !!input && (input.type === 'number' ? typeof event.value === 'number' && event.value >= input.min && event.value <= input.max
-          : input.options.some(option => option.value === event.value));
+          : input.type === 'boolean' ? typeof event.value === 'boolean'
+            : input.type === 'index' ? Number.isInteger(event.value) && event.value >= 0 && event.value < input.items.length
+              : input.options.some(option => option.value === event.value));
   return declared ? parsed : { ok: false, error: new RuntimeError('invalid_program'), issue: `event: this ${event.type} is not declared by the manifest` };
 }
 export function parseReduceRequest(raw, manifest) {
@@ -389,11 +476,18 @@ export function parseReduceRequest(raw, manifest) {
 // Output is measured before it is parsed: the canonical serialized byte length of the WHOLE result (frame, quantities, and for
 // a response its id and metrics) must not exceed CONTRACT_LIMITS.maxOutputBytes, the one authoritative output limit. A result
 // that is over, too deep, or not plain JSON is invalid_output; the issue text states the limit and echoes none of the content.
+// A frame that is wrong in a way the host can put right is put right before the strict check, and each fit is logged as `fitted:<id>` on the result (frame-fit.js): an array inside `objects` (the
+// SDK's figure helpers return arrays: the 2026-11-13 google-low runs, "frame.objects.9: expected object, received array"), a repeated id, an axis outside the frame, an axis `ticks` count, a line series
+// of under two points (a label over a body is fitted by frame-overlap.js fitGuestLabels). Everything else still goes to the strict check and is refused there.
 function parseOutput(schema, raw) {
+  const fitted = [];
+  if (schema === Frame) { const fit = fitFrame(raw); raw = fit.frame; fitted.push(...fit.fitted); }
+  else if (schema === GuestResult && raw?.frame) { const fit = fitFrame(raw.frame); raw = fit.fitted.length ? { ...raw, frame: fit.frame } : raw; fitted.push(...fit.fitted); }
   try { canonicalBytes(raw, CONTRACT_LIMITS.maxOutputBytes); } catch {
     return { ok: false, error: new RuntimeError('invalid_output'), issue: `the result is over ${CONTRACT_LIMITS.maxOutputBytes} bytes, nested too deeply, or not plain JSON` };
   }
-  return parseWith(schema, raw, 'invalid_output');
+  const parsed = parseWith(schema, raw, 'invalid_output');
+  return parsed.ok && fitted.length ? { ...parsed, fitted } : parsed;
 }
 export const parseFrame = raw => parseOutput(Frame, raw);
 // With a schema 2 manifest, every frame must also have exactly the declared viewport and draw every declared target under its own id
@@ -410,6 +504,15 @@ export function parseGuestResult(raw, manifest = null, sdkVersion = null) {
     return invalid('heat_grid requires a declared capability and a heat-grid SDK');
   }
   if (objects.some(object => object.kind === 'raster') && !manifest?.capabilities?.includes(RASTER_CAPABILITY)) return invalid('frame: raster pixels require raster_visuals');
+  if (objects.some(object => FIGURE_KINDS.includes(object.kind)) && (sdkVersion !== FIGURES_SDK_VERSION || !manifest?.capabilities?.includes(FIGURES_CAPABILITY))) {
+    return invalid(`frame: axis, plot and diagram objects require the ${FIGURES_CAPABILITY} capability and ${FIGURES_SDK_VERSION}`);
+  }
+  for (const readout of result.value.frame.readouts) {
+    const definition = manifest?.readouts?.find(item => item.id === readout.id);
+    if (!definition) continue; // an undeclared readout is normalizeFrame's refusal
+    const state = definition.kind === 'state';
+    if (state ? !definition.labels.includes(readout.value) : typeof readout.value !== 'number') return invalid(`readouts: "${readout.id}" ${state ? `reports one of ${definition.labels.join(', ')}` : 'reports a number'}`);
+  }
   const viewport = manifest?.viewport;
   if (!viewport) return result;
   if (width !== viewport.width || height !== viewport.height) return invalid(`frame: ${width} x ${height}, but the manifest viewport is ${viewport.width} x ${viewport.height}`);
@@ -427,6 +530,8 @@ export function resolveInputs(manifest, saved = {}) {
   for (const input of manifest.inputs) {
     const value = saved?.[input.id];
     if (input.type === 'number') out[input.id] = Number.isFinite(value) ? Math.min(input.max, Math.max(input.min, value)) : input.default;
+    else if (input.type === 'boolean') out[input.id] = typeof value === 'boolean' ? value : input.default;
+    else if (input.type === 'index') out[input.id] = Number.isInteger(value) && value >= 0 && value < input.items.length ? value : input.default;
     else out[input.id] = input.options.some(option => option.value === value) ? value : input.default;
   }
   return out;

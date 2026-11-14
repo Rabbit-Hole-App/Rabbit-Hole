@@ -1,0 +1,82 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time, seed, state }) {\n  const launchSpeed = inputs.launchSpeed;\n  const gravity = 9.8;\n  const t = time;\n\n  const height = launchSpeed * t - 0.5 * gravity * t * t;\n  const velocity = launchSpeed - gravity * t;\n\n  // Scene layout (y down)\n  const laneX = 40;\n  const laneY = 50;\n  const laneW = 560;\n  const laneH = 320;\n\n  const axisX = 100;\n  const axisY = 340;\n  const axisLength = 280;\n\n  // Map height to y coordinate (up positive in physics, down positive on screen)\n  // Max height approx for max speed 5 is 5^2 / (2*9.8) = 1.27m. Give room up to 1.5m.\n  const scaleY = 180 / 1.5;\n  const ballScreenY = axisY - height * scaleY;\n  const ballScreenX = axisX + 150;\n\n  const ball = sdk.circle('ball.toss', ballScreenX, ballScreenY, 28, { role: 'output' });\n  const ground = sdk.groundMark('ground', axisX, axisY, 80, 'Launch');\n  const axis = sdk.axis('axis.height', { x: axisX, y: axisY, length: axisLength, orientation: 'y', min: 0, max: 1.5, ticks: [0, 0.5, 1.0, 1.5], label: 'Height', unit: 'm', role: 'neutral' });\n  const panel = sdk.panel({ x: laneX, y: laneY, w: laneW, h: laneH, title: 'Vertical Throw', state: `Time: ${sdk.format(t, 2)} s`, id: 'lane.toss' });\n\n  // Motion arrow (velocity)\n  const vArrows = sdk.vector('vec.v', { x: ballScreenX, y: ballScreenY }, { value: velocity, direction: 'up' }, { scale: 8, minLength: 12, label: 'v', role: 'output' });\n  // Gravity arrow (constant acceleration down)\n  const gArrows = sdk.vector('vec.a', { x: ballScreenX - 30, y: ballScreenY }, { value: gravity, direction: 'down' }, { scale: 8, minLength: 12, label: 'g', role: 'warning' });\n\n  let motionStateText = 'Moving up';\n  if (Math.abs(velocity) < 0.05) {\n    motionStateText = 'Still for an instant';\n  } else if (velocity < 0) {\n    motionStateText = 'Moving down';\n  }\n\n  const callout = sdk.callout(ballScreenX + 40, ballScreenY - 20, [motionStateText, 'Gravity pulls down'], { id: 'callout.toss', role: 'output' });\n\n  const objects = [panel, axis, ground, ball, ...vArrows, ...gArrows, callout];\n\n  return {\n    frame: {\n      width: 640,\n      height: 420,\n      objects,\n      readouts: [\n        { id: 'motionState', value: motionStateText },\n        { id: 'gravityState', value: 'Gravity pulls down' }\n      ]\n    },\n    quantities: {\n      launchSpeed,\n      gravity,\n      velocity,\n      height,\n      apexTime: launchSpeed / gravity,\n      apexHeight: (launchSpeed * launchSpeed) / (2 * gravity)\n    }\n  };\n}",
+    "manifest": {
+     "title": "The ball stops rising. Gravity doesn’t stop.",
+     "summary": "Gravity slows the ball on the way up and speeds it up on the way down. At the top, the ball is still for an instant while gravity still pulls downward.",
+     "description": "A vertical height scale shows a tossed ball rising, pausing briefly at the top, and falling back down. A blue velocity vector shortens and reverses, while a dashed gravity vector remains constant pointing down.",
+     "assumptions": [
+      "Gravity fixed at 9.8 m/s^2",
+      "No air resistance",
+      "Up is positive"
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.0204081632653061,
+     "instructions": "Change launch speed, then press Play. At the top, playback pauses so you can inspect the arrows.",
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "motionState",
+       "label": "Motion State",
+       "kind": "state",
+       "labels": [
+        "Moving up",
+        "Still for an instant",
+        "Moving down"
+       ]
+      },
+      {
+       "id": "gravityState",
+       "label": "Gravity",
+       "kind": "state",
+       "labels": [
+        "Gravity pulls down"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 1505,
+  "prompt_tokens": 8330,
+  "prompt_tokens_details": {
+   "cached_tokens": 5659
+  },
+  "total_tokens": 9835
+ }
+}

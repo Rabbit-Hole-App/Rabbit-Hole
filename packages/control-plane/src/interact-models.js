@@ -8,11 +8,16 @@ import { LEARN_TASKS } from './learn-models.js';
 import { priceUsage, rateOf } from './pricing-registry.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { InteractModelError, canonical, usesOneOf } from './interact-model-adapters.js';
+import { AUTHOR_SEED, AUTHOR_TEMPERATURE, CHAIN_ENDPOINTS, REPAIR_TEMPERATURE, withoutBounds } from './explanation-fast-chain.js';
+import { CHAIN_STEPS } from './explanation-models.js';
+import { CONTRACT_LIMITS } from '../../web/src/explain-program/contract.js';
 
 export { InteractModelError, interactAdapters } from './interact-model-adapters.js';
 
 export const INTERACT_POLICY_VERSION = 1;
 export const INTERACT_PROFILE_SETTING = 'INTERACT_MODEL_PROFILE'; // the server setting; unset or empty means the registry default
+export const INTERACT_BUILD_PROFILE_SETTING = 'INTERACT_BUILD_PROFILE'; // the same choice for the build half (google-low, fireworks-low); INTERACT_MODEL_PROFILE wins when both are set
+export const INTERACT_FALLBACK_SETTING = 'INTERACT_FALLBACK'; // 'off' (benchmarks: a fallback is a failure) runs a role's own provider only, like EXPLANATION_FALLBACK=off
 export const interactFlowEnabled = env => env?.INTERACT_SCENE_PLAN_ENABLED === 'true';
 
 const deepFreeze = v => { if (v && typeof v === 'object' && !Object.isFrozen(v)) { Object.freeze(v); Object.values(v).forEach(deepFreeze); } return v; };
@@ -34,6 +39,9 @@ export const INTERACT_ROLES = deepFreeze({
   build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },
   build_review: { task: 'explain_review', phase: 'generation', kind: 'evaluation', calls: 5, maxInputBytes: 80000, maxImages: 6, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_review },
   build_repair: { task: 'explain_repair', phase: 'generation', kind: 'repair', calls: 4, maxInputBytes: 80000, maxImages: 2, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_repair },
+  // The bench lane's blind judge (interact-bench.js), after a card is delivered with INTERACT_REVIEW=shadow: claude-sonnet-5-5, never Opus; a phase of its own, so it is in neither
+  // reservation (interactReservation) and is paid by the platform (explain-job.js benchTransport), never from the learner's allowance. Text only: maxImages 0.
+  bench_judge: { task: 'interact_bench_judge', phase: 'bench', kind: 'evaluation', calls: 1, maxInputBytes: 80000, maxImages: 0, maxOutputTokens: 4000, model: 'claude-sonnet-5-5' },
 });
 export const INTERACT_ROLE_IDS = Object.freeze(Object.keys(INTERACT_ROLES));
 export const INTERACT_LIMITS = deepFreeze({ calls: Object.fromEntries(INTERACT_ROLE_IDS.map(r => [r, INTERACT_ROLES[r].calls])), refinements: 5, correctionRounds: 3,
@@ -46,14 +54,31 @@ function interactRoleSpec(role) {
   return INTERACT_ROLES[role];
 }
 
+// ---- Fast build profiles (item 4; /explain's fast chain, explanation-fast-chain.js and explanation-models.js CHAIN_STEPS) ----
+// build_author and build_repair on Gemini (google-low) or Fireworks gpt-oss-120b (fireworks-low), each falling back to the other; design and review roles stay on Opus.
+// Provider, model id and credential NAME come from CHAIN_STEPS, endpoint and deadline from CHAIN_ENDPOINTS (google 12 s, fireworks 8 s: per PROVIDER, not per role); none is written here.
+// Sampling as /explain: author temperature 0 + seed 7 on Fireworks only, Gemini gets neither; repair 0.3 on every provider. reasoning_effort low.
+// max_tokens counts reasoning: three programs (main + two supports) at the contract's source + manifest bytes, ~3.4 characters a token (explanation-models.js), plus ~650 reasoning tokens at low.
+const FAST_BUILD_TOKENS = Math.ceil(3 * (CONTRACT_LIMITS.sourceBytes + CONTRACT_LIMITS.manifestBytes) / 3.4) + 650;
+const fastStep = (role, provider, repair, fallbacks) => {
+  const { model, credentialRef } = CHAIN_STEPS[provider], settings = { reasoning_effort: 'low', ...(repair ? { temperature: REPAIR_TEMPERATURE } : provider === 'fireworks' ? { temperature: AUTHOR_TEMPERATURE, seed: AUTHOR_SEED } : {}) };
+  return { role, task: INTERACT_ROLES[role].task, provider, model, adapter: 'openai-compatible', endpoint: CHAIN_ENDPOINTS[provider].url.replace(/\/chat\/completions$/, ''), credentialRef,
+    maxOutputTokens: FAST_BUILD_TOKENS, maxInputBytes: INTERACT_ROLES[role].maxInputBytes, maxImages: 0, timeoutMs: CHAIN_ENDPOINTS[provider].deadlineMs, settings, pricingKey: { provider, model, tier: 'standard' },
+    capabilities: { vision: false, structuredOutput: 'json_schema', oneOf: 'anyOf', settings: Object.keys(settings), stripBounds: provider === 'google', sanitize: true },
+    servedModelAliases: [], servedMatch: 'snapshot', ...(fallbacks ? { fallbacks } : {}) }; // snapshot: the id plus -YYYYMMDD; a differing served id is added to servedModelAliases once seen
+};
+const fastProfile = primary => ({ version: 1, extends: 'opus-baseline', roles: Object.fromEntries(['build_author', 'build_repair'].map(role => [role,
+  fastStep(role, primary, role === 'build_repair', [fastStep(role, primary === 'google' ? 'fireworks' : 'google', role === 'build_repair')])])) });
+
 const ADAPTERS = ['anthropic', 'openai-compatible'];
 // The all-Opus role config: the existing automatic-tool approach (one tool on auto), no thinking, effort or fallback setting of its own.
 const opusRole = role => ({
-  role, task: INTERACT_ROLES[role].task, provider: 'anthropic', model: 'claude-opus-5-5', adapter: 'anthropic', credentialRef: 'ANTHROPIC_API_KEY',
+  role, task: INTERACT_ROLES[role].task, provider: 'anthropic', model: INTERACT_ROLES[role].model ?? 'claude-opus-5-5', adapter: 'anthropic', credentialRef: 'ANTHROPIC_API_KEY',
   maxOutputTokens: INTERACT_ROLES[role].maxOutputTokens, maxInputBytes: INTERACT_ROLES[role].maxInputBytes, maxImages: INTERACT_ROLES[role].maxImages,
-  timeoutMs: 300000, settings: {}, pricingKey: { provider: 'anthropic', model: 'claude-opus-5-5', tier: 'standard' },
+  // The bench judge runs at low effort like /explain's judge (scripts/explain-bench/judge.mjs: output_config effort low); the Anthropic adapter passes settings.effort through. No other role sets it.
+  timeoutMs: 300000, settings: role === 'bench_judge' ? { effort: 'low' } : {}, pricingKey: { provider: 'anthropic', model: INTERACT_ROLES[role].model ?? 'claude-opus-5-5', tier: 'standard' },
   // imageTokens: the per-image reservation of requestSpendBound for Opus (learn-spend.js), so reservation and admission agree.
-  capabilities: { vision: true, structuredOutput: 'tool_call', oneOf: 'native', cache: true, settings: [], imageTokens: 4784 },
+  capabilities: { vision: true, structuredOutput: 'tool_call', oneOf: 'native', cache: true, settings: role === 'bench_judge' ? ['effort'] : [], imageTokens: 4784 },
   // servedMatch 'snapshot': claude-opus-5-5-YYYYMMDD is the same model. servedModelAliases: other approved served ids, exact.
   servedModelAliases: [], servedMatch: 'snapshot',
 });
@@ -63,17 +88,33 @@ const opusRole = role => ({
 // (openai-key-install-effects.test.js)); a role of that provider must use it, and no other provider may borrow it. endpointAllowlist: https origins a
 // candidate adapter may call. A profile is { version, extends?, roles } where roles override single roles of the profile it extends.
 // Candidate profiles (Celeris, Cerebras-served, Gemini Flash) are added here once their adapter, exact model id, access and price are verified:
-// none is guessed. ponytail: no non-Opus profile is registered in I0.
+// none is guessed. The only non-Opus profiles are the fast build profiles above (google-low, fireworks-low).
 export const INTERACT_REGISTRY = deepFreeze({
   defaultProfile: 'opus-baseline',
-  providers: { anthropic: { credentialRef: 'ANTHROPIC_API_KEY' }, celeris: { credentialRef: 'CELERIS_API_KEY' } },
-  endpointAllowlist: ['https://inference.celeris.ai'],
-  profiles: { 'opus-baseline': { version: 1, roles: Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, opusRole(role)])) } },
+  providers: { anthropic: { credentialRef: 'ANTHROPIC_API_KEY' }, celeris: { credentialRef: 'CELERIS_API_KEY' }, google: { credentialRef: CHAIN_STEPS.google.credentialRef }, fireworks: { credentialRef: CHAIN_STEPS.fireworks.credentialRef } },
+  endpointAllowlist: ['https://inference.celeris.ai', ...['google', 'fireworks'].map(p => new URL(CHAIN_ENDPOINTS[p].url).origin)],
+  profiles: { 'opus-baseline': { version: 1, roles: Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, opusRole(role)])) }, 'google-low': fastProfile('google'), 'fireworks-low': fastProfile('fireworks'),
+    // DEV-ONLY: opus-baseline's roles, but the build roles are answered by interact-scripted.js with no model call; refused unless scriptedBuildAllowed(env) (never in production).
+    scripted: { version: 1, extends: 'opus-baseline', roles: {} } },
 });
+
+// BENCH ONLY (owner brief 2026-11-13 14:20, scripts/interact/bench-author.mjs): the build_author role of one candidate model, the fast profile's settings as they are today (reasoning low; Fireworks temperature 0, seed 7;
+// Gemini neither) and Sonnet at effort low with no thinking. It is NOT in INTERACT_REGISTRY.profiles, so no profile id names it and no deploy can select it (deploy-clone.mjs refuses any profile the registry does not list).
+export const BENCH_TIMEOUT_MS = 120000;
+export const BENCH_MODELS = Object.freeze(['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'accounts/fireworks/models/gpt-oss-120b', 'claude-sonnet-5-5']);
+export function benchRole(model) {
+  if (!BENCH_MODELS.includes(model)) throw refuse('unknown_bench_model', `No bench model ${String(model).slice(0, 80)}; the bench runs ${BENCH_MODELS.join(', ')}.`);
+  if (model === 'claude-sonnet-5-5') {
+    const c = opusRole('build_author');
+    return { ...c, model, timeoutMs: BENCH_TIMEOUT_MS, pricingKey: { ...c.pricingKey, model }, settings: { effort: 'low' }, capabilities: { ...c.capabilities, settings: ['effort'], vision: false }, maxImages: 0 };
+  }
+  const step = fastStep('build_author', model.startsWith('accounts/fireworks/') ? 'fireworks' : 'google', false);
+  return { ...step, model, timeoutMs: BENCH_TIMEOUT_MS, pricingKey: { ...step.pricingKey, model } }; // the profile's own deadline (google 12 s, fireworks 8 s) is recorded per row, not enforced: a timeout says nothing about correctness
+}
 
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const posInt = v => Number.isSafeInteger(v) && v > 0;
-function checkRole(role, c, registry) {
+function checkRole(role, c, registry, nested = false) {
   const spec = INTERACT_ROLES[role], bad = message => refuse('invalid_profile', `Role ${role}: ${message}`);
   if (!c.provider || typeof c.provider !== 'string' || !c.model || typeof c.model !== 'string') throw bad('provider and model are required.');
   if (!ADAPTERS.includes(c.adapter)) throw bad(`adapter must be one of ${ADAPTERS.join(', ')}.`);
@@ -97,6 +138,10 @@ function checkRole(role, c, registry) {
     let origin = null; try { const url = new URL(c.endpoint); origin = url.protocol === 'https:' && !url.username && !url.password ? url.origin : null; } catch { /* not a URL */ }
     if (!origin || !(registry.endpointAllowlist || []).includes(origin)) throw refuse('endpoint_not_allowed', `Role ${role}: the endpoint is not an allowlisted https origin.`);
   } else if (c.endpoint !== undefined) throw bad('only the openai-compatible adapter has an endpoint.');
+  if (c.fallbacks !== undefined) { // later steps of the same role, tried in order (callInteractRole); each is a full role config, none has fallbacks of its own
+    if (nested || !Array.isArray(c.fallbacks)) throw bad('fallbacks is one list of role configs, not nested.');
+    for (const step of c.fallbacks) checkRole(role, { ...step, role }, registry, true);
+  }
 }
 
 // -> a frozen Profile { id, version, roles }. An unknown id is an error, never the default (a misspelled setting must not silently run Opus).
@@ -116,7 +161,7 @@ export function resolveInteractProfile(profileId, registry = INTERACT_REGISTRY, 
   return deepFreeze({ id: profileId, version: def.version, roles: structuredClone(roles) });
 }
 // The server setting INTERACT_MODEL_PROFILE, default opus-baseline.
-export const interactProfileFor = (env, registry = INTERACT_REGISTRY) => resolveInteractProfile(env?.[INTERACT_PROFILE_SETTING] || registry.defaultProfile, registry);
+export const interactProfileFor = (env, registry = INTERACT_REGISTRY) => resolveInteractProfile(env?.[INTERACT_PROFILE_SETTING] || env?.[INTERACT_BUILD_PROFILE_SETTING] || registry.defaultProfile, registry);
 // Profile ID, version and hash are stored on each job and cannot change halfway through a run.
 export const interactProfileHash = async profile => (await sha256Hex(canonical({ id: profile.id, version: profile.version, roles: profile.roles }))).slice(0, 16);
 
@@ -133,10 +178,10 @@ export function roleBoundMicros(config) {
 // Preparation (design roles) and generation (build roles) reservations at the profile's call ceilings. A phase with any unpriced role is
 // null and names the roles; it is never a smaller number.
 export function interactReservation(profile) {
-  const perRole = Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, { calls: INTERACT_ROLES[role].calls, boundMicros: roleBoundMicros(profile.roles[role]) }]));
+  const perRole = Object.fromEntries(INTERACT_ROLE_IDS.filter(role => INTERACT_ROLES[role].phase !== 'bench').map(role => [role, { calls: INTERACT_ROLES[role].calls, boundMicros: roleBoundMicros(profile.roles[role]) }]));
   const phase = name => { const roles = INTERACT_ROLE_IDS.filter(r => INTERACT_ROLES[r].phase === name); return roles.some(r => perRole[r].boundMicros == null) ? null : roles.reduce((t, r) => t + perRole[r].calls * perRole[r].boundMicros, 0); };
   return { version: INTERACT_POLICY_VERSION, profile: { id: profile.id, version: profile.version }, preparationMicros: phase('preparation'), generationMicros: phase('generation'),
-    unknownRoles: INTERACT_ROLE_IDS.filter(r => perRole[r].boundMicros == null), perRole };
+    unknownRoles: Object.keys(perRole).filter(r => perRole[r].boundMicros == null), perRole };
 }
 // Actual cost in micro-USD from normalized usage (cache read and write as the adapter supplied them), or null when usage or any rate is unknown.
 export function interactCostMicros(config, usage) {
@@ -175,12 +220,31 @@ const FORBIDDEN_ARGS = ['model', 'provider', 'url', 'endpoint', 'baseUrl', 'cred
 //   settle({ role, status, sent, costMicros, requested, served, usage, stopReason, error, timing }) runs exactly once: status is settled | invalid_output |
 //   failed | refused | unknown. An UNKNOWN outcome (timeout, abort, transport failure after sending) is never resent here and carries costMicros null, not 0.
 // -> { output, requested, served, usage, costMicros, timing, stopReason }.
-export async function callInteractRole(ctx, role, args = {}) {
-  const spec = interactRoleSpec(role), clock = ctx.clock ?? Date.now;
+// Fallback (item 4, as /explain's chain): a role with `fallbacks` runs its own step, and on a provider failure (HTTP 429 or 5xx, provider unavailable, a timeout) the SAME request on the next step.
+// A step whose credential is unset is skipped; no step with a credential is refused before any call. Each step is a whole bounded call (admitted, settled), so a timed-out step keeps its reservation.
+// INTERACT_FALLBACK=off runs the role's own step only and its failure stands (a fallback is a failure in a benchmark). { step } starts at that index (a correction that failed twice moves on).
+// -> the call result plus { step, fallbackFired (the answering step is not the role's first), attempts }; a thrown error carries { step, attempts }.
+const providerFailure = e => e instanceof InteractModelError && ((e.code === 'http_error' && (e.providerStatus === 429 || e.providerStatus >= 500)) || e.code === 'provider_unavailable' || (e.code === 'unknown_outcome' && e.cause === 'timeout'));
+export async function callInteractRole(ctx, role, args = {}, { step: from = 0 } = {}) {
+  interactRoleSpec(role);
   if (!interactFlowEnabled(ctx.env) && !ctx.fixture) throw refuse('flow_disabled', 'The /interact scene-plan flow is off.');
   for (const key of FORBIDDEN_ARGS) if (key in args) throw refuse('request_override', `A call cannot choose its ${key}; the server profile does.`);
-  const config = ctx.profile?.roles?.[role];
-  if (!config) throw refuse('no_profile', 'No resolved /interact profile for this call.');
+  const first = ctx.profile?.roles?.[role];
+  if (!first) throw refuse('no_profile', 'No resolved /interact profile for this call.');
+  const chain = [first, ...(first.fallbacks ?? [])].map((config, index) => ({ config, index })), off = ctx.env?.[INTERACT_FALLBACK_SETTING] === 'off';
+  const wanted = off ? chain.slice(0, 1) : chain.slice(from), usable = ctx.fixture ? wanted : wanted.filter(({ config }) => credentialPresent(ctx, config));
+  const attempts = [];
+  for (const [i, { config, index }] of (usable.length ? usable : wanted.slice(0, 1)).entries()) {
+    try { return { ...await callStep(ctx, role, args, config, index), step: index, fallbackFired: index > 0, attempts: [...attempts, { provider: config.provider, model: config.model, outcome: 'answered' }] }; }
+    catch (error) {
+      attempts.push({ provider: config.provider, model: config.model, outcome: error.code });
+      if (i === usable.length - 1 || !providerFailure(error)) throw Object.assign(error, { step: index, attempts });
+    }
+  }
+}
+// step: the index of this step in the role's chain (0 = the role's own). Each step has its own call ceiling (the job's admit hook counts it per step), so a fallback step is a whole call + correction.
+async function callStep(ctx, role, args, config, step = 0) {
+  const spec = interactRoleSpec(role), clock = ctx.clock ?? Date.now;
   const { system, schema, input, images = [], name, description } = args;
   interactPreflight(config, { images: images.length, schema });
   if (bytes(String(system ?? '')) + bytes(typeof input === 'string' ? input : JSON.stringify(input ?? '')) > config.maxInputBytes) throw refuse('input_too_large', `This ${role} request is larger than its ${config.maxInputBytes}-byte limit.`);
@@ -194,8 +258,8 @@ export async function callInteractRole(ctx, role, args = {}) {
   let settled = false;
   const settle = async fields => { if (settled) return; settled = true; const line = { event: 'interact_model', requested, ...fields, error: fields.error?.code ?? null };
     try { ctx.log?.(line); } catch { /* a log line is never worth a failed call */ }
-    await ctx.settle?.({ role, requested, ...fields }); };
-  try { await ctx.admit?.({ role, config, boundMicros, images: images.length, phase: spec.phase }); }
+    await ctx.settle?.({ role, step, requested, ...fields }); };
+  try { await ctx.admit?.({ role, step, config, boundMicros, images: images.length, phase: spec.phase }); }
   catch (error) { await settle({ status: 'refused', sent: false, costMicros: 0, error }); throw Object.assign(error, { sent: false }); }
 
   const controller = new AbortController(), startedAt = clock();
@@ -205,7 +269,8 @@ export async function callInteractRole(ctx, role, args = {}) {
   const timing = fields => ({ startedAt, endedAt: clock(), ms: clock() - startedAt, ...fields });
   try {
     let result;
-    try { result = await adapter.call({ config, system, schema, input, images, signal: controller.signal, name, description }); }
+    try { result = await adapter.call({ config, system, schema, input, images, signal: controller.signal, name, description,
+      ...(config.capabilities.stripBounds ? { wireSchema: withoutBounds(schema) } : {}), ...(config.capabilities.sanitize && typeof args.sanitize === 'function' ? { sanitize: args.sanitize } : {}) }); }
     catch (error) {
       const known = error instanceof InteractModelError;
       if (known && error.sent === false) { await settle({ status: 'refused', sent: false, costMicros: 0, error, timing: timing() }); throw error; }

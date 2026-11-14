@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { canonicalJson } from './explain-contract.js';
-import { CONTRACT_LIMITS, PROGRAM_KIND, verifyHashes } from './explain-program/contract.js';
+import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, PROGRAM_KIND, verifyHashes } from './explain-program/contract.js';
 import { PLAN_LIMITS, ScalarExprError, contentHash, evalScalar, planHash, scalarExprProblem, scalarInterval } from './interact-plan.js';
 
 // CardComposition v1 (docs/features/interact.md section 5 "Runtime composition envelope", INT-04, INT-06 composition rules): the one
@@ -34,10 +34,14 @@ export function nativeDeclaration(control, renderer) {
   const done = (where, declaration) => ({ ok: true, native: { in: where, declaration } });
   const id = control.binding?.id;
   if (control.type === 'reset') return done('card.reset', null);
+  if (control.type === 'seek') return renderer === 'program' ? done('timeline', { part: 'seek', markerId: id }) : refuse();
   if (TRANSPORT[control.type]) return done('timeline', control.type === 'playback' ? { part: 'playback', labels: control.labels } : { part: 'scrubber', unit: control.unit, step: control.step });
   if (renderer === 'program') {
     if (control.type === 'number') return done('manifest.inputs', { type: 'number', id, label: control.label, ...(control.unit ? { unit: control.unit } : {}), default: control.default, min: control.min, max: control.max, step: control.step });
     if (control.type === 'select') return done('manifest.inputs', { type: 'select', id, label: control.label, default: control.default, options: control.options.map(({ value, label }) => ({ value, label })) });
+    // inputs_v2 (the catalogue offers these only when it is on; validateCompositionBindings requires the capability in the manifest).
+    if (control.type === 'boolean') return done('manifest.inputs', { type: 'boolean', id, label: control.label, default: control.default });
+    if (control.type === 'index') return done('manifest.inputs', { type: 'index', id, label: control.label, default: control.default, presentation: control.presentation, items: control.items.map(({ id: itemId, label }) => ({ id: itemId, label })) });
     if (control.type === 'action') return done('manifest.actions', { id, label: control.label });
     if (control.type === 'target') return done('manifest.targets', { id, label: control.label, ...(control.interaction === 'drag' ? { drag: true } : {}) });
     return refuse();
@@ -101,7 +105,7 @@ export function resolveTimeline(composition, inputs = {}) {
   const { values, domains } = numericState(composition, inputs);
   const at = expr => evalScalar(expr, values, domains);
   const end = at(timeline.end), displayOffset = at(timeline.displayOffset);
-  const markers = timeline.markers.map(m => ({ id: m.id, label: m.label, time: at(m.time) }));
+  const markers = timeline.markers.map(m => ({ id: m.id, label: m.label, time: at(m.time), ...(m.pause ? { pause: true } : {}) }));
   return { start: 0, end, displayOffset, displayStart: displayOffset, displayEnd: end + displayOffset, markers, step: timeline.step, label: timeline.label, playbackRate: timeline.playbackRate, onInputChange: composition.main.onInputChange };
 }
 
@@ -199,7 +203,10 @@ function mainBindingProblems(plan, artifact, bad) {
       }
       for (const got of have) if (!wanted.some(d => d.declaration.id === got.id)) c(got.id, 'control_extra', `the program declares ${noun} "${got.id}", which is not an approved control`);
     };
-    check(wantInputs, m.inputs || [], 'input', ['type', 'label', 'unit', 'default', 'min', 'max', 'step', 'options']);
+    check(wantInputs, m.inputs || [], 'input', ['type', 'label', 'unit', 'default', 'min', 'max', 'step', 'options', 'items', 'presentation']);
+    if (wantInputs.some(d => d.declaration.type === 'boolean' || d.declaration.type === 'index') && !(m.capabilities || []).includes(INPUTS_V2_CAPABILITY)) {
+      bad(['scene', 'runtime'], 'capability_missing', `the plan has a boolean or index control, so the program must list "${INPUTS_V2_CAPABILITY}" in manifest.capabilities`);
+    }
     check(wantActions, m.actions || [], 'action', ['label']);
     check(wantTargets, m.targets || [], 'target', ['label', 'drag']);
     if ((wantActions.length || wantTargets.length) && artifact.program.schemaVersion !== 2) bad(['scene', 'runtime'], 'tuple_mismatch', 'actions and targets need the stateful program (schema 2)');
@@ -229,8 +236,14 @@ function mainBindingProblems(plan, artifact, bad) {
         for (const got of t.markers || []) if (!timeline.markers.some(x => x.id === got.id)) bad(['mode', 'timeline', 'markers', got.id], 'timeline_mismatch', `marker "${got.id}" is not approved`);
       }
     }
-    // Every approved readout is declared; learner-facing numbers are drawn inside the scene, never in a footer.
-    for (const r of plan.scene.readoutIds) if (!(m.readouts || []).some(x => x.id === r)) bad(['scene', 'readoutIds', r], 'readout_missing', `the approved readout "${r}" is not declared`);
+    // Every approved readout is declared in manifest.readouts with a label and a unit ('' for a pure number): the card draws them in its own readouts row (interact-card-layout.js),
+    // so a readout that is only reported, or only drawn as scene text, is a problem the repairer answers. The adjustable inputs are declared the same way.
+    for (const r of plan.scene.readoutIds) {
+      const got = (m.readouts || []).find(x => x.id === r);
+      if (!got) bad(['scene', 'readoutIds', r], 'readout_missing', `the approved readout "${r}" is not declared in manifest.readouts`);
+      else if (!String(got.label ?? '').trim() || (got.unit == null && got.kind !== 'state')) bad(['scene', 'readoutIds', r], 'readout_unlabelled', `the readout "${r}" needs a label and a unit (use '' for a pure number)`);
+    }
+    for (const id of plan.mode.adjustableIds) if (!(m.inputs || []).some(x => x.id === id)) bad(['mode', 'adjustableIds', id], 'input_missing', `the approved adjustable input "${id}" is not declared in manifest.inputs`);
     return;
   }
   // Declarative path.
@@ -283,11 +296,17 @@ function supportProblems(plan, panel, bad) {
       const from = mainControls.get(binding.fromInputId);
       if (!from) continue;
       const ok = from.type === 'number' ? input.type === 'number' && input.min <= from.min + 1e-9 && input.max >= from.max - 1e-9
-        : from.type === 'select' ? input.type === 'select' && from.options.every(o => input.options.some(x => x.value === o.value)) : false;
+        : from.type === 'select' ? input.type === 'select' && from.options.every(o => input.options.some(x => x.value === o.value))
+          : from.type === 'boolean' ? input.type === 'boolean'
+            : from.type === 'index' ? input.type === 'index' && input.items.length >= from.items.length : false;
       if (!ok) bad(at('parameterBindings'), 'binding_incompatible', `main ${from.type} "${from.id}" does not fit support input "${input.id}" (${input.type} ${input.min ?? ''}${input.max !== undefined ? `..${input.max}` : ''})`);
     }
     for (const b of support.parameterBindings) if (!(m.inputs || []).some(i => i.id === b.toInputId)) bad(at('parameterBindings'), 'binding_incompatible', `support panel "${id}" declares no input "${b.toInputId}"`);
-    for (const r of support.readoutIds) if (!(m.readouts || []).some(x => x.id === r)) bad(at('readoutIds'), 'readout_missing', `the approved readout "${r}" of "${id}" is not declared`);
+    for (const r of support.readoutIds) {
+      const got = (m.readouts || []).find(x => x.id === r);
+      if (!got) bad(at('readoutIds'), 'readout_missing', `the approved readout "${r}" of "${id}" is not declared in manifest.readouts`);
+      else if (!String(got.label ?? '').trim() || (got.unit == null && got.kind !== 'state')) bad(at('readoutIds'), 'readout_unlabelled', `the readout "${r}" of "${id}" needs a label and a unit (use '' for a pure number)`);
+    }
   } else {
     const p = artifact.spec.presentation || {};
     if (p.mode === 'time' || p.mode === 'steps' || (p.experiments || []).length) bad(at('controls'), 'support_controls', `support panel "${id}" is timed, stepped or has controls; supporting views are static and read-only`);
@@ -336,21 +355,21 @@ const runtime = z.object({ renderer: z.enum(['spec', 'program']), schemaVersion:
 const artifactRef = z.object({ kind: z.enum(['spec', 'program']), hash: hex }).strict();
 const scalar = z.union([z.number().finite(), z.string().max(1200), z.boolean()]);
 const control = z.object({
-  id: stable, type: z.enum(['playback', 'scrubber', 'number', 'select', 'boolean', 'index', 'multi_select', 'action', 'target', 'reset']), label: planText(60),
-  nativeControlId: z.string().regex(/^[a-z][a-z0-9_.]{0,63}$/), binding: z.object({ kind: z.enum(['input', 'timeline', 'action', 'target', 'reset']), id: stable.optional() }).strict(),
+  id: stable, type: z.enum(['playback', 'scrubber', 'number', 'select', 'boolean', 'index', 'multi_select', 'action', 'target', 'seek', 'reset']), label: planText(60),
+  nativeControlId: z.string().regex(/^[a-z][a-z0-9_.]{0,63}$/), binding: z.object({ kind: z.enum(['input', 'timeline', 'action', 'target', 'marker', 'reset']), id: stable.optional() }).strict(),
   row: z.enum(['transport', 'controls']), native: z.object({ in: z.enum(['manifest.inputs', 'manifest.actions', 'manifest.targets', 'presentation.experiments', 'timeline', 'card.reset']), declaration: z.unknown() }).strict(),
   affects: z.array(z.object({ scope: stable, kind: z.enum(['entity', 'quantity', 'readout']), id: stable }).strict()).max(16),
   unit: z.string().max(16).optional(), default: z.union([scalar, z.array(z.number().int())]).optional(), min: z.number().finite().optional(), max: z.number().finite().optional(), step: z.number().positive().finite().optional(),
   options: z.array(z.object({ value: z.string().max(32), label: planText(60) }).strict()).max(CONTRACT_LIMITS.options).optional(),
   items: z.array(z.object({ id: stable, label: planText(60) }).strict()).max(PLAN_LIMITS.items).optional(), presentation: z.string().max(32).optional(), dataRef: stable.optional(),
-  labels: z.object({ paused: z.string(), playing: z.string(), ended: z.string() }).strict().optional(), interaction: z.enum(['select', 'drag']).optional(),
+  labels: z.object({ paused: z.string(), playing: z.string(), ended: z.string() }).strict().optional(), interaction: z.enum(['select', 'drag']).optional(), onChange: z.enum(['recompute_still', 'reset_pause']).optional(),
 }).strict();
 const timelineRecord = z.object({
-  label: planText(60), unit: z.literal('s'), end: expr, displayOffset: expr, markers: z.array(z.object({ id: stable, label: planText(60), time: expr }).strict()).max(PLAN_LIMITS.markers),
+  label: planText(60), unit: z.literal('s'), end: expr, displayOffset: expr, markers: z.array(z.object({ id: stable, label: planText(60), time: expr, pause: z.boolean().optional() }).strict()).max(PLAN_LIMITS.markers),
   playbackRate: z.number().positive().finite().max(PLAN_LIMITS.playbackRate), initialTime: z.literal(0), initialPlayback: z.literal('paused'), step: z.number().positive().finite(),
 }).strict();
 export const CardCompositionSchema = z.object({
-  version: z.literal(COMPOSITION_VERSION), planHash: hex, depth: z.enum(['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep']), title: planText(PLAN_LIMITS.title), cardDescription: planText(PLAN_LIMITS.cardDescription),
+  version: z.literal(COMPOSITION_VERSION), planHash: hex, depth: z.enum(['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep']), title: planText(PLAN_LIMITS.title), cardDescription: planText(PLAN_LIMITS.cardDescription), instructions: planText(PLAN_LIMITS.instructions).optional(),
   order: z.array(z.enum(CARD_ORDER)).max(CARD_ORDER.length),
   supporting: z.array(z.object({ id: stable, title: planText(PLAN_LIMITS.title), artifact: artifactRef, runtime, readoutIds: z.array(stable).max(16),
     parameterBindings: z.array(z.object({ fromInputId: stable, toInputId: stable }).strict()).max(8), readOnly: z.literal(true), snapshotTime: z.literal(SNAPSHOT_TIME) }).strict()).max(PLAN_LIMITS.supports),
@@ -382,7 +401,7 @@ export async function compileCardComposition(plan, artifacts) {
     return { ...visible, row: c.type === 'playback' || c.type === 'scrubber' ? 'transport' : 'controls', native: { in: d.in, declaration: d.declaration } };
   });
   const body = {
-    version: COMPOSITION_VERSION, planHash: await planHash(plan), depth: plan.depth, title: plan.title, cardDescription: plan.cardDescription,
+    version: COMPOSITION_VERSION, planHash: await planHash(plan), depth: plan.depth, title: plan.title, cardDescription: plan.cardDescription, ...(plan.instructions ? { instructions: plan.instructions } : {}),
     order: CARD_ORDER.filter(row => row === 'title' || row === 'description' || row === 'main' || (row === 'supporting' && plan.supportingVisuals.length) || (row === 'transport' && tl) || (row === 'controls' && controls.some(c => c.row === 'controls'))),
     supporting: plan.supportingVisuals.map(s => ({ id: s.id, title: s.title, artifact: hashes[s.id], runtime: s.runtime, readoutIds: s.readoutIds, parameterBindings: s.parameterBindings, readOnly: true, snapshotTime: SNAPSHOT_TIME })),
     main: { artifact: hashes.main, runtime: plan.scene.runtime, mode: plan.mode.kind, readoutIds: plan.scene.readoutIds,

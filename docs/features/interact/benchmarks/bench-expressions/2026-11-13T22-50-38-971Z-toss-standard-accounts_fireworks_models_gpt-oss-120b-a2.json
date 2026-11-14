@@ -1,0 +1,274 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "op": "input",
+    "id": "launchSpeed"
+   },
+   "gravity": {
+    "op": "input",
+    "id": "gravity"
+   },
+   "apexTime": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "apexHeight": {
+    "op": "divide",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "launchSpeed"
+     }
+    },
+    "right": {
+     "op": "multiply",
+     "left": {
+      "op": "literal",
+      "value": 2
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    }
+   },
+   "tossedVelocity": {
+    "op": "subtract",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "gravity"
+     },
+     "right": {
+      "op": "input",
+      "id": "t"
+     }
+    }
+   },
+   "tossedAcceleration": {
+    "op": "subtract",
+    "left": {
+     "op": "literal",
+     "value": 0
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "tossedHeight": {
+    "op": "subtract",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "t"
+     }
+    },
+    "right": {
+     "op": "divide",
+     "left": {
+      "op": "multiply",
+      "left": {
+       "op": "input",
+       "id": "gravity"
+      },
+      "right": {
+       "op": "multiply",
+       "left": {
+        "op": "input",
+        "id": "t"
+       },
+       "right": {
+        "op": "input",
+        "id": "t"
+       }
+      }
+     },
+     "right": {
+      "op": "literal",
+      "value": 2
+     }
+    }
+   },
+   "dropVelocity": {
+    "op": "multiply",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "literal",
+      "value": -1
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    },
+    "right": {
+     "op": "subtract",
+     "left": {
+      "op": "input",
+      "id": "t"
+     },
+     "right": {
+      "op": "divide",
+      "left": {
+       "op": "input",
+       "id": "launchSpeed"
+      },
+      "right": {
+       "op": "input",
+       "id": "gravity"
+      }
+     }
+    }
+   },
+   "dropAcceleration": {
+    "op": "subtract",
+    "left": {
+     "op": "literal",
+     "value": 0
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "dropHeight": {
+    "op": "subtract",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "t"
+     }
+    },
+    "right": {
+     "op": "divide",
+     "left": {
+      "op": "multiply",
+      "left": {
+       "op": "input",
+       "id": "gravity"
+      },
+      "right": {
+       "op": "multiply",
+       "left": {
+        "op": "input",
+        "id": "t"
+       },
+       "right": {
+        "op": "input",
+        "id": "t"
+       }
+      }
+     },
+     "right": {
+      "op": "literal",
+      "value": 2
+     }
+    }
+   }
+  },
+  "moments": {
+   "before": {
+    "op": "subtract",
+    "left": {
+     "op": "divide",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    },
+    "right": {
+     "op": "literal",
+     "value": 0.1
+    }
+   },
+   "top": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "after": {
+    "op": "add",
+    "left": {
+     "op": "divide",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    },
+    "right": {
+     "op": "literal",
+     "value": 0.1
+    }
+   },
+   "fastTop": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   }
+  }
+ },
+ "usage": {
+  "prompt_tokens": 1926,
+  "total_tokens": 3194,
+  "completion_tokens": 1268,
+  "prompt_tokens_details": {
+   "cached_tokens": 1925
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 478
+  },
+  "output_tokens_details": {
+   "reasoning_tokens": 478
+  }
+ }
+}

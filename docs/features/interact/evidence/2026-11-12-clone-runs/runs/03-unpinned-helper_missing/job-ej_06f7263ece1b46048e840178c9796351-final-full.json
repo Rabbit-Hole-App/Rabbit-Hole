@@ -1,0 +1,1208 @@
+{
+  "job": {
+    "id": "ej_06f7263ece1b46048e840178c9796351",
+    "version": 1,
+    "boardId": "ddaf42a7-34ec-447c-8484-7302e01843bb",
+    "cardId": "828d416a-b9fe-4bdb-a8de-28cb4b04229a",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 3,
+    "stopReason": "rounds",
+    "failure": {
+      "stage": "repairing",
+      "category": "spec",
+      "message": "The explanation did not pass its checks within three corrections. Edit the request and try again.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 236,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 98,
+      "proposalMs": 329179,
+      "generateToResultMs": null,
+      "processingMs": 736966,
+      "approvalWaitMs": 2774,
+      "calls": 11,
+      "repairs": 3,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 76712,
+          "calls": 1,
+          "inputTokens": 6544,
+          "outputTokens": 8543,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "ms": 105318,
+          "calls": 2,
+          "inputTokens": 16888,
+          "outputTokens": 10932,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "ms": 61945,
+          "calls": 1,
+          "inputTokens": 16148,
+          "outputTokens": 8643,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "ms": 21,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "ms": 84921,
+          "calls": 2,
+          "inputTokens": 19553,
+          "outputTokens": 9007,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "ms": 164,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "awaiting_approval",
+          "ms": 2774,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": null
+        },
+        {
+          "stage": "authoring",
+          "ms": 146580,
+          "calls": 1,
+          "inputTokens": 11321,
+          "outputTokens": 14671,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "ms": 22,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "ms": 3872,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "rejected"
+        },
+        {
+          "stage": "repairing",
+          "ms": 56946,
+          "calls": 1,
+          "inputTokens": 15087,
+          "outputTokens": 6949,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "ms": 28,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "ms": 15156,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 5,
+          "outcome": "done"
+        },
+        {
+          "stage": "reviewing",
+          "ms": 43910,
+          "calls": 1,
+          "inputTokens": 15466,
+          "outputTokens": 4369,
+          "images": 5,
+          "captures": 0,
+          "outcome": "rejected"
+        },
+        {
+          "stage": "repairing",
+          "ms": 90520,
+          "calls": 1,
+          "inputTokens": 18332,
+          "outputTokens": 9667,
+          "images": 2,
+          "captures": 0,
+          "outcome": "rejected"
+        },
+        {
+          "stage": "repairing",
+          "ms": 50851,
+          "calls": 1,
+          "inputTokens": 15849,
+          "outputTokens": 5710,
+          "images": 0,
+          "captures": 0,
+          "outcome": "rounds"
+        }
+      ]
+    },
+    "createdAt": 1794539723678,
+    "updatedAt": 1794540463516,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "scenePlan": {
+    "version": 1,
+    "hash": "9934f0266b536292f0fc55037772c9b90a19550498199a777043369816069b36",
+    "revision": 1,
+    "plan": {
+      "schemaVersion": 1,
+      "depth": "balanced",
+      "title": "Is Acceleration Zero at the Top of a Vertical Throw?",
+      "story": "Toss a ball straight up and watch the top of its flight. For a moment it seems to hang in the air, neither rising nor falling. Many people reason like this: the ball is not moving at the top, so nothing is changing, so its acceleration must be zero there. It sounds sensible. Is it right?\n\nTo check, we need to separate two quantities that are easy to mix up. Velocity tells you how fast the ball moves and in which direction. We will call upward positive, so a rising ball has a positive velocity and a falling ball a negative one. Acceleration is something different: it tells you how fast the velocity itself is changing, in metres per second gained or lost every second (m/s per s, written m/s²). A ball can have zero velocity and still have its velocity changing. The question is whether that happens at the top.\n\nLet us work through a concrete throw. Ignore air resistance, so the only force on the ball after it leaves your hand is gravity, its weight. Near Earth's surface that force gives every falling object the same acceleration, about 9.8 m/s² downward. We write g = 9.8 m/s², and with up as positive the acceleration is a = -9.8 m/s². Throw the ball upward at 9.8 m/s.\n\nNow follow the velocity, second by second. Each second gravity takes away 9.8 m/s of upward velocity, and each tenth of a second it takes away 0.98 m/s.\nAt t = 0 s the ball leaves your hand at +9.8 m/s.\nAt t = 0.5 s it is still rising, at +4.9 m/s, and it is 3.675 m above the launch point.\nAt t = 0.9 s the velocity is +0.98 m/s, rising slowly.\nAt t = 1.0 s the velocity is exactly 0 m/s. The ball is at its highest point, 4.9 m up.\nAt t = 1.1 s the velocity is -0.98 m/s. The ball is now falling.\nAt t = 1.5 s it is back at 3.675 m, the same height as at 0.5 s, but moving at -4.9 m/s, downward.\nAt t = 2.0 s it returns to your hand at -9.8 m/s.\n\nLook closely at the tenth of a second on either side of the top. Between t = 0.9 s and t = 1.1 s the velocity goes from +0.98 m/s to -0.98 m/s. That is a change of -1.96 m/s in 0.2 s, which is -9.8 m/s per second. The velocity passes through zero, but it does not stop changing as it does so. It changes at exactly the same rate at the top as everywhere else on the trip.\n\nA thought experiment shows why it must be so. Suppose acceleration really were zero at the top. Zero acceleration means the velocity stays whatever it is. The velocity at the top is zero, so it would stay zero, and the ball would hover in the air forever. Balls do not hover; they fall back. So something must keep changing the velocity at the top, and that something is gravity, which does not switch off because the ball happens to be momentarily at rest. The weight of the ball is the same at the top as at the bottom, so by Newton's second law its acceleration is the same too.\n\nCompare the moments at 0.5 s and 1.5 s. The ball is at the same height, 3.675 m, yet its velocity has the same size and opposite direction: +4.9 m/s going up, -4.9 m/s coming down. Its acceleration is identical at both moments, -9.8 m/s². Position and velocity describe where the ball is and how it moves; acceleration describes how the motion is being changed, and in free fall that never varies.\n\nThis idea has a long history. Before Galileo, many scholars, from late antiquity through the Middle Ages, described a thrown object as carrying an upward impetus that wore out before natural falling took over, as if the motion had separate phases with a pause between them. Galileo, studying balls rolling down ramps in the early 1600s, found instead that falling motion gains speed steadily, in equal amounts in equal times. A vertical throw is one smooth motion with one constant acceleration: the same steady change turns rising into falling without any pause in the change itself.\n\nIn the scene you can see this directly. The ball climbs a height scale while a blue arrow shows its velocity, shrinking on the way up, vanishing at the top and growing downward on the way back. A red arrow shows its acceleration, and it never changes length or direction. Beside the ball, a velocity-time graph is a single straight line sloping down through zero at t = 1.0 s, and the acceleration-time graph is a flat line at -9.8 m/s². A small slope triangle on the velocity graph measures the change in velocity across 0.2 s around the current moment, and it reads the same everywhere, including at the top.\n\nSo, back to the question: at the highest point of a vertical throw, is acceleration zero because velocity is zero? No. Velocity is zero at the top for an instant, but acceleration is about how velocity is changing, not what it is. At the top the velocity is changing from upward to downward at 9.8 m/s every second, the same rate as on the rest of the flight. Zero velocity is a crossing point, not a resting state.",
+      "cardDescription": "Follow a ball thrown straight up: velocity shrinks to zero at the top, yet acceleration stays 9.8 m/s² downward. No air resistance.",
+      "learningGoal": "Explain, using the change in velocity just before and after the top, why the ball's acceleration at the highest point is still 9.8 m/s² downward even though its velocity there is zero.",
+      "supportingVisuals": [],
+      "scene": {
+        "description": "Left: a vertical height scale 0 to 5 m, about 300 px tall, origin at the launch point (hand mark), ticks every 1 m with labels on its left, a dashed peak guide at 4.9 m. A ball moves just right of the scale. Two arrows start at the ball, offset sideways so they never overlap each other or the tick labels: blue velocity arrow on the right, 12 px per m/s, up for positive v, absent at v = 0; red acceleration arrow on the left, fixed 60 px pointing down, labelled a = -9.8 m/s². Right: two stacked plots sharing a time axis 0 to 2.0 s (origin at release). Top: velocity v (m/s), -10 to +10, a straight blue line from +9.8 to -9.8 crossing zero at 1.0 s, with a slope triangle spanning 0.2 s centred on the cursor (shifted inward near 0 and 2 s) labelled with its rise and run. Bottom: acceleration a (m/s²), -12 to +2, flat red line at -9.8. One vertical time cursor crosses both plots and moves with the ball. Readouts: t, y, v, a, triangle change in v and its slope. Up is positive throughout.",
+        "runtime": {
+          "renderer": "program",
+          "schemaVersion": 1,
+          "sdkVersion": "sdk-2",
+          "programTuple": {
+            "schemaVersion": 1,
+            "sdkVersion": "sdk-2",
+            "rendererVersion": "renderer-1",
+            "runtimeVersion": "quickjs-release-sync@0.32.0",
+            "runtimePolicyVersion": "policy-1",
+            "permissionProfileVersion": "perm-1",
+            "fingerprints": {
+              "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+              "sdk": "a57c6921127c9ef2f7793d8b37641e8673ba0a99325b49e3e21cadef794958d1",
+              "renderer": "renderer-1"
+            }
+          },
+          "requiredHelpers": [
+            "plot",
+            "readout",
+            "timeline",
+            "geometry"
+          ],
+          "requiredCapabilities": [
+            "time_playback"
+          ],
+          "catalogueHash": "ef8353b4de6669c367490ba4d80f549036930884ffea081624247d51e0bdc3cb"
+        },
+        "entities": [
+          {
+            "id": "ball",
+            "label": "Ball",
+            "purpose": "The thrown object; its vertical position on the height scale is y(t)."
+          },
+          {
+            "id": "heightScale",
+            "label": "Height scale",
+            "purpose": "Vertical axis 0 to 5 m with origin at the launch mark and a dashed guide at the 4.9 m peak."
+          },
+          {
+            "id": "velocityArrow",
+            "label": "Velocity arrow",
+            "purpose": "Blue arrow on the ball, 12 px per m/s, showing size and direction of v; it disappears at the top."
+          },
+          {
+            "id": "accelArrow",
+            "label": "Acceleration arrow",
+            "purpose": "Red arrow on the ball, always 60 px long and pointing down, offset to the left of the blue arrow, showing a = -9.8 m/s² at every instant."
+          },
+          {
+            "id": "velocityPlot",
+            "label": "Velocity-time graph",
+            "purpose": "Straight line of v against t whose constant slope is the acceleration."
+          },
+          {
+            "id": "slopeTriangle",
+            "label": "Slope triangle",
+            "purpose": "Measures the change in v across 0.2 s around the cursor, showing -1.96 m/s per 0.2 s everywhere including the top."
+          },
+          {
+            "id": "accelPlot",
+            "label": "Acceleration-time graph",
+            "purpose": "Flat line at -9.8 m/s² showing acceleration never reaches zero."
+          },
+          {
+            "id": "timeCursor",
+            "label": "Time cursor",
+            "purpose": "Vertical line linking the current instant across both plots and the ball."
+          }
+        ],
+        "quantities": [
+          {
+            "id": "t",
+            "label": "Time since release",
+            "unit": "s",
+            "meaning": "Elapsed time since the ball leaves the hand.",
+            "reference": "Zero at release; runs 0 to 2.0 s."
+          },
+          {
+            "id": "y",
+            "label": "Height",
+            "unit": "m",
+            "meaning": "Height of the ball above the launch point.",
+            "reference": "Zero at the launch mark, up positive.",
+            "relation": "y equals v0 times t minus one half g t squared."
+          },
+          {
+            "id": "v",
+            "label": "Velocity",
+            "unit": "m/s",
+            "meaning": "Vertical velocity of the ball.",
+            "reference": "Up positive.",
+            "relation": "v equals v0 minus g t."
+          },
+          {
+            "id": "a",
+            "label": "Acceleration",
+            "unit": "m/s²",
+            "meaning": "Rate of change of velocity.",
+            "reference": "Up positive, so downward acceleration is negative.",
+            "relation": "a equals minus g at every instant."
+          },
+          {
+            "id": "v0",
+            "label": "Launch speed",
+            "unit": "m/s",
+            "meaning": "Upward velocity at release, fixed at 9.8 m/s.",
+            "reference": "Up positive."
+          },
+          {
+            "id": "g",
+            "label": "Gravitational acceleration",
+            "unit": "m/s²",
+            "meaning": "Size of free-fall acceleration, fixed at 9.8 m/s².",
+            "reference": "Magnitude, directed downward."
+          },
+          {
+            "id": "dv",
+            "label": "Change in v over 0.2 s",
+            "unit": "m/s",
+            "meaning": "Velocity at the end of the slope-triangle window minus velocity at its start.",
+            "reference": "Window of 0.2 s centred on the cursor, shifted inward near 0 and 2 s.",
+            "relation": "dv equals minus g times 0.2 s, which is -1.96 m/s."
+          },
+          {
+            "id": "slope",
+            "label": "Change in v per change in t",
+            "unit": "m/s²",
+            "meaning": "Slope of the velocity graph measured by the triangle.",
+            "reference": "Same window as dv.",
+            "relation": "slope equals dv divided by 0.2 s, -9.8 m/s²."
+          }
+        ],
+        "observations": [
+          {
+            "id": "obsTop",
+            "text": "At t = 1.0 s the velocity arrow vanishes and v reads 0 m/s, yet the red arrow is unchanged and a reads -9.8 m/s²; the slope triangle reads -1.96 m/s over 0.2 s (from +0.98 to -0.98 m/s).",
+            "quantityIds": [
+              "t",
+              "v",
+              "a",
+              "dv",
+              "slope"
+            ],
+            "readoutIds": [
+              "vReadout",
+              "aReadout",
+              "dvReadout",
+              "slopeReadout"
+            ]
+          },
+          {
+            "id": "obsSameHeight",
+            "text": "At 0.5 s and 1.5 s the ball sits at 3.675 m but the blue arrow points up (+4.9 m/s) then down (-4.9 m/s); the red arrow is identical at both.",
+            "quantityIds": [
+              "y",
+              "v",
+              "a"
+            ],
+            "readoutIds": [
+              "yReadout",
+              "vReadout",
+              "aReadout"
+            ]
+          },
+          {
+            "id": "obsGraphs",
+            "text": "The velocity graph is one straight line crossing zero without bending, and the acceleration graph stays flat at -9.8 m/s² through the top.",
+            "quantityIds": [
+              "v",
+              "a",
+              "slope"
+            ],
+            "readoutIds": [
+              "slopeReadout"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "id": "cpRising",
+            "label": "Rising at 0.5 s",
+            "time": {
+              "op": "literal",
+              "value": 0.5
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "Ball at 3.675 m, blue arrow up at +4.9 m/s, red arrow down, a = -9.8 m/s², slope triangle -1.96 m/s over 0.2 s."
+          },
+          {
+            "id": "cpTop",
+            "label": "Top at 1.0 s",
+            "time": {
+              "op": "literal",
+              "value": 1
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "Ball at 4.9 m on the peak guide, no blue arrow, v = 0 m/s, red arrow unchanged, a = -9.8 m/s², triangle from +0.98 to -0.98 m/s, slope -9.8 m/s²."
+          },
+          {
+            "id": "cpFalling",
+            "label": "Falling at 1.5 s",
+            "time": {
+              "op": "literal",
+              "value": 1.5
+            },
+            "inputOverrides": {},
+            "actions": [],
+            "expected": "Ball at 3.675 m, blue arrow down at -4.9 m/s, red arrow identical to earlier, a = -9.8 m/s²."
+          }
+        ],
+        "readoutIds": [
+          "tReadout",
+          "yReadout",
+          "vReadout",
+          "aReadout",
+          "dvReadout",
+          "slopeReadout"
+        ]
+      },
+      "mode": {
+        "kind": "time",
+        "initialState": "Paused at t = 0 s: the ball is at the launch mark (y = 0 m) with a blue velocity arrow up at +9.8 m/s and the red acceleration arrow down at -9.8 m/s². Both plots show their full lines faintly with the cursor at 0 s; readouts show t = 0 s, y = 0 m, v = +9.8 m/s, a = -9.8 m/s², change in v -1.96 m/s per 0.2 s.",
+        "fixedValues": {
+          "v0": 9.8,
+          "g": 9.8
+        },
+        "adjustableIds": [],
+        "timeline": {
+          "label": "Time since release",
+          "unit": "s",
+          "start": 0,
+          "end": {
+            "op": "literal",
+            "value": 2
+          },
+          "displayOffset": {
+            "op": "literal",
+            "value": 0
+          },
+          "markers": [
+            {
+              "id": "mRelease",
+              "label": "Release",
+              "time": {
+                "op": "literal",
+                "value": 0
+              }
+            },
+            {
+              "id": "mRising",
+              "label": "Rising, 3.675 m",
+              "time": {
+                "op": "literal",
+                "value": 0.5
+              }
+            },
+            {
+              "id": "mTop",
+              "label": "Top, v = 0",
+              "time": {
+                "op": "literal",
+                "value": 1
+              }
+            },
+            {
+              "id": "mFalling",
+              "label": "Falling, 3.675 m",
+              "time": {
+                "op": "literal",
+                "value": 1.5
+              }
+            },
+            {
+              "id": "mCatch",
+              "label": "Back to hand",
+              "time": {
+                "op": "literal",
+                "value": 2
+              }
+            }
+          ],
+          "initialTime": 0,
+          "initialPlayback": "paused",
+          "playbackRate": 0.5
+        },
+        "onInputChange": "reset_pause"
+      },
+      "controls": [
+        {
+          "id": "playback",
+          "label": "Play",
+          "purpose": "Run the 2.0 s flight at half speed so the learner sees the velocity arrow shrink, vanish and reverse while the acceleration arrow stays fixed. Play starts or resumes, Pause freezes all views, Replay restarts from 0 s.",
+          "selectionReason": "The answer depends on watching the motion continue through the top; a still image cannot show velocity changing through zero.",
+          "nativeControlId": "program.playback",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "ball"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "velocityArrow"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "slopeTriangle"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "timeCursor"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "t"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "y"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "v"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "tReadout"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "yReadout"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "vReadout"
+            }
+          ],
+          "type": "playback",
+          "binding": {
+            "kind": "timeline"
+          },
+          "labels": {
+            "paused": "Play",
+            "playing": "Pause",
+            "ended": "Replay"
+          }
+        },
+        {
+          "id": "scrubber",
+          "label": "Time since release",
+          "purpose": "Seek any instant from 0 to 2.0 s (markers: Release, Rising 3.675 m, Top v = 0, Falling 3.675 m, Back to hand) to compare v and a at the top and at matching heights; ball, arrows, cursor, slope triangle and readouts update together.",
+          "selectionReason": "Stopping exactly at 1.0 s, and comparing 0.5 s with 1.5 s, is essential evidence; playback alone passes the top too quickly.",
+          "nativeControlId": "program.scrubber",
+          "affects": [
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "ball"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "velocityArrow"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "slopeTriangle"
+            },
+            {
+              "scope": "main",
+              "kind": "entity",
+              "id": "timeCursor"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "t"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "y"
+            },
+            {
+              "scope": "main",
+              "kind": "quantity",
+              "id": "v"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "tReadout"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "yReadout"
+            },
+            {
+              "scope": "main",
+              "kind": "readout",
+              "id": "vReadout"
+            }
+          ],
+          "type": "scrubber",
+          "binding": {
+            "kind": "timeline"
+          },
+          "unit": "s",
+          "step": 0.05
+        }
+      ],
+      "assumptions": [
+        "No air resistance: gravity is the only force after release.",
+        "Uniform gravitational acceleration g = 9.8 m/s² downward over the 4.9 m height range.",
+        "Up is the positive direction for height, velocity and acceleration.",
+        "Launch speed is fixed at 9.8 m/s upward from height 0 m, giving a 1.0 s rise and a 2.0 s flight."
+      ],
+      "limitations": [
+        "The launch speed is fixed; the learner cannot vary it, though the conclusion holds for any launch speed.",
+        "The throwing and catching hand forces are not modelled; the scene covers only free flight from 0 to 2.0 s.",
+        "Real balls experience air drag, which would make the acceleration slightly different from 9.8 m/s² while moving; at the top, where velocity is zero, drag vanishes and acceleration is exactly g."
+      ],
+      "claims": [
+        {
+          "id": "cPeakTime",
+          "text": "With v0 = 9.8 m/s and g = 9.8 m/s², the ball reaches the top at t = 1.0 s at a height of 4.9 m and returns at 2.0 s.",
+          "evidenceIds": [],
+          "check": "v = 9.8 - 9.8t = 0 gives t = 1.0 s; y(1) = 9.8(1) - 4.9(1)² = 4.9 m; y(2) = 19.6 - 19.6 = 0 m."
+        },
+        {
+          "id": "cSameHeight",
+          "text": "At 0.5 s and 1.5 s the ball is at 3.675 m with velocities +4.9 m/s and -4.9 m/s.",
+          "evidenceIds": [],
+          "check": "y(0.5) = 4.9 - 1.225 = 3.675 m; y(1.5) = 14.7 - 11.025 = 3.675 m; v(0.5) = 4.9 m/s; v(1.5) = -4.9 m/s."
+        },
+        {
+          "id": "cTopChange",
+          "text": "Between 0.9 s and 1.1 s the velocity changes from +0.98 m/s to -0.98 m/s, a rate of -9.8 m/s².",
+          "evidenceIds": [],
+          "check": "v(0.9) = 9.8 - 8.82 = 0.98; v(1.1) = 9.8 - 10.78 = -0.98; (-0.98 - 0.98)/0.2 = -9.8 m/s²."
+        },
+        {
+          "id": "cConstantA",
+          "text": "In free fall without air resistance the acceleration is -g at every instant, including the top, because the weight is unchanged.",
+          "evidenceIds": [],
+          "check": "Newton's second law with only weight mg acting: a = -mg/m = -g, independent of velocity; the velocity-time line has constant slope -9.8 m/s²."
+        }
+      ]
+    },
+    "open": [],
+    "carried": [
+      "At 1.0 s, check that the slope triangle (rise 1.96 m/s on a -10 to +10 axis, run 0.2 s on a 0 to 2 s axis) and its rise and run labels can be read.",
+      "At 0 s and 1.0 s, check that the 117.6 px blue arrow, the 60 px red arrow, the a label and the tick labels do not overlap within the 300 px scale."
+    ],
+    "fit": {
+      "styleVersion": "card-description-v1:estimate"
+    },
+    "review": {
+      "verdict": "pass",
+      "scores": [
+        4,
+        5
+      ],
+      "reviews": 2,
+      "revisions": 1
+    }
+  },
+  "diagnostics": {
+    "spec": null,
+    "findings": [
+      {
+        "round": 0,
+        "stage": "rendering",
+        "problems": [
+          "the program failed while rendering: frame.objects: Too big: expected array to have <=60 items"
+        ]
+      },
+      {
+        "round": 1,
+        "stage": "reviewing",
+        "accepted": false,
+        "findings": [
+          {
+            "category": "spec",
+            "severity": "major",
+            "target": {
+              "capture": "start",
+              "object": "velocityPlot / accelPlot"
+            },
+            "message": "The two plots don't share a time axis. The v-plot runs from about x=480 to x=858, but the fallback a-plot frame runs from about x=446 to x=868. Their t=0 and t=2 s points don't line up, so the 'one vertical time cursor' becomes two cursors that don't line up. The a-plot also has no time tick labels "
+          },
+          {
+            "category": "spec",
+            "severity": "major",
+            "target": {
+              "capture": "start",
+              "object": "slopeTriangle label"
+            },
+            "message": "The blue velocity line runs through the label 'rise -1.96 m/s, run 0.2 s', crossing the text near '-1.96'. The tiny triangle at t=0 is hidden under the marker and line."
+          },
+          {
+            "category": "spec",
+            "severity": "major",
+            "target": {
+              "capture": "cp-cpRising",
+              "object": "timeCursor"
+            },
+            "message": "The two plots show the time cursor at different x positions: about x=575 on the v-plot and x=551 on the a-plot. It doesn't read as one shared cursor."
+          },
+          {
+            "category": "spec",
+            "severity": "major",
+            "target": {
+              "capture": "cp-cpTop",
+              "object": "velLabel"
+            },
+            "message": "The label 'v = 0 m/s' sits on the peak guide line, which strikes through the text."
+          },
+          {
+            "category": "spec",
+            "severity": "major",
+            "target": {
+              "capture": "cp-cpTop",
+              "object": "slopeTriangle label"
+            },
+            "message": "The velocity line crosses the 'rise -1.96 m/s, run 0.2 s' label, and the label crowds the marker, triangle and cursor at the zero crossing."
+          },
+          {
+            "category": "spec",
+            "severity": "major",
+            "target": {
+              "capture": "cp-cpTop",
+              "object": "timeCursor"
+            },
+            "message": "The two cursors don't line up: about x=669 on the v-plot and x=657 on the a-plot."
+          },
+          {
+            "category": "spec",
+            "severity": "major",
+            "target": {
+              "capture": "cp-cpFalling",
+              "object": "slopeTriangle label"
+            },
+            "message": "The velocity line crosses the triangle label and the vertical cursor passes through 'run 0.2 s', so the text is hard to read."
+          },
+          {
+            "category": "spec",
+            "severity": "major",
+            "target": {
+              "capture": "cp-cpFalling",
+              "object": "timeCursor"
+            },
+            "message": "The two cursors don't line up: about x=764 on the v-plot and x=763 on the a-plot, which only happen to be close here because the axes differ."
+          }
+        ]
+      },
+      {
+        "round": 2,
+        "stage": "repairing",
+        "problems": [
+          "scene.runtime: panel \"main\" was approved with sdk.plot and does not use it",
+          "scene.runtime: panel \"main\" was approved with sdk.timeline and does not use it"
+        ]
+      },
+      {
+        "round": 3,
+        "stage": "repairing",
+        "problems": [
+          "scene.runtime: panel \"main\" was approved with sdk.readout and does not use it"
+        ]
+      }
+    ],
+    "candidates": [
+      {
+        "round": 1,
+        "operation": "artifacts",
+        "progress": true,
+        "specHash": null,
+        "envelope": "0f2a34a8857fbb62eb6270b18f13a28e60eac34640fca3c295ff84eef9311dcc"
+      },
+      {
+        "round": 2,
+        "operation": "artifacts",
+        "progress": true,
+        "specHash": null,
+        "envelope": null
+      },
+      {
+        "round": 3,
+        "operation": "artifacts",
+        "progress": true,
+        "specHash": null,
+        "envelope": null
+      }
+    ],
+    "settings": {
+      "presentation": "time"
+    },
+    "calls": [
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-design_author-1",
+        "role": "design_author",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 635680,
+        "images": 0,
+        "costMicros": 283121,
+        "inputTokens": 6544,
+        "outputTokens": 8543,
+        "startedAt": 1794539724776,
+        "endedAt": 1794539800488,
+        "error": null
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-design_review-2",
+        "role": "design_review",
+        "attempt": 1,
+        "requested": null,
+        "served": "claude-opus-5-5",
+        "status": "failed",
+        "boundMicros": 595680,
+        "images": 0,
+        "costMicros": 187719,
+        "inputTokens": 8371,
+        "outputTokens": 6627,
+        "startedAt": 1794539800508,
+        "endedAt": 1794539863277,
+        "error": "schema_mismatch"
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-design_review-3",
+        "role": "design_review",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 595680,
+        "images": 0,
+        "costMicros": 121036,
+        "inputTokens": 8517,
+        "outputTokens": 4305,
+        "startedAt": 1794539863277,
+        "endedAt": 1794539905806,
+        "error": null
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-design_revise-4",
+        "role": "design_revise",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 675680,
+        "images": 0,
+        "costMicros": 307862,
+        "inputTokens": 16148,
+        "outputTokens": 8643,
+        "startedAt": 1794539905825,
+        "endedAt": 1794539967751,
+        "error": null
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-design_review-5",
+        "role": "design_review",
+        "attempt": 1,
+        "requested": null,
+        "served": "claude-opus-5-5",
+        "status": "failed",
+        "boundMicros": 595680,
+        "images": 0,
+        "costMicros": 144844,
+        "inputTokens": 9704,
+        "outputTokens": 5258,
+        "startedAt": 1794539968772,
+        "endedAt": 1794540017474,
+        "error": "schema_mismatch"
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-design_review-6",
+        "role": "design_review",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 595680,
+        "images": 0,
+        "costMicros": 115244,
+        "inputTokens": 9849,
+        "outputTokens": 3749,
+        "startedAt": 1794540017474,
+        "endedAt": 1794540052693,
+        "error": null
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-build_author-7",
+        "role": "build_author",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 815680,
+        "images": 0,
+        "costMicros": 365089,
+        "inputTokens": 11321,
+        "outputTokens": 14671,
+        "startedAt": 1794540055681,
+        "endedAt": 1794540202211,
+        "error": null
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-build_repair-8",
+        "role": "build_repair",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 767840,
+        "images": 0,
+        "costMicros": 221043,
+        "inputTokens": 15087,
+        "outputTokens": 6949,
+        "startedAt": 1794540207105,
+        "endedAt": 1794540263051,
+        "error": null
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-build_review-9",
+        "role": "build_review",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 743520,
+        "images": 5,
+        "costMicros": 158109,
+        "inputTokens": 15466,
+        "outputTokens": 4369,
+        "startedAt": 1794540280010,
+        "endedAt": 1794540322145,
+        "error": null
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-build_repair-10",
+        "role": "build_repair",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 767840,
+        "images": 2,
+        "costMicros": 267537,
+        "inputTokens": 18332,
+        "outputTokens": 9667,
+        "startedAt": 1794540322546,
+        "endedAt": 1794540412665,
+        "error": null
+      },
+      {
+        "key": "ej_06f7263ece1b46048e840178c9796351-build_repair-11",
+        "role": "build_repair",
+        "attempt": 1,
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "status": "settled",
+        "boundMicros": 767840,
+        "images": 0,
+        "costMicros": 178465,
+        "inputTokens": 15849,
+        "outputTokens": 5710,
+        "startedAt": 1794540412684,
+        "endedAt": 1794540463516,
+        "error": null
+      }
+    ],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794539723678,
+        "firstFeedback": 1794539723776,
+        "proposalReady": 1794540052857,
+        "generate": 1794540055631
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794539723776,
+          "endedAt": 1794539800488,
+          "calls": 1,
+          "inputTokens": 6544,
+          "outputTokens": 8543,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "startedAt": 1794539800488,
+          "endedAt": 1794539905806,
+          "calls": 2,
+          "inputTokens": 16888,
+          "outputTokens": 10932,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_revising",
+          "startedAt": 1794539905806,
+          "endedAt": 1794539967751,
+          "calls": 1,
+          "inputTokens": 16148,
+          "outputTokens": 8643,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "startedAt": 1794539967751,
+          "endedAt": 1794539967772,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_reviewing",
+          "startedAt": 1794539967772,
+          "endedAt": 1794540052693,
+          "calls": 2,
+          "inputTokens": 19553,
+          "outputTokens": 9007,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "design_verifying",
+          "startedAt": 1794540052693,
+          "endedAt": 1794540052857,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "awaiting_approval",
+          "startedAt": 1794540052857,
+          "endedAt": 1794540055631,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": null
+        },
+        {
+          "stage": "authoring",
+          "startedAt": 1794540055631,
+          "endedAt": 1794540202211,
+          "calls": 1,
+          "inputTokens": 11321,
+          "outputTokens": 14671,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "startedAt": 1794540202211,
+          "endedAt": 1794540202233,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "startedAt": 1794540202233,
+          "endedAt": 1794540206105,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "rejected"
+        },
+        {
+          "stage": "repairing",
+          "startedAt": 1794540206105,
+          "endedAt": 1794540263051,
+          "calls": 1,
+          "inputTokens": 15087,
+          "outputTokens": 6949,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "validating",
+          "startedAt": 1794540263051,
+          "endedAt": 1794540263079,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "done"
+        },
+        {
+          "stage": "rendering",
+          "startedAt": 1794540263079,
+          "endedAt": 1794540278235,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 5,
+          "outcome": "done"
+        },
+        {
+          "stage": "reviewing",
+          "startedAt": 1794540278235,
+          "endedAt": 1794540322145,
+          "calls": 1,
+          "inputTokens": 15466,
+          "outputTokens": 4369,
+          "images": 5,
+          "captures": 0,
+          "outcome": "rejected"
+        },
+        {
+          "stage": "repairing",
+          "startedAt": 1794540322145,
+          "endedAt": 1794540412665,
+          "calls": 1,
+          "inputTokens": 18332,
+          "outputTokens": 9667,
+          "images": 2,
+          "captures": 0,
+          "outcome": "rejected"
+        },
+        {
+          "stage": "repairing",
+          "startedAt": 1794540412665,
+          "endedAt": 1794540463516,
+          "calls": 1,
+          "inputTokens": 15849,
+          "outputTokens": 5710,
+          "images": 0,
+          "captures": 0,
+          "outcome": "rounds"
+        }
+      ]
+    }
+  }
+}

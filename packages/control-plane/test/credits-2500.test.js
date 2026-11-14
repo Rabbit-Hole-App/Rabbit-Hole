@@ -114,7 +114,7 @@ test('Sonnet 5.5 cached input is $0.10 per million and Sonnet 5 keeps its own ro
   assert.equal(rateOf('openai', 'gpt-4.1-mini', 'cache_read').status, 'verified');
   assert.equal(rateOf('exa', 'search', 'request').usd, 7);
   // What is left is named, not hidden: an estimate with its basis, and Bedrock rows no official table could confirm.
-  assert.deepEqual([...new Set(unverifiedRows().map(r => `${r.provider}:${r.status}`))].sort(), ['bedrock:unverified', 'openai:estimate']);
+  assert.deepEqual([...new Set(unverifiedRows().map(r => `${r.provider}:${r.status}`))].sort(), ['bedrock:unverified', 'google:estimate', 'openai:estimate']); // google:estimate is the bench-only gemini-3.5-flash row (2026-11-13: the price page no longer lists the model; basis in the row)
   assert.equal(rateOf('openai', 'gpt-image-1', 'output_image'), null, 'no official rate: no row, so no guess');
   assert.equal(imageEstimate('a cat'), null);
   // Cached tokens are counted once: input_tokens excludes them, a TTL split prices writes by TTL.

@@ -1,0 +1,88 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "manifest": {
+     "title": "The ball stops rising. Gravity doesn’t stop.",
+     "summary": "A ball is tossed straight up on a fixed height scale. A motion arrow shrinks, vanishes at the top and flips down, while the gravity arrow never changes.",
+     "assumptions": [
+      "Gravity fixed at 9.8 m/s^2, no air resistance, up is positive."
+     ],
+     "description": "One ball rises and falls beside a fixed height scale with a launch guide. The blue motion arrow shortens going up, disappears at the top and points down on the way back. The dashed gravity arrow always points down with the same length.",
+     "instructions": "Change launch speed, then press Play. Playback pauses at the top; press Play again to continue.",
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      }
+     ],
+     "readouts": [
+      {
+       "id": "motionState",
+       "label": "Motion",
+       "kind": "state",
+       "labels": [
+        "Moving up",
+        "Still for an instant",
+        "Moving down"
+       ]
+      },
+      {
+       "id": "gravityState",
+       "label": "Gravity",
+       "kind": "state",
+       "labels": [
+        "Gravity pulls down"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ],
+     "duration": 1.0204081632653061,
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       }
+      ]
+     }
+    },
+    "source": "export function evaluate({ inputs, time }) {\n const g = 9.8, u = inputs.launchSpeed;\n const T = 2 * u / g, ta = u / g;\n const t = Math.max(0, Math.min(T, time));\n const h = u * t - g * t * t / 2;\n const v = u - g * t;\n const apexH = u * u / (2 * g);\n const eps = 0.005;\n const top = Math.abs(t - ta) < eps;\n const state = top ? 'Still for an instant' : (t < ta ? 'Moving up' : 'Moving down');\n const base = 380, scale = 300 / 1.3;\n const by = base - h * scale;\n const bx = 260;\n const objs = [];\n objs.push(...sdk.panel({ id: 'lane.toss', x: 20, y: 40, w: 600, h: 360, title: 'Tossed ball', state: state }));\n objs.push(sdk.axis('axis.h', { x: 100, y: base, length: 320, orientation: 'y', min: 0, max: 1.3, ticks: [0, 0.5, 1], label: 'Height', unit: 'm' }));\n objs.push(sdk.line('guide.launch', 110, base, 420, base, { role: 'neutral' }));\n objs.push(sdk.circle('ball.toss', bx, by - 14, 28, { role: 'output' }));\n objs.push(...sdk.vector('vec.v', { x: bx + 40, y: by - 14 }, { value: Math.abs(v) < 0.05 ? 0 : v, direction: 'up' }, { scale: 14, minLength: 12, label: 'v', role: 'input' }));\n objs.push(...sdk.vector('vec.a', { x: bx - 40, y: by - 14 }, { value: -g, direction: 'up' }, { scale: 6, label: 'a', role: 'warning' }));\n objs.push(...sdk.callout(bx + 110, 120, [state, 'Gravity pulls down'], { id: 'callout.toss' }));\n return {\n frame: { width: 640, height: 420, objects: objs, readouts: [{ id: 'motionState', value: state }, { id: 'gravityState', value: 'Gravity pulls down' }] },\n quantities: { launchSpeed: u, gravity: g, apexTime: ta, apexHeight: apexH, velocity: v, height: h }\n };\n}"
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "input_tokens": 9469,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 6867,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 1434,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ }
+}
