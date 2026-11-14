@@ -1,0 +1,39 @@
+    '        const added = { ...card, dx: 0, dy: 0, ...(box && line != null ? { parentCard: { id: source.id, dy: Math.round(line - box.y) } } : {}) };\r\n' +
+    '        if (box) {\r\n' +
+    '          const slot = { w: EXPLAIN_PENDING_SIZE.width, h: 360 };\r\n' +
+    '          const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === source.id && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));\r\n' +
+    '          // CK-5: the ONE placement call of the card a Ctrl+K Explain selection makes (the v2 job path); reserve() has the other (a card from a card through a skeleton).\r\n' +
+    '          const placed = placeSourced({ source: box, anchorY: line, size: slot, boxes: [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current)], siblings, id: card.id, sourceId: source.id, area: null });\r\n' +
+    "          perfMark(added.id, 'insert');\r\n" +
+    '          pendingAt.current.set(added.id, { x: placed.x, y: placed.y });\r\n' +
+    '          blocksRef.current = [...blocksRef.current, added];\r\n' +
+    '          setBlocks(previous => [...previous, added]);\r\n' +
+    '          revealAfter(added.id); // CK-4: once measured and placed, the camera centres on the new card (never over a camera the learner moved since)\r\n' +
+    '          return added.id;\r\n' +
+    '        }\r\n' +
+    '        blocksRef.current = [...blocksRef.current, added];\r\n' +
+    '        revealing.current.add(card.id);\r\n' +
+    '        return insertAtView(added, into);\r\n' +
+    '      },\r\n' +
+    '      '
+  
+      at TestContext.<anonymous> (file:///C:/s/explain-ctrlk-144/packages/web/src/place-explain-near.test.mjs:46:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "placeExplain: (card, { into = null, near = null } = {}) => {\r\n        if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation') return null;\r\n        if (blocksRef.current.some(block => block.id === card.id)) return card.id;\r\n        snapshot();\r\n        const source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];\r\n        // AR-C1: the card names its source card and the passage line (the connector's tail), so the arrow survives a reload without measuring the passage again.\r\n        const line = box ? (near.world ? near.world.y + near.world.h / 2 : Number.isFinite(near.alignY) ? box.y + near.alignY : null) : null;\r\n        const added = { ...card, dx: 0, dy: 0, ...(box && line != null ? { parentCard: { id: source.id, dy: Math.round(line - box.y) } } : {}) };\r\n        if (box) {\r\n          const slot = { w: EXPLAIN_PENDING_SIZE.width, h: 360 };\r\n          const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === source.id && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));\r\n          // CK-5: the ONE placement call of the card a Ctrl+K Explain selection makes (the v2 job path); reserve() has the other (a card from a card through a skeleton).\r\n          const placed = placeSourced({ source: box, anchorY: line, size: slot, boxes: [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current)], siblings, id: card.id, sourceId: source.id, area: null });\r\n          perfMark(added.id, 'insert');\r\n          pendingAt.current.set(added.id, { x: placed.x, y: placed.y });\r\n          blocksRef.current = [...blocksRef.current, added];\r\n          setBlocks(previous => [...previous, added]);\r\n          revealAfter(added.id); // CK-4: once measured and placed, the camera centres on the new card (never over a camera the learner moved since)\r\n          return added.id;\r\n        }\r\n        blocksRef.current = [...blocksRef.current, added];\r\n        revealing.current.add(card.id);\r\n        return insertAtView(added, into);\r\n      },\r\n      ",
+    expected: /deliveredSpot\(\{ w: EXPLAIN_PENDING_SIZE\.width, h: 360 \}, proposalAnchor\(box, near\.world\), \[\.\.\.boardObstacles\(\[source\.id\]\), \.\.\.anchoredBoxes\(slotsRef\.current\), box\]/,
+    operator: 'match',
+    diff: 'simple'
+  }
+npm error Lifecycle script `test:unit` failed with error:
+npm error code 1
+npm error path C:\s\explain-ctrlk-144\packages\web
+npm error location C:\s\explain-ctrlk-144\packages\web
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c node --test "src/**/*.test.mjs"

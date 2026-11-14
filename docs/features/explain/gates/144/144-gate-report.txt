@@ -1,0 +1,20 @@
+GATE: PASS(replay) 5fd37acaa12a23abf19f41f083024066ca7d395c tier=suites+replay (web-only candidate, a fast-forward of main 8d507158554dd93d9190ff1d21f442aa85fbca19: planner-kind replay moves 0 of 474 card rows, no snapshot, illustration or reference file in the diff, so no smoke). Steps are listed in 144-suites-report.txt: ci, scripts, control-plane (skipped: no server file in the diff), tutor-diagrams, figure-briefs, web unit, build, property count, replay, snapshot-diff. FIRST RUN (on 58ea57327): every step rc=0 except WEB UNIT rc=1 (1 failing test, place-explain-near.test.mjs:43, a source pin broken by the intended placeSourced swap); fixed by the test-only commit 5fd37acaa; RERUN on 5fd37acaa of the two steps a test-only commit can change: ci rc=0 99s and web unit rc=0 (7016 tests, 6988 pass, 0 fail, 27 skipped) 184s.
+
+SHA 5fd37acaa12a23abf19f41f083024066ca7d395c base-tree 8d507158554dd93d9190ff1d21f442aa85fbca19
+RUN 1 (58ea57327, files 144a-*):
+STEP ci rc=0 145s
+STEP scripts rc=0 32s
+STEP tutor rc=0 75s
+STEP figbriefs rc=0 2s
+STEP webunit rc=1 160s (6987 pass, 1 fail, 27 skipped)
+STEP build rc=0 14s
+STEP props rc=0 12s
+STEP replay rc=0 19s
+SNAPSHOT-DIFF files: 0
+RUN 2 (5fd37acaa, files 144b-*):
+STEP ci rc=0 99s
+STEP webunit rc=0 184s
+
+card rows 474 moved counts {"first":0,"steer":0,"kind":0,"refs":0}
+GATE PASS: 0 first picks moved
+GATE PASS: max 347 <= 362 and max 358 <= 362

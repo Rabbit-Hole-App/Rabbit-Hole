@@ -1,0 +1,25 @@
+✔ the rule-direction transformation gains a parameter-learning formula (0.3682ms)
+✔ taxonomy counts, leaves and depth are recomputed from the hierarchy (0.5936ms)
+✔ hidden groups use inputs alone and recompute every position, radius and count (0.8914ms)
+✔ output comparison recomputes category geometry and regression arithmetic (0.6528ms)
+✔ batch questions, learner keywords and lesson origin remain attached to their own references (0.4939ms)
+✔ workflow preserves every stage and draws labelled feedback to consistent earlier-stage nodes; split arithmetic is recomputed (1.7929ms)
+✔ fit curves and subset errors are independently reconstructed and observations render last (3.2994ms)
+✔ bias, variance, noise, totals, axes and minimum are recomputed from toy geometry (0.8814ms)
+✔ each displayed number belongs to shared or batch derived results; every visual is illustrative (1.3598ms)
+✔ final topic references retain their own prompts, learner keywords and lesson origins (0.344ms)
+✔ centres, radii, boundary and prediction are independently recomputed from the toy rows (1.2227ms)
+✔ accuracy bars and every shown numerical value have recomputed data provenance (2.1453ms)
+✔ suitability flows have valid labeled gates and detailed arithmetic is additional (1.6034ms)
+✔ review repairs keep distance paths straight, scatter markers foremost and captions renderable (1.1777ms)
+✔ each figure reference parses, lints, and reaches the author at every depth (981.6736ms)
+✔ batched attention, positions, residual and vocabulary use the existing walkthrough values (0.4933ms)
+✔ walkthrough values agree from token positions through the vocabulary distribution (1.8205ms)
+ℹ tests 1266
+ℹ suites 0
+ℹ pass 1266
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 74056.9427
