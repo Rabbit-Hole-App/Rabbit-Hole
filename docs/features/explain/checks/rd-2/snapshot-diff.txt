@@ -1,0 +1,17 @@
+RD-2 svg snapshot changes (heights before -> after), explain/rd-2, built on main 65164f686
+
+Literal-spec tip c59e7e3b6 vs base: 2 entries changed, 0 added, 0 removed
+  ml-logistic-regression-model-pipeline          720: 516 -> 464
+  ml-what-is-machine-learning-model-choice       720: 644 -> 592
+
+RD-2b tip b10cbef77 (and the snapshot commit 8ae24df93) vs base: 8 entries changed, 0 added, 0 removed
+  ml-batch-score-fallback                        320: 597 -> 545   408: 571 -> 519
+  ml-logistic-regression-model-pipeline          320: 555 -> 503   408: 533 -> 481   720: 516 -> 464
+  ml-what-is-machine-learning-model-choice       320: 753 -> 701   408: 644 -> 592   720: 644 -> 592
+
+Entries that differ between the two tips (the ones RD-2b alone moves): 6
+  ml-batch-score-fallback                        320: 597 -> 545   408: 571 -> 519
+  ml-logistic-regression-model-pipeline          320: 555 -> 503   408: 533 -> 481
+  ml-what-is-machine-learning-model-choice       320: 753 -> 701   408: 644 -> 592
+
+Only three flow references have a decision the rule applies to (two branches into the next rank, one target each side, a lone arrival that lands on the target). The 283 px natural width of the swallow card is byte-identical at both tips.
