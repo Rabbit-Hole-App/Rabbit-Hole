@@ -933,7 +933,7 @@ export class ExplainJobs {
     job.build.ms = { ...job.build.ms, compose: round1(clockMs() - acceptAt) }; // the ledger's msCompose adds this to the authoring stage's own seal and compose time
     endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
     Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
-    if (reviewMode(this.env) === 'shadow') job.bench = { pending: true }; // durable: the alarm picks a ready job with bench pending up (benchStep), also after a restart
+    if (reviewMode(this.env) === 'shadow' && this.env.INTERACT_JUDGE !== 'off') job.bench = { pending: true }; // INTERACT_JUDGE=off: no shadow judge call (it is an Anthropic call; owner, brief 25); durable: the alarm picks a ready job with bench pending up (benchStep), also after a restart
     await this.save(job); await this.finishUsage(job, 'completed');
   }
 

@@ -725,6 +725,15 @@ const shadowStack = async (t, answer) => {
   return { s, id, proposal, requests: judgeProvider(t, answer) };
 };
 
+test('INTERACT_JUDGE=off: a shadow build is delivered the same, and no judge (Anthropic) call is ever made: bench stays unset and the alarm sends nothing', async t => {
+  const { s, id, requests } = await shadowStack(t, judgeReply);
+  s.env.INTERACT_JUDGE = 'off';
+  const { job } = await s.generate(id);
+  assert.deepEqual([job.stage, job.stopReason, job.bench ?? null, requests.length], ['ready', 'accepted', null, 0]);
+  await s.actor.alarm();
+  assert.equal(requests.length, 0); assert.equal(s.jobOf(id).bench ?? null, null);
+});
+
 test('INTERACT_REVIEW=shadow: the card is ready after the checks with zero review calls, then ONE alarm-driven step records a Sonnet judge verdict that the ledger row shows', async t => {
   const { s, id, proposal, requests } = await shadowStack(t, judgeReply);
   const { job, seen } = await s.generate(id);

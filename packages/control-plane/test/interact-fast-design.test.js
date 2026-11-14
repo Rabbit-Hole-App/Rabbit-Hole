@@ -306,11 +306,20 @@ test('a template precheck refused twice goes to the Opus brief with the precheck
   assert.match(JSON.parse(forced.opus[0].messages[0].content[0].text).correction.problems[0], /forced fill failure/);
 });
 
-test('INTERACT_FAST_OPUS_BRIEF=off skips the Opus brief: two refused fills end with the plain refusal, no Opus call at all', async t => {
+test('INTERACT_FAST_OPUS_BRIEF=off answers two refused fills like a none pick: the gap sentence, stopReason design_gap, a gap row with the problem lines, no Anthropic call at all', async t => {
   const s = fastStack(t, { answers: [{ nonsense: true }], script: { author: () => clone(PLAN.standard) }, env: { ...SEEK, INTERACT_FAST_OPUS_BRIEF: 'off' }, evidence: [] });
   const { body } = await s.create({ depth: 'balanced' });
+  const { job, seen } = await s.design(body.job.id);
+  assert.deepEqual([job.stage, job.stopReason, s.opus.length, s.model.roles().length], ['failed', 'design_gap', 0, 0]);
+  assert.equal(job.failure.message, "This kind of scene isn't supported yet."); assert.ok(!seen.includes('design_reviewing'));
+  assert.deepEqual([job.design.fast.fallback, job.design.fast.calls, typeof job.design.fast.firstProblem], ['gap', 2, 'string']);
+});
+
+test('INTERACT_FAST_OPUS_BRIEF=off with INTERACT_GAP=opus keeps the plain refusal of before (measurement setting), still no Opus call', async t => {
+  const s = fastStack(t, { answers: [{ nonsense: true }], script: { author: () => clone(PLAN.standard) }, env: { ...SEEK, INTERACT_FAST_OPUS_BRIEF: 'off', INTERACT_GAP: 'opus' }, evidence: [] });
+  const { body } = await s.create({ depth: 'balanced' });
   const { job } = await s.design(body.job.id);
-  assert.deepEqual([job.stage, job.stopReason, s.opus.length, s.model.roles().length], ['failed', 'design_invalid', 0, 0]);
+  assert.deepEqual([job.stage, job.stopReason, s.opus.length], ['failed', 'design_invalid', 0]);
 });
 
 test('a gap plan that names a template without its slots and words loses the template: the plan is valid and the model build runs (guard in the Opus path of a fast job)', async t => {

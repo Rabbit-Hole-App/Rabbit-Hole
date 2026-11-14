@@ -251,6 +251,9 @@ export async function fastDesign(job, ctx) {
       }
     }
   }
+  // INTERACT_FAST_OPUS_BRIEF=off with the gap message (the default): no Anthropic call at all (owner, brief 25, the Anthropic usage limit): a picked family whose fill and correction both failed ends the job exactly like a `none` pick, with the plain sentence
+  // and a gap row; the problem lines stay in the ledger (firstProblem, lastProblem).
+  if (ctx.env.INTERACT_FAST_OPUS_BRIEF === 'off' && ctx.gap !== 'opus') return { stop: { reason: 'design_gap', category: 'capability', message: GAP_MESSAGE }, fast: { ...fast, fallback: 'gap' } };
   // Never the full Opus design from here (owner, brief 19): a picked family whose fill and Opus brief both failed ends the job with the plain refusal; the problem line is in the ledger (firstProblem, lastProblem).
   return { ...stop('design_invalid', 'spec', `The scene design could not be completed: ${fast.lastProblem ?? fast.firstProblem ?? 'the plan could not be built'}. Try again or edit the request.`), fast: { ...fast, kind: 'opus', fallback: 'after_correction' } };
 }

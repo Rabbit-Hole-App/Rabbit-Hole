@@ -191,7 +191,9 @@
     "INTERACT_BUILD_KIND": "template",
     "INTERACT_RUN": "headless",
     "INTERACT_REVIEW": "shadow",
-    "INTERACT_FAST_OPUS_BRIEF": "on",
+    // No Anthropic call on the fast path (owner 2026-11-14, the Anthropic usage limit is reached until 2026-12-01): a fill or precheck failure ends with the gap sentence like a `none` pick (no Opus brief), and the shadow judge (Sonnet) is off. "on" and removing INTERACT_JUDGE restore both.
+    "INTERACT_FAST_OPUS_BRIEF": "off",
+    "INTERACT_JUDGE": "off",
     // A prompt no family fits (a `none` pick) ends with the plain sentence "This kind of scene isn't supported yet." and no Opus spend; "opus" runs the full Opus design instead (measurement only). Owner 2026-11-14.
     "INTERACT_GAP": "message",
     // Stage chaining (owner 2026-11-14 11:55): the design and build stages of an interact job run back to back inside one alarm; the recovery alarm is 5 s for the quiet stages and 30 s while a model call runs (INTERACT_CHAIN_RECOVERY_MS). 12 tailed runs, no recovery alarm fired.
