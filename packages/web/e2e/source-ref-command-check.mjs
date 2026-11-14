@@ -96,14 +96,14 @@ const select = page => page.evaluate(sentence => {
 try {
   const { context, page } = await open();
   const toolbar = () => page.locator('[data-block-id="repeat.md"] [data-file-doc-selection-toolbar]');
-  await step('selecting a sentence offers Highlight and Explain', async () => {
+  await step('selecting a sentence offers the Ctrl+K quick-ask and Highlight', async () => {
     assert.equal(await select(page), true);
     await toolbar().waitFor();
-    await toolbar().getByRole('button', { name: 'Explain' }).waitFor();
+    await toolbar().locator('[data-quick-ask]').waitFor();
     await toolbar().getByRole('button', { name: 'Highlight' }).waitFor();
   });
   await step('Explain mints the reference to this file at this revision and quote, opens Ctrl+K with the interactive pill and the passage (no job yet), and sending it starts the explanation with its id and the passage', async () => {
-    await toolbar().getByRole('button', { name: 'Explain' }).click();
+    await toolbar().locator('[data-quick-ask]').click();
     // The bulb never generates (LearnPage.jsx onPassage -> inlineAi with HIGHLIGHT_EXPLAIN_COMMAND, source-refs.js:130): the learner sends the Ctrl+K line.
     const editor = page.locator('[data-inline-ai]');
     await editor.waitFor({ timeout: 20000 });
@@ -130,7 +130,7 @@ try {
     flow.mode = 'changed';
     const before = flow.jobs.length;
     assert.equal(await select(page), true);
-    await toolbar().getByRole('button', { name: 'Explain' }).click();
+    await toolbar().locator('[data-quick-ask]').click();
     await page.locator('[data-block-id="repeat.md"] [data-file-doc-highlight-notice]').getByText('This source changed since you selected this passage. Select the passage again.').waitFor();
     assert.equal(flow.jobs.length, before);
   });
