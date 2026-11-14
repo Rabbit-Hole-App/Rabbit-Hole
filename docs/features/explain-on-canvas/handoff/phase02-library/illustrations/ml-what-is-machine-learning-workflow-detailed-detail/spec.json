@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Full workflow and labelled returns",
+    "kind": "tree",
+    "layout": "hierarchy",
+    "nodes": [
+      {
+        "id": "a",
+        "label": "Collect Data"
+      },
+      {
+        "id": "b",
+        "label": "Clean and Explore · 60–80% time",
+        "parent": "a"
+      },
+      {
+        "id": "c",
+        "label": "Feature Engineering",
+        "parent": "b"
+      },
+      {
+        "id": "d",
+        "label": "Split Data",
+        "parent": "c"
+      },
+      {
+        "id": "e",
+        "label": "Train Model",
+        "parent": "d"
+      },
+      {
+        "id": "f",
+        "label": "Evaluate",
+        "parent": "e"
+      },
+      {
+        "id": "g",
+        "label": "Deploy",
+        "parent": "f",
+        "edgeLabel": "good enough"
+      },
+      {
+        "id": "h",
+        "label": "Monitor",
+        "parent": "g"
+      },
+      {
+        "id": "i",
+        "label": "Feature Engineering again",
+        "parent": "f",
+        "edgeLabel": "not good enough"
+      },
+      {
+        "id": "j",
+        "label": "Collect Data again",
+        "parent": "h",
+        "edgeLabel": "performance drops"
+      }
+    ],
+    "caption": "Illustrative. $8-1=7$ forward links. Labelled feedback returns are unrolled."
+  }
+}

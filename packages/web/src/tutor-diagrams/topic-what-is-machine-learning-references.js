@@ -128,15 +128,38 @@ const b2FitSubset = {
 };
 function b2Workflow(depth) {
   const w = b2Data.workflow;
+  if (depth === 'deep') return {
+    title: 'Retrain when evaluation is weak', kind: 'cycle',
+    steps: w.stages.slice(2, 6),
+    caption: `Illustrative. Evaluate returns to Feature Engineering if not good enough. The full workflow has $${w.stageCount}$ stages.`
+  };
   const steps = depth === 'overview'
     ? ['Collect and prepare data', 'Train and evaluate', 'Deploy', 'Monitor']
     : [...w.stages.slice(0, -2).map(stage => stage === w.stages[1] ? `${stage} · ${w.cleanPercentRange.join('–')}% time` : stage), w.stages.slice(-2).join(' / ')];
   const caption = depth === 'overview'
     ? 'Illustrative. Improve features after weak evaluation; collect fresh data when monitoring shows drift.'
-    : depth === 'deep'
-      ? `Illustrative. $${b2WorkflowCounts.renderedSteps}-1=${b2WorkflowCounts.forwardLinks}$ forward links between displayed cards. Closing arrow returns Deploy / Monitor to Collect Data.`
-      : 'Illustrative. Evaluate returns to Feature Engineering if not good enough; Monitor returns to Collect Data if performance drops.';
+    : 'Illustrative. Evaluate returns to Feature Engineering if not good enough; Monitor returns to Collect Data if performance drops.';
   return { title: 'The ML workflow repeats', kind: 'cycle', steps, caption };
+}
+function b2WorkflowDetail() {
+  const w = b2Data.workflow;
+  const ids = 'abcdefgh'.split('');
+  return {
+    title: 'Full workflow and labelled returns', kind: 'tree', layout: 'hierarchy',
+    nodes: [
+      ...w.stages.map((stage, index) => ({
+        id: ids[index],
+        label: index === 1 ? `${stage} · ${w.cleanPercentRange.join('–')}% time` : stage,
+        ...(index ? { parent: ids[index - 1] } : {}),
+        ...(stage === 'Deploy' ? { edgeLabel: 'good enough' } : {})
+      })),
+      ...w.feedback.map((edge, index) => ({
+        id: ['i', 'j'][index], label: `${edge.to} again`,
+        parent: ids[w.stages.indexOf(edge.from)], edgeLabel: edge.condition
+      }))
+    ],
+    caption: `Illustrative. $${w.stageCount}-1=${w.forwardTransitions}$ forward links. Labelled feedback returns are unrolled.`
+  };
 }
 function b2Split(depth) {
   const s = b2Data.split;
@@ -205,7 +228,7 @@ function b2Tradeoff(depth) {
       : 'Illustrative. Low complexity underfits; high complexity overfits. Noise stays fixed.'
   };
 }
-return { references: [reference({ id: 'ml-what-is-machine-learning-workflow', keywords: ['ml workflow', 'retrain loop', 'data drift'], useWhen: 'Show the ordered ML workflow and its evaluation and monitoring returns. Deploy and Monitor share a cycle card.', overview: { spec: spec(b2Workflow('overview')) }, standard: { spec: spec(b2Workflow('standard')) }, deep: { spec: spec(b2Workflow('deep')) } }),
+return { references: [reference({ id: 'ml-what-is-machine-learning-workflow', keywords: ['ml workflow', 'retrain loop', 'data drift'], useWhen: 'Show the ordered ML workflow and its evaluation and monitoring returns. Detailed unrolls feedback to keep every stage separate.', overview: { spec: spec(b2Workflow('overview')) }, standard: { spec: spec(b2Workflow('standard')) }, deep: { spec: spec(b2Workflow('deep')), detailSpec: spec(b2WorkflowDetail()) } }),
 reference({ id: 'ml-what-is-machine-learning-dataset-split', keywords: ['train split', 'validation set', 'test set'], useWhen: 'Explain training, validation and test responsibilities, illustrative split percentages and the untouched final test.', overview: { spec: spec({ title: 'Learn separately from checking', kind: 'flow', nodes: [{ id: 'train', label: 'Fit on training data', role: 'process' }, { id: 'reserve', label: 'Keep validation and test separate', role: 'outcome' }], edges: [{ from: 'train', to: 'reserve' }], caption: 'Illustrative. Reserve both checking slices before fitting; validation guides tuning, while test is saved for the final check.' }) }, standard: { spec: spec(b2Split('standard')), detailSpec: spec(b2SplitFlow()) }, deep: { spec: spec(b2Split('deep')), detailSpec: spec(b2SplitFlow()) } }),
 reference({ id: 'ml-what-is-machine-learning-fit-quality', keywords: ['overfitting', 'underfitting', 'generalization'], useWhen: 'Compare underfit, good and overfit predictions on identical observations, then distinguish training error from unseen error.', overview: { spec: spec({ title: 'Compare fit quality', kind: 'comparison', columns: [{ heading: 'Underfitting', items: ['Too rigid; misses the bend'] }, { heading: 'Good fit', items: ['Follows the trend, not every fluctuation'] }, { heading: 'Overfitting', items: ['Chases samples; may miss unseen points'] }], caption: 'Illustrative. Training fit alone cannot establish generalization.' }) }, standard: { spec: spec(b2FitPlot('standard')) }, deep: { spec: spec(b2FitPlot('deep')), detailSpec: spec(b2FitErrors()) } }),
 reference({ id: 'ml-what-is-machine-learning-bias-variance', keywords: ['bias variance', 'total error', 'model complexity'], useWhen: 'Show falling squared bias, rising variance, fixed noise and their summed error minimum as complexity increases.', overview: { spec: spec({ title: 'Complexity trades bias for variance', kind: 'flow', nodes: [{ id: 'complexity', label: 'Increase complexity', role: 'process' }, { id: 'trade', label: 'Reduce bias; increase variance', role: 'process' }, { id: 'balance', label: 'Balance total error', role: 'outcome' }], edges: [{ from: 'complexity', to: 'trade' }, { from: 'trade', to: 'balance' }], caption: 'Illustrative. Seek a balance rather than the most complex model; irreducible noise remains.' }) }, standard: { spec: spec(b2Tradeoff('standard')) }, deep: { spec: spec(b2Tradeoff('deep')) } })], derived: () => ({ fitWindow: b2Window, workflowCounts: b2WorkflowCounts, fitSubset: b2FitSubset }) };

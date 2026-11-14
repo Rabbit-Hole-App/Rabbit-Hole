@@ -222,26 +222,55 @@ test('batch questions, learner keywords and lesson origin remain attached to the
     ['overview', 'standard', 'deep'].forEach(depth => assert.ok(ref.depths[depth].spec.diagram));
   });
 });
-test('workflow counts match rendered cards and split labels follow recomputed arithmetic', () => {
+test('workflow preserves separate detailed stages and both labelled feedback returns; split arithmetic is recomputed', () => {
   const d = data.derived(), w = d.workflow, ref = b2Ref(b2Ids[0]);
-  const stageCount = w.stages.reduce(n => n + 1, 0), transitions = w.stages.slice(1).length;
+  const stages = 'Collect Data|Clean and Explore|Feature Engineering|Split Data|Train Model|Evaluate|Deploy|Monitor'.split('|');
+  assert.deepStrictEqual(w.stages, stages);
+  const stageCount = stages.reduce(n => n + 1, 0), transitions = stages.slice(1).length;
   assert.strictEqual(w.stageCount, stageCount);
   assert.strictEqual(w.forwardTransitions, transitions);
   assert.strictEqual(stageCount - 1, transitions);
-  assert.strictEqual(w.returnCount, w.feedback.length);
+  const expectedFeedback = [
+    { from: 'Evaluate', to: 'Feature Engineering', condition: 'not good enough' },
+    { from: 'Monitor', to: 'Collect Data', condition: 'performance drops' }
+  ];
+  assert.deepStrictEqual(w.feedback, expectedFeedback);
+  assert.strictEqual(w.returnCount, expectedFeedback.length);
   const cleanRange = [6 / 10, 8 / 10].map(f => f * 10 ** 2);
   assert.deepStrictEqual(w.cleanPercentRange, cleanRange);
-  const renderedSteps = [...w.stages.slice(0, -2).map((s, i) => i === 1 ? `${s} · ${cleanRange.join('–')}% time` : s), w.stages.slice(-2).join(' / ')];
+  const renderedSteps = [...stages.slice(0, -2).map((s, i) => i === 1 ? `${s} · ${cleanRange.join('–')}% time` : s), stages.slice(-2).join(' / ')];
   assert.deepStrictEqual(ref.spec.diagram.steps, renderedSteps);
   assert.ok(ref.depths.overview.spec.diagram.steps.length < ref.spec.diagram.steps.length);
   const renderedCount = renderedSteps.length;
   const forwardCount = renderedSteps.slice(1).length;
   b2Close(derived().workflowCounts, { renderedSteps: renderedCount, forwardLinks: forwardCount });
   assert.strictEqual(renderedCount - 1, forwardCount);
-  assert.deepStrictEqual(ref.depths.deep.spec.diagram.steps, renderedSteps);
-  assert.ok(ref.depths.deep.spec.diagram.caption.includes(`$${renderedCount}-1=${forwardCount}$`));
-  assert.strictEqual(ref.depths.deep.spec.diagram.caption, `Illustrative. $${renderedCount}-1=${forwardCount}$ forward links between displayed cards. Closing arrow returns ${renderedSteps.at(-1)} to ${renderedSteps[0]}.`);
-  w.feedback.forEach(e => [e.from, e.to, e.condition].forEach(s => assert.ok(ref.spec.diagram.caption.includes(s))));
+  expectedFeedback.forEach(e => [e.from, e.to, e.condition].forEach(s => assert.ok(ref.spec.diagram.caption.includes(s))));
+  const deep = ref.depths.deep.spec.diagram;
+  assert.strictEqual(deep.kind, 'cycle');
+  assert.deepStrictEqual(deep.steps, stages.slice(2, 6));
+  assert.strictEqual(deep.steps[0], expectedFeedback[0].to);
+  assert.strictEqual(deep.steps.at(-1), expectedFeedback[0].from);
+  assert.strictEqual(deep.caption, `Illustrative. Evaluate returns to Feature Engineering if not good enough. The full workflow has $${stageCount}$ stages.`);
+  const detail = ref.depths.deep.detailSpec.diagram;
+  assert.strictEqual(detail.kind, 'tree');
+  assert.strictEqual(detail.layout, 'hierarchy');
+  assert.ok(detail.nodes.every(node => !Object.hasOwn(node, 'side')));
+  assert.strictEqual(new Set(detail.nodes.map(node => node.label)).size, detail.nodes.length);
+  const stageNodes = detail.nodes.slice(0, stageCount);
+  assert.deepStrictEqual(stageNodes.map(node => node.label), stages.map((stage, index) => index === 1 ? `${stage} · ${cleanRange.join('–')}% time` : stage));
+  assert.ok(!Object.hasOwn(stageNodes[0], 'parent'));
+  stageNodes.slice(1).forEach((node, index) => assert.strictEqual(node.parent, stageNodes[index].id));
+  assert.strictEqual(stageNodes[stages.indexOf('Deploy')].edgeLabel, 'good enough');
+  const feedbackNodes = detail.nodes.slice(stageCount);
+  assert.strictEqual(feedbackNodes.length, expectedFeedback.length);
+  expectedFeedback.forEach((edge, index) => {
+    const node = feedbackNodes[index];
+    assert.strictEqual(node.parent, stageNodes[stages.indexOf(edge.from)].id);
+    assert.strictEqual(node.label, `${edge.to} again`);
+    assert.strictEqual(node.edgeLabel, edge.condition);
+  });
+  assert.strictEqual(detail.caption, `Illustrative. $${stageCount}-1=${transitions}$ forward links. Labelled feedback returns are unrolled.`);
   const split = b2Ref(b2Ids[1]), percentages = d.split.weights.map(v => 10 ** 2 * v / b2Sum(d.split.weights));
   assert.deepStrictEqual(d.split.percentages, percentages);
   assert.strictEqual(d.split.totalPercent, b2Sum(percentages));
