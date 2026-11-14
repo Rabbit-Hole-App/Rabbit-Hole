@@ -347,8 +347,11 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   const opens = !chat && opener ? opener.can(id) : null;
   // The row above a card (owner 2026-11-13): Enter shows on a hovered card and stays on the selected one; the action buttons (Add to chat, Quick Edit, Minimize) show on hover, or on a
   // touch screen for the selected card. Hover is off while a button is down, so a click that selects keeps Enter even before the pointer moves again.
-  const showEnter = !!opens && (selected ? opener.single === id : hovered);
-  const showTools = selected ? (hovered || NO_HOVER) && !!tools : hovered && !!hoverTools;
+  // ONE condition for the whole row (owner 2026-11-13: Enter, Add to chat, Quick Edit and Minimize are seen together or not at all): the card is selected or the pointer is on it.
+  const rowShown = selected || hovered;
+  const showEnter = rowShown && !!opens && (!selected || opener.single === id);
+  // The selected card keeps its buttons whether or not the pointer is on it (owner 2026-11-13: nothing may disappear from it); a card that is only hovered shows its row while the pointer is on it.
+  const showTools = rowShown && !!(selected ? tools : hoverTools);
   const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(id);
   const [cornerDrag, setCornerDrag] = useState(null);
   // A Full card keeps the corner resize (owner 2026-11-08); while it is dragged it is drawn at the dragged size, and a card that opened full
@@ -456,7 +459,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
-      {(showEnter || showTools || (selected && !!tools)) && (
+      {(showEnter || showTools) && (
         <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-end gap-x-2 gap-y-1.5 after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-[''] [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
           {showEnter && (
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
@@ -467,7 +470,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           )}
           {/* On the selected card the buttons keep their place in the row whether or not the pointer is on the card, and only become invisible (visibility, so they take no presses): a row that
               re-wraps as they come and go moves Enter up and down (owner 2026-11-13). */}
-          {(showTools || (selected && !!tools)) && <div className={`pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px] ${showTools ? '' : 'invisible'}`}>{selected ? tools : hoverTools}</div>}
+          {showTools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{selected ? tools : hoverTools}</div>}
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
