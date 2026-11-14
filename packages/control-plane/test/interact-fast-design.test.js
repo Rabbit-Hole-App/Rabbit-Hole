@@ -278,7 +278,9 @@ test('the corrections name the fix: a formula over 32 nodes, a marker before 0, 
   assert.match(fixOf('scene.quantities.9.formulaAfter quantity "dropHeight" formulaAfter: this formula needs 33 nodes; at most 32 (simplify it or split it into quantities)'), /Fix: write the formula in a shorter form/);
   assert.match(fixOf('mode.timeline.markers.0.time a time before 0 is outside the elapsed timeline'), /Fix: derive every marker time from the plan \(0 or later\)/);
   assert.match(fixOf('template build: [arrow_direction] the arrow "vec.a.toss" is not drawn at cp-fastTop, expected down'), /Fix: every gravity value of the range is at least 4/);
-  assert.equal(fixOf('formula height at {}: got 1, expected 2'), 'formula height at {}: got 1, expected 2');
+  assert.match(fixOf('formula dropHeight at {"t":1}: got 1, expected 2'), /Fix: check the formula against the meaning of its key/);
+  assert.match(fixOf('scene.quantities.7.formulaAfter quantity "dropVelocity" formulaAfter: unknown name "apexTime" at character 20; readable: t, launchSpeed, gravity'), /Fix: a formula reads only the names its key lists/);
+  assert.equal(fixOf('expand: something else'), 'expand: something else');
 });
 
 test('Balanced: a gravity range that reaches 1 is refused by the build precheck; the correction names the floor, the corrected brief passes (template build on)', async t => {

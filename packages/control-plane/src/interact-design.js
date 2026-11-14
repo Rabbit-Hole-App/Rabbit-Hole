@@ -192,14 +192,14 @@ async function fillProblems(raw, depth, info, ctx, family) {
   // Without a fit measurement the close (design_verifying) stops with its own reason; with one, a bad description is a fill problem the correction can fix.
   const fit = typeof ctx.descriptionFit === 'function' ? await descriptionFitProblems(checked.value, await ctx.descriptionFit(checked.value)) : [];
   // The fit line says how many lines it rendered; the fill reads it as 'split it', so the correction says what to do (the second reply to the bare line inserted a line break and failed 'plain single-paragraph text').
-  if (fit.length) return { problems: fit.map(f => `${line(f)}. Fix: write cardDescription as two sentences of 130 to 200 characters in one paragraph, with no line break`) };
+  if (fit.length) return { problems: fit.map(f => `${line(f)}. Fix: write cardDescription as two sentences of 130 to 200 characters in one paragraph, with no line break (yours is ${checked.value.cardDescription.length} characters)`) };
   const wrong = formulaProblems(family.referenceCheck(parsed.value, depth));
   if (wrong.length) return { problems: wrong };
   const unbuildable = await templatePrecheck(checked.value, ctx); // the build's own checks, here, so the correction hears what Generate would refuse
   return unbuildable.length ? { problems: unbuildable } : { plan: checked.value };
 }
 // One line that names the fix for the failures a fill repeats (a model cannot count nodes or see what the template draws): appended to the problem the correction shows, never to the recorded first problem.
-const FIXES = [[/this formula needs \d+ nodes/, 'write the formula in a shorter form (split it into a helper quantity or simplify)'], [/markers\.\d+\.time a time before 0/, 'derive every marker time from the plan (0 or later)'], [/arrow ".*" is not drawn at cp-/, 'every gravity value of the range is at least 4']];
+const FIXES = [[/this formula needs \d+ nodes/, 'write the formula in a shorter form (split it into a helper quantity or simplify)'], [/markers\.\d+\.time a time before 0/, 'derive every marker time from the plan (0 or later)'], [/arrow ".*" is not drawn at cp-/, 'every gravity value of the range is at least 4'], [/unknown name "\w+"/, 'a formula reads only the names its key lists as readable; write that quantity out as a formula of them'], [/^formula \w+ at \{/, 'check the formula against the meaning of its key; a formula after the switch must start from the value the first formula has at the switch moment (write the elapsed time since the switch as t - switchAt, with switchAt written out as a formula) and write it again']];
 export const fixOf = problem => { const fix = FIXES.find(([pattern]) => pattern.test(problem)); return fix ? `${problem}. Fix: ${fix[1]}` : problem; };
 // The pick (brief 13) runs first: one System One call names the family that fits, or none. A gap (none, below the threshold, a failed or timed out call, no key) goes straight to the Opus design with no fill.
 const pickOf = async (job, ctx) => ctx.env.TYPESAFE_API_KEY
