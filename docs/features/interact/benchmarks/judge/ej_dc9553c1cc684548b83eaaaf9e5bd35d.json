@@ -1,0 +1,41 @@
+{
+  "jobId": "ej_dc9553c1cc684548b83eaaaf9e5bd35d",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 21370,
+  "ms": 6378,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "vec.v",
+      "message": "The Motion arrow does not match the plan's scale. At launch speed 5 and v = 5 m/s it is 60 px long. At v = 2.5 m/s it is 30 px, which is consistent with that scale. The launch-speed-10 capture shows no v arrow at the top, so the scale cannot be checked there. The arrow at launch is also drawn from y=230 to y=170, so its length is fine, but its start is the ball centre instead of a position beside the ball. The scale is correct, so this part is minor."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "vec.a",
+      "message": "The gravity arrow is 48 px long in every frame, so its direction and length are constant, as the plan requires. However, its tail sits at the ball's y-position and moves with the ball. That is acceptable. The callout text strings do not appear in the frame 'texts' lists. The callout boxes callout.toss.l0 and l1 show no text, so the claim that the callout names the motion and shows gravity cannot be judged from the frames."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "major",
+      "object": "ball.toss",
+      "message": "The 'end' capture is at t=1.020408 with launch speed 5. That is the end of the timeline at the default inputs, and the ball is back at launch with v = -5. The state label 'Back at start' matches. The readout motionState is 'Falling downward' at the endpoint. This is acceptable but imprecise. The scrubber range at launch speed 5 should be 0 to 1.020408 s, which matches."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "object": "ball.toss",
+      "message": "The scale is 34 px per m (1.27551 m gives 42.5 px, and 5.102 m gives 170 px). The fast apex is at y=60, inside the lane. The faster toss rises higher on the same scale, so this observation is supported."
+    }
+  ]
+}
