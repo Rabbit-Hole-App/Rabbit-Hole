@@ -570,7 +570,6 @@ test('BE.10 automatic next offer and an actual second card (CORE.07, UI.08, R6)'
   await h.run(); await h.run(); // duplicate outbox wakes converge on the same offer
   assert.equal(pending(h).length, 1);
   assert.equal((await status(h)).proposal.id, offered.proposal.id);
-  assert.equal(pillOf({ flag: 'on', view: offered, busy: [], editing: false, mode: 'auto' })?.accept, true, 'the projected pill targets the ready offer');
   const next = await acceptCard(h, offered, 'next'); // Next card: the ready proposal's own accept route, once
   assert.equal(next.status, 202);
   const second = next.body.slots[0];

@@ -12,7 +12,7 @@ import { answerQuestion, revisePlan } from './roadmap-planning.js';
 import { applyProposalDraft, discardProposalDraft, roadmapEditEnabled, saveProposalDraft } from './roadmap-proposal-drafts.js';
 import { acceptLinkProposal, offerLinkProposal, readLink } from './roadmap-links.js';
 import { readSlots, saveSlot } from './roadmap-slots.js';
-import { advanceCourse, startCourse, stopCourse } from './roadmap-course.js';
+import { advanceCourse, replaceUnfinished, retryCourse, startCourse, stopCourse } from './roadmap-course.js';
 
 const PREFIX = '/api/learn/roadmap';
 export const roadmapEnabled = env => env?.ROADMAP_ENABLED === 'true';
@@ -86,6 +86,7 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       if (!deps.readSource) return json({ error: 'Not available', code: 'source_unavailable' }, 503);
       const source = await deps.readSource(access, { sourceId: body.source?.key ?? body.source?.sourceId, revision: body.source?.rev ?? body.source?.revision, scope: body.source?.scope });
       if (source?.error) return json({ error: source.error, code: source.code || 'source_unsupported', ...(source.limitation ? { limitation: source.limitation } : {}) }, source.status || 422);
+      await replaceUnfinished(db, access, { ...(now ? { now } : {}) }); // one course per canvas: an unfinished roadmap that is not being made is ended, its cards stay on the canvas
       const created = await createRoadmap(db, access, { actionKey: body.actionKey, app: board.app, instruction: body.instruction, allowEmpty: !!body.invitationId, source: { key: source.key, rev: source.rev }, scope: source.scope, scopeFingerprint: source.scopeFingerprint, depth: body.depth, language: source.language ?? null, practiceMode: body.practiceMode ?? null, ...(now ? { now } : {}) });
       if (!created.replayed) { await acceptInvitation(db, access, body.invitationId, created.body.roadmapId, now); await deps.startPlanning?.(env, access, created.body.roadmapId); }
       return reply(created);
@@ -129,6 +130,11 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       return reply(done);
     }
     // Create a course (owner 2026-11-14): Generate course starts the run and makes its first card now; Cancel stops new cards (the one in hand finishes). roadmap-course.js.
+    if (kind === 'course' && id === 'retry' && rest.length === 3) {
+      const reopened = await retryCourse(db, access, { roadmapId, expectedRevision: arg.expectedRevision, ...(now ? { now } : {}) }); // Try again: the cards that could not be made are made again
+      if (!reopened.replayed && reopened.status < 300) await advanceCourse(env, access, roadmapId, { compose: deps.compose, revalidate: deps.revalidate, quote: deps.quote, onAccepted: deps.onAccepted, ...(now ? { now } : {}) });
+      return reply(reopened);
+    }
     if (kind === 'course' && (id === 'start' || id === 'stop') && rest.length === 3) {
       if (id === 'stop') return reply(await stopCourse(db, access, { roadmapId, expectedRevision: arg.expectedRevision, ...(now ? { now } : {}) }));
       const started = await startCourse(db, access, { roadmapId, expectedRevision: arg.expectedRevision, ...(now ? { now } : {}) });

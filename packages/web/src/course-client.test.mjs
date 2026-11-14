@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { parseHTML } from 'linkedom';
-import { canStartCourse, courseOf, initialState, pillOf, reduce, routes, tocOf } from './roadmap-client.js';
+import { canRetryCourse, canStartCourse, courseOf, initialState, invitationOf, pillOf, reduce, routes, tocOf } from './roadmap-client.js';
 import { entriesOf } from './roadmap-transcript.js';
 import { withRoadmap } from './learn-outline-model.js';
 import { createRoadmapController } from './roadmap-controller.js';
@@ -63,7 +63,8 @@ test('the per-card offer is retired: no pill, no Accept or Next card, and the Ch
   const state = held(view);
   assert.equal(pillOf(state), null);
   const accepted = entriesOf(state).find(e => e.kind === 'accepted');
-  assert.deepEqual(accepted.actions.map(a => a.id), ['generate_course', 'open_toc', 'edit_roadmap', 'end']);
+  assert.deepEqual(accepted.actions.map(a => a.id), ['generate_course', 'open_toc', 'edit_roadmap']);
+  assert.equal(accepted.actions.some(a => a.id === 'end'), false, 'no End roadmap (owner 2026-11-14)');
   assert.equal(accepted.actions[0].label, 'Generate course');
   assert.equal(entriesOf(state).some(e => e.kind === 'step' || e.kind === 'recovery'), false);
   assert.equal(accepted.actions.some(a => a.id === 'propose_next'), false);
@@ -133,6 +134,38 @@ test('the wiring: Accept opens the contents, Generate course runs the controller
   assert.match(surfaces, /roadmap\.course && <CourseProgress course=\{roadmap\.course\}[^>]*onCancel=\{\(\) => roadmap\.stopCourse\(\)\}/);
   assert.doesNotMatch(surfaces, /ProposalOverlay/);
   assert.match(toc, /roadmap\?\.canStartCourse && !readOnly && .*data-toc-generate-course onClick=\{\(\) => roadmap\.startCourse\(\)\}>Generate course</);
-  assert.match(hook, /canStartCourse: canStartCourse\(state\), course: courseOf\(state\), startCourse: \(\) => controller\.startCourse\(\), stopCourse: \(\) => controller\.stopCourse\(\)/);
+  assert.match(hook, /canStartCourse: canStartCourse\(state\), canRetryCourse: canRetryCourse\(state\), course: courseOf\(state\), startCourse: \(\) => controller\.startCourse\(\), stopCourse: \(\) => controller\.stopCourse\(\), retryCourse: \(\) => controller\.retryCourse\(\)/);
   assert.match(read('LearnPage.jsx'), /roadmap\.expectInvitation\(\); droppedMarkdown\.current\.add\(block\.id\);/);
+});
+
+test('Try again: offered for a stopped course with cards that could not be made, in Chat and the contents, and the summary says how many; Edit waits while a course runs', () => {
+  const done = [step(1, { state: 'delivered', stage: 'ready' }), step(2, { state: 'skipped', stage: 'skipped' })];
+  const stopped = held(viewOf(done, { course: { running: false, stopped: 'incomplete', total: 2, made: 1, failed: 1 } }));
+  assert.equal(canRetryCourse(stopped), true);
+  assert.equal(canStartCourse(stopped), false, 'nothing is planned: only Try again');
+  const accepted = entriesOf(stopped).find(e => e.kind === 'accepted');
+  assert.deepEqual(accepted.actions.map(a => a.id), ['try_again', 'open_toc', 'edit_roadmap']);
+  assert.equal(accepted.actions[0].label, 'Try again');
+  assert.equal(accepted.content, '1 of 2 cards made. 1 could not be made.');
+  assert.equal(canRetryCourse(held(viewOf(done, { course: { running: true, total: 2, made: 1, failed: 1 } }))), false, 'not while running');
+  assert.equal(canRetryCourse(held(viewOf(done, { course: { running: false, total: 2, made: 2, failed: 0 } }))), false, 'nothing to retry');
+  assert.equal(canRetryCourse(reduce(stopped, { type: 'begin', gesture: 'course:retry:rm_1:4' })), false, 'a retry in flight');
+  const running = held(viewOf([step(1, { state: 'generating', stage: 'generating' }), step(2)], { course: { running: true, total: 2, made: 0, failed: 0 } }));
+  assert.equal(entriesOf(running).find(e => e.kind === 'accepted').actions.find(a => a.id === 'edit_roadmap').disabled, true, 'no editing the plan while it is being made');
+  assert.equal(routes.retryCourse(stopped.view, 'ak_3').path, '/api/learn/roadmap/rm_1/course/retry');
+  assert.match(read('RoadmapTranscript.jsx'), /case 'try_again': return c\.retryCourse\(\);/);
+  assert.match(read('TableOfContents.jsx'), /roadmap\?\.canRetryCourse && !readOnly && .*data-toc-try-again onClick=\{\(\) => roadmap\.retryCourse\(\)\}>Try again</);
+  for (const reason of ['source_changed', 'failures', 'safety', 'incomplete']) assert.ok(STRINGS.courseStopped[reason], reason);
+});
+
+test('a paused roadmap can Generate course; a drop is invited over a stopped course but not a running one', () => {
+  const steps = [step(1), step(2)];
+  assert.equal(canStartCourse(held(viewOf(steps, { state: 'paused' }))), true);
+  const offered = { id: 'iv_1', state: 'offered', title: 'New.md', sourceKeys: ['file:f2'] };
+  const stopped = reduce(held(viewOf(steps, { course: { running: false, stopped: 'cancelled', total: 2, made: 0, failed: 0 } })), { type: 'invitation', invitation: offered });
+  assert.ok(invitationOf(stopped));
+  const running = reduce(held(viewOf(steps, { course: { running: true, total: 2, made: 0, failed: 0 } })), { type: 'invitation', invitation: offered });
+  assert.equal(invitationOf(running), null);
+  assert.match(STRINGS.boundary('New.md'), /A course is being made/);
+  assert.doesNotMatch(STRINGS.boundary('New.md'), /End roadmap/);
 });

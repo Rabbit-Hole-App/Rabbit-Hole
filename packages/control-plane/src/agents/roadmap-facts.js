@@ -18,7 +18,7 @@ export const FACTS_TOOL = {
 };
 
 // -> { ok: true, facts: [string] } | { ok: false }. Trimmed, one line each, no price words, no repeats.
-const MONEY = /\$\s?\d|\b(?:usd|dollars?|credits?|price[sd]?|cost[s]?)\b/i;
+const MONEY = /\$\s?\d|\b(?:usd|credits?|price[sd]?|cost[s]?)\b/i;
 export function validateFacts(input) {
   const list = input && Array.isArray(input.facts) ? input.facts : null;
   if (!list) return { ok: false };

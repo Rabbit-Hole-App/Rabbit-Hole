@@ -35,10 +35,23 @@ Propose next step). The roadmap machinery underneath (plan, hold, quote, one aut
 - **Fun facts.** One platform-funded call on the small role (`roadmap_subject`, tool `submit_facts`, agents/roadmap-facts.js) per course, made once
   the first card is under way; a failure leaves the wait without facts. They are not cards and are not checked as claims.
 
+## Rules decided 2026-11-14 (edge cases)
+
+- **One course per canvas, no End or Keep.** A drop is invited over any roadmap except a course being made (then Chat says so, with no buttons). **Create a course** ends the canvas's
+  other unfinished roadmap (a draft, a plan under review, an accepted plan not started, a cancelled or incomplete course); its cards stay (`roadmap-course.js replaceUnfinished`).
+  A cancelled course stays open with **Generate course** to go on.
+- **A file is checked before any planning cost.** Under 100 words of prose, or over 70% of it inside code fences, is refused in the create request (`source_too_short`,
+  `source_not_prose`; `roadmap-preflight.js`). The first plan screens the source once with JEV (platform-paid); only a block refuses (`source_unsafe`).
+- **Try again.** A course with cards that could not be made stays open (`stopped: 'incomplete'`); **Try again** (`POST course/retry`) plans only those steps again.
+- **Stop rules** (`advanceCourse`): credits (`allowance`), a card that cannot be prepared (`blocked`) or a file that changed (`source_changed`), three cards in a row that
+  could not be made (`failures`), two withheld for safety in a row or one learner signs-of-danger (`safety`). Each shows its own sentence once.
+- **Back-pressure.** No new card starts while three made cards wait to be placed (`UNPLACED_MAX`): an absent browser costs at most three cards, and each placement wakes the run.
+- A paused plan can Generate course. Edit waits while a course runs. The per-card automatic offer is off for a roadmap once a course has run.
+
 ## Retired
 
-Per-card Accept / Cancel / Next card (canvas and Chat), Tab accept, Propose next step, the proposal editor (Ctrl/Cmd+K), the recovery entry and the
-per-card Chat entries. The client no longer calls their routes; the server routes remain for old rows and tests (`proposals/*`, `steps/propose`, `drafts/*`).
+Per-card Accept / Cancel / Next card (canvas and Chat), Tab accept, Propose next step, End roadmap, the proposal editor (Ctrl/Cmd+K), the recovery entry and the
+per-card Chat entries. The client no longer calls their routes; the server routes remain for old rows and tests (`proposals/*`, `steps/propose`, `end`, `drafts/*`).
 `AdaptiveCanvas` / `SlotCard` still carry the dead pending-offer branch (`pillOf` is always null).
 
 ## Not verified in a browser

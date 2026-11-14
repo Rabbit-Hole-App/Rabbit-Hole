@@ -192,7 +192,7 @@ test('dismissal is that invitation only: the same source set is not offered agai
   await assert.rejects(dismissInvitation(w.LEARN_DB, { ...w.access, actorUserId: 'u-bob' }, { invitationId: a.id, actionKey: 'dismiss-0003' }), { status: 404 });
 });
 
-test('Auto-suggest off, Ask mode, an unfinished roadmap and unsupported or foreign sources suppress an invitation without a row; Ask never starts anything', async t => {
+test('Auto-suggest off, Ask mode, a course being made and unsupported or foreign sources suppress an invitation without a row; Ask never starts anything', async t => {
   const w = await withFiles(t);
   assert.deepEqual((await offer(w, [`file:${ID_A}`], { settings: async () => ({ autoSuggest: false, mode: 'tutor' }) })).body.suppressed, { reason: 'auto_suggest_off' });
   assert.deepEqual((await offer(w, [`file:${ID_A}`], { settings: async () => ({ autoSuggest: true, mode: 'ask' }) })).body.suppressed, { reason: 'ask_mode' });
@@ -202,7 +202,7 @@ test('Auto-suggest off, Ask mode, an unfinished roadmap and unsupported or forei
   assert.deepEqual((await offer(w, ['file:fs_foreignforeignforeignfor'])).body.suppressed, { reason: 'unsupported_source' }, 'another learner\'s file is no source');
   assert.equal(rows(w.sqlite, 'SELECT * FROM learn_roadmap_invitations').length, 0, 'nothing suppressed leaves a row');
   w.sqlite.prepare(`INSERT INTO learn_roadmaps (id, org, owner_user_id, owner_email, board_id, app, state, revision, depth, source_key, source_rev, scope_json, scope_fingerprint, ceiling, policy_version, created_at, updated_at)
-    VALUES ('rm_x', 'team', 'u-alice', 'u-alice@example.test', ?, 'learn', 'paused', 1, 'balanced', 'k', 'r', '{}', 'f', 10, 'p', 1, 1)`).run(w.access.boardId);
+    VALUES ('rm_x', 'team', 'u-alice', 'u-alice@example.test', ?, 'learn', 'active', 1, 'balanced', 'k', 'r', '{"course":{"running":true}}', 'f', 10, 'p', 1, 1)`).run(w.access.boardId); // owner 2026-11-14: only a course being made suppresses a drop
   assert.deepEqual((await offer(w, [`file:${ID_B}`])).body.suppressed, { reason: 'unfinished_roadmap' });
   await assert.rejects(offer(w, []), { code: 'invalid_request' });
   await assert.rejects(offerInvitation(w.LEARN_DB, w.access, { sourceKeys: [`file:${ID_A}`], idleKey: 'no' }), { code: 'invalid_request' });
@@ -282,15 +282,18 @@ test('the test database refuses only a LIKE or GLOB whose pattern is over 50 byt
 });
 
 // UI.01 / roadmap 3.3 (chat lane): an explicit drop ('drop-' key) is acknowledged in every mode; an unfinished roadmap still suppresses it.
-test('an explicit drop is offered in Ask and with Auto-suggest off; an unsolicited report still is not; an unfinished roadmap suppresses both', async t => {
+test('an explicit drop is offered in Ask and with Auto-suggest off; an unsolicited report still is not; a course being made suppresses both, any other unfinished roadmap does not', async t => {
   const w = await withFiles(t);
   assert.deepEqual((await offer(w, [`file:${ID_A}`], { settings: async () => ({ autoSuggest: false, mode: 'ask' }) })).body.suppressed, { reason: 'ask_mode' });
   const drop = await offer(w, [`file:${ID_A}`], { idleKey: `drop-file-${ID_A}`, settings: async () => ({ autoSuggest: false, mode: 'ask' }) });
   assert.equal(drop.body.invitation.state, 'offered', 'the drop is acknowledged in Ask with Auto-suggest off');
   assert.deepEqual((await offer(w, [`file:${ID_A}`], { idleKey: `drop-file-${ID_A}` })).body.invitation.id, drop.body.invitation.id, 'a repeated drop report returns the same invitation');
   w.sqlite.prepare(`INSERT INTO learn_roadmaps (id, org, owner_user_id, owner_email, board_id, app, state, revision, depth, source_key, source_rev, scope_json, scope_fingerprint, ceiling, policy_version, created_at, updated_at)
-    VALUES ('rm_y', 'team', 'u-alice', 'u-alice@example.test', ?, 'learn', 'active', 1, 'balanced', 'k', 'r', '{}', 'f', 10, 'p', 1, 1)`).run(w.access.boardId);
+    VALUES ('rm_y', 'team', 'u-alice', 'u-alice@example.test', ?, 'learn', 'active', 1, 'balanced', 'k', 'r', '{"course":{"running":true}}', 'f', 10, 'p', 1, 1)`).run(w.access.boardId);
   assert.deepEqual((await offer(w, [`file:${ID_B}`], { idleKey: `drop-file-${ID_B}` })).body.suppressed, { reason: 'unfinished_roadmap' });
+  // A draft, a plan under review, an accepted plan not started, a cancelled course: the drop is invited, and Create a course replaces that roadmap (roadmap-course.js replaceUnfinished).
+  w.sqlite.prepare("UPDATE learn_roadmaps SET scope_json = '{}' WHERE id = 'rm_y'").run();
+  assert.equal((await offer(w, [`file:${ID_B}`], { idleKey: `drop-file-${ID_B}` })).body.invitation.state, 'offered');
 });
 
 // ROADMAP_ON_DROP_ENABLED (global): 'false' makes a dropped source start nothing; unset or anything else is today's behavior.

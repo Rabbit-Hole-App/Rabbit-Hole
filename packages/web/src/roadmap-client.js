@@ -42,6 +42,7 @@ export const routes = {
   // Create a course (owner 2026-11-14): Generate course makes every card of the accepted plan; Cancel stops new cards.
   startCourse: (view, actionKey) => mutate(view, 'course/start', {}, actionKey),
   stopCourse: (view, actionKey) => mutate(view, 'course/stop', {}, actionKey),
+  retryCourse: (view, actionKey) => mutate(view, 'course/retry', {}, actionKey), // Try again: the cards that could not be made
 };
 function mutate(view, tail, fields, actionKey) {
   const { id, boardId, revision } = view.roadmap;
@@ -138,7 +139,12 @@ export function canProposeNext(state) {
 // Whether Generate course is offered: an accepted plan with cards still to make, no run in progress and no start in flight.
 export function canStartCourse(state) {
   const view = state.view;
-  return !!view && enabled(state) && view.roadmap.state === 'active' && !!acceptedPlanOf(view) && !view.course?.running && !state.busy.some(g => g.startsWith('course:')) && (view.steps || []).some(s => s.state === 'planned' || s.state === 'proposed');
+  return !!view && enabled(state) && ['active', 'paused'].includes(view.roadmap.state) && !!acceptedPlanOf(view) && !view.course?.running && !state.busy.some(g => g.startsWith('course:')) && (view.steps || []).some(s => s.state === 'planned' || s.state === 'proposed');
+}
+// Whether Try again is offered: a course that is not running and has cards that could not be made.
+export function canRetryCourse(state) {
+  const view = state.view;
+  return !!view && enabled(state) && ['active', 'paused'].includes(view.roadmap.state) && !view.course?.running && (view.course?.failed ?? 0) > 0 && !state.busy.some(g => g.startsWith('course:'));
 }
 // The run the progress over the canvas shows, or null: a start in flight (the count is the plan's, nothing made yet) or a running course with a card still to be made or placed.
 export function courseOf(state) {
@@ -190,7 +196,7 @@ export function chatOf(state) {
 // server still decides (an unfinished roadmap suppresses it; the Chat then explains the one-roadmap boundary). Reload re-reads the same one.
 export function invitationOf(state) {
   const iv = state.invitation;
-  if (!enabled(state) || !iv || iv.state !== 'offered' || unfinished(state.view)) return null;
+  if (!enabled(state) || !iv || iv.state !== 'offered' || state.view?.course?.running) return null; // owner 2026-11-14: a drop is invited over any roadmap but a course being made; Create a course replaces the rest
   return { id: iv.id, title: iv.title, text: STRINGS.inviteDrop(iv.title), sourceKeys: iv.sourceKeys, choices: [{ id: 'explain_on_canvas', label: STRINGS.explain }, { id: 'keep_here', label: STRINGS.keepHere }] };
 }
 // The pending proposal as an explicit Chat action sees it (UI.03/UI.05): pillOf without the Ask gate, so an explicit Accept / Next card / Cancel in

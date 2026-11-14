@@ -17,6 +17,7 @@ import { platformCallModel } from './roadmap-models.js';
 import { LIMIT_COPY } from './roadmap-source-read.js';
 import { longMarkdownEnabled } from './roadmap-source-index.js';
 import { readLongSource, prepareLongPlan, withLongCoverage } from './roadmap-source-long.js';
+import { PROSE_COPY, sourceBlocked } from './roadmap-preflight.js';
 
 export const PLANNING_COPY = Object.freeze({
   failed: 'The plan could not be made. Edit your request or end the roadmap.', // NEW (S34)
@@ -93,6 +94,8 @@ export async function planningHandler(env, event, { now = nowSeconds() } = {}, d
     if (!prepared.ok) return tooLong();
     input.long = prepared.long;
   }
+  // Create a course (owner 2026-11-14): the first plan of a roadmap screens the source once (JEV, platform-paid; roadmap-preflight.js). Only a block refuses; every card is still screened.
+  if (!revising && !isLong && typeof source.text === 'string' && await sourceBlocked(env, access, roadmap, source.text, { classify: deps.classify })) return settle(limitation('source_unsafe', PROSE_COPY.unsafe));
   const out = revising
     ? await reviseRoadmap({ ...input, change, current: previous, delivered: kept }, { callModel })
     : await draftRoadmap(input, { callModel });

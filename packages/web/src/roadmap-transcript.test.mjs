@@ -49,15 +49,15 @@ test('UI.01: occupied Chat shows Start new chat / Stay here first, then exactly 
   assert.match(fresh[0].content, /^You’ve added/, 'a filename acknowledgement, never a claim the document was read');
 });
 
-test('UI.01: the drop invitation shows in Ask with Auto-suggest off; a second source over an unfinished roadmap gets the boundary message, never a second roadmap', () => {
+test('UI.01: the drop invitation shows in Ask with Auto-suggest off; a second source over a course being made gets the boundary message, never a second roadmap', () => {
   const ask = reduce({ ...initialState(), mode: 'ask' }, { type: 'invitation', invitation: body('invitation-offered').invitation });
   assert.equal(entriesOf(ask, { invitation: invitationOf(ask) })[0].kind, 'invitation');
-  const busy = reduce(at('status-active-proposal-pending'), { type: 'boundary', boundary: { key: 'file:fs_2', name: 'Second.md' } });
+  const busy = reduce(at('status-active-proposal-pending', v => ({ ...v, course: { running: true, total: 3, made: 0, failed: 0 } })), { type: 'boundary', boundary: { key: 'file:fs_2', name: 'Second.md' } });
   const entries = entriesOf(busy, { invitation: invitationOf(busy), boundary: busy.boundary });
   const boundary = entries.find(e => e.kind === 'boundary');
-  assert.match(boundary.content, /already has a roadmap in progress/);
-  assert.match(boundary.content, /End roadmap/);
-  assert.equal(entries.filter(e => e.kind === 'invitation').length, 0, 'no invitation over an unfinished roadmap');
+  assert.match(boundary.content, /A course is being made on this canvas/);
+  assert.doesNotMatch(boundary.content, /End roadmap/, 'no End roadmap (owner 2026-11-14)');
+  assert.equal(entries.filter(e => e.kind === 'invitation').length, 0, 'no invitation over a course being made');
 });
 
 test('BE.09: polling yields the same entries under the same ids and seq; toSave writes only what changed; every entry is a versioned tutor record', () => {
@@ -105,9 +105,9 @@ test('UI.03 / BE.03: Edit roadmap targets the existing composer pill, stashes th
   assert.doesNotMatch(readFileSync(new URL('./use-roadmap.js', import.meta.url), 'utf8'), /data-toc-composer|divert/, 'no ToC composer diversion');
 });
 
-test('UI.02/UI.03 and Create a course: acceptance adds one summary entry with Generate course (primary), Open table of contents, Edit, End roadmap; no per-card entries and no Propose next step (owner 2026-11-14)', () => {
+test('UI.02/UI.03 and Create a course: acceptance adds one summary entry with Generate course (primary), Open table of contents, Edit; no End roadmap, no per-card entries and no Propose next step (owner 2026-11-14)', () => {
   const pending = entriesOf(at('status-active-proposal-pending')).find(e => e.kind === 'accepted');
-  assert.deepEqual(labels(pending), ['Generate course', 'Open table of contents', 'Edit', 'End roadmap']);
+  assert.deepEqual(labels(pending), ['Generate course', 'Open table of contents', 'Edit']);
   assert.equal(pending.actions[0].primary, true);
   assert.equal(pending.actions[1].blue, true);
   assert.match(pending.content, /^Your table of contents is ready\. Generate the course to make every card\./);
