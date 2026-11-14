@@ -1,0 +1,64 @@
+[
+  {
+    "i": 0,
+    "title": "At the Highest Point",
+    "notes": [],
+    "fit": {
+      "block": {
+        "w": 676,
+        "h": 695
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 104,
+      "bottom": 799
+    },
+    "restClock": "−0.51s",
+    "atTopClock": "0.00s",
+    "sliderChanged": true,
+    "resetClock": "−0.51s",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@−0.10s",
+    "firstRun": "Pause@−0.22s",
+    "secondStop": "Play@0.00s",
+    "playAgainMoved": false
+  },
+  {
+    "i": 1,
+    "title": "At the Highest Point (2)",
+    "notes": [],
+    "fit": {
+      "block": {
+        "w": 676,
+        "h": 639
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 228,
+      "bottom": 867
+    },
+    "restClock": "0.00s",
+    "atTopClock": "0.51s",
+    "sliderChanged": true,
+    "resetClock": "0.00s",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@0.51s",
+    "firstRun": "Pause@0.08s",
+    "secondStop": "Replay@1.02s",
+    "playAgainMoved": true
+  }
+]

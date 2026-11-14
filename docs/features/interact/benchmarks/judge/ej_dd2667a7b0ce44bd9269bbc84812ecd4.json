@@ -1,0 +1,25 @@
+{
+  "jobId": "ej_dd2667a7b0ce44bd9269bbc84812ecd4",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "pass",
+  "costMicros": 20102,
+  "ms": 3791,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The frames show no callout text, only boxes. The callout's wording and its gravity value can't be judged from the frames. The plan says the callout names the motion and shows gravity, so this is unverified, not wrong."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The ball at launch speed 7 reaches y=60, and the 5 m/s top is at y=143. That fits a fixed scale of about 68 px/m, so the faster toss rises higher on the same scale. The arrow, readouts and quantities are all consistent. I can't judge the scrubber range, since the frames don't show it."
+    }
+  ]
+}

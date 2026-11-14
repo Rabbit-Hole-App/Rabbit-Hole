@@ -1,0 +1,31 @@
+{
+  "jobId": "ej_0eb72b68ce464bd0a7c870c0d00eac2f",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 31600,
+  "ms": 6640,
+  "findings": [
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "major",
+      "message": "At the top the released ball's trace shows dropAcceleration = -9.8 at exactly t = apexTime, and the gate is drawn open. The ball is released at that instant, so this is defensible. But the plan says the drop acceleration is zero while the gate holds the ball, and the state line says 'Released' with v = 0. This is a piecewise switch at the boundary. The first frame in which the drop acceleration is -g coincides with the toss ball's frame, which is fine, but the plan never says which side owns the boundary. This is only a minor ambiguity."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "message": "At g=5 and launch 8, apexHeight is 6.4 m. The axis max is 6.8 and its ticks are 0..6, so the ball fits. However, the acceleration arrow is 17 px for g=5 and 33.3 px for g=9.8, so the scale is consistent. The checkpoint holds. The scrubber range for this input (-1 to 1 s) does not match the capture time 1.6 s as 'time from the top', and I can't check that offset from the frames. The frames do not show the scrubber or the callout text, so the readout values (v = 0, a = -5) are supported only by the trace."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The frames contain no callout text, so the callout readings can't be judged. The callout boxes have no text objects. The 'v' and 'a' labels appear only as arrow labels. The required observations velocityFlips and accelerationConstant, and the readouts as shown to the learner, are supported only by the traces. The topMoves observation has no readouts, which is acceptable. At the start frame the toss lane shows v up and a down, which is correct."
+    }
+  ]
+}
