@@ -1,0 +1,41 @@
+{
+  "jobId": "ej_9041a4b532d54d1880967957a137ed1d",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 32594,
+  "ms": 7210,
+  "findings": [
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "major",
+      "object": "vec.v.toss.zero",
+      "message": "At the top the frame shows the drop ball released: its gate is open, the state line reads 'Released at', and dropAcceleration is -9.8. The drop ball's velocity and height at that instant are still the held values (0 and the apex height), so the plan's 'held until the top' piece is switched at exactly t=apex. The drop-lane contrast the card exists to teach (a=0 while held, a=-g once released) is therefore never seen at the apex. The plan does not explain this boundary choice."
+    },
+    {
+      "capture": "cp-before",
+      "category": "spec",
+      "severity": "major",
+      "object": "ball.toss",
+      "message": "Two things are wrong. The drop ball is held at v=0, a=0 before the top, but the drop lane shows no 'a' arrow or label at all, only the zero-v marker. The toss velocity arrow is also drawn as 11.76 px for v=0.98 m/s, while the launch frame uses 60 px for 5 m/s, which is about 12 px per m/s. That scaling is consistent. However, the toss lane state text reads 'Moving upward' and the 'Held at' and 'Moving' strings are truncated or incomplete. These are state-line labels, which suggest the text is cut off or missing words (e.g. 'Held at' with no height). This undermines the readings."
+    },
+    {
+      "capture": "cp-after",
+      "category": "spec",
+      "severity": "minor",
+      "object": "lane.toss.state",
+      "message": "The state texts 'Moving', 'Held at', 'Released at' and 'Returned to' are incomplete phrases. Apart from the 'Launch Level' text, no further text follows them. The callout readout text is not shown in the frames, so I cannot confirm that the readouts agree with the traces."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "minor",
+      "object": "axis.h",
+      "message": "Both ticks and the axis max (10.5) are unchanged from the default capture. The apex at 10 m fits the axis, so the fixed scale holds. The ball is near the top of the lane at this height, and I can't check clipping without pixels."
+    }
+  ]
+}

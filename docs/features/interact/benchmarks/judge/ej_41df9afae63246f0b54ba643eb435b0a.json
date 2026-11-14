@@ -1,0 +1,31 @@
+{
+  "jobId": "ej_41df9afae63246f0b54ba643eb435b0a",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 31280,
+  "ms": 5430,
+  "findings": [
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "message": "At launch speed 10 and gravity 5, the apex height is 10 m. The height axis (max 10.5) and the ball's y position (76.3) fit that, since 243-10*16.67 is about 76.3. The acceleration arrow is only 17 px long, but at g=9.8 it was 33 px. So the arrow scale is not fixed across inputs, which contradicts the plan's 'same fixed ... acceleration-arrow scales'. It is proportional to g (5 gives 17, 9.8 gives 33.3), so this may be consistent. The check cannot be fully settled from the frames."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "At the start the drop ball's lane shows 'Held at' with a readout of a=0, and the drop acceleration arrow is absent. The plan's claim says 'toss acceleration is -gravity throughout', and the traced values agree. At the top (cp-top), dropAcceleration is -9.8 while dropVelocity is 0. The plan's piecewise definition makes this a release at the instant of the top, which is acceptable. However, the callout text and readout contents are not shown in the frames. The two readings per callout, such as the 'v=0, a=-g' values, cannot be verified. Observations velocityFlips and accelerationConstant therefore cannot be fully judged from the frames."
+    },
+    {
+      "capture": "cp-before",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The 'topMoves' observation has no readout. Apex height and time are supported only by the traces and the guide position. The scrubber range can't be judged from the frames."
+    }
+  ]
+}
