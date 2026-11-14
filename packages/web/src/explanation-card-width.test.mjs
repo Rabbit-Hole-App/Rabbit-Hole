@@ -103,5 +103,26 @@ test('a new Explanation with a plot opens at the plot\'s card width, not 440; on
   assert.equal(fullLength(withPlot, explanationCardWidth(withPlot) ?? 440).cardLayout.fullWidth, explanationCardWidth(withPlot));
   assert.ok(explanationCardWidth(withPlot) > 440);
   assert.equal(fullLength(prose, explanationCardWidth(prose) ?? 440).cardLayout.fullWidth, 440);
-  assert.match(read('./AdaptiveCanvas.jsx'), /fullLength\(added, explanationCardWidth\(added\) \?\? BLOCK_TYPES\[added\.type\]\?\.width\)/, 'the canvas passes the derived width');
+  assert.match(read('./AdaptiveCanvas.jsx'), /added = openedExplanation\(added\);/, 'the canvas opens it through the one helper, which passes the derived width');
+});
+
+// CV-8: a new Explanation opens whole (a Full layout, no 520 px cap, the visual's width) from EVERY origin: a typed command, Ctrl+K, the Tutor (placeRoadmapCard), a chat answer
+// (insertBlock without fit, insertImported). placeExplain places only v2 /explain job cards, which are 'animation' blocks (scene or program), never an Explanation, and has no 520 cap.
+import { openedExplanation } from './explanation-card-width.js';
+test('openedExplanation: every new Explanation opens in Full layout at its visual\'s width; anchors, excerpts, other types and cards that already have a layout are untouched', () => {
+  const plotCard = card(`${PROSE}\n\n${fence(plot)}\n\nMore.`), prose = card(PROSE);
+  const opened = openedExplanation(plotCard);
+  assert.equal(opened.cardLayout.mode, 'full', 'a Full layout: the type\'s 520 px autoMax (a card with no layout) never applies');
+  assert.equal(opened.cardLayout.fullWidth, explanationCardWidth(plotCard), 'and the width its plot asks for');
+  assert.equal(openedExplanation(prose).cardLayout.fullWidth, CARD_FLOOR, 'prose only: the usual 440');
+  const saved = { ...plotCard, cardLayout: { mode: 'scrollable', scrollableSize: { w: 500, h: 400 }, fullWidth: 500, slot: { w: 500, h: 400 } } };
+  assert.equal(openedExplanation(saved), saved, 'a card that already has a layout is untouched');
+  const animation = { id: 'a', type: 'animation', explainJob: { id: 'j' } };
+  assert.equal(openedExplanation(animation), animation, 'an /explain v2 job card (placeExplain) is an animation: not an Explanation, untouched');
+  const anchor = { ...prose, anchor: { source: 'shared' } }, excerpt = { ...prose, excerpt: { id: 'x', kind: 'text', page: 1 } };
+  assert.equal(openedExplanation(anchor), anchor, 'a topic anchor keeps its shape');
+  assert.equal(openedExplanation(excerpt), excerpt, 'a PDF excerpt keeps its shape');
+  const canvas = read('./AdaptiveCanvas.jsx');
+  assert.equal(canvas.match(/openedExplanation\(/g).length, 3, 'insertBlock, insertImported (no saved size) and placeRoadmapCard use it');
+  assert.match(canvas, /placeRoadmapCard: [\s\S]{0,700}openedExplanation\(\{ \.\.\.block, dx: 0, dy: 0 \}\)/, 'the Tutor-made card is opened whole');
 });

@@ -50,8 +50,8 @@ test('only a new card is opened full: a saved layout is kept, and the board load
   assert.equal(fullLength(saved, 440), saved, 'a card that already has a layout is untouched');
   assert.equal(fullLength({ type: 'paper' }, 440).cardLayout, undefined, 'a card without Full content is untouched');
   const canvas = read('AdaptiveCanvas.jsx');
-  assert.equal(canvas.match(/fullLength\(/g).length, 1, 'only insertBlock opens a card full');
-  assert.match(canvas, /if \(fit\) added = fullLength\(added, explanationCardWidth\(added\) \?\? BLOCK_TYPES\[added\.type\]\?\.width\);/);
+  assert.equal(canvas.match(/fullLength\(/g)?.length ?? 0, 0, 'the canvas opens a card full only through openedExplanation (explanation-card-width.js)');
+  assert.match(canvas, /added = openedExplanation\(added\);/, 'insertBlock opens every new Explanation whole (CV-8: not only the ones that pass fit)');
   assert.match(read('learn-slash.js'), /canvas\.insertBlock\(withPrompt\(result\.block, promptUsed\), \{ into: slot, \.\.\.\(result\.block\?\.type === 'explanation' \? \{ fit: true \} : \{\}\),/);
 });
 

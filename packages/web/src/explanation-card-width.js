@@ -3,7 +3,8 @@
 // The minimized tile uses the same rule on its one visual (explanation-minimize.js tileWidth): the visual is never scaled down.
 import { parseIllustrationFence } from './explanation-lead.js';
 import { naturalSize, renderTutorDiagram } from './tutor-diagrams/TutorDiagram.js';
-import { FULL_WIDTH } from './card-layout.js';
+import { FULL_WIDTH, fullLength } from './card-layout.js';
+import { isExcerpt } from './pdf-excerpt.js';
 
 export const PICTURE_DISPLAY_WIDTH = 512;
 export const MIN_VISUAL_WIDTH = 408, MAX_VISUAL_WIDTH = 960;
@@ -55,3 +56,8 @@ export function explanationCardWidth(block) {
 
 // The tile's width for its one visual (explanation-minimize.js minimizedVisual): { kind: 'picture' } | { kind: 'diagram', spec: <the fence's JSON text> } | null.
 export const tileWidthFor = visual => widthFor(!visual ? 0 : visual.kind === 'picture' ? PICTURE_DISPLAY_WIDTH : diagramWidth(visual.spec), TILE_FLOOR);
+
+// CV-8: every new Explanation opens whole, at the width its visual asks for, whichever way it reaches the canvas (a typed command, Ctrl+K, the Tutor, a chat answer): the type's 520 px cap
+// (BLOCK_TYPES autoMax) only ever applies to a card with no layout, and card-layout.js fullLength gives it one. A topic anchor and a PDF excerpt are not explanations to read (they keep their
+// shape); a card that already has a layout is untouched (fullLength).
+export const openedExplanation = block => (block?.type === 'explanation' && !block.anchor && !isExcerpt(block) ? fullLength(block, explanationCardWidth(block) ?? CARD_FLOOR) : block);
