@@ -287,6 +287,6 @@ function barChart(d, requested) {
 export function createLayouts({ legacy }) {
   return {
     'coordinate-plot': (d, width, options) => isExtendedPlot(d) ? coordinatePlot(d, width, options) : legacy['coordinate-plot'](d, width),
-    'bar-chart': (d, width) => d.variant ? barChart(d, width) : legacy['bar-chart'](d, width),
+    'bar-chart': (d, width, options) => d.variant ? barChart(d, width) : legacy['bar-chart'](d, width, options),
   };
 }
