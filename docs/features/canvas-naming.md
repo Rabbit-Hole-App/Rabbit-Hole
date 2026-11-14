@@ -19,7 +19,7 @@ Owner rules, 2026-10-06. Titles are labels, never identities.
   | **A fork** | Keeps the source's title when the forker has none like it, and steps on when they do. The provenance (`forked_from_title`) always keeps the source's own title. |
 
   "Next free" is the smallest number from 2 up that is not in use, so a number already taken (typed by hand, say) is skipped and never overwritten.
-- **What counts as a collision:** only the same owner's top-level canvases, archived included (`freeTitle`, canvases.js). Nested Rabbit Holes, another owner's canvases and projects (repositories) never count. A project and a canvas may share a title; the card's type icon tells them apart.
+- **What counts as a collision:** only the same owner's top-level canvases, archived included but **Trash not** (`freeTitle`, canvases.js; owner 2026-11-14): a canvas in Trash does not hold its title, so a new canvas may take it. Restore from Trash steps the restored canvas to the next free " (n)" when its title is in use again. Nested Rabbit Holes, another owner's canvases and projects (repositories) never count. A project and a canvas may share a title; the card's type icon tells them apart.
 - **Nested Rabbit Holes need no unique titles,** and their creation is never suffixed and a rename of one is never refused. They are identified by their parent and origin.
 - **One title per object:** the same canonical title shows on every surface (Home, Library, Explore, shared, `/e`, fork provenance).
 
