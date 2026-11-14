@@ -1,0 +1,1 @@
+{"stage":"failed","stopReason":"design_gap","calls":[{"role":"design_fill","requested":"gemini-3.5-flash-lite","served":"gemini-3.5-flash-lite","status":"settled","ms":3532},{"role":"design_fill","requested":"gemini-3.5-flash-lite","served":"gemini-3.5-flash-lite","status":"settled","ms":2902}],"stages":[["design_authoring",6504,2]]}
