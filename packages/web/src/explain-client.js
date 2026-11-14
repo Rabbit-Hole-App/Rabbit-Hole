@@ -90,7 +90,7 @@ export const findPlanCard = (root, { jobId = null, proposalId = null } = {}) => 
 const savedIdentity = result => { if (!result.program) return result; const { program: _artifact, ...identity } = result; return identity; };
 const programRef = block => (block.program ? { program: { bundleHash: block.program.bundleHash } } : {});
 
-const LAYOUT = ['dx', 'dy', 'w', 'h', 'slot', 'space', 'cardLayout', 'locked', 'prompt'];
+const LAYOUT = ['dx', 'dy', 'at', 'w', 'h', 'slot', 'space', 'cardLayout', 'locked', 'prompt'];
 // The job's result as this card, or null when it is not this card's result on this canvas: a different card id, another
 // board, a job this card is not waiting on, or a result without its identity. Placement and the card's saved prompt stay.
 export function explainResultBlock(card, job, block) {
