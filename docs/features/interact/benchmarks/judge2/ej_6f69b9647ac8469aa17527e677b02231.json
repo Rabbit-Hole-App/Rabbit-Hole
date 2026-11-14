@@ -1,0 +1,25 @@
+{
+ "jobId": "ej_6f69b9647ac8469aa17527e677b02231",
+ "label": "fast-detailed-2",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 25890,
+ "verdict": "fail",
+ "costUsd": 0.032262,
+ "findings": [
+  {
+   "capture": "end",
+   "category": "spec",
+   "severity": "major",
+   "object": "lane.toss.state",
+   "message": "The state line at the endpoint reads \"Back at\". The motionState readout says \"Back at start\", so the drawn state text is truncated or incomplete and contradicts the readout."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "major",
+   "object": "vec.v",
+   "message": "The fast-toss capture has apexHeight 12.5 m and the ball is drawn at y=77. The callout boxes sit at y=40 to 124, which is inside the lane. The callout stack moves with the ball and no longer lines up with the fixed positions used in the other captures. The reader cannot confirm from this capture that the top is placed correctly on the fixed scales. The axis ticks only reach 10 and max is 13.2, which is acceptable. This is a minor placement issue, but the missing launch-speed and gravity comparison against the default capture is unsupported."
+  }
+ ]
+}

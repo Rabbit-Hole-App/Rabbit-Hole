@@ -1,0 +1,29 @@
+{
+ "jobId": "ej_9c20c1b1185a43a0a6fdf3d5c61cc6ff",
+ "label": "template-overview",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 17805,
+ "verdict": "fail",
+ "costUsd": 0.026728,
+ "findings": [
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "The scene description says there is no number readout and that the Motion arrow is blue and the gravity arrow is dashed. The frames label the arrows with letters 'v' and 'a', and the lane shows state text such as 'At launch' and 'Back at launch height'. The plan does not mention these labels. At the top, the 'Motion' readout and 'Gravity' readout rows are not in the scene description either. The arrows are also called 'Motion' and 'gravity' in the plan, but the card labels them 'v' and 'a'. This is a mismatch with the plan, though the content is not false."
+  },
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "At t=0 the callout and the Motion readout say 'Moving up', and the state says 'At launch'. This is acceptable. At the end (t=0.816, v=-4) the ball is back at launch height and the motion arrow points down, which is consistent. However, the Motion arrow at launch has length 48 px for v=4. At cp-rising (v=2) it has length 24 px. That is proportional and fine. The gravity arrow stays at 48 px throughout. This is consistent. The 'At launch' state word is unplanned, so it is not a required observation."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "major",
+   "message": "On the fixed height scale, apex height 1.27551 m is drawn at y=60, which is 170 px above the launch line at y=230. For launch speed 4, apex 0.816 m is drawn 108.8 px above. The ratio is 170/108.8 = 1.5625, and 1.27551/0.816327 = 1.5625. So the scale is consistent and faster tosses rise higher. The callout box for the fast top sits at y=40 and the scene starts at y=34, so it is close to the lane edge. This cannot be judged without pixels."
+  }
+ ]
+}

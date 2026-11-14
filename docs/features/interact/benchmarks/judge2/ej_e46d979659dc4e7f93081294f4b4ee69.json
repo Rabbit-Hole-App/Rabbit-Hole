@@ -1,0 +1,39 @@
+{
+ "jobId": "ej_e46d979659dc4e7f93081294f4b4ee69",
+ "label": "fast-detailed-1",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 26252,
+ "verdict": "fail",
+ "costUsd": 0.035262,
+ "findings": [
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "object": "lane.toss.state",
+   "message": "The state line text is truncated. It reads 'At' at launch and at the top, and 'Risin' and 'Back' in other captures, instead of 'At launch', 'Rising', 'At the top' and 'Back at start'. The motionState readout holds the full words, so the on-card state line contradicts it. At the top, 'At' does not say what the state is."
+  },
+  {
+   "capture": "cp-top",
+   "category": "spec",
+   "severity": "major",
+   "object": "vec.v",
+   "message": "No velocity arrow is drawn at the top, which is acceptable for v = 0. The 'v' label is also absent, so the zero velocity is not shown visually. The callout does read v = 0.00 m/s. This is minor on its own."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "major",
+   "object": "axis.h",
+   "message": "The ruler tops out at 13.2 m, and the ball at 12.5 m sits near the top. The ball is at y=77 and the callout boxes start at y=40, so the plot fits. The scrubber reads 0 to 5 s, but the layout says Launch speed 10 with Gravity 4 reads 0 to 5 s, which is consistent with the trace. The plot x axis is fixed at 0 to 5 s, so the default 1.02 s trace occupies only a small part of the plot. This is imprecise but not wrong."
+  },
+  {
+   "capture": "cp-before",
+   "category": "spec",
+   "severity": "minor",
+   "object": "callout.toss.l0",
+   "message": "The top arrives at 0.510 s, so 0.10 s before it is 0.410 s. The trace shows v = 0.98 m/s, which is correct. The checkpoint is supported."
+  }
+ ]
+}

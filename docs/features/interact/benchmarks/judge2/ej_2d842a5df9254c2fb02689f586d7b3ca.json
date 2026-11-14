@@ -1,0 +1,41 @@
+{
+ "jobId": "ej_2d842a5df9254c2fb02689f586d7b3ca",
+ "label": "fast-balanced-2",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 31443,
+ "verdict": "fail",
+ "costUsd": 0.041048,
+ "findings": [
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "The default launch speed is 5 m/s with g = 9.8 m/s². The drop lane state reads 'Held at' and the toss lane state reads 'Back at'. Both phrases are truncated, so the state lines are incomplete. The scrubber range of ±0.510204 s is correct for these inputs."
+  },
+  {
+   "capture": "end",
+   "category": "spec",
+   "severity": "major",
+   "message": "The tossed ball is drawn at height 0 (y=243) with v = −5.00 m/s, and the arrow length of 60 px matches. The v arrow reaches y=303, below the lane box (y 34–279) and below the launch mark. In the toss lane, the a arrow and label sit at the launch level. The ball at the ground is therefore drawn with arrows that extend outside the lane. This is plausible but cannot be judged without pixels."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "minor",
+   "message": "With launch speed 10 and gravity 5 the apex is 10 m, drawn at y=76.3. That fits the axis, which runs 0 to 10.5. Callout values are correct (v = 0, a = −5.0). The ghost outlines are absent at the top, which is expected."
+  },
+  {
+   "capture": "cp-top",
+   "category": "spec",
+   "severity": "minor",
+   "message": "At the top, the drop lane shows 'Released' with a = −9.8 while the gate is drawn open. This matches the plan, because the piecewise switch happens at the top. The velocity readouts are zero in both lanes. The drop ball arrow is a dot. The callout widths change from 136 to 146 between states, which is cosmetic."
+  },
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The description says 'gravity remains constant even when speed is zero at t = v / g'. It is acceptable but vague. The traced values are consistent with the plan."
+  }
+ ]
+}

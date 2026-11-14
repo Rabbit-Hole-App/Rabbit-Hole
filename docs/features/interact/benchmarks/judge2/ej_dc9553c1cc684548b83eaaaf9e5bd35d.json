@@ -1,0 +1,35 @@
+{
+ "jobId": "ej_dc9553c1cc684548b83eaaaf9e5bd35d",
+ "label": "fast-brief-2",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 17994,
+ "verdict": "fail",
+ "costUsd": 0.027064,
+ "findings": [
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "The layout says the default inputs read 0 to 1.020408 s. The default captures (start, cp-rising, cp-top, cp-falling, end) have launchSpeed 5, so the traced range is 0 to 1.020408 s. That range matches launch speed 10 (2*10/9.8 = 2.04 s). Launch speed 5 should read 0 to 1.020408 s, which is consistent. However, the layout's own examples say speed 3 gives 0.612245 s and speed 10 gives 2.040816 s, so the default is 5. This is consistent and not a defect. The real problem is that the plan says 'no number readout', yet the readouts are text only, so that is fine too."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "major",
+   "message": "The fast toss (10 m/s) puts the ball at y=60 and the callout at y=40–96. The apex height is 5.10 m, and the drawn rise is 170 px, which is 33.3 px/m. At 5 m/s the apex rise is 42.5 px for 1.2755 m, also 33.3 px/m, so the scale is consistent. The velocity arrow is absent at the top, as planned. The fixed scale for fasterHigher is supported."
+  },
+  {
+   "capture": "end",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The end state at t = 1.020408 s shows velocity -5 and height 0, which is correct. The v arrow points down and is drawn at full launch length. The state word 'Back at start' sits beside the callout 'Falling downward', which is imprecise but not misleading."
+  },
+  {
+   "capture": "cp-top",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The motion arrow is absent at the top and the gravity arrow is 48 px long in every state, so the observations and the claim are supported. The labels 'Moving upward' and 'Falling downward' are consistent with the signs of velocity."
+  }
+ ]
+}

@@ -1,0 +1,25 @@
+{
+ "jobId": "ej_3ce14431c893494f9162c3de9fd4f0f5",
+ "label": "fast-detailed-3",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 26381,
+ "verdict": "pass",
+ "costUsd": 0.032044,
+ "findings": [
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "minor",
+   "object": "lane.toss.state",
+   "message": "The state word reads \"Back at\" in the end capture. The readout row says \"Back at start\", so the drawn word looks truncated. This is imprecise but not misleading."
+  },
+  {
+   "capture": "cp-before",
+   "category": "spec",
+   "severity": "minor",
+   "object": "vec.v",
+   "message": "The frames can't show whether the velocity arrow is visibly distinguishable at v = 0.98 m/s. The arrow is 11.76 px long, which is consistent with the 12 px/(m/s) scale used at launch. The ball's position is consistent with the traced height. The check that the ball stays in frame at the largest launch speed can't be judged from these captures."
+  }
+ ]
+}
