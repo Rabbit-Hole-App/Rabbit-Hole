@@ -1652,14 +1652,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [renaming, setRenaming] = useState(null); // { id, title, rect }: a card's title being renamed in place (card-rename.js)
   // The right-click Rename and a card header's double-click open the same in-place editor (CardRename context, CardHeader.jsx).
   const startRename = id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: startTitleOf(block, describeBlock(block)?.title), rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); };
-  // The canvas chat strip (owner 2026-11-13): minimized to the Rabbit Hole button at the lower right, and the last choice is kept on
-  // this device (ui-prefs.js chatStrip), so a canvas opens the way the learner left it.
-  const [composerHidden, setComposerHidden] = useState(() => uiPrefs().chatStrip === 'min');
-  const keepStrip = value => { try { saveUiPref('chatStrip', value); } catch { /* storage refused: the choice holds until a reload */ } };
-  const hideComposer = useCallback(() => { setComposerHidden(true); keepStrip('min'); }, []);
+  // The canvas chat strip (owner 2026-11-13): minimized to the Rabbit Hole button at the lower right. Every canvas opens with it active (owner 2026-11-14: an
+  // owner, shared or published canvas, a new empty one too), so a minimize lasts for this canvas's visit and never carries to the next canvas.
+  const [composerHidden, setComposerHidden] = useState(false);
+  const hideComposer = useCallback(() => setComposerHidden(true), []);
   // Add to chat and the other "show the chat" actions restore the strip when it is minimized and take the focus (chat-workspace.jsx showChat).
   useEffect(() => {
-    const show = () => { setComposerHidden(false); keepStrip('open'); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea')?.focus({ preventScroll: true })); };
+    const show = () => { setComposerHidden(false); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea')?.focus({ preventScroll: true })); };
     window.addEventListener('rh-strip-show', show);
     return () => window.removeEventListener('rh-strip-show', show);
   }, []);
