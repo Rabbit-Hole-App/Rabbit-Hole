@@ -6529,7 +6529,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {arrows.map(arrow => (
               <g key={arrow.id} data-card-arrow={arrow.id} data-arrow-kind={arrow.kind} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth={ARROW.width / view.z} className="[stroke:var(--arc-l)] dark:[stroke:var(--arc-d)]" style={{ '--arc-l': arrow.colors.light, '--arc-d': arrow.colors.dark }}>
                 <path d={arrow.geometry.d} strokeDasharray={arrow.kind === 'explain' ? ARROW.dash.split(' ').map(n => Number(n) / view.z).join(' ') : undefined} />
-                <path d={arrowhead(arrow.geometry, Math.max(1, 0.7 / view.z))} />
+                <path d={arrowhead(arrow.geometry, 1 / view.z)} />
               </g>
             ))}
           </svg>

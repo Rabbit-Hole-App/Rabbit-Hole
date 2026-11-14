@@ -17,7 +17,8 @@
 //     vertical gap (JITTER.siblingGap). The no-loop guard (the head clears the tail by minGap) runs on the jittered slot: it fails -> the jitter halves, then is dropped.
 //     No id: no jitter (the old callers). The amplitudes below are the one block to tune.
 export const SOURCED = Object.freeze({ gap: 96, minGap: 64, gaps: [96, 128, 64, 160], margin: 24, step: 24, windowHeights: 2, columns: 4, columnCost: 200, crossCost: 150, orderCost: 60, edge: 16, maxCoord: 1e7 });
-export const JITTER = Object.freeze({ x: 0.35, y: 40, align: 32, push: 48, pushes: 8, spread: 10, reach: 3, siblingGap: 12 });
+export const JITTER = Object.freeze({ x: 0.35, y: 40, align: 32, push: 48, pushes: 8, spread: 10, reach: 3, siblingGap: 12, steep: 2.2 });
+const STEEP = JITTER.steep; // |dy| above STEEP x the run reads as a hooked S
 
 // FNV-1a, the hash beside-placement.js scatterOf uses: stable across reloads and runs.
 export const hashOf = text => { let hash = 2166136261; for (const char of String(text)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0; return hash; };
@@ -99,8 +100,12 @@ function deAlign(pick, ctx) {
     // Alternate by sibling index: an even-numbered child prefers a gap wider than the previous child's, an odd one a narrower, so the distances zig-zag instead of stepping one way.
     const last = siblings.at(-1)?.box, prevGap = last ? (sideOf(source, last) === 'right' ? last.x - (source.x + source.w) : source.x - (last.x + last.w)) : null;
     const zig = g => (prevGap === null ? 0 : (g > prevGap) === (siblings.length % 2 === 0) ? 0 : 1);
-    const gaps = Array.from({ length: JITTER.spread }, (_, i) => SOURCED.minGap + i * JITTER.push).sort((a, b) => (zig(a) - zig(b)) || hashOf(`${ctx.key}|g|${a}`) - hashOf(`${ctx.key}|g|${b}`));
-    const hit = gaps.map(g => ({ x: pick.side === 'right' ? source.x + source.w + g : source.x - g - size.w, y: out.y })).find(at => free(rect(at)) && !aligned(rect(at), others));
+    const gaps = Array.from({ length: Math.min(JITTER.spread, 4 + siblings.length) }, (_, i) => SOURCED.minGap + i * JITTER.push).sort((a, b) => (zig(a) - zig(b)) || hashOf(`${ctx.key}|g|${a}`) - hashOf(`${ctx.key}|g|${b}`));
+    // Seen on the live canvas (146b): a far gap made the arrow run behind another card, and a short gap with a big vertical offset made a hooked S. A candidate that crosses a card or is steeper than
+    // STEEP (|dy| over the run) is tried last, never first.
+    const bad = at => { const q = slotQuality({ source, anchorY: ctx.anchorY, at, size, side: pick.side, boxes, columns: 0 }), run = Math.abs(pick.side === 'right' ? at.x - (source.x + source.w) : source.x - (at.x + size.w)); return q.crossings * 2 + (q.dy > STEEP * run ? 1 : 0); };
+    const tries = gaps.map(g => ({ x: pick.side === 'right' ? source.x + source.w + g : source.x - g - size.w, y: out.y })).filter(at => free(rect(at)) && !aligned(rect(at), others));
+    const hit = tries.map((at, i) => ({ at, i, bad: bad(at) })).sort((a, b) => a.bad - b.bad || a.i - b.i)[0]?.at;
     if (hit) out = hit;
   }
   const kin = siblings.filter(s => sideOf(source, s.box) === pick.side).map(s => s.box).sort((a, b) => a.y - b.y);
