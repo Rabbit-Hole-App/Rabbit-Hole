@@ -12,11 +12,12 @@
 //     siblings are never moved, so when the ordered slot is taken the nearest free slot is taken and the order is accepted.
 //  f. JITTER (owner 2026-11-14, "a brainstorm board, not a structure"): a deterministic offset from a hash of the new card's id and the source's id shifts the gap by up to +-JITTER.x of itself
 //     (never under SOURCED.minGap) and the card's middle by up to +-JITTER.y around the anchor, before the overlap check, so it can never overlap anything. ANTI-GRID: a slot whose left edge, right edge or
-//     centre x lies within JITTER.align of another card's (that card within one card height vertically) is pushed sideways by at least JITTER.push, away from it; consecutive siblings do not repeat a
+//     centre x lies within JITTER.align of another card's is pushed sideways by at least JITTER.push (in the hash's direction, then wider, up to JITTER.pushes steps): against EVERY sibling of this source and every
+//     other card within JITTER.reach card heights, so cards two apart never line up either; consecutive siblings do not repeat a
 //     vertical gap (JITTER.siblingGap). The no-loop guard (the head clears the tail by minGap) runs on the jittered slot: it fails -> the jitter halves, then is dropped.
 //     No id: no jitter (the old callers). The amplitudes below are the one block to tune.
 export const SOURCED = Object.freeze({ gap: 96, minGap: 64, gaps: [96, 128, 64, 160], margin: 24, step: 24, windowHeights: 2, columns: 4, columnCost: 200, crossCost: 150, orderCost: 60, edge: 16, maxCoord: 1e7 });
-export const JITTER = Object.freeze({ x: 0.25, y: 40, align: 32, push: 48, siblingGap: 12 });
+export const JITTER = Object.freeze({ x: 0.35, y: 40, align: 32, push: 48, pushes: 8, reach: 3, siblingGap: 12 });
 
 // FNV-1a, the hash beside-placement.js scatterOf uses: stable across reloads and runs.
 export const hashOf = text => { let hash = 2166136261; for (const char of String(text)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0; return hash; };
@@ -54,10 +55,10 @@ export function slotQuality({ source, anchorY, at, size, side, boxes = [], colum
   return { dy: Math.round(Math.abs(head.y - tail.y)), crossings, columns };
 }
 
-// Is the slot column-aligned with a card standing within one card height of it (left edges, right edges or centres within JITTER.align)?
-const aligned = (rect, others) => others.some(b => {
+// Is the slot column-aligned (left edges, right edges or centres within JITTER.align) with a peer? peers: [{ b, always }]: a sibling of the source always counts, any other card only within JITTER.reach card heights.
+const aligned = (rect, peers) => peers.some(({ b, always }) => {
   const gapY = Math.max(0, Math.max(rect.y, b.y) - Math.min(rect.y + rect.h, b.y + b.h));
-  return gapY < rect.h && (Math.abs(rect.x - b.x) < JITTER.align || Math.abs(rect.x + rect.w - (b.x + b.w)) < JITTER.align || Math.abs(rect.x + rect.w / 2 - (b.x + b.w / 2)) < JITTER.align);
+  return (always || gapY < JITTER.reach * rect.h) && (Math.abs(rect.x - b.x) < JITTER.align || Math.abs(rect.x + rect.w - (b.x + b.w)) < JITTER.align || Math.abs(rect.x + rect.w / 2 - (b.x + b.w / 2)) < JITTER.align);
 });
 
 function bestOnSide(side, ctx, scale) {
@@ -88,14 +89,14 @@ function bestOnSide(side, ctx, scale) {
 // tail and aligns with nothing wins. Siblings' vertical gaps: a slot whose gap to its nearest same-side sibling repeats another sibling-to-sibling gap is nudged by JITTER.siblingGap.
 function deAlign(pick, ctx) {
   const { source, size, obstacles, siblings, boxes, dir } = ctx;
-  const others = [...boxes, ...siblings.map(s => s.box)].filter(b => !same(b, source));
+  const others = [...boxes.filter(b => !same(b, source)).map(b => ({ b, always: false })), ...siblings.map(s => ({ b: s.box, always: true }))];
   const free = rect => !obstacles.some(box => hits(rect, box, SOURCED.margin)) && clears(source, rect, size, pick.side);
   let out = { x: pick.x, y: pick.y };
   const rect = at => ({ x: at.x, y: at.y, w: size.w, h: size.h });
   if (aligned(rect(out), others)) {
-    const near = others.find(b => aligned(rect(out), [b])), away = near && Math.abs(out.x - near.x) >= 1 ? Math.sign(out.x - near.x) : dir;
-    for (const push of [JITTER.push, 1.5 * JITTER.push, 2 * JITTER.push]) {
-      const hit = [away, -away].map(d => ({ x: out.x + d * Math.round(push), y: out.y })).find(at => free(rect(at)) && !aligned(rect(at), others));
+    for (let step = 0; step < JITTER.pushes; step += 1) {
+      const push = Math.round(JITTER.push * (1 + step * 0.5)); // 48, 72, 96, ... in the hash's direction first, then the other way
+      const hit = [dir, -dir].map(d => ({ x: out.x + d * push, y: out.y })).find(at => free(rect(at)) && !aligned(rect(at), others));
       if (hit) { out = hit; break; }
     }
   }
