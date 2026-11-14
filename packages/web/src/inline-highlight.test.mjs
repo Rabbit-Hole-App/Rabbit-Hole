@@ -78,7 +78,7 @@ test('a card made from highlighted words starts level with that line, inside the
   assert.deepEqual(besideSpot(source, { w: 546, h: 300 }, [], { dy: 260 }), { x: 480, y: 360 });
   assert.equal(besideSpot(source, { w: 546, h: 300 }, [], { dy: 5000 }).y, 100 + 900 - 40, 'clamped inside the source');
   // an occupied slot there: the next free slot to the right in the same row
-  assert.equal(besideSpot(source, { w: 546, h: 300 }, [{ x: 480, y: 340, w: 546, h: 400 }], { dy: 260 }).x, 480 + 546 + 40);
+  assert.equal(besideSpot(source, { w: 546, h: 300 }, [{ x: 480, y: 340, w: 546, h: 400 }], { dy: 260 }).x, 480 + 720 + 40); // the row steps by BESIDE_ASSUMED_W (720 since CV-1), not by the card size
 });
 
 test('wiring: the canvas picks the highlight, the editor draws the chip, the mark, the scrim and hands the card over; the slash command uses the context and the line', () => {
@@ -86,7 +86,7 @@ test('wiring: the canvas picks the highlight, the editor draws the chip, the mar
   assert.match(canvas, /pickedHighlight\(shell\.current, board\.blocks, viewRef\.current\.z\)/);
   assert.match(canvas, /highlight=\{inline\.highlight \|\| null\}/);
   assert.doesNotMatch(canvas, /onClearHighlight/, 'no chip x: the window closes it');
-  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[beside\]\), \{ dy: besideDy \}\)/);
+  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy \}\)/);
   assert.doesNotMatch(editor, /Remove the highlighted text/, 'the chip has no x');
   assert.match(editor, /data-inline-close/, 'the x belongs to the window');
   assert.ok(editor.includes("config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500) })"), 'a plain prompt asks the router which command it is, over highlighted words and over the bulb passage');
