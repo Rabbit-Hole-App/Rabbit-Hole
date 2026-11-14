@@ -37,8 +37,13 @@ export function outlineFrom(blocks, toc = null) {
 export const ROADMAP_ROW = 'roadmap:';
 export function withRoadmap(outline, toc, doneIds = new Set()) {
   if (!toc?.steps?.length) return outline || [];
-  const rows = toc.steps.map(step => ({ id: `${ROADMAP_ROW}${step.id}`, level: 1, label: String(step.title || '').trim() || UNTITLED[1], done: doneIds.has(step.id),
-    description: String(step.description || '').trim().slice(0, DESCRIPTION_MAX), roadmap: { stepId: step.id, status: [step.status, step.format].filter(Boolean).join(' · '), nav: step.nav, source: step.source || null, removed: !!step.removed, resultId: step.resultId || null } }));
+  // A plan with sections (owner 2026-11-14): a section row (not editable, no card) above its steps, which sit one level down; a step with no section stays top level.
+  const rows = toc.steps.flatMap((step, index) => {
+    const sectioned = !!step.section;
+    const row = { id: `${ROADMAP_ROW}${step.id}`, level: sectioned ? 2 : 1, label: String(step.title || '').trim() || UNTITLED[sectioned ? 2 : 1], done: doneIds.has(step.id),
+      description: String(step.description || '').trim().slice(0, DESCRIPTION_MAX), roadmap: { stepId: step.id, status: [step.status, step.format].filter(Boolean).join(' · '), nav: step.nav, source: step.source || null, removed: !!step.removed, resultId: step.resultId || null } };
+    return sectioned && step.section !== toc.steps[index - 1]?.section ? [{ id: `roadmap-section:${index}`, level: 1, label: step.section, done: false, description: '', roadmap: { section: true, status: '', nav: null, source: null, removed: false, resultId: null } }, row] : [row];
+  });
   return [...rows, ...(outline || []).filter(entry => !String(entry.id).startsWith(ROADMAP_ROW))];
 }
 

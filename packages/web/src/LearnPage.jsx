@@ -858,7 +858,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       for (const { file, assetKey, block } of made) {
         await cacheAsset(assetKey, file);
         if (block.type === 'repo-code') insertCodeCard(chat?.canvasOps, block, at); else canvas()?.insertImported(block, at);
-        if (block.type === 'file' && block.kind === 'markdown') { droppedMarkdown.current.add(block.id); markStart('dropready:' + block.id, 'drop_to_ready_ms'); markStart('drop:' + block.id, 'drop_to_invite_ms'); }
+        if (block.type === 'file' && block.kind === 'markdown') { roadmap.expectInvitation(); droppedMarkdown.current.add(block.id); markStart('dropready:' + block.id, 'drop_to_ready_ms'); markStart('drop:' + block.id, 'drop_to_invite_ms'); }
       }
       if (made.length) panels.openChat(); // UI.01 (the provider's panels: chatWorkspace.current is null while the Chat panel is unmounted): the drop reveals Chat once; focus, draft and camera stay
       nextImport();
@@ -1413,16 +1413,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       sources: () => (canvasApi.current?.blocks?.() || []).filter(block => block.type === 'file' && block.kind === 'markdown' && block.fileRef?.source?.id && block.fileRef.source.rev).map(block => ({ key: `file:${block.fileRef.source.id}`, rev: block.fileRef.source.rev, name: block.label || '' })),
       sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, sourceName: key => sourceBlock(key)?.label || '', depth: () => chat?.settings?.depth || 'balanced' } });
   // The Tutor's proposal as the canvas slot beside its Markdown card (roadmap-canvas.js -> AdaptiveCanvas SlotCard): one slot per step from proposal to delivered card,
-  // accepted and cancelled through the same controller actions as Tab. The offer is shown exactly when the pill would be (state: pillOf's gate: Ask mode, the flag, the editor);
-  // the canvas tells which offers it really draws (onDrawn), and the fixed overlay yields only to those.
-  const [canvasDrawn, setCanvasDrawn] = useState('');
+  // (owner 2026-11-14: a course makes every card from one Generate course, so the slot only ever shows a card being made, checked, saved or failed; there is no offer to accept).
   // UI.06: each slot's private place (roadmap-slots.js), read once per roadmap before anything is placed, written once per offer.
   const [slotsRead, setSlotsRead] = useState(0);
   const slotStore = useMemo(() => createSlotStore({ api, listener: () => setSlotsRead(n => n + 1) }), []);
   useEffect(() => { slotStore.load(roadmap.state.view); }, [slotStore, roadmap.state.view?.roadmap?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const roadmapCanvas = useMemo(() => ({ cards: canvasCardsOf(roadmap.state.view, { state: roadmap.state, hasBlock: id => !!id && !!canvasApi.current?.blocks?.().some(block => block.id === id) }),
-    onAccept: () => roadmap.controller.acceptProposal(), onCancel: () => roadmap.controller.cancelProposal(), onDrawn: setCanvasDrawn, slots: slotStore }), [roadmap.state, roadmap.controller, slotStore, slotsRead]); // eslint-disable-line react-hooks/exhaustive-deps
-  const canvasHosts = !!roadmap.pill && canvasDrawn.split(' ').includes(roadmap.pill.stepId);
+    slots: slotStore }), [roadmap.state, roadmap.controller, slotStore, slotsRead]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
   // picker opens from a card's menu ({ blockId }), the empty canvas ({ point }) or Insert ({}). Same-tab link
@@ -2551,7 +2548,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               const api = canvasApi.current;
               if (refPick.blockId) return (await api?.addRef?.(refPick.blockId, canvas.id)) || { ok: false };
               return (await api?.insertRefCard?.(canvas.id, refPick.point)) ? { ok: true } : { ok: false };
-            }} />}<SurfaceBoundary artifact="roadmap_canvas"><RoadmapCanvas roadmap={roadmap} hosted={canvasHosts} /></SurfaceBoundary><ChatHandle to={chatRef} /></div>
+            }} />}<SurfaceBoundary artifact="roadmap_canvas"><RoadmapCanvas roadmap={roadmap} /></SurfaceBoundary><ChatHandle to={chatRef} /></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">

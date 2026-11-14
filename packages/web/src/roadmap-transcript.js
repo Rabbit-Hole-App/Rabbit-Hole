@@ -3,7 +3,7 @@
 // saved (chat-persist.js saveTutorEntry) in the roadmap's bound thread with a versioned private record (tutor: { v: 1, kind, seq, ids });
 // seq grows with the entry's stage, so the server updates it in place and never regresses it. Actions are resolved against the live state
 // at render time (RoadmapTranscript.jsx): a stored entry with no live counterpart keeps its labels, disabled, and can never replay an action.
-import { acceptedPlanOf, canProposeNext, chatOf, draftOf, isNext, offerOf } from './roadmap-client.js';
+import { acceptedPlanOf, canStartCourse, chatOf, draftOf } from './roadmap-client.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 import { STRINGS } from './roadmap-strings.js';
 
@@ -52,22 +52,9 @@ export function routeFromSaved(msgs, invitationId, threadId) {
 }
 export const draftClientId = (roadmapId, version) => cid(`roadmap-draft-${roadmapId}-v${version}`);
 export const acceptedClientId = (roadmapId, version) => cid(`roadmap-accepted-${roadmapId}-v${version}`);
-export const stepClientId = stepId => cid(`roadmap-step-${stepId}`);
 export const doneClientId = roadmapId => cid(`roadmap-done-${roadmapId}`);
 export const boundaryClientId = sourceKey => cid(`roadmap-boundary-${sourceKey}`);
 
-// A step's one lifecycle stage (contracts.md steps[].stage, else derived from the view the same way); `accepting` is the client's own
-// in-flight acceptance, as the contract says.
-const RANK = { proposed: 1, accepting: 2, generating: 3, checking: 4, saving: 5, ready: 9, failed: 9, skipped: 9, cancelled: 9 };
-export function stepStage(state, step) {
-  const view = state.view, offer = view.proposal?.stepId === step.id ? view.proposal : null;
-  if (offer && state.busy.includes(`accept:${offer.id}:${offer.version}`)) return 'accepting';
-  if (step.stage && step.stage !== 'planned') return step.stage;
-  const r = (view.results || []).filter(x => x.stepId === step.id).at(-1);
-  if (r) return r.stage || (r.failure ? 'failed' : r.delivery === 'delivered' || r.delivery === 'removed' ? 'ready' : r.held ? 'checking' : r.generation === 'generated' ? 'saving' : 'generating');
-  if (offer && ['pending', 'checking', 'held'].includes(offer.state)) return 'proposed';
-  return { cancelled: 'cancelled', skipped: 'skipped', incomplete: 'skipped', delivered: 'ready' }[step.state] || null;
-}
 const formatName = format => STRINGS.formatName[format] || format || '';
 const act = (id, label, run, extra = {}) => ({ id, label, run: { kind: id, ...run }, ...extra });
 
@@ -103,7 +90,7 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
   if (pending) push(draftClientId(rid, (draft?.version ?? rm.planVersion ?? 0) + 1), 'draft', 1, STRINGS.generatingRoadmap, { roadmapId: rid, stage: 'generating' }, [], { activity: STRINGS.generatingRoadmap });
   else if (draft && ['questioning', 'proposed', 'active', 'paused', 'completed'].includes(rm.state)) {
     const steps = draft.steps || [], depth = draft.settings?.depth || rm.depth;
-    const content = [STRINGS.roadmapPrepared(mdName(name)), `**${STRINGS.roadmapDraft}**`, steps.map((s, i) => `${i + 1}. **${s.title}**${s.goal ? ` — ${s.goal}` : ''}${s.format ? ` (${formatName(s.format)})` : ''}`).join('\n')].filter(Boolean).join('\n\n');
+    const content = [STRINGS.roadmapPrepared(mdName(name)), `**${STRINGS.roadmapDraft}**`, steps.map((s, i) => `${i && s.section === steps[i - 1].section ? '' : s.section ? `\n**${s.section}**\n\n` : ''}${i + 1}. **${s.title}**${s.goal ? ` — ${s.goal}` : ''}${s.format ? ` (${formatName(s.format)})` : ''}`).join('\n')].filter(Boolean).join('\n\n');
     const acceptBusy = state.busy.includes(`plan:${rid}:${draft.version}`);
     push(draftClientId(rid, draft.version), 'draft', 2, content, { roadmapId: rid, planVersion: draft.version, stage: 'draft' },
       [act('accept_roadmap', acceptBusy ? STRINGS.accepting : STRINGS.acceptRoadmap, { planVersion: draft.version }, { disabled: acceptBusy || draft.acceptable === false, primary: true, green: true }), act('edit_roadmap', STRINGS.editRoadmap, { planVersion: draft.version })],
@@ -116,46 +103,15 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
   // The accepted roadmap's summary: navigation, edit (a new future draft), Propose next step when no offer, End roadmap (UI.02/UI.03/UI.08).
   const accepted = acceptedPlanOf(view);
   if (accepted && rm.acceptedPlanVersion != null) {
-    const first = (accepted.steps || view.steps || [])[0]?.title || '';
     const open = isUnfinishedRoadmap(rm.state);
-    push(acceptedClientId(rid, rm.acceptedPlanVersion), 'accepted', 1, STRINGS.roadmapReady(first), { roadmapId: rid, planVersion: rm.acceptedPlanVersion }, [
+    push(acceptedClientId(rid, rm.acceptedPlanVersion), 'accepted', 1, STRINGS.roadmapReady(), { roadmapId: rid, planVersion: rm.acceptedPlanVersion }, [
+      ...(open && canStartCourse(state) ? [act('generate_course', STRINGS.generateCourse, {}, { primary: true, green: true })] : []),
       act('open_toc', STRINGS.openToc, {}, { blue: true }),
       ...(open ? [act('edit_roadmap', STRINGS.editRoadmap, {}, { disabled: pending })] : []),
-      ...(open && canProposeNext(state) && !offerOf(state) ? [act('propose_next', STRINGS.proposeNext)] : []),
       ...(open ? [act('end', STRINGS.end)] : []),
     ]);
   }
-  // One lifecycle entry per card (UI.04/UI.08): proposed -> accepting -> generating -> checking -> saving -> ready / failed / skipped / cancelled.
-  const offer = offerOf(state);
-  for (const step of view.steps || []) {
-    const stage = stepStage(state, step);
-    if (!stage) continue;
-    const isOffer = offer?.stepId === step.id, r = (view.results || []).filter(x => x.stepId === step.id).at(-1);
-    const title = (isOffer && offer.title) || r?.title || step.title, description = (isOffer && offer.description) || step.goal || '';
-    const version = isOffer ? offer.version : r?.proposalVersion || 1;
-    const cardId = r?.delivery === 'delivered' ? r.slot?.cardId || null : null;
-    const status = stage === 'failed' ? r?.failure?.message || STRINGS.failed : STRINGS.stage[stage];
-    const format = formatName(step.format || (isOffer && offer.format));
-    const actions = [];
-    if (stage === 'proposed' || stage === 'accepting') {
-      actions.push(act('accept', isNext(view, { stepId: step.id }) ? STRINGS.nextCard : STRINGS.accept, { proposalId: offer?.proposalId, version }, { disabled: !isOffer || !offer.accept, primary: true, green: true }));
-      if (offer?.canEdit) actions.push(act('edit_card', STRINGS.editCard, {}, { disabled: !isOffer || stage === 'accepting' }));
-      actions.push(act('cancel', STRINGS.cancel, { proposalId: offer?.proposalId, version }, { disabled: !isOffer || stage === 'accepting' }));
-      actions.push(act('go_card', STRINGS.goToCard, { stepId: step.id }));
-    } else if (stage === 'ready' && cardId) actions.push(act('go_card', STRINGS.goToCard, { cardId }));
-    if (['proposed', 'accepting', 'generating', 'checking', 'saving', 'ready'].includes(stage) && step.sourceRef) actions.push(act('go_text', STRINGS.goToText, { stepId: step.id }));
-    push(stepClientId(step.id), 'step', RANK[stage] * 20 + Math.min(version, 19), [`**${title}**`, description, [format, status].filter(Boolean).join(' · ')].filter(Boolean).join('\n\n'),
-      { roadmapId: rid, stepId: step.id, proposalId: isOffer ? offer.proposalId : null, proposalVersion: version, stage, ...(cardId ? { cardId } : {}) }, actions,
-      { activity: ['accepting', 'generating', 'checking', 'saving'].includes(stage) ? status : null, sourceRef: (isOffer && view.proposal.sourceRelation?.sourceRef) || step.sourceRef || null }); // live only: the excerpt is read through the entitled reference at render, never stored in the message
-  }
-  // BE.05a: a card offer that could not be prepared (view.offerRecovery): ONE entry for the step, in the same Chat. A required format that cannot be kept asks one
-  // focused question (the alternative, or Edit roadmap); otherwise it is useful help. Nothing was authored, held or charged, and the step stays undelivered.
-  const held = view.offerRecovery;
-  if (held && !view.proposal) {
-    const options = held.question?.options ?? [];
-    push(cid(`roadmap-recovery-${rid}-${held.stepId}`), 'recovery', 1, held.question?.text || held.help || '', { roadmapId: rid, stepId: held.stepId, reason: held.reason },
-      options.length ? options.map(o => (o.id === 'edit' ? act('edit_roadmap', o.label, {}, { key: 'edit' }) : act('recover', o.label, { stepId: held.stepId, choice: o.id }, { key: o.id, primary: true }))) : [act('edit_roadmap', STRINGS.editRoadmap, {})]);
-  }
+  // No per-card entries (owner 2026-11-14): a course makes every card from one Generate course; its progress is the overlay on the canvas and each row's status in the table of contents.
   if (rm.state === 'completed') push(doneClientId(rid), 'done', 1, STRINGS.completed, { roadmapId: rid, state: 'completed' });
   if (rm.state === 'ended') push(doneClientId(rid), 'done', 1, STRINGS.ended, { roadmapId: rid, state: 'ended' });
   return out;
@@ -172,9 +128,8 @@ export function outcomeOf(entry, { live = true, acceptedPlanVersion = null } = {
 }
 // A stored entry's action ids as their labels, for history (always disabled: a stored entry with no live counterpart never acts).
 const LABELS = { route_new: STRINGS.startNewChat, route_stay: STRINGS.stayHere, explain_on_canvas: STRINGS.explain, keep_here: STRINGS.keepHere, accept_roadmap: STRINGS.acceptRoadmap,
-  edit_roadmap: STRINGS.editRoadmap, open_toc: STRINGS.openToc, propose_next: STRINGS.proposeNext, end: STRINGS.end, accept: STRINGS.accept, edit_card: STRINGS.editCard, cancel: STRINGS.cancel,
-  go_card: STRINGS.goToCard, go_text: STRINGS.goToText };
-export const historyActions = tutor => [...new Set(tutor?.actions || [])].filter(id => LABELS[id] && !['open_toc', 'go_card', 'go_text'].includes(id)).map(id => ({ id, label: LABELS[id], run: { kind: id }, disabled: true }));
+  edit_roadmap: STRINGS.editRoadmap, open_toc: STRINGS.openToc, generate_course: STRINGS.generateCourse, end: STRINGS.end };
+export const historyActions = tutor => [...new Set(tutor?.actions || [])].filter(id => LABELS[id] && !['open_toc'].includes(id)).map(id => ({ id, label: LABELS[id], run: { kind: id }, disabled: true }));
 
 // Edit roadmap (UI.03): the composer's existing edit-target pill (chat-workspace.jsx editing, ContextChips EditTargetPill) aimed at this roadmap
 // draft. The unsent draft is stashed on the target and the composer is cleared for the requested change; removing the pill or sending the

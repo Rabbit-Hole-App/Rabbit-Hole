@@ -11,7 +11,7 @@ import { requestSpendBound } from '../src/learn-spend.js';
 import { readFileSync } from 'node:fs';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
-import { LEARN_TASKS, MODEL_PRICES, costUsd, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
+import { CHAT_GEMINI, LEARN_TASKS, MODEL_PRICES, costUsd, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
 
 const object = { objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'σ(x) = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] };
 const snapshot = { lessonId: 'sigmoid-demo', runId: 'test-run', method: 'lesson', target: null, relatedObjects: [object], lessonContext: { topic: 'Sigmoid', currentStage: 'sigmoid', recentExplanations: ['The midpoint is 0.5.'] } };
@@ -160,14 +160,14 @@ test('the roadmap roles: eight registered entries, one tool each, no fallback, p
   const role = (model, effort, maxTokens) => ({ provider: 'anthropic', model, effort, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens });
   const roadmap = Object.fromEntries(Object.entries(LEARN_TASKS).filter(([key]) => key.startsWith('roadmap_')));
   assert.deepEqual(roadmap, {
-    roadmap_subject: role('claude-sonnet-5-5', 'low', 1000),
-    roadmap_draft: role('claude-opus-5-5', null, 12000),
-    roadmap_revise: role('claude-opus-5-5', null, 12000),
-    roadmap_grounding_check: role('claude-sonnet-5-5', 'low', 1500),
-    roadmap_grounding_escalation: role('claude-opus-5-5', null, 4000),
-    roadmap_safety_adjudicate: role('claude-opus-5-5', null, 1500),
-    roadmap_proposal: role('claude-sonnet-5-5', 'low', 600),
-    roadmap_index: role('claude-sonnet-5-5', 'low', 2000),
+    roadmap_subject: role(CHAT_GEMINI, null, 4000),
+    roadmap_draft: role(CHAT_GEMINI, null, 12000),
+    roadmap_revise: role(CHAT_GEMINI, null, 12000),
+    roadmap_grounding_check: role(CHAT_GEMINI, null, 4000),
+    roadmap_grounding_escalation: role(CHAT_GEMINI, null, 4000),
+    roadmap_safety_adjudicate: role(CHAT_GEMINI, null, 4000),
+    roadmap_proposal: role(CHAT_GEMINI, null, 600),
+    roadmap_index: role(CHAT_GEMINI, null, 2000),
   });
   assert.ok(Object.values(roadmap).every(Object.isFrozen));
 });

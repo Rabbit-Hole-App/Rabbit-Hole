@@ -104,6 +104,7 @@ export async function workflow(t, { plans = [PLAN], script = [], classifier = as
   const planner = async (role, body) => {
     h.plannerCalls.push({ role, body: clone(body), text: JSON.stringify(body) });
     if (role === 'roadmap_draft' || role === 'roadmap_revise') return toolUse('submit_roadmap', h.plans.length > 1 ? h.plans.shift() : h.plans[0]);
+    if (role === 'roadmap_subject' && h.facts) return toolUse('submit_facts', h.facts); // the course's fun facts (roadmap-course.js ensureFacts); a test sets h.facts
     if (role === 'roadmap_proposal') return toolUse('submit_proposal_edit', h.nextEdit || { title: 'Gini in one picture', description: 'How squared shares make Gini.', format: 'explanation' });
     throw new Error(`unexpected planner role ${role}`);
   };
