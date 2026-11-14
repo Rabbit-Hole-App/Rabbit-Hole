@@ -164,7 +164,7 @@ export async function ensureFacts(env, access, roadmapId, deps = {}) {
   if (claimed?.meta?.changes === 0) return null;
   const read = await (deps.readSourceForActor || readMarkdownForActor)(env, access, { key: roadmap.source_key, rev: roadmap.source_rev });
   if (read?.status !== 'ok' || !read.text) return null;
-  const callModel = deps.callModel || platformCallModel(env, access, { roadmapId, version: course.runs ?? 1, anchor: 'facts', quota: 'plan' });
+  const callModel = deps.callModel || platformCallModel(env, access, { roadmapId, version: course.runs ?? 1, anchor: 'facts', quota: null }); // not the plan quota (6 an hour): the facts are one small call a course, and a spent plan quota silently left the wait without them (found live)
   const name = parse(roadmap.scope_json)?.sourceName || '';
   let timer;
   try {
