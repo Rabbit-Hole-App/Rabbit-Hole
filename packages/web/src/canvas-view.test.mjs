@@ -112,3 +112,44 @@ test('PV-1: a published page has no saved camera and opens on the board the page
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.ok(!/stored.current.(view|camera)/.test(canvas), 'a board state carries no camera for a view-only page to restore');
 });
+
+// CK-4: every focus move puts the thing in the middle of the visible area, on both axes.
+import { centerOnBox } from './canvas-view.js';
+const room = { left: 100, right: 1100, top: 60, bottom: 860 };
+
+test('CK-4: a box already inside the area is still centred (the old nudge left it where it was)', () => {
+  const view = { x: 0, y: 0, z: 1 }, box = { x: 150, y: 100, w: 300, h: 200 };
+  const next = centerOnBox(box, view, room);
+  assert.deepEqual(next, { x: 300, y: 260, z: 1 });
+  assert.equal(next.x + box.x * next.z + box.w * next.z / 2, (room.left + room.right) / 2);
+  assert.equal(next.y + box.y * next.z + box.h * next.z / 2, (room.top + room.bottom) / 2);
+});
+
+test('CK-4: a box out of view is centred at the learner zoom, which never changes', () => {
+  const view = { x: -4000, y: -9000, z: 0.5 }, box = { x: 9000, y: 21000, w: 440, h: 600 };
+  const next = centerOnBox(box, view, room);
+  assert.equal(next.z, 0.5);
+  assert.equal(next.x + box.x * 0.5 + box.w * 0.5 / 2, 600);
+  assert.equal(next.y + box.y * 0.5 + box.h * 0.5 / 2, 460);
+});
+
+test('CK-4: a box bigger than the area starts at the area edge, or centres the part the focus names', () => {
+  const view = { x: 0, y: 0, z: 1 }, tall = { x: 200, y: 1000, w: 700, h: 4000 };
+  const top = centerOnBox(tall, view, room);
+  assert.equal(top.y + tall.y * top.z, room.top);
+  const passage = { x: 240, y: 3000, w: 400, h: 60 };
+  const at = centerOnBox(tall, view, room, passage);
+  assert.equal(at.y + (passage.y + passage.h / 2) * at.z, (room.top + room.bottom) / 2);
+  assert.equal(at.x + (tall.x + tall.w / 2) * at.z, (room.left + room.right) / 2, 'the axis that fits is still centred on the box');
+});
+
+test('CK-4: the canvas routes every focus move through centerOnBox; only the keep-in-view nudges stay panInto', () => {
+  const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(source, /import \{ centerOnBox,[^}]*\} from '\.\/canvas-view\.js'/);
+  assert.match(source, /reach = within => \(centre \? centerOnBox\(box, current, within\) : panInto\(box, current, within, false\)\)/);
+  assert.match(source, /const bringIntoView = id => showBox\(boundsRef\.current\[id\], false, true\);/);
+  assert.match(source, /showBox\(box, want\.smooth, want\.centre \?\? true\)/);
+  assert.match(source, /showBox\(box, true, true, z === viewRef\.current\.z \? null : z\)/);
+  assert.match(source, /reveal: box => showBox\(box, true, true\)/);
+  assert.match(source, /keepRef\.current = id => showBox\(boundsRef\.current\[id\], true\);/, 'a card resizing is kept in view, not a focus move');
+});

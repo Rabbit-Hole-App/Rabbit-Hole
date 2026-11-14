@@ -1229,10 +1229,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     const onPassage = event => {
       const { sourceRef, text, cardId, rect } = event.detail || {};
       if (!sourceRef || !text) return;
+      // CK-1/CK-2: the passage rect and its card ride into Ctrl+K, so its window stands beside the words and the camera centres them (InlineAiEditor bulbWords); the words are its pill.
       passageRef.current = { sourceRef, text, at: Date.now() };
       // Where this passage is on the canvas now, in world units: its Explain skeleton is placed beside it (AdaptiveCanvas placeExplain).
       passageSites.current.set(sourceRef, { cardId, world: rect ? canvasApi.current?.worldRect?.(rect) ?? null : null });
-      if (!canvasApi.current?.inlineAi?.('explain', { prompt: text })) toast('Open a canvas you can edit to explain this passage.');
+      if (!canvasApi.current?.inlineAi?.('explain', { prompt: text, rect, cardId })) toast('Open a canvas you can edit to explain this passage.');
     };
     window.addEventListener(EXPLAIN_PASSAGE_EVENT, onPassage);
     return () => window.removeEventListener(EXPLAIN_PASSAGE_EVENT, onPassage);

@@ -39,3 +39,15 @@ export function topView(box, area, { pad = 48, minZoom = 0.5 } = {}) {
   const room = area.right - area.left, z = Math.min(1, Math.max(minZoom, (room - pad * 2) / Math.max(1, box.w)));
   return { x: area.left + Math.max(0, (room - box.w * z) / 2) - box.x * z, y: area.top + pad - box.y * z, z };
 }
+
+// CK-4: the one camera for every FOCUS move (a card just made, Go to card, View passage or explanation, Focus): the thing goes to the middle of the visible `area` on both axes, at the
+// learner's zoom (z never changes). A box already inside the area is centred too (panInto left it where it was). On an axis where the box is bigger than the area it starts at the area's
+// edge (top / left), or, when `focus` (a box in the same world pixels: the passage) is given, that part is centred, so a tall card opens on the words and not on its top.
+export function centerOnBox(box, view, area, focus = null) {
+  const axis = (start, size, offset, lo, hi, part) => {
+    const length = size * view.z;
+    if (length > hi - lo) return part ? (lo + hi - part.size * view.z) / 2 - part.start * view.z : lo - start * view.z;
+    return (lo + hi - length) / 2 - start * view.z;
+  };
+  return { ...view, x: axis(box.x, box.w, view.x, area.left, area.right, focus && { start: focus.x, size: focus.w }), y: axis(box.y, box.h, view.y, area.top, area.bottom, focus && { start: focus.y, size: focus.h }) };
+}

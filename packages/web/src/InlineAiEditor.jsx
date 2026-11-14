@@ -121,16 +121,20 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // The camera frames the words and the window beside them (a card made by a command takes over the camera itself; closed without sending, the camera goes back).
   // Owner 2026-11-09 ("it should just appear in one place"): in a layout effect, before the first paint, the words' rects are moved to where the glide will leave them and the window is placed
   // against those, once (settled); it used to follow the live words, so it stood by their old spot until the glide ended and then snapped.
+  // CK-1: the Markdown bulb's passage (a preset with its client rect) is placed and framed exactly like highlighted words: the window beside it, the camera centring the words and the window.
+  // It is only a place: the mark, the mode and the hand-off stay as they were (a highlight is the real Range; the bulb's has none).
+  const bulbWords = useMemo(() => (!highlight && preset && !preset.command && preset.rect ? { id: preset.cardId || null, text: preset.prompt || '', rects: [preset.rect], live: null, alignY: 0 } : null), [highlight, preset]);
+  const words = highlight || bulbWords;
   const [settled, setSettled] = useState(null);
   useLayoutEffect(() => {
     const origin = overlay.current?.getBoundingClientRect();
-    if (!highlight || !origin || !canvas.frameWords) return undefined;
-    const rects = highlight.rects.map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
-    const words = { left: Math.min(...rects.map(r => r.left)), top: Math.min(...rects.map(r => r.top)), right: Math.max(...rects.map(r => r.left + r.width)), bottom: Math.max(...rects.map(r => r.top + r.height)) };
-    const restore = canvas.frameWords(words, { w: W, h: FRAME_ROOM, gap: 10 });
+    if (!words || !origin || !canvas.frameWords) return undefined;
+    const rects = words.rects.map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
+    const span = { left: Math.min(...rects.map(r => r.left)), top: Math.min(...rects.map(r => r.top)), right: Math.max(...rects.map(r => r.left + r.width)), bottom: Math.max(...rects.map(r => r.top + r.height)) };
+    const restore = canvas.frameWords(span, { w: W, h: FRAME_ROOM, gap: 10 });
     if (restore?.to) setSettled(settleRects(rects, restore.from, restore.to));
     return () => { if (!handedOff.current) restore?.(); };
-  }, [highlight]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [words]); // eslint-disable-line react-hooks/exhaustive-deps
   // The board's Depth (the Chat composer's own setting, one value for both): null on a page with no Chat workspace..
   const depthSettings = useChatWorkspace()?.settings ?? null;
   // A creation (nothing selected) is always Explain: Edit changes a selection, and there is none (creation §1).
@@ -160,7 +164,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason || highlight ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain'); // owner 2026-11-09: Ctrl+K over highlighted words in a card is Explain selection (the card's words are read, not edited)
   // preset: { prompt, command? } from an opener that already knows the words (Explain on a highlighted passage: words only, no command, the router picks one).
-  const [prompt, setPrompt] = useState(preset?.prompt ?? '');
+  // CK-2: a passage (the highlighted words, or the bulb's) is shown as a pill above the box, which starts empty (the learner's own words); a preset with a command keeps its words in the box.
+  const passageText = highlight?.text ?? (preset && !preset.command ? preset.prompt || '' : '');
+  const [prompt, setPrompt] = useState(preset?.command ? preset?.prompt ?? '' : '');
   // A / command (Release B, contract B4): the one picked or typed, as its registry name; prompt is then its words. /explain
   // is the Explain mode itself and has no pill; it is still sent. The picker opens while the line is a leading /word.
   const [command, setCommand] = useState(preset?.command ?? null);
@@ -396,6 +402,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     if(readOnly || cadPending || cadJob)return;
     if (mode === 'edit' && fileLocked) { setRefused(FILE_EDIT_LOCKED); return; }
     const out = submission({ mode, command, text: prompt });
+    let routedChoice = null; // the router's answer for a passage request (CK-3: 'note' keeps its own preview)
     // A source search where no finder can open (an embed without one) is said like any command Ctrl+K lacks here.
     if (out.unsupported || (out.source && !config.openSearch)) { setRefused(out.unsupported || out.source.source); return; }
     if (out.source) { openFinder(out.source); return; }
@@ -405,9 +412,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // Owner 2026-11-09: over highlighted words a plain prompt asks JEV which slash command it is (the router's own question, ROUTES): a command it picks with probability >= INTENT_AT is shown for a second,
     // then handed to Chat's dispatcher (the right Chat panel opens, /explain makes a card beside the highlighted line); none, a note or a low answer leaves the request here as Explain selection.
     // The bulb's passage (a preset with no command, owner 2026-11-09) is asked the same way: its words are the selection and Chat gets no selection target (the minted passage ref rides learnSlash.run's heldPassageTarget).
-    if ((highlight || (preset && !preset.command)) && !out.handoff && out.mode !== 'edit' && String(prompt).trim() && config.transport?.route && config.handoff) {
-      const asked = String(prompt).trim(), intent = await config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500) });
-      const choice = intent && !intent.error ? intent.choice : null, name = choice && ROUTES[choice] && choice !== 'note' ? Object.entries(INLINE_COMMAND_ROUTE).find(([, route]) => route === choice)?.[0] || choice : null;
+    const overPassage = !!(highlight || (preset && !preset.command)) && !out.handoff && out.mode !== 'edit' && !!passageText;
+    const asked = String(prompt).trim() || passageText; // CK-2: an empty box over a passage explains the passage itself
+    if (overPassage && asked && config.transport?.route && config.handoff) {
+      const intent = await config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: passageText.slice(0, 1500) });
+      const choice = intent && !intent.error ? intent.choice : null; routedChoice = choice;
+      const name = choice && ROUTES[choice] && choice !== 'note' ? Object.entries(INLINE_COMMAND_ROUTE).find(([, route]) => route === choice)?.[0] || choice : null;
       if (name && intent.probability >= INTENT_AT && (config.enabled || ['note']).includes(choice)) {
         const line = `/${typedOf(name)} ${asked}`;
         setPicked(typedOf(name));
@@ -418,6 +428,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         setHandoffError(HANDOFF_REFUSED);
         return;
       }
+    }
+    // CK-3: Explain selection over a passage makes its card directly: the /explain path (skeleton, then the card beside the passage, the camera on it), no preview, no Accept or Reject. A 'note' answer keeps its own
+    // preview (a note is added at the insertion point, and may be edited first); a canvas with no Chat to hand to falls back to the inline card, which is accepted by itself (below).
+    if (overPassage && config.handoff && routedChoice !== 'note') {
+      setHandoffError('');
+      if (await config.handoff(`/${typedOf('explain')} ${asked}`, { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
+      setHandoffError(HANDOFF_REFUSED);
+      return;
     }
     if (out.handoff) {
       if (!config.handoff) { setRefused(typedOf(out.handoff.command)); return; }
@@ -670,6 +688,17 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     if (out?.ok) onClose(true);
   };
   const reject = () => { session.reject(); onClose(true); };
+  // CK-3: Explain selection makes its card without a preview step. Where the card is made here (no Chat to hand to), a finished card preview in Explain is accepted as soon as its place is known (its ghost measured,
+  // up to 1.5 s), and once more if its place had to move; Edit modes, notes, diagrams and the paid proposal keep their preview and Accept / Reject.
+  const autoCard = mode === 'explain' && state.preview?.kind === 'card';
+  const autoAccepted = useRef({ id: null, n: 0 });
+  useEffect(() => {
+    const done = state.preview;
+    if (!autoCard || state.status !== 'preview' || state.accepted || readOnly || autoAccepted.current.id === done.requestId && autoAccepted.current.n >= 2) return undefined;
+    const ready = !!placements[done.requestId]?.final || !canvas.cardGhost;
+    const timer = setTimeout(() => { autoAccepted.current = { id: done.requestId, n: autoAccepted.current.id === done.requestId ? autoAccepted.current.n + 1 : 1 }; accept(); }, ready ? 0 : 1500);
+    return () => clearTimeout(timer);
+  }, [state.status, state.preview, state.accepted, placements, moved]); // eslint-disable-line react-hooks/exhaustive-deps
   const close = () => { session.dispose('closed'); onClose(true); };
 
   const keyDown = event => {
@@ -702,7 +731,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     if (what !== 'send' || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
     // Always require text (owner 2026-10-14): an empty prompt never sends, with or without a selection, like the Send button.
-    if (state.status === 'proposal' || !outgoing.trim()) return;
+    if (state.status === 'proposal' || !(outgoing.trim() || (passageText && !command))) return;
     send();
   };
 
@@ -716,10 +745,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const [picked, setPicked] = useState(null);
   const marked = (() => {
     const origin = overlay.current?.getBoundingClientRect();
-    if (!highlight || !origin) return null;
+    if (!words || !origin) return null;
     if (settled) return settled; // placed once, against where the camera glide leaves the words
-    let rects = []; try { rects = [...highlight.live.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0); } catch { rects = []; }
-    if (!rects.length) rects = highlight.rects.map(rect => ({ ...rect, right: rect.left + rect.width, bottom: rect.top + rect.height }));
+    let rects = []; try { rects = [...words.live.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0); } catch { rects = []; }
+    if (!rects.length) rects = words.rects.map(rect => ({ ...rect, right: rect.left + rect.width, bottom: rect.top + rect.height }));
     return rects.map(rect => ({ left: rect.left - origin.left, top: rect.top - origin.top, width: rect.width, height: rect.height }));
   })();
   const [, tick] = useState(0);
@@ -732,14 +761,15 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return () => { watch?.disconnect(); window.removeEventListener('resize', again); };
   }, []);
   useEffect(() => {
-    if (!highlight) return undefined;
+    if (!words) return undefined;
     const again = () => tick(n => n + 1);
     document.addEventListener('scroll', again, true);
     return () => document.removeEventListener('scroll', again, true);
-  }, [highlight]);
-  useLayoutEffect(() => { if (highlight && !marked) tick(n => n + 1); }, [highlight, marked]);
+  }, [words]);
+  useLayoutEffect(() => { if (words && !marked) tick(n => n + 1); }, [words, marked]);
+  // HL-2: the dim's holes are the exact words (a highlight's live Range rects; the bulb's placement box is only a place, not words), the pill's marked Range and every explained passage.
   const markRects = (() => { try { return mark?.live ? [...mark.live.getClientRects()] : []; } catch { return []; } })();
-  const dimHoles = pageBox ? mergeRects([...(marked || []), ...[...markRects, ...explainedRects()].map(rect => ({ left: rect.left - pageBox.left, top: rect.top - pageBox.top, width: rect.width, height: rect.height }))]) : [];
+  const dimHoles = pageBox ? mergeRects([...(highlight ? marked || [] : []), ...[...markRects, ...explainedRects()].map(rect => ({ left: rect.left - pageBox.left, top: rect.top - pageBox.top, width: rect.width, height: rect.height }))]) : [];
   const targetScreen = (() => {
     if (marked?.length) { const x = Math.min(...marked.map(r => r.left)), y = Math.min(...marked.map(r => r.top)); return { x, y, w: Math.max(...marked.map(r => r.left + r.width)) - x, h: Math.max(...marked.map(r => r.top + r.height)) - y }; }
     // A creation is placed by its insertion anchor, as a selection is by its box.
@@ -927,7 +957,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {showsPill(command) && <div className="mb-1.5 flex pr-7"><CommandPill name={command} disabled={busy(status)} onRemove={() => { setCommand(null); focusField(); }}
           className="h-6 gap-0.5 rounded-md pr-0.5 pl-1.5 text-xs" removeClassName="h-5 w-5" /></div>}
         {/* Owner 2026-11-09: the chip is just the first words (the full text is its tooltip); the x of this window closes it and clears the mark and the scrim. */}
-        {highlight && <span data-inline-chip title={highlight.text} className={`${CHIP} mb-1.5 w-fit px-2`}><span data-inline-chip-text className="min-w-0 truncate">{firstWords(highlight.text)}</span></span>}
+        {passageText && <span data-inline-chip title={passageText} className={`${CHIP} mb-1.5 w-fit max-w-full px-2`}><span data-inline-chip-text className="min-w-0 truncate">{firstWords(passageText)}</span></span>}
         <textarea ref={field} rows={2} value={prompt} onChange={event => typing(event.target.value)} onKeyDown={fieldKey} data-inline-prompt
           aria-activedescendant={pickerOpen && matches.length ? `inline-command-${matches[Math.min(active, matches.length - 1)].name}` : undefined}
           aria-label={preview ? 'Refine the request' : mode === 'edit' ? 'What would you like to change?' : 'What would you like to understand?'}
@@ -1000,7 +1030,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
             <p className="mt-1 text-[11px] text-ink-3">{placements[preview.requestId]?.offscreen ? 'Shown where it lands; ' : ''}Adds editable shapes and arrows to the canvas when you accept.</p>
           </div>
         )}
-        {(['card','proposal','compute','source_compute'].includes(preview?.kind)) && !busy(status) && (
+        {(['card','proposal','compute','source_compute'].includes(preview?.kind)) && !busy(status) && !autoCard && (
           <div data-inline-preview={preview.kind} data-card-type={preview.block?.type} className="mt-2 rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             <p className="font-medium text-ink">{preview.kind==='source_compute'?'Plot from recognized page values':preview.kind==='compute'?(preview.operation.type==='polynomial_derivative'?'Exact polynomial check':'Computed from selected cells'):preview.route ? routeLabel(preview.route) : 'Card'}: {short(preview.block?.title || preview.describe?.title || '', 60)}</p>
             {(() => { const b = preview.block || {}; const words = [b.brief, b.caption, b.body, b.goal, b.operation?.request, typeof b.code === 'string' ? b.code : null].find(value => typeof value === 'string' && value.trim()) || preview.describe?.text; return words ? <p className="mt-0.5 line-clamp-3 text-ink-2">{short(words, 220)}</p> : null; })()}
@@ -1042,7 +1072,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {state.declined && <p data-inline-decision={state.declined.decision} role="status" className="mt-2 text-xs text-ink-2">{state.declined.message}</p>}
         {state.error && <p data-inline-error role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.error}
           {state.retry && <button type="button" data-inline-retry onClick={send} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCcw size={11} />Try again</button>}</p>}
-        {(preview && status !== 'proposal') && (
+        {(preview && status !== 'proposal' && !autoCard) && (
           <div className="mt-2 flex items-center justify-end gap-1.5">
             <button type="button" data-inline-reject onClick={reject} className="h-6 rounded-md border border-line bg-white px-2 text-xs text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ai">Reject</button>
             <button type="button" data-inline-accept onClick={accept} disabled={!acceptable || readOnly} title={busy(status) ? 'Waiting for the new version' : `Accept (${keyLabel('Mod+Enter')})`}
@@ -1111,7 +1141,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-danger-fill text-white outline-none hover:bg-danger-fill-hover active:bg-danger-fill-hover focus-visible:ring-2 focus-visible:ring-ai"><Square size={10} fill="currentColor" /></button>
             ) : (
               <button type="button" data-inline-submit aria-label={preview ? 'Refine' : 'Send'} title={preview ? 'Refine (Enter)' : 'Send (Enter)'}
-                disabled={!!cadJob || cadPending || readOnly || status === 'proposal' || !outgoing.trim() || outgoing.length > PROMPT_MAX} onClick={send}
+                disabled={!!cadJob || cadPending || readOnly || status === 'proposal' || !(outgoing.trim() || (passageText && !command)) || outgoing.length > PROMPT_MAX} onClick={send}
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white outline-none hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-ai disabled:bg-hover disabled:text-ink-3"><ArrowUp size={15} /></button>
             )}
           </div>

@@ -101,7 +101,7 @@ test('every jump to a card goes through the one glideTo camera move, animated, i
   assert.doesNotMatch(show, /setView\(/);
   assert.match(canvas, /viewRef\.current = next; glideTo\(next\);/, 'a Search result glides');
   for (const command of ['focusBlock', 'focusObject', 'locateObject']) assert.match(canvas.match(new RegExp(`      ${command}: id => \{[^]*?\n      \},`))[0], /cameraRef\.current = \{ id, frame: true \}/, `${command} reaches frame`);
-  assert.match(canvas, /if \(want\.frame\) frame\(\[box\], 64, 1\); else showBox\(box, want\.smooth, want\.centre\);/);
+  assert.match(canvas, /if \(want\.frame\) frame\(\[box\], 64, 1\); else showBox\(box, want\.smooth, want\.centre \?\? true\);/); // CK-4: a jump to a card is centred unless a caller says otherwise
   const glide = canvas.match(/const glideTo = \(next, auto = false\) => \{[^]*?\n  \};/)[0];
   assert.match(glide, /document\.body\.classList\.contains\('canvas-dragging'\) \? 0 : count \+ 1/, 'no glide while the learner drags');
   assert.match(canvas, /\$\{glide \? 'transition-transform duration-300 ease-in-out motion-reduce:transition-none' : ''\}/, 'eased, 300ms, none under prefers-reduced-motion');

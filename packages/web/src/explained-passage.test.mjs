@@ -82,7 +82,7 @@ test('HL-2: the Ctrl+K dim has holes for the words being explained and for every
   assert.equal(mergeRects([{ left: 0, top: 0, width: 0, height: 5 }]).length, 0, 'an empty rect is no hole');
   assert.equal((scrimPath({ w: 400, h: 300 }, mergeRects([line, line, next]), 0).match(/M/g) || []).length, 3, 'the surface and two holes');
   const editor = read('InlineAiEditor.jsx'), mark = read('inline-highlight-mark.js'), md = read('FileDocMarkdown.jsx');
-  assert.ok(editor.includes('const dimHoles = pageBox ? mergeRects([...(marked || []), ...[...markRects, ...explainedRects()].map(rect =>'));
+  assert.ok(editor.includes('const dimHoles = pageBox ? mergeRects([...(highlight ? marked || [] : []), ...[...markRects, ...explainedRects()].map(rect =>'));
   assert.ok(editor.includes('useEffect(() => () => { if (preset) markClear(); }, []);'), 'the pill mark goes with the window');
   assert.match(editor, /data-inline-scrim [^>]*style=\{dimHoles\.length && pageBox \? \{ clipPath: scrimPath\(\{ w: pageBox\.width, h: pageBox\.height \}, dimHoles, 0\) \} : undefined\}/);
   assert.match(mark, /export const explainedSet/);

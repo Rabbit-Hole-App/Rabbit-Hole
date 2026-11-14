@@ -263,11 +263,11 @@ export function explainTx({ requestId, text, frozen, board, boxes, size, visible
 export function cardTx({ requestId, block, frozen, board, route, place = null }) {
   const inline = inlineProvenance({ requestId, route, frozen });
   const card = withPrompt({ ...block, id: cardId(requestId), dx: place ? place.dx : 0, dy: place ? place.dy : 0, inline }, frozen.words);
-  const after = place ? null : frozen.ids.find(id => (board.blocks || []).some(entry => entry.id === id)) || null;
+  // CK-5: never inserted after its source (that pushed every card after it down the column), and never at the camera's flow index (AdaptiveCanvas apply): always appended (`end`), its offsets (dx, dy) putting it beside the source.
   const one = explainConnects(frozen.ids, board) ? frozen.ids[0] : null;
   const [fromSide, toSide] = place ? FACING[place.side] || FACING.right : ['top', 'bottom'];
   const link = one ? { id: linkId(requestId), from: card.id, fromSide, to: one, toSide, color: '#6b7280', route: 'straight', head: true, kind: 'annotation', inline } : null;
-  return { id: requestId, kind: 'card', block: card, after, ...(place ? { end: true } : {}), links: link ? [link] : [] };
+  return { id: requestId, kind: 'card', block: card, after: null, end: true, links: link ? [link] : [] };
 }
 
 export const editTx = ({ requestId, changes, additions=[], removals=[] }) => ({ id: requestId, kind: 'edit', changes: changes.map(({ id, list, after }) => ({ id, list, after })), additions, removals });

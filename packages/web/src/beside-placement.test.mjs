@@ -49,7 +49,7 @@ test('the card is placed clear of the source and of every obstacle: no overlap a
 test('wiring: Ask in a new card and Explore ask for a card beside the source with no connector; the slot is as tall as the source; an anchored slot puts the card on its place; reload keeps dx, dy', () => {
   const canvas = src('./AdaptiveCanvas.jsx'), slash = src('./learn-slash.js');
   assert.match(canvas, /\.\.\.\(destination === 'card' \|\| destination === 'follow-up' \|\| destination === 'explore' \? \{ beside: true \} : \{\}\)/);
-  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy \}\)/);
+  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy, \.\.\.\(passage/); // CK-5 added the passage side table after dy
   assert.match(canvas, /if \(at\) size = \{ \.\.\.size, h: Math\.round\(source\.h\) \}/);
   // typed /explain (BUG 4): follow the selected or latest explanation card through followPlace, never the column once there is one to follow
   assert.match(canvas, /\(\{ at, size \} = followPlace\(\{ source, size, id, obstacles: boardObstacles\(\[anchor\]\) \}\)\)/);
@@ -119,4 +119,46 @@ test('beside a very tall source the card lands next to it, not past every card d
   assert.ok(besideSpot(tall, size, elsewhere).x > placed.at.x + 700, 'reproduction: a spot as tall as the source is blocked by those cards and lands a whole card further right');
   const near = followPlace({ source: tall, size, id: 'slot:real-2', obstacles: [{ x: 699, y: 0, w: 800, h: 300 }] });
   assert.ok(near.at.x > 699 + 700 && near.at.y <= 120, 'a card right beside it pushes the new one one step right, still at the top');
+});
+
+// CK-5: a card made from a passage (Ctrl+K Explain selection) goes beside its source at the passage height: right first, then left, nearest free spot, never over anything, never above or below.
+import { BESIDE_SIDES } from './beside-placement.js';
+
+test('CK-5: the side order is one table: the passage card tries right, then left; every other card keeps the right only', () => {
+  assert.deepEqual(BESIDE_SIDES.passage, ['right', 'left']);
+  assert.deepEqual(BESIDE_SIDES.default, ['right']);
+});
+
+test('CK-5: right is free: the card stands right of the source, level with the passage', () => {
+  const spot = besideSpot(source, { w: 440, h: 400 }, [], { dy: 300, sides: BESIDE_SIDES.passage });
+  assert.deepEqual(spot, { x: source.x + source.w + GAP, y: source.y + 300 });
+});
+
+test('CK-5: right is taken: the card stands left of the source at the same height, a gutter away, before any further-right ring', () => {
+  const right = { x: source.x + source.w, y: source.y - 100, w: 800, h: 1200 };
+  const spot = besideSpot(source, { w: 440, h: 400 }, [right], { dy: 300, sides: BESIDE_SIDES.passage });
+  assert.equal(spot.y, source.y + 300);
+  assert.equal(spot.x, source.x - GAP - BESIDE_ASSUMED_W);
+  const own = { x: spot.x, y: spot.y, w: BESIDE_ASSUMED_W, h: 700 };
+  for (const other of [right, source]) assert.ok(own.x + own.w <= other.x || other.x + other.w <= own.x || own.y + own.h <= other.y || other.y + other.h <= own.y, 'no overlap');
+});
+
+test('CK-5: both neighbours taken: the next ring, right then left, never above or below the source row', () => {
+  const rightNear = { x: source.x + source.w, y: source.y - 100, w: 800, h: 1200 };
+  const leftNear = { x: source.x - GAP - BESIDE_ASSUMED_W - 40, y: source.y - 100, w: BESIDE_ASSUMED_W + 80, h: 1200 };
+  const spot = besideSpot(source, { w: 440, h: 400 }, [rightNear, leftNear], { dy: 120, sides: BESIDE_SIDES.passage });
+  assert.equal(spot.y, source.y + 120);
+  assert.ok(spot.x >= rightNear.x + rightNear.w || spot.x + BESIDE_ASSUMED_W <= leftNear.x);
+});
+
+test('CK-5: the default stays right only: a taken right row goes further right, never left', () => {
+  const right = { x: source.x + source.w, y: source.y - 100, w: 400, h: 1200 };
+  const spot = besideSpot(source, { w: 440, h: 400 }, [right]);
+  assert.ok(spot.x > right.x + right.w - 1, 'further right');
+});
+
+test('CK-5: a card from a passage is reserved with the passage side table, and the hand-off marks it', () => {
+  const canvas = src('./AdaptiveCanvas.jsx').replace(/\r\n/g, '\n'), slash = src('./learn-slash.js').replace(/\r\n/g, '\n');
+  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy, \.\.\.\(passage \? \{ sides: BESIDE_SIDES\.passage \} : \{\}\) \}\)/);
+  assert.match(slash, /besideDy: target\.alignY \} : \{\}\), \.\.\.\(target\.passage \? \{ passage: true \} : \{\}\)/);
 });

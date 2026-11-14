@@ -75,8 +75,8 @@ import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, colu
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
-import { besideSpot, followPlace } from './beside-placement.js';
-import { clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
+import { BESIDE_SIDES, besideSpot, followPlace } from './beside-placement.js';
+import { centerOnBox, clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
 import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
@@ -2395,7 +2395,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0, follow = false }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0, passage = false, follow = false }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
@@ -2403,7 +2403,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const anchor = beside || (follow && !given ? followAnchor() : null), source = anchor ? boundsRef.current[anchor] : null;
         let at = given;
         if (!at && source && follow && !beside) ({ at, size } = followPlace({ source, size, id, obstacles: boardObstacles([anchor]) }));
-        else if (!at && source) { at = besideSpot(source, size, boardObstacles([anchor]), { dy: besideDy }); if (at) size = { ...size, h: Math.round(source.h) }; }
+        else if (!at && source) { at = besideSpot(source, size, boardObstacles([anchor]), { dy: besideDy, ...(passage ? { sides: BESIDE_SIDES.passage } : {}) }); if (at) size = { ...size, h: Math.round(source.h) }; } // CK-5: the ONE placement call of a card made from a passage
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
@@ -3088,17 +3088,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   boundsRef.current = bounds;
-  // Move the camera only if the card is not in the visible area - one in view stays put - and never the zoom.
-  const bringIntoView = id => showBox(boundsRef.current[id]);
+  // CK-4: a focus move (a card just made, Go to card, View passage) puts the card in the middle of the visible area; never the zoom.
+  const bringIntoView = id => showBox(boundsRef.current[id], false, true);
   // zoom: a new zoom to show the box at (revealOnCanvas zooming out to fit); otherwise the zoom stays.
   const showBox = (box, smooth = false, centre = false, zoom = null) => {
     if (!box || !surface.current) return false;
     // Both axes: after a sideways pan the column is off to one side, and a
     // card inserted into it landed off screen.
-    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), first = panInto(box, current, area, centre);
+    // centre: CK-4's rule (canvas-view.js centerOnBox: the middle of the area on both axes, even a box already in view); not centre: the keep-in-view nudge (a card resizing, a control revealed).
+    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), reach = within => (centre ? centerOnBox(box, current, within) : panInto(box, current, within, false)), first = reach(area);
     // The floating bottom chrome over the card's span is a floor too (24: freeArea's margin).
     const floor = chromeTop(first.x + box.x * current.z, first.x + (box.x + box.w) * current.z) - 24;
-    const next = floor < area.bottom ? panInto(box, current, { ...area, bottom: Math.max(area.top + 1, floor) }, centre) : first;
+    const next = floor < area.bottom ? reach({ ...area, bottom: Math.max(area.top + 1, floor) }) : first;
     if (next.x === was.x && next.y === was.y && next.z === was.z) return true;
     glideTo(next, true); // every reveal glides now (owner 2026-11-08); `smooth` is kept by its callers
     return true;
@@ -3294,7 +3295,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (want.moves != null && want.moves !== manualMoves.current) return; // the learner moved the camera since
     const box = { x: element.offsetLeft + (owner?.dx || 0), y: element.offsetTop + (owner?.dy || 0), w: element.offsetWidth, h: element.offsetHeight };
     // A slot or a Tutor card glides there at the learner's zoom; a Files-panel card, a chip's or Locate's card is framed, gliding too (glideTo).
-    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre);
+    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre ?? true); // CK-4: centred unless a caller says otherwise
   });
   // Search changes only camera, selection and transient DOM scroll/paint. It never commits text or card dimensions.
   const focusSearchTarget = async target => {
@@ -3871,7 +3872,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // comment pins, in world units.
     obstacles: exclude => boardObstacles(exclude).map(({ id: _id, ...box }) => box),
     // The camera moves to show a world box (a ghost placed off-screen), the way an inserted card is shown.
-    reveal: box => showBox(box, true),
+    reveal: box => showBox(box, true, true), // CK-4: where a result will land, centred
     placementChrome,
     visibleWorld: () => { const area = visibleArea(), v = viewRef.current; return { x: (area.left - v.x) / v.z, y: (area.top - v.y) / v.z, w: (area.right - area.left) / v.z, h: (area.bottom - area.top) / v.z }; },
     // The part of the surface on screen: a phone's keyboard shrinks the visual viewport, not the surface.
@@ -5173,7 +5174,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const box = target();
       if (!box || !surface.current) return;
       const z = fitZoom(box, visibleArea(), viewRef.current.z);
-      showBox(box, true, false, z === viewRef.current.z ? null : z);
+      showBox(box, true, true, z === viewRef.current.z ? null : z); // CK-4: centred
     }));
     return !!target();
   };
