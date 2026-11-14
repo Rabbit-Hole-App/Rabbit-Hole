@@ -155,3 +155,36 @@ test('an unrelated concurrent edit survives an accepted edit', () => {
   assert.equal(next.shapes.find(shape => shape.id === 'g2').text, 'Draw the table');
   assert.equal(next.shapes.find(shape => shape.id === 'g1').text, 'Load orders');
 });
+
+// CK-5: a card made by Ctrl+K never pushes an existing card: with no measured place it goes to the END of the column (nothing after it to move), never in the middle after its source.
+test('CK-5: a card with no measured place is appended: every existing block keeps its index, so the column flow of the cards after the source is untouched', () => {
+  const board = { ...flowBoard(), blocks: [{ id: 'a', type: 'text', text: 'A' }, { id: 'b', type: 'text', text: 'B' }, { id: 'c', type: 'text', text: 'C' }] };
+  const frozen = frozenOf(board, ['a']);
+  const tx = cardTx({ requestId: 'n1', block: { type: 'text', text: 'New' }, frozen, board, route: 'explain' });
+  const next = applyTx(board, tx);
+  assert.deepEqual(next.blocks.slice(0, 3).map(block => block.id), ['a', 'b', 'c'], 'no existing block moved in the list');
+  assert.equal(next.blocks.length, 4);
+  assert.equal(next.blocks[3].id, tx.block.id);
+  assert.equal(tx.after ?? null, null, 'not inserted after the source');
+});
+
+test('CK-5: a card with a measured place is appended too and carries its offsets (dx, dy), as before', () => {
+  const board = { ...flowBoard(), blocks: [{ id: 'a', type: 'text', text: 'A' }, { id: 'b', type: 'text', text: 'B' }] };
+  const tx = cardTx({ requestId: 'n2', block: { type: 'text', text: 'New' }, frozen: frozenOf(board, ['a']), board, route: 'explain', place: { side: 'right', dx: 480, dy: -120 } });
+  const next = applyTx(board, tx);
+  assert.deepEqual(next.blocks.map(block => block.id).slice(0, 2), ['a', 'b']);
+  assert.deepEqual([tx.block.dx, tx.block.dy], [480, -120]);
+  assert.equal(tx.end, true);
+});
+
+// CK-5 (release 146): the inline fallback card made from highlighted words names its source card and the passage line (parentCard {id, dy}) so the connector layer draws it; the straight annotation link is then not added (one arrow, not two).
+test('CK-5: a card from a passage carries parentCard and no separate annotation link', () => {
+  const board = { ...flowBoard(), blocks: [{ id: 'a', type: 'text', text: 'A' }] };
+  const frozen = frozenOf(board, ['a']);
+  const plain = cardTx({ requestId: 'p1', block: { type: 'text', text: 'New' }, frozen, board, route: 'explain', place: { side: 'right', dx: 480, dy: 0 } });
+  const tx = cardTx({ requestId: 'p2', block: { type: 'text', text: 'New' }, frozen, board, route: 'explain', place: { side: 'right', dx: 480, dy: 0 }, parent: { id: 'a', dy: 212 } });
+  assert.deepEqual(tx.block.parentCard, { id: 'a', dy: 212 });
+  assert.equal(plain.block.parentCard, undefined, 'a card with no passage has none');
+  assert.deepEqual(tx.links, [], 'the connector layer draws the arrow from parentCard');
+  assert.equal(applyTx(board, tx).blocks.at(-1).parentCard.dy, 212);
+});

@@ -8,14 +8,14 @@ import { dropView, publishView } from './cad-viewer-store.js';
 import { holdViewerGestures } from './content-gestures.js';
 import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
-import { SourceRefHeader } from './SourceRefChip.jsx';
+import { PassageHeader, SourceRefHeader } from './SourceRefChip.jsx';
 import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Square, Trash2, Volume2, X } from 'lucide-react';
 import { fullContent } from './card-layout.js';
 import { Md } from './ask.jsx';
 import { diagramsAsText } from './diagram-fence.js';
 import { MdInline } from './Md.jsx';
 import IllustrationFigure from './IllustrationFigure.jsx';
-import { FollowUp, HighlightMenu, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
+import { FollowUp, HighlightMenu, PassageIcon, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
 import { splitLead } from './explanation-lead.js';
 import { isMinimized, minimizedVisual, tileSummary } from './explanation-minimize.js';
 import TutorDiagram from './tutor-diagrams/TutorDiagram.js';
@@ -2070,7 +2070,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
       <div data-explanation-head data-focus-hide className="shrink-0">
         {block.anchor
           ? <CardHeader block={block} size="xs" className="px-4 pt-3 pb-2" />
-          : <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
+          : <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : block.fromPassage ? <PassageHeader block={block} /> : null}>Explanation</Kicker>}
       </div>
       {/* E1 (approved card 07): one continuous reading flow. The body, its visuals and the supplementary sections all scroll together under the pinned head. */}
       <div ref={layer?.flowRef} data-scroll data-explanation-flow {...layer?.flowProps} className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">
@@ -2088,7 +2088,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
         ))}
         {layer && <Suggestions layer={layer} />}
       </div>
-      {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><HighlightMenu layer={layer} /><FollowUp layer={layer} /></>}
+      {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><HighlightMenu layer={layer} /><PassageIcon layer={layer} /><FollowUp layer={layer} /></>}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, freshFitStep, cornerSlot } from './card-layout.js';
 import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
 import { nameKey, positionHint, titleTaken, uniquifyBlocks } from './unique-title.js';
+import { linkPassage } from './passage-link.js';
 import CardCustomTitle from './CardCustomTitle.jsx';
 import CardHeader, { CardRename } from './CardHeader.jsx';
 import './card-layout.css';
@@ -77,8 +78,10 @@ import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, colu
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
-import { besideSpot, followPlace } from './beside-placement.js';
-import { clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
+import { BESIDE_ASSUMED_H, BESIDE_ASSUMED_W, followPlace } from './beside-placement.js';
+import { placeSourced } from './place-sourced.js';
+import { ARROW, arrowhead, connectorsOf, drawConnector } from './connector.js';
+import { centerOnBox, clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, passageZoom, topView } from './canvas-view.js';
 import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
@@ -2364,7 +2367,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         let whole = fit; // a new Explanation is framed whole whichever way it arrives (CV-8), as a typed one always was
         const framed = id => { if (whole && revealRef.current?.id === id) revealRef.current.fit = { moves: revealRef.current.moves, h: null }; return id; };
         // A confirmed /motion card lands with its press's request id (withPressId), so a reload can never start a second job.
-        let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}) } } : {}) });
+        let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}), ...(Number.isFinite(parent.dy) ? { dy: parent.dy } : {}) } } : {}) });
         if (link && parent?.id && blocksRef.current.some(entry => entry.id === parent.id)) { // link: false = a card placed beside its source, no connector (owner 2026-11-08)
           const linkId = parent.actionId ? `explain-child-${parent.actionId}` : crypto.randomUUID();
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
@@ -2379,6 +2382,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // A screen rect (a selection's) in world units, for a card to be placed beside it.
       worldRect: rect => (rect && surface.current ? toWorld(rect, surface.current.getBoundingClientRect(), viewRef.current) : null),
+      // HL-146 (passage-link.js): the card a Ctrl+K explanation was made from saves the explained passage as a pink highlight naming the new card, and the new card names its source. No undo step of its own:
+      // undoing the new card's insertion restores the blocks as they were before both.
+      linkPassage: (cardId, passage) => {
+        if (!alive.current || readOnlyRef.current || !cardId || !passage) return false;
+        setBlocks(previous => linkPassage(previous, passage, cardId));
+        return true;
+      },
       // An /explain v2 job's card (EXP-T20): placed once under the job's own card id, so a resent press or a reload finds it
       // instead of adding a second card; the result attaches to it later (ExplainPending).
       // /animation (AN-05): its pending card (storage.js withJob) placed where the learner looks, once per card id.
@@ -2390,19 +2400,26 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         blocksRef.current = [...blocksRef.current, added];
         return insertAtView(added, into);
       },
-      // near { cardId, world }: the card the passage is in and the passage's box. The skeleton stands beside that passage, in free space, never over the source card
-      // or anything else (roadmap-placement.js deliveredSpot, the Tutor slots' rule), and the camera stays where it is.
+      // near { cardId, world | alignY }: the card the passage is in and the passage's box (world), or the highlighted line's offset from the card's top. The skeleton stands beside that passage, on the right or the left of the
+      // source and level with the line, in free space (place-sourced.js, the one placement of a card made from a card), never over or moving any card; CK-4: the camera then centres on it.
       placeExplain: (card, { into = null, near = null } = {}) => {
         if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation') return null;
         if (blocksRef.current.some(block => block.id === card.id)) return card.id;
         snapshot();
-        const added = { ...card, dx: 0, dy: 0 }, source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];
+        const source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];
+        // AR-C1: the card names its source card and the passage line (the connector's tail), so the arrow survives a reload without measuring the passage again.
+        const line = box ? (near.world ? near.world.y + near.world.h / 2 : Number.isFinite(near.alignY) ? box.y + near.alignY : null) : null;
+        const added = { ...card, dx: 0, dy: 0, ...(box && line != null ? { parentCard: { id: source.id, dy: Math.round(line - box.y) } } : {}) };
         if (box) {
-          const spot = deliveredSpot({ w: EXPLAIN_PENDING_SIZE.width, h: 360 }, proposalAnchor(box, near.world), [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current), box], null);
+          const slot = { w: EXPLAIN_PENDING_SIZE.width, h: 360 };
+          const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === source.id && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));
+          // CK-5: the ONE placement call of the card a Ctrl+K Explain selection makes (the v2 job path); reserve() has the other (a card from a card through a skeleton).
+          const placed = placeSourced({ source: box, anchorY: line, size: slot, boxes: [...boardObstacles([source.id]), ...anchoredBoxes(slotsRef.current)], siblings, id: card.id, sourceId: source.id, area: null });
           perfMark(added.id, 'insert');
-          pendingAt.current.set(added.id, spot);
+          pendingAt.current.set(added.id, { x: placed.x, y: placed.y });
           blocksRef.current = [...blocksRef.current, added];
           setBlocks(previous => [...previous, added]);
+          revealAfter(added.id); // CK-4: once measured and placed, the camera centres on the new card (never over a camera the learner moved since)
           return added.id;
         }
         blocksRef.current = [...blocksRef.current, added];
@@ -2441,7 +2458,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0, follow = false }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = null, follow = false }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
@@ -2449,7 +2466,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const anchor = beside || (follow && !given ? followAnchor() : null), source = anchor ? boundsRef.current[anchor] : null;
         let at = given;
         if (!at && source && follow && !beside) ({ at, size } = followPlace({ source, size, id, obstacles: boardObstacles([anchor]) }));
-        else if (!at && source) { at = besideSpot(source, size, boardObstacles([anchor]), { dy: besideDy }); if (at) size = { ...size, h: Math.round(source.h) }; }
+        else if (!at && source) {
+          // CK-5 / AR-C3 (releases 144, 146): the ONE placement call of a card made from a passage (or Ask in a new card): a card made from this one stands on its RIGHT or LEFT, level with the passage (besideDy, the highlighted line's offset from the source's top) or the source's middle for Ask in a new card,
+          // chosen and slid to a free place by placeSourced (never over or moving a card); the connector is drawn from where it ends up.
+          const slot = { w: Math.max(size?.w || 0, BESIDE_ASSUMED_W), h: Math.min(Math.round(source.h), BESIDE_ASSUMED_H) };
+          const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === anchor && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));
+          const placed = placeSourced({ source, anchorY: Number.isFinite(besideDy) ? source.y + besideDy : null, size: slot, boxes: boardObstacles([anchor]), siblings, id, sourceId: anchor, area: null });
+          at = { x: placed.x, y: placed.y }; size = { ...size, h: slot.h };
+        }
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
@@ -3185,17 +3209,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   boundsRef.current = bounds;
-  // Move the camera only if the card is not in the visible area - one in view stays put - and never the zoom.
-  const bringIntoView = id => showBox(boundsRef.current[id]);
+  // AR-C1: the connectors the cards imply, recomputed only when the cards or their measured boxes change (the same state the links follow): no per-frame state, no layout reads.
+  const arrows = useMemo(() => connectorsOf(blocks).map(connector => drawConnector(connector, blocks, bounds)).filter(Boolean), [blocks, bounds]);
+  // CK-4: a focus move (a card just made, Go to card, View passage) puts the card in the middle of the visible area; never the zoom.
+  const bringIntoView = id => showBox(boundsRef.current[id], false, true);
   // zoom: a new zoom to show the box at (revealOnCanvas zooming out to fit); otherwise the zoom stays.
-  const showBox = (box, smooth = false, centre = false, zoom = null) => {
+  const showBox = (box, smooth = false, centre = false, zoom = null, focus = null) => {
     if (!box || !surface.current) return false;
     // Both axes: after a sideways pan the column is off to one side, and a
     // card inserted into it landed off screen.
-    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), first = panInto(box, current, area, centre);
+    // centre: CK-4's rule (canvas-view.js centerOnBox: the middle of the area on both axes, even a box already in view); not centre: the keep-in-view nudge (a card resizing, a control revealed).
+    const was = viewRef.current, current = zoom ? { ...was, z: zoom } : was, area = visibleArea(), reach = within => (centre ? centerOnBox(box, current, within, focus) : panInto(box, current, within, false)), first = reach(area);
     // The floating bottom chrome over the card's span is a floor too (24: freeArea's margin).
     const floor = chromeTop(first.x + box.x * current.z, first.x + (box.x + box.w) * current.z) - 24;
-    const next = floor < area.bottom ? panInto(box, current, { ...area, bottom: Math.max(area.top + 1, floor) }, centre) : first;
+    const next = floor < area.bottom ? reach({ ...area, bottom: Math.max(area.top + 1, floor) }) : first;
     if (next.x === was.x && next.y === was.y && next.z === was.z) return true;
     glideTo(next, true); // every reveal glides now (owner 2026-11-08); `smooth` is kept by its callers
     return true;
@@ -3352,7 +3379,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const cameraRef = useRef(null);
   // A passage's View explanation can name a Tutor slot (source-refs.js publishPending): the camera goes to it; it is not a block, so nothing is selected.
   const [, nudgeSlotCamera] = useState(0);
-  useSourceRefIndex(blocks, id => { if (String(id).startsWith('roadmap:')) { cameraRef.current = { id, smooth: true, centre: true }; nudgeSlotCamera(count => count + 1); return; } setSelection([id]); cameraRef.current = { id, frame: true }; });
+  useSourceRefIndex(blocks, (id, options) => {
+    if (String(id).startsWith('roadmap:')) { cameraRef.current = { id, smooth: true, centre: true }; nudgeSlotCamera(count => count + 1); return; }
+    setSelection([id]);
+    // HL-148 (View passage, Go to highlight): the passage's world box is centred at a readable zoom (canvas-view.js passageZoom); no passage: the card is framed as before.
+    const box = options?.passage && surface.current ? toWorld(options.passage, surface.current.getBoundingClientRect(), viewRef.current) : null;
+    cameraRef.current = box ? { id, smooth: true, centre: true, focus: box, zoom: passageZoom(viewRef.current.z) } : { id, frame: true };
+  });
   const slotPassages = JSON.stringify(slots.filter(slot => slot.roadmap?.sourceRef?.id && slot.roadmap.passage).map(slot => ({ slotId: slot.id, ref: slot.roadmap.sourceRef, start: slot.roadmap.passage.start, end: slot.roadmap.passage.end })));
   useEffect(() => { publishPending(JSON.parse(slotPassages)); }, [slotPassages]);
   useEffect(() => () => publishPending([]), []);
@@ -3391,7 +3424,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (want.moves != null && want.moves !== manualMoves.current) return; // the learner moved the camera since
     const box = { x: element.offsetLeft + (owner?.dx || 0), y: element.offsetTop + (owner?.dy || 0), w: element.offsetWidth, h: element.offsetHeight };
     // A slot or a Tutor card glides there at the learner's zoom; a Files-panel card, a chip's or Locate's card is framed, gliding too (glideTo).
-    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre);
+    if (want.frame) frame([box], 64, 1); else showBox(box, want.smooth, want.centre ?? true, want.zoom ?? null, want.focus ?? null); // CK-4: centred unless a caller says otherwise; HL-148: a passage focus box and its zoom
   });
   // Search changes only camera, selection and transient DOM scroll/paint. It never commits text or card dimensions.
   const focusSearchTarget = async target => {
@@ -3968,7 +4001,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // comment pins, in world units.
     obstacles: exclude => boardObstacles(exclude).map(({ id: _id, ...box }) => box),
     // The camera moves to show a world box (a ghost placed off-screen), the way an inserted card is shown.
-    reveal: box => showBox(box, true),
+    reveal: box => showBox(box, true, true), // CK-4: where a result will land, centred
     placementChrome,
     visibleWorld: () => { const area = visibleArea(), v = viewRef.current; return { x: (area.left - v.x) / v.z, y: (area.top - v.y) / v.z, w: (area.right - area.left) / v.z, h: (area.bottom - area.top) / v.z }; },
     // The part of the surface on screen: a phone's keyboard shrinks the visual viewport, not the surface.
@@ -5273,7 +5306,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const box = target();
       if (!box || !surface.current) return;
       const z = fitZoom(box, visibleArea(), viewRef.current.z);
-      showBox(box, true, false, z === viewRef.current.z ? null : z);
+      showBox(box, true, true, z === viewRef.current.z ? null : z); // CK-4: centred
     }));
     return !!target();
   };
@@ -6499,6 +6532,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               <g key={page.n}>
                 <rect x={page.x} y={page.y} width={page.w} height={page.h} fill="none" stroke="var(--color-line-strong)" strokeWidth={1 / view.z} />
                 <text x={page.x + page.w - 8} y={page.y + page.h - 8} textAnchor="end" fill="var(--color-ink-3)" fontSize={12 / view.z}>{page.n}</text>
+              </g>
+            ))}
+          </svg>
+        )}
+        {/* AR-C1/C2/C4 (release 146): the connectors between a card and the card it was made from. Derived from parentCard / sourceRef, never stored; drawn BELOW every card (this layer comes before the cards'
+            column in the world layer and has no z-index), pointer-events none, thin, dashed for an explained passage and solid for Ask in a new card, one palette colour per connector (connector.js). */}
+        {arrows.length > 0 && (
+          <svg width="1" height="1" aria-hidden="true" data-card-arrows className="pointer-events-none absolute top-0 left-0 overflow-visible">
+            {arrows.map(arrow => (
+              <g key={arrow.id} data-card-arrow={arrow.id} data-arrow-kind={arrow.kind} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth={ARROW.width / view.z} className="[stroke:var(--arc-l)] dark:[stroke:var(--arc-d)]" style={{ '--arc-l': arrow.colors.light, '--arc-d': arrow.colors.dark }}>
+                <path d={arrow.geometry.d} strokeDasharray={arrow.kind === 'explain' ? ARROW.dash.split(' ').map(n => Number(n) / view.z).join(' ') : undefined} />
+                <path d={arrowhead(arrow.geometry, 1 / view.z)} />
               </g>
             ))}
           </svg>
