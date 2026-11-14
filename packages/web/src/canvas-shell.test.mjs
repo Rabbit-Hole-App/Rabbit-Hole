@@ -47,6 +47,9 @@ test('adding a card folds the chat window: the page announces a card count that 
   const page = read('LearnPage.jsx'), ask = read('ask.jsx');
   assert.match(page, /if \(cardCount\.current != null && count > cardCount\.current\) window\.dispatchEvent\(new Event\('rh-card-added'\)\);/);
   assert.match(page, /if \(restoredBoard !== boardPath\) return;\n\s+const count = \(canvasState\.cards \|\| \[\]\)\.length;/, 'the board\'s own load is the baseline, not a new card');
+  // The effect reads restoredBoard and boardPath, so it must come after their declarations: above them it is a ReferenceError and the page cannot load.
+  assert.ok(page.indexOf('const cardCount = useRef(null);') > page.indexOf('const boardPath = `/api/learn/boards/'), 'the card-count effect is below the declarations it reads');
+  assert.ok(page.indexOf('const cardCount = useRef(null);') > page.indexOf('const [restoredBoard, setRestoredBoard] = useState(null);'));
   assert.match(ask, /window\.addEventListener\('rh-card-added', fold\);/);
   assert.match(ask, /const fold = \(\) => setWinState\('min'\);/);
   assert.doesNotMatch(read('LearnSlash.jsx'), /Working on \/\$\{name\}/, 'no Working on pill under the reply');

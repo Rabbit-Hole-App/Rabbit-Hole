@@ -616,15 +616,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return canvasApi.current?.insertImported({ ...block, language, ipynb: { ...block.ipynb, cells: cells.map((source, index) => ({ ...cell, id: index ? crypto.randomUUID().slice(0, 8) : cell.id, source: String(source ?? '') })) } });
     },
   }), [chat?.setCanvasOps, board]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Owner 2026-11-13: when a card is added to the canvas, the chat window above the strip folds away (ask.jsx listens) so the learner can focus on the card. The first card count
-  // after the board loads is the baseline; only a later increase counts.
-  const cardCount = useRef(null);
-  useEffect(() => {
-    if (restoredBoard !== boardPath) return;
-    const count = (canvasState.cards || []).length;
-    if (cardCount.current != null && count > cardCount.current) window.dispatchEvent(new Event('rh-card-added'));
-    cardCount.current = count;
-  }, [canvasState.cards, restoredBoard, boardPath]); // eslint-disable-line react-hooks/exhaustive-deps
   const chatWorkspace = useRef(null);
   chatWorkspace.current = chat; // the provider wraps this page (A1), so the handle is the page's own workspace
   const trackPaper = next => {
@@ -1377,6 +1368,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const voiceOn = !!voice && voice.state !== 'off';
   const boardStorageKey = board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`;
   const boardPath = `/api/learn/boards/${encodeURIComponent(app.name)}/${encodeURIComponent(boardName)}`;
+  // Owner 2026-11-13: when a card is added to the canvas, the chat window above the strip folds away (ask.jsx listens) so the learner can focus on the card. The first card count
+  // after the board loads is the baseline; only a later increase counts.
+  const cardCount = useRef(null);
+  useEffect(() => {
+    if (restoredBoard !== boardPath) return;
+    const count = (canvasState.cards || []).length;
+    if (cardCount.current != null && count > cardCount.current) window.dispatchEvent(new Event('rh-card-added'));
+    cardCount.current = count;
+  }, [canvasState.cards, restoredBoard, boardPath]); // eslint-disable-line react-hooks/exhaustive-deps
   // A Rabbit Hole from a PDF excerpt card opens on a copy of that card (Dive.jsx seed), placed once the hole's board has loaded.
   useEffect(() => {
     const seed = hole?.seed, surface = canvasApi.current;
