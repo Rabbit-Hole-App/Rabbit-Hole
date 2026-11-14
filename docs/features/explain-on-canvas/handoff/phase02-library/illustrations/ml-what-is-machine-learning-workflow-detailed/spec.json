@@ -16,7 +16,7 @@
       },
       {
         "id": "c",
-        "label": "Build Features",
+        "label": "Run Feature Engineering",
         "role": "process"
       },
       {
@@ -32,27 +32,17 @@
       {
         "id": "f",
         "label": "Evaluate",
-        "role": "decision"
+        "role": "process"
       },
       {
         "id": "g",
-        "label": "Release Model",
+        "label": "Run Deploy",
         "role": "process"
       },
       {
         "id": "h",
-        "label": "Check Performance",
+        "label": "Run Monitor",
         "role": "process"
-      },
-      {
-        "id": "i",
-        "label": "Return to Build Features",
-        "role": "outcome"
-      },
-      {
-        "id": "j",
-        "label": "Return to Collect Data",
-        "role": "outcome"
       }
     ],
     "edges": [
@@ -78,24 +68,13 @@
       },
       {
         "from": "f",
-        "to": "g",
-        "label": "good enough"
+        "to": "g"
       },
       {
         "from": "g",
         "to": "h"
-      },
-      {
-        "from": "f",
-        "to": "i",
-        "label": "not good enough"
-      },
-      {
-        "from": "h",
-        "to": "j",
-        "label": "performance drops"
       }
     ],
-    "caption": "Illustrative. Clean and Explore: 60–80% time. Forward links $8-1=7$. The two returns loop back to feature engineering and data collection."
+    "caption": "Illustrative. Clean and Explore: 60–80% time. Forward links $8-1=7$. Feedback targets earlier stages in the inset."
   }
 }
