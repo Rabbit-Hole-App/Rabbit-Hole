@@ -3,7 +3,7 @@
 // server for the authorized cards, insert each by its server-minted id once, save the board, then acknowledge. Nothing here
 // mints an id, predicts a result or touches a price.
 import { STRINGS } from './roadmap-strings.js';
-import { actionKeys, deliverable, draftOf, initialState, planDelivery, reduce, routes } from './roadmap-client.js';
+import { acceptedPlanOf, actionKeys, deliverable, draftOf, initialState, planDelivery, reduce, routes } from './roadmap-client.js';
 import { markEnd, markStart } from './client-timing.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 import { FOLLOW_UP_MS, createAutoMeter } from './roadmap-auto.js';
@@ -15,6 +15,7 @@ import { FOLLOW_UP_MS, createAutoMeter } from './roadmap-auto.js';
 export function createRoadmapController({ api, boardId, host, schedule = setTimeout, cancel = clearTimeout, random, now }) {
   let state = initialState(), timer = null, stopped = true;
   const meter = createAutoMeter({ now }), followUps = new Set();
+  let unsaved = 0; // consecutive failed board saves while placing a card
   const listeners = new Set(), keys = actionKeys(random), delivering = new Set(), seen = new Set(), flight = new Map();
   const dispatch = event => { const next = reduce(state, event); if (next !== state) { state = next; listeners.forEach(fn => fn()); } };
   const call = ({ method, path, body }) => api(path, method === 'GET' ? {} : { method, body: JSON.stringify(body) });
@@ -78,7 +79,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     flight.set(gesture, run);
     return run;
   }
-  const applyView = body => { if (body?.roadmap !== undefined && (body.roadmap === null || (typeof body.roadmap === 'object' && Array.isArray(body.steps)))) { timeViews(state.view, body); dispatch({ type: 'view', view: body }); meter.observe(state.view); reconcile(); } return body; };
+  const applyView = body => { if (body?.roadmap !== undefined && (body.roadmap === null || (typeof body.roadmap === 'object' && Array.isArray(body.steps)))) { const before = state.view?.roadmap?.id ?? null; timeViews(state.view, body); dispatch({ type: 'view', view: body }); meter.observe(state.view); if ((state.view?.roadmap?.id ?? null) !== before) refreshEarlier(); reconcile(); } return body; };
   const mutateView = (gesture, route) => (state.view ? act(gesture, route).then(applyView) : Promise.resolve(null)); // every roadmap action needs a view to take its revision from
 
   async function refresh() {
@@ -92,6 +93,17 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
       const last = ((await call(routes.history(boardId)))?.roadmaps || []).find(r => r.state === 'completed' || r.state === 'ended');
       if (last) dispatch({ type: 'past', view: await call(routes.view(boardId, last.id)) });
     } catch (error) { refuse(error); }
+  }
+  // Finished courses stay in the contents (roadmap-client.js tocOf `earlier`): the canvas's last three that were accepted and delivered, other than the current one. Never worth a failure.
+  async function refreshEarlier() {
+    if (stopped || host.readOnly?.()) return;
+    try {
+      const current = state.view?.roadmap?.id || state.past?.roadmap?.id || null;
+      const list = ((await call(routes.history(boardId)))?.roadmaps || []).filter(r => (r.state === 'completed' || r.state === 'ended') && r.deliveredCount > 0 && r.id !== current).slice(0, 3);
+      const views = [];
+      for (const r of list) { const v = await call(routes.view(boardId, r.id)); if (v?.roadmap && acceptedPlanOf(v)) views.push(v); }
+      dispatch({ type: 'earlier', views });
+    } catch { /* the contents simply show no earlier courses */ }
   }
   async function refreshInvitation() {
     if (stopped || host.readOnly?.()) return;
@@ -119,7 +131,8 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     // real once the saved board holds the card: otherwise nothing is acknowledged, the result stays undelivered, and the next poll
     // runs this again (the card is already on the canvas and the server hands back the same result: one card, one charge).
     const saved = await host.persist();
-    if (saved?.ok !== true) throw Object.assign(Error('board_not_saved'), { retry: true });
+    if (saved?.ok !== true) { unsaved += 1; if (unsaved === 3) dispatch({ type: 'refused', message: STRINGS.saveFailed }); throw Object.assign(Error('board_not_saved'), { retry: true }); }
+    unsaved = 0;
     for (const cardId of plan.cardIds) {
       if (host.savedHas && !host.savedHas(cardId)) throw Object.assign(Error('board_not_saved'), { retry: true });
       const revision = host.boardRevision?.();
@@ -192,7 +205,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
   return {
     getState: () => state,
     subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
-    start() { if (!stopped) return; stopped = false; refresh().then(() => (state.view ? null : refreshInvitation())).then(refreshPast).then(loop); },
+    start() { if (!stopped) return; stopped = false; refresh().then(() => (state.view ? null : refreshInvitation())).then(refreshPast).then(refreshEarlier).then(loop); },
     stop() { stopped = true; if (timer) cancel(timer); timer = null; for (const id of followUps) cancel(id); followUps.clear(); },
     // Delivery-to-visible samples of automatic proposals (roadmap-auto.js): { n, p50, p95 } in milliseconds.
     timings: () => meter.summary(), timingSamples: () => meter.samples(),
@@ -203,7 +216,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     expectInvitation() {
       if (stopped || host.readOnly?.() || state.view) return;
       dispatch({ type: 'waiting', on: true });
-      const id = schedule(() => { followUps.delete(id); dispatch({ type: 'waiting', on: false }); }, 60000); followUps.add(id);
+      const id = schedule(() => { followUps.delete(id); if (state.waiting) { dispatch({ type: 'waiting', on: false }); dispatch({ type: 'refused', message: STRINGS.prepareFailed }); } }, 60000); followUps.add(id); // no invitation after a minute: say so (never an endless shimmer)
     },
     setMode(mode) {
       if (mode === state.mode) return;

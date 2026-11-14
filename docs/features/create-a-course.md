@@ -48,6 +48,16 @@ Propose next step). The roadmap machinery underneath (plan, hold, quote, one aut
 - **Back-pressure.** No new card starts while three made cards wait to be placed (`UNPLACED_MAX`): an absent browser costs at most three cards, and each placement wakes the run.
 - A paused plan can Generate course. Edit waits while a course runs. The per-card automatic offer is off for a roadmap once a course has run.
 
+- **Typed words.** "Create a course" typed in Chat is chosen by the chat router (JEV) from the capability's own declared intent (`inline-ai-route.js CHAT_CAPABILITIES.course`,
+  `standalone`: no slash command, no picker row), never from a phrase list; the browser runs it on the selected (else the only) Markdown file. Insert > Create a course does the same.
+- **Earlier courses stay in the contents** under their file name (the last three accepted and delivered, `tocOf().earlier`), after the current one.
+- **Two files dropped together:** the first stays on offer, the second waits and is offered when the first is answered (`state.queue`).
+- **Quiet failures are said:** no invitation after a minute ("I could not prepare this file. Drop it again."), three failed board saves in a row ("The cards could not be saved to this canvas…").
+- **The canvas fits itself** to a course that finishes (not one that was cancelled or stopped).
+- **What a file gives a course:** its text. Images and relative links in the Markdown are not read, so a card never describes a picture it did not see.
+- **Cards and models.** Cards are authored on Gemini Flash by the fast chain under the roadmap hold (`ROADMAP_CARD_PROFILE`, default `roadmap-gemini` wherever the server holds a Gemini key; no JEV
+  planner at dispatch, so the quote matches the request). The plan is explanation cards only.
+
 ## Retired
 
 Per-card Accept / Cancel / Next card (canvas and Chat), Tab accept, Propose next step, End roadmap, the proposal editor (Ctrl/Cmd+K), the recovery entry and the

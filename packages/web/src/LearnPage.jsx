@@ -1425,6 +1425,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       notice: message => toast(message), focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
       sources: () => (canvasApi.current?.blocks?.() || []).filter(block => block.type === 'file' && block.kind === 'markdown' && block.fileRef?.source?.id && block.fileRef.source.rev).map(block => ({ key: `file:${block.fileRef.source.id}`, rev: block.fileRef.source.rev, name: block.label || '' })),
       sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, sourceName: key => sourceBlock(key)?.label || '', depth: () => chat?.settings?.depth || 'balanced' } });
+  // A course that finishes (not one that was cancelled or stopped) fits the canvas to its cards, once (owner 2026-11-14).
+  const courseWas = useRef(false);
+  useEffect(() => {
+    const on = !!roadmap.course;
+    if (courseWas.current && !on && !roadmap.state.view?.course?.stopped) canvasApi.current?.zoomFit?.();
+    courseWas.current = on;
+  }, [roadmap.course]); // eslint-disable-line react-hooks/exhaustive-deps
   // The Tutor's proposal as the canvas slot beside its Markdown card (roadmap-canvas.js -> AdaptiveCanvas SlotCard): one slot per step from proposal to delivered card,
   // (owner 2026-11-14: a course makes every card from one Generate course, so the slot only ever shows a card being made, checked, saved or failed; there is no offer to accept).
   // UI.06: each slot's private place (roadmap-slots.js), read once per roadmap before anything is placed, written once per offer.
@@ -2379,7 +2386,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     try { clean ? localStorage.setItem(titleKey, clean) : localStorage.removeItem(titleKey); } catch { /* a full store loses the name only */ }
   };
   const canvasMenus = [
-    { title: 'Insert', items: ownerInsertItems({ canvas, onUpload: () => filePicker.current?.click(), onSearchSources: () => openSourceFinder({}), onLinkToCanvas: () => setAddLink({}) }) },
+    { title: 'Insert', items: ownerInsertItems({ canvas, onUpload: () => filePicker.current?.click(), onSearchSources: () => openSourceFinder({}), onLinkToCanvas: () => setAddLink({}),
+      onCreateCourse: canEditCanvas && roadmap.on ? Object.assign(() => { const done = chat.canvasOps?.startCourse?.(''); if (done?.notice?.text) toast(done.notice.text); }, { disabled: !!roadmap.state.view?.course?.running }) : null }) },
     ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, docView, setDocView, panel: { open: panelOpen, setOpen: setPanelOpen }, study, onShortcuts: () => setShortcutsOpen(true), onSlashCommands: () => setSlashHelpOpen(true) }),
   ];
   const canvasOutline = canvasState.outline || [];

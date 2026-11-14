@@ -20,7 +20,7 @@ import { readLongSource, prepareLongPlan, withLongCoverage } from './roadmap-sou
 import { PROSE_COPY, sourceBlocked } from './roadmap-preflight.js';
 
 export const PLANNING_COPY = Object.freeze({
-  failed: 'The plan could not be made. Edit your request or end the roadmap.', // NEW (S34)
+  failed: 'The plan could not be made. Edit your request, or drop the file again.', // S34; owner 2026-11-14: no End roadmap any more, a new file replaces the plan
 });
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 const parse = text => { try { return JSON.parse(text); } catch { return null; } };
