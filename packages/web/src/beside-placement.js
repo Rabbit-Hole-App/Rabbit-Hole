@@ -22,12 +22,13 @@ export function besideSpot(source, size, obstacles, { gap = GAP, tries = BESIDE_
 }
 
 // Typed /explain (canvas-cards BUG 4): the next card goes to the right of the previous one, close and loosely scattered, never overlapping. A deterministic jitter per request:
-// its hash sets how far below the source's top the card starts (0 to 0.35 of the source's height) and whether the gap is one GAP or two, so no two cards line up exactly and the
+// its hash sets how far below the source's top the card starts (0 to 0.35 of the source's height, never more than SCATTER_MAX_DY: a card lands level with the source's top region, also beside a 5,400 px tall Full markdown) and whether the gap is one GAP or two, so no two cards line up exactly and the
 // row still reads left to right. The same request id always gives the same place.
+export const SCATTER_MAX_DY = 120;
 export function scatterOf(requestId, sourceHeight) {
   let hash = 2166136261;
   for (const char of String(requestId)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
-  return { dy: Math.round(((hash % 1000) / 1000) * 0.35 * (sourceHeight || 0)), gap: (hash >>> 10) & 1 ? 2 * GAP : GAP };
+  return { dy: Math.min(SCATTER_MAX_DY, Math.round(((hash % 1000) / 1000) * 0.35 * (sourceHeight || 0))), gap: (hash >>> 10) & 1 ? 2 * GAP : GAP };
 }
 
 // Where a typed request's card stands: beside the source (besideSpot with the scatter), or when the row is full a new row under it, right of the column
