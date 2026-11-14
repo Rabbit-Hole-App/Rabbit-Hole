@@ -1,0 +1,286 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-what-is-machine-learning-program-direction": {
+      "overview": [
+        {
+          "tokens": 90,
+          "sha256": "4cd6dc772498edad3d509d9737dbf33e422d4182562a8e87a8d0a75a6d8f8046"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 104,
+          "sha256": "49e14756ec52d946b9d0e9c9fee7b155a4dec0466f4ad7001a1f3467fea59a66"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 122,
+          "sha256": "1888fd289f7bd3a1ad141bbb228e6edc30f673db44dc374a7839c32c8990aec6"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-learning-families": {
+      "overview": [
+        {
+          "tokens": 95,
+          "sha256": "6080318f81ba30f897a09f5169e21f15a792c6972065dffa6f4406a756f1384f"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 203,
+          "sha256": "65c8c1f3413399df5be88f12dcf6acee9ab95d8863236607b9e0c921a176408c"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 212,
+          "sha256": "2a17fc220295f671d70f8246a25f36e1d5b9b350ce96a94d52731290f012bbe9"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-hidden-groups": {
+      "overview": [
+        {
+          "tokens": 100,
+          "sha256": "955acfbf89d0dd7f96f8459322adf0ffc5ee64ca9964e0a996fbf152dab99338"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 168,
+          "sha256": "0163e4de83329f7fdc8837ebfb89c27371a88ed48a236429f57c49c5b7c6246a"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 181,
+          "sha256": "f6bbc2130b3d5e320da7a679545179b0c52b7498aa6a007f06d6a0329392b45c"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-output-types": {
+      "overview": [
+        {
+          "tokens": 74,
+          "sha256": "210666eceb7ca9efbb92d859474b08484c131decb2471b06721b32c028fd77e2"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 206,
+          "sha256": "85cf8cf6ced076c4372d5949bc16634590fbc052270389f2b73116780a2cde5d"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 220,
+          "sha256": "795701d96e31b3374e4a8abb3b81caf8884c967e345c8c0032527bce12acca55"
+        },
+        {
+          "tokens": 98,
+          "sha256": "7d8131c59c3e651ee0b3d11597e7facd2a1e4d9a17ed6bad07caa6f9bb076f93"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-workflow": {
+      "overview": [
+        {
+          "tokens": 54,
+          "sha256": "e3eb62ad7b5be6dc347ecea5ffc8980bf70d84c39ffea0cdb28d2e038d07e5d2"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 75,
+          "sha256": "c6b1b4911ae6d7c26ac5cb69680e84fee18215cc1733ff3359cd9d06a74f438f"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 81,
+          "sha256": "e084b994b7af0e2cb487a9bd4d49184916ba9d2c17dfae883194e0fc578856b1"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-dataset-split": {
+      "overview": [
+        {
+          "tokens": 90,
+          "sha256": "998588fbaffbfb47e72d5dc340821b2746dafd95ea5d45f8561a64e8608a7581"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 104,
+          "sha256": "4cceb309bb91e460dd8429e18bb4f044dc5039ba76b653dfb046221cf40062a0"
+        },
+        {
+          "tokens": 141,
+          "sha256": "357f863fc7f1eb599237e9e2aae69a062f3fb788d9a58ba83cd87f91a7b44024"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 114,
+          "sha256": "ae8a05df3fa1b89b24266186f3719925fa1a6b3a9edfbf208aef2d3def251389"
+        },
+        {
+          "tokens": 141,
+          "sha256": "357f863fc7f1eb599237e9e2aae69a062f3fb788d9a58ba83cd87f91a7b44024"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-fit-quality": {
+      "overview": [
+        {
+          "tokens": 86,
+          "sha256": "deec7b309a29dde161fb468bec50b6cb875b74f80bbf85771cdb4fd26202a121"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 223,
+          "sha256": "b40b88fcd1dcbf6d02656e910bd3cae22dec6bb5636a7ad0809099f66fbc8f3a"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 222,
+          "sha256": "32666ef2f4eaadef2a295915ba477b75bbeef848e32e91c6e2d04709116882a6"
+        },
+        {
+          "tokens": 121,
+          "sha256": "2048b87564d9944fe2b27a80d2ed51c22e59111b5fa02825392bf47e163071fa"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-bias-variance": {
+      "overview": [
+        {
+          "tokens": 109,
+          "sha256": "bc4c4ce5cf3aae40e288434197cffef16ad06dd83c278bcc0835d20040cc21ff"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 219,
+          "sha256": "64f91909bb6c6c61b6e7aceb56288d5f37c928debdb00a84c7fff7f2a6314afb"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 225,
+          "sha256": "faae27ce5037ef2c8fd29b7609d9b5147a8a51c9620e89cf7b52a592b98c1166"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-model-choice": {
+      "overview": [
+        {
+          "tokens": 160,
+          "sha256": "e19a06c784c56b8f3bed28f38fa13dc68a00865de9f2b8050e2f9db7928d23f4"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 212,
+          "sha256": "5bc7ce2ee3591890dc3334d5b1d93c6ce17f514a15206db5c878882fa19e5ce1"
+        },
+        {
+          "tokens": 198,
+          "sha256": "7c6a929f960b3341d5752fb89e29add129cee2b0b58354971e0198a80e1f7e35"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 224,
+          "sha256": "be1e88aa6e2d530d2d0e9899fad0e2d300ce8ced58a2e9ce80cc0821a9b725ab"
+        },
+        {
+          "tokens": 198,
+          "sha256": "7c6a929f960b3341d5752fb89e29add129cee2b0b58354971e0198a80e1f7e35"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-class-centroids": {
+      "overview": [
+        {
+          "tokens": 108,
+          "sha256": "6b4eef149fc7deb659d7f11855241520da1f8464d687eece79b715dcc2674e6b"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 182,
+          "sha256": "cd08cabd1fed0f1d047e46e13c215faf8a16baca132eaa378093084b6d159382"
+        },
+        {
+          "tokens": 175,
+          "sha256": "c3772f18667f6e6830ccaf9a93cfea2ec10843206064373c29ff7e8e56b53aff"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 192,
+          "sha256": "5e741923277a6ed20435b1a90b0f20272b8259c808bb444afd3123f95c68b5a0"
+        },
+        {
+          "tokens": 199,
+          "sha256": "265639ccc5fd0e824db6061ee068a5d8c3a8b4c9d6299555681d7f54971ed817"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-nearest-centroid-predict": {
+      "overview": [
+        {
+          "tokens": 108,
+          "sha256": "19f0bf91cb5b85aa1ad1bb7bbb240ba9f515471543bd6305b47546f83fee1d5a"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 203,
+          "sha256": "c736660a45db9be55e697e901f7de954aab379f07d12dd51dc8d8a3d300e321f"
+        },
+        {
+          "tokens": 124,
+          "sha256": "7e5f58366bf7d1cd6647c56e1268fbdb440cd8d28825aec6146ab5dd9e553306"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 216,
+          "sha256": "1c9582cde6de17adba8529b937af53fbe6ae56dfa8dc3a04f32166fd536af1da"
+        },
+        {
+          "tokens": 156,
+          "sha256": "e6855275bc9c3be969f02b54140671d46d9d56d2dbb57373fa21d2ac71eeb31d"
+        }
+      ]
+    },
+    "ml-what-is-machine-learning-centroid-baseline": {
+      "overview": [
+        {
+          "tokens": 60,
+          "sha256": "7243329117c70edb9be93bf62f1c24a5098f5b7e8acf89f15110f3bece5a2ffd"
+        }
+      ],
+      "standard": [
+        {
+          "tokens": 75,
+          "sha256": "c7317f7f6b49bf7c0733504cbd08ca417ace6ace6884ed75a3458608b2b89c03"
+        }
+      ],
+      "deep": [
+        {
+          "tokens": 91,
+          "sha256": "63cd2bd4f423a05e7214335af9d5228984cac33340446044e263698cbb05bccf"
+        }
+      ]
+    }
+  }
+}

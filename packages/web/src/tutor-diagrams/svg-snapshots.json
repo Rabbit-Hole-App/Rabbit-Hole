@@ -2286,6 +2286,186 @@
       "width": 720,
       "height": 675
     },
+    "ml-what-is-machine-learning-bias-variance/320": {
+      "sha256": "b58108a9d219b3dc5bf0f31ad90bc28e5dabcae7a06ab9ea046a269278eb2661",
+      "width": 420,
+      "height": 608
+    },
+    "ml-what-is-machine-learning-bias-variance/408": {
+      "sha256": "b58108a9d219b3dc5bf0f31ad90bc28e5dabcae7a06ab9ea046a269278eb2661",
+      "width": 420,
+      "height": 608
+    },
+    "ml-what-is-machine-learning-bias-variance/720": {
+      "sha256": "e6c7ad5135ae0ea6ec15692967464b96c91e135814ae6701b584c214ed696ce9",
+      "width": 720,
+      "height": 591
+    },
+    "ml-what-is-machine-learning-centroid-baseline/320": {
+      "sha256": "28d7bd2d8c0f94bcf7ccd96f0c15e4a9384b3c71b57ed4b6f854c1f146d7393a",
+      "width": 320,
+      "height": 282
+    },
+    "ml-what-is-machine-learning-centroid-baseline/408": {
+      "sha256": "656f40c1760167dcc9f2f266b7e2efbacf9cccf1dd804fff22c1a3a16e881ea0",
+      "width": 408,
+      "height": 260
+    },
+    "ml-what-is-machine-learning-centroid-baseline/720": {
+      "sha256": "c2fb84ecc4a2b596c85fa8dee5e08c9e36046cf3c2a2c7e4860178f3287a882a",
+      "width": 720,
+      "height": 243
+    },
+    "ml-what-is-machine-learning-class-centroids/320": {
+      "sha256": "1c057b2479be130e0cfc6a2743b0d8fcd48697f77bc597c23476ed74018b8758",
+      "width": 420,
+      "height": 559
+    },
+    "ml-what-is-machine-learning-class-centroids/408": {
+      "sha256": "1c057b2479be130e0cfc6a2743b0d8fcd48697f77bc597c23476ed74018b8758",
+      "width": 420,
+      "height": 559
+    },
+    "ml-what-is-machine-learning-class-centroids/720": {
+      "sha256": "aedae235496a055c20010c6117c552f76449e9928b13409703bba48cb92f98c5",
+      "width": 720,
+      "height": 559
+    },
+    "ml-what-is-machine-learning-dataset-split/320": {
+      "sha256": "934df85f15de8f8a61b14642d6c10e8dae17d95ab70728782a213b2e8021deb5",
+      "width": 320,
+      "height": 286
+    },
+    "ml-what-is-machine-learning-dataset-split/408": {
+      "sha256": "6fdf93d3b68f4568f3482b8bc78e74123d4a1c5e18e57c4ed8746232d6f2b16e",
+      "width": 408,
+      "height": 269
+    },
+    "ml-what-is-machine-learning-dataset-split/720": {
+      "sha256": "2bda58322189ba528617b2e4cc41c78c29a253889a11c099a24c48350a4d0121",
+      "width": 720,
+      "height": 230
+    },
+    "ml-what-is-machine-learning-fit-quality/320": {
+      "sha256": "f899ec8ad7d03a49a76f5278d76486ba9a13a3e6c23b9c65216decb50bf5f26b",
+      "width": 420,
+      "height": 601
+    },
+    "ml-what-is-machine-learning-fit-quality/408": {
+      "sha256": "f899ec8ad7d03a49a76f5278d76486ba9a13a3e6c23b9c65216decb50bf5f26b",
+      "width": 420,
+      "height": 601
+    },
+    "ml-what-is-machine-learning-fit-quality/720": {
+      "sha256": "4763f08ce4812383f3c76dba08b77f4a549f6150028a9da3e5f5167ad696cbed",
+      "width": 720,
+      "height": 584
+    },
+    "ml-what-is-machine-learning-hidden-groups/320": {
+      "sha256": "941c83bcc878e8f20d78e0833b1507e6e1ea50d071dda3b10643dbcc4af3bb8e",
+      "width": 420,
+      "height": 548
+    },
+    "ml-what-is-machine-learning-hidden-groups/408": {
+      "sha256": "941c83bcc878e8f20d78e0833b1507e6e1ea50d071dda3b10643dbcc4af3bb8e",
+      "width": 420,
+      "height": 548
+    },
+    "ml-what-is-machine-learning-hidden-groups/720": {
+      "sha256": "025465988e9b8255b7959ba471450c4b1d50cd5e4a14b5f84bd7ff1fe23eb78b",
+      "width": 720,
+      "height": 531
+    },
+    "ml-what-is-machine-learning-learning-families/320": {
+      "sha256": "bf58e49604b3f6c41d3d389c528d40eeac6a8f86dc1b80a8e9b3547afaf27f05",
+      "width": 886,
+      "height": 331
+    },
+    "ml-what-is-machine-learning-learning-families/408": {
+      "sha256": "1e6a43475d48d9b5c19731096894ff41cf64ad2dcbc5a62529fdd8565df8f6bd",
+      "width": 910,
+      "height": 331
+    },
+    "ml-what-is-machine-learning-learning-families/720": {
+      "sha256": "1e6a43475d48d9b5c19731096894ff41cf64ad2dcbc5a62529fdd8565df8f6bd",
+      "width": 910,
+      "height": 331
+    },
+    "ml-what-is-machine-learning-model-choice/320": {
+      "sha256": "bdc8e70229b353dbe938f9aab4079962a451cfeb1f8938f012b12224d41010cb",
+      "width": 320,
+      "height": 753
+    },
+    "ml-what-is-machine-learning-model-choice/408": {
+      "sha256": "7b56a4921dfdb05e40f147065af419ef09301d82098a4c66317c018f4ef401e4",
+      "width": 408,
+      "height": 644
+    },
+    "ml-what-is-machine-learning-model-choice/720": {
+      "sha256": "8ba07ad85b3ccef211fd45dbff49624bbe459aadcf98abdd5430fbaf5a73bef3",
+      "width": 720,
+      "height": 644
+    },
+    "ml-what-is-machine-learning-nearest-centroid-predict/320": {
+      "sha256": "e7b35cbddfb08042e0252ec71fda255f3f44c28636f062b5e36ff8022bd0ec0d",
+      "width": 420,
+      "height": 612
+    },
+    "ml-what-is-machine-learning-nearest-centroid-predict/408": {
+      "sha256": "e7b35cbddfb08042e0252ec71fda255f3f44c28636f062b5e36ff8022bd0ec0d",
+      "width": 420,
+      "height": 612
+    },
+    "ml-what-is-machine-learning-nearest-centroid-predict/720": {
+      "sha256": "2c17e1243c7dc6a7908e00e7c96b98ef3eeb2f17cb9e7061a15d09b3e11909b1",
+      "width": 720,
+      "height": 595
+    },
+    "ml-what-is-machine-learning-output-types/320": {
+      "sha256": "1eb5509b52883fd299b0b9edd2055edc9c8a693f529c30912c02446763139498",
+      "width": 420,
+      "height": 601
+    },
+    "ml-what-is-machine-learning-output-types/408": {
+      "sha256": "1eb5509b52883fd299b0b9edd2055edc9c8a693f529c30912c02446763139498",
+      "width": 420,
+      "height": 601
+    },
+    "ml-what-is-machine-learning-output-types/720": {
+      "sha256": "f97b9d3d128edbbb2a71a1f3bf441e07ce7423d9a0644f1ea47d4ef5d0c10c46",
+      "width": 720,
+      "height": 584
+    },
+    "ml-what-is-machine-learning-program-direction/320": {
+      "sha256": "5dd0e7a52c4b383a113912daba37b570455e5b879c43aae6ba44d1d465ecb9de",
+      "width": 320,
+      "height": 538
+    },
+    "ml-what-is-machine-learning-program-direction/408": {
+      "sha256": "dd2a0a92675a7131bae78eb370e19021027a6c410a6248059d6113145f290b91",
+      "width": 408,
+      "height": 445
+    },
+    "ml-what-is-machine-learning-program-direction/720": {
+      "sha256": "433b4a1b643833d5b28ac3bdf0948b299b131b533e1a07c64c898623bfa7f108",
+      "width": 720,
+      "height": 338
+    },
+    "ml-what-is-machine-learning-workflow/320": {
+      "sha256": "5a0e7d8ef04cd62f98ea423317438f3e86021b23ba5bb1020300648eeb2f21d9",
+      "width": 320,
+      "height": 555
+    },
+    "ml-what-is-machine-learning-workflow/408": {
+      "sha256": "32e634199ab604418b3061d46dc4a80e40f3ed7910776a9482a49f44b13903ab",
+      "width": 408,
+      "height": 528
+    },
+    "ml-what-is-machine-learning-workflow/720": {
+      "sha256": "551051806b1688d2591c9bf32b0384e24ca6de57c10ba539840c5923fa49901b",
+      "width": 720,
+      "height": 511
+    },
     "ml-zscore-distribution-tails/320": {
       "sha256": "bc9faa63b27f06ee0180bffb5649f9df0b217c2f92d932aa0693348343806d90",
       "width": 420,

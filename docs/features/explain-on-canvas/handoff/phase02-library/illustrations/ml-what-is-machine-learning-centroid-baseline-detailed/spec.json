@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Training accuracy versus chance",
+    "unit": "%",
+    "bars": [
+      {
+        "label": "Centroid (8 of 8)",
+        "value": 100
+      },
+      {
+        "label": "Random expected (4 of 8)",
+        "value": 50
+      }
+    ],
+    "caption": "Worked example. $8/8\\times100\\%=100\\%$; expected $4/8\\times100\\%=50\\%$."
+  }
+}

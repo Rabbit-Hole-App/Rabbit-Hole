@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Predict by distance",
+    "caption": "Worked example. $4x_1+3x_2=22.5$; query $22<22.5$ gives class 0.",
+    "x": {
+      "label": "Feature $x_1$",
+      "min": 0,
+      "max": 7
+    },
+    "y": {
+      "label": "Feature $x_2$",
+      "min": 0,
+      "max": 7
+    },
+    "series": [
+      {
+        "label": "Mean 0",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 1,
+            "y": 2
+          }
+        ]
+      },
+      {
+        "label": "Mean 1",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 5,
+            "y": 5
+          }
+        ]
+      },
+      {
+        "label": "New point",
+        "kind": "scatter",
+        "points": [
+          {
+            "x": 4,
+            "y": 2
+          }
+        ]
+      },
+      {
+        "label": "Distances",
+        "kind": "line",
+        "samples": {
+          "x": [
+            1,
+            4,
+            5
+          ],
+          "y": [
+            2,
+            2,
+            5
+          ]
+        }
+      },
+      {
+        "label": "Bisector",
+        "kind": "line",
+        "samples": {
+          "x": [
+            5.625,
+            0.375
+          ],
+          "y": [
+            0,
+            7
+          ]
+        }
+      }
+    ]
+  }
+}

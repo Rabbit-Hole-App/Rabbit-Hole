@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Training fit is not generalization",
+    "kind": "bar-chart",
+    "variant": "grouped",
+    "unit": "sq. error",
+    "categories": [
+      "Training mean",
+      "Held-out point"
+    ],
+    "series": [
+      {
+        "label": "Underfit",
+        "values": [
+          1.9166666666666667,
+          5.0625
+        ]
+      },
+      {
+        "label": "Good fit",
+        "values": [
+          0.0625,
+          0
+        ]
+      },
+      {
+        "label": "Overfit",
+        "values": [
+          0,
+          5.0625
+        ]
+      }
+    ],
+    "caption": "Illustrative. Errors use the full generated training set and a held-out point, not measured project performance."
+  }
+}

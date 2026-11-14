@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Centroid separation and midpoint",
+    "caption": "Worked example. Bisect the segment at right angles.",
+    "x": {
+      "label": "Feature $x_1$",
+      "min": 0,
+      "max": 7
+    },
+    "y": {
+      "label": "Feature $x_2$",
+      "min": 0,
+      "max": 7
+    },
+    "series": [
+      {
+        "label": "Between means",
+        "kind": "line",
+        "samples": {
+          "x": [
+            1,
+            5
+          ],
+          "y": [
+            2,
+            5
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "point",
+        "x": 3,
+        "y": 3.5,
+        "label": "Midpoint"
+      }
+    ]
+  }
+}
