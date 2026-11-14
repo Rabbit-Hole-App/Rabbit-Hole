@@ -214,6 +214,56 @@
       "text": "Need something on the history of neural networks I can keep",
       "expect": "explanation",
       "persona": "Ana, teacher preparing a lesson"
+    },
+    {
+      "text": "what is a transformer",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "whats backprop",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what is rag",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "how do gpus even work",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what even is machine learning",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "yo how does wifi work",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what is inflation",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "how do vaccines work lol",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "wtf is a vector database",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what is overfitting",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
     }
   ]
 }

@@ -279,6 +279,36 @@
       "text": "Which part would confuse students most?",
       "expect": "answer",
       "persona": "Ana, teacher preparing a lesson"
+    },
+    {
+      "text": "what does api stand for",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "whats the capital of france",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what is 2 to the power of 10",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "whats the max context length of gpt-4",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "how many parameters does llama 3 70b have",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what does lora stand for",
+      "expect": "answer",
+      "persona": "Casual short questions, any asker"
     }
   ]
 }
