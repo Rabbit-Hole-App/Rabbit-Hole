@@ -63,6 +63,20 @@ test('a failure is a gap, logged as interact_pick_failed, never thrown', async (
   const thrown = await pickFamily(ENV, INPUT, { fetchImpl: async () => { throw new Error('network down'); } });
   assert.equal(thrown.reason, 'network down');
   const slow = await pickFamily(ENV, INPUT, { timeoutMs: 20, fetchImpl: (url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason))) });
-  assert.deepEqual([slow.family, slow.reason], [null, 'timeout']);
-  assert.equal(lines.map(l => JSON.parse(l)).filter(l => l.event === 'interact_pick_failed').length, 4);
+  assert.deepEqual([slow.family, slow.reason], [null, 'pick_timeout']);
+  assert.equal(lines.map(l => JSON.parse(l)).filter(l => l.event === 'interact_pick_failed').length, 8, 'each failed call is logged: 4 failures, each asked twice');
+});
+
+test('a timeout or an error is asked once more: the retry answers, or two failures are a gap logged pick_timeout; a definite answer never retries', async () => {
+  const timeout = (url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason)));
+  let calls = 0;
+  const recovers = await pickFamily(ENV, INPUT, { timeoutMs: 20, fetchImpl: (url, init) => (++calls === 1 ? timeout(url, init) : answer('vertical-throw', 0.97)()) });
+  assert.deepEqual([calls, recovers.family, recovers.reason], [2, 'vertical-throw', 'fit']);
+  calls = 0;
+  const twice = await pickFamily(ENV, INPUT, { timeoutMs: 20, fetchImpl: (url, init) => { calls++; return timeout(url, init); } });
+  assert.deepEqual([calls, twice.family, twice.reason], [2, null, 'pick_timeout']);
+  calls = 0;
+  const errorOnce = await pickFamily(ENV, INPUT, { fetchImpl: async () => (++calls === 1 ? new Response('no', { status: 503 }) : answer('none', 0.9)()) });
+  assert.deepEqual([calls, errorOnce.reason], [2, 'none']);
+  for (const fetchImpl of [answer('none', 0.95), answer('vertical-throw', 0.3), answer('vertical-throw', 0.99)]) { calls = 0; await pickFamily(ENV, INPUT, { fetchImpl: async (...a) => { calls++; return fetchImpl(...a); } }); assert.equal(calls, 1, 'a definite answer is asked once'); }
 });

@@ -20,12 +20,14 @@ const designPart = (job, t, mvp) => {
     // brief 13: the pick of a fast design (a family id, or 'gap'), its confidence and its wall-clock; null when no pick ran.
     pickFamily: fast?.pick ? fast.pick.family ?? 'gap' : null, pickConfidence: fast?.pick?.confidence ?? null, msPick: fast?.pick?.ms ?? null,
     // brief 14: who approved the plan: the system ('fast-path', no approval pause) or the learner; null while there is no approval.
-    approvedBy: job.approval ? job.approval.by ?? 'learner' : null };
+    approvedBy: job.approval ? job.approval.by ?? 'learner' : null,
+    // brief 19: what the pick answered (JSON of its probabilities) and the request, clipped, so a gap (design_gap) can be read and grouped later (scripts/interact/gaps.mjs); dev/diagnostics rows only.
+    pickProbabilities: fast?.pick?.probabilities ? JSON.stringify(fast.pick.probabilities) : null, prompt: job.prompt ? String(job.prompt).slice(0, 300) : null };
 };
 
 // timing: 'v2' is a job whose stage columns are the contiguous wall-clock slices ledgerRow explains (they add up to msTotal); 'v1' is every older row, kept as it was recorded.
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs', 'repairCauses',
-  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath', 'designModel', 'designKind', 'msFill', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'pickFamily', 'pickConfidence', 'msPick', 'approvedBy']);
+  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath', 'designModel', 'designKind', 'msFill', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'pickFamily', 'pickConfidence', 'msPick', 'approvedBy', 'pickProbabilities', 'prompt']);
 
 // What triggered each failed round, in order, `;`-joined, one token per distinct problem of a round: `overlap:text-frame` (a layout rule), `numeric_mismatch` (an oracle code),
 // `program_error:sdk.panel` or `program_error:frame.objects.*.series.*.points` (the guest program's own error), `schema:manifest.readouts.*.labels` (the path a validation problem names),
@@ -79,7 +81,7 @@ export function ledgerRow(job) {
   const stages = template ? { msAuthor: null, msValidate: bms.validate ?? null, msRun: bms.run ?? null, msCheck: bms.check ?? null, msCompose: bms.gen != null ? round1(bms.gen + (accept ?? 0)) : null } : null;
   const hopWait = template && t.generateToResultMs != null ? Math.max(0, round1(t.generateToResultMs - (job.timing.steerMs ?? 0) - ['msValidate', 'msRun', 'msCheck', 'msCompose'].reduce((n, k) => n + (stages[k] ?? 0), 0))) : null;
   return {
-    jobId: job.id, planHash: job.planHash ?? null, depth: job.plan?.depth ?? null, result: job.stage === 'ready' ? 'ready' : ['failed', 'cancelled'].includes(job.stage) ? 'failed' : 'running', stopReason: job.stopReason ?? null,
+    jobId: job.id, planHash: job.planHash ?? null, depth: job.plan?.depth ?? job.depth ?? null, result: job.stage === 'ready' ? 'ready' : ['failed', 'cancelled'].includes(job.stage) ? 'failed' : 'running', stopReason: job.stopReason ?? null,
     oracleId: job.plan ? interactOracle(job.plan)?.id ?? null : null, oracleChecked: job.build?.check?.oracle?.checked ?? null, oracleFailed: count('numeric_mismatch', 'quantity_missing'),
     bindingProblems: count('binding_no_effect', 'control_no_effect') + problems.filter((p, i) => !codes[i] && /\bbinding\b/i.test(p)).length, overlapProblems: count('overlap'),
     repairs: t.repairs, repairCauses: repairCauses(job.findings), profile: job.flow?.profile?.id ?? null, fixture: job.designFixture ?? null, authorModel: template ? 'template' : author?.served ?? author?.requested ?? null, fallbackFired: calls.some(c => c.fallback === true),
