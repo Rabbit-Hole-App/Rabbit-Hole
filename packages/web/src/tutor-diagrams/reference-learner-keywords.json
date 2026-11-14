@@ -1786,5 +1786,41 @@
   "ml-multihead-attention-joined-head-output-projection": [
     "ordered head projection",
     "concat matrix mixing"
+  ],
+  "ml-convolution-channel-contributions": [
+    "aligned channel slice partials",
+    "sum local channel responses"
+  ],
+  "ml-convolution-pointwise-channel-mixing": [
+    "fixed coordinate channel projection",
+    "pointwise no neighboring locations"
+  ],
+  "ml-convolution-patch-products": [
+    "patch kernel product reduction",
+    "selected convolution destination"
+  ],
+  "ml-convolution-filter-response-maps": [
+    "stripe directional signed maps",
+    "same field filter response scale"
+  ],
+  "ml-convolution-patch-reuse": [
+    "valid window reuse counts",
+    "interior edge corner coverage"
+  ],
+  "ml-convolution-zero-padding": [
+    "zero border edge response",
+    "padded valid output shape"
+  ],
+  "ml-convolution-strided-placements": [
+    "independent convolution axis steps",
+    "window origin output coordinates"
+  ],
+  "ml-convolution-max-pooling": [
+    "overlapping pool winner trace",
+    "fixed local maximum rule"
+  ],
+  "ml-convolution-shared-local-detector": [
+    "shared exact patch response",
+    "multiple motif hits distractors"
   ]
 }

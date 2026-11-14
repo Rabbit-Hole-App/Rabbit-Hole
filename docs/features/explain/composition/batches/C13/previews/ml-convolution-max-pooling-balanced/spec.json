@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Two indexed overlapping windows",
+    "columns": [
+      "A00",
+      "B01"
+    ],
+    "rows": [
+      {
+        "label": "00",
+        "cells": [
+          4,
+          1
+        ]
+      },
+      {
+        "label": "01",
+        "cells": [
+          1,
+          6
+        ]
+      },
+      {
+        "label": "10",
+        "cells": [
+          2,
+          3
+        ]
+      },
+      {
+        "label": "11",
+        "cells": [
+          3,
+          5
+        ]
+      },
+      {
+        "label": "max",
+        "cells": [
+          4,
+          6
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 7
+    },
+    "caption": "Origin+offset identifies shared sources01/11. Marks winner/max per column. Extracted windows, not overlaid outlines.",
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 1
+      },
+      {
+        "row": 4,
+        "column": 0
+      },
+      {
+        "row": 4,
+        "column": 1
+      }
+    ]
+  }
+}

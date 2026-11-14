@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative Trace the zero-border edge sum",
+    "blocks": [
+      {
+        "id": "given",
+        "label": "Given P,K; offsets00/01/10/11",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 4,
+            "dimensions": "2 × 4",
+            "values": [
+              0,
+              0,
+              1,
+              2,
+              1,
+              -1,
+              0,
+              2
+            ]
+          }
+        }
+      },
+      {
+        "id": "terms",
+        "label": "Elementwise products",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              0,
+              0,
+              0,
+              4
+            ]
+          }
+        }
+      },
+      {
+        "id": "y",
+        "label": "Padded Y01",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "1 × 1",
+            "values": [
+              4
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "P rows include the added zero border. Sum four signed products into padded Y01; K supplied, stride1."
+  }
+}

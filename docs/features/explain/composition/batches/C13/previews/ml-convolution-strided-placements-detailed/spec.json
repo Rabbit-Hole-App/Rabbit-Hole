@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Origins: sH2/sW1",
+    "columns": [
+      "L",
+      "x0",
+      "x1",
+      "R"
+    ],
+    "rows": [
+      {
+        "label": "T",
+        "cells": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "label": "x0",
+        "cells": [
+          0,
+          1,
+          2,
+          0
+        ]
+      },
+      {
+        "label": "x1",
+        "cells": [
+          0,
+          3,
+          4,
+          0
+        ]
+      },
+      {
+        "label": "B",
+        "cells": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 4
+    },
+    "caption": "Swap steps only; no extra pad. $H_o'=floor((4-2)/2)+1=2$; $W_o'=floor((4-2)/1)+1=3$. Marks are origins, not outlines.",
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 1
+      },
+      {
+        "row": 0,
+        "column": 2
+      },
+      {
+        "row": 2,
+        "column": 0
+      },
+      {
+        "row": 2,
+        "column": 1
+      },
+      {
+        "row": 2,
+        "column": 2
+      }
+    ]
+  }
+}

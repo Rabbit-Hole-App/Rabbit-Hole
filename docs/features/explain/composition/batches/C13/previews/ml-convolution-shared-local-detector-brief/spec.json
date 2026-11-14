@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative One exact-template test",
+    "blocks": [
+      {
+        "id": "given",
+        "label": "Given M,P; offsets00/01/10/11",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 4,
+            "dimensions": "2 × 4",
+            "values": [
+              1,
+              0,
+              0,
+              1,
+              1,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "r",
+        "label": "Exact response R00",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "1 × 1",
+            "values": [
+              1
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Given template/patch are independent operands; response1 iff every corresponding entry equals M. Nonlinear exact-match toy."
+  }
+}

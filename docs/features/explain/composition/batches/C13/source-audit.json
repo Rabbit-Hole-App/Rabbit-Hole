@@ -1,0 +1,76 @@
+{
+  "passed": true,
+  "batch": "C13",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "queueFamilies": 9,
+  "actualAssociations": 9,
+  "sourceHeadings": 9,
+  "newHeadings": 9,
+  "reuseHeadings": 0,
+  "originalFamilyRecordsPreserved": true,
+  "routes": [
+    {
+      "queueId": "ml-convolution-channel-contributions",
+      "referenceId": "ml-convolution-channel-contributions",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-01",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-convolution-pointwise-channel-mixing",
+      "referenceId": "ml-convolution-pointwise-channel-mixing",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-02",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-convolution-patch-products",
+      "referenceId": "ml-convolution-patch-products",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-01",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-convolution-filter-response-maps",
+      "referenceId": "ml-convolution-filter-response-maps",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-02",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-convolution-patch-reuse",
+      "referenceId": "ml-convolution-patch-reuse",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-01",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-convolution-zero-padding",
+      "referenceId": "ml-convolution-zero-padding",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-02",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-convolution-strided-placements",
+      "referenceId": "ml-convolution-strided-placements",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-03",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-convolution-max-pooling",
+      "referenceId": "ml-convolution-max-pooling",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-pooling/briefs.md#figure-01",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-convolution-shared-local-detector",
+      "referenceId": "ml-convolution-shared-local-detector",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-why-conv/briefs.md#figure-02",
+      "lessons": []
+    }
+  ]
+}

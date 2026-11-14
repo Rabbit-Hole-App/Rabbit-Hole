@@ -1,0 +1,76 @@
+Pre-correction full affected run:1576 tests,1574pass,2fail,0skip. Both are assertions on NEW C13 data, not load/timing failures.
+
+✖ failing tests:
+
+test at packages/web/src/tutor-diagrams/ml-reference-integration.test.mjs:26:3
+✖ ml-convolution-channel-contributions: valid saved JSON, deterministic real SVG and readable context at narrow/card/wide widths (2.728421ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      diagram: {
+        caption: 'Origin00; input-channel slices of one output filter. Rows P,K,products; columns spatial offsets. Sum each channel, then add partials.',
+        columns: [
+          '00',
+  ...
+            cells: [
+  +           0,
+  -           -0,
+              1,
+              4,
+              1
+            ],
+            label: 'c1 products'
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/8367069fa9d9/lesson-pipeline-repo/packages/web/src/tutor-diagrams/ml-reference-integration.test.mjs:29:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { version: 1, diagram: { title: 'Illustrative One output filter: aligned channel terms', caption: 'Origin00; input-channel slices of one output filter. Rows P,K,products; columns spatial offsets. Sum each channel, then add partials.', kind: 'heatmap', columns: [Array], rows: [Array], range: [Object] } },
+    expected: { version: 1, diagram: { title: 'Illustrative One output filter: aligned channel terms', caption: 'Origin00; input-channel slices of one output filter. Rows P,K,products; columns spatial offsets. Sum each channel, then add partials.', kind: 'heatmap', columns: [Array], rows: [Array], range: [Object] } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/web/src/tutor-diagrams/ml-reference-integration.test.mjs:26:3
+✖ ml-convolution-zero-padding: valid saved JSON, deterministic real SVG and readable context at narrow/card/wide widths (1.010372ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      diagram: {
+        blocks: [
+          {
+            diagram: {
+  ...
+                  0,
+  -               -0,
+                  0,
+  +               0,
+                  4
+                ]
+              }
+            },
+            id: 'terms',
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/8367069fa9d9/lesson-pipeline-repo/packages/web/src/tutor-diagrams/ml-reference-integration.test.mjs:29:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { version: 1, diagram: { title: 'Illustrative Trace the zero-border edge sum', caption: 'P rows include the added zero border. Sum four signed products into padded Y01; K supplied, stride1.', kind: 'block-stack', blocks: [Array] } },
+    expected: { version: 1, diagram: { title: 'Illustrative Trace the zero-border edge sum', caption: 'P rows include the added zero border. Sum four signed products into padded Y01; K supplied, stride1.', kind: 'block-stack', blocks: [Array] } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

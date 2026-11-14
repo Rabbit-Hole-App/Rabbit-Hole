@@ -1,6 +1,6 @@
 # Composition overnight report — 14 November 2026
 
-The latest verified boundary is C12. C13 content planning and prereview are complete; subsequent batches remain subject to the same tests, prior-pick replay, token, linter and visual-sheet gates. All branches retain release133 `a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36`. No force-push, branch rename, renderer/schema/tooling/author-prompt change, provider call or deployment.
+The latest verified boundary is C13. C14 content planning and prereview are complete; subsequent batches remain subject to the same tests, prior-pick replay, token, linter and visual-sheet gates. All branches retain release133 `a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36`. No force-push, branch rename, renderer/schema/tooling/author-prompt change, provider call or deployment.
 
 | Batch | Branch | Pushed SHA | NEW / REUSE | Affected tests passed | Exact prior replay / moved | Maximum tokens | Snapshots added / changed / removed | Sheets Overview / Standard / Deep |
 |---|---|---|---:|---:|---:|---:|---:|---:|
@@ -15,7 +15,8 @@ The latest verified boundary is C12. C13 content planning and prereview are comp
 | [C09](batches/C09/REPORT.md) | `explain/composition-c09` | `c04921998a1fe8ead5bba273d96c9c4ac17cbb71` | 4 / 0 | 1,479 | 3,687 / 0 | 221 | 12 / 0 / 0 | 4 / 6 / 7 |
 | [C10](batches/C10/REPORT.md) | `explain/composition-c10` | `e6d7542cee6a36498ea55db2e88467b1d3b72eb9` | 5 / 0 | 1,503 | 3,762 / 0 | 269 | 15 / 0 / 0 | 10 / 10 / 10 |
 | [C11](batches/C11/REPORT.md) | `explain/composition-c11` | `2ac6017ece28f5dbbae8758df1a5acefcdccbf89` | 5 / 4 | 1,525 | 3,876 / 0 | 296 | 15 / 3 / 0 | 9 / 14 / 16 |
-| [C12](batches/C12/REPORT.md) | `explain/composition-c12` | [Verified branch head](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/explain/composition-c12) | 4 / 0 | 1,542 | 4,056 / 0 | 297 | 12 / 0 / 0 | 4 / 7 / 7 |
+| [C12](batches/C12/REPORT.md) | `explain/composition-c12` | `4f9c4c5e24ace19375366211499f2bb749d58f29` | 4 / 0 | 1,542 | 4,056 / 0 | 297 | 12 / 0 / 0 | 4 / 7 / 7 |
+| [C13](batches/C13/REPORT.md) | `explain/composition-c13` | [Verified branch head](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/explain/composition-c13) | 9 / 0 | 1,577 | 4,155 / 0 | 296 | 27 / 0 / 0 | 9 / 18 / 18 |
 
 C02's six refreshed keys comprise its own three attention entries and three inherited C01 objective entries. No outside-id snapshot changed in those -r1 fixes. C11 separately records its exact three pixel-identical legacy-music alias hash changes. C03 adds exactly three new ids at three widths; reused visuals are unchanged. Every reported affected test run has zero failures/skips; these totals cover all tutor-diagram tests and all reference-author suites, not the unrelated whole application. Original C02 push also landed at `07371644349e7d82a515707a0155ffc96998de6e` with the exact local `66cfd0288` tree and parent `343d91f8a`.
 
@@ -33,6 +34,7 @@ C02's six refreshed keys comprise its own three attention entries and three inhe
 | C10 | 39 / 39 | 75 / 75 | 456 primary + 456 detail, including planned paths | 44 / 44 | 0 / 0 | 2 |
 | C11 | 45 / 45 | 75 / 75 | 768 primary + 336 detail, including planned paths | 44 / 44 | 0 / 0 | 2 |
 | C12 | 48 / 48 | 60 / 60 | 396 primary + 216 detail, including planned paths | 44 / 44 | 0 / 0 | 1 |
+| C13 | 27 / 27 | 135 / 135 | 648 primary + 432 detail, including planned paths;9 total/8 fast bundles | 44 / 44 | 0 / 0 | 1 |
 
 The ten required C01/C02 author singles now use the point-carrying existing leaf, the same computed data and inherited prompts/keywords/lessons. The strict parent-id set equality is unchanged. All token receipts include canonical compact cl100k_base counts and SHA-256 hashes. The raw composition-filename exceptions are preserved in reports; Claude Code owns their pipeline allowlist additions and release gating. No tooling exception was hidden by source changes.
 
@@ -68,11 +70,17 @@ The ten required C01/C02 author singles now use the point-carrying existing leaf
 
 - **C12 head scope:** layer/head inputs are independently supplied, with Pad excluded before normalization. Mixed Q/K/V and weight rows are explicitly typed; two grids are native444/readable408. Identity-based display reorder preserves fixed model concat order without a model-permutation claim. The next FFN is a structural width2 input, with no computed FFN/residual output.
 
+
+- **C13 UNSATISFIED presentation:** the existing heatmap cannot draw simultaneous separately distinguished overlapping pooling outlines. Indexed extracted windows show shared coordinates, maxima and the complete smaller output; they do not draw those spatial outlines. Stride/detector marks are origins. Native444/468 grids,420 grouped bars and428 formula views are readable at408/all680fit. Unsupported odot/floor-command text uses clear product labels and complete floor(...) formulas. All45 NEW figures visibly say Illustrative.
+
 ## Failure disposition
 
 `reference-single-variants.test.mjs:17` and the following strict set equality now pass through real author variants: C01 37/37, C02 43/43. `svg-snapshots.test.mjs:25` now passes with only the stated owned refreshes and zero removed entries. Both were correctness/data failures owned by these batches and have been fixed.
 
 The expanded learner-audit fixed-total assertion is on catalog data these batches extend, not a dependency/fixture/timing failure. It is now fixed on C01-r1, C02-r1 and C10 by preserving every original391 pair exactly against a base133 fixture while retaining all-current two-phrase/intended-pick checks. The two -r1 branches were fast-forwarded and their full affected suites/replays repeated with zero failures/moves.
+
+
+C13's pre-correction affected run had1,576 tests/1,574pass/2fail: `packages/web/src/tutor-diagrams/ml-reference-integration.test.mjs:29` strict saved-JSON equality for the NEW channel and padding refs. Native−0 became+0 through JSON. Only outgoing display arrays now canonicalize zero; raw arithmetic, existing assertions and all45 serialized specs/SVGs/receipts stay exact. All45 main/detail native roundtrips now pass; repeated full affected run1,577pass/0fail0skip and4,155prior/0moved. These were owned NEW-data assertions, not historical load/timing failures. [Exact correction evidence](batches/C13/REPORT.md).
 
 C10 also ran the expanded explanation+pipeline suites:1,923 tests,1,920 pass,1 fail,2 skip. `scripts/topic-pipeline/test/author-prevalidate.test.mjs:66` asserts generated renderer constraints exactly equal their sheet; that stale-document assertion reproduces on canonical C09 and all12 inputs match base133 unchanged. It is neither load/timing nor an assertion on changed reference data. The Windows-only command and absent reviewer saved-run fixture are the two skips. [Exact expanded evidence](batches/C10/REPORT.md). This is separate from the green affected suite.
 

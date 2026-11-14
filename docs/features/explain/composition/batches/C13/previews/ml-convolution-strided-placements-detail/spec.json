@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative Apply the same K at every marked origin",
+    "blocks": [
+      {
+        "id": "K",
+        "label": "Given K, applied to main field",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              1,
+              -1,
+              0,
+              2
+            ]
+          }
+        }
+      },
+      {
+        "id": "y",
+        "label": "Output Y, $3\\times2$",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 3,
+            "columns": 2,
+            "dimensions": "3 × 2",
+            "values": [
+              2,
+              0,
+              5,
+              2,
+              -3,
+              4
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Already padded H4/W4; no extra padding. Steps sH1/sW2, unflipped products, bias0. Values recomputed; no transpose assumption."
+  }
+}

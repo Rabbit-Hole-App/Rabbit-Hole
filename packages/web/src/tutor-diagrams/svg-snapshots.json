@@ -1401,6 +1401,141 @@
       "width": 720,
       "height": 453
     },
+    "ml-convolution-channel-contributions/320": {
+      "sha256": "4022d8c5343c182845f92d9827bac5bb4b2c549311128c3d22ea02b97f08eb83",
+      "width": 444,
+      "height": 530
+    },
+    "ml-convolution-channel-contributions/408": {
+      "sha256": "4022d8c5343c182845f92d9827bac5bb4b2c549311128c3d22ea02b97f08eb83",
+      "width": 444,
+      "height": 530
+    },
+    "ml-convolution-channel-contributions/720": {
+      "sha256": "15c7684a826d19fae1792949fb9824aa49fdddfe9e95c9856ad8fcf36e89b145",
+      "width": 720,
+      "height": 491
+    },
+    "ml-convolution-filter-response-maps/320": {
+      "sha256": "a25c80d8e3ba68bcc001780fa2457344dc9af3a02e85f088d3517b8c2ecedaf7",
+      "width": 320,
+      "height": 459
+    },
+    "ml-convolution-filter-response-maps/408": {
+      "sha256": "a64f2a14b34e8cff1b65f48f5c0a2d0104f4cdbd7efd3a4762775d6a222c4876",
+      "width": 408,
+      "height": 442
+    },
+    "ml-convolution-filter-response-maps/720": {
+      "sha256": "73a844219afd9cf3100e221c6667e1a739c3e01cd3a081d582a04067f125dc79",
+      "width": 720,
+      "height": 403
+    },
+    "ml-convolution-max-pooling/320": {
+      "sha256": "c34b17be33d57cce73fa0721edb6fed40147ea6e739bc17e49fdb115421c9437",
+      "width": 320,
+      "height": 495
+    },
+    "ml-convolution-max-pooling/408": {
+      "sha256": "b4ec3c19b925fa3544d1cafb6863364d1f2ef919be44cb9026ec157d8b62e475",
+      "width": 408,
+      "height": 478
+    },
+    "ml-convolution-max-pooling/720": {
+      "sha256": "ebcb2a47734acb3a0fc144105ef1df713eda6bb2cc39642d3960ef2f7f1deb83",
+      "width": 720,
+      "height": 439
+    },
+    "ml-convolution-patch-products/320": {
+      "sha256": "a8900649548b32ceff07534e776611dac69c13fea538e675f8ee36b9e252f73b",
+      "width": 364,
+      "height": 390
+    },
+    "ml-convolution-patch-products/408": {
+      "sha256": "94c60400b3067056e3a45af01270963dbf3f857f57557e3ffb6cdf6fb7d4b248",
+      "width": 408,
+      "height": 390
+    },
+    "ml-convolution-patch-products/720": {
+      "sha256": "7c20468c5e166df304fd1b471634797f1915a421be06a983d66ad709ca42191c",
+      "width": 720,
+      "height": 351
+    },
+    "ml-convolution-patch-reuse/320": {
+      "sha256": "bd09068321e92dfd3735f946a341d46c0fae1b32cb4704744cd271db81a55043",
+      "width": 364,
+      "height": 407
+    },
+    "ml-convolution-patch-reuse/408": {
+      "sha256": "b2d678ff139a996101e52c3d094d6f42d25683f3df7a6d915b008cec31bc852f",
+      "width": 408,
+      "height": 390
+    },
+    "ml-convolution-patch-reuse/720": {
+      "sha256": "721815a140fe8c80e9abab23a1faecb5e186c74e24c945a7717bb66fe7de87a9",
+      "width": 720,
+      "height": 351
+    },
+    "ml-convolution-pointwise-channel-mixing/320": {
+      "sha256": "eace7c26b49ba1aad1d16e09f09382ffcb9480c641d7615bdd3435774e8e56e5",
+      "width": 320,
+      "height": 495
+    },
+    "ml-convolution-pointwise-channel-mixing/408": {
+      "sha256": "24c51834da7e0d49319465e602e0b8a921913eb4d780dcb03a72309049f53182",
+      "width": 408,
+      "height": 478
+    },
+    "ml-convolution-pointwise-channel-mixing/720": {
+      "sha256": "d07a804661c4ed90da127560762ddd55a6bc6da9c4859d67dc017976539b9dcf",
+      "width": 720,
+      "height": 439
+    },
+    "ml-convolution-shared-local-detector/320": {
+      "sha256": "26686d9185a58cea6da7dcac0d1254d6f6759b45851fc5acf3a969ec86ce9f71",
+      "width": 364,
+      "height": 407
+    },
+    "ml-convolution-shared-local-detector/408": {
+      "sha256": "dc286b6e24f0b378b05bb9dd3c28c7af18693888e2cc2c639ef0279adae247d8",
+      "width": 408,
+      "height": 390
+    },
+    "ml-convolution-shared-local-detector/720": {
+      "sha256": "a810e8f195f3fdce0382f6fe394fed4b425d3a54b663a28a00d48198ff42cd12",
+      "width": 720,
+      "height": 351
+    },
+    "ml-convolution-strided-placements/320": {
+      "sha256": "76713fc1d23dc3477be5e90525a4f9e8a7f09e3f66d8fc9653a897e256c9c98a",
+      "width": 444,
+      "height": 412
+    },
+    "ml-convolution-strided-placements/408": {
+      "sha256": "76713fc1d23dc3477be5e90525a4f9e8a7f09e3f66d8fc9653a897e256c9c98a",
+      "width": 444,
+      "height": 412
+    },
+    "ml-convolution-strided-placements/720": {
+      "sha256": "943aff78895257ef09c7034588dc89a59e13d7d297022e823b9188086d69aaaa",
+      "width": 720,
+      "height": 395
+    },
+    "ml-convolution-zero-padding/320": {
+      "sha256": "dade66471560a01c7928db588694fd39d6fff2208b3b834a61ad41d72ab57a1d",
+      "width": 320,
+      "height": 562
+    },
+    "ml-convolution-zero-padding/408": {
+      "sha256": "8de6da0235dab6d0010d17da806435c23ca1e8fb674f2900137e915ee87ce00b",
+      "width": 408,
+      "height": 562
+    },
+    "ml-convolution-zero-padding/720": {
+      "sha256": "e1c5570a2e5bf52271d3525780edc5d80024397aa62b86a472c59d648bbf1631",
+      "width": 720,
+      "height": 523
+    },
     "ml-convolutional-network/320": {
       "sha256": "adcefed17694ebf31ace05e2c8aaa25218fd9763b0cc9d7e5370677a344bc23e",
       "width": 320,

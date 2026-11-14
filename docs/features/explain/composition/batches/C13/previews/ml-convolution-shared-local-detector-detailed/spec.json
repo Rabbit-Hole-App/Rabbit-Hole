@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Same exact detector at every valid origin",
+    "columns": [
+      "c0",
+      "c1",
+      "c2"
+    ],
+    "rows": [
+      {
+        "label": "r0",
+        "cells": [
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "label": "r1",
+        "cells": [
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "label": "r2",
+        "cells": [
+          1,
+          0,
+          2
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 2
+    },
+    "caption": "Only $F_{2,2}$ changes; M fixed. $h'=\\sum_{r,c}R'_{r,c}=1$. Marks hit origins, not rectangles; nearby arrangement distractors stay zero.",
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      }
+    ]
+  }
+}

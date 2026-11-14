@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative One placement under supplied strides",
+    "blocks": [
+      {
+        "id": "P",
+        "label": "Origin00 patch",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "K",
+        "label": "Apply given K",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              1,
+              -1,
+              0,
+              2
+            ]
+          }
+        }
+      },
+      {
+        "id": "y",
+        "label": "Y00",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "1 × 1",
+            "values": [
+              2
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Origin00, sH1/sW2; supplied K, not generated from P. One placement alone does not show repeated steps."
+  }
+}

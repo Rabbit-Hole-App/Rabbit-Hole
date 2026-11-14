@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative One neighborhood copies its maximum",
+    "blocks": [
+      {
+        "id": "P",
+        "label": "Given patch A00",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              4,
+              1,
+              2,
+              3
+            ]
+          }
+        }
+      },
+      {
+        "id": "max",
+        "label": "Winner copied to Y00",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "1 × 1",
+            "values": [
+              4
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Fixed $2\\times2$ maximum, stride1, no padding or learned kernel. This introductory trace shows one neighborhood."
+  }
+}

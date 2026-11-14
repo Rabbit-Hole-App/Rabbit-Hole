@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "variant": "grouped",
+    "title": "Illustrative One channel changes, the other stays fixed",
+    "categories": [
+      "c0",
+      "c1",
+      "sum"
+    ],
+    "series": [
+      {
+        "label": "Base",
+        "values": [
+          5,
+          6,
+          11
+        ]
+      },
+      {
+        "label": "Probe",
+        "values": [
+          5,
+          7,
+          12
+        ]
+      }
+    ],
+    "caption": "Same output filter/location; sum the two local partials in each case."
+  }
+}

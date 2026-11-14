@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Both signed maps share the same scale",
+    "columns": [
+      "c0"
+    ],
+    "rows": [
+      {
+        "label": "V r0",
+        "cells": [
+          0
+        ]
+      },
+      {
+        "label": "V r1",
+        "cells": [
+          0
+        ]
+      },
+      {
+        "label": "H r0",
+        "cells": [
+          2
+        ]
+      },
+      {
+        "label": "H r1",
+        "cells": [
+          -2
+        ]
+      }
+    ],
+    "range": {
+      "min": -2,
+      "max": 2
+    },
+    "caption": "Fixed kernels on transposed S; each spatial map is $2\\times1$. Filter identity and spatial row stay distinct; no response-transpose claim."
+  }
+}

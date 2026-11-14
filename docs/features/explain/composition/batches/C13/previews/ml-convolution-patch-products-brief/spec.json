@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative Given local operands and their destination",
+    "blocks": [
+      {
+        "id": "given",
+        "label": "Given P,K; rows; offsets00/01/10/11",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 4,
+            "dimensions": "2 × 4",
+            "values": [
+              1,
+              2,
+              0,
+              3,
+              1,
+              -1,
+              0,
+              2
+            ]
+          }
+        }
+      },
+      {
+        "id": "y",
+        "label": "Selected Y00",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "1 × 1",
+            "values": [
+              5
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Toy unflipped cross-correlation, stride1, no padding; bias0. Selected patch and kernel are independent given operands."
+  }
+}

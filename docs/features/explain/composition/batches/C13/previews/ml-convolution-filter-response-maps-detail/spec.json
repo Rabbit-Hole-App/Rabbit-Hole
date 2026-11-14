@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Both signed maps share the same scale",
+    "columns": [
+      "c0",
+      "c1"
+    ],
+    "rows": [
+      {
+        "label": "V r0",
+        "cells": [
+          2,
+          -2
+        ]
+      },
+      {
+        "label": "H r0",
+        "cells": [
+          0,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": -2,
+      "max": 2
+    },
+    "caption": "Each filter has a $1\\times2$ spatial map. V/H rows identify filters; columns are output origins. Fixed toy rules, not trained filters."
+  }
+}

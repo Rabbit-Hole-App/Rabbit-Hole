@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "variant": "panels",
+    "title": "Illustrative Padding and full output",
+    "panels": [
+      {
+        "heading": "Padded field",
+        "diagram": {
+          "kind": "heatmap",
+          "title": "P",
+          "columns": [
+            "L",
+            "x0",
+            "x1",
+            "R"
+          ],
+          "rows": [
+            {
+              "label": "T",
+              "cells": [
+                0,
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "label": "x0",
+              "cells": [
+                0,
+                1,
+                2,
+                0
+              ]
+            },
+            {
+              "label": "x1",
+              "cells": [
+                0,
+                3,
+                4,
+                0
+              ]
+            },
+            {
+              "label": "B",
+              "cells": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "range": {
+            "min": 0,
+            "max": 4
+          },
+          "highlights": [
+            {
+              "row": 1,
+              "column": 1
+            },
+            {
+              "row": 1,
+              "column": 2
+            },
+            {
+              "row": 2,
+              "column": 1
+            },
+            {
+              "row": 2,
+              "column": 2
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Output",
+        "diagram": {
+          "kind": "heatmap",
+          "title": "Y",
+          "columns": [
+            "c0",
+            "c1",
+            "c2"
+          ],
+          "rows": [
+            {
+              "label": "r0",
+              "cells": [
+                2,
+                4,
+                0
+              ]
+            },
+            {
+              "label": "r1",
+              "cells": [
+                5,
+                7,
+                2
+              ]
+            },
+            {
+              "label": "r2",
+              "cells": [
+                -3,
+                -1,
+                4
+              ]
+            }
+          ],
+          "range": {
+            "min": -3,
+            "max": 7
+          },
+          "highlights": [
+            {
+              "row": 1,
+              "column": 1
+            }
+          ]
+        }
+      }
+    ],
+    "caption": "T/B/L/R added-zero border; $x_0,x_1$ original rows/columns. Marked neighborhood maps to marked destination; same given K."
+  }
+}

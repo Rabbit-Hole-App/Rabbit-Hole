@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative Match the original neighborhood",
+    "blocks": [
+      {
+        "id": "given",
+        "label": "Given P,K; offsets00/01/10/11",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 4,
+            "dimensions": "2 × 4",
+            "values": [
+              1,
+              2,
+              3,
+              4,
+              1,
+              -1,
+              0,
+              2
+            ]
+          }
+        }
+      },
+      {
+        "id": "terms",
+        "label": "Elementwise products",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              1,
+              -2,
+              0,
+              8
+            ]
+          }
+        }
+      },
+      {
+        "id": "y",
+        "label": "P11 / U00 (case record)",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              7,
+              7
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Same K/neighborhood: $Y_{pad}[1,1]=Y_{valid}[0,0]=7$. Full shapes $3\\times3$ versus $1\\times1$; edge outputs are additional."
+  }
+}

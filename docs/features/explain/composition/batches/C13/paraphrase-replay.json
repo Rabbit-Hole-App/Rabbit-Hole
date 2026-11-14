@@ -1,0 +1,3137 @@
+{
+  "version": 1,
+  "topic": "convolution",
+  "fixture": false,
+  "threshold": 0.8,
+  "hits": 135,
+  "total": 135,
+  "firstPickRate": 1,
+  "passed": true,
+  "byDepth": [
+    {
+      "depth": "brief",
+      "hits": 45,
+      "total": 45,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "balanced",
+      "hits": 45,
+      "total": 45,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "detailed",
+      "hits": 45,
+      "total": 45,
+      "firstPickRate": 1
+    }
+  ],
+  "prompts": [
+    {
+      "id": "ml-convolution-channel-contributions",
+      "prompt": "One filter for multi-channel input takes a local response in each channel and adds those contributions.",
+      "referenceId": "ml-convolution-channel-contributions",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show aligned channel slice partials for one output filter.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show aligned channel slice partials for one output filter.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show aligned channel slice partials for one output filter.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do two aligned channel slice partials become one response?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do two aligned channel slice partials become one response?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do two aligned channel slice partials become one response?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Sum local channel responses without changing the output-filter identity.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Sum local channel responses without changing the output-filter identity.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Sum local channel responses without changing the output-filter identity.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which aligned channel slice partial changes after one channel input edit?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which aligned channel slice partial changes after one channel input edit?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which aligned channel slice partial changes after one channel input edit?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep spatial offsets fixed when you sum local channel responses.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep spatial offsets fixed when you sum local channel responses.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep spatial offsets fixed when you sum local channel responses.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-channel-contributions",
+          "firstReferenceId": "ml-convolution-channel-contributions",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-channel-contributions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-channel-contributions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-convolution-pointwise-channel-mixing",
+      "prompt": "A pointwise convolution mixes channels at each location without combining neighboring locations.",
+      "referenceId": "ml-convolution-pointwise-channel-mixing",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show the weights in a fixed coordinate channel projection.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the weights in a fixed coordinate channel projection.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the weights in a fixed coordinate channel projection.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why does pointwise no neighboring locations preserve A after B changes?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why does pointwise no neighboring locations preserve A after B changes?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why does pointwise no neighboring locations preserve A after B changes?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare two independent applications of a fixed coordinate channel projection.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare two independent applications of a fixed coordinate channel projection.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare two independent applications of a fixed coordinate channel projection.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Stack channels for pointwise no neighboring locations.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Stack channels for pointwise no neighboring locations.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Stack channels for pointwise no neighboring locations.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute B's fixed coordinate channel projection with W unchanged.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute B's fixed coordinate channel projection with W unchanged.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute B's fixed coordinate channel projection with W unchanged.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-pointwise-channel-mixing",
+          "firstReferenceId": "ml-convolution-pointwise-channel-mixing",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-pointwise-channel-mixing"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-pointwise-channel-mixing",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-convolution-patch-products",
+      "prompt": "One output cell is the sum of the elementwise products between a patch and its filter.",
+      "referenceId": "ml-convolution-patch-products",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Trace a patch kernel product reduction into one output cell.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace a patch kernel product reduction into one output cell.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace a patch kernel product reduction into one output cell.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep raw weights visible for the selected convolution destination.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep raw weights visible for the selected convolution destination.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep raw weights visible for the selected convolution destination.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which negative product enters the patch kernel product reduction?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which negative product enters the patch kernel product reduction?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which negative product enters the patch kernel product reduction?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Edit outside the selected convolution destination's footprint.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Edit outside the selected convolution destination's footprint.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Edit outside the selected convolution destination's footprint.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why can another output change while the selected convolution destination stays fixed?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why can another output change while the selected convolution destination stays fixed?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why can another output change while the selected convolution destination stays fixed?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-products",
+          "firstReferenceId": "ml-convolution-patch-products",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-products"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-products",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-convolution-filter-response-maps",
+      "prompt": "Different filters respond to different patterns in the same visual field.",
+      "referenceId": "ml-convolution-filter-response-maps",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Compute stripe directional signed maps with both weight grids.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compute stripe directional signed maps with both weight grids.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compute stripe directional signed maps with both weight grids.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the same field filter response scale for positive, negative and zero values.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the same field filter response scale for positive, negative and zero values.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the same field filter response scale for positive, negative and zero values.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which stripe directional signed maps change when only S is transposed?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which stripe directional signed maps change when only S is transposed?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which stripe directional signed maps change when only S is transposed?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare fixed rules under the same field filter response scale.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare fixed rules under the same field filter response scale.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare fixed rules under the same field filter response scale.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Hold kernels fixed while recomputing stripe directional signed maps.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Hold kernels fixed while recomputing stripe directional signed maps.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Hold kernels fixed while recomputing stripe directional signed maps.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-filter-response-maps",
+          "firstReferenceId": "ml-convolution-filter-response-maps",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-filter-response-maps"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-filter-response-maps",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-convolution-patch-reuse",
+      "prompt": "Interior pixels participate in more sliding windows than boundary pixels, with the reuse pattern depending on filter size.",
+      "referenceId": "ml-convolution-patch-reuse",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Enumerate valid window reuse counts for two filter sizes.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Enumerate valid window reuse counts for two filter sizes.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Enumerate valid window reuse counts for two filter sizes.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare interior edge corner coverage on one position grid.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare interior edge corner coverage on one position grid.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare interior edge corner coverage on one position grid.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do valid window reuse counts change when only height grows?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do valid window reuse counts change when only height grows?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do valid window reuse counts change when only height grows?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep stride/padding fixed for interior edge corner coverage.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep stride/padding fixed for interior edge corner coverage.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep stride/padding fixed for interior edge corner coverage.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the whole-grid-window counterexample to larger interior edge corner coverage.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the whole-grid-window counterexample to larger interior edge corner coverage.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the whole-grid-window counterexample to larger interior edge corner coverage.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-patch-reuse",
+          "firstReferenceId": "ml-convolution-patch-reuse",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-patch-reuse"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-patch-reuse",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-convolution-zero-padding",
+      "prompt": "Zero padding adds a boundary that lets a filter cover edge neighborhoods and control the output size.",
+      "referenceId": "ml-convolution-zero-padding",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Trace a zero border edge response with actual kernel cells.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace a zero border edge response with actual kernel cells.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace a zero border edge response with actual kernel cells.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare padded valid output shape with the sole unpadded result.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare padded valid output shape with the sole unpadded result.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare padded valid output shape with the sole unpadded result.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which zeros enter the zero border edge response?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which zeros enter the zero border edge response?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which zeros enter the zero border edge response?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Match the original neighborhood when comparing padded valid output shape.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Match the original neighborhood when comparing padded valid output shape.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Match the original neighborhood when comparing padded valid output shape.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why can one value agree while padded valid output shape grows?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why can one value agree while padded valid output shape grows?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why can one value agree while padded valid output shape grows?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-zero-padding",
+          "firstReferenceId": "ml-convolution-zero-padding",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-zero-padding"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-zero-padding",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-convolution-strided-placements",
+      "prompt": "Stride controls the spacing of filter placements and can shrink different spatial axes by different amounts.",
+      "referenceId": "ml-convolution-strided-placements",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show independent convolution axis steps and six starts.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show independent convolution axis steps and six starts.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show independent convolution axis steps and six starts.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Map window origin output coordinates using separate strides.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Map window origin output coordinates using separate strides.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Map window origin output coordinates using separate strides.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Swap independent convolution axis steps with input/weights fixed.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Swap independent convolution axis steps with input/weights fixed.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Swap independent convolution axis steps with input/weights fixed.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why are window origin output coordinates not transposed values?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why are window origin output coordinates not transposed values?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why are window origin output coordinates not transposed values?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep padded coordinates explicit for independent convolution axis steps.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep padded coordinates explicit for independent convolution axis steps.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep padded coordinates explicit for independent convolution axis steps.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-strided-placements",
+          "firstReferenceId": "ml-convolution-strided-placements",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-strided-placements"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-strided-placements",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-convolution-max-pooling",
+      "prompt": "Max pooling compresses a neighborhood to its strongest activation using a fixed rule.",
+      "referenceId": "ml-convolution-max-pooling",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show an overlapping pool winner trace with source origins.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show an overlapping pool winner trace with source origins.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show an overlapping pool winner trace with source origins.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Copy each winner under the fixed local maximum rule.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Copy each winner under the fixed local maximum rule.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Copy each winner under the fixed local maximum rule.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which source cell appears twice in the overlapping pool winner trace?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which source cell appears twice in the overlapping pool winner trace?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which source cell appears twice in the overlapping pool winner trace?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Lower a shared nonwinner under the fixed local maximum rule.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Lower a shared nonwinner under the fixed local maximum rule.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Lower a shared nonwinner under the fixed local maximum rule.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why is unchanged output conditional in the overlapping pool winner trace?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why is unchanged output conditional in the overlapping pool winner trace?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why is unchanged output conditional in the overlapping pool winner trace?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-max-pooling",
+          "firstReferenceId": "ml-convolution-max-pooling",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-max-pooling"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-max-pooling",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-convolution-shared-local-detector",
+      "prompt": "The same local detector can find several occurrences of a target in one field.",
+      "referenceId": "ml-convolution-shared-local-detector",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show a shared exact patch response at each origin.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show a shared exact patch response at each origin.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show a shared exact patch response at each origin.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Distinguish multiple motif hits distractors with equal one-counts.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Distinguish multiple motif hits distractors with equal one-counts.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Distinguish multiple motif hits distractors with equal one-counts.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Break one occurrence but preserve another shared exact patch response.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Break one occurrence but preserve another shared exact patch response.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Break one occurrence but preserve another shared exact patch response.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep M fixed when recomputing multiple motif hits distractors.",
+          "depth": "brief",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep M fixed when recomputing multiple motif hits distractors.",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep M fixed when recomputing multiple motif hits distractors.",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why does arrangement matter for the shared exact patch response?",
+          "depth": "brief",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why does arrangement matter for the shared exact patch response?",
+          "depth": "balanced",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why does arrangement matter for the shared exact patch response?",
+          "depth": "detailed",
+          "firstReference": "ml-convolution-shared-local-detector",
+          "firstReferenceId": "ml-convolution-shared-local-detector",
+          "firstPick": true,
+          "references": [
+            "ml-convolution-shared-local-detector"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-convolution-shared-local-detector",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    }
+  ]
+}

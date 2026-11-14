@@ -1,0 +1,24 @@
+{
+  "batch": "C13",
+  "topic": "convolution",
+  "base": "4f9c4c5e24ace19375366211499f2bb749d58f29",
+  "expectedNew": 9,
+  "expectedFamilies": 9,
+  "expectedQueueFamilies": 9,
+  "manifest": "topic-convolution-sources.json",
+  "groups": [
+    {
+      "topic": "convolution",
+      "reference": "composition-convolution-references.js",
+      "data": "topic-convolution-data.js",
+      "test": "topic-convolution-composition.test.mjs"
+    }
+  ],
+  "rootSourceSha": "cca0192e19fee1a71f1bc2bec89376ee4d4686fa",
+  "baseline": {
+    "priorCases": 4155,
+    "references": 514,
+    "authorSingles": 44,
+    "sha256": "1774bd45d043417e9f6512e59e1a7db2f7611a044a8f7847a0a957da8c9f762a"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "tensor",
+    "title": "Illustrative One computed V-filter response map",
+    "tensor": {
+      "rows": 1,
+      "columns": 2,
+      "dimensions": "1 × 2",
+      "values": [
+        2,
+        -2
+      ]
+    },
+    "caption": "Fixed V rule on supplied stripes. Two signed output origins; full operands in Standard."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Origins: sH1/sW2",
+    "columns": [
+      "L",
+      "x0",
+      "x1",
+      "R"
+    ],
+    "rows": [
+      {
+        "label": "T",
+        "cells": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "label": "x0",
+        "cells": [
+          0,
+          1,
+          2,
+          0
+        ]
+      },
+      {
+        "label": "x1",
+        "cells": [
+          0,
+          3,
+          4,
+          0
+        ]
+      },
+      {
+        "label": "B",
+        "cells": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 4
+    },
+    "caption": "T/B/L/R added zeros, x0/x1 original axes. Six starts, not outlines. Origin$(r s_H,c s_W)\\to Y[r,c]$; supplied K and full output in detail.",
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 2
+      },
+      {
+        "row": 1,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 2
+      },
+      {
+        "row": 2,
+        "column": 0
+      },
+      {
+        "row": 2,
+        "column": 2
+      }
+    ]
+  }
+}

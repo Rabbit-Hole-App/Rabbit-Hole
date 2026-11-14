@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative Supplied stripe field and two fixed rules",
+    "blocks": [
+      {
+        "id": "S",
+        "label": "Stripe field S",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 3,
+            "dimensions": "2 × 3",
+            "values": [
+              1,
+              0,
+              1,
+              1,
+              0,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "bank",
+        "label": "Apply supplied kernels V,H; offsets00/01/10/11",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 4,
+            "dimensions": "2 × 4",
+            "values": [
+              1,
+              -1,
+              1,
+              -1,
+              1,
+              1,
+              -1,
+              -1
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Unflipped stride1, bias0. Each bank row is a supplied $2\\times2$ directional kernel, flattened by offsets; S does not generate weights."
+  }
+}

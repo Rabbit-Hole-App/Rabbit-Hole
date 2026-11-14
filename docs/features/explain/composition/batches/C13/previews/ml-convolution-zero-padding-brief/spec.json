@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative Given edge operands lead to one output",
+    "blocks": [
+      {
+        "id": "given",
+        "label": "Given edge P,K; offsets00/01/10/11",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 4,
+            "dimensions": "2 × 4",
+            "values": [
+              0,
+              0,
+              1,
+              2,
+              1,
+              -1,
+              0,
+              2
+            ]
+          }
+        }
+      },
+      {
+        "id": "y",
+        "label": "Padded Y01",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 1,
+            "dimensions": "1 × 1",
+            "values": [
+              4
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "P top row is added zeros; K supplied. One-zero border, unflipped stride1, bias0."
+  }
+}

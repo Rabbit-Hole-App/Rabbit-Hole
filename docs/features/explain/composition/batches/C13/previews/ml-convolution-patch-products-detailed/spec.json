@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Edit outside the selected footprint",
+    "columns": [
+      "c0",
+      "c1",
+      "c2"
+    ],
+    "rows": [
+      {
+        "label": "r0",
+        "cells": [
+          1,
+          2,
+          0
+        ]
+      },
+      {
+        "label": "r1",
+        "cells": [
+          0,
+          3,
+          1
+        ]
+      },
+      {
+        "label": "r2",
+        "cells": [
+          2,
+          1,
+          5
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 5
+    },
+    "caption": "Outside edit; footprint fixed. $\\Delta Y_{00}=0$; $\\Delta Y_{11}=K_{11}\\Delta X_{2,2}=2$.",
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 1
+      },
+      {
+        "row": 1,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 1
+      }
+    ]
+  }
+}

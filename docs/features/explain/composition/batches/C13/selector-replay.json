@@ -1,0 +1,528 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 4155,
+  "changedPriorPicks": [],
+  "sourceHeadings": 9,
+  "uniqueSourcePrompts": 9,
+  "sourceCases": 27,
+  "sourceHits": 27,
+  "actualPlannedAuthorSchemaChecks": 27,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-convolution-channel-contributions",
+      "expectedFamily": "ml-convolution-channel-contributions",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-01",
+      "prompt": "One filter for multi-channel input takes a local response in each channel and adds those contributions.",
+      "depth": "brief",
+      "firstFamily": "ml-convolution-channel-contributions",
+      "rawAuthorReferenceId": "ml-convolution-channel-contributions",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-channel-contributions",
+      "preparedId": "ml-convolution-channel-contributions",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-channel-contributions",
+      "expectedFamily": "ml-convolution-channel-contributions",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-01",
+      "prompt": "One filter for multi-channel input takes a local response in each channel and adds those contributions.",
+      "depth": "balanced",
+      "firstFamily": "ml-convolution-channel-contributions",
+      "rawAuthorReferenceId": "ml-convolution-channel-contributions",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-channel-contributions",
+      "preparedId": "ml-convolution-channel-contributions",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-channel-contributions",
+      "expectedFamily": "ml-convolution-channel-contributions",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-01",
+      "prompt": "One filter for multi-channel input takes a local response in each channel and adds those contributions.",
+      "depth": "detailed",
+      "firstFamily": "ml-convolution-channel-contributions",
+      "rawAuthorReferenceId": "ml-convolution-channel-contributions",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-channel-contributions",
+      "preparedId": "ml-convolution-channel-contributions",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-pointwise-channel-mixing",
+      "expectedFamily": "ml-convolution-pointwise-channel-mixing",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-02",
+      "prompt": "A pointwise convolution mixes channels at each location without combining neighboring locations.",
+      "depth": "brief",
+      "firstFamily": "ml-convolution-pointwise-channel-mixing",
+      "rawAuthorReferenceId": "ml-convolution-pointwise-channel-mixing",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-pointwise-channel-mixing",
+      "preparedId": "ml-convolution-pointwise-channel-mixing",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-pointwise-channel-mixing",
+      "expectedFamily": "ml-convolution-pointwise-channel-mixing",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-02",
+      "prompt": "A pointwise convolution mixes channels at each location without combining neighboring locations.",
+      "depth": "balanced",
+      "firstFamily": "ml-convolution-pointwise-channel-mixing",
+      "rawAuthorReferenceId": "ml-convolution-pointwise-channel-mixing",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-pointwise-channel-mixing",
+      "preparedId": "ml-convolution-pointwise-channel-mixing",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-pointwise-channel-mixing",
+      "expectedFamily": "ml-convolution-pointwise-channel-mixing",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-02",
+      "prompt": "A pointwise convolution mixes channels at each location without combining neighboring locations.",
+      "depth": "detailed",
+      "firstFamily": "ml-convolution-pointwise-channel-mixing",
+      "rawAuthorReferenceId": "ml-convolution-pointwise-channel-mixing",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-pointwise-channel-mixing",
+      "preparedId": "ml-convolution-pointwise-channel-mixing",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-patch-products",
+      "expectedFamily": "ml-convolution-patch-products",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-01",
+      "prompt": "One output cell is the sum of the elementwise products between a patch and its filter.",
+      "depth": "brief",
+      "firstFamily": "ml-convolution-patch-products",
+      "rawAuthorReferenceId": "ml-convolution-patch-products",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-patch-products",
+      "preparedId": "ml-convolution-patch-products",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-patch-products",
+      "expectedFamily": "ml-convolution-patch-products",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-01",
+      "prompt": "One output cell is the sum of the elementwise products between a patch and its filter.",
+      "depth": "balanced",
+      "firstFamily": "ml-convolution-patch-products",
+      "rawAuthorReferenceId": "ml-convolution-patch-products",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-patch-products",
+      "preparedId": "ml-convolution-patch-products",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-patch-products",
+      "expectedFamily": "ml-convolution-patch-products",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-01",
+      "prompt": "One output cell is the sum of the elementwise products between a patch and its filter.",
+      "depth": "detailed",
+      "firstFamily": "ml-convolution-patch-products",
+      "rawAuthorReferenceId": "ml-convolution-patch-products",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-patch-products",
+      "preparedId": "ml-convolution-patch-products",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-filter-response-maps",
+      "expectedFamily": "ml-convolution-filter-response-maps",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-02",
+      "prompt": "Different filters respond to different patterns in the same visual field.",
+      "depth": "brief",
+      "firstFamily": "ml-convolution-filter-response-maps",
+      "rawAuthorReferenceId": "ml-convolution-filter-response-maps",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-filter-response-maps",
+      "preparedId": "ml-convolution-filter-response-maps",
+      "preparedSchemaValid": true,
+      "kind": "tensor",
+      "collision": false,
+      "plannedKinds": [
+        "tensor"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-filter-response-maps",
+      "expectedFamily": "ml-convolution-filter-response-maps",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-02",
+      "prompt": "Different filters respond to different patterns in the same visual field.",
+      "depth": "balanced",
+      "firstFamily": "ml-convolution-filter-response-maps",
+      "rawAuthorReferenceId": "ml-convolution-filter-response-maps",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-filter-response-maps",
+      "preparedId": "ml-convolution-filter-response-maps",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-filter-response-maps",
+      "expectedFamily": "ml-convolution-filter-response-maps",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-02",
+      "prompt": "Different filters respond to different patterns in the same visual field.",
+      "depth": "detailed",
+      "firstFamily": "ml-convolution-filter-response-maps",
+      "rawAuthorReferenceId": "ml-convolution-filter-response-maps",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-filter-response-maps",
+      "preparedId": "ml-convolution-filter-response-maps",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-patch-reuse",
+      "expectedFamily": "ml-convolution-patch-reuse",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-01",
+      "prompt": "Interior pixels participate in more sliding windows than boundary pixels, with the reuse pattern depending on filter size.",
+      "depth": "brief",
+      "firstFamily": "ml-convolution-patch-reuse",
+      "rawAuthorReferenceId": "ml-convolution-patch-reuse",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-patch-reuse",
+      "preparedId": "ml-convolution-patch-reuse",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-patch-reuse",
+      "expectedFamily": "ml-convolution-patch-reuse",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-01",
+      "prompt": "Interior pixels participate in more sliding windows than boundary pixels, with the reuse pattern depending on filter size.",
+      "depth": "balanced",
+      "firstFamily": "ml-convolution-patch-reuse",
+      "rawAuthorReferenceId": "ml-convolution-patch-reuse",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-patch-reuse",
+      "preparedId": "ml-convolution-patch-reuse",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-patch-reuse",
+      "expectedFamily": "ml-convolution-patch-reuse",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-01",
+      "prompt": "Interior pixels participate in more sliding windows than boundary pixels, with the reuse pattern depending on filter size.",
+      "depth": "detailed",
+      "firstFamily": "ml-convolution-patch-reuse",
+      "rawAuthorReferenceId": "ml-convolution-patch-reuse",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-patch-reuse",
+      "preparedId": "ml-convolution-patch-reuse",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-zero-padding",
+      "expectedFamily": "ml-convolution-zero-padding",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-02",
+      "prompt": "Zero padding adds a boundary that lets a filter cover edge neighborhoods and control the output size.",
+      "depth": "brief",
+      "firstFamily": "ml-convolution-zero-padding",
+      "rawAuthorReferenceId": "ml-convolution-zero-padding",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-zero-padding",
+      "preparedId": "ml-convolution-zero-padding",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-zero-padding",
+      "expectedFamily": "ml-convolution-zero-padding",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-02",
+      "prompt": "Zero padding adds a boundary that lets a filter cover edge neighborhoods and control the output size.",
+      "depth": "balanced",
+      "firstFamily": "ml-convolution-zero-padding",
+      "rawAuthorReferenceId": "ml-convolution-zero-padding",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-zero-padding",
+      "preparedId": "ml-convolution-zero-padding",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-zero-padding",
+      "expectedFamily": "ml-convolution-zero-padding",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-02",
+      "prompt": "Zero padding adds a boundary that lets a filter cover edge neighborhoods and control the output size.",
+      "depth": "detailed",
+      "firstFamily": "ml-convolution-zero-padding",
+      "rawAuthorReferenceId": "ml-convolution-zero-padding",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-zero-padding",
+      "preparedId": "ml-convolution-zero-padding",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-strided-placements",
+      "expectedFamily": "ml-convolution-strided-placements",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-03",
+      "prompt": "Stride controls the spacing of filter placements and can shrink different spatial axes by different amounts.",
+      "depth": "brief",
+      "firstFamily": "ml-convolution-strided-placements",
+      "rawAuthorReferenceId": "ml-convolution-strided-placements",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-strided-placements",
+      "preparedId": "ml-convolution-strided-placements",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-strided-placements",
+      "expectedFamily": "ml-convolution-strided-placements",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-03",
+      "prompt": "Stride controls the spacing of filter placements and can shrink different spatial axes by different amounts.",
+      "depth": "balanced",
+      "firstFamily": "ml-convolution-strided-placements",
+      "rawAuthorReferenceId": "ml-convolution-strided-placements",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-strided-placements",
+      "preparedId": "ml-convolution-strided-placements",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-strided-placements",
+      "expectedFamily": "ml-convolution-strided-placements",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-03",
+      "prompt": "Stride controls the spacing of filter placements and can shrink different spatial axes by different amounts.",
+      "depth": "detailed",
+      "firstFamily": "ml-convolution-strided-placements",
+      "rawAuthorReferenceId": "ml-convolution-strided-placements",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-strided-placements",
+      "preparedId": "ml-convolution-strided-placements",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-max-pooling",
+      "expectedFamily": "ml-convolution-max-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-pooling/briefs.md#figure-01",
+      "prompt": "Max pooling compresses a neighborhood to its strongest activation using a fixed rule.",
+      "depth": "brief",
+      "firstFamily": "ml-convolution-max-pooling",
+      "rawAuthorReferenceId": "ml-convolution-max-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-max-pooling",
+      "preparedId": "ml-convolution-max-pooling",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-max-pooling",
+      "expectedFamily": "ml-convolution-max-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-pooling/briefs.md#figure-01",
+      "prompt": "Max pooling compresses a neighborhood to its strongest activation using a fixed rule.",
+      "depth": "balanced",
+      "firstFamily": "ml-convolution-max-pooling",
+      "rawAuthorReferenceId": "ml-convolution-max-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-max-pooling",
+      "preparedId": "ml-convolution-max-pooling",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-max-pooling",
+      "expectedFamily": "ml-convolution-max-pooling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-pooling/briefs.md#figure-01",
+      "prompt": "Max pooling compresses a neighborhood to its strongest activation using a fixed rule.",
+      "depth": "detailed",
+      "firstFamily": "ml-convolution-max-pooling",
+      "rawAuthorReferenceId": "ml-convolution-max-pooling",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-max-pooling",
+      "preparedId": "ml-convolution-max-pooling",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-shared-local-detector",
+      "expectedFamily": "ml-convolution-shared-local-detector",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-why-conv/briefs.md#figure-02",
+      "prompt": "The same local detector can find several occurrences of a target in one field.",
+      "depth": "brief",
+      "firstFamily": "ml-convolution-shared-local-detector",
+      "rawAuthorReferenceId": "ml-convolution-shared-local-detector",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-shared-local-detector",
+      "preparedId": "ml-convolution-shared-local-detector",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-shared-local-detector",
+      "expectedFamily": "ml-convolution-shared-local-detector",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-why-conv/briefs.md#figure-02",
+      "prompt": "The same local detector can find several occurrences of a target in one field.",
+      "depth": "balanced",
+      "firstFamily": "ml-convolution-shared-local-detector",
+      "rawAuthorReferenceId": "ml-convolution-shared-local-detector",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-shared-local-detector",
+      "preparedId": "ml-convolution-shared-local-detector",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-convolution-shared-local-detector",
+      "expectedFamily": "ml-convolution-shared-local-detector",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-why-conv/briefs.md#figure-02",
+      "prompt": "The same local detector can find several occurrences of a target in one field.",
+      "depth": "detailed",
+      "firstFamily": "ml-convolution-shared-local-detector",
+      "rawAuthorReferenceId": "ml-convolution-shared-local-detector",
+      "firstPick": true,
+      "preparedFamily": "ml-convolution-shared-local-detector",
+      "preparedId": "ml-convolution-shared-local-detector",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

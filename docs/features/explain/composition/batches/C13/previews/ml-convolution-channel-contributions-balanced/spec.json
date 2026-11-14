@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative One output filter: aligned channel terms",
+    "columns": [
+      "00",
+      "01",
+      "10",
+      "11"
+    ],
+    "rows": [
+      {
+        "label": "c0 P",
+        "cells": [
+          1,
+          2,
+          0,
+          3
+        ]
+      },
+      {
+        "label": "c0 K",
+        "cells": [
+          1,
+          -1,
+          0,
+          2
+        ]
+      },
+      {
+        "label": "c0 products",
+        "cells": [
+          1,
+          -2,
+          0,
+          6
+        ]
+      },
+      {
+        "label": "c1 P",
+        "cells": [
+          0,
+          1,
+          2,
+          1
+        ]
+      },
+      {
+        "label": "c1 K",
+        "cells": [
+          -1,
+          1,
+          2,
+          1
+        ]
+      },
+      {
+        "label": "c1 products",
+        "cells": [
+          0,
+          1,
+          4,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": -2,
+      "max": 6
+    },
+    "caption": "Origin00; input-channel slices of one output filter. Rows P,K,products; columns spatial offsets. Sum each channel, then add partials."
+  }
+}

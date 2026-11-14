@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative One supplied pointwise map at A",
+    "blocks": [
+      {
+        "id": "x",
+        "label": "Given xA at $(0,0)$",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 1,
+            "dimensions": "2 × 1",
+            "values": [
+              2,
+              6
+            ]
+          }
+        }
+      },
+      {
+        "id": "W",
+        "label": "Apply supplied shared W",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 3,
+            "columns": 2,
+            "dimensions": "3 × 2",
+            "values": [
+              1,
+              -1,
+              2,
+              1,
+              0.5,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "y",
+        "label": "Output yA at $(0,0)$",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 3,
+            "columns": 1,
+            "dimensions": "3 × 1",
+            "values": [
+              -4,
+              10,
+              1
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "At one coordinate: $y=Wx$. W is a supplied operator, not generated from x; no neighboring locations."
+  }
+}

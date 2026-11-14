@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative A footprint selects one destination",
+    "columns": [
+      "c0",
+      "c1",
+      "c2"
+    ],
+    "rows": [
+      {
+        "label": "r0",
+        "cells": [
+          1,
+          2,
+          0
+        ]
+      },
+      {
+        "label": "r1",
+        "cells": [
+          0,
+          3,
+          1
+        ]
+      },
+      {
+        "label": "r2",
+        "cells": [
+          2,
+          1,
+          4
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 5
+    },
+    "caption": "Input X; highlighted top-left footprint P00. Unflipped K, stride1, no padding; raw products and destination in detail.",
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 1
+      },
+      {
+        "row": 1,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 1
+      }
+    ]
+  }
+}

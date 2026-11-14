@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "variant": "panels",
+    "title": "Illustrative Source winners copy into a smaller full output",
+    "panels": [
+      {
+        "heading": "Input",
+        "diagram": {
+          "kind": "heatmap",
+          "title": "X",
+          "columns": [
+            "c0",
+            "c1",
+            "c2"
+          ],
+          "rows": [
+            {
+              "label": "r0",
+              "cells": [
+                4,
+                1,
+                6
+              ]
+            },
+            {
+              "label": "r1",
+              "cells": [
+                2,
+                3,
+                5
+              ]
+            },
+            {
+              "label": "r2",
+              "cells": [
+                0,
+                7,
+                1
+              ]
+            }
+          ],
+          "range": {
+            "min": 0,
+            "max": 7
+          },
+          "highlights": [
+            {
+              "row": 0,
+              "column": 0
+            },
+            {
+              "row": 0,
+              "column": 2
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Max output",
+        "diagram": {
+          "kind": "heatmap",
+          "title": "Y",
+          "columns": [
+            "c0",
+            "c1"
+          ],
+          "rows": [
+            {
+              "label": "r0",
+              "cells": [
+                4,
+                6
+              ]
+            },
+            {
+              "label": "r1",
+              "cells": [
+                7,
+                7
+              ]
+            }
+          ],
+          "range": {
+            "min": 0,
+            "max": 7
+          },
+          "highlights": [
+            {
+              "row": 0,
+              "column": 0
+            },
+            {
+              "row": 0,
+              "column": 1
+            }
+          ]
+        }
+      }
+    ],
+    "caption": "$2\\times2$, unit stride, no padding. Marks identify two source winners and their copied first-row outputs; full numeric field/output shown."
+  }
+}

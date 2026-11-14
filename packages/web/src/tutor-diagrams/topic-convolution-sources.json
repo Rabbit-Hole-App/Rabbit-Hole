@@ -1,0 +1,564 @@
+{
+  "batch": "C13",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "baseTree": "53dedef3ee862002f96f57023304136e1aab78a8",
+  "families": [
+    {
+      "rank": 64,
+      "source": "d2l-channels",
+      "figure": "01",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-01",
+      "summary": "One filter for multi-channel input takes a local response in each channel and adds those contributions.",
+      "kinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "proposedReferenceId": "ml-convolution-channel-contributions",
+      "proposedTopicSlug": "convolution",
+      "lessons": [],
+      "batch": "C13",
+      "sequence": "Convolution channels 1/2. Combine input channels",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-convolution-references.js",
+      "priority": {
+        "tier": 3,
+        "band": "remaining",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Per-channel local responses summed into one output.",
+      "batchTopic": "convolution"
+    },
+    {
+      "rank": 65,
+      "source": "d2l-channels",
+      "figure": "02",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-02",
+      "summary": "A pointwise convolution mixes channels at each location without combining neighboring locations.",
+      "kinds": [
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-convolution-pointwise-channel-mixing",
+      "proposedTopicSlug": "convolution",
+      "lessons": [],
+      "batch": "C13",
+      "sequence": "Convolution channels 2/2. Isolate channel mixing from spatial mixing",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "tensor",
+        "transformation"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-convolution-references.js",
+      "priority": {
+        "tier": 3,
+        "band": "remaining",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Channel mixing at one fixed spatial coordinate.",
+      "batchTopic": "convolution"
+    },
+    {
+      "rank": 66,
+      "source": "d2l-conv-layer",
+      "figure": "01",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-01",
+      "summary": "One output cell is the sum of the elementwise products between a patch and its filter.",
+      "kinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "proposedReferenceId": "ml-convolution-patch-products",
+      "proposedTopicSlug": "convolution",
+      "lessons": [],
+      "batch": "C13",
+      "sequence": "Convolution layers 1/2. Compute a local response",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-convolution-references.js",
+      "priority": {
+        "tier": 3,
+        "band": "remaining",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Patch/filter elementwise products and their destination sum.",
+      "batchTopic": "convolution"
+    },
+    {
+      "rank": 67,
+      "source": "d2l-conv-layer",
+      "figure": "02",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-02",
+      "summary": "Different filters respond to different patterns in the same visual field.",
+      "kinds": [
+        "comparison",
+        "heatmap"
+      ],
+      "proposedReferenceId": "ml-convolution-filter-response-maps",
+      "proposedTopicSlug": "convolution",
+      "lessons": [],
+      "batch": "C13",
+      "sequence": "Convolution layers 2/2. Interpret learned feature maps",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "comparison"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-convolution-references.js",
+      "priority": {
+        "tier": 3,
+        "band": "remaining",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Different detectors on the same field; shared signed response scale.",
+      "batchTopic": "convolution"
+    },
+    {
+      "rank": 68,
+      "source": "d2l-padding-and-strides",
+      "figure": "01",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-01",
+      "summary": "Interior pixels participate in more sliding windows than boundary pixels, with the reuse pattern depending on filter size.",
+      "kinds": [
+        "comparison",
+        "heatmap"
+      ],
+      "proposedReferenceId": "ml-convolution-patch-reuse",
+      "proposedTopicSlug": "convolution",
+      "lessons": [],
+      "batch": "C13",
+      "sequence": "Padding and stride 1/3. Count how often each position is used",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "comparison"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-convolution-references.js",
+      "priority": {
+        "tier": 3,
+        "band": "remaining",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Interior versus boundary reuse counts under a sliding filter.",
+      "batchTopic": "convolution"
+    },
+    {
+      "rank": 69,
+      "source": "d2l-padding-and-strides",
+      "figure": "02",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-02",
+      "summary": "Zero padding adds a boundary that lets a filter cover edge neighborhoods and control the output size.",
+      "kinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "proposedReferenceId": "ml-convolution-zero-padding",
+      "proposedTopicSlug": "convolution",
+      "lessons": [],
+      "batch": "C13",
+      "sequence": "Padding and stride 2/3. Add a border before filtering",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-convolution-references.js",
+      "priority": {
+        "tier": 3,
+        "band": "remaining",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Added zero border and its effect on edge coverage/output shape.",
+      "batchTopic": "convolution"
+    },
+    {
+      "rank": 70,
+      "source": "d2l-padding-and-strides",
+      "figure": "03",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-03",
+      "summary": "Stride controls the spacing of filter placements and can shrink different spatial axes by different amounts.",
+      "kinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "proposedReferenceId": "ml-convolution-strided-placements",
+      "proposedTopicSlug": "convolution",
+      "lessons": [],
+      "batch": "C13",
+      "sequence": "Padding and stride 3/3. Move the filter in larger jumps",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-convolution-references.js",
+      "priority": {
+        "tier": 3,
+        "band": "remaining",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Placement spacing and separate spatial output dimensions.",
+      "batchTopic": "convolution"
+    },
+    {
+      "rank": 71,
+      "source": "d2l-pooling",
+      "figure": "01",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-pooling/briefs.md#figure-01",
+      "summary": "Max pooling compresses a neighborhood to its strongest activation using a fixed rule.",
+      "kinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "proposedReferenceId": "ml-convolution-max-pooling",
+      "proposedTopicSlug": "convolution",
+      "lessons": [],
+      "batch": "C13",
+      "sequence": "Pooling 1/1. Move a window and keep its maximum",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "matrix"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-convolution-references.js",
+      "priority": {
+        "tier": 3,
+        "band": "remaining",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Fixed maximum rule applied to each local neighborhood.",
+      "batchTopic": "convolution"
+    },
+    {
+      "rank": 72,
+      "source": "d2l-why-conv",
+      "figure": "02",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-why-conv/briefs.md#figure-02",
+      "summary": "The same local detector can find several occurrences of a target in one field.",
+      "kinds": [
+        "comparison",
+        "heatmap"
+      ],
+      "proposedReferenceId": "ml-convolution-shared-local-detector",
+      "proposedTopicSlug": "convolution",
+      "lessons": [],
+      "batch": "C13",
+      "sequence": "Why convolution 2/2. Motivate position-independent weights",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "heatmap",
+        "comparison"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-convolution-references.js",
+      "priority": {
+        "tier": 3,
+        "band": "remaining",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "One translated detector reused across spatial positions.",
+      "batchTopic": "convolution"
+    }
+  ],
+  "references": [
+    {
+      "queueId": "ml-convolution-channel-contributions",
+      "referenceId": "ml-convolution-channel-contributions",
+      "mode": "NEW",
+      "topic": "convolution",
+      "lessons": [],
+      "source": {
+        "source": "d2l-channels",
+        "figure": "01",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-01",
+        "summary": "One filter for multi-channel input takes a local response in each channel and adds those contributions.",
+        "sequence": "Convolution channels 1/2. Combine input channels",
+        "kinds": [
+          "heatmap",
+          "matrix"
+        ],
+        "lessons": [],
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Per-channel local responses summed into one output."
+    },
+    {
+      "queueId": "ml-convolution-pointwise-channel-mixing",
+      "referenceId": "ml-convolution-pointwise-channel-mixing",
+      "mode": "NEW",
+      "topic": "convolution",
+      "lessons": [],
+      "source": {
+        "source": "d2l-channels",
+        "figure": "02",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-channels/briefs.md#figure-02",
+        "summary": "A pointwise convolution mixes channels at each location without combining neighboring locations.",
+        "sequence": "Convolution channels 2/2. Isolate channel mixing from spatial mixing",
+        "kinds": [
+          "tensor",
+          "transformation"
+        ],
+        "lessons": [],
+        "gapTypes": [
+          "composition",
+          "numeric-transformation"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Channel mixing at one fixed spatial coordinate."
+    },
+    {
+      "queueId": "ml-convolution-patch-products",
+      "referenceId": "ml-convolution-patch-products",
+      "mode": "NEW",
+      "topic": "convolution",
+      "lessons": [],
+      "source": {
+        "source": "d2l-conv-layer",
+        "figure": "01",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-01",
+        "summary": "One output cell is the sum of the elementwise products between a patch and its filter.",
+        "sequence": "Convolution layers 1/2. Compute a local response",
+        "kinds": [
+          "heatmap",
+          "matrix"
+        ],
+        "lessons": [],
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Patch/filter elementwise products and their destination sum."
+    },
+    {
+      "queueId": "ml-convolution-filter-response-maps",
+      "referenceId": "ml-convolution-filter-response-maps",
+      "mode": "NEW",
+      "topic": "convolution",
+      "lessons": [],
+      "source": {
+        "source": "d2l-conv-layer",
+        "figure": "02",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-conv-layer/briefs.md#figure-02",
+        "summary": "Different filters respond to different patterns in the same visual field.",
+        "sequence": "Convolution layers 2/2. Interpret learned feature maps",
+        "kinds": [
+          "heatmap",
+          "comparison"
+        ],
+        "lessons": [],
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Different detectors on the same field; shared signed response scale."
+    },
+    {
+      "queueId": "ml-convolution-patch-reuse",
+      "referenceId": "ml-convolution-patch-reuse",
+      "mode": "NEW",
+      "topic": "convolution",
+      "lessons": [],
+      "source": {
+        "source": "d2l-padding-and-strides",
+        "figure": "01",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-01",
+        "summary": "Interior pixels participate in more sliding windows than boundary pixels, with the reuse pattern depending on filter size.",
+        "sequence": "Padding and stride 1/3. Count how often each position is used",
+        "kinds": [
+          "heatmap",
+          "comparison"
+        ],
+        "lessons": [],
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Interior versus boundary reuse counts under a sliding filter."
+    },
+    {
+      "queueId": "ml-convolution-zero-padding",
+      "referenceId": "ml-convolution-zero-padding",
+      "mode": "NEW",
+      "topic": "convolution",
+      "lessons": [],
+      "source": {
+        "source": "d2l-padding-and-strides",
+        "figure": "02",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-02",
+        "summary": "Zero padding adds a boundary that lets a filter cover edge neighborhoods and control the output size.",
+        "sequence": "Padding and stride 2/3. Add a border before filtering",
+        "kinds": [
+          "heatmap",
+          "matrix"
+        ],
+        "lessons": [],
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Added zero border and its effect on edge coverage/output shape."
+    },
+    {
+      "queueId": "ml-convolution-strided-placements",
+      "referenceId": "ml-convolution-strided-placements",
+      "mode": "NEW",
+      "topic": "convolution",
+      "lessons": [],
+      "source": {
+        "source": "d2l-padding-and-strides",
+        "figure": "03",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-padding-and-strides/briefs.md#figure-03",
+        "summary": "Stride controls the spacing of filter placements and can shrink different spatial axes by different amounts.",
+        "sequence": "Padding and stride 3/3. Move the filter in larger jumps",
+        "kinds": [
+          "heatmap",
+          "matrix"
+        ],
+        "lessons": [],
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Placement spacing and separate spatial output dimensions."
+    },
+    {
+      "queueId": "ml-convolution-max-pooling",
+      "referenceId": "ml-convolution-max-pooling",
+      "mode": "NEW",
+      "topic": "convolution",
+      "lessons": [],
+      "source": {
+        "source": "d2l-pooling",
+        "figure": "01",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-pooling/briefs.md#figure-01",
+        "summary": "Max pooling compresses a neighborhood to its strongest activation using a fixed rule.",
+        "sequence": "Pooling 1/1. Move a window and keep its maximum",
+        "kinds": [
+          "heatmap",
+          "matrix"
+        ],
+        "lessons": [],
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Fixed maximum rule applied to each local neighborhood."
+    },
+    {
+      "queueId": "ml-convolution-shared-local-detector",
+      "referenceId": "ml-convolution-shared-local-detector",
+      "mode": "NEW",
+      "topic": "convolution",
+      "lessons": [],
+      "source": {
+        "source": "d2l-why-conv",
+        "figure": "02",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-why-conv/briefs.md#figure-02",
+        "summary": "The same local detector can find several occurrences of a target in one field.",
+        "sequence": "Why convolution 2/2. Motivate position-independent weights",
+        "kinds": [
+          "heatmap",
+          "comparison"
+        ],
+        "lessons": [],
+        "gapTypes": [
+          "composition"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "One translated detector reused across spatial positions."
+    }
+  ],
+  "expressibility": [
+    {
+      "referenceId": "ml-convolution-max-pooling",
+      "status": "UNSATISFIED",
+      "element": "Simultaneous distinct overlapping spatial footprint outlines on the original grid.",
+      "supported": "Indexed extracted windows show shared source identities, winners and copied outputs; they do not draw overlaid footprints."
+    },
+    {
+      "referenceId": "ml-convolution-shared-local-detector",
+      "boundary": "Highlights mark hit origins, not outlined 2\u00d72 rectangles."
+    }
+  ]
+}

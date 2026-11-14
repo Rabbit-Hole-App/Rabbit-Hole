@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Same exact detector at every valid origin",
+    "columns": [
+      "c0",
+      "c1",
+      "c2"
+    ],
+    "rows": [
+      {
+        "label": "r0",
+        "cells": [
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "label": "r1",
+        "cells": [
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "label": "r2",
+        "cells": [
+          1,
+          0,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 2
+    },
+    "caption": "Exact $R=1$ iff patch equals M, else0. Nonlinear toy. Marks hit origins00/11, not rectangles; arrangement distractors01/10.",
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 1
+      }
+    ]
+  }
+}

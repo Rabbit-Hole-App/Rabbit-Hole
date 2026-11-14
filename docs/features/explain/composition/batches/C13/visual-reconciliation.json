@@ -1,0 +1,297 @@
+{
+  "initialViewsInspected": 45,
+  "finalViewsInspected": 45,
+  "sheets": {
+    "overview": 9,
+    "standard": 18,
+    "deep": 18
+  },
+  "rows": [
+    {
+      "view": "ml-convolution-channel-contributions-brief",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "3d1934e566a6912994c9536de3d9ed3964b22d123ba2f72687b144ce306d2e9f",
+      "408_svgSha256": "ad8d44008e7084c926542170f2c7e46c36b073601a595658fbd13c04b5b19257"
+    },
+    {
+      "view": "ml-convolution-filter-response-maps-brief",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "f0e53c48095c5c2d5cf6cdb4312d6144bb0ac1dbda34b037062b6d39d85b3dd7",
+      "408_svgSha256": "a3a6f0241933fdb7b9f81c1d764247bdc32196579e70bb2f13e724cc87bcca7d"
+    },
+    {
+      "view": "ml-convolution-max-pooling-brief",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "829254b44e7760db512012bf5791d9976c182eb974b7a3403f75fc5b6f330c8c",
+      "408_svgSha256": "fcca0057ea78e5f57c1ed9869f5d7fdf6a1a06e40e4a94bde62910cbc37756a8"
+    },
+    {
+      "view": "ml-convolution-patch-products-brief",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "5f428b4bdf452f0e1548327e73d31721570124695eee9eb8ea9a7427a9e19078",
+      "408_svgSha256": "73ed0deb6cdfbfb8f33c93f22dae6b007a8b8087615ae97ef4cc1c7ffeefcb7f"
+    },
+    {
+      "view": "ml-convolution-patch-reuse-brief",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "0a13eb330187ccb2ccf1411c6782df7f5b4e8cb228ece8d645604a4a8b3310e0",
+      "408_svgSha256": "cbc45a108ff341f5c9d00ac865bbd360cd279025cdba11a7ca0a4ab767c1277a"
+    },
+    {
+      "view": "ml-convolution-pointwise-channel-mixing-brief",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "2c7ac68e685e7b315f2c254762cd55d0f28a023a5da8902e4c161e210cd1625c",
+      "408_svgSha256": "5117479d8a9e1bc029e643ece0d16cc59025eca3af3acdd7cf6968c6059c4001"
+    },
+    {
+      "view": "ml-convolution-shared-local-detector-brief",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "12b9926ebe32d0850cd7ea74039a47462870786198c7ca27a2ec5c69556b6b3a",
+      "408_svgSha256": "e6dd11d17feb56dcc81bdb439982ee6f8c3983dbbfba611a122800a00508a1c7"
+    },
+    {
+      "view": "ml-convolution-strided-placements-brief",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "57f3f04ae730fa8e7abdc599acc9059470a0d008efea79893c1fe5eedf003e05",
+      "408_svgSha256": "64c66e3417f295af542033265f341ae8c325895158be1faf4a474c9b9c1464c6"
+    },
+    {
+      "view": "ml-convolution-zero-padding-brief",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "5eaf0943e3c83707d5c9b5eb4e1dc5448d1530cf0507ed8bb3b6c9ee6e1e4791",
+      "408_svgSha256": "9a30f98acd68344319c80357cd1acdee711a89acb3d4be9753637c601328ec82"
+    },
+    {
+      "view": "ml-convolution-channel-contributions-balanced",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "da5ac5c2580e1bfe39ee9409fa33593643817e166371ad065f157bba9487009a",
+      "408_svgSha256": "3e347293de5a9fd8155dd253e40e102ac0352b14d8fab1d0dc317edee9490ad4"
+    },
+    {
+      "view": "ml-convolution-channel-contributions-balanced-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "4921452a113509ddd228a279486bbaf5187a93205d8b65d4f68e4755ff8ce75e",
+      "408_svgSha256": "596d96d7610ba3e9bd71f2857f64ace01f085918072bfb156740a78d2ce7bbb7"
+    },
+    {
+      "view": "ml-convolution-filter-response-maps-balanced",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "0874ae47e3393f2041fbaeddcb509e553afae12e5e71085834a8e10654551c4b",
+      "408_svgSha256": "2bfd011a54318a6f76a15c24e2559594483c7dce22d45d5ee6ecb7b61d1ac997"
+    },
+    {
+      "view": "ml-convolution-filter-response-maps-balanced-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "d7c0334e56901b07c71808cc695bbb011c4037bb688793b55c812126b733ed8f",
+      "408_svgSha256": "ec14a2a3907c315ec04e6f25262288fa7e647c7cc6db5b52a736bf3d063d9f38"
+    },
+    {
+      "view": "ml-convolution-max-pooling-balanced",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "4f9c0b0162b4771dd80cd20e8afc7636a5016815e411aa9875c68ac59dc866e6",
+      "408_svgSha256": "327adae073cdd2a98338caff79b8db39b7aae3cda5ce288fa7f95cfed80fb875"
+    },
+    {
+      "view": "ml-convolution-max-pooling-balanced-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "7cc313ce4d36d6b0debf57e75dd59f26f620a5501e3ce426985b914d9666cf7f",
+      "408_svgSha256": "08ca826b6f67db42439f8ec9db6ef89e65e34990e4140adab655b79de804df4f"
+    },
+    {
+      "view": "ml-convolution-patch-products-balanced",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "3db15854b1a7e6ec4955a18233f68b0eaa2a4d5249c69ccf044d2a9b64e4c0e8",
+      "408_svgSha256": "b3100adce4c12c81b83fde2cc98bdb8ca825943d2062637af7d600975933ab91"
+    },
+    {
+      "view": "ml-convolution-patch-products-balanced-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "657216878e8d0cb5250a63f9891f90b910b215d286a94abff1b33fd122506bb3",
+      "408_svgSha256": "3705548d245ab7ae771886dc66085bedd071e2b958bd0ada89a566ff0b7b2ac7"
+    },
+    {
+      "view": "ml-convolution-patch-reuse-balanced",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "2a40611e6eef4e290529d28d7e2977f6b62535e1ef24389467eb10e269ab085c",
+      "408_svgSha256": "792973bb6aacd56e442d9ab25f6112708d1d0b9612a64ae59d983876fee22786"
+    },
+    {
+      "view": "ml-convolution-patch-reuse-balanced-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "8921c720a3fb61f03539885e8f2df539abf7714a0bde4214f8d1b3df0e8be0ef",
+      "408_svgSha256": "5f9ad536018dfc72236a2f13c07898075c07a4cf2672a17329b6139b9700bc05"
+    },
+    {
+      "view": "ml-convolution-pointwise-channel-mixing-balanced",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "4e33b0c4e5540f58547031c325b8fd10f632cd6c461120cdd66b437de7511b09",
+      "408_svgSha256": "a2935458cbd19b366773ede81be9f94488c6cf5c6a08d58a1c2724150ae07365"
+    },
+    {
+      "view": "ml-convolution-pointwise-channel-mixing-balanced-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "b3fba8e74728b9aa1428554191d99cf3325b1f51e777c03fc97b144ab7685518",
+      "408_svgSha256": "13e277c843771a37d2732e138b29d80a7a4d060637154224542b3def5a04d0c2"
+    },
+    {
+      "view": "ml-convolution-shared-local-detector-balanced",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "e94750c118773202c3b9efa7b21c71cdc79adf640b9097e17a02d3bd4277943c",
+      "408_svgSha256": "11768e738c36199afa22d744c6a41cc753cee6706f5da2fec2f2264751a65e86"
+    },
+    {
+      "view": "ml-convolution-shared-local-detector-balanced-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "759074acfd93e1560b7b252b35c4f3f64bd7efb19411723cdac4c88d50bf25e0",
+      "408_svgSha256": "d48932fbc217bebe5917e5ad786097dbd4fd03a35b685a0a00bc0c99fa986ed1"
+    },
+    {
+      "view": "ml-convolution-strided-placements-balanced",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "71552c058188798a1c59815eded7a9d04cd8f752db0b63dd14157ca771260689",
+      "408_svgSha256": "8cf2738a243dae01b84c90dff41360f07b5ee729999e9ca908bc5e64818de2f5"
+    },
+    {
+      "view": "ml-convolution-strided-placements-balanced-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "e93f84c620d6544dde2adedc51cbedfd168d81651de0da12fa53deb3ecf70271",
+      "408_svgSha256": "2393f3347c7b6c7778f9398688e4562fedbe0394c7be3f52574da90e2f63c305"
+    },
+    {
+      "view": "ml-convolution-zero-padding-balanced",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "f41eb92827f5ce93446e4f718d014aa1b0dadb5d63a37b18e83adef95daebb16",
+      "408_svgSha256": "5f63d438a14c98150c2065394df4d32cf441369700c7496aac0e023e47b97c33"
+    },
+    {
+      "view": "ml-convolution-zero-padding-balanced-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "1cf7fa321bffe24c69d1a9be0c69a62377182745c0c1c07a1ee229e93a9726c5",
+      "408_svgSha256": "d79a882431a008f2f48cfeea1ff316533ea1471e168b208e460a8ec8231bf539"
+    },
+    {
+      "view": "ml-convolution-channel-contributions-detailed",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "d80ab0254c6d89a83108c8382f7f9f7cd0d1efbc1b6ea5f404e6179558d8142a",
+      "408_svgSha256": "0393a3be299adda1baa602dd7e63a47464aabeca86550ca88842f7016dfd3472"
+    },
+    {
+      "view": "ml-convolution-channel-contributions-detailed-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "94df23ea331c92e1c29a5fdc1d5dd6334caa3ce211b09537a485ccee0c81842d",
+      "408_svgSha256": "bbd6be4c62b9eda9199f82104f332f6ec72778f21f0c63a659b9cbe3947ad0f8"
+    },
+    {
+      "view": "ml-convolution-filter-response-maps-detailed",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "4ae57fdc56178b50e520577dc0eeec45d0d9655eb1d91f1e15516af024ac879e",
+      "408_svgSha256": "d450a2ce77a3982f5b238d2c06e7d5797f55c76c96f52020fcda1628126e9e86"
+    },
+    {
+      "view": "ml-convolution-filter-response-maps-detailed-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "4d8747176f4333744f9cca43c258d485d2bd5dd2f3e7ae60cec1634ede264963",
+      "408_svgSha256": "53910b5a4247daa4eb1177d2e0294da66e72bc4f182b6bda5f041119008cae4e"
+    },
+    {
+      "view": "ml-convolution-max-pooling-detailed",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "a02c191f1b6414776b9f371ad2a3cceae781c562cc1ca30546046dfc043ae43f",
+      "408_svgSha256": "05d1c64a069e3d7731b3782fbd1b6a484a9eb2bfb7bf46b9989d8f56d2e11110"
+    },
+    {
+      "view": "ml-convolution-max-pooling-detailed-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "d3d90b7dd8ce91353793b029f7773894e00faa4e560441c6cb8b7e997a971458",
+      "408_svgSha256": "3f124d0367f2f7519e8bbd7206c616d426d5b4eac59a5f04dd79b40f0638979b"
+    },
+    {
+      "view": "ml-convolution-patch-products-detailed",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "731a283ec3dc4310954528e452fd3a71d85b32b1e748cb95fc44b4289a203f1e",
+      "408_svgSha256": "df0d40c70776625eba61ff4dfeb0c9e89df38b4c21179e0c553e3dcbd15dda7b"
+    },
+    {
+      "view": "ml-convolution-patch-products-detailed-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "7ee81bdb85d85fe21de6ffa56de13e79513ddb6c19a11852bc7e87b4b2089f84",
+      "408_svgSha256": "7bfe1848a95829bbba6f9a8c8f888520fa44e05025e8a91d5663bf1504d2821b"
+    },
+    {
+      "view": "ml-convolution-patch-reuse-detailed",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "bbeb2ea2f566c7b1b452fe7b7d0a90ef8e66b2c44f439687f0de8e19635524b8",
+      "408_svgSha256": "7a14373b1b57a2b404d4d9cd29a7bd00aaf7d4f85f23708608a1df1831bb724d"
+    },
+    {
+      "view": "ml-convolution-patch-reuse-detailed-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "7d367987166b6db45bd50c1cdbb103a4ecee530e6f7e984a24e3c3119c5a043f",
+      "408_svgSha256": "7e806fb6d030824c2e3fd8036b71aab4e3f4dc986e55f55e5ec59a0fdd0a92b6"
+    },
+    {
+      "view": "ml-convolution-pointwise-channel-mixing-detailed",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "1c57b5362faee05212675baa2f89cc90602b8ccebe836b115e0d017e79dec238",
+      "408_svgSha256": "ab403f46a8d90c5e1df7a0e9a50ca1071caee60ee1de13af4dca91c412d71db3"
+    },
+    {
+      "view": "ml-convolution-pointwise-channel-mixing-detailed-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "b3fba8e74728b9aa1428554191d99cf3325b1f51e777c03fc97b144ab7685518",
+      "408_svgSha256": "13e277c843771a37d2732e138b29d80a7a4d060637154224542b3def5a04d0c2"
+    },
+    {
+      "view": "ml-convolution-shared-local-detector-detailed",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "340cef680beb8420f187dcc0fe458da179965f816c8e33f108bf15d8d25b7ceb",
+      "408_svgSha256": "bb2ec61c1b8366a845a89621c8df0cfba7e4df4dae6c79b2a634cf95754be4f7"
+    },
+    {
+      "view": "ml-convolution-shared-local-detector-detailed-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "09fa4b24b47d6f8bfdc17232d5526850c197d7a1057f81d1137ec82a4c17a0ea",
+      "408_svgSha256": "7cd329f4c66097d24a61a507cddaecb51fc72fe1b7871b25c33911a835f32e1f"
+    },
+    {
+      "view": "ml-convolution-strided-placements-detailed",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "e9330705528f997afc959292a53e277101a805c1268f66db13cd2846285502f0",
+      "408_svgSha256": "07ba5e006c350edc2d5b69890b3fddcd0479579f4cc7ac7da3bd669f2ce512ef"
+    },
+    {
+      "view": "ml-convolution-strided-placements-detailed-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "e466719fac5319e60a204ac42015a6e66ab34981179d182e8bce774bc36ccdbb",
+      "408_svgSha256": "907f7bad3dd01ff807f76525ee6e61d992ce21c737dee839fea17e61e3d64606"
+    },
+    {
+      "view": "ml-convolution-zero-padding-detailed",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "82687b6f36f1bccafb601bef5c70fd63a2a5a69d5c21811fa0426ede60e9fba7",
+      "408_svgSha256": "3c0c44f19123bf68ee62505bbf9e20d04e9d9c980df67722eabbfed1eedca1c4"
+    },
+    {
+      "view": "ml-convolution-zero-padding-detailed-detail",
+      "identicalToInspectedFinalExport": true,
+      "spec_jsonSha256": "a5586d2dbb41888e253c15fd4f45131a88f113125144170258f1831db1df599c",
+      "408_svgSha256": "f9fcd37e0acb4718fda81964c0f39ba8e91e5e69674835e2b6f254f3b828366a"
+    }
+  ],
+  "finalOfficialViews": 45,
+  "allOfficialSpecAnd408SVGByteIdenticalToInspectedFinalExport": true,
+  "inspectedSourceHashesBeforeZeroFix": {
+    "composition-convolution-references.js": "3185bafd74dcaf0f4fc08a61f3d704faea6dd9891eea61fd54a3c917b32df568",
+    "topic-convolution-data.js": "9204a818f18d38c887f9961fdc0bc3cd4713b265759c9e0f6f3e4e3ac1274166"
+  },
+  "finalSourceHashes": {
+    "composition-convolution-references.js": "f6f4474a7abd5ba9069542dfb47beaa08156ee339a5d2411626db75263318a2e",
+    "topic-convolution-data.js": "9204a818f18d38c887f9961fdc0bc3cd4713b265759c9e0f6f3e4e3ac1274166"
+  },
+  "zeroFix": {
+    "workerSha": "941cb4c864dca181160323744ac62fce37d116bf",
+    "rootSha": "cca0192e19fee1a71f1bc2bec89376ee4d4686fa",
+    "all45CompactJsonAnd408SvgHashesUnchanged": true,
+    "rawDataAndReceiptsByteIdentical": true
+  }
+}

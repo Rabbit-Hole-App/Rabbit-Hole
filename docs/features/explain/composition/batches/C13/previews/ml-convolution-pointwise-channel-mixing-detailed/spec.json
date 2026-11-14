@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Same W acts independently at A and B",
+    "columns": [
+      "A$(0,0)$",
+      "B$(0,1)$"
+    ],
+    "rows": [
+      {
+        "label": "x0",
+        "cells": [
+          2,
+          4
+        ]
+      },
+      {
+        "label": "x1",
+        "cells": [
+          6,
+          1
+        ]
+      },
+      {
+        "label": "y0",
+        "cells": [
+          -4,
+          3
+        ]
+      },
+      {
+        "label": "y1",
+        "cells": [
+          10,
+          9
+        ]
+      },
+      {
+        "label": "y2",
+        "cells": [
+          1,
+          2
+        ]
+      }
+    ],
+    "range": {
+      "min": -4,
+      "max": 10
+    },
+    "caption": "Only B input changes; A and W fixed. $y'_{B,1}=2\\cdot4+1\\cdot1=9$. Rows are features, not image rows."
+  }
+}

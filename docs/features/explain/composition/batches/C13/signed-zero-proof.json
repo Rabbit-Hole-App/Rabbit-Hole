@@ -1,0 +1,328 @@
+{
+  "passed": true,
+  "fields": [
+    {
+      "id": "ml-convolution-channel-contributions",
+      "depth": "overview",
+      "field": "spec",
+      "json": "38629b8833abb245fd10e85509bac7fb25e0ea06297bb5c33182fcdc29cc5aaa",
+      "svg408": "d889e12788edddf32cc27d989e814df40242540c793ab0c0d503a4379c959888"
+    },
+    {
+      "id": "ml-convolution-channel-contributions",
+      "depth": "standard",
+      "field": "spec",
+      "json": "c2d9a0896915f4357bd21142da0cc74bb9b7ab485f5d8fe6a6886e43f0ec0170",
+      "svg408": "4022d8c5343c182845f92d9827bac5bb4b2c549311128c3d22ea02b97f08eb83"
+    },
+    {
+      "id": "ml-convolution-channel-contributions",
+      "depth": "standard",
+      "field": "detailSpec",
+      "json": "bcc1869550a9ac58cf8c6ff961f5d838dc29398fec8a363d877a6640e20e9ca1",
+      "svg408": "6a9f1a6a5f9307f3041dbc851d77812c0a48e04aac54b0caa154e1f9ee2be8d9"
+    },
+    {
+      "id": "ml-convolution-channel-contributions",
+      "depth": "deep",
+      "field": "spec",
+      "json": "e21e7a7244791755a95c53733b07dc9fa617840987bc542507ee62cfb2301e64",
+      "svg408": "0f876b010b6da37b2c837793183acb6ef85641d076c32eef04cc30520445da8a"
+    },
+    {
+      "id": "ml-convolution-channel-contributions",
+      "depth": "deep",
+      "field": "detailSpec",
+      "json": "424e69975eea84cf21926a5bc41a1fcab54925e21dadfb82f5e49a77cde59c9e",
+      "svg408": "506273e0fc1e4cf93902bc99093230d05744bc0dbe9e3798c79de5fbeb03002d"
+    },
+    {
+      "id": "ml-convolution-pointwise-channel-mixing",
+      "depth": "overview",
+      "field": "spec",
+      "json": "1bb1eaac791f2ac4703d9b3c612d7f9c1c88aa167aba9abaef9a392de675574c",
+      "svg408": "047a59bf1da9edefa6a03109abdddc0d3f5c5b641e503b1bbfc79ec8dcf56c64"
+    },
+    {
+      "id": "ml-convolution-pointwise-channel-mixing",
+      "depth": "standard",
+      "field": "spec",
+      "json": "6f53ebcb9d8d9f5279c484f14540d4f57c6b6a335ddffc400bae27e0f5dac431",
+      "svg408": "24c51834da7e0d49319465e602e0b8a921913eb4d780dcb03a72309049f53182"
+    },
+    {
+      "id": "ml-convolution-pointwise-channel-mixing",
+      "depth": "standard",
+      "field": "detailSpec",
+      "json": "de63d611bf6f6dcc80c10de5d0694306df4e79a051627c27056e96437377f772",
+      "svg408": "1d6ddbe0ce5bff2a8326da6deca7273e3e27420e24d08aefd4ffb7f63bf6d606"
+    },
+    {
+      "id": "ml-convolution-pointwise-channel-mixing",
+      "depth": "deep",
+      "field": "spec",
+      "json": "5981a98aca980514b01c2d95afb83d7cf599415ad715a93b85d6bf9e77b25eda",
+      "svg408": "ae79ce0ea99bc15fbed8d326dd1828dae5d78b373ce6138134305bd346290fc4"
+    },
+    {
+      "id": "ml-convolution-pointwise-channel-mixing",
+      "depth": "deep",
+      "field": "detailSpec",
+      "json": "de63d611bf6f6dcc80c10de5d0694306df4e79a051627c27056e96437377f772",
+      "svg408": "1d6ddbe0ce5bff2a8326da6deca7273e3e27420e24d08aefd4ffb7f63bf6d606"
+    },
+    {
+      "id": "ml-convolution-patch-products",
+      "depth": "overview",
+      "field": "spec",
+      "json": "0f558ef7f3271718d78a0f8370e6991f0a3d3744a3bc9842616928e52cc7b12e",
+      "svg408": "02ea56021d6495d5a25740c2ef0801604669b5d75c8109d03f7f7afcd76976ec"
+    },
+    {
+      "id": "ml-convolution-patch-products",
+      "depth": "standard",
+      "field": "spec",
+      "json": "21a3a4e4ba5c898566408725a9476074c1447c05edaf210354601207dba1edeb",
+      "svg408": "94c60400b3067056e3a45af01270963dbf3f857f57557e3ffb6cdf6fb7d4b248"
+    },
+    {
+      "id": "ml-convolution-patch-products",
+      "depth": "standard",
+      "field": "detailSpec",
+      "json": "81b0152c310d0986cbdd057eb5824da6c43128aeaa95f78aace6aeb47d7f3e11",
+      "svg408": "901e161468ffc429f3b3627560eacd2471353cfe11a70296dbdff7bbf400f33e"
+    },
+    {
+      "id": "ml-convolution-patch-products",
+      "depth": "deep",
+      "field": "spec",
+      "json": "43528567724e84990ec173a2dbe2aa40aeb4bce345bf8238ccd6cbd019d8e325",
+      "svg408": "3a273d5dac9cc6aa007b150b69a112ae8cdf6dbfa1865a5952146364d9c370be"
+    },
+    {
+      "id": "ml-convolution-patch-products",
+      "depth": "deep",
+      "field": "detailSpec",
+      "json": "38ed9683152465eed46d65766bda91ccdba39de4483fa986d2a7e2c0a27d1ae9",
+      "svg408": "64b845c7e5bbb53b2a9e0e5809b5ed8cd178f574c4b7be17841f5f15208304c6"
+    },
+    {
+      "id": "ml-convolution-filter-response-maps",
+      "depth": "overview",
+      "field": "spec",
+      "json": "bde905340971a5880f12f23e143dedacb35c3e15285672f601f93da954ad90e9",
+      "svg408": "a22aadad0c9120ab11bd5afd0a2e01f130cf29c80463219c452eab27d2afe0ef"
+    },
+    {
+      "id": "ml-convolution-filter-response-maps",
+      "depth": "standard",
+      "field": "spec",
+      "json": "145f348089840372e3eaa5215ae7e14791dc4059bbaffcb778c67d2ed145d6bf",
+      "svg408": "a64f2a14b34e8cff1b65f48f5c0a2d0104f4cdbd7efd3a4762775d6a222c4876"
+    },
+    {
+      "id": "ml-convolution-filter-response-maps",
+      "depth": "standard",
+      "field": "detailSpec",
+      "json": "8eb574acf4968b249b05b5a6c10a6022c577181aa0b794094b483a2e58083d01",
+      "svg408": "94e6bb961db52e509486a1bfcba00f844817f6406cf1e33426a5b45a9fc27536"
+    },
+    {
+      "id": "ml-convolution-filter-response-maps",
+      "depth": "deep",
+      "field": "spec",
+      "json": "cd051fcde3a37e5490a294fcc8ecd3939d2995738fda145d6528c99c2bbc732c",
+      "svg408": "3a41fe220a8ffa2f7161275a72299430ea8f958d163a8120860e25c29b7ee2e0"
+    },
+    {
+      "id": "ml-convolution-filter-response-maps",
+      "depth": "deep",
+      "field": "detailSpec",
+      "json": "05c1c50c5f56cfc39accf3b70ee0c8af0c9a911c365ab3fa7cfbef8d3b8e14e8",
+      "svg408": "f3275f0cd12e3ff116b1a2e6f4a0d737de10b3d6b517e5db3b7843ac90089f33"
+    },
+    {
+      "id": "ml-convolution-patch-reuse",
+      "depth": "overview",
+      "field": "spec",
+      "json": "045f20988f532b3f5befcf7268f7aca86d870040debf542831c954faa7e0012f",
+      "svg408": "1a97436ecc955512807eb3448eda5227d3812ea6ccacd86c8250aa226cc8ec25"
+    },
+    {
+      "id": "ml-convolution-patch-reuse",
+      "depth": "standard",
+      "field": "spec",
+      "json": "c867051df28d6368ec8781e7c6dfe1b77d9e22db2bd1375d2810a8d5a4bb41d8",
+      "svg408": "b2d678ff139a996101e52c3d094d6f42d25683f3df7a6d915b008cec31bc852f"
+    },
+    {
+      "id": "ml-convolution-patch-reuse",
+      "depth": "standard",
+      "field": "detailSpec",
+      "json": "7d07e6cdb5331c2e2b5b3e7576b43a5f9820fc9ba449ba0f00f6679fa4731773",
+      "svg408": "4b7b408b554ae5896e174f2949b00947a26fe0c346a35accd69da82b094275ab"
+    },
+    {
+      "id": "ml-convolution-patch-reuse",
+      "depth": "deep",
+      "field": "spec",
+      "json": "f8ee183006a55a3f3a8b7e4104b5b22a4b155d112f744320b61c47fe84b13725",
+      "svg408": "6804eed0e7a1e82dd4a7f1f723728c08a58de7b454d89b101826869b77aa33c3"
+    },
+    {
+      "id": "ml-convolution-patch-reuse",
+      "depth": "deep",
+      "field": "detailSpec",
+      "json": "90caa62d59672529fd4a87fc88e567b3a16b03cc519ff868671e0bd3a3cab06f",
+      "svg408": "45b7aa9fc521b07cb7487c16ad446d8af0ca87e4acc3b74a6288c8ac1df77566"
+    },
+    {
+      "id": "ml-convolution-zero-padding",
+      "depth": "overview",
+      "field": "spec",
+      "json": "8158856ea5cf411698934fbf0197191ad322b6192dabfea31cece80b5aa0a3f9",
+      "svg408": "f0dd4511e942a4b570bcb23e3a22081478a9508701a4566d566163dce5dbf390"
+    },
+    {
+      "id": "ml-convolution-zero-padding",
+      "depth": "standard",
+      "field": "spec",
+      "json": "bef2ea301a8f97ed091ba1010ff23f6ef79311eb4d65575352e65c61a3275a69",
+      "svg408": "8de6da0235dab6d0010d17da806435c23ca1e8fb674f2900137e915ee87ce00b"
+    },
+    {
+      "id": "ml-convolution-zero-padding",
+      "depth": "standard",
+      "field": "detailSpec",
+      "json": "67ae06e02a26b840d8c8d52e4e9fdf6bfb7f4a908d6c7ba1be03fb95d4141a8f",
+      "svg408": "24df827714ef58ec169bf03f1a24960a6cecc0836fcf4244e912b603e26d455b"
+    },
+    {
+      "id": "ml-convolution-zero-padding",
+      "depth": "deep",
+      "field": "spec",
+      "json": "d893bc2327cd0a889ed8b6d61a2fb8035231e7909b96bc9c2722f5e216432c7e",
+      "svg408": "6621f0048902142148bd75df2534623296e95be48f015ace80c3321b82f7e6a8"
+    },
+    {
+      "id": "ml-convolution-zero-padding",
+      "depth": "deep",
+      "field": "detailSpec",
+      "json": "6ecb2680f0f4d315abb3cc17147a16da7b0a29e3002e097e27d296a32a6c8d77",
+      "svg408": "d4b4ebfbd616d4c9f587d584db3b9a4ad752f453b7d0364ed0010952248e0d20"
+    },
+    {
+      "id": "ml-convolution-strided-placements",
+      "depth": "overview",
+      "field": "spec",
+      "json": "b89341ed2c092f3f6edf6c5b48ba1bfae6326ff1641c11cd3580fd7726d99d50",
+      "svg408": "e5402cd2740324178fb3d9bdba119e26f6f1b41499bbd09657ad6421ef1590d5"
+    },
+    {
+      "id": "ml-convolution-strided-placements",
+      "depth": "standard",
+      "field": "spec",
+      "json": "faee05c1bd50cd33d8b9ee29e8396a51dde13192bc9d35dc8aa9f1d9fb9584c6",
+      "svg408": "76713fc1d23dc3477be5e90525a4f9e8a7f09e3f66d8fc9653a897e256c9c98a"
+    },
+    {
+      "id": "ml-convolution-strided-placements",
+      "depth": "standard",
+      "field": "detailSpec",
+      "json": "dff918e29ef3680faf026acaad07c9d4122174c579da475368307329a7c782d8",
+      "svg408": "645b1b2e0f723d5fc378569373bca13ad57a9044f82f6cc4c5627139c7c9a1d1"
+    },
+    {
+      "id": "ml-convolution-strided-placements",
+      "depth": "deep",
+      "field": "spec",
+      "json": "1327ebf8c7797b5cf5e3805c117ae1503c2a7d3c14c8bafa69cc6fe85bbcbb86",
+      "svg408": "cd6a9e9b1672047e17b871c8822acdb6affb5bba4cbee225c3aecb9f99186cec"
+    },
+    {
+      "id": "ml-convolution-strided-placements",
+      "depth": "deep",
+      "field": "detailSpec",
+      "json": "dcca788700de3d298c5805cf37b2b11b2b1bf894f1d874f07604c2beac5723b3",
+      "svg408": "7f368fd87d828e5cd2cd3eb02b24168ac5dd3f618d8ef915e8b5ffc67b420afc"
+    },
+    {
+      "id": "ml-convolution-max-pooling",
+      "depth": "overview",
+      "field": "spec",
+      "json": "407e6eb2c99168d65376027d8569ed4a18070ad2f5675ccac511c0ed32e2a113",
+      "svg408": "32cf6d95fa87a0fb227c4cf21326fa77583ca3d3a5af225c6465ad599f0d444a"
+    },
+    {
+      "id": "ml-convolution-max-pooling",
+      "depth": "standard",
+      "field": "spec",
+      "json": "7c0ff2818fe10c8b5dd8eb1904d332faca577ed619289c32222e3e7aaa83f9fa",
+      "svg408": "b4ec3c19b925fa3544d1cafb6863364d1f2ef919be44cb9026ec157d8b62e475"
+    },
+    {
+      "id": "ml-convolution-max-pooling",
+      "depth": "standard",
+      "field": "detailSpec",
+      "json": "85cd5ec71767cb88b9ab90621087d6736582bf718466745473c70bb3c194b7f5",
+      "svg408": "7a3c76c66a3fbd1fbf8f16243ed4f7dc282cabf817f18877fed8f560033cb32f"
+    },
+    {
+      "id": "ml-convolution-max-pooling",
+      "depth": "deep",
+      "field": "spec",
+      "json": "b45dfd13c8185f5c57a6e63a90530625b99aa67851f149082242df8e50d9d412",
+      "svg408": "86c8969330866caea385c37dd6402c38d42d4ca142291e43c9995546df1d641c"
+    },
+    {
+      "id": "ml-convolution-max-pooling",
+      "depth": "deep",
+      "field": "detailSpec",
+      "json": "79b13578d7855b956be7d924fe0ffc5d2cce498d63ae4abb987e8093be8392e4",
+      "svg408": "e600593ab1fb9ad2f094f410fff84f74800556b77cca75f66cc9bb6c7dbc88ab"
+    },
+    {
+      "id": "ml-convolution-shared-local-detector",
+      "depth": "overview",
+      "field": "spec",
+      "json": "a34989ace9937921cb9644fbe8b687b5eff074d428e71c7225ebafe0b9d10fab",
+      "svg408": "42667d96716667f77bbd47239ad1f79ad57ea3a407abe8dfcea79fd5bc5d29e5"
+    },
+    {
+      "id": "ml-convolution-shared-local-detector",
+      "depth": "standard",
+      "field": "spec",
+      "json": "f306521e80b60b4b926a908968e97c1854174ddfc705b4223300b4e1aae8574d",
+      "svg408": "dc286b6e24f0b378b05bb9dd3c28c7af18693888e2cc2c639ef0279adae247d8"
+    },
+    {
+      "id": "ml-convolution-shared-local-detector",
+      "depth": "standard",
+      "field": "detailSpec",
+      "json": "57feb3d684f1df17333c4a8bb91190356aa1b1b14cce66e079393e17dad48d2f",
+      "svg408": "f191ff23224409af72d9e2f73519584488d6cba80b15c31ee4e5b1e2be984e3a"
+    },
+    {
+      "id": "ml-convolution-shared-local-detector",
+      "depth": "deep",
+      "field": "spec",
+      "json": "e249066d1d264f27d5ecbdb1bee3babc14a388750aadc2e44cec554c76c8b697",
+      "svg408": "9b383d91585f75d8d757229afecf6f6741ba3a7acefc4521145bc06a6a9e46df"
+    },
+    {
+      "id": "ml-convolution-shared-local-detector",
+      "depth": "deep",
+      "field": "detailSpec",
+      "json": "76963006a443913355f0b36ca1f563f0a294cba70837bdd47a7978b8a4563a01",
+      "svg408": "8e065a0a75cf00921ac7fcc3bca7c15dc64363e9c4e17f89b730c7687da53cf3"
+    }
+  ],
+  "unchangedJSON": 45,
+  "unchangedSVG408": 45,
+  "rawSignedZeroAwareDerivedUnchanged": true,
+  "dataFileUnchanged": true,
+  "tokenHashReceiptUnchanged": true,
+  "rawDerived": "b4657c56445a860b13793fe1aca34e13c447f7db5cef84d24c6d66948c970d80",
+  "dataFile": "9204a818f18d38c887f9961fdc0bc3cd4713b265759c9e0f6f3e4e3ac1274166",
+  "receiptFile": "3085aaf30bf92728fd9034540f2452b73fdeff02a04014008d1b599e4428c47a"
+}

@@ -1,0 +1,1262 @@
+{
+  "ml-convolution-channel-contributions": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 530
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 491
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 530
+      }
+    }
+  },
+  "ml-convolution-channel-contributions-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 263
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 224
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 263
+      }
+    }
+  },
+  "ml-convolution-channel-contributions-brief": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 263
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 241
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 280
+      }
+    }
+  },
+  "ml-convolution-channel-contributions-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 530
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 491
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 530
+      }
+    }
+  },
+  "ml-convolution-channel-contributions-balanced-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 263
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 224
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 263
+      }
+    }
+  },
+  "ml-convolution-channel-contributions-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 513
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 474
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 513
+      }
+    }
+  },
+  "ml-convolution-channel-contributions-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 423
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 384
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 423
+      }
+    }
+  },
+  "ml-convolution-pointwise-channel-mixing": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 478
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 439
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 495
+      }
+    }
+  },
+  "ml-convolution-pointwise-channel-mixing-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 373
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 334
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 390
+      }
+    }
+  },
+  "ml-convolution-pointwise-channel-mixing-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 622
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 566
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 622
+      }
+    }
+  },
+  "ml-convolution-pointwise-channel-mixing-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 478
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 439
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 495
+      }
+    }
+  },
+  "ml-convolution-pointwise-channel-mixing-balanced-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 373
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 334
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 390
+      }
+    }
+  },
+  "ml-convolution-pointwise-channel-mixing-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 478
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 439
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 478
+      }
+    }
+  },
+  "ml-convolution-pointwise-channel-mixing-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 373
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 334
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 390
+      }
+    }
+  },
+  "ml-convolution-patch-products": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 390
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 390
+      }
+    }
+  },
+  "ml-convolution-patch-products-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 545
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 506
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 562
+      }
+    }
+  },
+  "ml-convolution-patch-products-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 416
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 360
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 455
+      }
+    }
+  },
+  "ml-convolution-patch-products-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 390
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 390
+      }
+    }
+  },
+  "ml-convolution-patch-products-balanced-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 545
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 506
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 562
+      }
+    }
+  },
+  "ml-convolution-patch-products-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 373
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 334
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 373
+      }
+    }
+  },
+  "ml-convolution-patch-products-detailed-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 691
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 652
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 708
+      }
+    }
+  },
+  "ml-convolution-filter-response-maps": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 442
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 403
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 459
+      }
+    }
+  },
+  "ml-convolution-filter-response-maps-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 346
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 307
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 363
+      }
+    }
+  },
+  "ml-convolution-filter-response-maps-brief": {
+    "kind": "tensor",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 167
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 128
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 184
+      }
+    }
+  },
+  "ml-convolution-filter-response-maps-balanced": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 442
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 403
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 459
+      }
+    }
+  },
+  "ml-convolution-filter-response-maps-balanced-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 346
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 307
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 363
+      }
+    }
+  },
+  "ml-convolution-filter-response-maps-detailed": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 451
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 412
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 468
+      }
+    }
+  },
+  "ml-convolution-filter-response-maps-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 434
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 395
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 451
+      }
+    }
+  },
+  "ml-convolution-patch-reuse": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 390
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 407
+      }
+    }
+  },
+  "ml-convolution-patch-reuse-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 390
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 407
+      }
+    }
+  },
+  "ml-convolution-patch-reuse-brief": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 373
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 334
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 390
+      }
+    }
+  },
+  "ml-convolution-patch-reuse-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 390
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 407
+      }
+    }
+  },
+  "ml-convolution-patch-reuse-balanced-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 390
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 407
+      }
+    }
+  },
+  "ml-convolution-patch-reuse-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 434
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 395
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 451
+      }
+    }
+  },
+  "ml-convolution-patch-reuse-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 434
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 395
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 451
+      }
+    }
+  },
+  "ml-convolution-zero-padding": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 562
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 506
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 562
+      }
+    }
+  },
+  "ml-convolution-zero-padding-detail": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 468,
+        "height": 872
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 855
+      },
+      "natural": {
+        "requested": 932,
+        "width": 720,
+        "height": 855
+      }
+    }
+  },
+  "ml-convolution-zero-padding-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 399
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 360
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 416
+      }
+    }
+  },
+  "ml-convolution-zero-padding-balanced": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 562
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 506
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 562
+      }
+    }
+  },
+  "ml-convolution-zero-padding-balanced-detail": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 468,
+        "height": 872
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 855
+      },
+      "natural": {
+        "requested": 932,
+        "width": 720,
+        "height": 855
+      }
+    }
+  },
+  "ml-convolution-zero-padding-detailed": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 562
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 506
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 579
+      }
+    }
+  },
+  "ml-convolution-zero-padding-detailed-detail": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 468,
+        "height": 872
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 855
+      },
+      "natural": {
+        "requested": 932,
+        "width": 720,
+        "height": 855
+      }
+    }
+  },
+  "ml-convolution-strided-placements": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 412
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 395
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 412
+      }
+    }
+  },
+  "ml-convolution-strided-placements-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 468
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 429
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 485
+      }
+    }
+  },
+  "ml-convolution-strided-placements-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 544
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 488
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 544
+      }
+    }
+  },
+  "ml-convolution-strided-placements-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 412
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 395
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 412
+      }
+    }
+  },
+  "ml-convolution-strided-placements-balanced-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 468
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 429
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 485
+      }
+    }
+  },
+  "ml-convolution-strided-placements-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 429
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 395
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 429
+      }
+    }
+  },
+  "ml-convolution-strided-placements-detailed-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 442
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 403
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 459
+      }
+    }
+  },
+  "ml-convolution-max-pooling": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 478
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 439
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 495
+      }
+    }
+  },
+  "ml-convolution-max-pooling-detail": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 806
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 767
+      },
+      "natural": {
+        "requested": 772,
+        "width": 720,
+        "height": 767
+      }
+    }
+  },
+  "ml-convolution-max-pooling-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 398
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 342
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 437
+      }
+    }
+  },
+  "ml-convolution-max-pooling-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 478
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 439
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 495
+      }
+    }
+  },
+  "ml-convolution-max-pooling-balanced-detail": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 806
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 767
+      },
+      "natural": {
+        "requested": 772,
+        "width": 720,
+        "height": 767
+      }
+    }
+  },
+  "ml-convolution-max-pooling-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 428,
+        "height": 495
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 439
+      },
+      "natural": {
+        "requested": 320,
+        "width": 428,
+        "height": 495
+      }
+    }
+  },
+  "ml-convolution-max-pooling-detailed-detail": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 806
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 767
+      },
+      "natural": {
+        "requested": 772,
+        "width": 720,
+        "height": 767
+      }
+    }
+  },
+  "ml-convolution-shared-local-detector": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 390
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 407
+      }
+    }
+  },
+  "ml-convolution-shared-local-detector-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 477
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 421
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 516
+      }
+    }
+  },
+  "ml-convolution-shared-local-detector-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 416
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 377
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 433
+      }
+    }
+  },
+  "ml-convolution-shared-local-detector-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 390
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 407
+      }
+    }
+  },
+  "ml-convolution-shared-local-detector-balanced-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 477
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 421
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 516
+      }
+    }
+  },
+  "ml-convolution-shared-local-detector-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 390
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 351
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 407
+      }
+    }
+  },
+  "ml-convolution-shared-local-detector-detailed-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 477
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 421
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 516
+      }
+    }
+  }
+}

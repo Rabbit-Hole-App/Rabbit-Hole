@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Reuse counts: k$2\\times2$, H3/W3",
+    "columns": [
+      "c0",
+      "c1",
+      "c2"
+    ],
+    "rows": [
+      {
+        "label": "r0",
+        "cells": [
+          1,
+          2,
+          1
+        ]
+      },
+      {
+        "label": "r1",
+        "cells": [
+          2,
+          4,
+          2
+        ]
+      },
+      {
+        "label": "r2",
+        "cells": [
+          1,
+          2,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 4
+    },
+    "caption": "Valid stride1, no padding. Marks corner00,edge01,interior11. Same position grid; whole-grid window makes all counts equal.",
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 1
+      },
+      {
+        "row": 1,
+        "column": 1
+      }
+    ]
+  }
+}

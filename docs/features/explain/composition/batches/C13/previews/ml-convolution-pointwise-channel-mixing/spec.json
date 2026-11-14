@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Illustrative Same W acts independently at A and B",
+    "columns": [
+      "A$(0,0)$",
+      "B$(0,1)$"
+    ],
+    "rows": [
+      {
+        "label": "x0",
+        "cells": [
+          2,
+          1
+        ]
+      },
+      {
+        "label": "x1",
+        "cells": [
+          6,
+          3
+        ]
+      },
+      {
+        "label": "y0",
+        "cells": [
+          -4,
+          -2
+        ]
+      },
+      {
+        "label": "y1",
+        "cells": [
+          10,
+          5
+        ]
+      },
+      {
+        "label": "y2",
+        "cells": [
+          1,
+          0.5
+        ]
+      }
+    ],
+    "range": {
+      "min": -4,
+      "max": 10
+    },
+    "caption": "Feature rows at two spatial coordinates. $y[o,p]=\\sum_i W[o,i]x[i,p]$; no neighbor mixing. Numeric W in detail."
+  }
+}

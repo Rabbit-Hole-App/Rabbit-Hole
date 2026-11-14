@@ -1,0 +1,303 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-convolution-channel-contributions": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 75,
+          "sha256": "38629b8833abb245fd10e85509bac7fb25e0ea06297bb5c33182fcdc29cc5aaa"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 181,
+          "sha256": "c2d9a0896915f4357bd21142da0cc74bb9b7ab485f5d8fe6a6886e43f0ec0170"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 77,
+          "sha256": "bcc1869550a9ac58cf8c6ff961f5d838dc29398fec8a363d877a6640e20e9ca1"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 190,
+          "sha256": "e21e7a7244791755a95c53733b07dc9fa617840987bc542507ee62cfb2301e64"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 87,
+          "sha256": "424e69975eea84cf21926a5bc41a1fcab54925e21dadfb82f5e49a77cde59c9e"
+        }
+      ]
+    },
+    "ml-convolution-pointwise-channel-mixing": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 205,
+          "sha256": "1bb1eaac791f2ac4703d9b3c612d7f9c1c88aa167aba9abaef9a392de675574c"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 151,
+          "sha256": "6f53ebcb9d8d9f5279c484f14540d4f57c6b6a335ddffc400bae27e0f5dac431"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 101,
+          "sha256": "de63d611bf6f6dcc80c10de5d0694306df4e79a051627c27056e96437377f772"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 154,
+          "sha256": "5981a98aca980514b01c2d95afb83d7cf599415ad715a93b85d6bf9e77b25eda"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 101,
+          "sha256": "de63d611bf6f6dcc80c10de5d0694306df4e79a051627c27056e96437377f772"
+        }
+      ]
+    },
+    "ml-convolution-patch-products": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 160,
+          "sha256": "0f558ef7f3271718d78a0f8370e6991f0a3d3744a3bc9842616928e52cc7b12e"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 153,
+          "sha256": "21a3a4e4ba5c898566408725a9476074c1447c05edaf210354601207dba1edeb"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 202,
+          "sha256": "81b0152c310d0986cbdd057eb5824da6c43128aeaa95f78aace6aeb47d7f3e11"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 162,
+          "sha256": "43528567724e84990ec173a2dbe2aa40aeb4bce345bf8238ccd6cbd019d8e325"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 249,
+          "sha256": "38ed9683152465eed46d65766bda91ccdba39de4483fa986d2a7e2c0a27d1ae9"
+        }
+      ]
+    },
+    "ml-convolution-filter-response-maps": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 67,
+          "sha256": "bde905340971a5880f12f23e143dedacb35c3e15285672f601f93da954ad90e9"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 180,
+          "sha256": "145f348089840372e3eaa5215ae7e14791dc4059bbaffcb778c67d2ed145d6bf"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 105,
+          "sha256": "8eb574acf4968b249b05b5a6c10a6022c577181aa0b794094b483a2e58083d01"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 178,
+          "sha256": "cd051fcde3a37e5490a294fcc8ecd3939d2995738fda145d6528c99c2bbc732c"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 119,
+          "sha256": "05c1c50c5f56cfc39accf3b70ee0c8af0c9a911c365ab3fa7cfbef8d3b8e14e8"
+        }
+      ]
+    },
+    "ml-convolution-patch-reuse": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 115,
+          "sha256": "045f20988f532b3f5befcf7268f7aca86d870040debf542831c954faa7e0012f"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 157,
+          "sha256": "c867051df28d6368ec8781e7c6dfe1b77d9e22db2bd1375d2810a8d5a4bb41d8"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 157,
+          "sha256": "7d07e6cdb5331c2e2b5b3e7576b43a5f9820fc9ba449ba0f00f6679fa4731773"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 178,
+          "sha256": "f8ee183006a55a3f3a8b7e4104b5b22a4b155d112f744320b61c47fe84b13725"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 178,
+          "sha256": "90caa62d59672529fd4a87fc88e567b3a16b03cc519ff868671e0bd3a3cab06f"
+        }
+      ]
+    },
+    "ml-convolution-zero-padding": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 158,
+          "sha256": "8158856ea5cf411698934fbf0197191ad322b6192dabfea31cece80b5aa0a3f9"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 202,
+          "sha256": "bef2ea301a8f97ed091ba1010ff23f6ef79311eb4d65575352e65c61a3275a69"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 296,
+          "sha256": "67ae06e02a26b840d8c8d52e4e9fdf6bfb7f4a908d6c7ba1be03fb95d4141a8f"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 229,
+          "sha256": "d893bc2327cd0a889ed8b6d61a2fb8035231e7909b96bc9c2722f5e216432c7e"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 296,
+          "sha256": "6ecb2680f0f4d315abb3cc17147a16da7b0a29e3002e097e27d296a32a6c8d77"
+        }
+      ]
+    },
+    "ml-convolution-strided-placements": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 186,
+          "sha256": "b89341ed2c092f3f6edf6c5b48ba1bfae6326ff1641c11cd3580fd7726d99d50"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 209,
+          "sha256": "faee05c1bd50cd33d8b9ee29e8396a51dde13192bc9d35dc8aa9f1d9fb9584c6"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 172,
+          "sha256": "dff918e29ef3680faf026acaad07c9d4122174c579da475368307329a7c782d8"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 213,
+          "sha256": "1327ebf8c7797b5cf5e3805c117ae1503c2a7d3c14c8bafa69cc6fe85bbcbb86"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 172,
+          "sha256": "dcca788700de3d298c5805cf37b2b11b2b1bf894f1d874f07604c2beac5723b3"
+        }
+      ]
+    },
+    "ml-convolution-max-pooling": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 142,
+          "sha256": "407e6eb2c99168d65376027d8569ed4a18070ad2f5675ccac511c0ed32e2a113"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 158,
+          "sha256": "7c0ff2818fe10c8b5dd8eb1904d332faca577ed619289c32222e3e7aaa83f9fa"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 246,
+          "sha256": "85cd5ec71767cb88b9ab90621087d6736582bf718466745473c70bb3c194b7f5"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 182,
+          "sha256": "b45dfd13c8185f5c57a6e63a90530625b99aa67851f149082242df8e50d9d412"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 248,
+          "sha256": "79b13578d7855b956be7d924fe0ffc5d2cce498d63ae4abb987e8093be8392e4"
+        }
+      ]
+    },
+    "ml-convolution-shared-local-detector": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 154,
+          "sha256": "a34989ace9937921cb9644fbe8b687b5eff074d428e71c7225ebafe0b9d10fab"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 146,
+          "sha256": "f306521e80b60b4b926a908968e97c1854174ddfc705b4223300b4e1aae8574d"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 160,
+          "sha256": "57feb3d684f1df17333c4a8bb91190356aa1b1b14cce66e079393e17dad48d2f"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 147,
+          "sha256": "e249066d1d264f27d5ecbdb1bee3babc14a388750aadc2e44cec554c76c8b697"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 160,
+          "sha256": "76963006a443913355f0b36ca1f563f0a294cba70837bdd47a7978b8a4563a01"
+        }
+      ]
+    }
+  }
+}

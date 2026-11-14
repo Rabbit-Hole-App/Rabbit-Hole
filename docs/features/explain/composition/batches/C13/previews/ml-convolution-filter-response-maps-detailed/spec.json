@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative Supplied stripe field and two fixed rules",
+    "blocks": [
+      {
+        "id": "S",
+        "label": "Stripe field S",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 3,
+            "columns": 2,
+            "dimensions": "3 × 2",
+            "values": [
+              1,
+              1,
+              0,
+              0,
+              1,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "bank",
+        "label": "Apply supplied kernels V,H; offsets00/01/10/11",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 4,
+            "dimensions": "2 × 4",
+            "values": [
+              1,
+              -1,
+              1,
+              -1,
+              1,
+              1,
+              -1,
+              -1
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "$S'=S^T$ only; fixed V/H kernels. Actual kernels $2\\times2$; bank rows are filters, not image rows."
+  }
+}

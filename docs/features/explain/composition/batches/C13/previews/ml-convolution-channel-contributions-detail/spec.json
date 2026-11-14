@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Illustrative Partial sums and selected output",
+    "bars": [
+      {
+        "label": "c0",
+        "value": 5
+      },
+      {
+        "label": "c1",
+        "value": 6
+      },
+      {
+        "label": "sum",
+        "value": 11
+      }
+    ],
+    "caption": "$Y[o0,0,0]=5+6=11$. Same aligned patches and kernel slices."
+  }
+}

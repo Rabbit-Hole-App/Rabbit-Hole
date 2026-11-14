@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Illustrative Apply one supplied template, reveal every response",
+    "blocks": [
+      {
+        "id": "M",
+        "label": "Apply given exact template M",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              1,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "R",
+        "label": "Binary response R by origin",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              1,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    ],
+    "caption": "Scan every valid $2\\times2$ stride1 origin. Exact arrangement equality, not one-count; nearby anti-diagonal distractors fail. Same M everywhere."
+  }
+}
