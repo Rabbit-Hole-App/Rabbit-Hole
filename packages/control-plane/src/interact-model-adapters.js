@@ -106,7 +106,7 @@ export function exclusiveOneOfToAnyOf(schema, path = '$') {
 // candidates: [{ source, text? | value? }] - every structured result the response carried (tool calls and/or message content).
 // truncated / refused: the provider's own stop signals. -> the ONE validated output object, or a thrown InteractModelError whose code is
 // the recorded reason. Nothing is repaired: no fence stripping, no trailing-text trimming, no comma fixing, no default filling.
-export function normalizeStructured({ candidates, schema, truncated = false, refused = false, sanitize = null }) {
+export function normalizeStructured({ candidates, schema, truncated = false, refused = false }) {
   const bad = (code, message) => new InteractModelError(code, message, { sent: true });
   if (refused) throw bad('refused', 'The model declined to answer.');
   if (truncated) throw bad('truncated', 'The model reply was cut off at its output limit.');
@@ -130,7 +130,6 @@ export function normalizeStructured({ candidates, schema, truncated = false, ref
     const [key, inner] = Object.entries(output)[0];
     if (!Object.hasOwn(schema.properties, key) && isObject(inner)) { const candidate = normalizeToolInput(schema, inner); if (isObject(candidate) && schemaProblems(schema, candidate).length === 0) output = candidate; }
   }
-  if (sanitize && isObject(output)) output = sanitize(output); // fast models only (capabilities.sanitize): undeclared keys and double-escaped line breaks are fixed here, never by a repair call
   if (!isObject(output)) throw bad('not_object', 'The structured result was not an object.');
   const problems = schemaProblems(schema, output);
   if (problems.length) throw bad('schema_mismatch', `The structured result does not match its schema: ${problems.slice(0, 5).join('; ')}`, { problems: problems.slice(0, 20) });
@@ -210,14 +209,13 @@ export function createAnthropicAdapter({ env = {}, callModel, clock = clockNow }
 export function createOpenAICompatibleAdapter({ env = {}, fetch: send, clock = clockNow } = {}) {
   return {
     name: 'openai-compatible',
-    async call({ config, system, schema, input, images = [], signal, name = 'return_result', wireSchema, sanitize }) {
+    async call({ config, system, schema, input, images = [], signal, name = 'return_result' }) {
       if (typeof send !== 'function') throw refuse('no_transport', 'The OpenAI-compatible adapter has no transport.');
       const key = env[config.credentialRef];
       if (!key) throw refuse('credential_missing', `${config.credentialRef} is not set.`);
       if (usesOneOf(schema) && config.capabilities?.oneOf === 'none') throw refuse('capability_schema', `${config.provider} ${config.model} cannot take oneOf; the schema is not weakened.`);
       checkImages(images);
-      // wireSchema: what is SENT (the Gemini step drops array and numeric bounds); the answer is still checked against the full schema.
-      const sentSchema = config.capabilities?.oneOf === 'anyOf' ? exclusiveOneOfToAnyOf(wireSchema ?? schema) : wireSchema ?? schema;
+      const sentSchema = config.capabilities?.oneOf === 'anyOf' ? exclusiveOneOfToAnyOf(schema) : schema;
       const text = inputText(input);
       const messages = [{ role: 'system', content: system },
         { role: 'user', content: images.length ? [{ type: 'text', text }, ...images.map(i => ({ type: 'image_url', image_url: { url: `data:${i.media_type};base64,${i.data}` } }))] : text }];
@@ -238,20 +236,11 @@ export function createOpenAICompatibleAdapter({ env = {}, fetch: send, clock = c
         const candidates = [...(message.tool_calls || []).map(c => ({ source: 'tool call', text: c?.function?.arguments ?? '' })),
           ...(typeof message.content === 'string' && message.content.trim() ? [{ source: 'message', text: message.content }] : [])];
         if (message.refusal) throw new InteractModelError('refused', 'The model declined to answer.', { sent: true });
-        const output = normalizeStructured({ candidates, schema, truncated: stopReason === 'truncated', refused: stopReason === 'refusal', sanitize });
+        const output = normalizeStructured({ candidates, schema, truncated: stopReason === 'truncated', refused: stopReason === 'refusal' });
         return { output, requested: { provider: config.provider, model: config.model }, served, usage, timing: { ms: clock() - started }, stopReason, stopRaw };
       } catch (error) { throw Object.assign(error, { usage, served, stopRaw, sent: true }); }
     },
   };
-}
-
-// The spend ledger settles from Anthropic-shaped usage ({ input_tokens, output_tokens } and the served model). A candidate provider's OpenAI-shaped reply goes through it unchanged for the adapter, with
-// those two counts added beside prompt_tokens and completion_tokens (output = the larger of completion_tokens and total - prompt, as /explain's chain does: reasoning tokens are billed).
-export function withSpendUsage(json) {
-  const u = json?.usage;
-  if (!u || typeof u !== 'object') return json;
-  const output = Number.isSafeInteger(u.completion_tokens) ? Math.max(u.completion_tokens, Number.isSafeInteger(u.total_tokens) && Number.isSafeInteger(u.prompt_tokens) ? u.total_tokens - u.prompt_tokens : 0) : undefined;
-  return { ...json, usage: { ...u, input_tokens: u.prompt_tokens, output_tokens: output } };
 }
 
 // The adapters a job wires into ctx.adapters: the admitted Anthropic transport and, only when a fetch is supplied, the candidate adapter.

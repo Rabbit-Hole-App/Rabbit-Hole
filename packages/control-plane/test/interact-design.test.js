@@ -9,9 +9,6 @@ import { DESIGN_REVIEW_SYSTEM, TUTOR_SCENE_REVIEWER_PROMPT, designReviewSchema }
 import { DESIGN_REVISE_SYSTEM, designReviseSchema } from '../src/agents/interact-design-revise.js';
 import { DESIGN_BOUNDS, authorDesign, designPromptContracts, freshDesign, planDiff, reviewDesign, runtimeProblems, verifyDesignRevision } from '../src/interact-design.js';
 import { INTERACT_LIMITS } from '../src/interact-models.js';
-import { planHash } from '../../web/src/interact-plan.js';
-import { pinnedPlan } from '../src/interact-design-pin.js';
-import { interactOracle } from '../src/interact-oracle.js';
 import { OWNER, PLAN, change, clone, designStack, finding, fixtures, postedProposal, review, revision } from './interact-design-fixture.js';
 
 test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(() => { console.log = log; }); });
@@ -31,8 +28,6 @@ test('the Design Author prompt carries the whole narrative, depth and Mode/Contr
   assert.match(DESIGN_AUTHOR_SYSTEM, /Control selection: choose the smallest useful set/);
   assert.match(DESIGN_AUTHOR_SYSTEM, /control-free static panel still needs one/);
   assert.match(DESIGN_AUTHOR_SYSTEM, /New plans never use Steps/);
-  assert.match(DESIGN_AUTHOR_SYSTEM, /reads at most 6 images and always captures the start.*at most 4 other checkpoints/);
-  assert.match(DESIGN_AUTHOR_SYSTEM, /at most 60 objects in all.*at most 3 timeline markers.*at most 6 entities and 4 readouts/);
 });
 
 test('the Design Reviewer prompt keeps the ordered two-part reviewer prompt and adds the contract, blocking semantics and control review', () => {
@@ -46,7 +41,7 @@ test('the Design Reviewer prompt keeps the ordered two-part reviewer prompt and 
 });
 
 test('the Design Reviser prompt returns the complete plan with a finding-to-change record and explicit control changes', () => {
-  for (const needle of ['COMPLETE updated plan, never a patch', 'Controls: preserve, remove or change each control explicitly', 'unchanged with an empty changes list', 'unresolvedFindingIds', 'the server computes the hash and the diff', 'capture_budget: the rendered review reads at most 6 images']) assert.ok(DESIGN_REVISE_SYSTEM.includes(needle), needle);
+  for (const needle of ['COMPLETE updated plan, never a patch', 'Controls: preserve, remove or change each control explicitly', 'unchanged with an empty changes list', 'unresolvedFindingIds', 'the server computes the hash and the diff']) assert.ok(DESIGN_REVISE_SYSTEM.includes(needle), needle);
 });
 
 test('each role records a version and a content hash, and every schema accepts what its validator accepts', async () => {
@@ -377,81 +372,6 @@ test('the description-fit receipt gates the plan: a description outside 2 to 4 l
   const out = await none.design(b.body.job.id);
   assert.deepEqual([out.job.stage, out.job.stopReason, out.job.failure.category], ['failed', 'description_fit_unavailable', 'internal']);
   assert.equal(postedProposal(none.sqlite, b.body.job.id), null);
-});
-
-test('capture_budget gates the plan: 7 checkpoints go back to the reviser by code, 4 are accepted', async t => {
-  const withCheckpoints = n => ({ ...clone(PLAN.standard), scene: { ...clone(PLAN.standard).scene, checkpoints: Array.from({ length: n }, (_, i) => ({ ...clone(PLAN.standard.scene.checkpoints[0]), id: `c${i}`, time: { op: 'literal', value: 0.05 * (i + 1) } })) } });
-  const s = designStack(t, { script: { author: () => withCheckpoints(7), revise: (n, input) => (n === 1 ? revision(input.plan) : revision(withCheckpoints(4), [change('capture_budget', 'scene.checkpoints')])) } });
-  const { body } = await s.create();
-  const { job } = await s.design(body.job.id);
-  assert.equal(job.stage, 'awaiting_approval', JSON.stringify([job.stopReason, job.failure]));
-  assert.deepEqual(s.model.roles(), ['author', 'review', 'revise', 'revise', 'review']);
-  const refused = s.model.log[3].input.deterministicChecks.find(p => p.code === 'capture_budget');
-  assert.match(refused.message, /needs 9/, 'the message names the count');
-  assert.match(refused.message, /at most 6 images/, 'and the limit');
-  assert.equal(job.design.plan.scene.checkpoints.length, 4);
-});
-
-test('the dev-only design pin: a job with INTERACT_DESIGN_FIXTURE set reaches awaiting_approval on the fixture plan with zero design calls; without the dev gate the pin is ignored', async t => {
-  const pinned = designStack(t);
-  delete pinned.deps.descriptionFit;
-  Object.assign(pinned.env, { INTERACT_DESIGN_FIXTURE: 'toss-drop-standard', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_DESCRIPTION_FIT: 'estimate' });
-  const { body } = await pinned.create();
-  const { job } = await pinned.design(body.job.id);
-  assert.equal(job.stage, 'awaiting_approval');
-  assert.deepEqual(pinned.model.roles(), [], 'no design model call');
-  assert.equal(job.calls.length, 0);
-  assert.equal(job.design.planHash, await planHash(await pinnedPlan('toss-drop-standard', job)), 'the real hash of the fixture plan');
-  assert.equal(job.design.fit.styleVersion, 'card-description-v1:estimate');
-  assert.ok(job.design.finalHash && job.design.approvalHash, 'the real final and approval hashes');
-  const gated = designStack(t);
-  delete gated.deps.descriptionFit;
-  Object.assign(gated.env, { INTERACT_DESIGN_FIXTURE: 'toss-drop-standard', INTERACT_DESCRIPTION_FIT: 'estimate' });
-  delete gated.env.SMALL_ENV; delete gated.env.EXPLAIN_DIAGNOSTICS;
-  const g = await gated.create();
-  await gated.design(g.body.job.id);
-  assert.ok(gated.model.roles().includes('author'), 'neither SMALL_ENV dev/test nor EXPLAIN_DIAGNOSTICS: the real design role ran');
-});
-
-test('the dev-only design pin also pins toss-drop-standard-controls: the Experiment plan reaches awaiting_approval with zero design calls and its real hash; the oracle says no match', async t => {
-  const s = designStack(t);
-  delete s.deps.descriptionFit;
-  Object.assign(s.env, { INTERACT_DESIGN_FIXTURE: 'toss-drop-standard-controls', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_DESCRIPTION_FIT: 'estimate' });
-  const { body } = await s.create();
-  const { job } = await s.design(body.job.id);
-  assert.equal(job.stage, 'awaiting_approval', JSON.stringify([job.stopReason, job.failure]));
-  assert.deepEqual(s.model.roles(), []); assert.equal(job.calls.length, 0);
-  const plan = await pinnedPlan('toss-drop-standard-controls', job);
-  assert.equal(job.design.planHash, await planHash(plan));
-  assert.deepEqual([plan.mode.kind, plan.supportingVisuals.length, plan.controls.length], ['experiment', 0, 4]);
-  assert.equal(interactOracle(plan), null, 'neither oracle matches: Standard needs a fixed 3.0 m/s with no input, Deep needs depth detailed and the reference speed');
-});
-
-test('one pin family: INTERACT_DESIGN_FIXTURE=toss answers brief, balanced and detailed with toss-overview, toss-standard and toss-deep, zero design calls, the real hashes, and each oracle matches', async t => {
-  const names = { brief: ['toss-overview', 'tossOverview'], balanced: ['toss-standard', 'tossStandard'], detailed: ['toss-deep', 'tossDeep'] };
-  for (const [depth, [id, name]] of Object.entries(names)) {
-    const s = designStack(t);
-    delete s.deps.descriptionFit;
-    Object.assign(s.env, { INTERACT_DESIGN_FIXTURE: 'toss', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_DESCRIPTION_FIT: 'estimate', INTERACT_SEEK: 'on' });
-    const { body } = await s.create({ depth });
-    const { job } = await s.design(body.job.id);
-    assert.equal(job.stage, 'awaiting_approval', `${depth}: ${JSON.stringify([job.stopReason, job.failure])}`);
-    assert.deepEqual(s.model.roles(), [], `${depth}: no design model call`); assert.equal(job.calls.length, 0);
-    const plan = await pinnedPlan('toss', job);
-    assert.equal(plan.title, fixtures.referencePlans[name].title, id);
-    assert.equal(job.design.planHash, await planHash(plan), `${depth}: the real hash of the fixture plan`);
-    assert.equal(job.design.plan.depth, depth);
-    assert.ok(job.design.finalHash && job.design.approvalHash && job.design.fit.styleVersion === 'card-description-v1:estimate');
-    assert.equal(interactOracle(plan).id, id, `${depth}: the oracle matches the pinned plan`);
-    assert.deepEqual(plan.supportingVisuals, [], 'one program frame');
-  }
-  const off = designStack(t);   // the seek catalogue is opt-in: without INTERACT_SEEK a reference plan is a capability gap, never a silent downgrade
-  delete off.deps.descriptionFit;
-  Object.assign(off.env, { INTERACT_DESIGN_FIXTURE: 'toss', EXPLAIN_DIAGNOSTICS: 'true', INTERACT_DESCRIPTION_FIT: 'estimate' });
-  const refused = await off.create({ depth: 'brief' });
-  const { job } = await off.design(refused.body.job.id);
-  assert.notEqual(job.stage, 'awaiting_approval', 'without the seek catalogue the At top control is unavailable');
-  assert.deepEqual(off.model.roles(), [], 'and the pin still makes no model call');
 });
 
 test('a job records its flow, profile and prompt versions at creation and keeps them; the switch is per job', async t => {

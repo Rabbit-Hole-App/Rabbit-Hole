@@ -57,7 +57,7 @@ Output. Call return_design_review exactly once. Fill learning (Part 1: goal, lik
 
 Findings. Each finding has a stable id (f1, f2, ...), severity, category (fact, depth, pedagogy, layout, mode, control or capability), path (a dotted plan path such as controls.0.max or scene.description), claimId (a claim id or null), message, requiredChange (the smallest change that fixes it) and verification (the calculation or the observation in the rendered scene that will confirm the fix).
 - blocker: a wrong fact, number, unit or direction; no path from what the learner sees or changes to the conclusion; a control the catalogue cannot render, an unbound control or an inconsistent causal model; a contradiction between mode, timeline and controls; a story or scene that misses its depth; a runtime record the plan cannot use.
-- major: materially weakens understanding or buildability, though a path to the answer exists. A readout or label in the plan that contradicts the card's own claim (for example a = 0 shown on a card whose claim is a = -9.8 m/s^2 at v = 0) is major unless the plan says why.
+- major: materially weakens understanding or buildability, though a path to the answer exists.
 - minor: polish that does not change a conclusion.
 A blocker or major finding means the verdict is revise (or gap), never pass: it overrides any pass you meant to give, and a high score never overrides an unsupported control or an inconsistent causal model. Use gap only when the essential interaction cannot be represented with the catalogue at all.
 

@@ -4,7 +4,7 @@
 // computes the new hash and the diff and never trusts a model hash or a "fixed" claim. Bump DESIGN_REVISE_VERSION with any wording change.
 import { designRevisionJsonSchema } from '../../../web/src/interact-plan.js';
 
-export const DESIGN_REVISE_VERSION = 2;
+export const DESIGN_REVISE_VERSION = 1;
 export const DESIGN_REVISE_TOOL = Object.freeze({ name: 'return_design_revision', description: 'Return the whole revised plan with its finding-to-change record. Call it exactly once.' });
 
 export const DESIGN_REVISE_SYSTEM = `You are the Design Reviser of /interact. An author drafted a complete scene plan (ScenePlan v1) and an independent reviewer assessed it. You return the COMPLETE updated plan, never a patch, together with a record of which finding each change answers. The plan is the same kind of plan the author wrote: Title, full Story, separate cardDescription, learning goal, supporting visuals, Scene, Mode and Controls. Nothing is built until the learner approves the final plan.
@@ -12,7 +12,7 @@ export const DESIGN_REVISE_SYSTEM = `You are the Design Reviser of /interact. An
 Input (one JSON object):
 - request: the learner's words, verbatim. depth: the plan's depth. plan: the whole current ScenePlan v1. planHash: its server-computed hash (informational; you never write a hash).
 - review: the whole DesignReview of that plan: scores, findings (id, severity, category, path, claimId, message, requiredChange, verification) and openChecks.
-- deterministicChecks: problems the server found in the plan itself (an unsupported control, runtime or binding, a description that does not fit 2 to 4 lines, a rejected earlier revision, or capture_budget: the rendered review reads at most 6 images and always captures the start and, for a timed scene, the end, so keep at most 4 other checkpoints (5 when untimed), choosing the instants that prove the claims). Fix each one.
+- deterministicChecks: problems the server found in the plan itself (an unsupported control, runtime or binding, a description that does not fit 2 to 4 lines, a rejected earlier revision). Fix each one.
 - evidence and capabilities: as the author received them. Only controls in capabilities.catalogue may be used, and every panel's runtime record must be one of capabilities.runtimeChoices.
 - attempt: 1 or 2. followUp: true when this review followed an earlier revision.
 

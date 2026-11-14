@@ -26,12 +26,10 @@ const rank = f => (f.severity === 'blocker' ? 0 : f.severity === 'major' ? 1 : 2
 export const programStateful = program => draftSchemaVersion(program) === STATEFUL_SCHEMA_VERSION;
 export function programRepairContent(job, failure, images = []) {
   const program = job.artifact ? draftOf(job.artifact) : job.program;
-  // failure.triage ({ class, objectIds }, interact-steer.js triageFailure; absent unless INTERACT_STEER=jev answered): the repair is sent the failing rules that name those objects and the class.
-  const named = failure.triage?.objectIds?.length ? (failure.problems || []).filter(p => (String(p).match(/[\w.:-]+/g) || []).some(token => failure.triage.objectIds.includes(token))) : [];
-  const problems = (named.length ? named : failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(clip);
+  const problems = (failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(clip);
   const findings = [...(failure.findings || [])].sort((a, b) => rank(a) - rank(b)).slice(0, REPAIR_FORWARD.findings).map(plainFinding);
   const omitted = Math.max(0, (failure.problems || []).length - problems.length) + Math.max(0, (failure.findings || []).length - findings.length);
-  const head = { request: job.prompt, ...(job.depth && depthOf(job.depth) !== DEFAULT_DEPTH ? { depth: depthOf(job.depth) } : {}), problems, findings, ...(failure.triage ? { triage: { class: failure.triage.class, objectIds: failure.triage.objectIds } } : {}), ...(omitted ? { omitted } : {}), allowed: ['program'],
+  const head = { request: job.prompt, ...(job.depth && depthOf(job.depth) !== DEFAULT_DEPTH ? { depth: depthOf(job.depth) } : {}), problems, findings, ...(omitted ? { omitted } : {}), allowed: ['program'],
     roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round, program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful: programStateful(program), repair: true }),
     // The same records the author and the reviewer were given, so a source finding is repaired against its source.
     ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}) };

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FIGURE_TYPES, fromTemplate, getSceneState, RENDERED_TYPES, validateScene } from './animation-scene.js';
+import { fromTemplate, getSceneState, RENDERED_TYPES, validateScene } from './animation-scene.js';
 import { GEOMETRY, HEAT_DIVERGING, SPACE } from './scene-vocab.js';
 
 const scene = () => validateScene({
@@ -396,16 +396,13 @@ const SAMPLE = {
   bars: { values: [1, 2] },
   tokens: { tokens: ['a', 'b'] },
   polyline: { points: [[0, 0], [5, 5]], w: 5, h: 5 },
-  axis: { w: 100, h: 56, axisSpec: { orientation: 'x', x0: 10, y0: 14, length: 100, min: 0, max: 1, label: 'Time' } },
-  plot: { w: 200, h: 130, plotSpec: { axes: { x: { label: 'T', min: 0, max: 1 }, y: { label: 'H', min: 0, max: 1 } }, series: [{ label: 'S', kind: 'line', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] }] } },
-  figure: { w: 200, h: 130, diagramSpec: { version: 1, diagram: { kind: 'flow', title: 'T', nodes: [], edges: [] } } },
 };
 
 test('every declared type has a sample the gate accepts', () => {
   assert.deepEqual([...RENDERED_TYPES].sort(), Object.keys(SAMPLE).sort(), 'a new type needs a sample here and a branch in AnimatedScene.jsx');
   for (const type of RENDERED_TYPES) {
     const built = validateScene({
-      id: `sample-${type}`, duration: 2, allowFigures: FIGURE_TYPES.includes(type),
+      id: `sample-${type}`, duration: 2,
       objects: [{ id: 'one', type, initialState: { x: 10, y: 10, ...SAMPLE[type] } }],
       timeline: [],
     });
@@ -621,16 +618,4 @@ test('getSceneState never carries a sound field, no matter what the scene author
       Array.isArray(entry) ? entry.some(holdsSound) : holdsSound(entry));
   };
   assert.equal(holdsSound(state), false, 'evaluated state must never carry a sound field, at any depth');
-});
-
-test('a figure type is refused in a scene that is not a program frame, and a figure needs its box and its data', () => {
-  const scene = (type, state, allow = true) => () => validateScene({ id: 'figure', duration: 2, allowFigures: allow, objects: [{ id: 'f', type, initialState: { x: 10, y: 10, ...state } }], timeline: [] });
-  for (const type of FIGURE_TYPES) assert.throws(scene(type, SAMPLE[type], false), /drawn only by a program frame/, `${type} in a legacy scene`);
-  assert.throws(scene('axis', { axisSpec: SAMPLE.axis.axisSpec }), /needs a width and a height/);
-  assert.throws(scene('plot', { w: 200, h: 130 }), /needs its data/);
-  assert.throws(scene('axis', { ...SAMPLE.axis, w: 2000 }), /inside the scene/);
-  const built = validateScene({ id: 'figure', duration: 2, allowFigures: true, objects: [{ id: 'f', type: 'axis', initialState: { x: 10, y: 10, ...SAMPLE.axis } }, { id: 'b', type: 'box', initialState: { x: 1, y: 1, w: 5, h: 5 } }], timeline: [] });
-  const [axis, box] = getSceneState(built, 1).objects;
-  assert.deepEqual(axis.axisSpec, SAMPLE.axis.axisSpec);
-  assert.equal('axisSpec' in box || 'plotSpec' in box || 'diagramSpec' in box, false, 'every other object keeps exactly the keys it always had');
 });

@@ -1,6 +1,6 @@
 import { getSceneState, validateScene } from '../animation-scene.js';
 import { LEGIBILITY_FLOORS, MAX_SCENE_VIEWPORT, sceneLegibility } from '../scene-layout.js';
-import { FIGURE_BAND, parseFrame, RuntimeError } from './contract.js';
+import { parseFrame, RuntimeError } from './contract.js';
 import { IMAGE_FIXTURE_PATHS } from './sdk-image.js';
 
 // A guest's frame becomes the trusted renderer's input: the contract check (contract.js), then the existing scene gate
@@ -18,7 +18,7 @@ const label = object => (object.runs ? { runs: object.runs } : object.text ? { l
 const common = object => ({ opacity: object.opacity, role: object.role });
 
 // One contract object becomes one scene object. No topic is read here: kind, geometry and role only.
-function sceneObject(object, frameHeight) {
+function sceneObject(object) {
   const base = { id: object.id, semanticId: object.id };
   switch (object.kind) {
     case 'box': return { ...base, type: 'box', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, rotation: object.rotation, ...label(object), ...common(object) } };
@@ -33,16 +33,6 @@ function sceneObject(object, frameHeight) {
       const { x, y, cell, rows, cols, values } = object;
       return { ...base, type: 'grid', initialState: { x, y, cell, rows, cols, values, matrixKind: 'input', heat: { mode: 'sequential' }, valueScale: 'fixed', ...common(object) } };
     }
-    // The box a figure occupies, in frame coordinates: an axis with its tick labels and title (the room contract.js figureProblem checked), a plot's rectangle, and a diagram's width
-    // with the height the frame leaves below it (the renderer fits the diagram into that box, AnimatedScene.jsx).
-    case 'axis': {
-      const { orientation, length, min, max, ticks, label: title, unit } = object;
-      const box = orientation === 'x' ? { x: object.x, y: object.y - 4, w: length, h: FIGURE_BAND.x + 4 }
-        : { x: object.x - FIGURE_BAND.y, y: object.y - length - FIGURE_BAND.titleRoom, w: FIGURE_BAND.y + 4, h: length + FIGURE_BAND.titleRoom + 8 };
-      return { ...base, type: 'axis', initialState: { ...box, axisSpec: { orientation, x0: object.x, y0: object.y, length, min, max, ...(ticks ? { ticks } : {}), label: title, ...(unit ? { unit } : {}) }, ...common(object) } };
-    }
-    case 'plot': return { ...base, type: 'plot', initialState: { x: object.x, y: object.y, w: object.w, h: object.h, plotSpec: { axes: object.axes, series: object.series }, ...common(object) } };
-    case 'diagram': return { ...base, type: 'figure', initialState: { x: object.x, y: object.y, w: object.w, h: frameHeight - object.y, diagramSpec: object.spec, ...common(object) } };
     default: throw new Error(`unknown object kind "${object.kind}"`);
   }
 }
@@ -51,9 +41,9 @@ function sceneObject(object, frameHeight) {
 // (scene-layout.js): the frame is drawn at its declared width and height (Frame fixedView), so the box is that size times the
 // scale its text classes need, capped at the widest a scene card may grow (MAX_SCENE_VIEWPORT), aspect kept. Generic: the
 // declared size and the text classes only.
-export function legibleFrame(scene, look = null) {
+export function legibleFrame(scene) {
   // The scale each class needs is floor / authored size, read from the scene cards' own legibility report (1 when no text).
-  const classes = Object.values(sceneLegibility(scene, null, look)?.effective ?? {});
+  const classes = Object.values(sceneLegibility(scene)?.effective ?? {});
   const required = classes.reduce((worst, size) => Math.max(worst, size.floor / size.authored), 0) || 1;
   const w = Math.min(scene.width * required, MAX_SCENE_VIEWPORT.w);
   return { w: Math.round(w), h: Math.round(w * scene.height / scene.width) };
@@ -70,8 +60,8 @@ export function programCardSize(box, { chrome, minWidth = 0 }) {
 // Focus may draw a frame smaller than its legible box, down to the scale where its smallest text reaches the smallest floor the
 // legibility rules allow anywhere (LEGIBILITY_FLOORS.metadata, 12 px): the per-class floors size the canvas card, 12 px is the
 // readable minimum. A frame of body text (15 px) may shrink to 0.8 of its box; one already capped under its floors, not at all.
-export function readableScale(scene, legible = legibleFrame(scene), look = null) {
-  const sizes = Object.values(sceneLegibility(scene, null, look)?.effective ?? {}).map(size => size.authored);
+export function readableScale(scene, legible = legibleFrame(scene)) {
+  const sizes = Object.values(sceneLegibility(scene)?.effective ?? {}).map(size => size.authored);
   const smallest = (sizes.length ? Math.min(...sizes) : LEGIBILITY_FLOORS.body) * legible.w / scene.width;
   return Math.min(1, LEGIBILITY_FLOORS.metadata / smallest);
 }
@@ -88,7 +78,7 @@ export function focusFrameBox(legible, room, minScale = 1) {
   return { w: Math.round(legible.w * scale), h: Math.round(legible.h * scale), scroll: fit < minScale };
 }
 
-const readoutText = (definition, value) => (definition.kind === 'state' ? String(value) : `${value.toFixed(definition.decimals)}${definition.unit ? ` ${definition.unit}` : ''}`);
+const readoutText = (definition, value) => `${value.toFixed(definition.decimals)}${definition.unit ? ` ${definition.unit}` : ''}`;
 
 // Result: { ok: true, scene, state, readouts: [{ id, label, text }] } or { ok: false, error: RuntimeError, issue }.
 // manifest (optional) binds the frame's readouts to their definitions; an undeclared readout id is invalid_output.
@@ -101,12 +91,11 @@ export function normalizeFrame(raw, manifest = null) {
   for (const readout of frame.readouts) {
     const definition = manifest?.readouts.find(item => item.id === readout.id);
     if (manifest && !definition) return invalid(`readouts: "${readout.id}" is not declared in the manifest`);
-    if (definition && (definition.kind === 'state' ? !definition.labels.includes(readout.value) : typeof readout.value !== 'number')) return invalid(`readouts: "${readout.id}" ${definition.kind === 'state' ? 'reports one of its labels' : 'reports a number'}`);
-    readouts.push({ id: readout.id, label: definition?.label ?? readout.id, text: definition ? readoutText(definition, readout.value) : String(readout.value), ...(definition?.kind === 'state' ? { kind: 'state' } : {}) });
+    readouts.push({ id: readout.id, label: definition?.label ?? readout.id, text: definition ? readoutText(definition, readout.value) : String(readout.value) });
   }
   try {
     // duration is a required positive number by the scene schema; a program frame is one moment, so any value serves.
-    const scene = validateScene({ id: 'explain-program', width: frame.width, height: frame.height, duration: 1, objects: frame.objects.map(object => sceneObject(object, frame.height)), timeline: [], allowFigures: true });
+    const scene = validateScene({ id: 'explain-program', width: frame.width, height: frame.height, duration: 1, objects: frame.objects.map(sceneObject), timeline: [] });
     // The frame contract already checked the explicit domain. The shared grid reads it from the scene so the original values and
     // units stay available, and neither input changes nor the grid's own extrema can re-normalize the colors.
     frame.objects.forEach((object, index) => {

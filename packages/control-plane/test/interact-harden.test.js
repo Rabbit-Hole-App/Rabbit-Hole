@@ -5,14 +5,13 @@ import assert from 'node:assert/strict';
 import { planHash } from '../../web/src/interact-plan.js';
 import { fixtureDraft } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
-import { INTERACT_BUILD_SYSTEM, MANIFEST_LIMITS_TEXT, programContext, programToolSchema, STATEFUL_MANIFEST_PROPERTIES } from '../src/agents/explain-author.js';
+import { INTERACT_BUILD_SYSTEM, MANIFEST_LIMITS_TEXT, programToolSchema, STATEFUL_MANIFEST_PROPERTIES } from '../src/agents/explain-author.js';
 import { INTERACT_REPAIR_SYSTEM, interactRepairTool } from '../src/agents/explain-repair.js';
-import { designCapabilities, runtimeChoices } from '../src/interact-design.js';
 import { InteractModelError, INTERACT_LIMITS, INTERACT_ROLES } from '../src/interact-models.js';
 import { normalizeStructured } from '../src/interact-model-adapters.js';
 import { buildScene, buildSchema, schemaOptions, validateBuildOutput } from '../src/interact-build.js';
 import { REVIEW_TOOL } from '../src/explain-review.js';
-import { lenientFindingText, checkRound, repairRound, INTERACT_REVIEW_RULES, INTERACT_REVIEW_RULES_PARTIAL } from '../src/interact-checks.js';
+import { lenientFindingText, checkRound, repairRound } from '../src/interact-checks.js';
 import { fixtureCaptureCard, fixtureContext, fixtureScript } from '../src/interact-fixtures.js';
 
 const { capabilities, plans } = await interactFixtures();
@@ -43,12 +42,6 @@ test('every length, count and range limit of the program manifest is stated in b
     assert.ok(MANIFEST_LIMITS_TEXT.includes(`${path} ${limit}`), `the prompt text states ${path} ${limit}`);
   }
   for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.ok(system.includes(MANIFEST_LIMITS_TEXT), 'both build prompts carry the manifest limits');
-  for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.match(system, /Declare the frame 640 wide by 400 to 440 high.*body 15 px, heading 17 px, display 20 px.*never scaled up/, 'the card is authored at its target size (a live card declared 1120 x 590)');
-  for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.match(system, /props capability \(sdk-7\).*sdk\.vector.*sdk\.gate.*never place a label at a fixed offset from an arrow's tail/, 'vectors and gates come from the helpers, labels never from the tail');
-  for (const rules of [INTERACT_REVIEW_RULES, INTERACT_REVIEW_RULES_PARTIAL]) assert.match(rules, /contradicts the card's own claim.*major finding unless the scene says why/);
-  assert.match(INTERACT_BUILD_SYSTEM, /Declare every learner-facing measurement in manifest\.readouts \(label and unit\).*never draw a readout's value as scene text/, 'readouts are declared; the card draws them');
-  assert.match(INTERACT_REPAIR_SYSTEM, /no longer calls an approved helper.*changing the arguments you pass to that helper/, 'a repair keeps calling the approved helpers (a live run lost three rounds to helper_missing)');
-  for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.match(system, /emitted at EVERY time and input state as a finite number, never null, a string or absent/, 'a live run lost three rounds to readouts that were null or missing at some states');
   assert.ok(STATEFUL_MANIFEST_PROPERTIES.viewport, 'the stateful extras are exported for the prompt');
   assert.match(INTERACT_BUILD_SYSTEM, /1120 x 860/, 'the frame size the reviewer can take is stated');
 });
@@ -225,24 +218,4 @@ test('both build prompts state the sentence ranges and the byte limits next to t
   assert.ok((await buildScene(await job(), ctx)).artifacts);
   const named = ctx.adapter.log[1].input.correction.problems.find(p => /manifest\.description/.test(p));
   assert.match(named, /longer than 600 characters; it must be 2 to 4 short sentences, at most 600 characters/);
-});
-
-test('semantic figures: the build and repair prompts name sdk.axis, sdk.plot and sdk.diagram, the helpers are catalogued under their own tuple and documented for authoring only', async () => {
-  // The build prompt states the sdk-8 conventions (owner 2026-11-13: lanes, bodies, vectors, callouts, plots and axes by id and helper, sdk.axis and sdk.diagram among them); the repair prompt keeps its sentence.
-  assert.match(INTERACT_BUILD_SYSTEM, /figures capability \(sdk-8\), the renderer draws the card's look from ids and helpers/);
-  assert.match(INTERACT_BUILD_SYSTEM, /Axes: `sdk\.axis` inside each lane, never hand-drawn lines; a static structure \(parts, a flow, a comparison\) is one `sdk\.diagram`/);
-  assert.match(INTERACT_REPAIR_SYSTEM, /figures capability \(sdk-8\), draw every axis and plot with sdk\.axis and sdk\.plot, never with hand-drawn lines, and a static structure \(parts, a flow, a comparison\) with sdk\.diagram/);
-  for (const system of [INTERACT_BUILD_SYSTEM, INTERACT_REPAIR_SYSTEM]) assert.match(system, /props capability \(sdk-7\)/, 'the earlier props sentence stays');
-  const choices = runtimeChoices(await designCapabilities({ EXPLAIN_PROGRAM_ENABLED: 'true' }, {}));
-  const figures = choices.filter(choice => choice.runtime.requiredCapabilities.includes('figures'));
-  assert.deepEqual(figures.map(choice => [choice.runtime.schemaVersion, choice.runtime.sdkVersion, choice.runtime.programTuple.rendererVersion]), [[1, 'sdk-8', 'renderer-5']]);
-  for (const helper of ['axis', 'plot', 'diagram', 'vector', 'gate', 'groundMark']) assert.ok(figures[0].availableHelpers.includes(helper), `${helper} is offered`);
-  const props = choices.find(choice => choice.runtime.requiredCapabilities.includes('props'));
-  assert.equal(props.runtime.sdkVersion, 'sdk-7', 'a props plan still names the saved sdk-7');
-  assert.ok(!props.availableHelpers.includes('axis'), 'sdk-7 has no figure helpers');
-  const docs = programContext({}, ['time_playback', 'figures'], {});
-  assert.deepEqual(Object.keys(docs.sdk.figures ?? {}).sort(), ['axis', 'callout', 'diagram', 'panel', 'plot', 'stateReadouts', 'usage']);
-  assert.match(docs.sdk.figures.usage, /ONE frame object/);
-  assert.equal(programContext({}, ['time_playback', 'figures'], { repair: true }).sdk.figures, undefined, 'the repair request keeps its small size budget');
-  assert.equal(programContext({}, ['time_playback'], {}).sdk.figures, undefined);
 });

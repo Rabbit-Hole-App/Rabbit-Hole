@@ -17,7 +17,7 @@ export const PATH = '#2F80D8';
 export const SURFACE = 'var(--viz-surface, #fbfbfa)';
 export const INK = 'var(--color-ink, #32211c)';
 export const MUTED = 'var(--color-ink-2, #665951)';
-export const FILLED_INK = '#32211c';
+const FILLED_INK = '#32211c';
 
 export const lineHeight = (size = 14) => Math.ceil(size * 1.25);
 

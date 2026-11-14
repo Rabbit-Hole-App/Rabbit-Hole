@@ -62,7 +62,7 @@ const branchFor = (schema, value) => {
   return options.find(o => Object.entries(o.properties ?? {}).some(([k, s]) => s?.const !== undefined && value[k] === s.const))
     ?? options.find(o => (!o.type || o.type === 'object') && (o.required ?? []).every(k => Object.hasOwn(value, k))) ?? null;
 };
-export function stripUnknown(value, schema, kind, out) {
+function stripUnknown(value, schema, kind, out) {
   const s = schema && value && typeof value === 'object' ? branchFor(schema, value) : null;
   if (!s) return value;
   if (Array.isArray(value)) return s.items ? value.map(v => stripUnknown(v, s.items, kind, out)) : value;

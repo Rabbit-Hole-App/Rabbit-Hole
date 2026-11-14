@@ -12,9 +12,8 @@ export const DESCRIPTION_STYLE = Object.freeze({
   insetPx: 34, // the card's px-4 padding both sides (32) plus its 1 px border both sides (2): text column = card width - insetPx
   focusMeasurePx: 760, // the description keeps a bounded column in wide Focus (focus-host.js READING_MAX), never one long line
 });
-// A card 440 px wide (the compact card, LearningBlocks), the width a new card opens at (card-layout.js FULL_WIDTH.preferred, 720) and normal Focus. 320 (FULL_WIDTH.baseline) is not measured: an /interact card
-// carries a program frame, a transport strip and a parameter grid that cannot be drawn in 286 px of text column, and the Codex reference concepts (owner 2026-11-13) are 3 lines at 440 and 2 at 720.
-export const DESCRIPTION_WIDTHS = Object.freeze([440, 720, DESCRIPTION_STYLE.focusMeasurePx + DESCRIPTION_STYLE.insetPx]);
+// A card 320 px wide (the narrowest layout, card-layout.js FULL_WIDTH.baseline), 440 px (the compact card, LearningBlocks) and normal Focus.
+export const DESCRIPTION_WIDTHS = Object.freeze([320, 440, DESCRIPTION_STYLE.focusMeasurePx + DESCRIPTION_STYLE.insetPx]);
 export const DESCRIPTION_LINES = Object.freeze({ min: 2, max: 4 });
 // 'measured' receipts come from the real styles in a real layout (domLineCounter, run by the render service); 'estimate' receipts come from
 // the pure counter below and exist for tests and offline fixtures. A design is publishable only on a measured receipt.
@@ -30,8 +29,6 @@ const NARROW = new Set("ijl.,:;'|!()[]/");
 const WIDE = new Set('mwMW@%');
 const advance = char => (char === ' ' ? 0.28 : NARROW.has(char) ? 0.3 : WIDE.has(char) ? 0.88 : char === '-' ? 0.36 : /[A-Z]/.test(char) ? 0.68 : /[0-9]/.test(char) ? 0.62 : /[frt]/.test(char) ? 0.4 : 0.56);
 const wordWidth = (word, fontPx) => [...word].reduce((sum, char) => sum + advance(char), 0) * fontPx;
-// One line of text at fontPx, from the same advance tables (the frame layout check measures labels with it).
-export const textWidthPx = (text, fontPx) => wordWidth(String(text), fontPx);
 
 export function estimateLines(text, columnPx, style = DESCRIPTION_STYLE) {
   const space = advance(' ') * style.fontPx;
@@ -65,13 +62,9 @@ export function domLineCounter(document, style = DESCRIPTION_STYLE) {
 // The injected interface. counter(text, columnPx) -> lines (sync or async). Default: the pure estimate.
 // plan: any object with cardDescription. -> DescriptionFitSchema receipt (the lines are reported as counted, even when out of range;
 // descriptionFitProblems says which widths fail).
-// The description may carry the written card's inline math ($...$, rendered by the card's own MdInline). The estimate counts what is DRAWN: the delimiters go and each TeX command
-// is about one glyph; the hash still covers the copy as written. A measured counter (the card's own element) sees the rendered text itself.
-export const renderedDescription = text => String(text).replace(/\$([^$\n]+)\$/g, (_, tex) => tex.replace(/\\[A-Za-z]+/g, 'x').replace(/[{}^_\\]/g, ''));
-
 export async function measureInteractDescription(plan, { counter = null, widths = DESCRIPTION_WIDTHS } = {}) {
   const text = plan.cardDescription;
-  const count = counter ?? ((copy, column) => estimateLines(renderedDescription(copy), column));
+  const count = counter ?? ((copy, column) => estimateLines(copy, column));
   const measured = counter !== null;
   const rows = [];
   for (const cardWidth of widths) rows.push({ cardWidth, lines: Number(await count(text, columnWidth(cardWidth))) });

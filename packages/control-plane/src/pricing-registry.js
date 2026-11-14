@@ -71,10 +71,6 @@ row('fireworks', 'accounts/fireworks/models/gpt-oss-120b', 'standard', 'output',
 // Gemini 3.5 Flash-Lite paid Standard tier: $0.30 input (text / image / video / audio), $2.50 output "including thinking tokens" (ai.google.dev/gemini-api/docs/pricing redirects here).
 row('google', 'gemini-3.5-flash-lite', 'standard', 'input', 0.3, PER.mtok, VERIFIED, null, GEMINI_PRICING, '2026-11-08');
 row('google', 'gemini-3.5-flash-lite', 'standard', 'output', 2.5, PER.mtok, VERIFIED, 'includes thinking tokens', GEMINI_PRICING, '2026-11-08');
-// Gemini 3.5 Flash (bench only, interact-models.js benchRole): $1.50 input, $9.00 output including thinking. ESTIMATE: stated on Google's "What's new in Gemini 3.6 Flash and 3.5 Flash-Lite" page
-// (ai.google.dev/gemini-api/docs/whats-new-gemini-3.6), read 2026-11-13; the pricing page no longer lists the model (gemini-3.5-flash is deprecated and routed to gemini-3.6-flash), so no official row to verify against.
-row('google', 'gemini-3.5-flash', 'standard', 'input', 1.5, PER.mtok, ESTIMATE, 'second hand: the 3.6 release notes; the pricing page has no 3.5 Flash row', 'https://ai.google.dev/gemini-api/docs/whats-new-gemini-3.6', '2026-11-13');
-row('google', 'gemini-3.5-flash', 'standard', 'output', 9, PER.mtok, ESTIMATE, 'includes thinking tokens; second hand: the 3.6 release notes', 'https://ai.google.dev/gemini-api/docs/whats-new-gemini-3.6', '2026-11-13');
 // JEV 1.13 (practice grading, platform-funded: recorded apart, never in the user's balance): $0.042 per million input, free output.
 for (const model of ['jev-1.13.0', 'jev-1.13']) {
   row('jev', model, 'standard', 'input', 0.042, PER.mtok, VERIFIED, 'platform-funded');

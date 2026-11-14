@@ -89,7 +89,7 @@ test('a valid frame normalises defaults; wrong frames are invalid_output', () =>
     [{ kind: 'box', id: 'b', x: Number.NaN, y: 0, w: 1, h: 1 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, onclick: 'x' }],
     [{ kind: 'image', id: 'i', src: 'https://example.com/a.png', x: 0, y: 0 }], [{ kind: 'text', id: 't', x: 0, y: 0 }],
     [{ kind: 'text', id: 't', x: 0, y: 0, text: 'a', runs: [{ kind: 'text', text: 'a' }] }], [{ kind: 'box', id: 'b b', x: 0, y: 0, w: 1, h: 1 }],
-    [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, fn: () => 1 }], // a repeated id is no longer here: it is fitted (b, b-2), frame-fit.test.mjs
+    [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1 }, { kind: 'circle', id: 'b', x: 0, y: 0, w: 1 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, fn: () => 1 }],
     [{ kind: 'box', id: 'b', x: 1e9, y: 0, w: 1, h: 1 }], [{ kind: 'box', id: 'b', x: 0, y: 0, w: 1, h: 1, role: 'rainbow' }],
   ];
   for (const objects of bad) {
@@ -97,16 +97,6 @@ test('a valid frame normalises defaults; wrong frames are invalid_output', () =>
     assert.equal(parsed.ok, false, JSON.stringify(objects));
     assert.equal(parsed.error.code, 'invalid_output');
   }
-});
-
-test('a helper result listed beside plain objects (an array inside objects) is flattened, not refused; the 60-object cap and every object check still apply', () => {
-  const box = id => ({ kind: 'box', id, x: 0, y: 0, w: 4, h: 4 }), nested = frame([[box('a'), box('b')], box('c'), [[box('d')]]]);
-  const parsed = parseFrame(nested);
-  assert.equal(parsed.ok, true);
-  assert.deepEqual(parsed.value.objects.map(o => o.id), ['a', 'b', 'c', 'd']);
-  assert.equal(parseFrame(frame([Array.from({ length: 61 }, (_, i) => box(`b${i}`))])).ok, false, 'flattening does not lift the cap');
-  assert.equal(parseFrame(frame([[box('a'), { kind: 'nope', id: 'x' }]])).ok, false, 'a bad object inside the array is still refused');
-  assert.equal(parseGuestResult({ frame: nested, quantities: {} }).ok, true);
 });
 
 test('frame budgets: 60 objects, 2000 points each, 10000 points in total, finite points, a hostile key', () => {

@@ -100,8 +100,7 @@ test('each semantic control type maps to one native declaration, and an unavaila
   assert.deepEqual(nativeDeclaration(select, 'spec').native, { in: 'presentation.experiments', declaration: { id: 'moment', domain: { values: ['before', 'top', 'after'] } } });
   assert.equal(nativeDeclaration({ type: 'action', binding: { kind: 'action', id: 'go' }, label: 'Go' }, 'program').native.in, 'manifest.actions');
   assert.deepEqual(nativeDeclaration({ type: 'target', binding: { kind: 'target', id: 'a' }, label: 'A', interaction: 'drag' }, 'program').native, { in: 'manifest.targets', declaration: { id: 'a', label: 'A', drag: true } });
-  assert.deepEqual(nativeDeclaration({ type: 'boolean', binding: { kind: 'input', id: 'b' }, label: 'B', default: false }, 'program').native, { in: 'manifest.inputs', declaration: { type: 'boolean', id: 'b', label: 'B', default: false } }, 'a program Boolean switch (inputs_v2, explain-program/inputs-v2.test.mjs)');
-  assert.equal(nativeDeclaration({ type: 'multi_select', binding: { kind: 'input', id: 'm' }, label: 'M', items: [] }, 'program').ok, false, 'no program multi-select');
+  assert.equal(nativeDeclaration({ type: 'boolean', binding: { kind: 'input', id: 'b' }, label: 'B' }, 'program').ok, false, 'no program Boolean switch');
   assert.equal(nativeDeclaration({ type: 'number', binding: { kind: 'input', id: 'n' }, label: 'N' }, 'spec').ok, false, 'no spec continuous slider');
 });
 
@@ -142,8 +141,6 @@ test('control bindings: missing, extra and changed controls are refused; labels,
   await refuses(plans.deep, 'deep', d => { d.main.program.manifest.inputs[0].unit = 'cm/s'; }, 'control_mismatch');
   await refuses(plans.deep, 'deep', d => { delete d.main.program.manifest.inputs[0].step; }, 'control_mismatch');
   await refuses(plans.deep, 'deep', d => { d.main.program.manifest.readouts.pop(); }, 'readout_missing');
-  await refuses(plans.deep, 'deep', d => { delete d.main.program.manifest.readouts[0].unit; }, 'readout_unlabelled'); // a readout the card draws in its own row needs a label and a unit ('' for a pure number)
-  await refuses(plans.deep, 'deep', d => { d.main.program.manifest.inputs = d.main.program.manifest.inputs.filter(input => input.id !== 'launchSpeed'); }, 'input_missing'); // every adjustable id is declared in manifest.inputs
 });
 
 test('timeline bindings: the program declares the maximum duration, the approved pacing, origin and markers', async () => {

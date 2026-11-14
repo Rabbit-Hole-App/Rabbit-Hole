@@ -1,7 +1,0 @@
-{
- "error": {
-  "code": "schema_mismatch",
-  "message": "The structured result does not match its schema: $.op: not an allowed field",
-  "problems": null
- }
-}

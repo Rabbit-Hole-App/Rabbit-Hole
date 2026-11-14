@@ -74,8 +74,6 @@ const browser = await chromium.launch();
 const errors = [], stray = [], offOrigin = [];
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
-// The plot's curve: a polyline of three or more points. A composed card draws an arrow's or a line's own shaft as a two-point polyline (the written diagrams' connector, release 130: the look was approved), so a raw polyline count no longer means a curve.
-const curveLines = scope => scope.locator('[data-program-frame] polyline').evaluateAll(lines => lines.filter(line => (line.getAttribute('points') || '').trim().split(/\s+/).length >= 3).length);
 try {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
@@ -151,7 +149,7 @@ try {
 
   await check('1 the growth card draws its picture from the saved program: curve, marker, axes and a readout', async () => {
     await card('p-growth').locator('[data-program-frame] [data-animation-object]').first().waitFor({ state: 'attached', timeout: 30000 }); // a horizontal axis line has no height, so Playwright calls its group hidden: wait for it to exist
-    assert.ok(await curveLines(card('p-growth')) >= 1, 'a plotted curve');
+    assert.ok(await card('p-growth').locator('[data-program-frame] polyline').count() >= 1, 'a plotted curve');
     assert.ok(await card('p-growth').locator('[data-program-frame] [data-animation-object="marker"]').count() === 1);
     assert.equal(await card('p-growth').locator('[data-program-readouts]').count(), 0, 'no readout strip under the drawing');
     assert.equal(await card('p-growth').locator('[data-program-notes-toggle]').getAttribute('aria-expanded'), 'false', 'Notes start collapsed');
@@ -218,7 +216,7 @@ try {
   });
   await check('10 a structurally different program draws through the same card: fifteen cells and a pointer, no curve', async () => {
     assert.equal(await card('p-search').locator('[data-program-frame] [data-animation-object^="cell-"]').count(), 15);
-    assert.equal(await curveLines(card('p-search')), 0);
+    assert.equal(await card('p-search').locator('[data-program-frame] polyline').count(), 0);
     const before = await card('p-search').locator('[data-program-frame]').textContent();
     await scrub('p-search', 3);
     assert.notEqual(await card('p-search').locator('[data-program-frame]').textContent(), before, 'the caption follows the time');
@@ -270,7 +268,7 @@ try {
     const back = Number((await timeText('p-growth')).replace('s', ''));
     assert.equal(back, paused, `returned at ${back}s, paused at ${paused}s (left at ${left}s): the moment it paused at is kept, no fast-forward through the 1.5 s away`);
     assert.match(await card('p-growth').locator('[data-animation-play]').innerText(), /Play/);
-    assert.ok(await curveLines(card('p-growth')) >= 1, 'the same picture is drawn on return');
+    assert.ok(await card('p-growth').locator('[data-program-frame] polyline').count() >= 1, 'the same picture is drawn on return');
   });
   await check('15 deleting a card closes its Worker', async () => {
     await scrub('p-growth', 1); // a fresh evaluation, so the card holds a live Worker
@@ -320,7 +318,7 @@ try {
     page.on('worker', worker => { workers.opened++; worker.on('close', () => { workers.closed++; }); });
     await page.goto(`${BASE}/apps/${editCanvas.name}`);
     const edit = card('p-edit');
-    assert.ok(await until(async () => (await curveLines(edit)) >= 1, 60000), 'the curve is drawn');
+    await edit.locator('[data-program-frame] polyline').first().waitFor({ state: 'attached', timeout: 60000 });
     await edit.locator('[data-explain-show="proposed"]').waitFor({ timeout: 30000 });
     assert.equal(await edit.locator('[data-explain-show="current"]').getAttribute('aria-pressed'), 'true');
     assert.equal(await timeText('p-edit'), '2.0s');
@@ -328,7 +326,7 @@ try {
     await edit.locator('[data-explain-show="proposed"]').click();
     await edit.locator('[data-program-frame] [data-animation-object^="cell-"]').first().waitFor({ state: 'attached', timeout: 30000 });
     assert.equal(await edit.locator('[data-program-frame] [data-animation-object^="cell-"]').count(), 15, 'the candidate program, not the accepted one');
-    assert.equal(await curveLines(edit), 0);
+    assert.equal(await edit.locator('[data-program-frame] polyline').count(), 0);
     assert.equal(await timeText('p-edit'), '0.0s', 'the preview starts at its own beginning');
     assert.ok(workers.closed >= 1, "the accepted card's host was disposed");
     // A Worker's close reaches Playwright after the next host has started, so wait for it (5 s); a host never closed still fails.
@@ -338,7 +336,7 @@ try {
     await scrub('p-edit', 3);
     await shot('F-edit-proposed');
     await edit.locator('[data-explain-show="current"]').click();
-    assert.ok(await until(async () => (await curveLines(edit)) >= 1, 30000), 'the curve is drawn');
+    await edit.locator('[data-program-frame] polyline').first().waitFor({ state: 'attached', timeout: 30000 });
     assert.ok(await until(() => page.workers().length <= live), `the preview host was disposed (${page.workers().length} Workers, ${live} before)`);
     assert.equal(await timeText('p-edit'), '2.0s', "the accepted card's moment, untouched by the preview");
     assert.match(await edit.locator('[data-input-readout="rate"]').innerText(), /^8/);
@@ -349,7 +347,7 @@ try {
     // Discard: the bar goes, the accepted program, its inputs and its time stay.
     await edit.locator('[data-explain-discard]').click();
     await edit.locator('[data-explain-edit]').waitFor({ state: 'detached', timeout: 10000 });
-    assert.ok(await until(async () => (await curveLines(edit)) >= 1, 30000), 'the curve is drawn');
+    await edit.locator('[data-program-frame] polyline').first().waitFor({ state: 'attached', timeout: 30000 });
     assert.equal(await timeText('p-edit'), '2.0s');
     assert.match(await edit.locator('[data-input-readout="rate"]').innerText(), /^8/);
     assert.equal(await edit.locator('[data-program-error]').count(), 0);

@@ -6,13 +6,10 @@ import { Frame } from './AnimatedScene.jsx';
 import { evaluateScene } from './scene-evaluate.js';
 import { getSceneState, validateScene } from './animation-scene.js';
 import { legibleFrame } from './explain-program/frame.js';
-import { INTERACT_LOOK } from './interact-style.js';
 import { createProgramHost, programStamps } from './explain-program/host.js';
 import { fixturesAdmitted, programErrorMessage } from './explain-program/program-card.js';
-import { MdInline } from './Md.jsx';
 import { DESCRIPTION_STYLE } from './interact-description-fit.js';
 import { supportInputs, snapshotKey } from './interact-card-layout.js';
-import { TEACHING } from './tutor-diagrams/teaching-theme.js';
 import { artifactKey, programSnapshot, resolveSupportArtifact, supportSnapshots } from './interact-support-snapshots.js';
 
 // INT-06-C02/C03: the introduction of an /interact card, above its main scene: the card description (2 to 4 lines, the style that
@@ -21,9 +18,7 @@ import { artifactKey, programSnapshot, resolveSupportArtifact, supportSnapshots 
 // (the shared Frame inside the bordered white box the main scene sits in) and the Interact box's small caps label for its title.
 const NOOP = () => {};
 const STILL = { duration: 0 };
-const BOX = 'rounded-lg border border-line';
-// A supporting panel sits on the teaching inset, as the written diagrams' inset panels do.
-const BOX_STYLE = { background: TEACHING.inset };
+const BOX = 'rounded-lg border border-line bg-white';
 
 // A declarative (spec) panel: the scene at its finished frame for the bound inputs. Sync and pure.
 function specFrame(spec, inputs) {
@@ -63,9 +58,9 @@ function usePanelFrame(panel, block, mainInputs) {
 
 function SupportPanel({ panel, block, mainInputs }) {
   const { frame, error } = usePanelFrame(panel, block, mainInputs);
-  const legible = frame ? legibleFrame(frame.scene, INTERACT_LOOK) : null;
+  const legible = frame ? legibleFrame(frame.scene) : null;
   return (
-    <div data-interact-support={panel.id} data-interact-support-state={error ? 'failed' : frame ? 'drawn' : 'loading'} className={BOX} style={BOX_STYLE}>
+    <div data-interact-support={panel.id} data-interact-support-state={error ? 'failed' : frame ? 'drawn' : 'loading'} className={BOX}>
       <p className="px-3 pt-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">{panel.title}</p>
       {error
         ? <p role="alert" data-interact-support-error className="grid min-h-16 place-content-center p-3 text-center text-xs text-red-700">{programErrorMessage(error)}</p>
@@ -86,7 +81,7 @@ function SupportPanel({ panel, block, mainInputs }) {
 export function InteractIntro({ composition, block, mainInputs, instructions }) {
   return (
     <div data-interact-intro className="flex shrink-0 flex-col gap-2">
-      <p data-card-description className={DESCRIPTION_STYLE.className} style={{ maxWidth: DESCRIPTION_STYLE.focusMeasurePx }}><MdInline text={composition.cardDescription} mathOnly /></p>
+      <p data-card-description className={DESCRIPTION_STYLE.className} style={{ maxWidth: DESCRIPTION_STYLE.focusMeasurePx }}>{composition.cardDescription}</p>
       {instructions && <p data-card-instructions className={DESCRIPTION_STYLE.className} style={{ maxWidth: DESCRIPTION_STYLE.focusMeasurePx }}>{instructions}</p>}
       {composition.supports.map(panel => <SupportPanel key={panel.id} panel={panel} block={block} mainInputs={mainInputs} />)}
     </div>

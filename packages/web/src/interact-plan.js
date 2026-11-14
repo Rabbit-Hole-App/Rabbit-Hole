@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { canonicalJson, validateVisualBrief } from './explain-contract.js';
-import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, KNOWN_CAPABILITIES } from './explain-program/contract.js';
+import { CAPABILITIES, CONTRACT_LIMITS } from './explain-program/contract.js';
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
-import { TEMPLATE_ROLES, formulaScope, parseQuantity } from './interact-formula.js';
 
 // ScenePlan v1 (docs/features/interact.md section 5, INT-01): the one pure contract shared by design, review, build and the
 // saved card. Server-safe: zod and pure helpers only, no model call, network or DOM. Nothing is stripped or truncated: a plan
@@ -11,11 +10,10 @@ export const SCENE_PLAN_VERSION = 1;
 
 // Engineering defaults from the spec (not measured claims); a valid request that needs more is a capability gap.
 export const PLAN_LIMITS = Object.freeze({
-  title: 120, story: 12000, cardDescription: 500, instructions: 300, entry: 1200, label: 60,
+  title: 120, story: 12000, cardDescription: 500, entry: 1200, label: 60,
   entities: 24, quantities: 16, observations: 12, checkpoints: 12, claims: 32, controls: 24, supports: 2,
   markers: 12, // ponytail: the spec bounds markers only as "bounded"; 12 matches checkpoints, raise on a real need
-  items: 256, exprNodes: 32, exprDepth: 8, formula: 200, // formula: characters in a quantity's formula text (interact-formula.js)
-  timeline: CONTRACT_LIMITS.duration,
+  items: 256, exprNodes: 32, exprDepth: 8, timeline: CONTRACT_LIMITS.duration,
   playbackRate: 10, // ponytail: no host transport ceiling is defined yet; 10 physics-seconds per wall-second is a sanity bound
 });
 
@@ -126,9 +124,7 @@ const scalar = z.union([z.number().finite(), z.string().max(PLAN_LIMITS.entry), 
 const idList = max => z.array(id).max(max);
 
 const entity = z.object({ id, label: text(PLAN_LIMITS.label), purpose: text() }).strict();
-// `relation` is display text. `formula` (interact-formula.js) is what a template build computes: `formula` while t < `switchAt`, `formulaAfter` from `switchAt` on (the two come together or not at all).
-const formulaText = z.string().min(1).max(PLAN_LIMITS.formula);
-const quantity = z.object({ id, label: text(PLAN_LIMITS.label), unit: z.string().max(16), meaning: text(), reference: text(), relation: text().optional(), formula: formulaText.optional(), switchAt: formulaText.optional(), formulaAfter: formulaText.optional() }).strict();
+const quantity = z.object({ id, label: text(PLAN_LIMITS.label), unit: z.string().max(16), meaning: text(), reference: text(), relation: text().optional() }).strict();
 const observation = z.object({ id, text: text(), quantityIds: idList(16), readoutIds: idList(16) }).strict();
 const checkpoint = z.object({
   id, label: text(PLAN_LIMITS.label), time: scalarExpr.nullable(), inputOverrides: z.record(id, scalar), actions: idList(8), expected: text(),
@@ -160,30 +156,25 @@ const items = z.array(z.object({ id, label: controlText(PLAN_LIMITS.label) }).st
 const control = z.discriminatedUnion('type', [
   z.object({ ...controlBase, type: z.literal('playback'), binding: timelineBinding, labels: z.object({ paused: z.literal('Play'), playing: z.literal('Pause'), ended: z.literal('Replay') }).strict() }).strict(),
   z.object({ ...controlBase, type: z.literal('scrubber'), binding: timelineBinding, unit: z.literal('s'), step: z.number().positive().finite() }).strict(),
-  // onChange (additive): what a change of THIS number does on a timed scene, overriding mode.onInputChange (a mass that only rescales a force recomputes the still; the launch speed resets and pauses).
-  z.object({ ...controlBase, type: z.literal('number'), binding: inputBinding, unit: z.string().max(16), default: z.number().finite(), min: z.number().finite(), max: z.number().finite(), step: z.number().positive().finite(), onChange: z.enum(['recompute_still', 'reset_pause']).optional() }).strict(),
+  z.object({ ...controlBase, type: z.literal('number'), binding: inputBinding, unit: z.string().max(16), default: z.number().finite(), min: z.number().finite(), max: z.number().finite(), step: z.number().positive().finite() }).strict(),
   z.object({ ...controlBase, type: z.literal('select'), binding: inputBinding, default: z.string(), options: z.array(z.object({ value: z.string().regex(/^[A-Za-z0-9_.-]{1,32}$/), label: controlText(PLAN_LIMITS.label) }).strict()).min(2).max(CONTRACT_LIMITS.options) }).strict(),
   z.object({ ...controlBase, type: z.literal('boolean'), binding: inputBinding, default: z.boolean() }).strict(),
   z.object({ ...controlBase, type: z.literal('index'), binding: inputBinding, default: z.number().int().min(0), dataRef: id, items, presentation: z.enum(['picker', 'slider']) }).strict(),
   z.object({ ...controlBase, type: z.literal('multi_select'), binding: inputBinding, default: z.array(z.number().int().min(0)).max(PLAN_LIMITS.items), dataRef: id, items }).strict(),
   z.object({ ...controlBase, type: z.literal('action'), binding: z.object({ kind: z.literal('action'), id }).strict(), effect: controlText(PLAN_LIMITS.entry) }).strict(),
   z.object({ ...controlBase, type: z.literal('target'), binding: z.object({ kind: z.literal('target'), id }).strict(), interaction: z.enum(['select', 'drag']), effect: controlText(PLAN_LIMITS.entry) }).strict(),
-  // seek: a button that jumps the shared timeline to one named marker (the At top button); needs mode.timeline.
-  z.object({ ...controlBase, type: z.literal('seek'), binding: z.object({ kind: z.literal('marker'), id }).strict(), effect: controlText(PLAN_LIMITS.entry) }).strict(),
   z.object({ ...controlBase, type: z.literal('reset'), binding: z.object({ kind: z.literal('reset') }).strict(), effect: controlText(PLAN_LIMITS.entry) }).strict(),
 ]);
 
 const timeline = z.object({
   label: text(PLAN_LIMITS.label), unit: z.literal('s'), start: z.literal(0), end: scalarExpr, displayOffset: scalarExpr,
-  markers: z.array(z.object({ id, label: text(PLAN_LIMITS.label), time: scalarExpr, pause: z.boolean().optional() }).strict()).max(PLAN_LIMITS.markers), // pause: playback stops when it reaches this marker
+  markers: z.array(z.object({ id, label: text(PLAN_LIMITS.label), time: scalarExpr }).strict()).max(PLAN_LIMITS.markers),
   initialTime: z.literal(0), initialPlayback: z.literal('paused'), playbackRate: z.number().positive().finite().max(PLAN_LIMITS.playbackRate),
 }).strict();
 
 const scene = z.object({
   description: text(), runtime, entities: z.array(entity).max(PLAN_LIMITS.entities), quantities: z.array(quantity).max(PLAN_LIMITS.quantities),
   observations: z.array(observation).max(PLAN_LIMITS.observations), checkpoints: z.array(checkpoint).max(PLAN_LIMITS.checkpoints), readoutIds: idList(16),
-  // A build template (interact-formula.js TEMPLATE_ROLES) and its roles mapped to quantity ids; both or neither. two-lane nests one role map per lane name.
-  template: z.enum(['one-body', 'two-lane', 'body-plot']).optional(), slots: z.record(z.string().min(1).max(32), z.union([id, z.record(z.string().min(1).max(32), id)])).optional(),
 }).strict();
 const mode = z.object({
   kind: z.enum(['static', 'time', 'experiment']), initialState: text(), fixedValues: z.record(id, scalar), adjustableIds: idList(8),
@@ -193,15 +184,13 @@ const claim = z.object({ id, text: text(), evidenceIds: z.array(z.string().min(1
 
 // A card description is plain text the card shows in 2 to 4 rendered lines. The schema bounds the input (500 characters);
 // whether it renders in 2 to 4 lines is a fit receipt (DescriptionFitSchema), because character count is no substitute.
-const plainParagraph = max => z.string().min(1).max(max).refine(value => value.trim().length > 0, 'must not be blank')
+const cardDescription = z.string().min(1).max(PLAN_LIMITS.cardDescription).refine(value => value.trim().length > 0, 'must not be blank')
   .refine(value => !HTML_TAG.test(value) && !CONTROL_CHARS.test(value), 'plain single-paragraph text only');
-const cardDescription = plainParagraph(PLAN_LIMITS.cardDescription);
 
 const planShape = z.object({
   schemaVersion: z.literal(SCENE_PLAN_VERSION, { error: () => `unknown ScenePlan version: expected ${SCENE_PLAN_VERSION}` }),
   depth: z.enum(['brief', 'balanced', 'detailed', 'overview', 'standard', 'deep']), // brief | balanced | detailed; the old names stay readable (a plan saved before the 2026-11-08 rename keeps its hash)
   title: text(PLAN_LIMITS.title), story: text(PLAN_LIMITS.story), cardDescription, learningGoal: text(),
-  instructions: plainParagraph(PLAN_LIMITS.instructions).optional(), // how to use the controls: 2 to 3 lines under the description (owner 2026-11-13)
   supportingVisuals: z.array(support).max(PLAN_LIMITS.supports), scene, mode,
   controls: z.array(control).max(PLAN_LIMITS.controls),
   assumptions: z.array(text()).max(16), limitations: z.array(text()).max(16), claims: z.array(claim).max(PLAN_LIMITS.claims),
@@ -220,15 +209,6 @@ function executableString(root) {
     else if (value && typeof value === 'object') for (const key of Object.keys(value)) stack.push([value[key], [...path, key]]);
   }
   return null;
-}
-
-function gapHolds(expr, domains) {
-  const names = Object.keys(domains).slice(0, 4), count = 3 ** names.length;
-  for (let k = 0; k < count; k += 1) {
-    const values = Object.fromEntries(names.map((n, i) => { const [lo, hi] = domains[n], pick = Math.floor(k / 3 ** i) % 3; return [n, pick === 0 ? lo : pick === 1 ? (lo + hi) / 2 : hi]; }));
-    try { if (evalScalar(expr, values, domains) < -1e-9) return false; } catch { return false; }
-  }
-  return true;
 }
 
 export function planProblems(plan) {
@@ -288,11 +268,6 @@ export function planProblems(plan) {
   const kinds = type => controls.filter(c => c.type === type);
   const mutable = inputs.size > 0 || kinds('action').length > 0 || kinds('target').length > 0;
   const transport = kinds('playback').length + kinds('scrubber').length;
-  controls.forEach((c, i) => {
-    if (c.type !== 'seek') return;
-    if (!tl) bad(['controls', i], 'timeline_controls_mismatch', 'a seek control needs mode.timeline');
-    else if (!tl.markers.some(m => m.id === c.binding.id)) bad(['controls', i, 'binding', 'id'], 'dangling_reference', `marker "${c.binding.id}" is not on the timeline`);
-  });
   if (tl && (kinds('playback').length !== 1 || kinds('scrubber').length !== 1)) bad(['controls'], 'timeline_controls_mismatch', 'a timed plan declares exactly one playback and one scrubber control');
   if (!tl && transport) bad(['controls'], 'timeline_controls_mismatch', 'playback and scrubber controls need mode.timeline');
   if (modeBlock.onInputChange !== (tl ? 'reset_pause' : 'recompute_still')) bad(['mode', 'onInputChange'], 'on_input_change_mismatch', tl ? 'a timed scene uses reset_pause' : 'an untimed scene uses recompute_still');
@@ -310,31 +285,6 @@ export function planProblems(plan) {
     if (modeBlock.adjustableIds.includes(name)) bad(['mode', 'fixedValues', name], 'duplicate_id', `"${name}" cannot be both fixed and adjustable`);
   }
 
-  // Formulas parse against the readable names (t, the number inputs, the fixed numbers); the first problem names its quantity. A template needs its roles mapped to quantities that have a formula.
-  const scope = formulaScope(plan);
-  main.quantities.forEach((q, i) => {
-    if (q.formula === undefined && (q.switchAt !== undefined || q.formulaAfter !== undefined)) bad(['scene', 'quantities', i, 'formula'], 'formula_pair', `quantity "${q.id}" has switchAt or formulaAfter but no formula`);
-    try { parseQuantity(q, scope); } catch (error) { if (!error.code) throw error; bad(['scene', 'quantities', i, error.message.includes(' switchAt:') ? 'switchAt' : error.message.includes(' formulaAfter:') ? 'formulaAfter' : 'formula'], error.code, error.message); }
-  });
-  if ((main.template === undefined) !== (main.slots === undefined)) bad(['scene', main.template === undefined ? 'template' : 'slots'], 'template_pair', 'scene.template and scene.slots come together or not at all');
-  if (main.template && main.slots) {
-    const spec = TEMPLATE_ROLES[main.template], formulaOf = new Map(main.quantities.map(q => [q.id, q.formula !== undefined]));
-    const roleMap = (slots, path, roles) => {
-      if (!slots || typeof slots !== 'object' || Object.values(slots).some(v => typeof v !== 'string')) return bad(path, 'template_slots', `${main.template}: ${roles.join(', ')} each map to a quantity id`);
-      for (const role of roles) if (!(role in slots)) bad([...path, role], 'template_slots', `${main.template} needs the role "${role}"`);
-      for (const [role, qid] of Object.entries(slots)) {
-        if (!roles.includes(role)) bad([...path, role], 'template_slots', `${main.template} has no role "${role}" (roles: ${roles.join(', ')})`);
-        else if (!formulaOf.has(qid)) bad([...path, role], 'dangling_reference', `slot "${role}" names quantity "${qid}", which the scene does not declare`);
-        else if (!formulaOf.get(qid)) bad([...path, role], 'template_slots', `slot "${role}" names quantity "${qid}", which has no formula`);
-      }
-    };
-    if (spec.lanes) {
-      const lanes = Object.keys(main.slots);
-      if (lanes.length !== spec.lanes) bad(['scene', 'slots'], 'template_slots', `${main.template} maps exactly ${spec.lanes} lanes, each to its roles (${spec.roles.join(', ')})`);
-      for (const lane of lanes) roleMap(main.slots[lane], ['scene', 'slots', lane], spec.roles);
-    } else roleMap(main.slots, ['scene', 'slots'], spec.roles);
-  }
-
   // Timeline arithmetic over the whole admitted input domain, not only the defaults.
   const span = (expr, path) => { try { return scalarInterval(expr, domains); } catch (error) { bad(path, error.code || 'unsafe_expression', error.message); return null; } };
   if (tl) {
@@ -346,10 +296,8 @@ export function planProblems(plan) {
       if (!t || !end) return;
       if (t[0] < 0) return bad(path, 'out_of_domain', 'a time before 0 is outside the elapsed timeline');
       if (canonicalJson(expr) === canonicalJson(tl.end)) return; // exactly the end: trivially inside
-      const difference = { op: 'subtract', left: tl.end, right: expr }, gap = span(difference, path);
-      // Interval arithmetic loses the correlation between the end and a marker that read the same input (u/g against 2u/g), so a negative lower bound is checked again
-      // at the min, middle and max of every number input (3^n points, n at most 4): the gap must be non-negative at each. shortcut: a sample, exact for the monotone expressions plans use.
-      if (gap && gap[0] < 0 && !gapHolds(difference, domains)) bad(path, 'out_of_domain', 'a time can land after the end for some admitted input');
+      const gap = span({ op: 'subtract', left: tl.end, right: expr }, path);
+      if (gap && gap[0] < 0) bad(path, 'out_of_domain', 'a time can land after the end for some admitted input');
     };
     tl.markers.forEach((marker, i) => inside(marker.time, ['mode', 'timeline', 'markers', i, 'time']));
     main.checkpoints.forEach((cp, i) => { if (cp.time) inside(cp.time, ['scene', 'checkpoints', i, 'time']); });
@@ -456,7 +404,7 @@ export function validatePlanBindings(plan, capabilities) {
     if (rt.catalogueHash !== capabilities.catalogueHash) bad([...path, 'catalogueHash'], 'catalogue_mismatch', 'the plan was designed against a different control catalogue; revise and review again');
     if (rt.renderer !== 'program') return;
     if (!supportedTuples.has(canonicalJson(rt.programTuple))) bad([...path, 'programTuple'], 'unsupported_tuple', 'programTuple is not one of the supported sealed tuples');
-    for (const need of rt.requiredCapabilities) if (!KNOWN_CAPABILITIES.includes(need)) bad([...path, 'requiredCapabilities'], 'unsupported_capability', `"${need}" is not a program capability`);
+    for (const need of rt.requiredCapabilities) if (!CAPABILITIES.includes(need)) bad([...path, 'requiredCapabilities'], 'unsupported_capability', `"${need}" is not a program capability`);
     if (rt.schemaVersion === 2 && !capabilities.stateful) bad([...path, 'schemaVersion'], 'stateful_unavailable', 'the stateful program schema is not enabled');
   };
   checkRuntime(plan.scene.runtime, ['scene', 'runtime']);
@@ -478,11 +426,10 @@ export function validatePlanBindings(plan, capabilities) {
     if ((c.type === 'index' || c.type === 'multi_select') && c.items.length > (d.limits.maxItems ?? Infinity)) bad(at('items'), 'limit_exceeded', `"${d.id}" offers at most ${d.limits.maxItems} items`);
     used.set(d.id, (used.get(d.id) || 0) + 1);
     if (used.get(d.id) > (d.limits.maxControls ?? Infinity)) bad(at('nativeControlId'), 'limit_exceeded', `"${d.id}" is limited to ${d.limits.maxControls} controls`);
-    if (d.requires.includes(INPUTS_V2_CAPABILITY) && !plan.scene.runtime.requiredCapabilities.includes(INPUTS_V2_CAPABILITY)) bad(at('nativeControlId'), 'capability_missing', `"${d.id}" needs "${INPUTS_V2_CAPABILITY}" in scene.runtime.requiredCapabilities`);
     if (d.requires.includes('stateful') && (!capabilities.stateful || plan.scene.runtime.schemaVersion !== 2)) bad(at('nativeControlId'), 'stateful_unavailable', `"${d.id}" needs the stateful program (schema 2), which this plan's runtime does not select`);
   });
   if (renderer === 'program') {
-    const inputControls = plan.controls.filter(c => c.type === 'number' || c.type === 'select' || c.type === 'boolean' || c.type === 'index');
+    const inputControls = plan.controls.filter(c => c.type === 'number' || c.type === 'select');
     if (inputControls.length > CONTRACT_LIMITS.inputs) bad(['controls'], 'limit_exceeded', `a program declares at most ${CONTRACT_LIMITS.inputs} inputs`);
     const combos = inputControls.filter(c => c.type === 'select').reduce((n, c) => n * c.options.length, 1);
     if (combos > CONTRACT_LIMITS.optionCombinations) bad(['controls'], 'limit_exceeded', `select options combine to ${combos} states (at most ${CONTRACT_LIMITS.optionCombinations})`);
@@ -557,44 +504,6 @@ export async function descriptionFitProblems(plan, receipt) {
   if (parsed.data.descriptionHash !== await contentHash(plan.cardDescription)) out.push({ path: 'receipt.descriptionHash', code: 'stale_receipt', message: 'the receipt measured different copy' });
   parsed.data.widths.forEach((w, i) => { if (w.lines < 2 || w.lines > 4) out.push({ path: `receipt.widths.${i}.lines`, code: 'description_fit', message: `the description renders in ${w.lines} lines at ${w.cardWidth}px; it must be 2 to 4` }); });
   return out;
-}
-
-// The rendered review reads at most CAPTURE_BUDGET images (interact-checks.js CHECK_LIMITS.maxCases). The start (a timed plan's end as well) and every checkpoint
-// are always captured, so a plan whose DISTINCT required states exceed it cannot be reviewed. requiredCaptureCount keys them the way buildPlanCaptureCases does
-// (inputs, resolved time, events) so the design check and the build check agree; it does not cut an action list at REVIEW_EVENTS, so it can only over-count.
-export const CAPTURE_BUDGET = 6;
-const INPUT_TYPES = ['number', 'select', 'boolean', 'index', 'multi_select'];
-export function requiredCaptureCount(plan) {
-  const controls = plan.controls.filter(c => c.binding.kind === 'input' && INPUT_TYPES.includes(c.type)), defaults = {}, domains = {};
-  for (const c of controls) { defaults[c.binding.id] = c.default; if (c.type === 'number') domains[c.binding.id] = [c.min, c.max]; }
-  const numeric = inputs => Object.fromEntries(controls.filter(c => c.type === 'number').map(c => [c.binding.id, Math.min(c.max, Math.max(c.min, Number.isFinite(inputs[c.binding.id]) ? inputs[c.binding.id] : c.default))]));
-  const at = (expr, inputs) => evalScalar(expr, numeric(inputs), domains), timeline = plan.mode.timeline, keys = new Set();
-  const add = (inputs, time, events) => keys.add(canonicalJson({ inputs, time, events }));
-  add({ ...defaults }, 0, []);
-  for (const cp of plan.scene.checkpoints) {
-    const inputs = { ...defaults, ...cp.inputOverrides };
-    let time = 0;
-    try { time = cp.time ? at(cp.time, inputs) : 0; } catch (error) { if (!(error instanceof ScalarExprError)) throw error; }
-    add(inputs, time, cp.actions.map(id => ({ type: 'action', action: id })));
-  }
-  if (timeline) add({ ...defaults }, at(timeline.end, defaults), []);
-  return keys.size;
-}
-// An observation about what a control changes is shown only by a capture at that control's other value. A control whose effects an observation reads, and that no checkpoint overrides, gets
-// one boundary capture (its maximum) in the review's budget; the required captures plus those must fit, or the plan names an observation no capture could show.
-const BOUNDARY_TYPES = ['number', 'select', 'boolean', 'index'];
-export function unshownControls(plan) {
-  const observed = new Set(plan.scene.observations.flatMap(o => [...o.quantityIds, ...o.readoutIds]));
-  return plan.controls.filter(c => c.binding.kind === 'input' && BOUNDARY_TYPES.includes(c.type)
-    && (c.affects || []).some(a => a.scope === 'main' && ['quantity', 'readout'].includes(a.kind) && observed.has(a.id))
-    && !plan.scene.checkpoints.some(cp => Object.hasOwn(cp.inputOverrides || {}, c.binding.id)));
-}
-export function captureBudgetProblems(plan, budget = CAPTURE_BUDGET) {
-  const count = requiredCaptureCount(plan), fixed = plan.mode.timeline ? 2 : 1, boundary = unshownControls(plan);
-  if (count + boundary.length > budget && count <= budget) {
-    return [{ path: 'scene.observations', code: 'capture_budget', message: `the rendered review reads at most ${budget} images: this plan needs ${count} for its start${fixed === 2 ? ', end' : ''} and checkpoints and ${boundary.length} more to show what ${boundary.map(c => `"${c.label}"`).join(', ')} change${boundary.length === 1 ? 's' : ''} at another value, so an observation could not be shown; name fewer checkpoints or fewer adjustable controls` }];
-  }
-  return count > budget ? [{ path: 'scene.checkpoints', code: 'capture_budget', message: `the rendered review reads at most ${budget} images and this plan needs ${count} (the start${fixed === 2 ? ' and the end are' : ' is'} always captured); name at most ${budget - fixed} checkpoints whose state differs from the start${fixed === 2 ? ' and the end' : ''}` }] : [];
 }
 
 // Fail before sending when an envelope exceeds the configured byte limit. Never truncates the Story, controls or findings.

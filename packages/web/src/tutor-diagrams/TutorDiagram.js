@@ -1,4 +1,4 @@
-import { TEACHING_FONT, TEACHING_STYLE } from './teaching-theme.js';
+import { TEACHING_STYLE } from './teaching-theme.js';
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react';
 import { layouts } from './layouts.js';
 import { isExtendedPlot } from './ml-plot-spec.js';
@@ -29,7 +29,7 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   const element = h('svg', {
     xmlns: 'http://www.w3.org/2000/svg', width, height, viewBox: `0 0 ${width} ${height}`, role: 'img',
     'aria-label': describeTutorDiagram(document),
-    fontFamily: teaching ? TEACHING_FONT : 'Arial, Liberation Sans, sans-serif',
+    fontFamily: teaching ? 'Inter, Liberation Sans, Arial, sans-serif' : 'Arial, Liberation Sans, sans-serif',
     style: { display: 'block', maxWidth: 'none', marginInline: 'auto', ...(teaching ? TEACHING_STYLE : {}) },
     'data-tutor-diagram': diagram.kind,
   },

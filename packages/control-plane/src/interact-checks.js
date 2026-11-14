@@ -9,11 +9,8 @@
 // A candidate is ready only when every step passed on its own composition hash. A failed, exhausted, stale or partly captured candidate
 // never becomes ready. A repair can fix the implementation; it has no field that could change the approved plan.
 import { canonicalJson } from '../../web/src/explain-contract.js';
-import { CAPTURE_BUDGET, evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
-import { createSnapshotResolver, resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
-import { fitGuestLabels, frameOverlaps, traceFrame, traceObjects } from '../../web/src/explain-program/frame-overlap.js';
-import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
-import { parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
+import { evalScalar, ScalarExprError } from '../../web/src/interact-plan.js';
+import { resolveSupportInputs, resolveTimeline, verifyComposition } from '../../web/src/interact-composition.js';
 import { REVIEW_LIMITS, ReviewError, reviewCaptures, reviewProblems } from './explain-review.js';
 import { REVIEW_EVENTS, RenderError } from './explain-render.js';
 import { programFacts } from './explain-program.js';
@@ -22,7 +19,6 @@ import { INTERACT_LIMITS, InteractModelError, callInteractRole } from './interac
 import { INTERACT_REPAIR_SYSTEM, INTERACT_REPAIR_TOOL_NAME, interactRepairTool } from './agents/explain-repair.js';
 import { approvedPlanOf, buildInput, callRecord, callWithCorrection, correctable, refusalProblems, schemaOptions, validateBuildOutput } from './interact-build.js';
 import { REPAIR_FORWARD } from './explain-program-stage.js';
-import { conventionProblems } from './interact-convention.js';
 
 // correctionRounds: shared across validation, render and review failures (INT-05-C08). renderRetries: recapture attempts after a render
 // outage, which spend no model call and no correction round (INT-05-C10). maxCases: the rendered reviewer's images per round (the profile's
@@ -40,13 +36,10 @@ export function lenientFindingText(schema) {
 // The reviewer's trace block: 6 captures (cases and support panels) x (12 texts of 80 characters + 12 quantities + inputs) is about 10,500 bytes at the worst; the legacy single-scene 6,144 would call a
 // normal card incomplete. The build_review input ceiling (80,000 bytes) has the room.
 const TRACE_BYTES = 12288;
-export const CHECK_LIMITS = Object.freeze({ correctionRounds: INTERACT_LIMITS.correctionRounds, reviewCalls: INTERACT_LIMITS.calls.build_review, renderRetries: 2, maxCases: CAPTURE_BUDGET, maxProbes: 8, tolerance: 1e-6, timeTolerance: 1e-9 });
+export const CHECK_LIMITS = Object.freeze({ correctionRounds: INTERACT_LIMITS.correctionRounds, reviewCalls: INTERACT_LIMITS.calls.build_review, renderRetries: 2, maxCases: 6, maxProbes: 8, tolerance: 1e-6, timeTolerance: 1e-9 });
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const clip = (text, n = REPAIR_FORWARD.text) => String(text ?? '').slice(0, n);
-// The finest clock there is (performance.now: sub-millisecond; Date.now is whole milliseconds), for timing a CPU step in the body; the stage columns of the ledger are wall-clock slices, see interact-ledger.js.
-export const clockMs = () => globalThis.performance?.now?.() ?? Date.now();
-export const round1 = n => Math.round(n * 10) / 10;
 const round6 = n => (typeof n === 'number' && Number.isFinite(n) ? Number(n.toFixed(6)) : n);
 
 // ---- planning --------------------------------------------------------------------------------------------------------------------
@@ -82,20 +75,8 @@ export function buildPlanCaptureCases(plan, composition, artifacts, { limit = CH
     add(required, { id: `cp-${cp.id}`, kind: 'checkpoint', checkpointId: cp.id, label: cp.label, inputs, time, events: cp.actions.slice(0, REVIEW_EVENTS).map(press) });
   }
   if (timed) add(required, { id: 'end', kind: 'end', label: 'endpoint', inputs: { ...defaults }, time: endOf(defaults), events: [] });
-  // A boundary value of a control is captured at the INSTANT the plan already schedules for that control: the first checkpoint (in plan order) whose time expression references the
-  // control's input, evaluated at the boundary inputs, so the card shows e.g. the maximum launch speed at its own top and not only at the end of the flight. Only a control no
-  // checkpoint references falls back to the end of the flight. coverage.boundaries records the checkpoint chosen for each.
-  const references = (expr, id) => !!expr && (expr.op === 'input' ? expr.id === id : expr.op !== 'literal' && (references(expr.left, id) || references(expr.right, id)));
-  const boundaries = [];
   for (const c of plan.controls) {
-    const name = c.binding.id, anchor = timed ? plan.scene.checkpoints.find(cp => references(cp.time, name)) ?? null : null;
-    const bounded = (tag, value) => {
-      const inputs = { ...defaults, ...(anchor?.inputOverrides ?? {}), [name]: value };
-      let time = endOf(inputs), where = '';
-      if (anchor) { try { time = evalAt(anchor.time, composition, inputs); where = `, at ${anchor.label}`; } catch (error) { if (!(error instanceof ScalarExprError)) throw error; } }
-      boundaries.push({ control: c.id, bound: String(tag), checkpoint: where ? anchor.id : null });
-      add(optional, { id: `bound-${c.id}-${tag}`, kind: 'boundary', label: `${c.label} at ${tag}${where}`, inputs, time, events: [] });
-    };
+    const name = c.binding.id, bounded = (tag, value) => add(optional, { id: `bound-${c.id}-${tag}`, kind: 'boundary', label: `${c.label} at ${tag}`, inputs: { ...defaults, [name]: value }, time: endOf({ ...defaults, [name]: value }), events: [] });
     if (c.type === 'number') { bounded('min', c.min); bounded('max', c.max); }
     else if (c.type === 'select') for (const o of c.options.slice(0, 4)) if (o.value !== c.default) bounded(o.value, o.value);
     else if (c.type === 'boolean') bounded(c.default ? 'off' : 'on', !c.default);
@@ -118,7 +99,7 @@ export function buildPlanCaptureCases(plan, composition, artifacts, { limit = CH
   const incomplete = required.length > limit, room = Math.max(0, limit - required.length);
   const cases = incomplete ? required.slice(0, limit) : [...required, ...optional.slice(0, room)];
   const omitted = [...(incomplete ? required.slice(limit) : []), ...optional.slice(room)].map(c => ({ id: c.id, label: c.label, reason: incomplete ? 'required coverage does not fit the image budget' : 'over the image budget' }));
-  return { cases, probes: probes.slice(0, CHECK_LIMITS.maxProbes), coverage: { limit, required: required.length, sampled: cases.length, omitted, incomplete, problems, boundaries, probes: Math.min(probes.length, CHECK_LIMITS.maxProbes), probesOmitted: Math.max(0, probes.length - CHECK_LIMITS.maxProbes) } };
+  return { cases, probes: probes.slice(0, CHECK_LIMITS.maxProbes), coverage: { limit, required: required.length, sampled: cases.length, omitted, incomplete, problems, probes: Math.min(probes.length, CHECK_LIMITS.maxProbes), probesOmitted: Math.max(0, probes.length - CHECK_LIMITS.maxProbes) } };
 }
 
 // ---- deterministic checks ---------------------------------------------------------------------------------------------------------
@@ -151,7 +132,7 @@ export function descriptionNumbers(plan) {
 export function checkSceneAgainstPlan({ plan, composition, captures, cases, probes = [], oracle = null, allowPartialCard = false }) {
   const problems = [], bad = (code, path, message, at) => problems.push({ code, path, message, ...(at ? { case: at } : {}) });
   const coverage = { cases: [], oracle: { checked: 0, skipped: [] }, effects: { tested: [], untested: [] }, proseOnly: [] };
-  const byCase = new Map(captures.map(c => [c.caseId, c])), overlapSeen = new Set();
+  const byCase = new Map(captures.map(c => [c.caseId, c]));
   const capOf = id => byCase.get(id) ?? byCase.get(cases.find(c => c.aliases?.includes(id))?.id);
   const reported = new Set(plan.scene.observations.flatMap(o => o.quantityIds));
   for (const name of Object.keys(plan.mode.fixedValues)) reported.delete(name);
@@ -164,7 +145,7 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     if (cap.completeCard !== true && !(allowPartialCard && cap.completeCard === false)) bad('capture_not_complete', where, `the capture for "${c.label}" is not the complete card`, c.id);
     if (cap.compositionHash !== composition.envelopeHash) { bad('stale_capture', where, `the capture for "${c.label}" is of a different composition than the one being checked`, c.id); continue; }
     const t = cap.trace;
-    if (!t || t.error) { bad('program_error', where, `the program failed at "${c.label}"${t?.error?.code ? ` (${t.error.code})` : ''}${t?.error?.diagnostic ? `: ${String(t.error.diagnostic).slice(0, 300)}` : ''}`, c.id); continue; }
+    if (!t || t.error) { bad('program_error', where, `the program failed at "${c.label}"${t?.error?.code ? ` (${t.error.code})` : ''}`, c.id); continue; }
     if (cap.bundleHash && cap.bundleHash !== composition.main.artifact.hash) bad('stale_capture', where, `the main program that ran at "${c.label}" is not the sealed one`, c.id);
     if (!plain(t.quantities)) { bad('trace_missing', where, `no runtime trace for "${c.label}"`, c.id); continue; }
     for (const [name, v] of Object.entries(t.quantities)) if (typeof v !== 'number' || !Number.isFinite(v)) bad('quantity_not_finite', where, `quantity "${name}" is not a finite number at "${c.label}"`, c.id);
@@ -178,14 +159,6 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     for (const text of [...(t.texts ?? []), ...plan.supportingVisuals.flatMap(s => cap.supports?.[s.id]?.trace?.texts ?? [])]) {
       if (norm(plan.story).includes(norm(text)) && norm(text).length >= 60 || norm(text).includes(norm(plan.cardDescription).slice(0, 80))) { bad('story_in_scene', where, `a scene draws the Story or the description as text ("${text.slice(0, 50)}")`, c.id); break; }
     }
-    // Host-computed geometry: a label on a ball, box or arrowhead, an arrowhead on a ball, or two labels on each other (any intersection of the estimated boxes) is a problem the
-    // repairer answers with the two object ids; it is not left to the reviewer. A pair is reported once, at the first state it appears in.
-    for (const o of frameOverlaps({ objects: t.objects ?? [], ...(t.frame ?? {}) })) { // t.frame (width, height) lets the text-outside-the-frame rule run
-      const key = [o.a, o.b].sort().join('|');
-      if (overlapSeen.has(key)) continue;
-      overlapSeen.add(key);
-      bad('overlap', where, `"${o.a}" overlaps "${o.b}" (${o.kind}, ${o.gap != null ? `${o.gap} px apart` : `${o.width} x ${o.height} px`}) at "${c.label}"${o.hint ? ` - ${o.hint}` : ''}`, c.id);
-    }
     for (const s of plan.supportingVisuals) {
       const st = cap.supports?.[s.id];
       if (!st?.trace) { bad('support_not_captured', where, `support panel "${s.id}" is missing from the capture at "${c.label}"`, c.id); continue; }
@@ -195,8 +168,6 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     }
     coverage.cases.push(c.id);
   }
-  // Convention (interact-convention.js): a frame id the plan names, drawn without the SDK helper the renderer's look reads. One precise line per id, at no case in particular.
-  for (const p of conventionProblems(plan, captures.flatMap(c => c.trace?.objects ?? []))) bad('convention', p.id, p.message);
 
   // Numbers from the trusted oracle, against the runtime's own quantities (never the builder's prose).
   for (const e of oracle?.expect ?? []) {
@@ -207,17 +178,6 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
     const tol = e.tol ?? (e.decimals !== undefined ? 0.5 * 10 ** -e.decimals : CHECK_LIMITS.tolerance);
     coverage.oracle.checked += 1;
     if (!(Math.abs(actual - e.expected) <= tol)) bad('numeric_mismatch', `${e.case}.${e.panel}.${e.name}`, `${e.name} at ${e.case} is ${round6(actual)}, expected ${round6(e.expected)} (tolerance ${tol})`, e.case);
-  }
-  // Arrow directions from the trusted physics (oracle.arrows: {case, id, dir}): the drawn from -> to of an arrow object, y growing downward. dir is up, down or none (absent or under a pixel long),
-  // or up-or-none / down-or-none (the arrow may be missing, as when a body has no velocity yet or the arrow is under its minimum length). A name and a direction the repairer can act on.
-  for (const e of oracle?.arrows ?? []) {
-    const cap = capOf(e.case);
-    if (!cap?.trace?.objects) { coverage.oracle.skipped.push(`${e.case}:${e.id}`); continue; }
-    const o = cap.trace.objects.find(x => x.id === e.id && x.kind === 'arrow'), dy = o ? o.to.y - o.from.y : 0, drawn = o && Math.hypot(o.to.x - o.from.x, dy) >= 1;
-    const got = !drawn ? 'none' : dy > 0 ? 'down' : 'up', allowed = e.dir.replace('-or-none', ''), optional = e.dir.endsWith('-or-none');
-    coverage.oracle.checked += 1;
-    if (got === allowed || (optional && got === 'none')) continue;
-    bad('arrow_direction', `${e.case}.${e.id}`, `the arrow "${e.id}" ${drawn ? `points ${got}` : 'is not drawn'} at ${e.case}, expected ${optional ? `${allowed} or no arrow` : allowed === 'none' ? 'no arrow (the quantity is zero)' : `${allowed}`} - ${e.why}`, e.case);
   }
   if (!oracle) coverage.oracle.note = 'no trusted expected values were supplied: numbers are checked structurally, not against an oracle';
 
@@ -240,7 +200,6 @@ export function checkSceneAgainstPlan({ plan, composition, captures, cases, prob
       if (a?.supports?.[s.id]?.trace && z?.supports?.[s.id]?.trace && !differs(a.supports[s.id].trace.quantities, z.supports[s.id].trace.quantities)) bad('binding_no_effect', `supportingVisuals.${s.id}.parameterBindings`, `support panel "${s.id}" does not change when "${b.fromInputId}" moves`);
     }
   }
-  coverage.fitted = [...new Set(captures.flatMap(c => c.trace?.fitted ?? []))].sort(); // the fits that were applied to the frames (frame-fit.js, frame-overlap.js fitGuestLabels): notes, never problems
   coverage.descriptionNumbers = { unsupported: descriptionNumbers(plan) };
   coverage.proseOnly = plan.scene.checkpoints.filter(cp => !(oracle?.expect ?? []).some(e => e.case === `cp-${cp.id}`)).map(cp => cp.id); // expected text only: the reviewer judges these
   return { problems, coverage };
@@ -256,22 +215,15 @@ export const INTERACT_REVIEW_RULES = `This is the COMPLETE learner card built fr
 - Check the order Title, description, supporting panels, scene, transport, controls; that the scene sits directly above its transport; and that NO explanatory text, caption, note or takeaway appears below any scene or below the controls. Fail a card that has one.
 - Check the displayed time against the plan's timeline (its origin and range), that signs, units and directions match the plan's quantities, and that the drawing and its readouts agree with the traced quantities.
 - Check the description against the Story for meaning and any scientific qualification, and flag a number in the description that the plan does not support.
-- A required observation or control effect you cannot judge from what you were shown is a finding, not a pass. A readout or label that contradicts the card's own claim (for example 'a = 0' on a card whose claim is that the acceleration is -9.8 m/s^2 at v = 0) is a major finding unless the scene says why.`;
+- A required observation or control effect you cannot judge from what you were shown is a finding, not a pass.`;
 
 export const INTERACT_REVIEW_RULES_PARTIAL = `This is NOT the composed card. The render service cannot yet draw the whole card in one image, so each capture is ONE panel (the main scene at the state named, or a supporting panel's read-only snapshot) and the card's order and text are given as trusted text. You did not see the Title, the description, the transport or the controls as pixels: do not claim you did, and judge their order from the layout text only.
 - For every required observation and every approved checkpoint, find the capture that shows it and say whether it does; a checkpoint's expected text is the claim to verify, and the traces give the exact numbers.
 - Check that each panel's drawing and readouts agree with its traced quantities, that signs, units and directions match the plan's quantities, and that no scene draws the Story or the description as text.
 - Check the displayed time range in the layout text against the plan's timeline, and the description against the Story for meaning and any scientific qualification; flag a number in the description that the plan does not support.
-- A required observation or control effect you cannot judge from what you were shown is a finding, not a pass. A readout or label that contradicts the card's own claim (for example 'a = 0' on a card whose claim is that the acceleration is -9.8 m/s^2 at v = 0) is a major finding unless the scene says why.`;
+- A required observation or control effect you cannot judge from what you were shown is a finding, not a pass.`;
 
 // The trusted composed layout as text, for the reviewer of a partial capture: what the learner sees top to bottom, from the composition (never from a model).
-// A timeline whose end, offset or markers are expressions of an input is recomputed by the card for every input state (resolveTimeline); say so, with the range at each bound, so the
-// review judges a capture's scrubber and its Top marker against that capture's own inputs (a live run was refused because the layout text gave only the default range).
-function followsInputs(composition, span) {
-  const moved = composition.main.controls.filter(c => c.type === 'number' && c.binding?.kind === 'input').flatMap(c => [c.min, c.max].map(v => ({ name: c.label, v, s: resolveTimeline(composition, { ...composition.main.inputDefaults, [c.binding.id]: v }) })))
-    .filter(x => x.s.displayStart !== span.displayStart || x.s.displayEnd !== span.displayEnd);
-  return moved.length ? `. The scrubber range, its offset and its markers are recomputed from the inputs, so judge each capture against its own inputs: ${moved.map(x => `${x.name} ${x.v} reads ${round6(x.s.displayStart)} to ${round6(x.s.displayEnd)} s`).join('; ')}` : '';
-}
 export function compositionLayoutText(plan, composition) {
   const t = composition.main.timeline, span = t && resolveTimeline(composition, composition.main.inputDefaults);
   const rows = composition.order.map(row => {
@@ -279,14 +231,12 @@ export function compositionLayoutText(plan, composition) {
     if (row === 'description') return `Description (once, above every scene): ${composition.cardDescription}`;
     if (row === 'supporting') return `Supporting panels, read-only, no controls: ${composition.supporting.map(s => `"${s.title}"`).join(', ')}`;
     if (row === 'main') return 'Main scene (the live animation)';
-    if (row === 'transport') return `Playback directly under the scene: Play/Pause/Replay and a scrubber labelled "${t.label}", reading ${round6(span.displayStart)} to ${round6(span.displayEnd)} s at the default inputs (${t.playbackRate} physics s per wall s)${followsInputs(composition, span)}`;
+    if (row === 'transport') return `Playback directly under the scene: Play/Pause/Replay and a scrubber labelled "${t.label}", reading ${round6(span.displayStart)} to ${round6(span.displayEnd)} s (${t.playbackRate} physics s per wall s)`;
     return `Controls: ${composition.main.controls.filter(c => c.row === 'controls').map(c => c.label).join(', ')}`;
   });
   return `Trusted card layout, top to bottom (nothing follows the last row):\n${rows.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
 }
 
-// What each scheduled capture shows, so the reviewer judges these images and never asks for one the plan did not schedule.
-export const captureListText = cases => `Scheduled captures (the ONLY images that exist; never ask for one that is not listed, and judge an observation only against the captures that show its state): ${cases.map(c => `${c.id} = ${c.label} (t = ${round6(c.time)} s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''})`).join('; ')}.`;
 const quantityList = (plan) => plan.scene.quantities.map(q => ({ id: q.id, label: q.label, unit: q.unit, meaning: q.meaning, reference: q.reference, ...(q.relation ? { relation: q.relation } : {}) }));
 export function reviewRequest(plan, composition) {
   const loose = descriptionNumbers(plan);
@@ -355,7 +305,6 @@ export async function captureAndCheck(job, ctx) {
   if (typeof ctx.captureCard !== 'function') return { status: 'render_unavailable', reason: 'no capture service is wired; a card that was not captured cannot be accepted', coverage };
 
   let captures;
-  const ranAt = clockMs();
   try { captures = await ctx.captureCard({ jobId: job.id, composition, artifacts, cases: [...cases, ...probes] }); }
   catch (error) {
     const kind = classifyFailure(error);
@@ -364,13 +313,11 @@ export async function captureAndCheck(job, ctx) {
     throw error;
   }
   if (cancelled(ctx)) return { status: 'cancelled' };
-  const checkAt = clockMs();
   const det = checkSceneAgainstPlan({ plan, composition, artifacts, captures, cases, probes, oracle: job.oracle ?? null, allowPartialCard: ctx.completeCardUnavailable === true });
-  const ms = { run: round1(checkAt - ranAt), check: round1(clockMs() - checkAt) }; // the ledger's msCheck (and the capture time kept beside it)
   const summary = captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 ?? null, compositionHash: c.compositionHash, synthetic: c.synthetic === true }));
   const pngs = captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 ?? null, bytes: c.png })); // the caller stores pixels by hash; the state keeps hashes only
-  if (det.problems.length) return { status: 'failed', failure: { stage: 'check', problems: det.problems.map(p => `[${p.code}] ${p.message}`), findings: [], details: det.problems }, captures: summary, pngs, check: det.coverage, coverage, ms };
-  return { status: 'captured', cases, probes, captures, coverage, det, summary, pngs, ms };
+  if (det.problems.length) return { status: 'failed', failure: { stage: 'check', problems: det.problems.map(p => `[${p.code}] ${p.message}`), findings: [], details: det.problems }, captures: summary, pngs, check: det.coverage, coverage };
+  return { status: 'captured', cases, probes, captures, coverage, det, summary, pngs };
 }
 
 // reviewCandidate(job, ctx, captured) -> { status:'ready' | 'failed' | 'incomplete', ... } the independent review of captures that passed the deterministic checks.
@@ -394,9 +341,7 @@ export async function reviewCandidate(job, ctx, { cases, captures, coverage, det
   let review;
   try {
     review = await reviewCaptures({
-      request: reviewRequest(plan, composition) + `
-
-${captureListText(shown.flatMap(c => cases.filter(k => k.id === c.caseId)))}` + (partial ? `
+      request: reviewRequest(plan, composition) + (partial ? `
 
 ${compositionLayoutText(plan, composition)}` : ''), compiledHash: composition.envelopeHash, facts: factsOf(plan, artifacts), evidence: job.evidence || [],
       captures: [...shown.map(c => { const k = cases.find(x => x.id === c.caseId); return { id: c.caseId, compiledHash: c.compositionHash, theme: 'light', time: k.time, inputs: k.inputs, events: k.events, step: k.label, png: c.png, ...(c.data ? { data: c.data } : {}) }; }),
@@ -409,10 +354,7 @@ ${compositionLayoutText(plan, composition)}` : ''), compiledHash: composition.en
     if (kind.kind === 'incomplete') return { status: 'incomplete', reason: error.message, kind, captures: summary, coverage, calls };
     throw Object.assign(error, { calls });
   }
-  const all = review.captures.flatMap(c => c.findings);
-  let findings = all.filter(f => f.severity !== 'minor');
-  // A rejection must leave the repairer something to act on: a live run was refused (accepted false) with only minor findings or none, so the repair returned "none" (no_progress).
-  if (!review.accepted && !findings.length) findings = all.length ? all : review.captures.filter(c => c.semantic !== 'pass' || c.visual !== 'pass').map(c => ({ category: 'spec', severity: 'major', target: { capture: c.captureId }, message: `The review marked this capture ${c.semantic !== 'pass' ? 'semantic' : 'visual'}: fail without naming a finding; check its layout and numbers and fix what is wrong.` }));
+  const findings = review.captures.flatMap(c => c.findings).filter(f => f.severity !== 'minor');
   if (!review.accepted) return { status: 'failed', failure: { stage: 'review', problems: [], findings: findings.map(({ category, severity, target, message }) => ({ category, severity, target, message: clip(message) })) }, review: { accepted: false, captures: review.captures }, captures: summary, pngs, check: det.coverage, coverage, calls };
   return { status: 'ready', review: { accepted: true, captures: review.captures }, captures: summary, pngs, check: det.coverage, coverage, calls };
 }
@@ -429,11 +371,7 @@ export async function repairRound(job, ctx) {
   const failure = job.failure ?? { problems: [], findings: [] };
   const named = new Set((failure.findings || []).map(f => f.target?.capture).filter(Boolean));
   const roleCaps = ctx.profile?.roles?.build_repair, imageLimit = roleCaps?.maxImages ?? 2;
-  // Pixels go to the repair only when there are some and the role reads images: INTERACT_RUN=headless has none (the traces and frames in the failure text are what it sends), and a text-only
-  // fast role (maxImages 0) drops them with one logged line instead of refusing the call.
-  const pixelCaptures = ctx.env?.INTERACT_RUN === 'headless' ? [] : (job.captures || []).filter(c => named.has(c.caseId) && (c.png || c.data));
-  if (pixelCaptures.length && imageLimit === 0) console.log(JSON.stringify({ event: 'repair_images_dropped', job: job.id, role: 'build_repair', dropped: pixelCaptures.length, reason: 'the role is text-only' }));
-  const images = pixelCaptures.slice(0, imageLimit).map(c => toImage(c.data ?? c.png));
+  const images = (job.captures || []).filter(c => named.has(c.caseId) && (c.png || c.data)).slice(0, imageLimit).map(c => toImage(c.data ?? c.png));
   const rank = f => (f.severity === 'blocker' ? 0 : f.severity === 'major' ? 1 : 2);
   const input = {
     ...buildInput(job, plan, hash), failure: { stage: failure.stage, problems: (failure.problems || []).slice(0, REPAIR_FORWARD.problems).map(p => clip(p)),
@@ -464,41 +402,3 @@ const normalize = draft => ({ main: draft?.main, supporting: [...panelsOf(draft)
 // What the repair role reads of the current candidate: manifests and sources (untrusted text) or specs, never hashes it could copy.
 const draftView = draft => ({ main: viewOf(draft?.main), supporting: panelsOf(draft).map(s => ({ id: s?.id, artifact: viewOf(s?.artifact) })) });
 const viewOf = a => (a?.kind === 'program' ? { kind: 'program', manifest: a.program.manifest, source: a.program.source } : a);
-
-// ---- the headless run: the capture seam without a browser (INTERACT_RUN=headless; interact-job.js picks it) --------------------------------------------------------------
-// headlessCaptureCard(env, { limits }) -> the same seam as captureCardFor(env): ({ composition, artifacts, cases }) -> one capture per case, { caseId, compositionHash, completeCard, bundleHash, trace, supports }.
-// The sealed programs run in the pinned QuickJS engine in this process (runtime.js, the engine the card and the review browser use): the main program at each case's elapsed
-// time and inputs through the card's own request builder, each supporting panel's read-only snapshot through the player's snapshot resolver. The trace is what the checks read
-// (quantities, readouts, drawn texts, the objects the overlap check measures, a hash of the frame). There are NO pixels: synthetic: true, no png, no key, sha256 null, and
-// completeCard false (nothing composed the card), so a review that needs pixels cannot run on these captures. env is not read yet (captureCardFor takes it for the render bindings).
-// A Worker cannot fetch the engine's .wasm by URL: dev-worker.js (which app-worker.js re-exports) imports it by relative path
-// (./node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm, a compiled WebAssembly.Module under wrangler's default rules; the package-export form '/wasm' does not
-// bundle) and hands it over here once with provideEngineWasm. Node (the tests, the scripts) loads the engine itself and needs nothing.
-let engine = null, engineWasm;
-export const provideEngineWasm = wasmModule => { engineWasm = wasmModule; };
-export function headlessCaptureCard(_env, { limits } = {}) {
-  return async ({ composition, artifacts, cases }) => {
-    const [{ loadEngine, runProgram }, { LIMITS }] = await Promise.all([import('../../web/src/explain-program/runtime.js'), import('../../web/src/explain-program/limits.js')]);
-    engine ??= await loadEngine(undefined, engineWasm);
-    const run = async (artifact, inputs, time) => {
-      const program = artifact.program, request = { requestId: '1', inputs, time, seed: 0, state: null };
-      const out = runProgram(engine, { source: program.source, request, sdkVersion: program.sdkVersion }, limits ?? LIMITS);
-      if (!out.ok) return { error: { code: out.code, diagnostic: out.detail } };
-      const parsed = fitGuestLabels(parseGuestResult(out.value, program.manifest, program.sdkVersion), program.sdkVersion);
-      if (!parsed.ok) return { error: { code: parsed.error.code, diagnostic: parsed.issue } };
-      const { frame, quantities } = parsed.value;
-      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), objects: traceObjects(frame.objects), frame: traceFrame(frame), frameHash: await sha256Hex(canonicalJson(frame.objects)), ...(parsed.fitted?.length ? { fitted: parsed.fitted } : {}), inputs, time };
-    };
-    const supportOf = id => artifacts.supporting.find(s => s.id === id).artifact;
-    const resolver = createSnapshotResolver({ evaluate: ({ panelId, inputs, time }) => run(supportOf(panelId), resolveInputs(supportOf(panelId).program.manifest, inputs), time) });
-    const captures = [];
-    for (const c of cases) {
-      const request = evaluateRequestFor(artifacts.main.program.manifest, { inputs: c.inputs }, c.time, 1, null, composition);
-      const trace = await run(artifacts.main, request.inputs, request.time);
-      const snapshots = await resolver.resolve(composition, c.inputs);
-      const supports = Object.fromEntries(snapshots.snapshots.map(s => [s.id, { bundleHash: supportOf(s.id).program.bundleHash, trace: s.frame, synthetic: true }]));
-      captures.push({ caseId: c.id, sha256: null, compositionHash: composition.envelopeHash, completeCard: false, synthetic: true, bundleHash: artifacts.main.program.bundleHash, trace: trace.error ? { error: trace.error } : trace, supports });
-    }
-    return captures;
-  };
-}

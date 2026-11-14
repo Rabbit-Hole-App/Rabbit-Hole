@@ -35,11 +35,10 @@ export async function resolveProgram(block, { client, fixtures = false, stamps =
     const { cyclicNetworkFixture } = await import('./cyclic-fixture.js');
     const { RASTER_FIXTURES } = await import('./raster-fixtures.js');
     const { AI_TEACHING_FIXTURES } = await import('./ai-teaching-fixtures.js');
-    const { TOSS_FIXTURES } = await import('../interact-toss-programs.js');
-    const fixture = [...FIXTURES, ...STATEFUL_FIXTURES, ...ERROR_FIXTURES, ...MEDIUM_FIXTURES, cyclicNetworkFixture, ...RASTER_FIXTURES, ...AI_TEACHING_FIXTURES, ...TOSS_FIXTURES].find(item => item.id === ref.fixtureId);
+    const fixture = [...FIXTURES, ...STATEFUL_FIXTURES, ...ERROR_FIXTURES, ...MEDIUM_FIXTURES, cyclicNetworkFixture, ...RASTER_FIXTURES, ...AI_TEACHING_FIXTURES].find(item => item.id === ref.fixtureId);
     if (!fixture) return refuse('invalid_program', 'unknown fixture');
     const bundle = { manifest: fixture.manifest, source: fixture.source };
-    const fixtureStamps = fixture.stamps ?? (bundle.manifest.capabilities.includes(RASTER_CAPABILITY) ? RASTER_PROGRAM_STAMPS : bundle.manifest.capabilities.includes(CYCLIC_CAPABILITY) ? CYCLIC_PROGRAM_STAMPS : bundle.manifest.capabilities.includes(MEDIUM_CAPABILITY) ? MEDIUM_PROGRAM_STAMPS : stamps);
+    const fixtureStamps = bundle.manifest.capabilities.includes(RASTER_CAPABILITY) ? RASTER_PROGRAM_STAMPS : bundle.manifest.capabilities.includes(CYCLIC_CAPABILITY) ? CYCLIC_PROGRAM_STAMPS : bundle.manifest.capabilities.includes(MEDIUM_CAPABILITY) ? MEDIUM_PROGRAM_STAMPS : stamps;
     const sealed = await sealProgram(bundle, { ...fixtureStamps, schemaVersion: draftSchemaVersion(bundle) });
     return sealed.ok ? { ok: true, artifact: sealed.value } : { ok: false, error: sealed.error };
   }
@@ -101,31 +100,17 @@ export function setProgramInput(block, manifest, name, value) {
 }
 // The same change under a composition (new /interact cards): a timed scene's onInputChange policy is reset_pause, so a changed input also returns time to zero
 // (the caller pauses; frames in flight for the old inputs are dropped by the new inputRevision). recompute_still and a legacy card keep their time.
-// A number control's own onChange (interact-plan.js) overrides the scene's policy for that input: Deep's mass recomputes the still, the launch speed resets and pauses.
-export const resetsOnInput = (composition, name = null) => {
-  const own = name ? composition?.main?.controls?.find(control => control.binding?.kind === 'input' && control.binding.id === name)?.onChange : undefined;
-  return (own ?? composition?.main?.onInputChange) === 'reset_pause';
-};
-// Autopause: the first marker marked pause that playback reaches going from `from` (exclusive, so Play from a pause carries on) to `to` (inclusive), for these inputs; null when it runs on.
-export function autopauseMarker(composition, inputs, from, to) {
-  const hits = (timelineOf(composition, inputs)?.markers ?? []).filter(marker => marker.pause && marker.time > from + 1e-9 && marker.time <= to + 1e-9);
-  return hits.reduce((first, marker) => (first && first.time <= marker.time ? first : marker), null);
-}
-// The playback clock's next moment: never earlier than the last one. A frame's own timestamp can be a few milliseconds BEFORE the moment Play was pressed (the origin is taken from
-// performance.now() when the effect runs), and a clock that steps back puts the pause marker it started on ahead of it again, so Play from a pause stopped at once on the same marker.
-export const advanceClock = (previous, now, origin, rate) => Math.max(previous, (now - origin) / 1000 * rate);
-// The moment a seek control (the At top button) jumps to: its marker's time for these inputs; null when the timeline has no such marker.
-export const seekTime = (composition, inputs, markerId) => timelineOf(composition, inputs)?.markers.find(marker => marker.id === markerId)?.time ?? null;
+export const resetsOnInput = composition => composition?.main?.onInputChange === 'reset_pause';
 export function setProgramInputUnder(block, manifest, name, value, composition = null) {
   const next = setProgramInput(block, manifest, name, value);
-  return next !== block && resetsOnInput(composition, name) ? { ...next, time: 0 } : next;
+  return next !== block && resetsOnInput(composition) ? { ...next, time: 0 } : next;
 }
 // What ProgramScene does for a changed input (INT-04-C08): null when nothing changed, else the block to save, the moment the card goes to and that it is
 // paused. A timed composition (reset_pause) returns to time zero, so the endpoint, markers and supporting comparison are read for the new inputs from the
 // start; the caller also bumps the card's epoch (a jump in time), and the new inputRevision keys out frames still in flight for the old inputs.
 export function inputChange(block, manifest, name, value, composition = null, time = 0) {
   const next = setProgramInputUnder(block, manifest, name, value, composition);
-  return next === block ? null : { block: next, time: resetsOnInput(composition, name) ? 0 : time, playing: false };
+  return next === block ? null : { block: next, time: resetsOnInput(composition) ? 0 : time, playing: false };
 }
 // The one transport button (Play, Pause, Replay): where it seeks first (null: stays) and whether it then toggles playing. At the endpoint of the CURRENT
 // inputs it is Replay: back to zero and play, the inputs untouched. Reduced motion shows the end instead of travelling to it.
@@ -201,14 +186,7 @@ function activityText(manifest, event) {
   if (event?.type === 'input') return input ? `set ${input.label} to ${valueText(input, event.value)}` : null;
   return null;
 }
-const valueText = (input, value) => `${input.type === 'select' ? input.options.find(option => option.value === value)?.label ?? value : input.type === 'boolean' ? (value ? 'On' : 'Off') : input.type === 'index' ? input.items[value]?.label ?? value : value}${input.unit ? ` ${input.unit}` : ''}`;
-// The SceneControls widget a manifest select, boolean or index input is drawn with (a number input has its own slider): { declaration, data } for InputWidget. inputs_v2 types reuse the
-// spec scenes' BoolToggle, IndexPicker and IndexSlider; the value is a boolean or the item position.
-export function programInputWidget(input) {
-  if (input.type === 'boolean') return { declaration: { name: input.id, type: 'bool', label: input.label }, data: {} };
-  if (input.type === 'index') return { declaration: { name: input.id, type: 'index', label: input.label, of: 'items', presentation: input.presentation ?? 'picker' }, data: { items: input.items.map(item => item.label) } };
-  return { declaration: { name: input.id, type: 'choice', label: input.label, options: input.options.map(option => ({ id: option.value, label: option.label })) }, data: {} };
-}
+const valueText = (input, value) => `${input.type === 'select' ? input.options.find(option => option.value === value)?.label ?? value : value}${input.unit ? ` ${input.unit}` : ''}`;
 export const PROGRAM_DESCRIPTION = 2000;
 // The composer and tutor context for a program card: what the learner can see and has set, never source. manifest: the resolved
 // artifact's (by default what this page loaded for this exact card). The moment and readouts are the drawn frame's, and only while

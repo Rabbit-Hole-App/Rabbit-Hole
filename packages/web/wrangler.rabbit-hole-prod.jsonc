@@ -101,8 +101,6 @@
     // and stop new unsolicited work. Accepted work still finishes and is settled. Needs learn-migrations/0039 on LEARN_DB and the worker with settings wiring (candidate 64) first. Dev and parallel stay unset.
     // /interact scene-plan flow (docs/features/interact.md, INT-07B-C03; owner 2026-11-08: new features ship switched on): ON. Only the string "true" starts new jobs on the flow; "false" (or delete) sends new requests back to the legacy path, jobs already started keep their snapshot.
     "INTERACT_SCENE_PLAN_ENABLED": "true",
-    // /interact description-fit gate (owner 2026-11-13, release 130): the gate fails closed when this is unset, so /interactive stopped at design_verifying; "estimate" selects the pure line estimate the clone has run on since 2026-11-13.
-    "INTERACT_DESCRIPTION_FIT": "estimate",
     // Written /explain E2 (explanation-interactions.js; owner 2026-11-08): ON. Only "true" adds the three questions and term pills to new Explanation cards; "false" (or delete) stops new ones, saved cards keep theirs.
     "EXPLANATION_INTERACTIONS": "true",
     // Written /explain author (owner model decision 2026-11-08, release 116; docs/features/explain/benchmarks/test-ledger.md "Arm E v2 on Gemini"): Gemini 3.5 Flash Lite first at low effort,

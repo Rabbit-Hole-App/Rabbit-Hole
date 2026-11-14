@@ -9,20 +9,7 @@
 // to them the way they apply to any card text.
 
 import { createContext, useContext, useEffect, useRef } from 'react';
-import { RotateCcw } from 'lucide-react';
 import { describeInputForLearner } from './scene-inputs.js';
-
-// Reset (owner 2026-11-12): one icon, the app's RotateCcw (LearningBlocks.jsx), named "Reset experiment" for a screen reader and on hover, right-aligned in the controls row. The row it sits in
-// flexes, so ml-auto puts it at the end. A disabled one (nothing differs from the starting values) keeps its place, greyed. Shared by the spec scenes and the program card.
-// A composed program card (ProgramScene.jsx) draws this same button at the right of its experiment heading row (owner 2026-11-13 codex match); every other card at the end of its controls row.
-export function ResetButton({ onReset, disabled = false }) {
-  return (
-    <button type="button" data-scene-reset aria-label="Reset experiment" title="Reset experiment" disabled={disabled} onClick={disabled ? undefined : onReset}
-      className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-2">
-      <RotateCcw size={14} />
-    </button>
-  );
-}
 
 // The labels a positional input shows on its chips: the entries of its own
 // declared domain list when those are strings (token words, patch names),
@@ -204,7 +191,6 @@ export const ShowPurposes = createContext(true);
 
 export default function SceneControls({ declarations, inputs, data, onInput, onReset, locked = [], onHeight = null, experiments = [] }) {
   const purposes = useContext(ShowPurposes);
-  const alwaysReset = !purposes; // an /interact card (InteractCardContent.jsx turns the purposes off): its Reset never leaves the row
   // EVERY meaningful input gets an obvious control here, below the visual -
   // the primary way to operate the experiment. An input whose scene object
   // also offers direct manipulation ('visual' index, a dragged vec2) keeps
@@ -222,7 +208,7 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
     observer.observe(root.current);
     return () => { observer.disconnect(); onHeight(0); };
   }, [onHeight, rows.length]);
-  if (!rows.length && !alwaysReset) return null;
+  if (!rows.length) return null;
   return (
     <div ref={root} data-scene-controls className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
       <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
@@ -247,10 +233,17 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
         }
         return <Widget key={declaration.name} declaration={declaration} value={inputs[declaration.name]} data={data} onInput={onInput} />;
       })}
-        {/* Reset is the icon at the end of the controls row (owner 2026-11-12: one place, one icon on every composed card). Asking the tutor
-            lives only in the Ask-in-chat pill + bottom composer. On an /interact card (purposes off) it is always there, greyed while no value
-            differs from what Reset restores (onReset null); on any other card it is offered only while one does. */}
-        {(onReset || alwaysReset) && <ResetButton onReset={onReset} disabled={!onReset} />}
+        {/* Reset flows with the controls (left), never pinned right - a wide
+            card can run under the floating drawing toolbar, and a control
+            hidden there is a control that does not exist. Asking the tutor
+            lives only in the Ask-in-chat pill + bottom composer. Offered only
+            while a value differs from what Reset restores (onReset null). */}
+        {onReset && (
+        <button type="button" data-scene-reset onClick={onReset}
+          className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+          Reset experiment
+        </button>
+        )}
       </div>
     </div>
   );

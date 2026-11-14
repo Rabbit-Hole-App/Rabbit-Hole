@@ -83,7 +83,7 @@ export async function captureManifest(scene, { reserved, themes = ['light', 'dar
 // dropped, so none costs a capture twice. shortcut: the contract has only number and select inputs; intermediate values and further
 // combinations are not sampled, so these are evidence, never an exhaustive claim.
 function alternativeStates(manifest, defaults) {
-  const bounds = input => (input.type === 'number' ? [['min', input.min], ['max', input.max]] : input.type === 'boolean' ? [['false', false], ['true', true]] : input.type === 'index' ? [['first', 0], ['last', input.items.length - 1]] : [['first', input.options[0].value], ['last', input.options.at(-1).value]]);
+  const bounds = input => (input.type === 'number' ? [['min', input.min], ['max', input.max]] : [['first', input.options[0].value], ['last', input.options.at(-1).value]]);
   const seen = new Set([canonicalJson(defaults)]), out = [];
   const add = (label, inputs) => { const key = canonicalJson(inputs); if (!seen.has(key)) { seen.add(key); out.push({ label, inputs }); } };
   for (const input of manifest.inputs) for (const [edge, value] of bounds(input)) add(`${edge} of ${input.id}`, { ...defaults, [input.id]: value });

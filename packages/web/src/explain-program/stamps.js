@@ -33,29 +33,6 @@ export const VISUAL_PROGRAM_STAMPS = Object.freeze({
 });
 export const STATEFUL_VISUAL_PROGRAM_STAMPS = Object.freeze({ ...VISUAL_PROGRAM_STAMPS, schemaVersion: 2 });
 
-// Physical props (sdk.vector, sdk.gate, sdk.groundMark) are an opt-in extension of the visual SDK: no new frame kind, no new renderer, the saved sdk-2 bytes unchanged.
-export const PROPS_CAPABILITY = 'props';
-export const PROPS_SDK_VERSION = 'sdk-7';
-export const PROPS_PROGRAM_STAMPS = Object.freeze({
-  ...VISUAL_PROGRAM_STAMPS,
-  sdkVersion: PROPS_SDK_VERSION,
-  fingerprints: Object.freeze({ ...VISUAL_PROGRAM_STAMPS.fingerprints, sdk: '6206b4735e853dc4d6d25707fdaf084ada83a98754b414b72309915abe71e58c' }),
-});
-export const STATEFUL_PROPS_PROGRAM_STAMPS = Object.freeze({ ...PROPS_PROGRAM_STAMPS, schemaVersion: 2 });
-
-// Semantic figures (the frame kinds axis, plot and diagram; sdk.axis, sdk.plot with axes, sdk.diagram) are an opt-in extension of sdk-7: the saved sdk-2 and sdk-7 bytes stay unchanged.
-export const FIGURES_CAPABILITY = 'figures';
-// sdk-8 is FROZEN from release 130 (owner 2026-11-13): its source and fingerprint no longer change. Any further SDK addition or change is sdk-9, with its own version string and fingerprint.
-export const FIGURES_SDK_VERSION = 'sdk-8';
-const FIGURES_RENDERER_VERSION = 'renderer-5';
-export const FIGURES_PROGRAM_STAMPS = Object.freeze({
-  ...PROPS_PROGRAM_STAMPS,
-  sdkVersion: FIGURES_SDK_VERSION,
-  rendererVersion: FIGURES_RENDERER_VERSION,
-  fingerprints: Object.freeze({ ...PROPS_PROGRAM_STAMPS.fingerprints, sdk: '023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a', renderer: FIGURES_RENDERER_VERSION }),
-});
-export const STATEFUL_FIGURES_PROGRAM_STAMPS = Object.freeze({ ...FIGURES_PROGRAM_STAMPS, schemaVersion: 2 });
-
 export const MEDIUM_CAPABILITY = 'medium_visuals';
 export const MEDIUM_SDK_VERSION = 'sdk-4';
 const MEDIUM_RENDERER_VERSION = 'renderer-3';
@@ -108,6 +85,4 @@ export const SUPPORTED_PROGRAM_TUPLES = Object.freeze([
   tuple(1, CYCLIC_PROGRAM_STAMPS), tuple(2, STATEFUL_CYCLIC_PROGRAM_STAMPS),
   tuple(1, RASTER_PROGRAM_STAMPS), tuple(2, STATEFUL_RASTER_PROGRAM_STAMPS),
   tuple(1, HEAT_GRID_PROGRAM_STAMPS), tuple(2, STATEFUL_HEAT_GRID_PROGRAM_STAMPS),
-  tuple(1, PROPS_PROGRAM_STAMPS), tuple(2, STATEFUL_PROPS_PROGRAM_STAMPS),
-  tuple(1, FIGURES_PROGRAM_STAMPS), tuple(2, STATEFUL_FIGURES_PROGRAM_STAMPS),
 ]);

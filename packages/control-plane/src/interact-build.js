@@ -17,9 +17,6 @@ import { SPEC_LIMITS, authorComposition, capabilityGap, validateStage } from './
 import { PROGRAM_CAPABILITIES, PROGRAM_LIMITS, buildProgramArtifact, checkProgramDraft } from './explain-program.js';
 import { modelEvidence } from './explain-evidence.js';
 import { InteractModelError, callInteractRole } from './interact-models.js';
-import { stripUnknown } from './learn-primitives.js';
-import { literalBreaksDeep } from './literal-breaks.js';
-import { frameIdsOf } from './interact-convention.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const bytes = value => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value)).length;
@@ -40,23 +37,19 @@ export const correctable = error => error instanceof InteractModelError && error
 const withRange = problem => String(problem).replace(/manifest\.(summary|description|instructions): longer than (\d+)/, (_, field, n) => `manifest.${field}: longer than ${n} characters; it must be ${MANIFEST_SENTENCES[field]}, at most ${n} characters`);
 export const refusalProblems = error => (error.problems?.length ? error.problems : [error.message]).slice(0, 12).map(problem => withRange(problem).slice(0, 400));
 const withCorrection = (input, instruction, problems) => (typeof input === 'string' ? `${input}\n\n${instruction}\n${problems.map(problem => `- ${problem}`).join('\n')}` : { ...input, correction: { instruction, problems } });
-// A role with fallbacks (interact-models.js callInteractRole) corrects on the step that answered; a correction still refused moves the SAME request to the next step (item 4).
 export async function callWithCorrection(ctx, role, args, { instruction, check, onDone } = {}) {
-  const ask = async (extra, step) => { const done = await callInteractRole(ctx, role, extra ?? args, step ? { step } : undefined); onDone?.(done); return done; };
-  let first, at = 0;
+  const ask = async extra => { const done = await callInteractRole(ctx, role, extra ?? args); onDone?.(done); return done; };
+  let first;
   try {
     const done = await ask(), problems = check?.(done.output) ?? [];
     if (!problems.length) return done;
-    first = { done, problems }; at = done.step ?? 0;
+    first = { done, problems };
   } catch (error) {
     if (!correctable(error)) throw error;
-    first = { error, problems: refusalProblems(error) }; at = error.step ?? 0;
+    first = { error, problems: refusalProblems(error) };
   }
-  try { return await ask({ ...args, input: withCorrection(args.input, instruction, first.problems.slice(0, 12)) }, at); }
+  try { return await ask({ ...args, input: withCorrection(args.input, instruction, first.problems.slice(0, 12)) }); }
   catch (second) {
-    if (correctable(second) && ctx.profile?.roles?.[role]?.fallbacks?.[at]) {
-      try { return await ask(args, at + 1); } catch (third) { if (third?.code !== 'call_ceiling' && third?.stopReason !== 'budget') throw third; throw second; }
-    }
     // No call left (the runner's call_ceiling, the job's budget stop): the first refusal stands. Anything else (the job moved on, the deadline, the allowance, a failed call) is its own error.
     if (second?.code !== 'call_ceiling' && second?.stopReason !== 'budget') throw second;
     if (first.error) throw first.error;
@@ -80,29 +73,15 @@ const panelsOf = plan => [{ id: 'main', runtime: plan.scene.runtime }, ...plan.s
 const usesSpec = plan => panelsOf(plan).some(p => p.runtime.renderer === 'spec');
 const isStateful = plan => panelsOf(plan).some(p => p.runtime.renderer === 'program' && p.runtime.schemaVersion === 2);
 
-// The steer (interact-steer.js steerBuild, off unless INTERACT_STEER=jev; null otherwise and then NOTHING changes): the authoring docs list only the helpers it named.
-// shortcut: only the composite groups (props: vector, gate, groundMark; figures: axis, plot, diagram) are filtered; the base helpers stay listed. Upgrade when composites grow.
-const HELPER_GROUPS = { props: ['vector', 'gate', 'groundMark'], figures: ['axis', 'plot', 'diagram'] };
-function steeredProgram(program, steer) {
-  if (!steer) return program;
-  const sdk = { ...program.sdk };
-  for (const [group, names] of Object.entries(HELPER_GROUPS)) {
-    if (!sdk[group]) continue;
-    const keep = names.filter(name => steer.composites?.includes(name));
-    if (keep.length) sdk[group] = { usage: sdk[group].usage, ...Object.fromEntries(keep.map(name => [name, sdk[group][name]])) }; else delete sdk[group];
-  }
-  return { ...program, sdk };
-}
 // What the builder reads: the whole approved plan and the trusted derivations of it (the exact native declarations, the exact timeline).
-export function buildInput(job, plan, hash, steer = null) {
-  const { declarations } = controlDeclarations(plan), frameIds = frameIdsOf(plan);
+export function buildInput(job, plan, hash) {
+  const { declarations } = controlDeclarations(plan);
   return {
     approvedPlan: plan, planHash: hash, depth: plan.depth,
     panels: [{ id: 'main', role: 'main', runtime: plan.scene.runtime, readoutIds: plan.scene.readoutIds },
       ...plan.supportingVisuals.map(s => ({ id: s.id, role: 'support', runtime: s.runtime, readoutIds: s.readoutIds, parameterBindings: s.parameterBindings }))],
-    controlBindings: declarations, timeline: timelineBrief(plan), ...(frameIds.length ? { frameIds } : {}), // frameIds: the frame object ids the plan names, each to be used verbatim (interact-convention.js)
-    program: steeredProgram(programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful: isStateful(plan) }), steer),
-    ...(steer?.sceneKind ? { steer: { sceneKind: steer.sceneKind, objectBudget: steer.objectBudget } } : {}),
+    controlBindings: declarations, timeline: timelineBrief(plan),
+    program: programContext(PROGRAM_LIMITS, PROGRAM_CAPABILITIES, { stateful: isStateful(plan) }),
     ...(usesSpec(plan) ? { spec: { catalogue: catalogue(), composition: authorComposition(), limits: SPEC_LIMITS } } : {}),
     ...(job.evidence?.length ? { evidence: modelEvidence(job.evidence) } : {}),
   };
@@ -175,18 +154,7 @@ export async function validateBuildOutput(job, reply, ctx = {}) {
 }
 
 // A call's persistable record: identity, usage and timing, never the output (the artifacts are stored by hash).
-export const callRecord = (role, done) => ({ role, requested: done.requested, served: done.served, usage: done.usage, costMicros: done.costMicros ?? null, priceKnown: done.priceKnown ?? false, timing: done.timing, stopReason: done.stopReason,
-  fallbackFired: done.fallbackFired ?? false }); // true when a later step of the role's chain answered (a failure of the first step in a benchmark)
-
-// What a fast model's reply is cleaned of before it is checked (capabilities.sanitize, never Opus): keys the schema does not declare (Gemini wrote `layers`), double-escaped line breaks
-// in the manifest's prose (the program source is code and is never touched) and a repeated state label in a readout (the first occurrence stays: google-low wrote "state labels must be unique" failures
-// twice). Server-side, never a repair call.
-export function cleanBuildReply(reply, schema) {
-  const uniqueLabels = manifest => (Array.isArray(manifest.readouts) ? { ...manifest, readouts: manifest.readouts.map(r => (plain(r) && Array.isArray(r.labels) ? { ...r, labels: [...new Set(r.labels)] } : r)) } : manifest);
-  const out = stripUnknown(reply, schema, null, []), fix = a => (plain(a?.program?.manifest) ? { ...a, program: { ...a.program, manifest: uniqueLabels(literalBreaksDeep(a.program.manifest)) } } : a);
-  if (!plain(out)) return out;
-  return { ...out, ...(plain(out.main) ? { main: fix(out.main) } : {}), ...(Array.isArray(out.supporting) ? { supporting: out.supporting.map(entry => (plain(entry) ? { ...entry, artifact: fix(entry.artifact) } : entry)) } : {}) };
-}
+export const callRecord = (role, done) => ({ role, requested: done.requested, served: done.served, usage: done.usage, costMicros: done.costMicros ?? null, priceKnown: done.priceKnown ?? false, timing: done.timing, stopReason: done.stopReason });
 
 // buildScene(job, ctx) -> { artifacts, composition, planHash, draft, call } | { gap, call } | { problems, details, category, repairable, draft, call }
 //   draft: the model's own reply ({main, supporting}); the repair step starts from it, valid or not.
@@ -194,12 +162,10 @@ export function cleanBuildReply(reply, schema) {
 //   ctx: the interact role context of callInteractRole (env, profile, adapters, admit, settle, signal, fixture ...).
 // Throws InteractBuildError before any call when the plan is not the approved one; a role-call failure propagates as the InteractModelError it is
 // (provider failure, distinct from a build problem). A build problem is returned for the repair loop, never thrown.
-// ctx.steer: the JEV steer or null (interact-job.js buildStage sets it from steerBuild(env, plan); see interact-steer.js).
 export async function buildScene(job, ctx) {
   const { plan, hash } = await approvedPlanOf(job);
   const before = canonicalJson(plan);
-  const schema = buildSchema(plan);
-  const done = await callWithCorrection(ctx, 'build_author', { system: INTERACT_BUILD_SYSTEM, schema, sanitize: reply => cleanBuildReply(reply, schema), input: buildInput(job, plan, hash, ctx.steer ?? null), name: INTERACT_BUILD_TOOL_NAME, description: 'Build the approved scene plan.' }, { instruction: AUTHOR_CORRECTION });
+  const done = await callWithCorrection(ctx, 'build_author', { system: INTERACT_BUILD_SYSTEM, schema: buildSchema(plan), input: buildInput(job, plan, hash), name: INTERACT_BUILD_TOOL_NAME, description: 'Build the approved scene plan.' }, { instruction: AUTHOR_CORRECTION });
   const call = callRecord('build_author', done), reply = done.output;
   if (reply.kind === 'capability_gap') {
     if (!Array.isArray(reply.gap?.needs) || !reply.gap.needs.length) throw new InteractBuildError('invalid_turn', 'The builder reported a gap without saying what is needed.', { call });

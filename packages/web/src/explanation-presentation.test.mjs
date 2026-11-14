@@ -155,17 +155,13 @@ test('playback, steps and controls make no model or network call: the scene card
   const { readFileSync } = await import('node:fs');
   const files = ['AnimatedScene.jsx', 'SceneControls.jsx', 'scene-evaluate.js', 'animation-scene.js', 'scene-inputs.js', 'scene-activity.js',
     'scene-derive.js', 'scene-format.js', 'scene-layout.js', 'scene-style.js', 'interact-style.js', 'tutor-diagrams/primitives.js', 'tutor-diagrams/math.js', 'math-tokens.js', 'raster-pixels.js', 'scene-vocab.js', 'scene-legacy.js', 'scene-engine.js', 'scene-behaviors.js', 'scene-sound.js', 'learn-audio.js', 'inline-equation-result.js', 'scene-selection.js', 'storage-fallback.js'];
-  // The listed files and everything they import, followed to the end: a module the card draws with (the written diagram renderer, its layouts and the figure
-  // renderer) is scanned too, without this list growing by every layout file.
-  const scanned = new Set(), queue = [...files];
-  for (const file of queue) {
-    if (scanned.has(file)) continue;
-    scanned.add(file);
+  for (const file of files) {
     const source = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
     assert.doesNotMatch(source, /\bfetch\s*\(|\/api\/|XMLHttpRequest|sendBeacon|new WebSocket|EventSource/, `${file} has a network path`);
-    for (const [, path] of source.matchAll(/^(?:import|export) [^'"]*['"](\.[^'"]+)['"]/gm)) {
+    for (const [, path] of source.matchAll(/^import [^'"]*['"](\.[^'"]+)['"]/gm)) {
       // An import is named from src/, wherever the importing file sits (tutor-diagrams/primitives.js imports ./math.js).
-      if (!/\.css$/.test(path)) queue.push(new URL(path, new URL(`./${file}`, import.meta.url)).href.slice(new URL('./', import.meta.url).href.length));
+      const named = new URL(path, new URL(`./${file}`, import.meta.url)).href.slice(new URL('./', import.meta.url).href.length);
+      assert.ok(files.includes(named) || /\.css$/.test(path), `${file} imports ${path}, which this test does not cover`);
     }
   }
 });

@@ -5,9 +5,8 @@ import { api } from '../api.js';
 import { explainClient, sharedProgramClient } from '../explain-client.js';
 import { CardSourceScope } from '../use-card-source.js';
 import { Frame } from '../AnimatedScene.jsx';
-import { InputWidget, ResetButton } from '../SceneControls.jsx';
+import { InputWidget } from '../SceneControls.jsx';
 import { focusFrameBox, legibleFrame, normalizeFrame, readableScale } from './frame.js';
-import { INTERACT_LOOK } from '../interact-style.js';
 import { createProgramHost, programStamps } from './host.js';
 import { createFrameScheduler, frameKey, watchSeen } from './playback.js';
 import { useProgramState } from './use-program-state.js';
@@ -17,7 +16,7 @@ import { InteractIntro } from '../InteractSupportPanels.jsx';
 import { focusFixed, focusRoom } from '../interact-card-layout.js';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
-  autopauseMarker, advanceClock, inputChange, pressPlay, seekTime, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration, programInputWidget,
+  inputChange, pressPlay, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration,
 } from './program-card.js';
 
 // The interactive program card (plan sections 5.2 and 8): the existing Explanation card shell around the shared Frame. This file
@@ -158,9 +157,8 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useEffect(() => { setBox(null); }, [artifact]);
   useEffect(() => {
     if (!view || box) return;
-    const look = composition ? INTERACT_LOOK : null; // a composed /interactive card is sized by the written card's text sizes and floors
-    const legible = legibleFrame(view.scene, look);
-    setBox({ ...legible, minScale: readableScale(view.scene, legible, look) });
+    const legible = legibleFrame(view.scene);
+    setBox({ ...legible, minScale: readableScale(view.scene, legible) });
     onProgramFrame?.(legible);
   }, [view, box, onProgramFrame]);
 
@@ -176,14 +174,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   useEffect(() => {
     if (!playing || !duration) return undefined;
     const rate = playbackRate(manifest, composition, inputs), origin = performance.now() - time * 1000 / rate;
-    let previous = time;
     const tick = now => {
-      const next = advanceClock(previous, now, origin, rate);
-      // A marker the plan marked pause stops playback exactly on it (the next Play carries on from it).
-      const stop = composed ? autopauseMarker(composition, inputs, previous, Math.min(next, duration)) : null;
-      if (stop) { setTime(stop.time); setPlaying(false); return; }
+      const next = (now - origin) / 1000 * rate;
       if (next >= duration) { setTime(duration); setPlaying(false); return; }
-      previous = next;
       setTime(next);
       frame.current = requestAnimationFrame(tick);
     };
@@ -351,28 +344,22 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // A schema 2 Reset saves only once its initial state has been checked (persist above); a failed one keeps the last good state.
   const reset = () => { dragging.current = null; setPlaying(false); seek(0); if (programState.stateful) { setPendingInputs(null); programState.reset(programInputs(manifest, {})); } else onChange(resetProgram(latest.current)); };
   const rows = manifest.inputs;
-  const seeks = composed ? composition.main.controls.filter(control => control.type === 'seek') : [];
-  const atMarker = markerId => { const at = seekTime(composition, inputs, markerId); if (at === null) return; setPlaying(false); seek(clampTime(manifest, at, composition, inputs)); };
   const changed = programChanged(manifest, latest.current) || programTime(manifest, latest.current, composition) > 0 || programState.changed;
   // While playing, the time shown is the drawn frame's own moment, so the label never runs ahead of the picture; paused, it is
   // the requested moment, which the picture settles on within one evaluation (data-program-settling until then).
   const shownTime = playing ? view.time : time;
   // On the canvas the frame keeps its legible box: a larger card draws it larger; a smaller one (a learner's resize) scrolls the
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
-  const legible = box ?? legibleFrame(view.scene, composition ? INTERACT_LOOK : null);
-  const readoutRows = composed ? (view.readouts || []).filter(r => composition.main.readoutIds.includes(r.id)) : [];
+  const legible = box ?? legibleFrame(view.scene);
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>
       {composed
-        ? <InteractIntro composition={composition} block={block} mainInputs={inputs} instructions={composition.instructions ?? manifest.instructions} />
+        ? <InteractIntro composition={composition} block={block} mainInputs={inputs} instructions={manifest.instructions} />
         : <>
           {manifest.cardDescription && <p data-card-description className="shrink-0 text-sm leading-snug text-ink-2">{manifest.cardDescription}</p>}
           {manifest.instructions && <p data-card-instructions className="shrink-0 text-sm leading-snug text-ink-2">{manifest.instructions}</p>}
         </>}
-      {/* A composed card's experiment heading row (Codex .experiment-heading): Reset as the one icon at its right, one row above the scene. The card's title is the block header's, so the row repeats no title
-          (owner 2026-11-13 16:50). ponytail: Codex's scene title and subtitle ("Upward is positive") wait for a plan field. */}
-      {composed && (<div data-interact-heading className="flex shrink-0 items-center"><ResetButton onReset={reset} disabled={!changed} /></div>)}
       <div data-program-viewport {...(composed ? { 'data-interact-scene': '' } : {})} className="flex min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white"
         style={focusBox ? { flex: 'none', width: focusBox.w + 2, height: focusBox.h + 2, overflow: 'hidden', alignSelf: 'safe center' } : undefined}>
         <div data-program-frame role="group" aria-label={manifest.description} className="flex-1" {...(dragIds.length ? pointerDrag : {})}
@@ -380,12 +367,6 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
       </div>
       <p className="sr-only">{manifest.summary}</p>
       <div ref={controls} className="flex shrink-0 flex-col gap-2">
-      {/* The card draws the plan's readouts (the program reports them; it does not draw them as text): one entry per declared readout, label, value and unit, tabular numbers. */}
-      {composed && readoutRows.length > 0 && (
-        <ul data-interact-readouts className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-sm text-ink-2">
-          {readoutRows.map(value => <li key={value.id} data-interact-readout={value.id}>{value.label}: <span className="text-ink tabular-nums">{value.text}</span></li>)}
-        </ul>
-      )}
       {duration > 0 && (
         <div data-animation-transport className="flex items-center gap-1.5">
           <button type="button" data-animation-play onClick={play} className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
@@ -396,23 +377,14 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           <span data-program-time className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-2">{timeLabel(manifest, shownTime, composition, inputs)}</span>
         </div>
       )}
-      {(composed ? rows.length > 0 || seeks.length > 0 || actions.length > 0 || targets.length > 0 : rows.length > 0 || actions.length > 0 || targets.length > 0) && (
+      {(rows.length > 0 || actions.length > 0 || targets.length > 0) && (
         <div data-scene-controls className="rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
-          {!composed && <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>}
+          <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {rows.map(input => (input.type === 'number'
               ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} />
-              : <InputWidget key={input.id} {...programInputWidget(input)} value={inputs[input.id]} onInput={setInput} />))}
-            {/* After a rule, the plan's seek buttons (At top): each jumps the timeline to its marker and pauses. */}
-            {seeks.length > 0 && (
-              <>
-                {rows.length > 0 && <span data-interact-rule role="separator" aria-orientation="vertical" className="h-5 w-px bg-line" />}
-                {seeks.map(control => (
-                  <button key={control.id} type="button" data-interact-seek={control.binding.id} onClick={() => atMarker(control.binding.id)}
-                    className="flex h-8 items-center rounded-lg border border-line px-3 text-sm text-ink hover:bg-hover">{control.label}</button>
-                ))}
-              </>
-            )}
+              : <InputWidget key={input.id} declaration={{ name: input.id, type: 'choice', label: input.label, options: input.options.map(option => ({ id: option.value, label: option.label })) }}
+                  value={inputs[input.id]} onInput={setInput} />))}
             {/* Declared buttons, then the declared selectable objects (also clickable in the drawing): native buttons, so Tab, Enter and
                 Space work. While the transition queue is full they are greyed and keep their names. */}
             {actions.length > 0 && (
@@ -433,8 +405,9 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
                 ))}
               </div>
             )}
-            {/* Reset: the icon at the end of the row (SceneControls.jsx ResetButton), shown while something differs. A composed /interact card draws it at the right of its heading row instead (above), always, greyed while nothing differs. */}
-            {!composed && changed && <ResetButton onReset={reset} />}
+            {changed && (
+              <button type="button" data-scene-reset onClick={reset} className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">Reset experiment</button>
+            )}
           </div>
         </div>
       )}

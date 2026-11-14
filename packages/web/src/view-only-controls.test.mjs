@@ -18,8 +18,8 @@ test('index.css re-enables exactly the VIEW_ONLY_CONTROLS regions inside a view-
 
 // The focused drawing's viewport scrolls when the pane is under its legible box (frame.js focusFrameBox); only in Focus, so a drag on
 // the drawing still pans a shared canvas.
-test('only playback, inputs, Reset (a composed card keeps it in its heading row), the pager, Restart, Notes and the focused drawing scroll are offered: nothing that edits or draws', () => {
-  assert.deepEqual(list(VIEW_ONLY_CONTROLS), ['[data-animation-transport]', '[data-card-pager]', '[data-focus-host] [data-program-viewport]', '[data-program-notes]', '[data-program-restart]', '[data-scene-controls]', '[data-scene-reset]']);
+test('only playback, inputs, the pager, Restart, Notes and the focused drawing scroll are offered: nothing that edits or draws', () => {
+  assert.deepEqual(list(VIEW_ONLY_CONTROLS), ['[data-animation-transport]', '[data-card-pager]', '[data-focus-host] [data-program-viewport]', '[data-program-notes]', '[data-program-restart]', '[data-scene-controls]']);
   for (const editing of ['textarea', 'contenteditable', 'data-sketch', 'data-drag-zone']) assert.ok(!VIEW_ONLY_CONTROLS.includes(editing));
 });
 

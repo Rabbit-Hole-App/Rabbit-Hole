@@ -3,21 +3,19 @@
 // limits and call records are the real ones), and the capture seam runs the sealed programs in the pinned QuickJS engine, in this process.
 // Fixture data, never product logic: nothing in the pipeline reads this file to decide what is correct. The fixture program text lives in
 // packages/web/src/interact-build-fixtures.js; its expected numbers are computed there from the equations of section 7.
-import { sha256Hex } from '../../web/src/explain-program/contract.js';
-import { headlessCaptureCard } from './interact-checks.js';
+import { evaluateRequestFor } from '../../web/src/explain-program/program-card.js';
+import { canonicalJson, parseGuestResult, resolveInputs, sha256Hex } from '../../web/src/explain-program/contract.js';
+import { createSnapshotResolver } from '../../web/src/interact-composition.js';
 import { depthOf } from './chat-depth.js';
 import { deepOracle, fixtureDraft, overviewOracle, pendulumOracle, standardOracle } from '../../web/src/interact-build-fixtures.js';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
 import { InteractModelError, schemaProblems } from './interact-model-adapters.js';
 import { resolveInteractProfile } from './interact-models.js';
 
-// toss-drop-overview-legacy is the old static Moment Overview (the plan overviewProgram), retired from the pin family on 2026-11-13 (interact-design-pin.js pins the Interact
-// Overview, toss-overview, for brief); it keeps its scripted build and oracle under this id so its tests still run.
-export const LEGACY_OVERVIEW = 'toss-drop-overview-legacy';
-export const FIXTURE_IDS = Object.freeze(['toss-drop-standard', 'toss-drop-standard-controls', 'pendulum-period', LEGACY_OVERVIEW]);
+export const FIXTURE_IDS = Object.freeze(['toss-drop-standard', 'pendulum-period']);
 // The canonical scene a Depth builds: the fixtures and scripts keep the scene names (overview, standard, deep); the Depth values are brief, balanced, detailed.
 const SCENE_OF = Object.freeze({ brief: 'overview', balanced: 'standard', detailed: 'deep' });
-const FIXTURE_DEPTHS = Object.freeze({ 'toss-drop-standard': ['balanced', 'detailed'], 'toss-drop-standard-controls': ['balanced'], 'pendulum-period': ['balanced'], [LEGACY_OVERVIEW]: ['brief'] });
+const FIXTURE_DEPTHS = Object.freeze({ 'toss-drop-standard': ['brief', 'balanced', 'detailed'], 'pendulum-period': ['balanced'] });
 
 // script: { <role>: ({ input, images, system, schema, config, n }) => output }, keyed by the logical role. The adapter validates every reply
 // against the schema the role was asked for, exactly as a provider adapter does, and records each call (inputs included) in .log.
@@ -61,13 +59,38 @@ export function fixtureContext({ script = fixtureScript(), adapter = scriptedAda
 
 // A 1 x 1 PNG: the pixels of a fixture capture are not a rendering, and the capture says so (synthetic: true).
 const PNG = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
-// The capture seam, in-process: interact-checks.js's headlessCaptureCard (the sealed programs in the pinned QuickJS engine, the card's own request builder and the player's
-// snapshot resolver), here as the complete card with the one synthetic pixel a scripted reviewer needs. Timing is not under test, so the watchdog's interrupt is relaxed.
+let engine = null;
+
+// The capture seam, in-process: evaluates the main program at each case and each support panel's read-only snapshot (one at a time, through the
+// same snapshot resolver the player uses) and returns what the render entry would: complete-card captures bound to the composition hash, each
+// with a runtime trace. The card request is the card's own builder (evaluateRequestFor with the composition), so the clock is the card's clock.
 export function fixtureCaptureCard({ limits } = {}) {
-  return async args => {
-    const { LIMITS } = await import('../../web/src/explain-program/limits.js');
-    const captures = await headlessCaptureCard({}, { limits: limits ?? { ...LIMITS, interruptMs: LIMITS.watchdogMs } })(args);
-    return Promise.all(captures.map(async c => ({ ...c, png: PNG, sha256: await sha256Hex(PNG), completeCard: true })));
+  return async ({ composition, artifacts, cases }) => {
+    const [{ loadEngine, runProgram }, { LIMITS }] = await Promise.all([import('../../web/src/explain-program/runtime.js'), import('../../web/src/explain-program/limits.js')]);
+    engine ??= await loadEngine();
+    const relaxed = limits ?? { ...LIMITS, interruptMs: LIMITS.watchdogMs }; // timing is not under test here; the outcome is
+    const run = async (artifact, inputs, time) => {
+      const program = artifact.program, request = { requestId: '1', inputs, time, seed: 0, state: null };
+      const out = runProgram(engine, { source: program.source, request, sdkVersion: program.sdkVersion }, relaxed);
+      if (!out.ok) return { error: { code: out.code, diagnostic: out.detail } };
+      const parsed = parseGuestResult(out.value, program.manifest, program.sdkVersion);
+      if (!parsed.ok) return { error: { code: parsed.error.code, diagnostic: parsed.issue } };
+      const { frame, quantities } = parsed.value;
+      return { quantities, readouts: Object.fromEntries(frame.readouts.map(r => [r.id, r.value])), texts: frame.objects.filter(o => o.kind === 'text' && o.text).map(o => o.text), frameHash: await sha256Hex(canonicalJson(frame.objects)), inputs, time };
+    };
+    const supportOf = id => artifacts.supporting.find(s => s.id === id).artifact;
+    const resolver = createSnapshotResolver({ evaluate: ({ panelId, inputs, time }) => run(supportOf(panelId), resolveInputs(supportOf(panelId).program.manifest, inputs), time) });
+    const captures = [];
+    for (const c of cases) {
+      const manifest = artifacts.main.program.manifest;
+      const request = evaluateRequestFor(manifest, { inputs: c.inputs }, c.time, 1, null, composition);
+      const trace = await run(artifacts.main, request.inputs, request.time);
+      const snapshots = await resolver.resolve(composition, c.inputs);
+      const supports = Object.fromEntries(snapshots.snapshots.map(s => [s.id, { bundleHash: supportOf(s.id).program.bundleHash, trace: s.frame }]));
+      captures.push({ caseId: c.id, png: PNG, sha256: await sha256Hex(PNG), compositionHash: composition.envelopeHash, completeCard: true, synthetic: true,
+        bundleHash: artifacts.main.program.bundleHash, trace: trace.error ? { error: trace.error } : trace, supports });
+    }
+    return captures;
   };
 }
 
@@ -78,16 +101,15 @@ export function fixtureDesignRoles(fixtureId) {
     async design({ request }) {
       if (!FIXTURE_DEPTHS[fixtureId]?.includes(depthOf(request.depth))) throw new Error(`fixture ${fixtureId} has depths ${FIXTURE_DEPTHS[fixtureId]?.join(', ')} only`);
       const { plans } = await interactFixtures();
-      return { plan: fixtureId === 'toss-drop-standard-controls' ? plans.standardControls : fixtureId === 'pendulum-period' ? plans.pendulum : fixtureId === LEGACY_OVERVIEW ? plans.overviewProgram : plans[SCENE_OF[depthOf(request.depth)]], reviews: [{ source: 'fixture', verdict: 'pass', note: 'canonical plan; no design model was called' }], revisions: [], calls: [] };
+      return { plan: fixtureId === 'pendulum-period' ? plans.pendulum : depthOf(request.depth) === 'brief' ? plans.overviewProgram : plans[SCENE_OF[depthOf(request.depth)]], reviews: [{ source: 'fixture', verdict: 'pass', note: 'canonical plan; no design model was called' }], revisions: [], calls: [] };
     },
   };
 }
 
 // Everything a fixture run needs, by fixture id: the runner ctx fields that are not the profile.
-export async function fixtureRun(fixtureId, depth = fixtureId === LEGACY_OVERVIEW ? 'brief' : 'balanced') {
+export async function fixtureRun(fixtureId, depth = 'balanced') {
   depth = depthOf(depth);
   if (!FIXTURE_IDS.includes(fixtureId)) throw new Error(`unknown fixture "${fixtureId}"; available: ${FIXTURE_IDS.join(', ')}`);
-  if (fixtureId === 'toss-drop-standard-controls') throw new Error('fixture toss-drop-standard-controls is a design-pin plan only (INTERACT_DESIGN_FIXTURE): it has no scripted build, the real builder builds it');
   const { capabilities } = await interactFixtures();
   const adapter = scriptedAdapter(fixtureScript(fixtureId === 'pendulum-period' ? 'pendulum' : ['brief', 'detailed'].includes(depth) ? SCENE_OF[depth] : 'standard'));
   return { capabilities, designRoles: fixtureDesignRoles(fixtureId), captureCard: fixtureCaptureCard(), oracle: (fixtureId === 'pendulum-period' ? pendulumOracle : { balanced: standardOracle, detailed: deepOracle, brief: overviewOracle }[depth])?.() ?? null, adapters: { anthropic: adapter }, adapter, fixture: true, env: {} };

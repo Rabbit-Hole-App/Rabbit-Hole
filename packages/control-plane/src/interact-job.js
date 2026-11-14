@@ -12,10 +12,8 @@ import { resolveSupportInputs, verifyComposition } from '../../web/src/interact-
 import { capabilityGap } from './explain-author.js';
 import * as explainRender from './explain-render.js';
 import { buildScene } from './interact-build.js';
-import { CHECK_LIMITS, buildPlanCaptureCases, captureAndCheck, clockMs, headlessCaptureCard, repairRound, reviewCandidate, round1 } from './interact-checks.js';
+import { CHECK_LIMITS, buildPlanCaptureCases, captureAndCheck, repairRound, reviewCandidate } from './interact-checks.js';
 import { interactOracle } from './interact-oracle.js';
-import { buildTemplate, templateGate } from './interact-template.js';
-import { steerBuild, triageFailure } from './interact-steer.js';
 import { learnMedia } from './learn-storage.js';
 
 const fail = (message, status, code) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
@@ -37,57 +35,30 @@ export const undeliverable = plan => {
 export async function buildStage(job, ctx) {
   const problem = undeliverable(job.design.plan);
   if (problem) return { gap: capabilityGap(['other'], problem, 'builder') };
-  // INTERACT_BUILD_KIND=template and a plan that names a template: the program is generated from the plan, no build_author call (interact-template.js). A gate that does not pass logs why and the
-  // model build below runs as before; `ms.gen` is the generate, seal and compose body time, measured with the monotonic clock.
-  const gate = templateGate(ctx.env, job.design.plan);
-  if (gate?.ok) { const at = clockMs(), built = await buildTemplate(planJob(job, ctx), ctx.role); return { ...outcome(built), template: true, ms: { gen: round1(clockMs() - at) } }; }
-  if (gate) { job.build.templateFallback = gate.reason; console.log(JSON.stringify({ event: 'interact_template_skipped', job: job.id, reason: gate.reason })); }
-  // INTERACT_STEER=jev (off by default: steerBuild answers null without a request): the JEV steer narrows the authoring docs; its time is the ledger's msSteer. Any failure is null and the build is unchanged.
-  const steer = await steerBuild(ctx.env, job.design.plan);
-  if (steer) job.timing.steerMs = steer.ms;
-  return outcome(await buildScene(planJob(job, ctx), steer ? { ...ctx.role, steer } : ctx.role));
+  return outcome(await buildScene(planJob(job, ctx), ctx.role));
 }
 const outcome = r => (r.gap ? { gap: r.gap } : r.problems ? { problems: r.problems, details: r.details, category: 'spec', repairable: true, draft: r.draft } : { artifacts: r.artifacts, composition: r.composition, draft: r.draft });
 
 export async function validateStage(job, ctx) {
-  const at = clockMs(), { artifacts, composition } = ctx.build;
-  const j = planJob(job, ctx), intact = await verifyComposition(composition, artifacts), ms = { validate: round1(clockMs() - at) }; // the body time, without the alarm hop before the stage (the ledger's template rows)
-  if (intact.length) return { problems: intact.map(p => `${p.path}: ${p.message}`), category: 'spec', repairable: true, ms };
-  if (composition.planHash !== j.planHash) return { problems: ['the composition is not the approved plan\'s'], category: 'spec', repairable: true, ms };
-  return { ms };
+  const { artifacts, composition } = ctx.build;
+  const j = planJob(job, ctx), intact = await verifyComposition(composition, artifacts);
+  if (intact.length) return { problems: intact.map(p => `${p.path}: ${p.message}`), category: 'spec', repairable: true };
+  if (composition.planHash !== j.planHash) return { problems: ['the composition is not the approved plan\'s'], category: 'spec', repairable: true };
+  return {};
 }
 
 // The stored capture records hold the pixels' key and hash and the runtime traces, never bytes; the review reads the bytes back from LEARN_MEDIA by key.
 const slim = c => ({ caseId: c.caseId, key: c.key ?? null, sha256: c.sha256 ?? null, compositionHash: c.compositionHash, completeCard: c.completeCard === true, bundleHash: c.bundleHash ?? null, trace: c.trace,
   supports: Object.fromEntries(Object.entries(c.supports ?? {}).map(([id, s]) => [id, { key: s.key ?? null, sha256: s.sha256 ?? null, bundleHash: s.bundleHash ?? null, trace: s.trace }])) });
 
-// INTERACT_RUN picks the capture seam of the request path: 'browser' (the default, the render service through captureCardFor) or 'headless' (the sealed programs in-process, no pixels, interact-checks.js
-// headlessCaptureCard). Anything else fails closed; a misspelled setting must not silently run the other path.
-export function captureRole(role) {
-  const mode = role.env?.INTERACT_RUN || 'browser';
-  if (mode === 'browser') return role;
-  if (mode !== 'headless') throw Object.assign(fail(`INTERACT_RUN must be browser or headless (got ${String(mode).slice(0, 40)}).`, 500, 'invalid_setting'), { category: 'internal' });
-  // A headless capture has no pixels, so the rendered review (gate) cannot read it: the pair is refused before a build is spent on it.
-  if (reviewMode(role.env) !== 'shadow') throw Object.assign(fail('INTERACT_RUN=headless needs INTERACT_REVIEW=shadow: the gating review reads pixels, a headless run has none.', 500, 'invalid_setting'), { category: 'internal' });
-  return { ...role, captureCard: headlessCaptureCard(role.env) };
-}
-
-// INTERACT_REVIEW picks what the independent review does: 'gate' (the default) is build_review as a gate on delivery; 'shadow' delivers a card that passed the checks and scores it afterwards
-// with the blind bench judge (interact-bench.js), which never changes the card. Anything else fails closed.
-export function reviewMode(env) {
-  const mode = env?.INTERACT_REVIEW || 'gate';
-  if (mode !== 'gate' && mode !== 'shadow') throw Object.assign(fail(`INTERACT_REVIEW must be gate or shadow (got ${String(mode).slice(0, 40)}).`, 500, 'invalid_setting'), { category: 'internal' });
-  return mode;
-}
-
 export async function renderStage(job, ctx) {
   const { artifacts, composition } = ctx.build;
-  const a = await captureAndCheck(planJob(job, ctx, { artifacts, composition }), captureRole(ctx.role));
+  const a = await captureAndCheck(planJob(job, ctx, { artifacts, composition }), ctx.role);
   if (a.status === 'cancelled') return {};
   if (a.status === 'incomplete') return { incomplete: a.reason };
   if (a.status === 'render_unavailable') throw Object.assign(fail('The explanation could not be rendered (render_unavailable). Retry rendering.', 503, 'render_unavailable'), { category: 'renderer' });
-  if (a.status === 'failed') return { problems: a.failure.problems, details: a.failure.details, failure: a.failure, category: 'spec', repairable: true, renders: [], check: a.check ?? null, ms: a.ms, captures: a.captures ? a.captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 })) : null };
-  return { captured: a.captures.map(slim), check: a.det.coverage, ms: a.ms, renders: a.captures.map(c => c.synthetic ? null : { ok: true }).filter(Boolean) }; // a headless run used no render service: nothing to record as platform compute
+  if (a.status === 'failed') return { problems: a.failure.problems, details: a.failure.details, failure: a.failure, category: 'spec', repairable: true, renders: [], check: a.check ?? null, captures: a.captures ? a.captures.map(c => ({ caseId: c.caseId, sha256: c.sha256 })) : null };
+  return { captured: a.captures.map(slim), check: a.det.coverage, renders: a.captures.map(() => ({ ok: true })) };
 }
 
 export async function reviewStage(job, ctx) {
@@ -117,9 +88,7 @@ export async function reviewStage(job, ctx) {
 
 export async function repairStage(job, ctx) {
   const { draft, artifacts, composition, captures } = ctx.build;
-  const failure0 = job.build.failure ?? { stage: 'validate', problems: [], findings: [] };
-  const triage = await triageFailure(ctx.env, failure0.problems ?? []); // off unless INTERACT_STEER=jev; null leaves the repair request as it was
-  const failure = triage ? { ...failure0, triage } : failure0;
+  const failure = job.build.failure ?? { stage: 'validate', problems: [], findings: [] };
   const named = new Set((failure.findings || []).map(f => f.target?.capture).filter(Boolean));
   const media = learnMedia(ctx.env), withPixels = [];
   for (const c of captures || []) if (named.has(c.caseId) && c.key) { const object = await media?.get(c.key); if (object) withPixels.push({ caseId: c.caseId, png: new Uint8Array(await object.arrayBuffer()) }); }

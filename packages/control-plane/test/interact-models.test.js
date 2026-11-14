@@ -193,15 +193,14 @@ test('callInteractRole runs a design and a build role on the all-Opus profile an
 test('role bounds and phase reservations come from the profile, with design in preparation and build in generation', () => {
   const profile = resolveInteractProfile('opus-baseline'), bound = role => roleBoundMicros(profile.roles[role]);
   // (input bytes + images x 4,784) x $5 (the 5-minute cache write) + max output x $20, per MTok.
-  assert.deepEqual(INTERACT_ROLE_IDS.map(bound), [635680, 595680, 675680, 815680, 743520, 767840, 240000]); // the last is the bench judge (Sonnet, $2/$10): in neither reservation below
+  assert.deepEqual(INTERACT_ROLE_IDS.map(bound), [635680, 595680, 675680, 815680, 743520, 767840]);
   const r = interactReservation(profile);
   assert.deepEqual([r.preparationMicros, r.generationMicros, r.unknownRoles], [2 * 635680 + 4 * 595680 + 3 * 675680, 2 * 815680 + 5 * 743520 + 4 * 767840, []]);
-  assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [2, 4, 3, 2, 5, 4, 1]); // the second author call is the one correction of a refused plan; the build roles get one correction each (build_author 1+1, build_review 1+3+1, build_repair 3+1)
+  assert.deepEqual(Object.values(INTERACT_LIMITS.calls), [2, 4, 3, 2, 5, 4]); // the second author call is the one correction of a refused plan; the build roles get one correction each (build_author 1+1, build_review 1+3+1, build_repair 3+1)
   assert.deepEqual(INTERACT_LIMITS.deadlines, { callMs: 300000, preparationMs: 600000, jobMs: 1200000 });
   for (const role of ['design_author', 'design_review', 'design_revise']) assert.equal(interactPhase(role), 'preparation', role);
   for (const role of ['build_author', 'build_review', 'build_repair']) assert.equal(interactPhase(role), 'generation', role);
-  assert.deepEqual(INTERACT_ROLE_IDS.map(interactCallKind), ['generation', 'evaluation', 'generation', 'generation', 'evaluation', 'repair', 'evaluation']);
-  assert.equal(interactPhase('bench_judge'), 'bench');
+  assert.deepEqual(INTERACT_ROLE_IDS.map(interactCallKind), ['generation', 'evaluation', 'generation', 'generation', 'evaluation', 'repair']);
   assert.throws(() => interactPhase('brief'), { code: 'unknown_role' });
 });
 
@@ -268,7 +267,7 @@ test('a reply that cannot be used is still billed from its usage, and a provider
 // ---- fixture mode ----
 test('fixture mode makes zero paid calls across every role and both adapters', async () => {
   const env = { INTERACT_SCENE_PLAN_ENABLED: 'true' }, fake = { calls: 0 };
-  const callModel = async (_env, _body, model) => { fake.calls++; return Response.json(anthropicReply({ title: 'T' }, { model })); }; // each role answers as the model it asked for (the judge is Sonnet)
+  const callModel = async () => { fake.calls++; return Response.json(anthropicReply({ title: 'T' })); };
   const compat = async () => { fake.calls++; return Response.json({ model: 'celeris-x', choices: [{ message: { content: '{"title":"T"}' }, finish_reason: 'stop' }] }); };
   const profiles = [resolveInteractProfile('opus-baseline'), resolveInteractProfile('mixed', MIXED)];
   for (const profile of profiles) {

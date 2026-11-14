@@ -1,8 +1,0 @@
-{
- "error": {
-  "code": "unknown_outcome",
-  "message": "The build_author call ended without a known outcome (transport). It is not resent and its cost is unknown.",
-  "problems": null,
-  "usage": null
- }
-}

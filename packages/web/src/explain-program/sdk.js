@@ -1,7 +1,6 @@
 import { RASTER_SOURCE } from './sdk-raster.js';
 import { CYCLIC_GRAPH_SOURCE } from './sdk-cyclic.js';
-import { GEOMETRY_SOURCE, PROPS_SOURCE } from './sdk-geometry.js';
-import { FIGURES_SOURCE } from './sdk-figures.js';
+import { GEOMETRY_SOURCE } from './sdk-geometry.js';
 import { EXPANDABLE_GRAPH_SOURCE, GRAPH_SOURCE } from './sdk-graph.js';
 import { EVIDENCE_SOURCE } from './sdk-evidence.js';
 import { FIELD_SOURCE } from './sdk-field.js';
@@ -10,7 +9,7 @@ import { IMAGE_SOURCE } from './sdk-image.js';
 import { PLOT_SOURCE } from './sdk-plot.js';
 import { TIMELINE_SOURCE } from './sdk-timeline.js';
 import { TRACE_SOURCE } from './sdk-trace.js';
-import { CYCLIC_SDK_VERSION, FIGURES_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_SDK_VERSION, PROPS_SDK_VERSION, RASTER_SDK_VERSION, VISUAL_SDK_VERSION } from './stamps.js';
+import { CYCLIC_SDK_VERSION, HEAT_GRID_SDK_VERSION, MEDIUM_SDK_VERSION, RASTER_SDK_VERSION, VISUAL_SDK_VERSION } from './stamps.js';
 
 // The guest-side SDK (plan section 5.2): generic geometry and formatting helpers only. No subject formulas, no lesson catalogue.
 // SDK_SOURCE is plain script text the runtime evaluates in the guest BEFORE the generated module, defining one global, `sdk`.
@@ -61,13 +60,7 @@ sdk.heatGrid = function (id, options) {
   return { ...options, kind: 'heat_grid', id };
 };
 `;
-// Physical props (vector, gate, groundMark) append to the saved visual SDK; sdk-2 keeps its bytes.
-const PROPS_SDK_SOURCE = [VISUAL_SDK_SOURCE, PROPS_SOURCE].join('\n');
-// Semantic figures (axis, plot with axes, diagram) append to sdk-7; sdk-2 and sdk-7 keep their bytes.
-const FIGURES_SDK_SOURCE = [PROPS_SDK_SOURCE, FIGURES_SOURCE].join('\n');
 export function programSdkSource(version) {
-  if (version === FIGURES_SDK_VERSION) return FIGURES_SDK_SOURCE;
-  if (version === PROPS_SDK_VERSION) return PROPS_SDK_SOURCE;
   if (version === RASTER_SDK_VERSION) return RASTER_SDK_SOURCE;
   if (version === CYCLIC_SDK_VERSION) return CYCLIC_SDK_SOURCE;
   if (version === SDK_VERSION) return SDK_SOURCE;

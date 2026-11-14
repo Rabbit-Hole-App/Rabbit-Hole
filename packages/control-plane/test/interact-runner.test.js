@@ -219,7 +219,7 @@ test('the run-directory store writes atomically, refuses a stale revision and re
 test('the script builds every reference row and a different subject from the same stages: the printed hash, zero paid calls, the matching oracle compared', () => {
   const dir = mkdtempSync(join(tmpdir(), 'interact-cli-rows-'));
   const cli = (...args) => spawnSync(process.execPath, [join(ROOT, 'scripts/interact/run.mjs'), ...args], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ANTHROPIC_API_KEY: '', CELERIS_API_KEY: '' } });
-  const rows = [['toss-drop-overview-legacy', 'brief', 2, 'static', null], ['toss-drop-standard', 'detailed', 20, 'experiment', 'Time since launch'], ['pendulum-period', 'balanced', 6, 'experiment', null]];
+  const rows = [['toss-drop-standard', 'brief', 2, 'static', null], ['toss-drop-standard', 'detailed', 20, 'experiment', 'Time since launch'], ['pendulum-period', 'balanced', 6, 'experiment', null]];
   try {
     for (const [fixture, depth, minimum, mode, label] of rows) {
       const run = join(dir, `${fixture}-${depth}`);
