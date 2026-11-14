@@ -1,0 +1,177 @@
+{
+  "phase": "after",
+  "worktree": "C:/s/explain-pv-143",
+  "fixture": "one text item of the v60 export on an otherwise empty board, public view link, signed out",
+  "light-wide": {
+    "dark": false,
+    "brand": {
+      "x": 16,
+      "y": 25,
+      "w": 113,
+      "h": 32,
+      "right": 129
+    },
+    "centre": {
+      "x": 300,
+      "y": 25,
+      "w": 440,
+      "h": 32,
+      "right": 740
+    },
+    "title": {
+      "x": 300,
+      "y": 31,
+      "w": 130,
+      "h": 20,
+      "right": 430
+    },
+    "text": "Rabbit Hole",
+    "images": 0,
+    "family": "\"Space Grotesk\", \"Inter Variable\", Inter, sans-serif",
+    "weight": "500",
+    "size": "20px",
+    "spacing": "-0.6px",
+    "colour": "rgb(55, 53, 47)",
+    "spaceGroteskLoaded": true,
+    "loadedBefore": true,
+    "loadedFaces": [
+      {
+        "family": "Space Grotesk",
+        "weight": "500",
+        "status": "loaded"
+      }
+    ],
+    "interVariableLoaded": true,
+    "brandOverlapsAHeaderControl": false,
+    "headerHeight": 82
+  },
+  "dark-wide": {
+    "dark": true,
+    "brand": {
+      "x": 16,
+      "y": 25,
+      "w": 113,
+      "h": 32,
+      "right": 129
+    },
+    "centre": {
+      "x": 300,
+      "y": 25,
+      "w": 440,
+      "h": 32,
+      "right": 740
+    },
+    "title": {
+      "x": 300,
+      "y": 31,
+      "w": 130,
+      "h": 20,
+      "right": 430
+    },
+    "text": "Rabbit Hole",
+    "images": 0,
+    "family": "\"Space Grotesk\", \"Inter Variable\", Inter, sans-serif",
+    "weight": "500",
+    "size": "20px",
+    "spacing": "-0.6px",
+    "colour": "rgb(212, 212, 212)",
+    "spaceGroteskLoaded": true,
+    "loadedBefore": true,
+    "loadedFaces": [
+      {
+        "family": "Space Grotesk",
+        "weight": "500",
+        "status": "loaded"
+      }
+    ],
+    "interVariableLoaded": true,
+    "brandOverlapsAHeaderControl": false,
+    "headerHeight": 82
+  },
+  "light-phone": {
+    "dark": false,
+    "brand": {
+      "x": 12,
+      "y": 25,
+      "w": 97,
+      "h": 44,
+      "right": 109
+    },
+    "centre": {
+      "x": 12,
+      "y": 90,
+      "w": 366,
+      "h": 44,
+      "right": 378
+    },
+    "title": {
+      "x": 12,
+      "y": 102,
+      "w": 314,
+      "h": 20,
+      "right": 326
+    },
+    "text": "Rabbit Hole",
+    "images": 0,
+    "family": "\"Space Grotesk\", \"Inter Variable\", Inter, sans-serif",
+    "weight": "500",
+    "size": "17px",
+    "spacing": "-0.51px",
+    "colour": "rgb(55, 53, 47)",
+    "spaceGroteskLoaded": true,
+    "loadedBefore": true,
+    "loadedFaces": [
+      {
+        "family": "Space Grotesk",
+        "weight": "500",
+        "status": "loaded"
+      }
+    ],
+    "interVariableLoaded": true,
+    "brandOverlapsAHeaderControl": false,
+    "headerHeight": 142
+  },
+  "dark-phone": {
+    "dark": true,
+    "brand": {
+      "x": 12,
+      "y": 25,
+      "w": 97,
+      "h": 44,
+      "right": 109
+    },
+    "centre": {
+      "x": 12,
+      "y": 90,
+      "w": 366,
+      "h": 44,
+      "right": 378
+    },
+    "title": {
+      "x": 12,
+      "y": 102,
+      "w": 314,
+      "h": 20,
+      "right": 326
+    },
+    "text": "Rabbit Hole",
+    "images": 0,
+    "family": "\"Space Grotesk\", \"Inter Variable\", Inter, sans-serif",
+    "weight": "500",
+    "size": "17px",
+    "spacing": "-0.51px",
+    "colour": "rgb(212, 212, 212)",
+    "spaceGroteskLoaded": true,
+    "loadedBefore": true,
+    "loadedFaces": [
+      {
+        "family": "Space Grotesk",
+        "weight": "500",
+        "status": "loaded"
+      }
+    ],
+    "interVariableLoaded": true,
+    "brandOverlapsAHeaderControl": false,
+    "headerHeight": 142
+  }
+}

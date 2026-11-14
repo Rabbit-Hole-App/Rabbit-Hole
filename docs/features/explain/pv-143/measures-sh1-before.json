@@ -1,0 +1,153 @@
+{
+  "phase": "before",
+  "worktree": "C:/s/explain-canvas-3",
+  "fixture": "one text item of the v60 export on an otherwise empty board, public view link, signed out",
+  "light-wide": {
+    "dark": false,
+    "brand": {
+      "x": 16,
+      "y": 25,
+      "w": 32,
+      "h": 32,
+      "right": 48
+    },
+    "centre": {
+      "x": 300,
+      "y": 25,
+      "w": 440,
+      "h": 32,
+      "right": 740
+    },
+    "title": {
+      "x": 300,
+      "y": 31,
+      "w": 130,
+      "h": 20,
+      "right": 430
+    },
+    "text": null,
+    "images": 2,
+    "family": null,
+    "weight": null,
+    "size": null,
+    "spacing": null,
+    "colour": null,
+    "spaceGroteskLoaded": true,
+    "loadedBefore": true,
+    "loadedFaces": [],
+    "interVariableLoaded": true,
+    "brandOverlapsAHeaderControl": false,
+    "headerHeight": 82
+  },
+  "dark-wide": {
+    "dark": true,
+    "brand": {
+      "x": 16,
+      "y": 25,
+      "w": 32,
+      "h": 32,
+      "right": 48
+    },
+    "centre": {
+      "x": 300,
+      "y": 25,
+      "w": 440,
+      "h": 32,
+      "right": 740
+    },
+    "title": {
+      "x": 300,
+      "y": 31,
+      "w": 130,
+      "h": 20,
+      "right": 430
+    },
+    "text": null,
+    "images": 2,
+    "family": null,
+    "weight": null,
+    "size": null,
+    "spacing": null,
+    "colour": null,
+    "spaceGroteskLoaded": true,
+    "loadedBefore": true,
+    "loadedFaces": [],
+    "interVariableLoaded": true,
+    "brandOverlapsAHeaderControl": false,
+    "headerHeight": 82
+  },
+  "light-phone": {
+    "dark": false,
+    "brand": {
+      "x": 12,
+      "y": 25,
+      "w": 44,
+      "h": 44,
+      "right": 56
+    },
+    "centre": {
+      "x": 12,
+      "y": 90,
+      "w": 366,
+      "h": 44,
+      "right": 378
+    },
+    "title": {
+      "x": 12,
+      "y": 102,
+      "w": 314,
+      "h": 20,
+      "right": 326
+    },
+    "text": null,
+    "images": 2,
+    "family": null,
+    "weight": null,
+    "size": null,
+    "spacing": null,
+    "colour": null,
+    "spaceGroteskLoaded": true,
+    "loadedBefore": true,
+    "loadedFaces": [],
+    "interVariableLoaded": true,
+    "brandOverlapsAHeaderControl": false,
+    "headerHeight": 142
+  },
+  "dark-phone": {
+    "dark": true,
+    "brand": {
+      "x": 12,
+      "y": 25,
+      "w": 44,
+      "h": 44,
+      "right": 56
+    },
+    "centre": {
+      "x": 12,
+      "y": 90,
+      "w": 366,
+      "h": 44,
+      "right": 378
+    },
+    "title": {
+      "x": 12,
+      "y": 102,
+      "w": 314,
+      "h": 20,
+      "right": 326
+    },
+    "text": null,
+    "images": 2,
+    "family": null,
+    "weight": null,
+    "size": null,
+    "spacing": null,
+    "colour": null,
+    "spaceGroteskLoaded": true,
+    "loadedBefore": true,
+    "loadedFaces": [],
+    "interVariableLoaded": true,
+    "brandOverlapsAHeaderControl": false,
+    "headerHeight": 142
+  }
+}
