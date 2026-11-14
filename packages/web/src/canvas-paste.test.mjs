@@ -107,7 +107,9 @@ test('every canvas paste is placed at the pointer when it is over the canvas', a
 test('the canvas\'s own copied cards paste at the pointer too, keeping their layout; Duplicate and Alt-drag keep their step', async () => {
   const { readFile } = await import('node:fs/promises');
   const canvas = await readFile(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(canvas, /pasteIds\(clipboard\.current, 28, true, cursorAt\(\)\)\),/, 'the Paste command');
+  assert.match(canvas, /pasteIds\(clipboard\.current, 28, true, menuPoint\.current \|\| cursorAt\(\)\)\),/, 'the Paste command: where the menu was opened, else the pointer');
+  assert.match(canvas, /if \(event\.key\.toLowerCase\(\) === 'x'\) \{ if \(keyActionRef\.current\('cut'\)\.ran\)/, 'Ctrl+X runs the menu Cut row (permission, locked objects)');
+  assert.match(canvas, /if \(readOnlyRef\.current\) return; \/\/ a view-only board takes no paste/, 'Ctrl+V does nothing on a view-only board');
   assert.match(canvas, /pasteIdsRef\.current\(clipboard\.current, 28, true, cursorAt\(\)\)\) \{ event\.preventDefault/, 'Ctrl+V');
   assert.match(canvas, /const pasteIds = \(picked, step = 28, clip = false, at = null\) =>/);
   assert.match(canvas, /const target = clip && at \?/, 'only a clipboard paste with a pointer point is placed at it');

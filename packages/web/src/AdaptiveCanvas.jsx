@@ -4200,7 +4200,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // becomes a text card (owner, 2026-10-08); the canvas's own copied cards paste while their marker is on the clipboard.
     const paste = event => {
       const active = document.activeElement;
-      if (typingIn(active) || readOnlyRef.current) return;
+      if (typingIn(active)) return;
+      if (readOnlyRef.current) return; // a view-only board takes no paste
       // Never behind a modal window or an open menu (owner brief 2026-11-02): they own the keyboard, Ctrl/Cmd+V included.
       if (document.querySelector('[role="dialog"][aria-modal="true"]') || menuOpenRef.current || active?.closest?.('[role="menu"]')) return;
       const data = event.clipboardData;
