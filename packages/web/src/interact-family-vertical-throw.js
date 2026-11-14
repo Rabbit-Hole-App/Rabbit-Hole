@@ -1,6 +1,10 @@
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 import { evalQuantity, parseQuantity } from './interact-formula.js';
 import { evalScalar } from './interact-plan.js';
+import { verticalThrowData } from './interact-family-vertical-throw-data.js';
+import * as oneBody from './interact-templates/one-body.js';
+import * as twoLane from './interact-templates/two-lane.js';
+import * as bodyPlot from './interact-templates/body-plot.js';
 
 // The family `vertical-throw` (owner brief 11, design MVP): a ball thrown straight up, shown at three depths. The depth picks the template (code, no pick step); the plan brief
 // (interact-plan-brief.js) carries what a model writes (the title, the story, the ranges, the formulas, the words); expandBrief below writes everything else, in code: the runtime tuple,
@@ -326,4 +330,32 @@ export function context({ scene, bodies, slots, parsed, numberInputs, endExpr, q
   return { range, units: { height: unitOf(body.height), velocity: unitOf(body.velocity), acceleration: unitOf(body.acceleration), ...(slots.force ? { force: unitOf(slots.force) } : {}) } };
 }
 
-export const verticalThrow = Object.freeze({ id: FAMILY.id, FAMILY, INPUTS, ROLES, LIMITS, scalars, templates, formulaGrammar, formulaRules, referenceCheck, context, expandBrief, extractBrief, familyDescription });
+// What the registry derives from this family (interact-family-registry.js): the light part (the roles and words of each template, the pick criterion) lives in interact-family-vertical-throw-data.js,
+// which plan validation in the browser imports; this module adds what only the generator, the design, the pins and CI need: the template modules, the pin families and the check-map rows.
+export const templateModules = Object.freeze({ 'one-body': oneBody, 'two-lane': twoLane, 'body-plot': bodyPlot });
+// The pin families (interact-design-pin.js, INTERACT_DESIGN_FIXTURE): a Depth -> the plan id that Depth pins, and each plan id -> [the plan's name, its Depth, the fixtures group it lives in]
+// (interact-plan-fixtures.js: `referencePlans` the three approved cards and the Moon ledge, `plans` the older ones, `mvp` the plans a model wrote as a brief: interact-toss-mvp-plans.js).
+const pins = Object.freeze({
+  families: Object.freeze({
+    toss: Object.freeze({ brief: 'toss-overview', balanced: 'toss-standard', detailed: 'toss-deep' }),
+    ledge: Object.freeze({ brief: 'ledge-toss-moon' }),
+    'toss-mvp': Object.freeze({ brief: 'toss-mvp-brief', balanced: 'toss-mvp-balanced', detailed: 'toss-mvp-detailed' }),
+  }),
+  plans: Object.freeze({
+    'toss-overview': ['tossOverview', 'brief', 'referencePlans'], 'toss-standard': ['tossStandard', 'balanced', 'referencePlans'], 'toss-deep': ['tossDeep', 'detailed', 'referencePlans'],
+    'ledge-toss-moon': ['ledgeTossMoon', 'brief', 'referencePlans'], 'toss-drop-standard': ['standard', 'balanced', 'plans'], 'toss-drop-standard-controls': ['standardControls', 'balanced', 'plans'],
+    'toss-mvp-brief': ['brief', 'brief', 'mvp'], 'toss-mvp-balanced': ['balanced', 'balanced', 'mvp'], 'toss-mvp-detailed': ['detailed', 'detailed', 'mvp'],
+  }),
+});
+// The check-map rows of this family's files (scripts/ci/gen-family-check-map.mjs writes them into scripts/ci/check-map.json; the check-map test fails when a registered family's file has no row).
+const checkMap = Object.freeze({
+  'packages/web/src/interact-templates/body-plot.js': ['packages/control-plane/test/interact-templates.test.js', 'packages/control-plane/test/interact-toss-programs.test.js'],
+  'packages/web/src/interact-templates/one-body.js': ['packages/control-plane/test/interact-templates.test.js', 'packages/control-plane/test/interact-toss-programs.test.js'],
+  'packages/web/src/interact-templates/shared.js': ['packages/control-plane/test/interact-templates.test.js', 'packages/control-plane/test/interact-toss-programs.test.js'],
+  'packages/web/src/interact-templates/two-lane.js': ['packages/control-plane/test/interact-templates.test.js', 'packages/control-plane/test/interact-toss-programs.test.js'],
+  'packages/web/src/interact-family-vertical-throw.js': ['packages/web/src/interact-plan-brief.test.mjs', 'packages/control-plane/test/interact-plan-brief.test.js'],
+  'packages/web/src/interact-family-vertical-throw-data.js': ['packages/web/src/interact-plan-brief.test.mjs', 'packages/web/src/interact-formula.test.mjs', 'packages/control-plane/test/interact-family-registry.test.js'],
+  'packages/web/src/interact-toss-mvp-plans.js': ['packages/control-plane/test/interact-toss-mvp.test.js'],
+});
+
+export const verticalThrow = Object.freeze({ id: FAMILY.id, FAMILY, INPUTS, ROLES, LIMITS, scalars, templates, formulaGrammar, formulaRules, referenceCheck, context, expandBrief, extractBrief, familyDescription, ...verticalThrowData, templateModules, pins, checkMap });

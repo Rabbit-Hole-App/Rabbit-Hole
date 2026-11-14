@@ -1,11 +1,15 @@
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 import { parseQuantity } from './interact-formula.js';
 import { evalScalar, scalarInterval } from './interact-plan.js';
-import { independent, bounds, effects, templates, curveRoles, markerInput } from './interact-curve-data.js';
+import { independent, bounds, effects, templates, curveRoles, markerInput, curveData } from './interact-curve-data.js';
+import { curveBriefs } from './interact-curve-briefs.js';
+import * as curveOne from './interact-templates/curve-one.js';
+import * as curveCompare from './interact-templates/curve-compare.js';
+import * as curveReadouts from './interact-templates/curve-readouts.js';
 import { checkCurvePlan } from './interact-curve-check.js';
 export { independent, bounds, effects, templates, markerInput };
 
-export const pickCriterion = 'One quantity as a function of another, drawn as a curve whose shape a few parameters change; no motion over time.';
+export const pickCriterion = curveData.pickCriterion;
 export const FAMILY = Object.freeze({
   id: 'curve-sliders',
   depths: Object.freeze({
@@ -157,4 +161,26 @@ export function context({ slots, parsed, numberInputs, quantities }) {
     units: Object.fromEntries(['y', 'slope', 'yAtMarker'].map(role => [role, quantities.get(slots[role])?.unit ?? ''])),
   };
 }
-export const curveSliders = Object.freeze({ id: FAMILY.id, FAMILY, INPUTS, ROLES, LIMITS, scalars, referenceCheck, expandBrief, extractBrief, familyDescription, formulaGrammar, formulaRules, templates, context, independent, bounds, effects, markerInput, pickCriterion });
+// What the registry derives from this family (interact-family-registry.js): the light part (the roles, independent variable and words of each template, the pin families, the check-map rows) lives in
+// interact-curve-data.js, which plan validation in the browser imports; this module adds the template modules and the fixtures group the pins read.
+export const templateModules = Object.freeze({ 'curve-one': curveOne, 'curve-compare': curveCompare, 'curve-readouts': curveReadouts });
+export const fixtureGroups = catalogueHash => ({ curvePlans: Object.fromEntries(['brief', 'balanced', 'detailed'].map(depth => ['curve-logistic-' + depth, expandBrief(curveBriefs[depth], depth, { catalogueHash })])) });
+export const pins = Object.freeze({
+  families: Object.freeze({ curve: Object.freeze({ brief: 'curve-logistic-brief', balanced: 'curve-logistic-balanced', detailed: 'curve-logistic-detailed' }) }),
+  plans: Object.freeze({ 'curve-logistic-brief': ['curve-logistic-brief', 'brief', 'curvePlans'], 'curve-logistic-balanced': ['curve-logistic-balanced', 'balanced', 'curvePlans'], 'curve-logistic-detailed': ['curve-logistic-detailed', 'detailed', 'curvePlans'] }),
+});
+export const checkMap = Object.freeze({
+  'packages/web/src/interact-family-curve-sliders.js': ['packages/web/src/interact-family-curve-sliders.test.mjs', 'packages/control-plane/test/interact-family-curve.test.js', 'packages/control-plane/test/interact-family-curve-check.test.js', 'packages/control-plane/test/interact-curve-pins.test.js'],
+  'packages/web/src/interact-curve-briefs.js': ['packages/web/src/interact-family-curve-sliders.test.mjs', 'packages/control-plane/test/interact-curve-templates.test.js', 'packages/control-plane/test/interact-curve-pins.test.js'],
+  'packages/web/src/interact-curve-data.js': ['packages/web/src/interact-family-curve-sliders.test.mjs', 'packages/control-plane/test/interact-family-curve-check.test.js', 'packages/control-plane/test/interact-curve-templates.test.js'],
+  'packages/web/src/interact-curve-check.js': ['packages/control-plane/test/interact-family-curve-check.test.js', 'packages/control-plane/test/interact-curve-pins.test.js'],
+  'packages/web/src/interact-curve-programs.js': ['packages/control-plane/test/interact-curve-templates.test.js'],
+  'packages/web/src/interact-templates/curve-one.js': ['packages/control-plane/test/interact-curve-templates.test.js', 'packages/control-plane/test/interact-curve-pins.test.js'],
+  'packages/web/src/interact-templates/curve-compare.js': ['packages/control-plane/test/interact-curve-templates.test.js', 'packages/control-plane/test/interact-curve-pins.test.js'],
+  'packages/web/src/interact-templates/curve-readouts.js': ['packages/control-plane/test/interact-curve-templates.test.js', 'packages/control-plane/test/interact-curve-pins.test.js'],
+  'packages/web/src/interact-templates/curve-shared.js': ['packages/control-plane/test/interact-curve-templates.test.js', 'packages/control-plane/test/interact-curve-pins.test.js'],
+  'packages/control-plane/src/interact-family-curve-check.js': ['packages/control-plane/test/interact-family-curve-check.test.js', 'packages/control-plane/test/interact-curve-pins.test.js'],
+  'packages/control-plane/src/interact-curve-oracle.js': ['packages/control-plane/test/interact-curve-pins.test.js'],
+});
+
+export const curveSliders = Object.freeze({ id: FAMILY.id, FAMILY, INPUTS, ROLES, LIMITS, scalars, referenceCheck, expandBrief, extractBrief, familyDescription, formulaGrammar, formulaRules, templates, context, independent, bounds, effects, markerInput, templateModules, fixtureGroups, pins, checkMap, ...curveData });

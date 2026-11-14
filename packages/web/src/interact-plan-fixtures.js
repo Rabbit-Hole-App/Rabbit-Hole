@@ -1,7 +1,9 @@
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 import { interactCapabilities } from './interact-control-catalogue.js';
-import { expandBrief as expandCurveBrief } from './interact-family-curve-sliders.js';
-import { curveBriefs } from './interact-curve-briefs.js';
+import { registeredFamilies } from './interact-family-registry.js';
+import { registerBuiltinFamilies } from './interact-family-index.js';
+
+registerBuiltinFamilies(); // the fixtures groups a family declares come from its full module
 
 // Validated ScenePlan fixtures (INT-01-C07): the canonical toss-and-drop Overview / Standard / Deep (docs/features/interact.md
 // section 7, "Canonical toss-and-drop acceptance"), an untimed Experiment and a Static view with adjustable still parameters.
@@ -275,8 +277,9 @@ export async function interactFixtures() {
     claims: [...standard.claims, { id: 'accelerationAnySpeed', text: 'The acceleration readout stays -9.8 m/s^2 at every launch speed from 3.0 to 5.0 m/s, including at the top.', evidenceIds: ['kinematics_note'], check: 'v = u - g t has slope -g for every u, so a = -g whatever the launch speed.' }],
   };
 
-  const curvePlans = Object.fromEntries(['brief', 'balanced', 'detailed'].map(depth => ['curve-logistic-' + depth, expandCurveBrief(curveBriefs[depth], depth, { catalogueHash: referenceCapabilities.catalogueHash })]));
-  return { capabilities, plans: { overview, overviewProgram, standard, standardControls, deep, untimedExperiment, staticAdjustable, pendulum }, referenceCapabilities, referencePlans: tossReferencePlans(referenceCapabilities.catalogueHash), curvePlans };
+  // The fixtures groups a registered family declares (fixtureGroups: curve-sliders' `curvePlans`), next to the toss groups above.
+  const familyGroups = Object.assign({}, ...registeredFamilies().map(family => family.fixtureGroups?.(referenceCapabilities.catalogueHash)));
+  return { capabilities, plans: { overview, overviewProgram, standard, standardControls, deep, untimedExperiment, staticAdjustable, pendulum }, referenceCapabilities, referencePlans: tossReferencePlans(referenceCapabilities.catalogueHash), ...familyGroups };
 }
 
 // ---- The three reference toss-and-drop cards (owner 2026-11-13) ---------------------------------------------------------------------------------------------------------------
