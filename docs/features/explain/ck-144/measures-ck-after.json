@@ -1,0 +1,92 @@
+{
+  "phase": "after",
+  "worktree": "C:/s/explain-ctrlk-144",
+  "fixture": "three explanation cards of the v60 export in the column, offsets zeroed; the passage is \"Gini impurity\" in the second card",
+  "cardsBefore": {
+    "12b2f014": {
+      "x": 462,
+      "y": 104,
+      "w": 440,
+      "h": 921
+    },
+    "90f74975": {
+      "x": 402,
+      "y": 1045,
+      "w": 724,
+      "h": 646
+    },
+    "5be887a2": {
+      "x": 462,
+      "y": 1711,
+      "w": 440,
+      "h": 1245
+    }
+  },
+  "passage": {
+    "left": 1013.40625,
+    "top": 1146.8125,
+    "width": 78.09375,
+    "height": 15
+  },
+  "opened": {
+    "window": {
+      "x": 430,
+      "y": 502,
+      "w": 420,
+      "h": 136
+    },
+    "surface": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 1050
+    },
+    "innerWidth": 1700,
+    "innerHeight": 1050,
+    "chip": {
+      "text": "Gini impurity",
+      "title": "Gini impurity"
+    },
+    "promptValue": "",
+    "label": "Explain selection"
+  },
+  "passageNow": {
+    "x": 430,
+    "y": 469,
+    "w": 117,
+    "h": 23
+  },
+  "afterEnter": {
+    "windowOpen": false,
+    "accept": 0,
+    "reject": 0,
+    "previewText": null,
+    "slots": [],
+    "surface": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 1050
+    }
+  },
+  "cardsAfter": {
+    "12b2f014": {
+      "x": -428,
+      "y": -2486,
+      "w": 660,
+      "h": 1381
+    },
+    "90f74975": {
+      "x": -518,
+      "y": -1075,
+      "w": 1085,
+      "h": 969
+    },
+    "5be887a2": {
+      "x": -428,
+      "y": -76,
+      "w": 660,
+      "h": 1867
+    }
+  }
+}
