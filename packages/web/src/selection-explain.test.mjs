@@ -166,7 +166,7 @@ test('CK-3: Explain selection over a passage makes its card through /explain (sk
   const editor = read('./InlineAiEditor.jsx');
   assert.ok(editor.includes("if (overPassage && config.handoff) {"));
   assert.ok(editor.includes("deliver(`/${typedOf('explanation')} ${asked}`,") && editor.includes('{ selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }'), 'the written /explain (id explanation), not /interactive');
-  assert.ok(editor.includes("const autoCard = mode === 'explain' && state.preview?.kind === 'card';"), 'the inline card fallback is accepted by itself');
+  assert.ok(editor.includes("const autoCard = mode === 'explain' && state.preview?.kind === 'card' && !state.preview.extraction && !state.preview.sourceReadings;"), 'the inline card fallback is accepted by itself, except a card read from an image or from PDF pages (its uncertainties and readings are reviewed, release 146)');
   assert.ok(editor.includes("!busy(status) && !autoCard && (") && editor.includes("(preview && status !== 'proposal' && !autoCard) && ("), 'no Accept or Reject, no preview text, for that card only');
   assert.ok(editor.includes("preview?.kind === 'note'") && editor.includes("status === 'proposal' && ("), 'notes and the paid proposal keep their own review');
 });
@@ -182,4 +182,25 @@ test('CK-5: placeExplain (the Ctrl+K v2 job) places through placeSourced at the 
   assert.ok(page.includes('near: { cardId: about.selection.id, alignY: about.selection.alignY }'), 'the highlight card and the highlighted line reach placeExplain');
   const reserve = canvas.slice(canvas.indexOf('reserve: ({ label,'), canvas.indexOf('placeRoadmapCard:'));
   assert.ok(reserve.includes('placeSourced({ source, anchorY'), 'reserve({beside}) uses it too');
+});
+
+// CK-5 (release 146): the inline fallback card made from highlighted words is placed by placeSourced at the passage line and written with parentCard; notes and diagrams keep placeNote.
+test('CK-5: the fallback card goes through placeSourced at the passage line, with parentCard on accept; only a CARD from a passage', () => {
+  const editor = read('./InlineAiEditor.jsx').replace(/\r\n/g, '\n');
+  assert.ok(editor.includes("import { placeSourced } from './place-sourced.js';"));
+  assert.ok(editor.includes('if (forCard && passage) {') && editor.includes('placeSourced({ source: targetBox, anchorY: targetBox.y + passage.dy, size, boxes: obstaclesNow(target.ids), siblings: childrenOf(passage.id), id: forCard, sourceId: passage.id, area: null })'));
+  assert.ok(editor.includes('const passage = highlight && target.ids?.length === 1 && highlight.id === target.ids[0] && Number.isFinite(highlight.alignY)'));
+  assert.ok(editor.includes('placeFor(size, cardId(preview.requestId))') && editor.includes('placeFor(shown.size, isCard(preview) ? cardId(preview.requestId) : null)'), 'both card placement points');
+  assert.ok(editor.includes('place, parent: place && passage ? passage : null })'), 'parentCard written when the card was placed at a passage');
+  assert.ok(editor.includes('const spot = placeNote(targetBox, size, obstaclesNow(target.ids), canvas.visibleWorld());'), 'notes keep placeNote');
+});
+
+// Release 146: a Ctrl+K card from words inside ANY card (an Explanation, a webpage, a note, a text card), not only a Markdown file: nothing on the path asks for the card's type.
+test('a highlight in a non-Markdown card takes the same path: picked by any card, placed by placeSourced, linked by parentCard, pill and no Accept', () => {
+  const picked = read('./inline-highlight.js').replace(/\r\n/g, '\n'), canvas = read('./AdaptiveCanvas.jsx').replace(/\r\n/g, '\n'), editor = read('./InlineAiEditor.jsx').replace(/\r\n/g, '\n');
+  const fn = picked.slice(picked.indexOf('export function pickedHighlight'), picked.indexOf('// The whole card as one context object'));
+  assert.ok(fn.includes("host?.closest?.('[data-block-id]')") && !/block\.type|\.kind ===/.test(fn), 'any card with data-block-id and text the card can read (cardText)');
+  const at = canvas.indexOf('placeExplain: (card,'), body = canvas.slice(at, canvas.indexOf('reconcileCad:', at));
+  assert.ok(!/source\.type|source\.kind/.test(body), 'placeExplain asks nothing of the source card but its measured box');
+  assert.ok(editor.includes('passageText && <span data-inline-chip') && editor.includes('const passage = highlight && target.ids?.length === 1'), 'the pill and the fallback placement need only a highlight');
 });
