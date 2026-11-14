@@ -45,19 +45,19 @@ function Action({ label, chord, Icon, onClick, mac, ...rest }) {
 }
 
 // pointerdown is swallowed and prevented so pressing never blurs a field, drops a text selection or clears the canvas selection.
-function Actions({ ctx, mode, className = '', style }) {
+function Actions({ ctx, mode, className = '', style, joined = false }) {
   const press = event => { event.preventDefault(); event.stopPropagation(); };
   // Minimize (owner 2026-11-08) is its own pill beside the long one, drawn like the Enter pill above the card (AdaptiveCanvas), never inside it.
   const pill = ctx.onMinimize && (
     <button type="button" aria-label="Minimize" title="Minimize" onClick={ctx.onMinimize} onPointerDown={press} data-minimize-button data-thumbnail-hide
-      className="pointer-events-auto flex h-[34px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white px-3 text-ink shadow-md hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
+      className={joined ? 'pointer-events-auto flex h-7 shrink-0 cursor-pointer items-center justify-center rounded-full px-2.5 text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none' : 'pointer-events-auto flex h-[34px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-white px-3 text-ink shadow-md hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none'}>
       <ChevronsDownUp size={15} strokeWidth={1.8} aria-hidden="true" />
     </button>
   );
   const bar = (barClass, barStyle) => (
     <div role="toolbar" aria-label="Selection actions" data-selection-bar={mode} data-thumbnail-hide style={barStyle}
       onPointerDown={press}
-      className={`pointer-events-auto flex h-[34px] w-max items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-md ${barClass}`}>
+      className={joined ? 'pointer-events-auto flex w-max items-center gap-0.5' : `pointer-events-auto flex h-[34px] w-max items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-md ${barClass}`}>
       {ctx.focusLabel && <button type="button" aria-label={ctx.focusLabel} title={ctx.focusLabel} onClick={ctx.onFocus} data-focus-button
         className="relative -my-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink after:absolute after:-inset-1.5 not-last:mr-1.5 hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
         <Maximize size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -68,33 +68,34 @@ function Actions({ ctx, mode, className = '', style }) {
   );
   if (!pill) return bar(className, style);
   const long = ctx.focusLabel || ctx.onAddToChat || ctx.onQuickEdit;
+  if (joined) return <div data-selection-group className="pointer-events-auto flex w-max items-center gap-0.5">{long && bar('', undefined)}{long && <span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-line-strong" />}{pill}</div>;
   return <div data-selection-group className={`pointer-events-auto flex w-max items-center gap-1.5 ${className}`} style={style}>{long && bar('', undefined)}{pill}</div>; // Minimize last (owner 2026-11-13): Add to chat and Quick Edit first
 }
 
 // The row of a card the pointer is over but that is not the selected one (owner 2026-11-13: the card's actions show on hover, not on click). Pressing a button selects this card first
 // and then runs the action, which acts on the selection as ever (the handler is read after the selection has re-rendered).
-export function HoverActions({ id, select, minimizable = false, divider = false }) {
+export function HoverActions({ id, select, minimizable = false, divider = false, joined = false }) {
   const ctx = useContext(Ctx);
   if (!ctx || ctx.hidden || ctx.sole === id || (!ctx.onAddToChat && !ctx.onQuickEdit)) return null;
   // Select this card, let the canvas re-render with it selected, then run the action from the NEWEST context: the action reads the selection, and the copy this row holds was made before it.
   const act = name => { select(id); requestAnimationFrame(() => requestAnimationFrame(() => freshest?.[name]?.())); };
   // The very same Actions the selected card's row draws (owner 2026-11-13: hover and click must look and sit the same), with this card's presses.
   const hoverCtx = { ...ctx, focusLabel: null, onFocus: null, added: false, onAddToChat: ctx.onAddToChat ? () => act('onAddToChat') : null, onQuickEdit: ctx.onQuickEdit ? () => act('onQuickEdit') : null, onMinimize: minimizable ? () => act('onMinimize') : null };
-  const actions = <Actions ctx={hoverCtx} mode="host" />;
+  const actions = <Actions ctx={hoverCtx} mode="host" joined={joined} />;
   // The rule before it, where other controls of the row come first (as SelectionActionsHost draws it).
   return divider ? <div className="flex items-stretch gap-1.5"><span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-line-strong" />{actions}</div> : actions;
 }
 
 // A host row's trailing segment: shown only while `id` is the one selected object, and tells the floating bar to stand down.
 // divider: a thin rule before it, where other controls of the row come first.
-export function SelectionActionsHost({ id, className = '', style, divider = false }) {
+export function SelectionActionsHost({ id, className = '', style, divider = false, joined = false }) {
   const ctx = useContext(Ctx);
   // On a narrow view, on an object with a comment pin, or on one whose row would be cut off, the floating bar takes over (usesHost, selection-bar-place.js).
   const here = !!ctx && usesHost(ctx, id);
   const register = ctx?.register;
   useLayoutEffect(() => (here ? register() : undefined), [here, register]);
   if (!here || !hasActions(ctx)) return null;
-  const actions = <Actions ctx={ctx} mode="host" className={className} style={style} />;
+  const actions = <Actions ctx={ctx} mode="host" className={className} style={style} joined={joined} />;
   // The rule and the segment stay together when the row they sit in wraps (CanvasNode's tools row).
   return divider ? <div className="flex items-stretch gap-1.5"><span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-line-strong" />{actions}</div> : actions;
 }

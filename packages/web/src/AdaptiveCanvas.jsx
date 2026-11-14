@@ -459,18 +459,20 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
+      {/* ONE component (owner 2026-11-13): Enter, Add to chat, Quick Edit and Minimize are one pill in one fixed place above the card's left edge, seen and not seen together. */}
       {(showEnter || showTools) && (
-        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-end gap-x-2 gap-y-1.5 after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-[''] [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
-          {showEnter && (
-            <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
-              onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
-              className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-              Enter<ArrowUpRight size={13} />
-            </button>
-          )}
-          {/* On the selected card the buttons keep their place in the row whether or not the pointer is on the card, and only become invisible (visibility, so they take no presses): a row that
-              re-wraps as they come and go moves Enter up and down (owner 2026-11-13). */}
-          {showTools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{selected ? tools : hoverTools}</div>}
+        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex items-end after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-['']">
+          <div data-card-actions className="pointer-events-auto flex w-max max-w-full flex-wrap items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-md">
+            {showEnter && (
+              <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
+                onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
+                className="flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full px-3 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover">
+                Enter<ArrowUpRight size={13} />
+              </button>
+            )}
+            {showEnter && showTools && <span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-line-strong" />}
+            {showTools && <div className="flex flex-wrap items-center gap-0.5">{selected ? tools : hoverTools}</div>}
+          </div>
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
@@ -980,13 +982,13 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       hoverTools={!selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
-        <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-        <HoverActions id={block.id} select={onSelect} divider={cadTools || ['code', 'snippet'].includes(block.type)} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} />
+        <NotebookButton entry={block} onNotebook={onNotebook} className="h-7 w-7 self-center rounded-full text-ink hover:bg-hover" />
+        <HoverActions id={block.id} select={onSelect} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} />
       </> : null}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
-        <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-        <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
+        <NotebookButton entry={block} onNotebook={onNotebook} className="h-7 w-7 self-center rounded-full text-ink hover:bg-hover" />
+        <SelectionActionsHost id={block.id} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}>
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
