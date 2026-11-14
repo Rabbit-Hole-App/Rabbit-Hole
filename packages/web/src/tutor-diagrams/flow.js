@@ -33,8 +33,8 @@ function portOffset(node, edges, edge) {
   return edges.length > 1 ? (2 * edges.indexOf(edge) / (edges.length - 1) - 1) * spread : 0;
 }
 
-function port(node, edges, edge, bottom) {
-  const dx = portOffset(node, edges, edge);
+function port(node, edges, edge, bottom, move = 0) {
+  const dx = portOffset(node, edges, edge) + move;
   let inset = 0;
   if (node.role === 'decision') inset = Math.abs(dx) * node.height / node.width;
   if (node.role === 'outcome' && !node.tensor) {
@@ -98,6 +98,31 @@ function crosses(points, { x, y, width, height }) {
       : y1 > y - margin && y1 < y + height + margin
         && Math.max(x1, x2) > x - margin && Math.min(x1, x2) < x + width + margin;
   });
+}
+
+const MIN_WIRE_GAP = 6; // RD-4b: the least distance between two side-by-side wires (the lint's parallelGap); a clash is moved apart to WIRE_GAP
+const WIRE_GAP = 8;
+
+// The first pair of vertical legs of two different edges that run side by side closer than MIN_WIRE_GAP, each as { index of its route, leg number, x }.
+function closeVerticals(routed) {
+  const legs = routed.map(({ points }) => points.slice(1).map((end, leg) => [points[leg], end, leg]).filter(([a, b]) => a[0] === b[0] && a[1] !== b[1]));
+  for (let i = 0; i < legs.length; i++) for (let j = i + 1; j < legs.length; j++) for (const [a1, a2, legA] of legs[i]) for (const [b1, b2, legB] of legs[j]) {
+    const run = Math.min(Math.max(a1[1], a2[1]), Math.max(b1[1], b2[1])) - Math.max(Math.min(a1[1], a2[1]), Math.min(b1[1], b2[1]));
+    const gap = Math.abs(a1[0] - b1[0]);
+    if (run > 1 && gap < MIN_WIRE_GAP) return { a: { route: i, leg: legA, x: a1[0] }, b: { route: j, leg: legB, x: b1[0] }, gap };
+  }
+  return null;
+}
+
+// Where to move the port a clashing leg starts or ends at, away from the other leg to WIRE_GAP: { edge, end, move }, or null when the leg is a middle leg or a side branch, or the port would leave its node edge. The later edge moves first.
+function nudgeFor(side, other, routed, placements, outgoing, incoming, moves) {
+  const { edge, points, side: branch } = routed[side.route];
+  const end = branch ? null : side.leg === 0 ? 'from' : side.leg === points.length - 2 ? 'to' : null;
+  if (!end) return null;
+  const node = placements.get(end === 'from' ? edge.from : edge.to);
+  const move = (moves.get(edge)?.[end] ?? 0) + (side.x >= other.x ? 1 : -1) * (WIRE_GAP - Math.abs(side.x - other.x));
+  const offset = portOffset(node, (end === 'from' ? outgoing : incoming).get(node.id), edge) + move;
+  return Math.abs(offset) <= node.width / 2 - 12 ? { edge, end, move } : null;
 }
 
 function labelBounds(route, others, width) {
@@ -279,7 +304,10 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
     y += 10;
   });
 
-  const routed = routes.map(route => {
+  // RD-4b: a port may be moved along its node edge (moves: edge -> { from, to }) when its vertical leg would run closer than MIN_WIRE_GAP to another edge's vertical.
+  const moves = new Map();
+  const moveOf = (edge, end) => moves.get(edge)?.[end] ?? 0;
+  const routeAll = () => routes.map(route => {
     const { edge, depart, arrive } = route;
     if (sideEdges.has(edge)) {
       const source = placements.get(edge.from);
@@ -289,12 +317,20 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
       const points = kind === 'drop' ? [vertex, [vertex[0], target[1]]] : [vertex, [target[0], vertex[1]], target];
       return { ...route, side: kind, dir, lift, points };
     }
-    const from = port(placements.get(edge.from), outgoing.get(edge.from), edge, true);
-    const to = port(placements.get(edge.to), incoming.get(edge.to), edge, false);
+    const from = port(placements.get(edge.from), outgoing.get(edge.from), edge, true, moveOf(edge, 'from'));
+    const to = port(placements.get(edge.to), incoming.get(edge.to), edge, false, moveOf(edge, 'to'));
     const points = arrive ? skipLanePoints(from, to, skipX(edge), depart.y, arrive.y)
       : [from, [from[0], depart.y], [to[0], depart.y], to];
     return { ...route, points };
   });
+  let routed = routeAll();
+  for (let pass = 0; pass < 6; pass++) {
+    const clash = closeVerticals(routed);
+    const nudge = clash && [[clash.b, clash.a], [clash.a, clash.b]].map(([side, other]) => nudgeFor(side, other, routed, placements, outgoing, incoming, moves)).find(Boolean);
+    if (!nudge) break;
+    moves.set(nudge.edge, { ...moves.get(nudge.edge), [nudge.end]: nudge.move });
+    routed = routeAll();
+  }
   const wires = routed.map(({ edge, points }) => {
     const active = pathEdge(edge);
     return { active, element: h('g', { 'data-tutor-edge': `${edge.from}:${edge.to}`, ...(active ? { 'data-tutor-path': '' } : {}) }, connector(points, { path: active })) };
