@@ -6,6 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { acceptedPlanOf, actionKeys, canProposeNext, chatOf, claimsFocus, deliverable, draftOf, keyboardOwned, idleGrouper, initialState, invitationOf, offerOf, pillOf, planDelivery, readyMarkdownSources, failuresOf, reduce, routes, stepLabelFor, tabAccepts, texts, tocOf } from './roadmap-client.js';
 import { STRINGS } from './roadmap-strings.js';
+import { withRoadmap } from './learn-outline-model.js';
 import { entriesOf } from './roadmap-transcript.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
 import { ROADMAP_STATES } from './roadmap-contract.js';
@@ -127,7 +128,7 @@ test('failed card: its sentence comes from the server once (the existing error t
 test('ToC: accepted plan only, no draft leak, no actions; steps with descriptions and status; navigation only where something exists', () => {
   assert.equal(tocOf(withView('status-proposed-plan')), null, 'a draft stays in Chat');
   const active = tocOf(withView('status-active-proposal-pending'));
-  assert.deepEqual(Object.keys(active).sort(), ['roadmapId', 'state', 'steps']);
+  assert.deepEqual(Object.keys(active).sort(), ['earlier', 'roadmapId', 'state', 'steps']);
   assert.ok(active.steps.every(s => s.description && s.status && s.format));
   const pending = withView('status-active-proposal-pending');
   const revising = reduce(initialState(), { type: 'view', view: { ...pending.view, planDraft: { version: 9, steps: [{ position: 1, title: 'Draft-only step' }] } } });
@@ -270,4 +271,39 @@ test('a dropped Markdown file waits for its invitation (owner 2026-11-14): waiti
   assert.equal(waiting.waiting, true);
   assert.equal(reduce(waiting, { type: 'invitation', invitation: null, suppressed: { reason: 'unfinished_roadmap' } }).waiting, false, 'any invitation answer ends the wait');
   assert.equal(reduce(waiting, { type: 'waiting', on: false }).waiting, false);
+});
+
+test('two files dropped together: the one on offer stays, the other waits and is offered when the first is answered (owner 2026-11-14)', () => {
+  const one = { id: 'iv_1', state: 'offered', title: 'One.md', sourceKeys: ['file:f1'] }, two = { id: 'iv_2', state: 'offered', title: 'Two.md', sourceKeys: ['file:f2'] };
+  let state = reduce(initialState(), { type: 'invitation', invitation: one });
+  state = reduce(state, { type: 'invitation', invitation: two });
+  assert.equal(state.invitation.id, 'iv_1', 'the first stays on offer');
+  assert.deepEqual(state.queue.map(q => q.id), ['iv_2']);
+  state = reduce(state, { type: 'invitation', invitation: two });
+  assert.deepEqual(state.queue.map(q => q.id), ['iv_2'], 'the same report again adds nothing');
+  const cancelled = reduce(state, { type: 'dismissed', id: 'iv_1' });
+  assert.equal(cancelled.invitation.id, 'iv_2', 'Cancel on the first offers the second');
+  assert.deepEqual(cancelled.queue, []);
+  // Create a course on the first: its roadmap arrives, and the second is offered.
+  const created = reduce(state, { type: 'view', view: { ...view('status-proposed-plan'), roadmap: { ...view('status-proposed-plan').roadmap, invitationId: 'iv_1' } } });
+  assert.equal(created.invitation.id, 'iv_2');
+});
+
+test('finished courses stay in the contents under their file name, after the current one (owner 2026-11-14)', () => {
+  const done = name => { const v = view('status-completed'); return { ...v, roadmap: { ...v.roadmap, id: 'rm_' + name, scope: { ...v.roadmap.scope, source: { ...v.roadmap.scope.source, name } } } }; };
+  const state = { ...withView('status-active-proposal-pending'), earlier: [done('Old.md')] };
+  const toc = tocOf(state);
+  assert.deepEqual(toc.earlier.map(g => g.name), ['Old.md']);
+  assert.ok(toc.earlier[0].steps.length > 0);
+  const rows = withRoadmap([], toc);
+  const group = rows.findIndex(r => r.id === 'roadmap-earlier:rm_Old.md');
+  assert.ok(group > 0, 'its group row comes after the current course');
+  assert.equal(rows[group].level, 1);
+  assert.equal(rows[group + 1].level, 2, 'its steps sit under it');
+  assert.equal(rows[group].roadmap.section, true, 'a group row is not an editable heading');
+  // with no current roadmap the earlier ones are still shown, and the current one is not repeated
+  const only = tocOf({ ...initialState(), flag: 'on', earlier: [done('Old.md')] });
+  assert.equal(only.steps.length, 0);
+  assert.equal(only.earlier.length, 1);
+  assert.equal(tocOf({ ...state, earlier: [state.view] }).earlier.length, 0, 'the current course is not listed twice');
 });

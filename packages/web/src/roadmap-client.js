@@ -60,18 +60,25 @@ export function actionKeys(random = () => globalThis.crypto.randomUUID()) {
 }
 
 // --- state ----------------------------------------------------------------------------------------------------------------
-export const initialState = () => ({ waiting: false, flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, boundary: null, notice: null, busy: [], mode: 'auto', draft: null, editing: false, limitation: null });
+export const initialState = () => ({ queue: [], earlier: [], waiting: false, flag: 'unknown', view: null, invitation: null, dismissed: [], suppressed: null, boundary: null, notice: null, busy: [], mode: 'auto', draft: null, editing: false, limitation: null });
 
 const sameRoadmap = (a, b) => a?.roadmap?.id === b?.roadmap?.id;
 // A view older than the one held (same roadmap) is ignored: a slow poll never rolls the screen back.
 const newer = (held, next) => !held || !sameRoadmap(held, next) || next.roadmap.revision >= held.roadmap.revision;
 
+// The invitation a roadmap was made from is answered: the next one waiting is offered.
 export function reduce(state, event) {
+  const next = reduceBase(state, event);
+  return next.invitation && next.view?.roadmap?.invitationId === next.invitation.id ? { ...next, invitation: (next.queue || [])[0] ?? null, queue: (next.queue || []).slice(1) } : next;
+}
+function reduceBase(state, event) {
   switch (event.type) {
     // An empty status means no UNFINISHED roadmap: the accepted tree of the one that just finished stays reachable as state.past (tocOf), until a new roadmap replaces it.
     case 'view': if (!event.view?.roadmap) return { ...state, flag: 'on', view: null, draft: null, editing: false, past: state.view && acceptedPlanOf(state.view) ? state.view : state.past }; return newer(state.view, event.view) ? withPreview({ ...state, flag: 'on', view: event.view, notice: null, limitation: null }) : state;
     // 409: the response carries the current state; it replaces ours even when its revision looks lower (the server is the truth).
     // A reload: the latest finished roadmap read back from history. Never replaces a live view.
+    // Finished courses of this canvas stay in the contents under their file name (owner 2026-11-14: one course per canvas at a time, but a new file never makes an old course's rows vanish).
+    case 'earlier': return { ...state, earlier: event.views || [] };
     case 'past': return state.view || !event.view?.roadmap ? state : { ...state, past: event.view };
     case 'conflict': return withPreview({ ...state, flag: 'on', view: event.current || state.view, notice: STRINGS.stale });
     // R5: the editor box and its preview. A preview for a version the server no longer shows is dropped by withPreview (never trusted over the view).
@@ -82,9 +89,16 @@ export function reduce(state, event) {
     case 'refused': return { ...state, view: event.current && newer(state.view, event.current) ? event.current : state.view, notice: event.message || null, limitation: event.limitation || null };
     // A dropped Markdown file is on its way to an invitation (owner 2026-11-14): Chat shows a shimmer until the invitation, a refusal or a failure arrives.
     case 'waiting': return { ...state, waiting: !!event.on };
-    case 'invitation': return { ...state, waiting: false, flag: 'on', invitation: event.invitation && !state.dismissed.includes(event.invitation.id) ? event.invitation : null, suppressed: event.suppressed || null };
+    // Two files dropped together (owner 2026-11-14): the one on offer stays, the other waits its turn and is offered when the first is answered.
+    case 'invitation': {
+      const next = event.invitation && !state.dismissed.includes(event.invitation.id) ? event.invitation : null;
+      const held = state.invitation && state.invitation.state === 'offered' && !state.dismissed.includes(state.invitation.id) ? state.invitation : null;
+      const base = { ...state, waiting: false, flag: 'on', suppressed: event.suppressed || null };
+      if (next && held && held.id !== next.id) return { ...base, queue: [...(state.queue || []).filter(q => q.id !== next.id), next] };
+      return { ...base, invitation: next, queue: (state.queue || []).filter(q => q.id !== next?.id) };
+    }
     // Dismissal scopes to this invitation id only: the id is remembered, nothing global changes.
-    case 'dismissed': return { ...state, invitation: state.invitation?.id === event.id ? null : state.invitation, dismissed: [...state.dismissed, event.id] };
+    case 'dismissed': { const was = state.invitation?.id === event.id, [head, ...tail] = state.queue || []; return { ...state, invitation: was ? head ?? null : state.invitation, queue: was ? tail : (state.queue || []).filter(q => q.id !== event.id), dismissed: [...state.dismissed, event.id] }; }
     case 'boundary': return { ...state, boundary: event.boundary };
     case 'flag_off': return { ...initialState(), flag: 'off', mode: state.mode };
     case 'mode': return { ...state, mode: event.mode };
@@ -156,19 +170,18 @@ export function courseOf(state) {
   if (steps.every(s => ['ready', 'failed', 'skipped', 'cancelled'].includes(s.stage))) return null; // nothing left to make or place
   return { total: run.total ?? steps.length, made: run.made ?? 0, failed: run.failed ?? 0, current: run.current ?? null, facts: run.facts || [] };
 }
-export function tocOf(state) {
-  const view = state.view || state.past;
-  if (!enabled(state) || !view || !acceptedPlanOf(view)) return null;
-  const rm = view.roadmap;
-  return {
-    roadmapId: rm.id, state: rm.state,
-    steps: view.steps.map(s => {
+const tocSteps = (view, state, live) => view.steps.map(s => {
       const result = resultsOf(view).find(r => r.stepId === s.id), removed = result?.delivery === 'removed';
       const nav = stepNav(s, view), stage = s.stage && s.stage !== 'planned' ? s.stage : nav?.kind === 'proposal' ? 'proposed' : null;
       return { id: s.id, position: s.position, section: s.section || null, title: s.title, source: s.sourceRef ? { kind: 'source' } : null, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
-        status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav, resultId: removed && state.view ? result.id : null }; // the kept tree of a finished roadmap has no live view to restore into: no Restore
-    }),
-  };
+        status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav, resultId: removed && live ? result.id : null }; // the kept tree of a finished roadmap has no live view to restore into: no Restore
+});
+export function tocOf(state) {
+  const view = state.view || state.past;
+  if (!enabled(state)) return null;
+  const earlier = (state.earlier || []).filter(v => v.roadmap.id !== view?.roadmap?.id && acceptedPlanOf(v)).map(v => ({ roadmapId: v.roadmap.id, name: v.roadmap.scope?.source?.name || '', steps: tocSteps(v, state, false) }));
+  if (!view || !acceptedPlanOf(view)) return earlier.length ? { roadmapId: null, state: null, steps: [], earlier } : null;
+  return { roadmapId: view.roadmap.id, state: view.roadmap.state, steps: tocSteps(view, state, !!state.view), earlier };
 }
 // A result the server is still making (not failed, not yet generated). Nothing is predicted: the words follow the view.
 const making = r => (r.generation === 'pending' || r.generation === 'generating') && !r.failure;

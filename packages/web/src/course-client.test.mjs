@@ -193,3 +193,30 @@ test('typed words: "create a course" is a declared chat capability the router re
   assert.match(page, /roadmap\.controller\.lesson\(\{ depth: chat\?\.settings\?\.depth \|\| 'balanced', instruction: String\(words \|\| ''\)\.trim\(\) \|\| 'Create a course from this document\.'/);
   assert.match(read('ask.jsx'), /outcome\.direct\?\.command === 'course' && chat\?\.canvasOps\?\.startCourse/);
 });
+
+test('the waiting shimmer never ends silently: no invitation after a minute is said in Chat (owner 2026-11-14)', async () => {
+  const timers = [];
+  const controller = createRoadmapController({ api: async () => ({ roadmap: null }), boardId: 'b1', host: { readOnly: () => false, hasBlock: () => false }, schedule: fn => timers.push(fn) && timers.length, cancel: () => {} });
+  controller.start(); await new Promise(resolve => setTimeout(resolve, 10));
+  controller.expectInvitation();
+  assert.equal(controller.getState().waiting, true);
+  timers.at(-1)();
+  assert.equal(controller.getState().waiting, false);
+  assert.equal(controller.getState().notice, STRINGS.prepareFailed);
+  assert.doesNotMatch(STRINGS.prepareFailed, /\.\.\.|…/);
+});
+
+test('Create a course is a row of the Insert menu, disabled while a course runs; a canvas that cannot make one has no row; and the canvas fits itself to a finished course', async () => {
+  const { ownerInsertItems } = await import('./canvas-menus.js');
+  const rowOf = options => ownerInsertItems({ canvas: () => null, onUpload() {}, onSearchSources() {}, onLinkToCanvas() {}, ...options }).find(item => item.label === 'Create a course');
+  assert.equal(rowOf({}), undefined, 'no handler, no row');
+  const on = Object.assign(() => {}, { disabled: false });
+  assert.equal(rowOf({ onCreateCourse: on }).disabled, false);
+  assert.equal(rowOf({ onCreateCourse: Object.assign(() => {}, { disabled: true }) }).disabled, true);
+  const page = read('LearnPage.jsx');
+  assert.match(page, /onCreateCourse: canEditCanvas && roadmap\.on \? Object\.assign\(\(\) => \{ const done = chat\.canvasOps\?\.startCourse\?\.\(''\)/);
+  assert.match(page, /if \(courseWas\.current && !on && !roadmap\.state\.view\?\.course\?\.stopped\) canvasApi\.current\?\.zoomFit\?\.\(\);/);
+  const controllerSource = read('roadmap-controller.js');
+  assert.match(controllerSource, /unsaved \+= 1; if \(unsaved === 3\) dispatch\(\{ type: 'refused', message: STRINGS\.saveFailed \}\)/);
+  assert.match(STRINGS.saveFailed, /could not be saved to this canvas/);
+});
