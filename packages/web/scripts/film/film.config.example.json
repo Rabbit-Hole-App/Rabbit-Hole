@@ -1,0 +1,46 @@
+{
+  "_note": "A minimal skeleton for the next video: copy to <video>.film.config.json, change the beats, the texts, the locators and the bank; run `node scripts/film/draft.mjs <it> --dry` until it validates, then without --dry. The verbs and their required fields are in verbs.mjs; the SOP in README.md says what every beat must show.",
+  "name": "my-next-video",
+  "base": "http://127.0.0.1:5480",
+  "dsf": 2,
+  "viewport": { "w": 1920, "h": 1080 },
+  "app": { "id": "canvas-00000001", "title": "My canvas", "org": "demo-team", "orgName": "Demo", "profileName": "Learner", "emailLocal": "learner", "emailDomain": "example.invalid" },
+  "files": { "bank": "bank/bank.json" },
+  "ramp": { "fast": 1.4, "trim": 0, "rev": 2.2, "dead": 3.0 },
+  "checklist": { "skeletonMinMs": 1200, "centreTol": 0.12, "tooltipMinMs": 700, "deadMax": 1.2, "stillMax": 2.6, "pollMax": 20 },
+  "routes": {
+    "settings": { "depth": "balanced" },
+    "roadmapDisabled": true,
+    "explainJobsDisabled": true,
+    "ask": { "answers": [] },
+    "artifacts": { "queue": [["p1", 1800]] }
+  },
+  "texts": { "P1": "the first prompt, exactly as it is typed" },
+  "locators": {
+    "pane": "[data-chat-pane]",
+    "composer": { "css": "[data-chat-composer]", "within": "@pane" },
+    "field": { "css": "[data-chat-composer] textarea, [data-chat-composer] input:not([type=\"file\"])", "within": "@pane", "first": true },
+    "slashOption": { "css": "[data-slash-picker] [role=\"option\"]", "first": true },
+    "pill": { "css": "[data-command-token]", "within": "@composer" },
+    "card1": { "css": "[data-block-id]", "hasText": "Title of the first card", "first": true }
+  },
+  "beats": [
+    { "do": "goto", "url": "{app}" },
+    { "do": "wait-for", "on": "@field", "timeout": 30000 },
+    { "do": "blur", "on": "@field" },
+    { "do": "start" },
+    { "do": "hold", "ms": 1500, "note": "the empty canvas, read" },
+    { "do": "camera", "on": "@composer", "pad": 30, "ms": 500, "max": 2.1 },
+    { "do": "slash-command", "field": "@field", "option": "@slashOption", "pill": "@pill" },
+    { "do": "type", "text": "@P1", "delay": 9 },
+    { "do": "press", "key": "Enter" },
+    { "do": "skeleton" },
+    { "do": "wait-card", "title": "Title of the first card" },
+    { "do": "camera", "on": "@card1", "pad": 30, "ms": 600, "max": 1.6, "free": true, "check": "centred", "name": "card 1" },
+    { "do": "hold", "ms": 1800 },
+    { "do": "camera", "full": true, "ms": 800, "max": 1 },
+    { "do": "poster" },
+    { "do": "hold", "ms": 2500, "note": "the overview is held, no drift" },
+    { "do": "end" }
+  ]
+}

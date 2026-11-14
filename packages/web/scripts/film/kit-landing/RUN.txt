@@ -1,0 +1,18 @@
+AI Tutor landing demo: how the take is made (worktree C:/Users/cyudhist/Desktop/workspace/landing-tutor, branch feat/landing-ai-tutor-demo)
+
+Files here
+  script.json         the scripted learner and Tutor lines (the Tutor lines are answered by capture.mjs, no model)
+  pendulum-block.json the prepared card, hand-authored in the existing animation-scene schema (origin: manual, not a model output)
+  validate-block.mjs  checks the card with the product's own evaluator: periods, mass invariance, one 80 px/m scale
+  capture.mjs         drives the real app (dist-dev under vite preview, every /api answered locally) and records raw.webm
+  encode.mjs          trims raw.webm to marks.json and writes the silent VP8 WebM (Playwright's ffmpeg)
+
+One heavy step at a time, from packages/web:
+  1. build:   VITE_COACHING_DEV=true VITE_TLDRAW_LICENSE_KEY=<small-deploy/.env TLDRAW_LICENSE_KEY> npx vite build --outDir dist-dev
+  2. serve:   RABBIT_HOLE_DEV_CP=http://127.0.0.1:1 node ../../node_modules/vite/bin/vite.js preview --outDir dist-dev --port 5480 --strictPort --host 127.0.0.1
+  3. record:  node C:/s/spec/landing-tutor/capture/capture.mjs wide, then phone (one at a time; then stop the preview server)
+  4. encode:  node C:/s/spec/landing-tutor/capture/encode.mjs wide, then phone
+  5. place:   copy take/ai-tutor-demo-v1.webm and take/poster.jpg (as ai-tutor-demo-poster-v1.jpg) into public/landing and dist-dev/landing
+  6. preview: npx wrangler deploy --config wrangler.dev.jsonc --name rabbit-hole-web-dev-landing-tutor
+              (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID from small-deploy/.env by name)
+Copy or style feedback reuses the take: edit the landing files, rebuild, redeploy. Re-record only when the footage must change.
