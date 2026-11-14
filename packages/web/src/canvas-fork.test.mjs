@@ -54,33 +54,17 @@ test('postFork never sends a null state; a real copy still travels', async t => 
   ]);
 });
 
-// SH-1 (owner, release 143; replaces the 2026-10-22 logo-only brief): the top left of the shared canvas is the product title in the landing footer's font, linking home.
-test('the shared canvas page shows the product title top left, in the landing footer font and weight, linking home (SH-1)', async () => {
+// Owner header brief, 2026-10-22: the logo only on the left, no wordmark, no black square, a transparent variant per theme, linked home.
+test('the shared canvas page shows the transparent logo top left: no wordmark, a variant per theme, linking home (owner, 2026-10-22)', async () => {
   const { readFileSync } = await import('node:fs');
-  const read = name => readFileSync(new URL(name, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const page = read('./SharedBoardPage.jsx'), loading = read('./CanvasLoading.jsx'), css = read('./index.css');
-  // The brand is SharedBrand (CanvasLoading.jsx), shared with the page's loading skeleton.
+  const page = readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  // The logo link is SharedBrand (CanvasLoading.jsx), shared with the page's loading skeleton (owner brief 2026-10-23).
+  const loading = readFileSync(new URL('./CanvasLoading.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const brand = loading.slice(loading.indexOf('export function SharedBrand('), loading.indexOf('export function MemberBrand('));
   assert.match(page, /<SharedBrand data-shared-brand \/>/);
-  assert.match(brand, /<a href="\/" \{\.\.\.props\}[^>]*aria-label=\{`\$\{PRODUCT\} home`\}>/);
-  assert.match(brand, /<span className="font-display[^"]*font-medium[^"]*">\{PRODUCT\}<\/span>/);
-  assert.doesNotMatch(brand, /<img|logoBlack|logoWhite/, 'text, no logo image');
-  assert.match(brand, /text-ink/, 'the page ink token, so it follows light and dark');
-  assert.match(loading, /<SharedBrand tabIndex=\{-1\} \/>/, 'the loading header shows the same brand');
-  // The family and weight are the footer's: footer.css .footer-wordmark is font 500 var(--display), --display is "Space Grotesk","Inter",sans-serif (design/rabbit-hole.css).
-  const footer = read('./landing/footer.css'), design = read('../design/rabbit-hole.css');
-  assert.match(footer, /#site-footer \.footer-wordmark\{font:500 [^;]*var\(--display\)/);
-  const display = design.match(/--display:\s*([^;]+);/)[1];
-  assert.equal(display, '"Space Grotesk","Inter",sans-serif');
-  const mine = css.match(/--font-display:\s*([^;]+);/)[1];
-  assert.ok(mine.startsWith("'Space Grotesk'"), 'Space Grotesk first, as the footer');
-  // The family is shipped, not fetched: one @font-face, weight 500 (the footer's), swap, from a file beside JetBrains Mono's, with its OFL text; no CDN link.
-  assert.match(css, /@font-face \{ font-family: 'Space Grotesk'; src: url\('\.\/fonts\/SpaceGrotesk-Medium\.woff2'\) format\('woff2'\); font-weight: 500; font-style: normal; font-display: swap; \}/);
-  const bytes = readFileSync(new URL('./fonts/SpaceGrotesk-Medium.woff2', import.meta.url));
-  assert.equal(bytes.subarray(0, 4).toString('latin1'), 'wOF2');
-  assert.match(read('./fonts/SpaceGrotesk-OFL.txt'), /SIL OPEN FONT LICENSE Version 1\.1/);
-  assert.doesNotMatch(css + read('../index.html'), /fonts\.googleapis|fonts\.gstatic/, 'no external font CDN');
-  assert.equal([...loading.matchAll(/className="[^"]*font-display/g)].length, 1, 'font-display is used by SharedBrand alone');
+  assert.match(brand, /<a href="\/" \{\.\.\.props\}[^>]*aria-label=\{`\$\{PRODUCT\} home`\}>\n\s+<img src=\{logoBlack\}[^>]*dark:hidden[^>]*\/>\n\s+<img src=\{logoWhite\}[^>]*hidden[^>]*dark:block[^>]*\/>\n\s+<\/a>/);
+  assert.doesNotMatch(page, /favicon-32-v1|\{PRODUCT\}<\/span>/, 'no black square, no wordmark');
+  assert.doesNotMatch(brand, /favicon-32-v1|\{PRODUCT\}<\/span>/, 'no black square, no wordmark');
 });
 
 // The shared header (owner, 2026-10-06): one GitHub-style control, [fork icon  Fork  N], with the same lucide GitFork the

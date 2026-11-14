@@ -9,8 +9,6 @@
    review captures and every learner's OS draw the same digits (EXP-T18 render parity; system mono stacks differ by OS).
    JetBrains Mono 2.304 Regular, SIL OFL 1.1 (fonts/JetBrainsMono-OFL.txt; the same file as packages/learn-render). */
 @font-face { font-family: 'JetBrains Mono'; src: url('./fonts/JetBrainsMono-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
-/* SH-1: Space Grotesk 5.3.0 Medium (500), latin subset, SIL OFL 1.1 (fonts/SpaceGrotesk-OFL.txt; @fontsource/space-grotesk, no dependency), the landing's display family for the shared page's product title. */
-@font-face { font-family: 'Space Grotesk'; src: url('./fonts/SpaceGrotesk-Medium.woff2') format('woff2'); font-weight: 500; font-style: normal; font-display: swap; }
 :root { --font-scene-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 /* BlockNote's shadcn components rely on the host app's Tailwind generating their utilities */
 @source '../../../node_modules/@blocknote/shadcn';
@@ -20,9 +18,6 @@
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'SFMono-Regular', Menlo, Consolas, monospace;
-  /* SH-1: the landing's display family (design/rabbit-hole.css --display, the footer wordmark), self-hosted below (the landing itself loads it from Google Fonts in design/rabbit-hole-hero.html);
-     used only by SharedBrand. */
-  --font-display: 'Space Grotesk', 'Inter Variable', 'Inter', sans-serif;
   --color-ink: #37352f; /* text */
   /* text-secondary. Darker than Notion's #787774 (4.32:1 on the scene surface,
      3.37:1 on a soft cell tint): secondary text is learner-facing and clears
