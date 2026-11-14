@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, Highlighter, Lightbulb, MessageSquarePlus, ScanText, Trash2, X } from 'lucide-react';
+import { BookOpen, Highlighter, MessageSquarePlus, ScanText, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
+import { chordBinding, chordLabel, isMac } from './shortcut-owner.js';
+import { ariaKey } from './shortcuts.js';
 import { Md } from './Md.jsx';
 import { ToolButton, placeNear } from './selection-toolbar.jsx';
 import { EXCERPT_LIMIT } from './pdf-anchor.js';
@@ -275,6 +277,8 @@ export function MarkdownText({ block, text, children }) {
     catch (problem) { setMessage({ text: `Couldn’t remove the highlight. ${problem.message}`, retry: () => remove(h) }); }
   };
 
+  const mac = isMac(), hint = chordLabel('quick-edit', mac); // the quick-ask chord, as the explanation toolbar shows it
+
   return <div ref={wrap} className="relative flex min-h-0 flex-1 flex-col">
     {message && <div data-file-doc-highlight-notice role={message.retry ? 'alert' : 'status'} className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-1.5 text-xs text-ink-2" onPointerDown={event => event.stopPropagation()}>
       <span className="min-w-0 flex-1">{message.text}</span>
@@ -296,8 +300,9 @@ export function MarkdownText({ block, text, children }) {
       {children}
     </div>
     {bar && <div ref={barEl} data-file-doc-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
+      <Button aria-label={hint} title={hint} aria-keyshortcuts={ariaKey(chordBinding('quick-edit'), mac)} data-quick-ask onMouseDown={event => event.preventDefault()} onClick={() => explain(bar.quote)}
+        className="min-w-8 justify-center px-2 text-ink-2 hover:text-ink"><kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{hint}</kbd></Button>
       <ToolButton label="Highlight" icon={Highlighter} onClick={() => highlight(bar.quote)} />
-      <ToolButton label="Explain" icon={Lightbulb} onClick={() => explain(bar.quote)} />
       {chat && <ToolButton label="Add to chat" icon={MessageSquarePlus} onClick={() => addToChat(bar.quote)} />}
     </div>}
     {menu && <div ref={menuEl} data-file-doc-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>

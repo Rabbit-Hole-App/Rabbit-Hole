@@ -131,11 +131,16 @@ test('a command the router picks for the bulb passage still carries the minted r
 });
 
 
-test('a Markdown selection offers Highlight, Explain and Add to chat, in that order, and Add to chat only attaches', () => {
+test('a Markdown selection offers the Ctrl+K quick-ask, Highlight and Add to chat, in that order, and Add to chat only attaches', () => {
   const source = read('./FileDocMarkdown.jsx');
   const bar = source.slice(source.indexOf('data-file-doc-selection-toolbar'));
-  const labels = [...bar.slice(0, bar.indexOf('</div>')).matchAll(/<ToolButton label="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(labels, ['Highlight', 'Explain', 'Add to chat']);
+  const row = bar.slice(0, bar.indexOf('</div>'));
+  const labels = [...row.matchAll(/<ToolButton label="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(labels, ['Highlight', 'Add to chat']);
+  // UX-1: the old Explain bulb is the same quick-ask button the explanation toolbar shows (the chord as its label), first in the row, and it still calls explain(bar.quote)
+  assert.ok(row.indexOf('data-quick-ask') >= 0 && row.indexOf('data-quick-ask') < row.indexOf('label="Highlight"'));
+  assert.match(row, /aria-keyshortcuts=\{ariaKey\(chordBinding\('quick-edit'\), mac\)\}[\s\S]*?onClick=\{\(\) => explain\(bar\.quote\)\}/);
+  assert.doesNotMatch(row, /Lightbulb|label="Explain"/);
   const add = source.slice(source.indexOf('const addToChat'), source.indexOf('const remove = async'));
   assert.match(add, /quote\.exact\.length > EXCERPT_LIMIT/);
   assert.match(add, /chat\.addToChat\(selectionRef\(/);
