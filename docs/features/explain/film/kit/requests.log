@@ -1,0 +1,330 @@
+BEAT 0 goto at 0
+BEAT 1 wait-for at 0.25
+0.25 GET /api/profile
+0.29 GET /api/watch
+0.29 GET /api/apps
+0.3 GET /api/byoc/connection
+404 /api/byoc/connection
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+0.3 GET /api/apps/canvas-4d6b2a91
+CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+0.67 GET /api/learn/usage
+0.67 GET /api/learn/context
+404 /api/learn/context
+0.67 GET /api/learn/provenance/apps/canvas-4d6b2a91
+404 /api/learn/provenance/apps/canvas-4d6b2a91
+0.67 GET /api/apps/canvas-4d6b2a91/learn-course
+0.67 GET /api/canvases/dives
+0.67 GET /api/learn/boards/canvas-4d6b2a91/main
+0.67 HEAD /api/learn/boards/canvas-4d6b2a91/main/thumbnail
+0.67 GET /api/learn/coaching
+404 /api/learn/coaching
+0.67 GET /api/learn/user-settings
+0.67 GET /api/learn/chat/active
+0.67 GET /api/learn/context
+404 /api/learn/context
+0.67 GET /api/learn/chat/active
+0.67 GET /api/learn/context
+404 /api/learn/context
+0.67 GET /api/learn/image-jobs
+0.67 GET /api/learn/whiteboard/jobs
+404 /api/learn/whiteboard/jobs
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+0.71 GET /api/learn/c/00000000-0000-4000-8000-000000000001
+404 /api/learn/c/00000000-0000-4000-8000-000000000001
+0.71 GET /api/learn/c/00000000-0000-4000-8000-000000000001/threads
+404 /api/learn/c/00000000-0000-4000-8000-000000000001/threads
+0.71 GET /api/learn/roadmap
+0.71 GET /api/learn/links/00000000-0000-4000-8000-000000000001
+404 /api/learn/links/00000000-0000-4000-8000-000000000001
+0.71 GET /api/learn/cad/jobs
+0.72 GET /api/learn/chat/active
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+0.74 GET /api/learn/roadmap/invitations
+0.74 GET /api/ask/threads
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+0.76 GET /api/learn/roadmap
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+BEAT 2 hold at 1.1
+2.22 GET /api/learn/boards/canvas-4d6b2a91/main/assets
+BEAT 3 blur at 3.11
+BEAT 4 start at 3.15
+BEAT 5 shot at 3.15
+BEAT 6 hold (B0: an empty canvas) at 3.15
+3.9 GET /api/learn/graph-config
+BEAT 7 stamp (B0a: Insert > Upload a file > Add to canvas > Add to canvas (the product's own import of the lesson's en.md; the native dialog never opens)) at 4.05
+BEAT 8 click at 4.05
+ABORT outside small-learn-canvas-notebook-dev.tryrabbithole.workers.dev
+BEAT 9 wait-for at 4.89
+BEAT 10 shot at 4.91
+BEAT 11 hold (the menu is read) at 4.91
+BEAT 12 click at 5.82
+BEAT 13 set-files at 6.51
+BEAT 14 wait-for at 6.53
+BEAT 15 shot at 6.54
+BEAT 16 hold (where the file goes) at 6.54
+BEAT 17 click at 7.44
+BEAT 18 wait-for at 8.18
+BEAT 19 shot at 8.18
+BEAT 20 hold (how it is added: Markdown card) at 8.18
+BEAT 21 click at 9.1
+9.76 POST /api/learn/files
+SCRIPTED file store {"name":"en.md","size":21526,"family":"markdown"}
+BEAT 22 wait-for (the markdown card lands (its upload shows while the scripted save waits)) at 9.78
+BEAT 23 mark at 9.95
+BEAT 24 hold at 9.95
+BEAT 25 shot at 10.46
+BEAT 26 toggle-layout (film only: the product lands a new Markdown card in Full content; the card's own toggle puts it back to the compact scrolling card the film is composed for) at 10.46
+10.68 POST /api/telemetry/client
+11.18 GET /api/learn/pdf-highlights
+11.2 PUT /api/learn/files/fs_film_md/text
+LAYOUT after the toggle: scrollable
+BEAT 27 fit at 11.9
+BEAT 28 camera at 12.62
+CAMERA move 600 -> 906 ms (travel 0.31, zoom 1.00 -> 1.50)
+13.28 PUT /api/learn/boards/canvas-4d6b2a91/main
+13.3 POST /api/learn/roadmap/invitations
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+BEAT 29 shot at 13.61
+BEAT 30 hold (the lesson card, read) at 13.61
+BEAT 31 scroll-heading (B1: P1 at Balanced) at 15.02
+BEAT 32 camera at 15.34
+CAMERA move 500 -> 1100 ms (travel 1.09, zoom 1.50 -> 2.10)
+BEAT 33 slash-command at 16.51
+BEAT 34 type at 19.68
+23.3 POST /api/telemetry/client
+BEAT 35 press at 24.04
+24.08 POST /api/learn/artifact
+24.08 POST /api/learn/chat/threads/canvaschat-5ea1f216-e480-46af-bdf1-a3c5433234c0/messages
+BEAT 36 skeleton at 24.09
+24.1 PUT /api/learn/chat/active
+T 24.1 skeleton: found=true
+CAMERA move 500 -> 1065 ms (travel 0.94, zoom 2.10 -> 1.70)
+24.88 PUT /api/learn/chat/threads/canvaschat-5ea1f216-e480-46af-bdf1-a3c5433234c0/state
+BEAT 37 shot at 25.96
+BEAT 38 wait-card at 25.96
+SCRIPTED artifact p1 after 1900 ms: "how does a decision tree split a two-feature dataset into regions?"
+CONSOLE LONGTASK 8072 ms at 25696
+CONSOLE LONGTASK 8072 ms at 142
+34.56 POST /api/learn/explanation-summary
+34.56 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+34.56 PUT /api/learn/boards/canvas-4d6b2a91/main/thumbnail
+34.56 PUT /api/learn/chat/messages/undefined/outputs
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+BEAT 39 camera at 35
+CAMERA move 600 -> 944 ms (travel 0.39, zoom 1.70 -> 1.16)
+BEAT 40 shot at 36.1
+BEAT 41 hold at 36.1
+36.28 PUT /api/learn/boards/canvas-4d6b2a91/main
+BEAT 42 camera (B2: P2 at Detailed, chosen with the cursor) at 37.9
+CAMERA move 500 -> 1100 ms (travel 1.32, zoom 1.16 -> 2.10)
+BEAT 43 choose-depth at 39.08
+DEPTH menu rect {"x":1439.1982421875,"y":489.89990234375,"w":604.7998046875,"h":441,"vw":1920}
+CAMERA move 450 -> 801 ms (travel 0.50, zoom 2.10 -> 1.70)
+42.13 POST /api/learn/user-settings
+BEAT 44 slash-command at 42.35
+44.23 POST /api/telemetry/client
+44.58 PUT /api/learn/chat/threads/canvaschat-5ea1f216-e480-46af-bdf1-a3c5433234c0/state
+BEAT 45 type at 45.34
+BEAT 46 press at 50.24
+50.26 POST /api/learn/artifact
+50.26 POST /api/learn/chat/threads/canvaschat-5ea1f216-e480-46af-bdf1-a3c5433234c0/messages
+BEAT 47 skeleton at 50.27
+T 50.29 skeleton: found=true
+50.29 PUT /api/learn/chat/active
+CAMERA move 500 -> 889 ms (travel 0.55, zoom 1.70 -> 1.70)
+51.06 PUT /api/learn/chat/threads/canvaschat-5ea1f216-e480-46af-bdf1-a3c5433234c0/state
+BEAT 48 shot at 51.96
+BEAT 49 wait-card at 51.96
+SCRIPTED artifact p2 after 1900 ms: "how does a decision tree trace a new point from the root to a prediction?"
+52.18 POST /api/learn/explanation-summary
+52.23 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+52.38 PUT /api/learn/chat/messages/undefined/outputs
+BEAT 50 camera at 52.7
+CAMERA move 600 -> 920 ms (travel 0.34, zoom 1.70 -> 1.16)
+BEAT 51 shot at 53.72
+BEAT 52 hold at 53.72
+54.13 PUT /api/learn/boards/canvas-4d6b2a91/main
+BEAT 53 scroll-into-view (B3 = Ask in chat on card 1's question 2: the real answer opens in the Chat pane. (The product removes a card's suggestion rows once any Ask has been used on it, so B3 and B4 use different cards.)) at 55.22
+BEAT 54 camera at 55.25
+CAMERA move 450 -> 700 ms (travel 0.10, zoom 1.16 -> 1.00)
+BEAT 55 hover (the row reveals its two buttons) at 56.01
+BEAT 56 hover (the button and its tooltip (a hold: 1.0x)) at 56.94
+BEAT 57 stamp at 58.2
+BEAT 58 click at 58.2
+58.68 POST /api/learn/ask
+ASK "what happens when a tree grows too many regions?" target=card
+58.69 PUT /api/learn/chat/active
+BEAT 59 shot at 58.91
+BEAT 60 hold (the thread streams in the Chat pane, in frame) at 58.91
+60.63 PUT /api/learn/boards/canvas-4d6b2a91/main
+BEAT 61 camera at 60.71
+CAMERA move 600 -> 805 ms (travel 0.08, zoom 1.00 -> 1.07)
+60.77 GET /api/learn/roadmap
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+60.8 GET /api/learn/roadmap/invitations
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+BEAT 62 hold (title, action, chips are read) at 61.6
+BEAT 63 shot at 63.61
+BEAT 64 mark at 63.61
+BEAT 65 scroll-into-view (B4: Ask in a new card on card 2's question 1: skeleton beside the parent, then the child card) at 63.61
+BEAT 66 camera at 63.65
+CAMERA move 500 -> 700 ms (travel 0.08, zoom 1.07 -> 1.15)
+BEAT 67 hover at 64.43
+CONSOLE LONGTASK 4966 ms at 64686
+CONSOLE LONGTASK 4966 ms at 38
+70.2 POST /api/telemetry/client
+70.2 PUT /api/learn/boards/canvas-4d6b2a91/main/thumbnail
+BEAT 68 shot at 71.08
+BEAT 69 click at 71.08
+71.54 POST /api/learn/artifact
+71.54 POST /api/learn/chat/threads/canvaschat-4d6b2a91-film/messages
+71.54 PUT /api/learn/chat/active
+BEAT 70 skeleton at 71.76
+T 71.76 skeleton: found=true
+CAMERA move 500 -> 700 ms (travel 0.10, zoom 1.15 -> 1.16)
+BEAT 71 shot at 73.27
+BEAT 72 wait-card at 73.27
+SCRIPTED artifact qcard after 1900 ms: "How are the optimal split thresholds chosen during training?"
+73.45 POST /api/learn/explanation-summary
+73.53 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+73.65 PUT /api/learn/chat/messages/undefined/outputs
+BEAT 73 camera at 73.94
+CAMERA move 600 -> 856 ms (travel 0.19, zoom 1.16 -> 1.17)
+BEAT 74 shot at 75.02
+BEAT 75 hold at 75.02
+75.41 PUT /api/learn/boards/canvas-4d6b2a91/main
+BEAT 76 blur (B5: highlight the Bagging sentence, [Ctrl+K], Enter) at 76.52
+BEAT 77 camera at 76.54
+CAMERA move 400 -> 700 ms (travel 0.17, zoom 1.17 -> 1.00)
+BEAT 78 fit (the canvas view back on everything: the markdown card fully on screen) at 77.3
+BEAT 79 scroll-heading at 78.13
+BEAT 80 select-text at 78.44
+CAMERA move 600 -> 933 ms (travel 0.37, zoom 1.00 -> 2.00)
+SEL exact after drag: true
+CAMERA move 450 -> 700 ms (travel 0.03, zoom 2.00 -> 2.00)
+BEAT 81 shot at 82.44
+BEAT 82 assert-pill-above (the pill sits directly above the highlight, both in view and inside the card's visible area) at 82.44
+PILL geometry: gap 3 layout px (needs -6..60), pill in view true, selection in view true, selection inside the card's visible area true => ok
+BEAT 83 hold (text highlighted -> a pill appears: held) at 82.47
+BEAT 84 hover (the cursor glides onto the pill's Ctrl+K button and stays 600 ms) at 83.47
+CURSOR on the pill's Ctrl+K button before the click: ok (cursor 504,504; control 468,486 72x36)
+BEAT 85 sticker (the 56 px key-cap sticker at the button press (recording page only)) at 84.33
+BEAT 86 remember at 84.33
+BEAT 87 mouse-press at 84.34
+84.56 POST /api/learn/source-refs
+BEAT 88 wait-for at 84.78
+BEAT 89 assert-window (the product's own Explain-selection dialog: role=dialog, data-inline-mode-current=explain, fixed label, no dropdown) at 84.97
+ASSERT Ctrl+K window (explain): {"present":true,"role":"dialog","label":"Quick Edit","modeCurrent":"explain","fixedLabel":true,"hasDropdown":false,"hasPrompt":true,"modeText":"Explain selection","selectedCards":1} => ok
+BEAT 90 camera (frame wide so the dimmed highlighted card stays visible (a tight zoom on the passage reads as a mock-up)) at 84.97
+CAMERA move 450 -> 700 ms (travel 0.19, zoom 2.00 -> 1.68)
+BEAT 91 shot at 85.76
+BEAT 92 hold at 85.76
+BEAT 93 stamp at 86.97
+BEAT 94 press at 86.97
+86.97 POST /api/learn/inline/route
+BEAT 95 wait-for (the window previews the card it made: the preview is read, then Accept puts the card on the canvas) at 86.97
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+86.99 POST /api/learn/inline/decide
+SCRIPTED inline decide
+87.04 POST /api/learn/inline/generate
+SCRIPTED artifact p3 after 1700 ms: ""
+88.83 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+BEAT 96 camera at 88.85
+CAMERA move 450 -> 700 ms (travel 0.09, zoom 1.68 -> 1.50)
+BEAT 97 shot at 89.66
+BEAT 98 hold at 89.66
+BEAT 99 click at 91.86
+92.76 PUT /api/learn/boards/canvas-4d6b2a91/main
+92.76 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+BEAT 100 wait-card at 92.94
+BEAT 101 mark at 93.38
+BEAT 102 camera at 93.38
+CAMERA move 600 -> 910 ms (travel 0.32, zoom 1.50 -> 1.60)
+BEAT 103 shot at 94.4
+BEAT 104 hold at 94.4
+BEAT 105 camera (B6: Ctrl+K on the empty canvas, /explain at Brief (the window's own Depth menu)) at 96.41
+CAMERA move 600 -> 1027 ms (travel 0.58, zoom 1.60 -> 1.00)
+96.78 POST /api/learn/inline/telemetry
+BEAT 106 nothing-selected (start from NOTHING selected: a click on truly empty canvas, asserted (no selected card, no text selection, no selection toolbar)) at 97.51
+ASSERT nothing selected before the chord (spot [806,972]; {"cards":0,"text":0,"toolbar":false}) => ok
+BEAT 107 sticker at 98.46
+BEAT 108 press at 98.47
+BEAT 109 wait-for at 98.53
+BEAT 110 assert-window (the empty-canvas Ctrl+K: placeholder prompt field, mode dropdown, no fixed Explain-selection label, no selected card) at 98.54
+ASSERT Ctrl+K window (empty): {"present":true,"role":"dialog","label":"Quick Edit","modeCurrent":"explain","fixedLabel":false,"hasDropdown":true,"hasPrompt":true,"modeText":"Explain selection","selectedCards":0} => ok
+BEAT 111 camera at 98.55
+CAMERA move 450 -> 999 ms (travel 0.94, zoom 1.00 -> 2.00)
+BEAT 112 type at 99.64
+BEAT 113 shot at 100.71
+BEAT 114 click (the picker's first entry: explain; the pill appears (Enter does not pick)) at 100.71
+BEAT 115 expect at 101.47
+BEAT 116 hold at 101.48
+BEAT 117 shot at 101.88
+BEAT 118 choose-depth at 101.88
+DEPTH menu rect {"x":941.3125,"y":321.09375,"w":576,"h":420,"vw":1920}
+CAMERA move 450 -> 700 ms (travel 0.23, zoom 2.00 -> 1.70)
+CONSOLE LONGTASK 6952 ms at 103864
+CONSOLE LONGTASK 6952 ms at 46
+111.55 PUT /api/learn/boards/canvas-4d6b2a91/main/thumbnail
+112.03 POST /api/learn/user-settings
+BEAT 119 click (the field takes the focus back from the menu before anything is typed) at 112.26
+BEAT 120 type at 113.02
+CHECK field text equals the sentence: true
+BEAT 121 stamp at 119.09
+BEAT 122 press at 119.09
+119.11 POST /api/learn/artifact
+119.11 POST /api/learn/chat/threads/canvaschat-4d6b2a91-film/messages
+BEAT 123 wait-card (a typed command makes its card directly (no preview): the card lands where the window was) at 119.13
+119.17 PUT /api/learn/chat/active
+120.82 GET /api/learn/roadmap
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+120.83 GET /api/learn/roadmap/invitations
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+SCRIPTED artifact p4 after 1900 ms: "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared wit
+121.03 POST /api/learn/explanation-summary
+121.17 POST /api/telemetry/client
+121.17 GET /api/learn/card-feedback
+404 /api/learn/card-feedback
+CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+121.24 PUT /api/learn/chat/messages/undefined/outputs
+BEAT 124 mark at 121.58
+BEAT 125 camera at 121.58
+CAMERA move 600 -> 1064 ms (travel 0.66, zoom 1.70 -> 1.20)
+BEAT 126 shot at 122.76
+BEAT 127 hold at 122.76
+123.01 PUT /api/learn/boards/canvas-4d6b2a91/main
+BEAT 128 camera (B6b: click and position the cards (three, one after another)) at 124.56
+CAMERA move 800 -> 1100 ms (travel 0.11, zoom 1.20 -> 1.00)
+BEAT 129 fit at 125.73
+BEAT 130 caption (the caption stays for the whole beat) at 126.71
+BEAT 131 drag-cards at 126.72
+DRAG @gini from (1213,179) to (1220,480) overlap=false took 2.90 s
+131.13 PUT /api/learn/boards/canvas-4d6b2a91/main
+DRAG @boot from (352,631) to (601,800) overlap=false took 3.00 s
+134.21 PUT /api/learn/boards/canvas-4d6b2a91/main
+DRAG @card1 from (456,185) to (304,440) overlap=false took 2.78 s
+BEAT 132 poster (B7: the whole arrangement, held, the end) at 135.72
+BEAT 133 dump-layout at 135.98
+LAYOUT (id x y w h) [["bfd94844",186,172,235,202],["d8cf0536",304,440,185,426],["18e23bab",792,128,185,415],["5f9d7384",994,128,185,403],["inline-a",601,800,191,219],["3c7c474f",1220,480,185,438]]
+BEAT 134 hold (the overview is held, no drift) at 135.99
+137.09 PUT /api/learn/boards/canvas-4d6b2a91/main
+BEAT 135 end at 138.5

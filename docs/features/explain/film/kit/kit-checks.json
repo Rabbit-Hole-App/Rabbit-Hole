@@ -1,0 +1,266 @@
+{
+ "obs": {
+  "pills": [
+   {
+    "at": 19.16,
+    "ok": true
+   },
+   {
+    "at": 44.83,
+    "ok": true
+   },
+   {
+    "at": 101.48,
+    "name": "window pill",
+    "ok": true
+   }
+  ],
+  "skeletons": [
+   {
+    "at": 34.6,
+    "found": true,
+    "ms": 10500
+   },
+   {
+    "at": 52.28,
+    "found": true,
+    "ms": 1990
+   },
+   {
+    "at": 73.53,
+    "found": true,
+    "ms": 1770
+   }
+  ],
+  "centred": [
+   {
+    "at": 13.61,
+    "name": "markdown card",
+    "dx": 0,
+    "dy": 0,
+    "ok": true
+   },
+   {
+    "at": 36.1,
+    "name": "card 1",
+    "dx": 0,
+    "dy": 0,
+    "ok": true
+   },
+   {
+    "at": 53.72,
+    "name": "card 2",
+    "dx": 0,
+    "dy": 0.001,
+    "ok": true
+   },
+   {
+    "at": 75.02,
+    "name": "parent + child",
+    "dx": 0.025,
+    "dy": 0.008,
+    "ok": true
+   },
+   {
+    "at": 94.4,
+    "name": "Ctrl+K card",
+    "dx": 0,
+    "dy": 0,
+    "ok": true
+   },
+   {
+    "at": 122.76,
+    "name": "Gini card",
+    "dx": 0,
+    "dy": 0.016,
+    "ok": true
+   }
+  ],
+  "tooltips": [
+   {
+    "at": 58.2,
+    "ms": 750,
+    "shown": true
+   },
+   {
+    "at": 71.08,
+    "ms": 770,
+    "shown": true
+   }
+  ],
+  "menus": [
+   {
+    "at": 40.7,
+    "name": "depth detailed",
+    "ok": false,
+    "known": "the chat pane Depth menu is clipped at the right edge of the 1920 viewport (the same in the film take-s5, frame 843): the app lays it out past the edge, the camera cannot show beyond the page"
+   },
+   {
+    "at": 85.76,
+    "name": "ctrl+k window (explain)",
+    "ok": true
+   },
+   {
+    "at": 99.64,
+    "name": "ctrl+k window (empty canvas)",
+    "ok": true
+   },
+   {
+    "at": 103.44,
+    "name": "depth brief",
+    "ok": true
+   }
+  ],
+  "chat": [
+   {
+    "at": 61.6,
+    "name": "chat pane",
+    "ok": true
+   }
+  ],
+  "expects": [],
+  "typing": [
+   {
+    "at": 17.44,
+    "kind": "command",
+    "delay": 80,
+    "chars": 8
+   },
+   {
+    "at": 19.68,
+    "kind": "prose",
+    "delay": 45,
+    "chars": 66
+   },
+   {
+    "at": 43.05,
+    "kind": "command",
+    "delay": 80,
+    "chars": 8
+   },
+   {
+    "at": 45.34,
+    "kind": "prose",
+    "delay": 45,
+    "chars": 73
+   },
+   {
+    "at": 99.64,
+    "kind": "command",
+    "delay": 80,
+    "chars": 8
+   },
+   {
+    "at": 113.02,
+    "kind": "prose",
+    "delay": 45,
+    "chars": 99
+   }
+  ],
+  "stickers": [
+   {
+    "at": 84.33,
+    "name": "pill",
+    "ok": true
+   },
+   {
+    "at": 98.47,
+    "name": "chord",
+    "ok": true
+   }
+  ],
+  "pillGeometry": [
+   {
+    "at": 82.47,
+    "gap": 3,
+    "ok": true
+   }
+  ],
+  "cursor": [
+   {
+    "at": 84.33,
+    "name": "the pill's Ctrl+K button",
+    "ok": true
+   }
+  ],
+  "windows": [
+   {
+    "at": 84.97,
+    "mode": "explain",
+    "ok": true,
+    "info": {
+     "present": true,
+     "role": "dialog",
+     "label": "Quick Edit",
+     "modeCurrent": "explain",
+     "fixedLabel": true,
+     "hasDropdown": false,
+     "hasPrompt": true,
+     "modeText": "Explain selection",
+     "selectedCards": 1
+    }
+   },
+   {
+    "at": 98.55,
+    "mode": "empty",
+    "ok": true,
+    "info": {
+     "present": true,
+     "role": "dialog",
+     "label": "Quick Edit",
+     "modeCurrent": "explain",
+     "fixedLabel": false,
+     "hasDropdown": true,
+     "hasPrompt": true,
+     "modeText": "Explain selection",
+     "selectedCards": 0
+    }
+   }
+  ],
+  "nothingSelected": [
+   {
+    "at": 98.46,
+    "ok": true,
+    "spot": [
+     806,
+     972
+    ],
+    "state": {
+     "cards": 0,
+     "text": 0,
+     "toolbar": false
+    }
+   }
+  ],
+  "drags": [
+   {
+    "name": "@gini",
+    "ok": true,
+    "moved": 301
+   },
+   {
+    "name": "@boot",
+    "ok": true,
+    "moved": 301
+   },
+   {
+    "name": "@card1",
+    "ok": true,
+    "moved": 297
+   }
+  ]
+ },
+ "thresholds": {
+  "skeletonMinMs": 1200,
+  "centreTol": 0.12,
+  "tooltipMinMs": 700,
+  "tooltipDelayMs": 250,
+  "deadMax": 1.2,
+  "proseMinMs": 40,
+  "commandMinMs": 70,
+  "pillGapMax": 60,
+  "stillMax": 2.6,
+  "pollMax": 20,
+  "dragsMin": 3
+ }
+}

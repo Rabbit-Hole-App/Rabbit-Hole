@@ -1,0 +1,64 @@
+{
+ "marks": {
+  "start": 3.15,
+  "end": 138.5,
+  "typing": 6,
+  "reveal": 37,
+  "depth": 2,
+  "dead": 2
+ },
+ "pageErrors": 0,
+ "unscripted": [],
+ "failed": []
+}
+PASS  pill seen: 3 checked
+PASS  skeleton seen: 3 checked
+PASS  card centred: 6 checked
+PASS  tooltip seen: 2 checked
+PASS  menu in frame: 4 checked
+PASS  menu in frame (KNOWN, not fixed): depth detailed: the chat pane Depth menu is clipped at the right edge of the 1920 viewport (the same in the film take-s5, frame 843): the app lays it out past the edge, the camera cannot show beyond the page
+PASS  Chat pane shown: 1 checked
+PASS  typing slow and visible: 6 checked
+PASS  sticker visible: 2 checked
+PASS  pill above the highlight: 1 checked
+PASS  Ctrl+K button clicked (cursor on it): 1 checked
+PASS  window not looking fake (DOM asserted): 2 checked
+PASS  nothing selected before the canvas Ctrl+K: 1 checked
+PASS  cards dragged without overlap: 3 checked
+PASS  no dead stretch (holds): 21 holds, none longer than 2.6 s
+PASS  no dead stretch (marked): 2 dead stretch(es) marked for the render to cut, 11.1 s
+PASS  request hygiene: 47 routes, busiest 10 calls, 0 unscripted, 0 model aborts, 0 page errors, 1 outside host(s) blocked
+dead cuts: 2, 12.2 s removed
+freeze cuts: 3, 18.2 s removed
+trim cuts: 7, 3.1 s
+script 135.3 s -> 104.9 s after the ramp (1.0x for 93.4 s, 1.8x elsewhere); 3559 screencast frames, 3147 output frames
+frame size 1920x1080; rendering output frames 0..3147 (104.9 s) preset veryfast crf 23
+ok C:\s\spec\film-kit\run\explain-around-markdown-DRAFT1-480p.mp4 3.6 MiB, 1920x1080, 104.9 s of video, encode 55.3 s
+C:\s\spec\film-kit\run\explain-around-markdown-DRAFT1-480p.mp4: 105.1 s, 19 still stretches >= 0.8 s
+  1.8-2.8 s (1.0 s)
+  3.6-4.4 s (0.8 s)
+  5.1-6.1 s (1.0 s)
+  10.2-11.6 s (1.4 s)
+  23.4-25.0 s (1.6 s)
+  27.7-28.6 s (0.9 s)
+  40.2-41.9 s (1.7 s)
+  43.3-44.1 s (0.8 s)
+  44.3-46.1 s (1.8 s)
+  46.8-48.5 s (1.7 s)
+  53.8-55.4 s (1.6 s)
+  59.9-60.8 s (0.9 s)
+  62.6-63.8 s (1.2 s)
+  63.9-65.5 s (1.6 s)
+  66.4-67.9 s (1.5 s)
+  70.4-72.1 s (1.7 s)
+  86.6-88.2 s (1.6 s)
+  89.9-91.5 s (1.6 s)
+  102.8-105.0 s (2.2 s)
+longest still stretch: 2.2 s at 102.8 s
+C:\s\spec\film-kit\run\explain-around-markdown-DRAFT1-480p-sheet.png 107 frames, 2560x2520
+DRAFT READY
+  video: C:\s\spec\film-kit\run\explain-around-markdown-DRAFT1-480p.mp4
+  render record: C:\s\spec\film-kit\run\explain-around-markdown-DRAFT1-480p.render.json
+  contact sheet: C:\s\spec\film-kit\run\explain-around-markdown-DRAFT1-480p-sheet.png
+  take: C:\s\spec\film-kit\run\explain-around-markdown-take-d1 (requests.log, marks.json, checks.json)
+exit 0

@@ -1,0 +1,93 @@
+== hygiene (reference | new)
+  unscripted      0 |   0
+  abortModel      0 |   0
+  abortOutside    1 |   1
+  pageErrors      0 |   0
+  failed          0 |   0
+  notFound       16 |  16
+== /api routes (reference | new)  [counts of the polled and timing-dependent routes may differ; a route only one take called is flagged]
+  GET /api/apps                                     1 |    1
+  GET /api/apps/canvas-4d6b2a91                     1 |    1
+  GET /api/apps/canvas-4d6b2a91/learn-course        1 |    1
+  GET /api/ask/threads                              1 |    1
+  GET /api/byoc/connection                          1 |    1
+  GET /api/canvases/dives                           1 |    1
+  GET /api/learn/boards/canvas-4d6b2a91/main        1 |    1
+  GET /api/learn/boards/canvas-4d6b2a91/main/assets    1 |    1
+  GET /api/learn/c/<uuid>                           1 |    1
+  GET /api/learn/c/<uuid>/threads                   1 |    1
+  GET /api/learn/cad/jobs                           1 |    1
+  GET /api/learn/card-feedback                      6 |    6
+  GET /api/learn/chat/active                        3 |    3
+  GET /api/learn/coaching                           1 |    1
+  GET /api/learn/context                            3 |    3
+  GET /api/learn/graph-config                       1 |    1
+  GET /api/learn/image-jobs                         1 |    1
+  GET /api/learn/links/<uuid>                       1 |    1
+  GET /api/learn/pdf-highlights                     1 |    1
+  GET /api/learn/provenance/apps/canvas-4d6b2a91    1 |    1
+  GET /api/learn/roadmap                            3 |    4
+  GET /api/learn/roadmap/invitations                2 |    3
+  GET /api/learn/usage                              1 |    1
+  GET /api/learn/user-settings                      1 |    1
+  GET /api/learn/whiteboard/jobs                    1 |    1
+  GET /api/profile                                  1 |    1
+  GET /api/watch                                    1 |    1
+  POST /api/learn/artifact                          4 |    4
+  POST /api/learn/ask                               1 |    1
+  POST /api/learn/chat/threads/canvaschat-4d6b2a91-film/messages    2 |    2
+  POST /api/learn/chat/threads/canvaschat-<uuid>/messages    2 |    2
+  POST /api/learn/explanation-summary               4 |    4
+  POST /api/learn/files                             1 |    1
+  POST /api/learn/inline/decide                     1 |    1
+  POST /api/learn/inline/generate                   1 |    1
+  POST /api/learn/inline/route                      1 |    1
+  POST /api/learn/inline/telemetry                  1 |    1
+  POST /api/learn/roadmap/invitations               1 |    1
+  POST /api/learn/source-refs                       1 |    1
+  POST /api/learn/user-settings                     2 |    2
+  POST /api/telemetry/client                        5 |    5
+  PUT /api/learn/boards/canvas-4d6b2a91/main       10 |   10
+  PUT /api/learn/boards/canvas-4d6b2a91/main/thumbnail    3 |    3
+  PUT /api/learn/chat/active                        5 |    5
+  PUT /api/learn/chat/messages/undefined/outputs    4 |    4
+  PUT /api/learn/chat/threads/canvaschat-<uuid>/state    2 |    3
+  PUT /api/learn/files/fs_film_md/text              1 |    1
+  47 routes in all, 0 flagged
+== beat sequence (scripted events, numbers normalised)
+  reference: 24 events | new: 22 events
+  event count differs: ASK "what happens when a tree grows too many regions?" target=card key  1 | 0
+  event count differs: PILL geometry: gap pill-bottom to selection-top # layout px (needs -#)  1 | 0
+  event count differs: CURSOR on the pill's Ctrl+K button before the click: ok (cursor #,#; b  1 | 0
+  event count differs: CHECKLIST Ctrl+K window opened from the pill (over highlighted words):  1 | 0
+  event count differs: ASSERT the window is the product's own Explain-selection dialog (role=  1 | 0
+  event count differs: ASSERT B# starts from nothing selected (a click on empty canvas at [#,  1 | 0
+  event count differs: ASSERT B# window is the empty-canvas Ctrl+K (placeholder prompt field,  1 | 0
+  event count differs: CHECK window text equals P#: true  1 | 0
+  event count differs: DRAG Gini Impurity vs Entropy from (#,#) to (#,#) size #x# planned (#,  1 | 0
+  event count differs: DRAG Bootstrap Coverage Limit from (#,#) to (#,#) size #x# planned (#,  1 | 0
+  event count differs: DRAG Decision Tree Feature Regions from (#,#) to (#,#) size #x# planne  1 | 0
+  event count differs: DRAGGED # cards: Gini Impurity vs Entropy | Bootstrap Coverage Limit |  1 | 0
+  event count differs: ASK "what happens when a tree grows too many regions?" target=card  0 | 1
+  event count differs: PILL geometry: gap # layout px (needs -#), pill in view true, selectio  0 | 1
+  event count differs: CURSOR on the pill's Ctrl+K button before the click: ok (cursor #,#; c  0 | 1
+  event count differs: ASSERT Ctrl+K window (explain): {"present":true,"role":"dialog","label  0 | 1
+  event count differs: ASSERT nothing selected before the chord (spot [#,#]; {"cards":#,"text  0 | 1
+  event count differs: ASSERT Ctrl+K window (empty): {"present":true,"role":"dialog","label":  0 | 1
+  event count differs: CHECK field text equals the sentence: true  0 | 1
+  event count differs: DRAG @gini from (#,#) to (#,#) overlap=false took # s  0 | 1
+  event count differs: DRAG @boot from (#,#) to (#,#) overlap=false took # s  0 | 1
+  event count differs: DRAG @card# from (#,#) to (#,#) overlap=false took # s  0 | 1
+  first difference at event 6:
+    reference: ASK "what happens when a tree grows too many regions?" target=card key
+    new      : ASK "what happens when a tree grows too many regions?" target=card
+== marks.json (reference | new)
+  script length 102.4 s | 135.3 s (32.9 s)
+  typing    6 marks   13.2 s |   6 marks   16.9 s
+  reveal   37 marks   65.8 s |  37 marks   70.8 s
+  depth     2 marks    5.7 s |   2 marks   13.7 s
+  hold     36 marks   43.7 s |  21 marks   29.1 s
+  dead      0 marks    0.0 s |   2 marks   11.1 s
+  camera    0 marks    0.0 s |  24 marks   22.6 s
+  hover     0 marks    0.0 s |   5 marks    5.2 s
+  act       0 marks    0.0 s | 121 marks   28.3 s

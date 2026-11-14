@@ -1,0 +1,31 @@
+{
+ "marks": {
+  "start": 3.42,
+  "end": 139.13,
+  "typing": 6,
+  "reveal": 37,
+  "depth": 2,
+  "dead": 2
+ },
+ "pageErrors": 0,
+ "unscripted": [],
+ "failed": []
+}
+PASS  pill seen: 3 checked
+PASS  skeleton seen: 3 checked
+PASS  card centred: 6 checked
+FAIL  tooltip seen: 1 of 2 failed: {"at":70.97,"ms":650,"shown":false}
+FAIL  menu in frame: 1 of 4 failed: {"at":39.91,"name":"depth detailed","ok":false}
+PASS  Chat pane shown: 1 checked
+PASS  typing slow and visible: 6 checked
+PASS  sticker visible: 2 checked
+PASS  pill above the highlight: 1 checked
+PASS  Ctrl+K button clicked (cursor on it): 1 checked
+PASS  window not looking fake (DOM asserted): 2 checked
+PASS  nothing selected before the canvas Ctrl+K: 1 checked
+PASS  cards dragged without overlap: 3 checked
+PASS  no dead stretch (holds): 21 holds, none longer than 2.6 s
+PASS  no dead stretch (marked): 2 dead stretch(es) marked for the render to cut, 11.2 s
+FAIL  request hygiene: ABORT outside small-learn-canvas-notebook-dev.tryrabbithole.workers.dev
+DRAFT REFUSED: the beat checklist failed: tooltip seen, menu in frame, request hygiene
+exit 4
