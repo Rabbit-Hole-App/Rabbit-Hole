@@ -335,7 +335,8 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   const [hovered, setHovered] = useState(false), hoverTimer = useRef(null);
   // The highlight over the top of the card (index.css) is as tall as the grip strip and the header together.
   const measureTop = root => { const header = root.querySelector('[data-card-header]'), base = root.getBoundingClientRect().top; root.style.setProperty('--top-h', `${Math.max(24, ((header ? header.getBoundingClientRect().bottom : base + 24 * (zoom || 1)) - base) / (zoom || 1))}px`); };
-  const hoverIn = event => { if (event.buttons) return; measureTop(event.currentTarget); if (hovered) { clearTimeout(hoverTimer.current); hoverTimer.current = null; return; } if (!hoverTimer.current) hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(true); }, 150); };
+  // A press alone changes nothing (the row must not jump when a card is clicked); it hides only once the card is being dragged (a move with a button down).
+  const hoverIn = event => { if (event.buttons) { if (hovered || hoverTimer.current) hoverOff(); return; } measureTop(event.currentTarget); if (hovered) { clearTimeout(hoverTimer.current); hoverTimer.current = null; return; } if (!hoverTimer.current) hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(true); }, 150); };
   const hoverOut = () => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(false); }, 120); };
   const hoverOff = () => { clearTimeout(hoverTimer.current); hoverTimer.current = null; setHovered(false); };
   useEffect(() => () => clearTimeout(hoverTimer.current), []);
@@ -438,7 +439,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       // double-click's interval of the last one is that double-click's second press.
       // A press on a card takes the keyboard back from the companion column (its keys stand down while a focus is held
       // there): otherwise Ctrl+D or Delete on the card just selected would act on nothing (repo-canvas-cards-check case 3).
-      onPointerDownCapture={event => { hoverOff(); if (event.timeStamp - lastPress.current > 500) selectedAtPress.current = selected; lastPress.current = event.timeStamp; if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur(); }}
+      onPointerDownCapture={event => { if (event.timeStamp - lastPress.current > 500) selectedAtPress.current = selected; lastPress.current = event.timeStamp; if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur(); }}
       onPointerDown={event => { if (event.button !== 0) return; if (event.target.closest('[data-drag-zone]')) drag(event); else onSelect(id, event); }}
       // A single click only selects; a double-click opens - the card's reader, else its Rabbit Hole (made when there is
       // none yet). Never from one of the card's own controls (opensFrom).

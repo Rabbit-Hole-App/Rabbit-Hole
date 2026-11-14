@@ -137,7 +137,7 @@ test('the canvas places a group as a grid in one undo step and selects it; a car
   assert.ok(group.includes('refCardSpot({ x: visible.x, y: visible.y }, [...inlineCanvas.obstacles(), ...placementChrome()], visible, box)'), 'the grid is placed as one box in free space in view');
   assert.equal(group.split('snapshot()').length - 1, 1, 'one undo step');
   assert.ok(group.includes('setSelection(added.map(block => block.id))'), 'the new cards are selected');
-  const press = canvas.split('\n').find(line => line.includes('onPointerDownCapture={event => { hoverOff(); if (event.timeStamp - lastPress.current'));
+  const press = canvas.split('\n').find(line => line.includes('onPointerDownCapture={event => { if (event.timeStamp - lastPress.current'));
   assert.ok(press?.includes("if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur();"), 'a card press releases a companion focus');
   const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
   assert.ok(page.includes('insertCards: (list, { sameAs = null, size } = {}) =>'));
