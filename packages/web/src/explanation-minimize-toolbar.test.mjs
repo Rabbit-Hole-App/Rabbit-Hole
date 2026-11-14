@@ -15,7 +15,7 @@ test('Minimize replaces the Focus icon on an Explanation as its own pill (the En
   const longPill = bar.match(/const bar = \(barClass, barStyle\) => \([^]*?\r?\n  \);/)?.[0] || '';
   assert.ok(longPill.includes('data-add-to-chat') && longPill.includes('data-quick-edit'), 'the long pill still holds Add to chat and Quick Edit');
   assert.doesNotMatch(longPill, /data-minimize-button|ChevronsDownUp|onMinimize/, 'Minimize is not inside the long pill');
-  assert.match(bar, /<div data-selection-group className=\{`pointer-events-auto flex w-max items-center gap-1\.5 \$\{className\}`\} style=\{style\}>\{pill\}\{long && bar\('', undefined\)\}<\/div>/, 'the pill and the long pill sit side by side');
+  assert.match(bar, /<div data-selection-group className=\{`pointer-events-auto flex w-max items-center gap-1\.5 \$\{className\}`\} style=\{style\}>\{long && bar\('', undefined\)\}\{pill\}<\/div>/, 'the long pill and the Minimize pill sit side by side, Minimize last (owner 2026-11-13)');
   assert.match(bar, /focusLabel: onFocus && !onMinimize \? focusLabel : null/, 'the Focus icon steps aside where Minimize stands');
   assert.match(bar, /!!\(ctx\.focusLabel \|\| ctx\.onMinimize \|\| ctx\.onAddToChat \|\| ctx\.onQuickEdit\)/);
 });

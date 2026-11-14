@@ -327,6 +327,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const windowMode = stripMode && !!windowHost && windowSeen;
   const convHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
   const convSlot = useRef(null), windowBody = useRef(null);
+  // A card added to the canvas folds the window away, so the learner can focus on the card (LearnPage dispatches rh-card-added; the chat button in the strip brings it back).
+  useEffect(() => {
+    if (!windowMode) return undefined;
+    const fold = () => setWinState('min');
+    window.addEventListener('rh-card-added', fold);
+    return () => window.removeEventListener('rh-card-added', fold);
+  }, [windowMode]);
   useLayoutEffect(() => { const where = windowMode ? windowBody.current : convSlot.current; if (where && convHost.parentNode !== where) where.appendChild(convHost); });
   // Minimized, the window is gone completely; this button in the strip's toolbar (next to the Curious toggle) shows it again, and hides it while it is open.
   const chatWindowButton = stripMode && windowHost && windowSeen ? (
@@ -1187,7 +1194,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? (toolOf(command)?.placeholder || `Add details, or press ${sendKeyLabel()}`) : placeholder} busy={busy}
           dock={dock || stripMode} hold={uploadHeld(canvasTarget) ? 'Waiting for the picture to upload' : ''} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
-          stacked={!!chat && !stripMode} pill={stripMode} tocView={tocView} chips={chat && !stripMode ? chipsNode : null}
+          stacked={!!chat && !stripMode} pill={stripMode} onMinimize={stripMode ? () => window.dispatchEvent(new Event('rh-strip-minimize')) : null} tocView={tocView} chips={chat && !stripMode ? chipsNode : null}
           leading={<>
           {!tocView && <div className="relative shrink-0">
             <button

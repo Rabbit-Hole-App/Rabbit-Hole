@@ -71,7 +71,7 @@ test('every data- attribute AskPanel renders is listed as shown or hidden in the
   assert.match(panel, /\{!tocView && repository && !codebase && repositoryContext\?\.label && /);
   assert.match(panel, /\{!tocView && atHits\.length > 0 && \(/);
   assert.match(panel, /if \(nextStepRef\) nextStepRef\.current = sendStep;/);
-  assert.match(panel, /stacked=\{!!chat && !stripMode\} pill=\{stripMode\} tocView=\{tocView\}/);
+  assert.match(panel, /stacked=\{!!chat && !stripMode\} pill=\{stripMode\} onMinimize=\{stripMode \? \(\) => window\.dispatchEvent\(new Event\('rh-strip-minimize'\)\) : null\} tocView=\{tocView\}/);
 });
 
 test('sending a TOC request cannot clear Chat image or paper selection', () => {

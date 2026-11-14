@@ -41,6 +41,17 @@ test('the bottom strip: the minimap above the zoom row at lower left, the hooks 
   assert.match(read('CanvasMinimap.jsx'), /className="relative overflow-hidden rounded-xl/, 'its frame is in the strip\'s flow');
 });
 
+// Owner 2026-11-13: a card added to the canvas folds the chat window away so the learner can focus on the card; the command's own
+// "Working on /name" pill is gone because the chat already shimmers while it works.
+test('adding a card folds the chat window: the page announces a card count that grew after the board loaded, the window listens', () => {
+  const page = read('LearnPage.jsx'), ask = read('ask.jsx');
+  assert.match(page, /if \(cardCount\.current != null && count > cardCount\.current\) window\.dispatchEvent\(new Event\('rh-card-added'\)\);/);
+  assert.match(page, /if \(restoredBoard !== boardPath\) return;\n\s+const count = \(canvasState\.cards \|\| \[\]\)\.length;/, 'the board\'s own load is the baseline, not a new card');
+  assert.match(ask, /window\.addEventListener\('rh-card-added', fold\);/);
+  assert.match(ask, /const fold = \(\) => setWinState\('min'\);/);
+  assert.doesNotMatch(read('LearnSlash.jsx'), /Working on \/\$\{name\}/, 'no Working on pill under the reply');
+});
+
 // Owner, 2026-11-13 (replaces the 2026-10-13 in-composer hide icon): the canvas's bottom chat strip has its Minimize as a round
 // button outside the composer, on its left; minimized, the strip is the Rabbit Hole mark on black at the lower right, and the last choice
 // is kept on this device (ui-prefs.js chatStrip). The canvas no longer gives the composer a ComposerHide context, so the composer's
@@ -50,7 +61,11 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(canvas, /saveUiPref\('chatStrip', value\)/);
   assert.doesNotMatch(canvas, /ComposerHide\.Provider/);
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
-  assert.match(strip, /\{\/\*[^\n]*\*\/\}\n\s+\{hooks && <div data-hooks-slot[^\n]*\n\s+<div className="relative">\n\s+<button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{hideComposer\}\n[^\n]*absolute -top-3 left-7[^\n]*h-6 w-6[^\n]*rounded-full[^\n]*\n\s+\{composer\}/, 'the three Curious pills, then the composer with a small circle hanging on its own top border (owner 2026-11-13)');
+  assert.match(strip, /\{\/\*[^\n]*\*\/\}\n\s+\{hooks && <div data-hooks-slot[^\n]*\n\s+\{composer\}/, 'the three Curious pills, then the composer');
+  // The Minimize circle hangs on the pill's own top border (ChatComposer), never on the context chips above the pill; it tells the canvas by an event.
+  assert.match(read('ChatComposer.jsx'), /\{onMinimize && <button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{onMinimize\}\n[^\n]*absolute -top-3 left-7[^\n]*h-6 w-6[^\n]*rounded-full/);
+  assert.match(read('ask.jsx'), /onMinimize=\{stripMode \? \(\) => window\.dispatchEvent\(new Event\('rh-strip-minimize'\)\) : null\}/);
+  assert.match(canvas, /window\.addEventListener\('rh-strip-minimize', hideComposer\)/);
   assert.match(read('ask.jsx'), /className=\{cn\('relative shrink-0', stripMode \? 'w-full' : 'mt-2', !compact && !stripMode && 'sticky bottom-0 bg-white pt-1 pb-2'\)\}/, 'in the strip nothing behind the pill is opaque: no sticky white band clipping the canvas');
   assert.match(strip, /\{composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer"/);
   assert.match(strip, /bg-black[^\n]*<img src="\/static\/rabbit-hole-white-on-black-128\.png"/, 'white mark on black, under /static, the one public path the workers serve for it');

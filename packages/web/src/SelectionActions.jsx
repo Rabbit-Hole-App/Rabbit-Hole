@@ -65,7 +65,7 @@ function Actions({ ctx, mode, className = '', style }) {
   );
   if (!pill) return bar(className, style);
   const long = ctx.focusLabel || ctx.onAddToChat || ctx.onQuickEdit;
-  return <div data-selection-group className={`pointer-events-auto flex w-max items-center gap-1.5 ${className}`} style={style}>{pill}{long && bar('', undefined)}</div>;
+  return <div data-selection-group className={`pointer-events-auto flex w-max items-center gap-1.5 ${className}`} style={style}>{long && bar('', undefined)}{pill}</div>; // Minimize last (owner 2026-11-13): Add to chat and Quick Edit first
 }
 
 // A host row's trailing segment: shown only while `id` is the one selected object, and tells the floating bar to stand down.

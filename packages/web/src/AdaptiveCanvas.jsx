@@ -1626,6 +1626,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [composerHidden, setComposerHidden] = useState(() => uiPrefs().chatStrip === 'min');
   const keepStrip = value => { try { saveUiPref('chatStrip', value); } catch { /* storage refused: the choice holds until a reload */ } };
   const hideComposer = useCallback(() => { setComposerHidden(true); keepStrip('min'); }, []);
+  // The strip's Minimize button lives on the pill itself (ChatComposer, which the Chat's AskPanel draws into the strip), so it announces itself here.
+  useEffect(() => { window.addEventListener('rh-strip-minimize', hideComposer); return () => window.removeEventListener('rh-strip-minimize', hideComposer); }, [hideComposer]);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
   useEffect(() => {
     if (!composerHidden) return undefined;
@@ -6746,11 +6748,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {chatWindow}
           {/* Curious (owner 2026-11-13): the three suggestions are small pills in a row right above the strip, so they leave with it. */}
           {hooks && <div data-hooks-slot ref={hooksSlot} className={`mb-1.5 empty:hidden ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
-          <div className="relative">
-          <button type="button" data-composer-hide aria-label="Minimize chat composer" title="Minimize chat composer - your draft stays" onClick={hideComposer}
-            className="absolute -top-3 left-7 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-white text-ink-2 shadow-pop hover:bg-hover hover:text-ink"><Minus size={12} strokeWidth={2} /></button>
           {composer}
-          </div>
         </div>}
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
