@@ -6,7 +6,7 @@ import { createPortal, flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { CapturingLabel, beginAreaCapture, endAreaCapture } from './AreaCapturing.jsx';
 import { Md } from './ask.jsx';
-import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, freshFitStep, cornerSlot } from './card-layout.js';
+import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, naturalHeight, fullLength, freshFitStep } from './card-layout.js';
 import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
 import { nameKey, positionHint, titleTaken, uniquifyBlocks } from './unique-title.js';
 import CardCustomTitle from './CardCustomTitle.jsx';
@@ -22,7 +22,7 @@ import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
-import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
+import { explanationCardWidth } from './explanation-card-width.js';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
 import { CAPTURE_MAX_BYTES, SketchCaptureError, captureProblem, captureResult, captureSize, fitZoom, pixelRatios, releasedTool, sketchDraftOf } from './sketch-host.js';
@@ -75,7 +75,7 @@ import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, colu
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
-import { besideSpot, followPlace } from './beside-placement.js';
+import { besideSpot } from './beside-placement.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
@@ -338,8 +338,6 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // A Full card keeps the corner resize (owner 2026-11-08); while it is dragged it is drawn at the dragged size, and a card that opened full
   // (card-layout.js fullLength, no slot) as the ordinary sized card it becomes on release (resizeCardLayout corner).
   const opensSized = cardLayout?.mode === 'full' && !cardLayout.slot;
-  // BUG 5: a plain card the learner has resized keeps the footprint it had (block.slot, card-layout.js cornerSlot); a card layout's own slot wins.
-  const ownSlot = !cardLayout ? edit.slotOf?.(id) ?? null : null, footprint = cardLayout?.slot || ownSlot;
   if (cornerDrag && opensSized) cardLayout = null;
   const full = cardLayout?.mode === 'full' && !cornerDrag;
   // A text card is never taller than its content (card-layout.js fitFrame, FX-EB-10); a Full/Scrollable card layout keeps its frame.
@@ -401,14 +399,16 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   };
   const resize = event => {
     if (event.button !== 0 || locked) return;
-    const element = card.current, before = { w: element.offsetWidth, h: element.offsetHeight }; // the box as it was before the drag (BUG 5: it stays the card's footprint). A learner's corner resize is a size, not a ceiling (card-layout.js fitFrame): neither the drag nor the commit is limited to the content's height
+    const element = card.current, sized = fit || opensSized; // a card that opened full is sized as a text card is: never taller than its content
     // The drag sizes the body: rows under it (Sources, the Prompt row, references) are added on top, during the drag and after
     // it is saved, so releasing never grows the card by them. A card layout's saved height is its whole frame.
     const extra = cardLayout && !opensSized ? 0 : extraHeight + refsHeight + grow;
     let last = null;
-    const apply = (w, h) => { last = clampBox(w, h); setSize(last); setCornerDrag(last); };
+    const apply = (w, h) => { last = clampBox(w, h, sized ? naturalHeight(element, extra) : undefined); setSize(last); setCornerDrag(last); };
     apply.done = () => {
-      if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h, null, undefined, false, true, before); else if (onSize) { onSize(id, last.w, last.h); edit.patchBlock?.(id, { slot: cornerSlot(ownSlot, before) }, true); } else edit.patchBlock?.(id, { ...last, slot: cornerSlot(ownSlot, before) }); } setCornerDrag(null); };
+      // The commit is limited as the drag was, measured at the released width (flushSync draws it first: its text may wrap).
+      if (last && sized) { flushSync(() => setCornerDrag(last)); last = clampBox(last.w, last.h, naturalHeight(element, extra)); setSize(last); }
+      if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h, null, undefined, false, true); else if (onSize) onSize(id, last.w, last.h); else edit.patchBlock?.(id, last); } setCornerDrag(null); };
     startDrag(event, { x: element.offsetWidth, y: element.offsetHeight - extra }, apply, zoom);
   };
   const node = (
@@ -430,7 +430,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ ...(placing ? PLACING : null), transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(footprint ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit, !!(cornerDrag?.h || size.h)) }}
+      style={{ ...(placing ? PLACING : null), transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit) }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 outline-none ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
@@ -487,7 +487,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>}
     </div>
   );
-  return footprint ? <div data-card-slot={id} className={`relative mx-auto shrink-0 overflow-visible ${selected ? 'z-[5]' : ''}`} style={{ width: footprint.w, height: footprint.h, marginTop: space || undefined }}>{node}</div> : node;
+  return cardLayout?.slot ? <div data-card-slot={id} className={`relative mx-auto shrink-0 overflow-visible ${selected ? 'z-[5]' : ''}`} style={{ width: cardLayout.slot.w, height: cardLayout.slot.h, marginTop: space || undefined }}>{node}</div> : node;
 }
 
 // One conversation node: the learner's message, a separator, then the agent's
@@ -2313,16 +2313,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       insertBlock: (block, { into = null, after = null, parent = null, fit = false, link = true } = {}) => {
         if (!alive.current) return null;
         snapshot();
-        let whole = fit; // a new Explanation is framed whole whichever way it arrives (CV-8), as a typed one always was
-        const framed = id => { if (whole && revealRef.current?.id === id) revealRef.current.fit = { moves: revealRef.current.moves, h: null }; return id; };
+        const framed = id => { if (fit && revealRef.current?.id === id) revealRef.current.fit = { moves: revealRef.current.moves, h: null }; return id; };
         // A confirmed /motion card lands with its press's request id (withPressId), so a reload can never start a second job.
         let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}) } } : {}) });
         if (link && parent?.id && blocksRef.current.some(entry => entry.id === parent.id)) { // link: false = a card placed beside its source, no connector (owner 2026-11-08)
           const linkId = parent.actionId ? `explain-child-${parent.actionId}` : crypto.randomUUID();
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
         }
-        added = openedExplanation(added); // CV-1/CV-8: a new Explanation opens whole, at the width its visual asks for (not the type's fixed 440), from every origin
-        if (added.cardLayout?.mode === 'full') whole = true;
+        if (fit) added = fullLength(added, BLOCK_TYPES[added.type]?.width);
         if (added.type === 'explanation') fillSummary(added.id, added);
         if (after == null) return framed(insertAtView(added, into));
         perfMark(added.id, 'insert');
@@ -2377,7 +2375,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         }
         if (!insert) return null;
         snapshot();
-        const added = incoming.w || incoming.h ? { ...incoming, dx: incoming.dx || 0, dy: incoming.dy || 0 } : openedExplanation({ ...incoming, dx: incoming.dx || 0, dy: incoming.dy || 0 }); // CV-8: a new Explanation placed this way opens whole too
+        const added = { ...incoming, dx: incoming.dx || 0, dy: incoming.dy || 0 };
         // Track immediately so two completions in one turn cannot insert duplicate cards.
         blocksRef.current = [...blocksRef.current,added];
         return insertAtView(added);
@@ -2393,15 +2391,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0, follow = false }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0 }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
-        // `follow` (a typed /explain): beside the selected card, else the latest explanation card (followAnchor), scattered, and never the column once there is one to follow (followPlace).
-        const anchor = beside || (follow && !given ? followAnchor() : null), source = anchor ? boundsRef.current[anchor] : null;
-        let at = given;
-        if (!at && source && follow && !beside) ({ at, size } = followPlace({ source, size, id, obstacles: boardObstacles([anchor]) }));
-        else if (!at && source) { at = besideSpot(source, size, boardObstacles([anchor]), { dy: besideDy }); if (at) size = { ...size, h: Math.round(source.h) }; }
+        const source = beside ? boundsRef.current[beside] : null, spot = !given && source ? besideSpot(source, size, boardObstacles([beside]), { dy: besideDy }) : null, at = given || spot;
+        if (spot) size = { ...size, h: Math.round(source.h) };
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
@@ -2416,7 +2411,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (blocksRef.current.some(entry => entry.id === block.id)) return block.id;
         const slot = key != null ? slotsRef.current.find(entry => entry.id === slotIdOf(key)) : null;
         const at = slot?.at || (key != null ? roadmapSpots.current.get(key) : null) || null;
-        const added = openedExplanation({ ...block, dx: 0, dy: 0 }); // CV-8: a Tutor-made Explanation opens whole, as a typed one does
+        const added = { ...block, dx: 0, dy: 0 };
         snapshot();
         if (!at) { blocksRef.current = [...blocksRef.current, added]; return insertAtView(added, slot?.id || null); }
         perfMark(added.id, 'insert');
@@ -3797,7 +3792,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         ? { ...change, after: preserveCardEditLayout(change.after, boxes[change.id]) } : change) };
     }
     // A placed card (A7) goes at the end of the column, offset to the spot its ghost showed; no other card moves.
-    if (tx.kind === 'card' && tx.block?.type === 'explanation') tx = { ...tx, block: openedExplanation(tx.block) }; // CV-8: a Ctrl+K card (cardTx, applied below by applyTx, never through insertBlock) opens whole like a typed one
     if (tx.kind === 'card' && !tx.after && !tx.end) { const at = flowIndexAtView(); tx = { ...tx, after: blocksRef.current[at - 1]?.id ?? null, first: at === 0 }; }
     if(tx.retainedSources?.length && !inlineAiRef.current?.retainImageSources?.(tx.retainedSources))return false;
     setCardGhost(null);
@@ -5270,10 +5264,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const item = itemsRef.current.find(entry => entry.id === id);
     if (item) shift(x - item.x, y - item.y, groupTargets(id));
   };
-  const resizeCard = (id, w, h, x, minimum, quiet = false, corner = false, slot = null) => {
+  const resizeCard = (id, w, h, x, minimum, quiet = false, corner = false) => {
     if (readOnly || lockedRef.current.has(id) || id === focusRef.current?.id) return; // Focus's temporary size is never saved
     if (!quiet) snapshot();
-    setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum, corner, slot) : block));
+    setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum, corner) : block));
   };
   const setCardLayout = (id, mode) => {
     if (readOnly || lockedRef.current.has(id) || selection.length !== 1) return;
@@ -5432,20 +5426,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A card for a reserved slot (`into`) takes that slot's place, never a new one - with the room the slot kept
   // above it at the end of a crowded column (its `top`, as the card's own top margin); a slot that has gone
   // (released, or this is another canvas) leaves the card to land where the learner is looking.
-  // The card a typed /explain follows (canvas-cards BUG 4): the selected card, else the newest explanation card on this board - tracked as cards arrive, and after a reload the
-  // last one in the board's order. Nothing to follow (an empty board): null, and the card takes the column place, once.
-  const lastExplain = useRef(null);
-  const explainCard = block => !!block && (!!block.explain || !!block.explainJob || (block.type === 'explanation' && !block.anchor));
-  const followAnchor = () => {
-    const drawn = id => blocksRef.current.some(block => block.id === id) && boundsRef.current[id];
-    const picked = selectedRef.current.find(drawn);
-    if (picked) return picked;
-    if (lastExplain.current && drawn(lastExplain.current)) return lastExplain.current;
-    return [...blocksRef.current].reverse().find(block => explainCard(block) && drawn(block.id))?.id ?? null;
-  };
   const insertAtView = (block, into = null) => {
     perfMark(block.id, 'insert');
-    if (explainCard(block)) lastExplain.current = block.id;
     const slot = into && slotsRef.current.find(entry => entry.id === into);
     const index = slot ? null : flowIndexAtView();
     if (slot?.top) block = { ...block, space: slot.top };
@@ -6220,7 +6202,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>

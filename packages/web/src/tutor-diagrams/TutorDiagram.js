@@ -42,17 +42,6 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   return { width, height, element };
 }
 
-// A diagram's natural size, measured without mounting (renderTutorDiagram runs the layout, title and caption exactly as the card draws them). Every layout asks for the
-// room it needs (a dense flow, a tree, a long label is wider than `room`), so that is its natural width; one layout keeps a fixed height whatever the room and spends extra
-// room only on width: the coordinate plot (a 240 px tall plot area). Drawn in `room` it is taller than wide, so it is measured once more at the width that makes it 4:3, capped at `cap`.
-export function naturalSize(spec, room = DEFAULT_WIDTH, cap = MAX_WIDTH) {
-  const first = renderTutorDiagram(spec, room);
-  const wide = Math.ceil(first.height * 4 / 3);
-  if (parseTutorDiagram(spec).diagram.kind !== 'coordinate-plot' || first.width >= wide || wide > cap) return { width: first.width, height: first.height };
-  const second = renderTutorDiagram(spec, wide);
-  return { width: second.width, height: second.height };
-}
-
 export default function TutorDiagram({ spec, fallback = null }) {
   const host = useRef(null);
   const [availableWidth, setAvailableWidth] = useState(DEFAULT_WIDTH);

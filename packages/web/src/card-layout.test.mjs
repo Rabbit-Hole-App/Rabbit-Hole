@@ -69,18 +69,6 @@ test('the natural height includes content scrolled under a lower ceiling, and le
  assert.equal(naturalHeight(laidOut(fitFrame(900,undefined,true),300,40),40),300,'Sources or reference rows (extra) are not body height');
  assert.equal(naturalHeight({offsetHeight:180,querySelector:()=>null}),180);
 });
-// BUG 2 (canvas-cards): a learner's corner resize is a size, not a ceiling. A set height holds the content-fitted card at exactly that height
-// (a taller drag grows it, a shorter one still scrolls); without a learner-set height nothing changes.
-test('a learner-set height on a content-fitted card is its size: taller grows it, shorter scrolls, unset stays content-fitted',()=>{
- const box=({height,minHeight=0,maxHeight=Infinity},content)=>height??Math.min(Math.max(content,minHeight),maxHeight);
- assert.deepEqual(fitFrame(600,undefined,true,true),{height:undefined,minHeight:600,maxHeight:600});
- assert.equal(box(fitFrame(600,undefined,true,true),310),600,'a taller drag grows the card past its content');
- assert.equal(box(fitFrame(200,undefined,true,true),310),200,'a shorter drag holds it at 200 (the body scrolls)');
- assert.equal(box(fitFrame(1000,undefined,true,false),310),310,'no learner-set height: still its content, the old ceiling');
- assert.deepEqual(fitFrame(undefined,520,true,true),{height:undefined,maxHeight:520},'a set flag with no height changes nothing');
- assert.deepEqual(fitFrame(600,undefined,false,true),{height:600,maxHeight:undefined},'a card that is not content-fitted is unchanged');
- assert.equal(clampBox(440,700).h,700,'the commit is no longer limited to the content');
-});
 test('the required height follows the content: wrapping at a narrower width, or feedback appearing, moves the limit',()=>{
  const wide=naturalHeight(laidOut(fitFrame(undefined,760,true),280)),narrow=naturalHeight(laidOut(fitFrame(undefined,760,true),460));
  assert.deepEqual([clampBox(700,900,wide).h,clampBox(320,900,narrow).h],[280,460]);
@@ -151,41 +139,8 @@ test('toggling Full on a quiz, flashcards or walkthrough keeps answers, ratings 
 // source row lives in the header, so the footer row is not drawn a second time.
 test('an opened Explanation section grows the frame, never squeezes the core; the source row counts once',()=>{
  const canvas=readFileSync(new URL('./AdaptiveCanvas.jsx',import.meta.url),'utf8');
- assert.match(canvas,/autoMax \+ refsHeight \+ grow, fit, !!\(cornerDrag\?\.h \|\| size\.h\)\)/,'the ceiling grows by the opened height; a learner-set height is a size');
+ assert.match(canvas,/autoMax \+ refsHeight \+ grow, fit\)/,'the ceiling grows by the opened height');
  assert.match(canvas,/extraHeight \+ refsHeight \+ grow;/,'a corner drag leaves the opened height out of the body');
  assert.match(canvas,/block\.sourceRef && !headerSource\(block\) && <SourceRefChip/);
  assert.deepEqual(fitFrame(undefined,520+120,true),{height:undefined,maxHeight:640});
-});
-
-// BUG 5 (canvas-cards): a learner's corner resize does not reflow the column. The first one records the footprint the card had before the drag; the column keeps reading that footprint,
-// so the cards under it keep their places; later resizes change the card, never the slot; the slot is saved with the block (a reload draws the same). Built on BUG 2: the card inside its
-// footprint is held at the learner's size (fitFrame minHeight = maxHeight), whatever its content.
-import {cornerSlot} from './card-layout.js';
-const GAP=20;
-// The column as the browser lays it out: each block's footprint is its slot when it has one, else its own height; a card's y is the sum of what is above it.
-const columnY=blocks=>{let y=0;return Object.fromEntries(blocks.map(block=>{const at=y;y+=(block.slot?.h??block.h)+GAP;return [block.id,at];}));};
-const corner=(block,before,w,h)=>({...block,w,h,slot:cornerSlot(block.slot,before)}); // what CanvasNode commits for a plain card
-test('resizing a middle card taller leaves the card below where it was; twice leaves the slot as the first drag set it; a reload draws the same',()=>{
- const blocks=[{id:'a',w:440,h:300},{id:'b',w:440,h:260},{id:'c',w:440,h:300}];
- const before=columnY(blocks);
- const grown=blocks.map(block=>block.id==='b'?corner(block,{w:440,h:260},700,600):block);
- assert.deepEqual(columnY(grown),before,'the card below keeps its measured y when the middle card is made taller');
- assert.deepEqual(grown[1].slot,{w:440,h:260},'the slot is the box before the drag');
- assert.deepEqual([grown[1].w,grown[1].h],[700,600],'the card itself takes the dragged size');
- const again=grown.map(block=>block.id==='b'?corner(block,{w:700,h:600},500,150):block);
- assert.deepEqual(again[1].slot,{w:440,h:260},'a later resize changes the card, never the slot');
- assert.deepEqual(columnY(again),before,'smaller than the slot: the neighbours still do not move');
- assert.deepEqual(columnY(JSON.parse(JSON.stringify(again))),before,'saved with the block: a reload draws the same');
- assert.deepEqual(columnY(blocks.map(block=>({...block,h:block.id==='b'?600:block.h}))).c,before.c+340,'reproduction: without a slot the block below is pushed by the growth');
-});
-test('cornerSlot keeps an existing slot and refuses a box it cannot read; a Full card without a slot becomes a sized card with its footprint',()=>{
- assert.deepEqual(cornerSlot({w:1,h:2},{w:440,h:260}),{w:1,h:2});
- assert.deepEqual(cornerSlot(null,{w:440.4,h:259.6}),{w:440,h:260});
- assert.equal(cornerSlot(null,{w:0,h:260}),null);
- const full={id:'x',type:'explanation',cardLayout:{mode:'full',fullWidth:560}};
- const sized=resizeCardLayout(full,700,500,null,undefined,true,{w:560,h:380});
- assert.deepEqual(sized,{id:'x',type:'explanation',w:700,h:500,slot:{w:560,h:380}});
- assert.deepEqual(resizeCardLayout(full,700,500,null,undefined,true),{id:'x',type:'explanation',w:700,h:500},'no footprint given: as before');
- const slotted={id:'y',type:'explanation',cardLayout:{mode:'full',fullWidth:560,slot:{w:560,h:380}}};
- assert.equal(resizeCardLayout(slotted,700,500,null,undefined,true,{w:1,h:1}).cardLayout.slot.h,380,'a card layout\'s slot is unchanged');
 });

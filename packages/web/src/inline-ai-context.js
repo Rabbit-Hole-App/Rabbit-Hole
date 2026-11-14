@@ -16,7 +16,7 @@ export const CONTEXT_VERSION = 'inline-context-2';
 // closeness alone); hops: how far along the diagram's relations; flowGap: the gap between two text boxes read in order.
 export const LIMITS = Object.freeze({ objects: 24, targetChars: 4000, chars: 400, total: 8000, rangeAround: 200, connections: 40, relevant: 0.35, hops: 3, flowGap: 48 });
 // What a move changes and a description never reads.
-const LAYOUT = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'w', 'h', 'slot', 'fresh', 'cardLayout']);
+const LAYOUT = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'w', 'h', 'fresh', 'cardLayout']);
 const LINEAR = new Set(['line', 'arrow', 'curve', 'elbow']);
 
 // FNV-1a, 32-bit: a fingerprint, not a secret.

@@ -50,8 +50,8 @@ test('only a new card is opened full: a saved layout is kept, and the board load
   assert.equal(fullLength(saved, 440), saved, 'a card that already has a layout is untouched');
   assert.equal(fullLength({ type: 'paper' }, 440).cardLayout, undefined, 'a card without Full content is untouched');
   const canvas = read('AdaptiveCanvas.jsx');
-  assert.equal(canvas.match(/fullLength\(/g)?.length ?? 0, 0, 'the canvas opens a card full only through openedExplanation (explanation-card-width.js)');
-  assert.match(canvas, /added = openedExplanation\(added\);/, 'insertBlock opens every new Explanation whole (CV-8: not only the ones that pass fit)');
+  assert.equal(canvas.match(/fullLength\(/g).length, 1, 'only insertBlock opens a card full');
+  assert.match(canvas, /if \(fit\) added = fullLength\(added, BLOCK_TYPES\[added\.type\]\?\.width\);/);
   assert.match(read('learn-slash.js'), /canvas\.insertBlock\(withPrompt\(result\.block, promptUsed\), \{ into: slot, \.\.\.\(result\.block\?\.type === 'explanation' \? \{ fit: true \} : \{\}\),/);
 });
 
@@ -123,8 +123,8 @@ test('a Full card renders the corner resize; a corner drag leaves Full at the ne
   const canvas = read('AdaptiveCanvas.jsx');
   assert.match(canvas, /\{!locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block"/, 'the corner shows on Full cards too, never on a locked one');
   assert.doesNotMatch(canvas, /\{!full && !locked && resizable && <button/);
-  assert.match(canvas, /if \(event\.button !== 0 \|\| locked\) return;\n    const element = card\.current, before = \{ w: element\.offsetWidth, h: element\.offsetHeight \};/, 'a Full card can be corner-dragged; a locked one cannot');
-  assert.match(canvas, /if \(cardLayout\) edit\.resizeCard\?\.\(id, last\.w, last\.h, null, undefined, false, true, before\);/, 'the release goes through the existing resizeCard, as a corner resize (CV-5: with the box it had before the drag, the footprint)');
-  assert.match(canvas, /resizeCardLayout\(block, w, h, x, minimum, corner, slot\)/);
+  assert.match(canvas, /if \(event\.button !== 0 \|\| locked\) return;\n    const element = card\.current, sized = fit \|\| opensSized;/, 'a Full card can be corner-dragged; a locked one cannot');
+  assert.match(canvas, /if \(cardLayout\) edit\.resizeCard\?\.\(id, last\.w, last\.h, null, undefined, false, true\);/, 'the release goes through the existing resizeCard, as a corner resize');
+  assert.match(canvas, /resizeCardLayout\(block, w, h, x, minimum, corner\)/);
   assert.match(canvas, /if \(cornerDrag && opensSized\) cardLayout = null;\n  const full = cardLayout\?\.mode === 'full' && !cornerDrag;/, 'drawn at the dragged size while dragged');
 });

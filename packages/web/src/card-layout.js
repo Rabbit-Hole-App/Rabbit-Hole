@@ -29,15 +29,11 @@ export function switchCardLayout(block, mode, box, minimum) {
 }
 // corner: the bottom-right resize (owner 2026-11-08: a Full content card keeps it). It takes a Full card out of Full at the dragged size: a card that
 // opened full (fullLength, no slot) becomes an ordinary sized card (its w and h, no layout), one with a slot turns Scrollable at that size in it.
-// BUG 5 (canvas-cards): a learner's corner resize does not reflow the column. The first one records the footprint the card had before the drag (`slot`, the outer w and h of its box); the card
-// is then drawn at its new size absolutely inside that footprint (CanvasNode, as a Scrollable card already is), so the cards, notes and items below keep their places - a card made bigger overlaps
-// them instead of pushing them. Later resizes change the card, never the slot; a card that already has one (its own or a card layout's) keeps it. Saved with the block, so a reload draws the same.
-export const cornerSlot = (own, before) => own ?? (positive(before?.w) && positive(before?.h) ? { w: Math.round(before.w), h: Math.round(before.h) } : null);
-export function resizeCardLayout(block, width, height, dx, minimum, corner = false, slot = null) {
+export function resizeCardLayout(block, width, height, dx, minimum, corner = false) {
  if (!block.cardLayout || !supportsCardLayout(block)) return block;
  const layout = block.cardLayout;
  if (layout.mode === 'full' && corner) {
-  if (!layout.slot) { const { cardLayout: _full, ...sized } = block; return { ...sized, w: width, h: height, ...(slot ? { slot: cornerSlot(block.slot, slot) } : null) }; }
+  if (!layout.slot) { const { cardLayout: _full, ...sized } = block; return { ...sized, w: width, h: height }; }
   return { ...block, cardLayout: { ...layout, mode: 'scrollable', scrollableSize: { w: width, h: height } } };
  }
  if (layout.mode === 'full') return { ...block, dx: Number.isFinite(dx) ? dx : block.dx, cardLayout: { ...layout, fullWidth: fitWidth(width, widthLimits(minimum)) } };
@@ -90,8 +86,7 @@ export const clampBox = (w, h, most = 1000) => ({ w: Math.min(1200, Math.max(280
 // FX-EB-10: a content-fitted card (BLOCK_TYPES fitContent: a text card) is never taller than its content. The height it would be
 // held at (saved, dragged or its type's cap) is only a ceiling: its height follows the content as text wraps, feedback appears or
 // a section opens, content above the ceiling scrolls inside, and a saved height above the content leaves no blank space.
-// A learner's corner resize is a size, not a ceiling: `set` (the learner dragged or saved a height) holds a content-fitted card at exactly that height (minHeight = maxHeight); without it the height stays content-fitted.
-export const fitFrame = (height, maxHeight, fit, set = false) => (fit ? { height: undefined, ...(set && height != null ? { minHeight: height } : null), maxHeight: height ?? maxHeight } : { height, maxHeight });
+export const fitFrame = (height, maxHeight, fit) => (fit ? { height: undefined, maxHeight: height ?? maxHeight } : { height, maxHeight });
 // That card's natural height without the rows under its body (`extra`). It reads a card fitFrame leaves unstretched, so the
 // card's own height is its content's (never a stretched flex box's), plus whatever its scroll body hides above the ceiling.
 export function naturalHeight(card, extra = 0) {
