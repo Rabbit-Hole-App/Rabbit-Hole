@@ -192,3 +192,15 @@ test('support snapshots evaluate one at a time, are cached by artifact hash and 
   assert.deepEqual([stale.stale, stale.complete], [true, false], 'a stale result never masquerades as a complete card'); assert.equal(newer.complete, true);
   resolver.invalidate(); // an input change fences whatever is still in flight
 });
+
+test('one place per number: a template plan compiles with the readouts its callouts already show (a plan with no template, none), and the composition stays valid', async () => {
+  const { referencePlans } = await interactFixtures();
+  const artifacts = await sealEnvelope(FIXTURE_DRAFTS.standard);
+  const plan = clone(plans.standard), q = id => plan.scene.quantities.find(x => x.id === id);
+  for (const id of ['tossedHeight', 'tossedVelocity', 'tossedAcceleration', 'dropHeight', 'dropVelocity', 'dropAcceleration']) if (!q(id)) plan.scene.quantities.push({ ...clone(q('velocity')), id, formula: 'launchSpeed * t' });
+  plan.scene.words = clone(referencePlans.tossStandard.scene.words); plan.scene.template = 'two-lane'; plan.scene.slots = { toss: { height: 'tossedHeight', velocity: 'tossedVelocity', acceleration: 'tossedAcceleration' }, drop: { height: 'dropHeight', velocity: 'dropVelocity', acceleration: 'dropAcceleration' } };
+  const composition = await compileCardComposition(plan, artifacts);
+  assert.deepEqual(composition.main.calloutReadoutIds, ['tossedVelocity', 'tossedAcceleration']);
+  assert.equal(CardCompositionSchema.safeParse(composition).success, true);
+  assert.equal((await compileCardComposition(plans.standard, artifacts)).main.calloutReadoutIds, undefined, 'no template: the row keeps every readout');
+});

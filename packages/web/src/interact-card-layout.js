@@ -11,10 +11,13 @@ export const MAX_SUPPORTS = 2;
 export const RESET_ID = 'reset'; // the id of the Reset a plan did not declare
 const rank = kind => SECTION_ORDER.indexOf(kind);
 
+// The readouts the row draws: the plan's, less those a callout line in the scene already shows (composition.main.calloutReadoutIds). Empty means no row and no reserved height.
+export const rowReadoutIds = composition => (composition.main?.readoutIds ?? []).filter(id => !(composition.main?.calloutReadoutIds ?? []).includes(id));
+
 // -> the sections of this card, top to bottom. An absent row is absent, with its space.
 export function cardLayout(composition) {
   const sections = [{ kind: 'title' }, { kind: 'description' }, ...composition.supports.map(panel => ({ kind: 'support', id: panel.id })), { kind: 'scene' }];
-  if (composition.main?.readoutIds?.length) sections.push({ kind: 'readouts', ids: composition.main.readoutIds });
+  if (rowReadoutIds(composition).length) sections.push({ kind: 'readouts', ids: rowReadoutIds(composition) });
   if (composition.timeline) sections.push({ kind: 'timeline' });
   // The controls row always ends with Reset (owner 2026-11-12: one place, one icon on every composed card): the plan's own reset control moves to the end, and a plan without one gets
   // the card's own (RESET_ID, drawn by the player; there is no plan control behind it).
