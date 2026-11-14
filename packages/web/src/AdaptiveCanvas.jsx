@@ -342,6 +342,10 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // Open (card-open.js): double-click, Enter, or the Open pill on the one selected card. A chat card never opens.
   const opener = useContext(CardOpen);
   const opens = !chat && opener ? opener.can(id) : null;
+  // The row above a card (owner 2026-11-13): Enter shows on a hovered card and stays on the selected one; the action buttons (Add to chat, Quick Edit, Minimize) show on hover, or on a
+  // touch screen for the selected card. Hover is off while a button is down, so a click that selects keeps Enter even before the pointer moves again.
+  const showEnter = !!opens && (selected ? opener.single === id : hovered);
+  const showTools = selected ? (hovered || NO_HOVER) && !!tools : hovered && !!hoverTools;
   const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(id);
   const [cornerDrag, setCornerDrag] = useState(null);
   // A Full card keeps the corner resize (owner 2026-11-08); while it is dragged it is drawn at the dragged size, and a card that opened full
@@ -449,24 +453,24 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
-      {(selected ? (hovered || NO_HOVER) && ((opens && opener.single === id) || tools) : hovered && (hoverTools || opens)) && (
+      {(showEnter || showTools) && (
         <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
           {/* Bridges the 8px gap between the row and the card, so moving the pointer up to the buttons keeps the card hovered. */}
           <span aria-hidden="true" className="pointer-events-auto absolute inset-x-0 top-full h-2" />
-          {opens && (opener.single === id || !selected) && (
+          {showEnter && (
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
               onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
               className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
               Enter<ArrowUpRight size={13} />
             </button>
           )}
-          {(selected ? tools : hoverTools) && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{selected ? tools : hoverTools}</div>}
+          {showTools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{selected ? tools : hoverTools}</div>}
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
-      <div data-drag-handle data-drag-zone title="Drag to move this block"
-        className={`flex h-6 shrink-0 cursor-grab items-center justify-center rounded-t-xl active:cursor-grabbing ${ghost ? 'opacity-0 group-hover:opacity-100' : 'hover:bg-hover'}`}>
+      <div data-drag-handle data-drag-zone data-drag-top title="Drag to move this block"
+        className={`flex h-6 shrink-0 cursor-grab items-center justify-center rounded-t-xl active:cursor-grabbing ${ghost ? 'opacity-0 group-hover:opacity-100' : ''}`}>
         {/* The six dots the toolbar and the Rabbit Holes Map grips use (owner 2026-11-08), shown while the card is hovered or focused. */}
         <GripHorizontal data-drag-grip size={13} aria-hidden className={`text-ink-3 ${ghost ? '' : 'opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'}`} />
       </div>
