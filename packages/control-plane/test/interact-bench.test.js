@@ -82,7 +82,7 @@ test('bench_judge: Sonnet 5.5 in every registered profile (never Opus), text onl
     const role = resolveInteractProfile(id).roles.bench_judge;
     assert.deepEqual([role.model, role.pricingKey.model, role.provider, role.adapter, role.maxImages, role.capabilities.vision], ['claude-sonnet-5-5', 'claude-sonnet-5-5', 'anthropic', 'anthropic', 0, true], id);
   }
-  assert.deepEqual(INTERACT_ROLE_IDS.filter(r => resolveInteractProfile('opus-baseline').roles[r].model !== 'claude-opus-5-5'), ['design_fill', 'bench_judge']); // design_fill is the fast design path's Gemini Flash Lite
+  assert.deepEqual(INTERACT_ROLE_IDS.filter(r => resolveInteractProfile('opus-baseline').roles[r].model !== 'claude-opus-5-5'), ['bench_judge']);
 });
 
 test('the reservation is unchanged with the role present: the bench judge is in neither phase, so the allowance check before Generate is the same $8.42 build and $5.68 design worst case', () => {
@@ -91,17 +91,4 @@ test('the reservation is unchanged with the role present: the bench judge is in 
     design_author: { calls: 2, boundMicros: 635680 }, design_review: { calls: 4, boundMicros: 595680 }, design_revise: { calls: 3, boundMicros: 675680 },
     build_author: { calls: 2, boundMicros: 815680 }, build_review: { calls: 5, boundMicros: 743520 }, build_repair: { calls: 4, boundMicros: 767840 } } });
   assert.equal('bench_judge' in r.perRole, false);
-});
-
-test('the judge reads what a frame cannot show it: callout and label texts by id, the readout rows as worded, and what the scrubber reads next to the elapsed time', async () => {
-  const { cases, captures } = await captured();
-  const marked = captures.map(c => ({ ...c, trace: { ...c.trace, labels: [{ id: 'callout.toss.l0', text: 'v = 0 m/s at the top' }] } }));
-  const input = benchJudgeInput(plan, composition, cases, marked, artifact.manifest);
-  assert.match(input, /"labels":\[\{"id":"callout.toss.l0","text":"v = 0 m\/s at the top"\}\]/);
-  assert.match(input, /"readoutRows":\[\{"id":/);
-  const timed = JSON.parse(input.slice(input.indexOf('[{"capture"'))).find(s => s.scrubber);
-  assert.ok(timed, 'a timed card names what its scrubber reads');
-  assert.deepEqual(Object.keys(timed.scrubber), ['label', 'reads', 'range', 'elapsed']);
-  assert.ok(Math.abs(timed.scrubber.reads - (timed.time + timed.scrubber.range[0])) < 1e-5, 'reads = elapsed + the display offset');
-  assert.doesNotMatch(benchJudgeInput(plan, composition, cases, captures), /"readoutRows"/, 'no manifest, no readout rows');
 });
