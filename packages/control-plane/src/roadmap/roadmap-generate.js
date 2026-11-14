@@ -32,6 +32,10 @@ const boundOf = (body, route) => toMicros(requestSpendBound(body, route.model, r
 // with no Gemini key keeps the plan model, so nothing is ever sent to a provider that has no credential here.
 export const cardProfileId = env => env?.ROADMAP_CARD_PROFILE || (env?.GEMINI_API_KEY ? ROADMAP_CARD_PROFILE : 'plan-default');
 
+// Owner 2026-11-14: Gemini Flash all through. A table step of an older roadmap is authored as an explanation card (its table inside it, the way the planner now asks for it) wherever cards run on Gemini,
+// because the table tool still belongs to the plan model (Opus). The step keeps its own format; only the card that answers it changes.
+export const authoredFormat = (rec, env) => (rec.format === 'table' && cardProfileId(env) !== 'plan-default' ? 'explanation' : rec.format);
+
 // The author input of an accepted record, shared by the quote and the dispatch so both build the same request. -> { input, options } | { failed }
 export function authorInput(rec, limits = ROADMAP_LIMITS, env = {}) {
   // Allowlist before any model call: an unsupported format costs nothing.
@@ -53,13 +57,15 @@ export function authorInput(rec, limits = ROADMAP_LIMITS, env = {}) {
     : `${brief}\n\nPassage:\n<passage>\n${passage}\n</passage>`;
   // E1: the visuals the learner explicitly asked this step for, from the accepted learner instruction (the planner's own title and goal are not a request). An
   // unsupported picture stops here with zero author calls. A table-format step is a table already.
-  const visuals = rec.format === 'explanation' ? (rec.visualRequirements ?? deriveVisualRequirements(requirementText({ original: said?.original, revisions: said?.revisions }))) : null;
+  const format = authoredFormat(rec, env);
+  const visuals = format === 'explanation' ? (rec.visualRequirements ?? deriveVisualRequirements(requirementText({ original: said?.original, revisions: said?.revisions }))) : null;
   if (visuals?.unsupported) return { failed: fail('unsupported_capability', 'required_visual_unsupported', { error: visuals.unsupported }) };
   // CORE.09: the frozen Depth rides as the request's Depth, so the roadmap gets the same Explanation target and budget as a direct question.
   // planned: true keeps generateArtifact from running the JEV planner prototype (EXPLANATION_PLANNER) at dispatch: the quote hashed the request WITHOUT a plan, so a body that gained one would
   // never match it (request_mismatch, every card failed; found on the first live course run, owner 2026-11-14). The roadmap has its own planner.
   return { input: { planned: true, command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && depthOf(rec.depth) !== 'balanced' ? { depth: depthOf(rec.depth) } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
-    options: { only: [rec.format], systemSuffix: roadmapCardSuffix(rec), repairs: 0, title: rec.stepTitle, profile: resolveExplanationProfile(cardProfileId(env)) } };
+    format,
+    options: { only: [format], systemSuffix: roadmapCardSuffix({ ...rec, format }), repairs: 0, title: rec.stepTitle, profile: resolveExplanationProfile(cardProfileId(env)) } };
 }
 
 // CORE.05: the quote of the actual full first author request of an accepted record. Zero model calls.
@@ -70,7 +76,7 @@ export async function quoteRoadmapCard(env, rec, { limits = ROADMAP_LIMITS } = {
   const prepared = prepareArtifactAuthorRequest(env, built.input, built.options);
   if (prepared.result) return fail('unsupported_capability', String(prepared.result));
   // EXP-13: an explanation step's hold also covers its pictures (two, three attempts each) at the image quote; a deployment that cannot price a picture adds nothing and makes none.
-  const route = authorRoute(env, prepared.model), author = boundOf(prepared.body, route), boundMicros = author + (rec.format === 'explanation' && Number.isSafeInteger(author) ? figuresBoundMicros(env) : 0);
+  const route = authorRoute(env, prepared.model), author = boundOf(prepared.body, route), boundMicros = author + (built.format === 'explanation' && Number.isSafeInteger(author) ? figuresBoundMicros(env) : 0);
   if (!Number.isSafeInteger(boundMicros) || boundMicros <= 0) return fail('unsupported_capability', 'unpriced_request');
   // EXP-11-C02: the profile the request was built from rides with the quote, for the accepted record to keep (the model is already in the fingerprint).
   return { outcome: 'quoted', boundMicros, requestFingerprint: await requestFingerprint(prepared.body, route), provider: route.provider, model: route.model, ...(prepared.profile ? { profile: await explanationProfileBinding(prepared.profile) } : {}) };
@@ -129,7 +135,7 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
   switch (out?.result) {
     case 'artifact':
       // Defense in depth: the card must be the requested format, whatever the model named.
-      if (out.primitive !== rec.format) return fail('unsupported_capability', 'wrong_primitive', { calls });
+      if (out.primitive !== built.format) return fail('unsupported_capability', 'wrong_primitive', { calls });
       // id, stepId and sourceRef are metadata the adapter sets, never the model.
       return { outcome: 'ok', primitive: out.primitive, repaired: !!out.repaired, calls, ...(out.diagramsDropped ? { diagramsDropped: out.diagramsDropped } : {}), block: { ...out.block, id: rec.cardId, stepId: rec.stepId, ...(rec.sourceRef ? { sourceRef: rec.sourceRef } : {}) } };
     case 'clarification': return { outcome: 'clarification', failure_class: 'clarification', question: out.question, calls };

@@ -294,9 +294,10 @@ test('the production card path: Gemini Flash by the fast chain under the hold, w
   for (let i = 0; i < 4; i += 1) await h.run();
   const first = h.rows('SELECT generation, validation, billing FROM learn_step_results ORDER BY created_at')[0];
   assert.deepEqual(first, { generation: 'generated', validation: 'passed', billing: 'settled' }, 'the card was made and charged');
-  assert.equal(sent.length, 1, 'one Gemini request for the card');
-  assert.equal(sent[0].model, 'gemini-3.5-flash-lite');
   const rows = h.rows("SELECT provider, model, checkpoint FROM learn_roadmap_calls WHERE stage = 'generate' ORDER BY rowid");
+  assert.ok(sent.length >= 1 && sent.length === rows.length, 'one Gemini request per card made, each with its own call row (the table step too: it is authored on Gemini as an explanation card)');
+  assert.equal(sent[0].model, 'gemini-3.5-flash-lite');
+  assert.ok(rows.every(row => row.provider === 'google'), 'every card of the course is on Gemini Flash');
   assert.deepEqual(rows[0], { provider: 'google', model: 'gemini-3.5-flash-lite', checkpoint: 'settled' }, 'the call is bound to its own row and checkpoint, priced as Google');
   assert.equal(h.rows('SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE stage = \'generate\' AND payer = \'learner\' AND result_id = (SELECT id FROM learn_step_results ORDER BY created_at LIMIT 1)')[0].n, 1, 'exactly one author operation for the card');
 });
@@ -315,4 +316,17 @@ test('the facts call has a valid operation identity and its facts reach the view
   assert.deepEqual(await ensureFacts(h.env, access, roadmapId, { transport }), facts);
   assert.deepEqual((await status(h)).course.facts, facts);
   assert.equal(h.rows("SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE stage = 'subject' AND checkpoint = 'settled'")[0].n, 1, 'one platform call, on its own row');
+});
+
+test('a table step of an older roadmap is quoted and authored as an explanation card on Gemini Flash, never on the plan model (owner 2026-11-14)', async () => {
+  const { quoteRoadmapCard, authorInput, authoredFormat } = await import('../src/roadmap/roadmap-generate.js');
+  const rec = { format: 'table', passageText: 'Gini 0 to 0.5, entropy 0 to 1.', documentText: 'Gini 0 to 0.5, entropy 0 to 1. '.repeat(10), stepTitle: 'Gini or entropy', stepGoal: 'Compare the two criteria', claimsToCover: ['Gini ranges 0 to 0.5'], outcome: 'Choose a criterion',
+    learnerInstruction: { original: '', revisions: [] }, teachingScope: { kind: 'whole' }, depth: 'balanced', sourceRef: null };
+  const gemini = { GEMINI_API_KEY: 'x' };
+  assert.equal(authoredFormat(rec, gemini), 'explanation');
+  assert.equal(authoredFormat(rec, {}), 'table', 'a server with no Gemini key keeps the plan model and its table tool');
+  assert.deepEqual(authorInput(rec, undefined, gemini).options.only, ['explanation']);
+  const quote = await quoteRoadmapCard(gemini, rec);
+  assert.deepEqual([quote.outcome, quote.provider, quote.model], ['quoted', 'google', 'gemini-3.5-flash-lite']);
+  assert.equal((await quoteRoadmapCard({}, rec)).provider, 'anthropic');
 });
