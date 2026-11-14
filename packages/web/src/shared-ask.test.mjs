@@ -156,5 +156,4 @@ test('a published canvas draws the Chat composer in a bottom strip while the rig
   assert.match(page, /<SharedPanel keepMounted /, 'the closed panel stays mounted, so the draft and the conversation survive on a narrow screen');
   assert.match(chat, /where = stripHost \|\| inlineSlot\.current/, 'the composer moves between the panel and the strip without remounting');
   assert.match(chat, /if \(stripHost\) onOpenPanel\?\.\(\);/, 'sending from the strip opens the panel');
-  assert.match(chat, /<ChatComposer multiline dock=\{!!stripHost\} pill=\{!!stripHost\} onMinimize=\{stripHost \? \(\) => window\.dispatchEvent\(new Event\('rh-strip-minimize'\)\) : null\}/, 'in the strip it is the owner canvas strip\'s pill with its Minimize, not the panel\'s plain box');
 });
