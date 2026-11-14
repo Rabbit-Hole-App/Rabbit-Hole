@@ -2307,9 +2307,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // A dropped image, GIF, or clip. `mediaId` is the server copy an image
       // context can name later; GIFs and clips never have one.
-      insertFile: ({ assetKey = null, kind, label, mediaId = null, meta = null, fileRef = null }) => {
+      // `at`: a world point (a paste or drop at the pointer): the column slot at that height, as insertImported takes it.
+      insertFile: ({ assetKey = null, kind, label, mediaId = null, meta = null, fileRef = null, at = null }) => {
         snapshot();
-        return insertAtView({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, ...(assetKey ? { assetKey } : {}), label, ...(mediaId ? { mediaId } : {}), ...(meta ? { meta } : {}), ...(fileRef ? { fileRef } : {}) });
+        return insertAt({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, ...(assetKey ? { assetKey } : {}), label, ...(mediaId ? { mediaId } : {}), ...(meta ? { meta } : {}), ...(fileRef ? { fileRef } : {}) }, at);
       },
       // An arXiv paper as a card: the full reader - pages, zoom, Ask selection -
       // on the canvas. One card per paper; pointing at it again turns the page.
@@ -2836,6 +2837,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const pick = list => list.filter(entry => picked.includes(entry.id));
     clipCopies.current = {
       blocks: pick(blocksRef.current), items: pick(itemsRef.current), shapes: pick(shapesRef.current), chats: pick(exchangesRef.current),
+      bounds: Object.fromEntries(picked.filter(id => boundsRef.current[id]).map(id => [id, boundsRef.current[id]])), // where each was drawn: a cut card has no box left to measure a paste from
       links: present.current.links.filter(link => picked.includes(link.from) && picked.includes(link.to)),
       groups: groupsRef.current.filter(group => { const members = membersOf(group.id); return members.length && members.every(id => picked.includes(id)); }),
     };
@@ -2860,7 +2862,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // clip: a paste from the clipboard, which may name objects since cut or deleted (Duplicate and Alt-drag never do).
   // at: a world point (a paste from the clipboard with the pointer over the canvas, owner 2026-11-14): the copies' top-left corner lands on it and they keep
   // their layout. Cards go to the column slot at that height with their offsets set so they are drawn at the point; notes, text, equations and marks move by
-  // the same distance. Chat cards, and any card whose slot is not measured yet, keep the step.
+  // the same distance. Chat cards are put on the point once measured (pendingAt); a card whose slot is not measured yet keeps the step.
   const pasteIds = (picked, step = 28, clip = false, at = null) => {
     const saved = (clip && clipCopies.current) || {};
     const live = (list, kept = []) => picked.map(id => list.find(entry => entry.id === id) || kept.find(entry => entry.id === id)).filter(Boolean);
@@ -2883,12 +2885,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const groupFor = entry => wholeGroups.get(entry.groupId)?.id;
     // A copied notebook card gets its own workspace, seeded from the copy of its notebook; a card's references get new ids.
     // An Explain-back copy is a fresh exercise: the learner's answer, attempts and Sketch stay on the original.
-    const target = clip && at ? pasteTarget({ at, blocks: pickedBlocks, chats: pickedChats, items: pickedItems, shapes: pickedShapes, list: blocksRef.current, bounds: boundsRef.current, index: flowIndexAt(at.y) }) : null;
+    const drawn = { ...(saved.bounds || {}), ...boundsRef.current }; // a live box wins; a cut card's is the one kept at copy
+    const target = clip && at ? pasteTarget({ at, blocks: pickedBlocks, chats: pickedChats, items: pickedItems, shapes: pickedShapes, list: blocksRef.current, bounds: drawn, index: flowIndexAt(at.y) }) : null;
     const copyNode = (node, by = { x: step, y: step }) => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + by.x, dy: node.dy + by.y, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
     const blocksCopy = pickedBlocks.map(node => copyNode(node, target?.shift || undefined));
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
-    const chatsCopy = pickedChats.map(node => ({ ...copyNode(node), linkFrom: null, status: 'done' }));
+    // A chat card joins the column where the parent adds it, so it is put on the pointer once it is measured (pendingAt), as a Tutor card is.
+    const chatsCopy = pickedChats.map(node => {
+      const copy = { ...copyNode(node), linkFrom: null, status: 'done' }, box = target && drawn[node.id];
+      if (box) pendingAt.current.set(copy.id, { x: box.x + target.move.x, y: box.y + target.move.y });
+      return copy;
+    });
     const by = target?.move || { x: step, y: step };
     const itemsCopy = pickedItems.map(item => ({ ...item, id: newId(item.id), groupId: groupFor(item), locked: undefined, x: item.x + by.x, y: item.y + by.y, fresh: false }));
     const shapesCopy = pickedShapes.map(shape => ({ ...shape, id: newId(shape.id), groupId: groupFor(shape), locked: undefined, x1: shape.x1 + by.x, y1: shape.y1 + by.y, x2: shape.x2 + by.x, y2: shape.y2 + by.y }));
@@ -5624,8 +5632,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!pendingAt.current.size) return;
     const moves = new Map();
     for (const [id, at] of pendingAt.current) {
-      const box = bounds[id], owner = blocksRef.current.find(entry => entry.id === id);
+      const box = bounds[id], chat = exchangesRef.current.find(entry => entry.id === id), owner = blocksRef.current.find(entry => entry.id === id) || chat;
       if (!box || !owner) continue;
+      if (chat) { onMove(id, Math.round(at.x - (box.x - (chat.dx || 0))), Math.round(at.y - (box.y - (chat.dy || 0)))); pendingAt.current.delete(id); continue; }
       moves.set(id, { dx: Math.round(at.x - (box.x - (owner.dx || 0))), dy: Math.round(at.y - (box.y - (owner.dy || 0))) });
       pendingAt.current.delete(id);
       for (const [key, spot] of roadmapSpots.current) if (spot === at) roadmapSpots.current.delete(key);
