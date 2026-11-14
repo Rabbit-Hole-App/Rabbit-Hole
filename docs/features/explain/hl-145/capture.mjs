@@ -149,7 +149,7 @@ const marks = page => page.evaluate(() => ({
 }));
 
 // ---- C: the keyboard Ctrl+K over selected words, before and after (the owner's "no highlight, no symbol" case) ----
-{
+if (!process.env.SKIP_C) {
   const page = await open('md');
   await scrollHeading(page); await wait(300);
   measures.C_selection = await selectText(page, HEADING);
@@ -210,7 +210,7 @@ if (MODE === 'after') {
     await shot(page, 'A5-after-go-to-highlight');
     void before; void cardSel;
     await page.context().close();
-  } catch (error) { log.push(`SCENE FAILED ${marker.slice(0, 12)} ${String(error.message).slice(0, 200)}`); }
+  } catch (error) { log.push(`SCENE FAILED ${String(error.stack).slice(0, 400)}`); }
   // ---- B: the Ctrl+K dim with holes for the words and the saved pink passage ----
   try {
     const page = await open('linked', { yellow: false });
