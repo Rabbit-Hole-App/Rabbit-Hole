@@ -1,0 +1,300 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 3687,
+  "changedPriorPicks": [],
+  "sourceHeadings": 5,
+  "uniqueSourcePrompts": 5,
+  "sourceCases": 15,
+  "sourceHits": 15,
+  "actualPlannedAuthorSchemaChecks": 15,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-contextual-embeddings-contextual-word-vectors",
+      "expectedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-14",
+      "prompt": "The same surface word can have different contextual representations in sentences that mean different things.",
+      "depth": "brief",
+      "firstFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedId": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-contextual-word-vectors",
+      "expectedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-14",
+      "prompt": "The same surface word can have different contextual representations in sentences that mean different things.",
+      "depth": "balanced",
+      "firstFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedId": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-contextual-word-vectors",
+      "expectedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-14",
+      "prompt": "The same surface word can have different contextual representations in sentences that mean different things.",
+      "depth": "detailed",
+      "firstFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedId": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-contextual-word-vectors",
+      "expectedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-15",
+      "prompt": "ELMo maps a whole sentence to a sequence of contextual vectors with one vector aligned to each token.",
+      "depth": "brief",
+      "firstFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedId": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-contextual-word-vectors",
+      "expectedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-15",
+      "prompt": "ELMo maps a whole sentence to a sequence of contextual vectors with one vector aligned to each token.",
+      "depth": "balanced",
+      "firstFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedId": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-contextual-word-vectors",
+      "expectedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-15",
+      "prompt": "ELMo maps a whole sentence to a sequence of contextual vectors with one vector aligned to each token.",
+      "depth": "detailed",
+      "firstFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedId": "ml-contextual-embeddings-contextual-word-vectors",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-two-directional-states",
+      "expectedFamily": "ml-contextual-embeddings-two-directional-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-17",
+      "prompt": "Forward and backward language models supply complementary context states at the same token position.",
+      "depth": "brief",
+      "firstFamily": "ml-contextual-embeddings-two-directional-states",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-two-directional-states",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-two-directional-states",
+      "preparedId": "ml-contextual-embeddings-two-directional-states",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-two-directional-states",
+      "expectedFamily": "ml-contextual-embeddings-two-directional-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-17",
+      "prompt": "Forward and backward language models supply complementary context states at the same token position.",
+      "depth": "balanced",
+      "firstFamily": "ml-contextual-embeddings-two-directional-states",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-two-directional-states",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-two-directional-states",
+      "preparedId": "ml-contextual-embeddings-two-directional-states",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-two-directional-states",
+      "expectedFamily": "ml-contextual-embeddings-two-directional-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-17",
+      "prompt": "Forward and backward language models supply complementary context states at the same token position.",
+      "depth": "detailed",
+      "firstFamily": "ml-contextual-embeddings-two-directional-states",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-two-directional-states",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-two-directional-states",
+      "preparedId": "ml-contextual-embeddings-two-directional-states",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-weighted-layer-states",
+      "expectedFamily": "ml-contextual-embeddings-weighted-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-18",
+      "prompt": "ELMo concatenates the forward and backward states at each depth and combines the layer representations with task-specific weights.",
+      "depth": "brief",
+      "firstFamily": "ml-contextual-embeddings-weighted-layer-states",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-weighted-layer-states",
+      "preparedId": "ml-contextual-embeddings-weighted-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-weighted-layer-states",
+      "expectedFamily": "ml-contextual-embeddings-weighted-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-18",
+      "prompt": "ELMo concatenates the forward and backward states at each depth and combines the layer representations with task-specific weights.",
+      "depth": "balanced",
+      "firstFamily": "ml-contextual-embeddings-weighted-layer-states",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-weighted-layer-states",
+      "preparedId": "ml-contextual-embeddings-weighted-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-weighted-layer-states",
+      "expectedFamily": "ml-contextual-embeddings-weighted-layer-states",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-18",
+      "prompt": "ELMo concatenates the forward and backward states at each depth and combines the layer representations with task-specific weights.",
+      "depth": "detailed",
+      "firstFamily": "ml-contextual-embeddings-weighted-layer-states",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-weighted-layer-states",
+      "preparedId": "ml-contextual-embeddings-weighted-layer-states",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "expectedFamily": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-27",
+      "prompt": "Layer selection and layer combination can change the quality of frozen text features for a downstream task.",
+      "depth": "brief",
+      "firstFamily": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "preparedId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "expectedFamily": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-27",
+      "prompt": "Layer selection and layer combination can change the quality of frozen text features for a downstream task.",
+      "depth": "balanced",
+      "firstFamily": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "preparedId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "expectedFamily": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-27",
+      "prompt": "Layer selection and layer combination can change the quality of frozen text features for a downstream task.",
+      "depth": "detailed",
+      "firstFamily": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "rawAuthorReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "firstPick": true,
+      "preparedFamily": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "preparedId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

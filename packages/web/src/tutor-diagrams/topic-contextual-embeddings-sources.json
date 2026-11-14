@@ -1,0 +1,287 @@
+{
+  "batch": "C09",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "baseTree": "046549886e5c2cd616ef9613fac806cb18fb996f",
+  "families": [
+    {
+      "rank": 46,
+      "source": "illustrated-bert",
+      "figure": "14",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-14",
+      "summary": "The same surface word can have different contextual representations in sentences that mean different things.",
+      "kinds": [
+        "block-stack",
+        "comparison",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "proposedTopicSlug": "contextual-embeddings",
+      "lessons": [
+        "08"
+      ],
+      "batch": "C09",
+      "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 3",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "comparison",
+        "block-stack"
+      ],
+      "representativeLessons": [
+        "08"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-contextual-embeddings-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-bert",
+          "figure": "15",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-15",
+          "summary": "ELMo maps a whole sentence to a sequence of contextual vectors with one vector aligned to each token.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 4",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Sentence-to-token-aligned contextual vectors; contrasting one ambiguous word makes the context dependence visible.",
+      "batchTopic": "contextual-embeddings"
+    },
+    {
+      "rank": 47,
+      "source": "illustrated-bert",
+      "figure": "17",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-17",
+      "summary": "Forward and backward language models supply complementary context states at the same token position.",
+      "kinds": [
+        "relationship",
+        "sequence"
+      ],
+      "proposedReferenceId": "ml-contextual-embeddings-two-directional-states",
+      "proposedTopicSlug": "contextual-embeddings",
+      "lessons": [],
+      "batch": "C09",
+      "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 6",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "sequence",
+        "relationship"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-contextual-embeddings-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Independent forward/backward states aligned at one token; distinct from a bidirectional attention mask.",
+      "batchTopic": "contextual-embeddings"
+    },
+    {
+      "rank": 48,
+      "source": "illustrated-bert",
+      "figure": "18",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-18",
+      "summary": "ELMo concatenates the forward and backward states at each depth and combines the layer representations with task-specific weights.",
+      "kinds": [
+        "block-stack",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "proposedTopicSlug": "contextual-embeddings",
+      "lessons": [
+        "08"
+      ],
+      "batch": "C09",
+      "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 7",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "block-stack",
+        "transformation"
+      ],
+      "representativeLessons": [
+        "08"
+      ],
+      "representativeGapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-contextual-embeddings-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Directional concatenation followed by a task-specific weighted layer sum.",
+      "batchTopic": "contextual-embeddings"
+    },
+    {
+      "rank": 49,
+      "source": "illustrated-bert",
+      "figure": "27",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-27",
+      "summary": "Layer selection and layer combination can change the quality of frozen text features for a downstream task.",
+      "kinds": [
+        "bar-chart",
+        "matrix"
+      ],
+      "proposedReferenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "proposedTopicSlug": "contextual-embeddings",
+      "lessons": [
+        "08",
+        "09"
+      ],
+      "batch": "C09",
+      "sequence": "Illustrated BERT \u00b7 BERT objectives and uses \u00b7 step 5",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "matrix",
+        "bar-chart"
+      ],
+      "representativeLessons": [
+        "08",
+        "09"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-contextual-embeddings-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Frozen-feature layer pooling compared under one evaluation setup.",
+      "batchTopic": "contextual-embeddings"
+    }
+  ],
+  "references": [
+    {
+      "queueId": "ml-contextual-embeddings-contextual-word-vectors",
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "mode": "NEW",
+      "topic": "contextual-embeddings",
+      "lessons": [
+        "08"
+      ],
+      "source": {
+        "source": "illustrated-bert",
+        "figure": "14",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-14",
+        "summary": "The same surface word can have different contextual representations in sentences that mean different things.",
+        "lessons": [
+          "08"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-bert",
+          "figure": "15",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-15",
+          "summary": "ELMo maps a whole sentence to a sequence of contextual vectors with one vector aligned to each token.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [
+            "08"
+          ],
+          "sequence": "Illustrated BERT \u00b7 From static to contextual embeddings \u00b7 step 4",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Sentence-to-token-aligned contextual vectors; contrasting one ambiguous word makes the context dependence visible."
+    },
+    {
+      "queueId": "ml-contextual-embeddings-two-directional-states",
+      "referenceId": "ml-contextual-embeddings-two-directional-states",
+      "mode": "NEW",
+      "topic": "contextual-embeddings",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-bert",
+        "figure": "17",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-17",
+        "summary": "Forward and backward language models supply complementary context states at the same token position.",
+        "lessons": []
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Independent forward/backward states aligned at one token; distinct from a bidirectional attention mask."
+    },
+    {
+      "queueId": "ml-contextual-embeddings-weighted-layer-states",
+      "referenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "mode": "NEW",
+      "topic": "contextual-embeddings",
+      "lessons": [
+        "08"
+      ],
+      "source": {
+        "source": "illustrated-bert",
+        "figure": "18",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-18",
+        "summary": "ELMo concatenates the forward and backward states at each depth and combines the layer representations with task-specific weights.",
+        "lessons": [
+          "08"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Directional concatenation followed by a task-specific weighted layer sum."
+    },
+    {
+      "queueId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "mode": "NEW",
+      "topic": "contextual-embeddings",
+      "lessons": [
+        "08",
+        "09"
+      ],
+      "source": {
+        "source": "illustrated-bert",
+        "figure": "27",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-27",
+        "summary": "Layer selection and layer combination can change the quality of frozen text features for a downstream task.",
+        "lessons": [
+          "08",
+          "09"
+        ]
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Frozen-feature layer pooling compared under one evaluation setup."
+    }
+  ]
+}

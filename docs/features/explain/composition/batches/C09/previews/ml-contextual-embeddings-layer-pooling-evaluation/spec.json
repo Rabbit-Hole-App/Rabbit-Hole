@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Pooling/readout cases on one synthetic cohort",
+    "unit": "F1",
+    "bars": [
+      {
+        "label": "Last width 2",
+        "value": 0.667
+      },
+      {
+        "label": "Sum width 2",
+        "value": 0.8
+      },
+      {
+        "label": "Join width 4",
+        "value": 0.857
+      }
+    ],
+    "caption": "6 synthetic ids u1–u6; supplied untrained heads, bias0, positive iff $\\mathrm{logit}>0$. These cases only."
+  }
+}

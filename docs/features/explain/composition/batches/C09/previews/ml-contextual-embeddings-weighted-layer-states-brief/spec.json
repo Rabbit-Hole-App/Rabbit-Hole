@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Join two directions within each layer",
+    "rowLabel": "Joined layer",
+    "columnLabel": "Feature / choice",
+    "columns": [
+      "From forward",
+      "From backward"
+    ],
+    "rows": [
+      {
+        "label": "First joined layer",
+        "cells": [
+          1,
+          0.25
+        ]
+      },
+      {
+        "label": "Second joined layer",
+        "cells": [
+          1,
+          0.5
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Linear toy at seal in a seal glides. Each joined layer puts its forward scalar before its backward scalar, giving two features."
+  }
+}

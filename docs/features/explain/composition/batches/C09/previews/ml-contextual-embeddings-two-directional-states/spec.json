@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Independent streams meet at the same position",
+    "rowLabel": "Independent read",
+    "columnLabel": "Feature / choice",
+    "columns": [
+      "0 a",
+      "1 seal",
+      "2 glides"
+    ],
+    "rows": [
+      {
+        "label": "Forward →",
+        "cells": [
+          0,
+          1,
+          2.5
+        ]
+      },
+      {
+        "label": "Backward ←",
+        "cells": [
+          1.0625,
+          0.25,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 2.5
+    },
+    "highlights": [
+      {
+        "row": 0,
+        "column": 1
+      },
+      {
+        "row": 1,
+        "column": 1
+      }
+    ],
+    "caption": "Linear toy, separate zero boundaries: $F_i=0.5F_{i-1}+E_{i,0}$; $B_i=0.25B_{i+1}+E_{i,1}$. Neither reads the other."
+  }
+}

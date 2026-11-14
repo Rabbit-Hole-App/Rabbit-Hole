@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Whole-record reordering preserves these scores",
+    "unit": "F1",
+    "bars": [
+      {
+        "label": "Last base",
+        "value": 0.667
+      },
+      {
+        "label": "Last permuted",
+        "value": 0.667
+      },
+      {
+        "label": "Sum base",
+        "value": 0.8
+      },
+      {
+        "label": "Sum permuted",
+        "value": 0.8
+      },
+      {
+        "label": "Join base",
+        "value": 0.857
+      },
+      {
+        "label": "Join permuted",
+        "value": 0.857
+      }
+    ],
+    "caption": "Reorder u6,u2,u4,u1,u5,u3 together with labels/features. Heads and threshold fixed; recompute equal counts and F1."
+  }
+}

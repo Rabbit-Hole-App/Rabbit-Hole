@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Change supplied task weights on fixed states",
+    "rowLabel": "Same-position depth",
+    "columnLabel": "Feature / choice",
+    "columns": [
+      "Feature 0",
+      "Feature 1",
+      "Scale"
+    ],
+    "rows": [
+      {
+        "label": "$E=H_0$",
+        "cells": [
+          1,
+          0,
+          0.5
+        ]
+      },
+      {
+        "label": "$H_1=[F_1;B_1]$",
+        "cells": [
+          1,
+          0.25,
+          0.3
+        ]
+      },
+      {
+        "label": "$H_2=[F_2;B_2]$",
+        "cells": [
+          1,
+          0.5,
+          0.2
+        ]
+      },
+      {
+        "label": "$C,\\gamma$",
+        "cells": [
+          1,
+          0.175,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Same linear toy seal states; Task B depth weights $(0.5,0.3,0.2)$. $\\gamma=1$ and input operands fixed; recompute output."
+  }
+}

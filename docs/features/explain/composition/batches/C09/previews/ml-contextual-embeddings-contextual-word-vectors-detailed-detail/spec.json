@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Separate directional states explain the changed output",
+    "rowLabel": "Selected state",
+    "columnLabel": "Feature / choice",
+    "columns": [
+      "G",
+      "C"
+    ],
+    "rows": [
+      {
+        "label": "F1",
+        "cells": [
+          1,
+          1
+        ]
+      },
+      {
+        "label": "B1",
+        "cells": [
+          0.25,
+          0.5
+        ]
+      },
+      {
+        "label": "F2",
+        "cells": [
+          1,
+          1
+        ]
+      },
+      {
+        "label": "B2",
+        "cells": [
+          0.5,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Selected seal states from separate linear toy directions. Only right cue changes; F1/F2 stay1, B1/B2 change. Fixed task coefficients."
+  }
+}

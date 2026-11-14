@@ -1,0 +1,160 @@
+{
+  "passed": true,
+  "inspectedEarlyViews": 17,
+  "finalViews": 17,
+  "rows": [
+    {
+      "id": "ml-contextual-embeddings-contextual-word-vectors",
+      "depth": "overview",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "279e057c49e83d177dacb952cd5e0c485a39db43f613a5e5dd465436932b2781",
+      "svg408Sha256": "477d2d439f371c4f34ecbe98a624aa6edcb03d32075ade613790bae69f34e128"
+    },
+    {
+      "id": "ml-contextual-embeddings-contextual-word-vectors",
+      "depth": "standard",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "328a207dbaabb18f1f8bf2746d17658b2c6fcaacd22db4eea3fcd9f2f1cdfd37",
+      "svg408Sha256": "518bbcfbd4f598200da09bb29bfc4c21bece6a0f26d6b2ad72104e89877b06ef"
+    },
+    {
+      "id": "ml-contextual-embeddings-contextual-word-vectors",
+      "depth": "deep",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "21536ab813249ffea26468027f68a247feaf67dfd3832a065fa20cfed6a609a3",
+      "svg408Sha256": "3e8650f7bc39631ed89cacfc5e6f89954f834dc6b4ee2821b7fc6a784e189a17"
+    },
+    {
+      "id": "ml-contextual-embeddings-contextual-word-vectors",
+      "depth": "deep",
+      "field": "detailSpec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "f7aa564b1b24e2eef91d920a44e506a70beac1d3a903274c3cf8788cbdfd6940",
+      "svg408Sha256": "9933d8366322ae2ff87d96677b2364c85dc0ce20bf2c5e91d1d5e6f6064a9ac7"
+    },
+    {
+      "id": "ml-contextual-embeddings-two-directional-states",
+      "depth": "overview",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "473f4d88501eb3bb665eac40a50e44984dc7c68a6f0ee08d4829c1355e31e058",
+      "svg408Sha256": "76b74b8700d177f037e4fb7736856ba06859c568ac7f31455049c52a7ec1984a"
+    },
+    {
+      "id": "ml-contextual-embeddings-two-directional-states",
+      "depth": "standard",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "5358c14d0a69e17fd624aa58cbb33b38b045f3a50d3d10bd7ddf28e0945d56ae",
+      "svg408Sha256": "39c93831cb6756a4c47b4b2d8baebf94d421088205e80cc5619bf919027f096d"
+    },
+    {
+      "id": "ml-contextual-embeddings-two-directional-states",
+      "depth": "deep",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "16ee25698b558c87b297d95e5111053eaf2b3aa9b37a418e76c5fd0490f8d477",
+      "svg408Sha256": "c676669d1015958376e918562be8243298b755243eb1ed542641d134c014cf9b"
+    },
+    {
+      "id": "ml-contextual-embeddings-weighted-layer-states",
+      "depth": "overview",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "a63f23a223fdad4734f610d99f18597ab90784e83ceede708671727e19e7c050",
+      "svg408Sha256": "45193c77d1685d3761096830656b95b734b481e4e04e635588943879844d427e"
+    },
+    {
+      "id": "ml-contextual-embeddings-weighted-layer-states",
+      "depth": "standard",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "3862d4e6314fec327e089174b0c1f5722b36d74a359196a29890ce6c19a621e8",
+      "svg408Sha256": "bd760daaba4202d64460b9ef2517ed766fe0cd23ffe074cff29a4eead89d32f6"
+    },
+    {
+      "id": "ml-contextual-embeddings-weighted-layer-states",
+      "depth": "standard",
+      "field": "detailSpec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "14e72acdf3b0d4f34c19182c299fdd01044e3d60f4427018c47215563634df28",
+      "svg408Sha256": "59eb31df5227c6684f5b1b1479b92a0826828e01d12b1c1e9bad116538f10f76"
+    },
+    {
+      "id": "ml-contextual-embeddings-weighted-layer-states",
+      "depth": "deep",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "7874064e90eefcf5e78ecd8eddc9feb2751a49ff237f3feeb8860cb389225ef3",
+      "svg408Sha256": "758e803c934d14a931b6e9fbec42d2ccf5d40840ab8ee876665a3f3adb02e1d8"
+    },
+    {
+      "id": "ml-contextual-embeddings-weighted-layer-states",
+      "depth": "deep",
+      "field": "detailSpec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "96ea75f8e684268d5bcf9d9a9b88aedd0e526b3c870a6c083edfa530c681a76a",
+      "svg408Sha256": "0e2047ba79bc3f3faff4a714774bab7742a932a2f51c5ff5f976a25896d99b11"
+    },
+    {
+      "id": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "depth": "overview",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "d9ce914547c400f2c9866514dfea0c70825dffc151425ca67dabecd2194c00ae",
+      "svg408Sha256": "31dedb9d09baf9c36c7088f9b33f983a60a2fbe805f26f81350106b046a13819"
+    },
+    {
+      "id": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "depth": "standard",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "76c5bc1f3c9e824bb32aacaa56bf1f4a57225c6e9b39e6d2458d82dad1d9112d",
+      "svg408Sha256": "e14e2a4ad76f3ad2d7e51e9380c39692e93196dc1feb7afbd75700be6706f9fa"
+    },
+    {
+      "id": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "depth": "standard",
+      "field": "detailSpec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "7fd1085a37f2b8d23b97be9f1f009b017a0489bcc3a8d60b36168d304ab1c987",
+      "svg408Sha256": "7b9e5dc9a0dddf0c88ab2b1309f57faf86d502fd6b8ab741d563cf4e0c32fee9"
+    },
+    {
+      "id": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "depth": "deep",
+      "field": "spec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "4ac048e3214b46e0d54ce10066e6de41a7f28de2a9986facf10cd6c4ded9d147",
+      "svg408Sha256": "d6e096a25192adf38082ca849e61346ad306e02296f9ed1b57371bc2d006d190"
+    },
+    {
+      "id": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "depth": "deep",
+      "field": "detailSpec",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "9867c43354a5a434b03897bc6018f84b050055b3aca3d32e49ac4063f719b4cf",
+      "svg408Sha256": "a483d59deb5943365776f3ba954dab07736d12db86d69faa911782abc94d5d6b"
+    }
+  ]
+}

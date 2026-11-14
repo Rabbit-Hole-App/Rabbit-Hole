@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "batch": "C09",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "queueFamilies": 4,
+  "actualAssociations": 4,
+  "sourceHeadings": 5,
+  "newHeadings": 5,
+  "reuseHeadings": 0,
+  "originalFamilyRecordsPreserved": true,
+  "routes": [
+    {
+      "queueId": "ml-contextual-embeddings-contextual-word-vectors",
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-14",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-contextual-embeddings-contextual-word-vectors",
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-15",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-contextual-embeddings-two-directional-states",
+      "referenceId": "ml-contextual-embeddings-two-directional-states",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-17",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-contextual-embeddings-weighted-layer-states",
+      "referenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-18",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-27",
+      "lessons": [
+        "08",
+        "09"
+      ]
+    }
+  ]
+}

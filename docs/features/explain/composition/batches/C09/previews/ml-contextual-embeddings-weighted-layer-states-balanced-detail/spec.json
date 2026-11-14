@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Scale each depth, then add each feature",
+    "rowLabel": "Task A term",
+    "columnLabel": "Feature / choice",
+    "columns": [
+      "Feature 0",
+      "Feature 1"
+    ],
+    "rows": [
+      {
+        "label": "$0.2E$",
+        "cells": [
+          0.2,
+          0
+        ]
+      },
+      {
+        "label": "$0.3H_1$",
+        "cells": [
+          0.3,
+          0.075
+        ]
+      },
+      {
+        "label": "$0.5H_2$",
+        "cells": [
+          0.5,
+          0.25
+        ]
+      },
+      {
+        "label": "$C$",
+        "cells": [
+          1,
+          0.325
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Task A at seal: scale E,H1,H2 by $(0.2,0.3,0.5)$, then sum matching features. $\\gamma=1$; inputs/output retain width2."
+  }
+}

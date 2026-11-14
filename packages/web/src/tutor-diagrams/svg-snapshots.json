@@ -1341,6 +1341,66 @@
       "width": 720,
       "height": 527
     },
+    "ml-contextual-embeddings-contextual-word-vectors/320": {
+      "sha256": "5fbbb80b669d8a76e0e4dd5e9f421fbeca8dd003102894f56ea37e094adb25b7",
+      "width": 320,
+      "height": 597
+    },
+    "ml-contextual-embeddings-contextual-word-vectors/408": {
+      "sha256": "9385e866dd0983b63a0704f9a05b1384d2c12303101308ead37c7f34a45ac173",
+      "width": 408,
+      "height": 580
+    },
+    "ml-contextual-embeddings-contextual-word-vectors/720": {
+      "sha256": "ec3fd79d0e307c8b4765ba258fbe13bb8190d8a3c4c51b8178027fc7e1ea5a98",
+      "width": 720,
+      "height": 541
+    },
+    "ml-contextual-embeddings-layer-pooling-evaluation/320": {
+      "sha256": "c3d16954c8c4b1687c364c0681b9b323e980351f58f4a71a67c7a2c8fc84b491",
+      "width": 320,
+      "height": 310
+    },
+    "ml-contextual-embeddings-layer-pooling-evaluation/408": {
+      "sha256": "26cfe236d4f599b77a447e0650e22e285ab3aacbc082f5f99568ca7404771f5e",
+      "width": 408,
+      "height": 280
+    },
+    "ml-contextual-embeddings-layer-pooling-evaluation/720": {
+      "sha256": "1937d2f29880a62c9d2522154bcdaa9fd034afaa3897e4ff657506966f5b52ff",
+      "width": 720,
+      "height": 241
+    },
+    "ml-contextual-embeddings-two-directional-states/320": {
+      "sha256": "63b32be3478aef692d4da138df6108d774dae83d1173861ce83b70f7e2bc8733",
+      "width": 364,
+      "height": 411
+    },
+    "ml-contextual-embeddings-two-directional-states/408": {
+      "sha256": "0270a920fb3b5b5fefb97ea9ac1d3cf93479322433ac4b6c668b37cd1f5b1ce3",
+      "width": 408,
+      "height": 394
+    },
+    "ml-contextual-embeddings-two-directional-states/720": {
+      "sha256": "5ad0150bbb4670cff021f84a9cb6c4b16f88b061f7eacdd9208ee27e2edee5ed",
+      "width": 720,
+      "height": 355
+    },
+    "ml-contextual-embeddings-weighted-layer-states/320": {
+      "sha256": "ec4f4a48ec607f25a35d85041f9069bfba730458a065109c6fc2ffea20c0a5a3",
+      "width": 393.0745,
+      "height": 492
+    },
+    "ml-contextual-embeddings-weighted-layer-states/408": {
+      "sha256": "b70f5f88813709cb19b89b315648a8dfca65511cbff074ca4226b646aaba9eac",
+      "width": 408,
+      "height": 492
+    },
+    "ml-contextual-embeddings-weighted-layer-states/720": {
+      "sha256": "20ef00ef0be6a3877337b9aae683b9e9039999c5858ff121ad7b87d44b3c4cc6",
+      "width": 720,
+      "height": 453
+    },
     "ml-convolutional-network/320": {
       "sha256": "adcefed17694ebf31ace05e2c8aaa25218fd9763b0cc9d7e5370677a344bc23e",
       "width": 320,

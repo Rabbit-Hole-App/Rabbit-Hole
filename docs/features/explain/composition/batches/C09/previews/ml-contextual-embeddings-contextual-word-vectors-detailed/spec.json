@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Edit the right cue, retain every output position",
+    "rowLabel": "Input token / position",
+    "columnLabel": "Feature / choice",
+    "columns": [
+      "Feature 0",
+      "Feature 1"
+    ],
+    "rows": [
+      {
+        "label": "G0 a",
+        "cells": [
+          0,
+          1.1125
+        ]
+      },
+      {
+        "label": "G1 seal",
+        "cells": [
+          1,
+          0.325
+        ]
+      },
+      {
+        "label": "G2 glides",
+        "cells": [
+          2.65,
+          1
+        ]
+      },
+      {
+        "label": "C0 a",
+        "cells": [
+          0,
+          1.225
+        ]
+      },
+      {
+        "label": "C1 seal",
+        "cells": [
+          1,
+          0.65
+        ]
+      },
+      {
+        "label": "C2 cracks",
+        "cells": [
+          -0.35,
+          2
+        ]
+      }
+    ],
+    "range": {
+      "min": -0.5,
+      "max": 3
+    },
+    "highlights": [
+      {
+        "row": 1,
+        "column": 1
+      },
+      {
+        "row": 4,
+        "column": 1
+      }
+    ],
+    "caption": "G: a seal glides, animal; C: a seal cracks, gasket. Fixed linear toy/weights; all outputs recomputed; $\\Delta c_{1,1}=0.325$."
+  }
+}

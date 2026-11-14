@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "width": 408,
+  "previews": [
+    {
+      "id": "ml-contextual-embeddings-contextual-word-vectors-brief",
+      "referenceId": "ml-contextual-embeddings-contextual-word-vectors",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-contextual-word-vectors-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-contextual-word-vectors-brief/408.svg"
+    },
+    {
+      "id": "ml-contextual-embeddings-layer-pooling-evaluation-brief",
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-layer-pooling-evaluation-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-layer-pooling-evaluation-brief/408.svg"
+    },
+    {
+      "id": "ml-contextual-embeddings-two-directional-states-brief",
+      "referenceId": "ml-contextual-embeddings-two-directional-states",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-two-directional-states-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-two-directional-states-brief/408.svg"
+    },
+    {
+      "id": "ml-contextual-embeddings-weighted-layer-states-brief",
+      "referenceId": "ml-contextual-embeddings-weighted-layer-states",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-weighted-layer-states-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-weighted-layer-states-brief/408.svg"
+    }
+  ],
+  "numbers": [
+    {
+      "id": "ml-contextual-embeddings-layer-pooling-evaluation-brief",
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "depth": "brief",
+      "field": "diagram.unit",
+      "literal": "1",
+      "value": 1,
+      "text": "F1",
+      "start": 1,
+      "end": 2,
+      "sourceKind": "javascript",
+      "sourceFile": "packages/web/src/tutor-diagrams/composition-contextual-embeddings-references.js",
+      "sourceLine": 33,
+      "sourceColumn": 255,
+      "specFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-layer-pooling-evaluation-brief/spec.json",
+      "specLine": 6,
+      "specColumn": 13
+    },
+    {
+      "id": "ml-contextual-embeddings-layer-pooling-evaluation-brief",
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "depth": "brief",
+      "field": "diagram.caption",
+      "literal": "1",
+      "value": 1,
+      "text": "F1 balances missed positives and false alarms. 6 synthetic records; supplied untrained heads compare these cases only.",
+      "start": 1,
+      "end": 2,
+      "sourceKind": "javascript",
+      "sourceFile": "packages/web/src/tutor-diagrams/composition-contextual-embeddings-references.js",
+      "sourceLine": 35,
+      "sourceColumn": 35,
+      "specFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-layer-pooling-evaluation-brief/spec.json",
+      "specLine": 17,
+      "specColumn": 16
+    },
+    {
+      "id": "ml-contextual-embeddings-layer-pooling-evaluation-brief",
+      "referenceId": "ml-contextual-embeddings-layer-pooling-evaluation",
+      "depth": "brief",
+      "field": "diagram.caption",
+      "literal": "6",
+      "value": 6,
+      "text": "F1 balances missed positives and false alarms. 6 synthetic records; supplied untrained heads compare these cases only.",
+      "start": 47,
+      "end": 48,
+      "sourceKind": "javascript",
+      "sourceFile": "packages/web/src/tutor-diagrams/composition-contextual-embeddings-references.js",
+      "sourceLine": 35,
+      "sourceColumn": 35,
+      "specFile": "docs/features/explain/composition/batches/C09/previews/ml-contextual-embeddings-layer-pooling-evaluation-brief/spec.json",
+      "specLine": 17,
+      "specColumn": 16
+    }
+  ]
+}

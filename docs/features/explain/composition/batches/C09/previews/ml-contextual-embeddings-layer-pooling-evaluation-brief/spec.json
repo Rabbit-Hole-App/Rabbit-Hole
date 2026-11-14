@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Supplied feature choices change this toy score",
+    "unit": "F1",
+    "bars": [
+      {
+        "label": "Last layer",
+        "value": 0.667
+      },
+      {
+        "label": "Add two layers",
+        "value": 0.8
+      }
+    ],
+    "caption": "F1 balances missed positives and false alarms. 6 synthetic records; supplied untrained heads compare these cases only."
+  }
+}

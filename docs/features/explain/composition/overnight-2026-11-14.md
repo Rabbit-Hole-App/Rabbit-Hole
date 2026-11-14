@@ -1,6 +1,6 @@
 # Composition overnight report — 14 November 2026
 
-The latest verified boundary is C08. C09 content planning is complete; subsequent batches remain subject to the same tests, prior-pick replay, token, linter and visual-sheet gates. All branches retain release133 `a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36`. No force-push, branch rename, renderer/schema/tooling/author-prompt change, provider call or deployment.
+The latest verified boundary is C09. C10 content planning is complete; subsequent batches remain subject to the same tests, prior-pick replay, token, linter and visual-sheet gates. All branches retain release133 `a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36`. No force-push, branch rename, renderer/schema/tooling/author-prompt change, provider call or deployment.
 
 | Batch | Branch | Pushed SHA | NEW / REUSE | Affected tests passed | Exact prior replay / moved | Maximum tokens | Snapshots added / changed / removed | Sheets Overview / Standard / Deep |
 |---|---|---|---:|---:|---:|---:|---:|---:|
@@ -11,7 +11,8 @@ The latest verified boundary is C08. C09 content planning is complete; subsequen
 | [C05](batches/C05/REPORT.md) | `explain/composition-c05` | `cb53d5dce47115dfd9900b50d939cdd67d6e3a2f` | 4 / 0 | 1,390 | 3,204 / 0 | 295 | 12 / 0 / 0 | 5 / 5 / 8 |
 | [C06](batches/C06/REPORT.md) | `explain/composition-c06` | `8f152b490c8be5d7f7f507db00249f809b093d6c` | 4 / 0 | 1,406 | 3,279 / 0 | 166 | 12 / 0 / 0 | 4 / 4 / 6 |
 | [C07](batches/C07/REPORT.md) | `explain/composition-c07` | `48eb998162288fd55001c20639cc1d2aaa11b764` | 10 / 1 | 1,445 | 3,363 / 0 | 300 | 30 / 0 / 0 | 18 / 18 / 18 |
-| [C08](batches/C08/REPORT.md) | `explain/composition-c08` | [branch head](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/explain/composition-c08) | 4 / 0 | 1,465 | 3,594 / 0 | 298 | 12 / 0 / 0 | 7 / 7 / 7 |
+| [C08](batches/C08/REPORT.md) | `explain/composition-c08` | `28a33d2e2f1cd2e19c1110c7725f6788c2f2b5eb` | 4 / 0 | 1,465 | 3,594 / 0 | 298 | 12 / 0 / 0 | 7 / 7 / 7 |
+| [C09](batches/C09/REPORT.md) | `explain/composition-c09` | [branch head](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/explain/composition-c09) | 4 / 0 | 1,479 | 3,687 / 0 | 221 | 12 / 0 / 0 | 4 / 6 / 7 |
 
 C02's six refreshed keys comprise its own three attention entries and three inherited C01 objective entries. No outside-id snapshot changed. C03 adds exactly three new ids at three widths; reused visuals are unchanged. Every reported affected test run has zero failures/skips; these totals cover all tutor-diagram tests and all reference-author suites, not the unrelated whole application. Original C02 push also landed at `07371644349e7d82a515707a0155ffc96998de6e` with the exact local `66cfd0288` tree and parent `343d91f8a`.
 
@@ -25,6 +26,7 @@ C02's six refreshed keys comprise its own three attention entries and three inhe
 | C06 | 24 / 24 | 60 / 60 | 336 primary + 60 detail, including planned paths | 44 / 44 | 0 / 0 | 2 |
 | C07 | 108 / 108 | 150 / 150 | 936 primary + 624 detail, including planned paths | 44 / 44 | 0 / 0 | 3 |
 | C08 | 33 / 33 | 60 / 60 | 372 primary + 300 detail, including planned paths | 44 / 44 | 0 / 0 | 3 |
+| C09 | 15 / 15 | 60 / 60 | 300 primary + 124 detail, including planned paths | 44 / 44 | 0 / 0 | 1 |
 
 The ten required C01/C02 author singles now use the point-carrying existing leaf, the same computed data and inherited prompts/keywords/lessons. The strict parent-id set equality is unchanged. All token receipts include canonical compact cl100k_base counts and SHA-256 hashes. The raw composition-filename exceptions are preserved in reports; Claude Code owns their pipeline allowlist additions and release gating. No tooling exception was hidden by source changes.
 
@@ -50,6 +52,8 @@ The ten required C01/C02 author singles now use the point-carrying existing leaf
 - **C07 conditional scope:** recurrent state updates are an explicit scalar toy; packed layer inputs/projectors are supplied independently, with no computed inter-layer transition. Value-product details stay on the matching role route and use its actual base/probe values. Deep pair labels follow the B,A data permutation.
 
 - **C08 lookup/plot grammar:** block-stack lookup functions run after their current block. Explicit IDs precede the fork/add, followed by a separate combined tensor and decoder repeat. Native420 plots and444 grids are readable at408; explicit sampled points support both normal and fast schemas. The effective plot domain allows five series, so four paired channels require no new primitive. Population normalization and fixed/learned lookup variants retain their declared toy limits; display-column order is not model equivalence.
+
+- **C09 toy/provenance scope:** linear directional streams teach independent context and same-position concatenation, without claiming a gated LSTM or measured semantics. Task-depth weights and gamma remain distinct. The full aligned-output and layer-product points use native grids; synthetic feature/readout F1 is a declared calculation with supplied untrained heads, not empirical BERT performance or a universal pooling ranking.
 
 ## Failure disposition
 

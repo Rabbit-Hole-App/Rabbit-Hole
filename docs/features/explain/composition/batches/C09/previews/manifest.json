@@ -1,0 +1,462 @@
+{
+  "ml-contextual-embeddings-contextual-word-vectors": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 580
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 541
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 597
+      }
+    }
+  },
+  "ml-contextual-embeddings-contextual-word-vectors-brief": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 412
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 373
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 451
+      }
+    }
+  },
+  "ml-contextual-embeddings-contextual-word-vectors-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 580
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 541
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 597
+      }
+    }
+  },
+  "ml-contextual-embeddings-contextual-word-vectors-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 580
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 541
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 597
+      }
+    }
+  },
+  "ml-contextual-embeddings-contextual-word-vectors-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 474
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 435
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 491
+      }
+    }
+  },
+  "ml-contextual-embeddings-two-directional-states": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 394
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 355
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 411
+      }
+    }
+  },
+  "ml-contextual-embeddings-two-directional-states-brief": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 412
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 373
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 412
+      }
+    }
+  },
+  "ml-contextual-embeddings-two-directional-states-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 394
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 355
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 411
+      }
+    }
+  },
+  "ml-contextual-embeddings-two-directional-states-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 562
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 523
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 562
+      }
+    }
+  },
+  "ml-contextual-embeddings-weighted-layer-states": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 492
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 393.0745,
+        "width": 393.0745,
+        "height": 492
+      }
+    }
+  },
+  "ml-contextual-embeddings-weighted-layer-states-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 474
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 435
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 491
+      }
+    }
+  },
+  "ml-contextual-embeddings-weighted-layer-states-brief": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 430
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 391
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 447
+      }
+    }
+  },
+  "ml-contextual-embeddings-weighted-layer-states-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 492
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 393.0745,
+        "width": 393.0745,
+        "height": 492
+      }
+    }
+  },
+  "ml-contextual-embeddings-weighted-layer-states-balanced-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 474
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 435
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 491
+      }
+    }
+  },
+  "ml-contextual-embeddings-weighted-layer-states-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 492
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 393.0745,
+        "width": 393.0745,
+        "height": 492
+      }
+    }
+  },
+  "ml-contextual-embeddings-weighted-layer-states-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 536
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 497
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 553
+      }
+    }
+  },
+  "ml-contextual-embeddings-layer-pooling-evaluation": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 280
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 241
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 310
+      }
+    }
+  },
+  "ml-contextual-embeddings-layer-pooling-evaluation-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 474
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 435
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 474
+      }
+    }
+  },
+  "ml-contextual-embeddings-layer-pooling-evaluation-brief": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 254
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 205
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 281
+      }
+    }
+  },
+  "ml-contextual-embeddings-layer-pooling-evaluation-balanced": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 280
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 241
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 310
+      }
+    }
+  },
+  "ml-contextual-embeddings-layer-pooling-evaluation-balanced-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 474
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 435
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 474
+      }
+    }
+  },
+  "ml-contextual-embeddings-layer-pooling-evaluation-detailed": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 418
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 349
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 435
+      }
+    }
+  },
+  "ml-contextual-embeddings-layer-pooling-evaluation-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 586
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 547
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 586
+      }
+    }
+  }
+}

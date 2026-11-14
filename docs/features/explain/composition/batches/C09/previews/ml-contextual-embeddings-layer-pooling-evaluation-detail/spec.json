@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Count all six predictions by the same rules",
+    "rowLabel": "Confusion count",
+    "columnLabel": "Feature / choice",
+    "columns": [
+      "Last",
+      "Sum",
+      "Join"
+    ],
+    "rows": [
+      {
+        "label": "TP",
+        "cells": [
+          2,
+          2,
+          3
+        ]
+      },
+      {
+        "label": "FP",
+        "cells": [
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "label": "FN",
+        "cells": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "label": "TN",
+        "cells": [
+          2,
+          3,
+          2
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 3
+    },
+    "caption": "Same cohort, 3 positives/3 negatives. $F1=2TP/(2TP+FP+FN)$ from counts before display rounding."
+  }
+}

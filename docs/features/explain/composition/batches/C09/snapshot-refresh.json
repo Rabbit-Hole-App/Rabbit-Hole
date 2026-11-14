@@ -1,0 +1,19 @@
+{
+  "base": "28a33d2e2f1cd2e19c1110c7725f6788c2f2b5eb",
+  "added": [
+    "ml-contextual-embeddings-contextual-word-vectors/320",
+    "ml-contextual-embeddings-contextual-word-vectors/408",
+    "ml-contextual-embeddings-contextual-word-vectors/720",
+    "ml-contextual-embeddings-layer-pooling-evaluation/320",
+    "ml-contextual-embeddings-layer-pooling-evaluation/408",
+    "ml-contextual-embeddings-layer-pooling-evaluation/720",
+    "ml-contextual-embeddings-two-directional-states/320",
+    "ml-contextual-embeddings-two-directional-states/408",
+    "ml-contextual-embeddings-two-directional-states/720",
+    "ml-contextual-embeddings-weighted-layer-states/320",
+    "ml-contextual-embeddings-weighted-layer-states/408",
+    "ml-contextual-embeddings-weighted-layer-states/720"
+  ],
+  "changed": [],
+  "removed": []
+}
